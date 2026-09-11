@@ -32,6 +32,7 @@ export function Toolbar({
   onDeleteBytes,
   onGoTo,
   onDuplicate,
+  onFind,
 }: {
   readonly onOpen: (into?: PaneId) => void;
   readonly onNew: () => void;
@@ -43,6 +44,7 @@ export function Toolbar({
   readonly onDeleteBytes: () => void;
   readonly onGoTo: () => void;
   readonly onDuplicate: () => void;
+  readonly onFind: () => void;
 }) {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
@@ -162,6 +164,14 @@ export function Toolbar({
             Revert
           </button>
           <span className="toolbar-divider" />
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={onFind}
+            title="Find (Cmd/Ctrl+F)"
+          >
+            Find…
+          </button>
           <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">
             Go To…
           </button>

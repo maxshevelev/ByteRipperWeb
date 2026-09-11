@@ -27,8 +27,11 @@ lets you patch one and save it — the orange wash, the live
 `1,057 differing · 4,193,247 same` summary that follows your edits, Next
 Difference stepping by change rather than by byte, synchronised scrolling, and
 a Save that writes back to the file in Chromium and downloads a copy where it
-cannot. The domain half is checked against the macOS app's own unit tests,
-ported with the code they cover. What is missing is search, the minimap,
+cannot. Search is in: hex bytes or text, the encoding guessed from what you
+typed and named once it is found, every occurrence greyed with the current one
+raised, an exact count however common the pattern, and results that follow the
+bytes as you edit them. The domain half is checked against the macOS app's own
+unit tests, ported with the code they cover. What is missing is the minimap,
 segments and the firmware tools. Milestone by milestone, the plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
@@ -41,8 +44,9 @@ scope at all, and what the browser takes away, is
 | M2 Hex grid, read-only, one file | done |
 | M3 Comparison | done |
 | M4 Editing and saving | done |
-| M5 Search | next |
-| M6 – M12 | see the plan |
+| M5 Search | done |
+| M6 Minimap | next |
+| M7 – M12 | see the plan |
 
 ## Stack
 

@@ -5,6 +5,7 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
+import { noteSearchEdit, searchStore, setSearchPane } from "@/state/searchStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -27,6 +28,8 @@ import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { HexPane } from "@/ui/pane/HexPane";
+import { FindBar } from "@/ui/search/FindBar";
+import { SearchResults } from "@/ui/search/SearchResults";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { StatusBar } from "@/ui/shell/StatusBar";
@@ -96,7 +99,13 @@ export function AppShell() {
   // The two things the editing controllers need from the app: where to send an
   // edit, and who to ask before one that shifts every offset after it.
   useEffect(() => {
-    editingHooks.onEdit = (_pane: PaneId, edit: DiffEdit) => noteEdit(edit);
+    // Two listeners on one edit: the comparison updates its blocks, and the
+    // search re-runs. Both are claims about the bytes, and an edit can falsify
+    // either.
+    editingHooks.onEdit = (pane: PaneId, edit: DiffEdit) => {
+      noteEdit(edit);
+      noteSearchEdit(pane, edit);
+    };
     editingHooks.confirmShift = confirmInsertShift;
     return () => {
       editingHooks.onEdit = undefined;
@@ -192,6 +201,19 @@ export function AppShell() {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [goToOpen, setGoToOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const search = useStore(searchStore);
+
+  // The find bar always searches the pane the commands act on.
+  useEffect(() => {
+    setSearchPane(activePane);
+  }, [activePane]);
+
+  // Escape closes the bar from anywhere, and Cmd/Ctrl+F opens it.
+  useEffect(() => {
+    // closeSearch() resets the store, which is how Escape reaches this.
+    if (search.status === "idle" && search.query === "") setSearchOpen(false);
+  }, [search.status, search.query]);
 
   const doFill = useCallback((pattern: Uint8Array) => {
     void workspaceStore
@@ -272,6 +294,15 @@ export function AppShell() {
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
+  const activeSlot = state.panes[activePane];
+
+  /** Shows an offset in both panes, the way difference navigation does. */
+  const revealInBoth = useCallback((offset: number) => {
+    setReveal({
+      a: { offset, token: ++revealToken.current },
+      b: { offset, token: revealToken.current },
+    });
+  }, []);
 
   return (
     <div className="app-shell" data-dragging={dragging ? "" : undefined}>
@@ -286,6 +317,7 @@ export function AppShell() {
         onDeleteBytes={doDeleteBytes}
         onGoTo={() => setGoToOpen(true)}
         onDuplicate={doDuplicate}
+        onFind={() => setSearchOpen(true)}
       />
       <main
         className="app-workspace"
@@ -328,6 +360,9 @@ export function AppShell() {
                 onSave={() => void doSave(false)}
                 onSaveAs={() => void doSave(true)}
                 onGoTo={() => setGoToOpen(true)}
+                onFind={() => setSearchOpen(true)}
+                matches={search.pane === id ? search.matches : undefined}
+                currentMatch={search.pane === id ? search.current : undefined}
               />
             );
           })
@@ -340,6 +375,18 @@ export function AppShell() {
           />
         ) : null}
       </main>
+      {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
+      {searchOpen &&
+      search.matches !== undefined &&
+      search.matches.total > 0 &&
+      activeSlot !== undefined ? (
+        <SearchResults
+          matches={search.matches}
+          document={activeSlot.document}
+          current={search.current}
+          onGo={revealInBoth}
+        />
+      ) : null}
       <StatusBar />
       {dragging ? <div className="drop-veil">Drop to open</div> : null}
 

@@ -23,6 +23,8 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   peerSelection: "--peer-selection",
   caret: "--caret",
   insertCaret: "--insert-caret",
+  matchFill: "--match-fill",
+  currentMatchFill: "--current-match-fill",
 };
 
 /** Reads the palette as it currently resolves on `element`. */

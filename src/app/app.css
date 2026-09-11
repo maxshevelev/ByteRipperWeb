@@ -546,3 +546,102 @@ textarea,
   gap: 0.5rem;
   margin-top: 0.3rem;
 }
+
+/* ── The find bar and its results ─────────────────────────────────────── */
+
+.find-bar {
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.find-form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.find-input {
+  font: inherit;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  min-width: 14rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.find-encoding {
+  font: inherit;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.find-case.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.find-status {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.search-results {
+  max-height: 12rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.search-results-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-result {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.15rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-result:hover {
+  background: var(--surface-sunken);
+}
+
+.search-result.is-current {
+  background: var(--selection);
+}
+
+.search-result-offset {
+  color: var(--address-text);
+}
+
+.search-result-text {
+  color: var(--text-muted);
+}
+
+.search-results-refusal {
+  margin: 0;
+  padding: 0.75rem;
+  color: var(--text);
+}
+
+.search-results-hint {
+  color: var(--text-muted);
+}

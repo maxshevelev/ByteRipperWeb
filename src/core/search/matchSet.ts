@@ -304,6 +304,24 @@ export class MatchBitmap {
     this.words = new Uint32Array(Math.ceil(bitCount / 32));
   }
 
+  /**
+   * The raw words, for sending a bitmap across a worker boundary.
+   *
+   * Rebuilding one from a list of four million starts on the other side would
+   * cost more than finding them did, so the representation travels as it is.
+   */
+  get rawWords(): Uint32Array {
+    return this.words;
+  }
+
+  /** A bitmap over words that came from elsewhere — the other end of that trip. */
+  static fromWords(bitCount: number, words: Uint32Array): MatchBitmap {
+    const bitmap = new MatchBitmap(bitCount);
+    bitmap.words.set(words.subarray(0, bitmap.words.length));
+    bitmap.sealRanks();
+    return bitmap;
+  }
+
   /** What a bitmap over `bitCount` offsets costs, rank table included. */
   static byteCost(bitCount: number): number {
     const words = Math.ceil(bitCount / 32);

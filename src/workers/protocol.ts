@@ -17,6 +17,8 @@
  *   be megabytes of typed array; sending it by structured clone would copy it.
  */
 
+import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
+
 /** A job number. Monotonic per worker client; never reused. */
 export type JobId = number;
 
@@ -92,3 +94,72 @@ export function transferablesOf(done: DiffDone): Transferable[] {
     (buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer
   );
 }
+
+// MARK: - The search worker
+
+/**
+ * A search of one file.
+ *
+ * The worker answers twice: a `first` as soon as it has found one match, and
+ * `indexed` as the full set streams in behind it. That split is the whole
+ * design — a scan from the caret finds a match in about a millisecond, while
+ * indexing every occurrence of a common byte takes a hundred times that, and
+ * nobody should wait for the second to see the first.
+ */
+export interface SearchRequest {
+  readonly kind: "search";
+  readonly id: JobId;
+  readonly file: Blob;
+  /** The bytes to find, already folded the way the data will be. */
+  readonly pattern: Uint8Array;
+  /** The pattern as typed, for the reply to echo back. */
+  readonly patternBytes: Uint8Array;
+  readonly encoding: SearchEncoding;
+  readonly folding: CaseFolding;
+  /** Where the caret is, which is where the first scan starts. */
+  readonly from: number;
+  readonly direction: "forward" | "backward";
+  /** False to answer with the first match alone and build no index. */
+  readonly index: boolean;
+}
+
+export type SearchWorkerRequest = SearchRequest | CancelRequest;
+
+export interface SearchFirst {
+  readonly kind: "first";
+  readonly id: JobId;
+  /** Absent when the pattern is nowhere in the file. */
+  readonly match?: { readonly start: number; readonly end: number };
+  readonly wrapped: boolean;
+}
+
+/**
+ * The index, as it stands. Sent more than once: a partial set lets the dump
+ * grey what is known while the rest is still being found.
+ */
+export interface SearchIndexed {
+  readonly kind: "indexed";
+  readonly id: JobId;
+  readonly extent: number;
+  readonly total: number;
+  readonly indexedUpTo: number;
+  /** The starts, when the set is sparse enough to name them. */
+  readonly starts?: Float64Array;
+  /** The bitmap's words, when it is not. */
+  readonly bitmapWords?: Uint32Array;
+  /** True when the set kept only its count. */
+  readonly countedOnly: boolean;
+}
+
+export interface SearchProgress {
+  readonly kind: "searchProgress";
+  readonly id: JobId;
+  readonly fraction: number;
+}
+
+export type SearchWorkerResponse =
+  | SearchFirst
+  | SearchIndexed
+  | SearchProgress
+  | DiffCancelledResponse
+  | DiffFailed;

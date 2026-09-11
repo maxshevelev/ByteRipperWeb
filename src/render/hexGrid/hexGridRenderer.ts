@@ -28,6 +28,11 @@ import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
  * viewport brings it back as soon as the chunk lands.
  */
 
+/** Just enough of a match set for the renderer to ask about one row. */
+export interface MatchLookup {
+  matchesIntersecting(start: number, end: number): { start: number; end: number }[];
+}
+
 /** What the grid draws from. `BinaryDocument` satisfies this as it stands. */
 export interface HexGridSource {
   readonly size: number;
@@ -59,6 +64,10 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly difference: string;
   /** The outline showing where the other pane's selection falls here. */
   readonly peerSelection: string;
+  /** Every occurrence of the search pattern. */
+  readonly matchFill: string;
+  /** The one the find bar is standing on. */
+  readonly currentMatchFill: string;
   /** The overwrite-mode caret: a bar under the nibble about to be replaced. */
   readonly caret: string;
   /** The insert-mode caret: a line at the boundary bytes will be pushed from. */
@@ -134,6 +143,9 @@ export class HexGridRenderer {
   /** Where the other pane's selection falls at these offsets. */
   private peerSelection: HexGridSelection | undefined;
   private caret: HexGridCaret | undefined;
+  /** Where the search pattern occurs, when a search is active. */
+  private matches: MatchLookup | undefined;
+  private currentMatch: HexGridSelection | undefined;
   /** Only the pane the commands act on draws a caret. */
   private active = false;
 
@@ -239,6 +251,19 @@ export class HexGridRenderer {
       // click a caret has been in keeps a stub of one.
       this.dirty.invalidate(row, row + 2);
     }
+  }
+
+  /**
+   * The search matches to grey, and the one the find bar is standing on.
+   *
+   * A lookup rather than a list: the renderer asks only for the row it is
+   * painting, so a pattern occurring four million times costs a row's worth of
+   * work per row rather than a flattening of the whole set.
+   */
+  setMatches(matches: MatchLookup | undefined, current: HexGridSelection | undefined): void {
+    this.matches = matches;
+    this.currentMatch = current;
+    this.invalidateAll();
   }
 
   /** Whether this is the pane the keyboard is talking to. */
@@ -429,8 +454,10 @@ export class HexGridRenderer {
       layout.rowHeight
     );
 
-    // Differences under the selection, as upstream draws them: the selection is
-    // what the user is doing now, the difference is what the file is.
+    // The greys go under the difference wash, which goes under the selection:
+    // telling two dumps apart is what the application is for, so orange yields
+    // to nothing but what the user is doing right now.
+    this.paintMatches(rowStart, y);
     this.paintDifferences(rowStart, y);
     this.paintSelection(rowStart, y);
     this.paintPeerSelection(rowStart, y);
@@ -579,6 +606,47 @@ export class HexGridRenderer {
         layout.leftPadding + index * layout.charWidth,
         y,
         layout.charWidth
+      );
+    }
+  }
+
+  /**
+   * Every occurrence of the search pattern, and the one being stood on.
+   *
+   * Grey for the rest, raised for the current one — so the eye can see how many
+   * there are and where this one sits among them, which is what a scroll
+   * through a result set is for.
+   */
+  private paintMatches(rowStart: number, y: number): void {
+    const config = this.config;
+    const matches = this.matches;
+    if (config === undefined || matches === undefined) return;
+
+    const found = matches.matchesIntersecting(rowStart, rowStart + BYTES_PER_ROW);
+    if (found.length === 0) return;
+
+    const { layout, colors } = config;
+    for (const match of found) {
+      const from = Math.max(match.start, rowStart) - rowStart;
+      const to = Math.min(match.end, rowStart + BYTES_PER_ROW) - rowStart;
+      if (to <= from) continue;
+
+      const isCurrent =
+        this.currentMatch !== undefined &&
+        match.start === this.currentMatch.start &&
+        match.end === this.currentMatch.end;
+      this.context.fillStyle = isCurrent ? colors.currentMatchFill : colors.matchFill;
+      this.context.fillRect(
+        layout.hexByteX(from),
+        y,
+        layout.hexByteX(to - 1) + layout.hexByteWidth - layout.hexByteX(from),
+        layout.rowHeight
+      );
+      this.context.fillRect(
+        layout.textX(from),
+        y,
+        (to - from) * layout.charWidth,
+        layout.rowHeight
       );
     }
   }

@@ -55,7 +55,10 @@ export type HexCommand =
   | { readonly kind: "scrollByPage"; readonly down: boolean }
   | { readonly kind: "scrollTo"; readonly edge: "top" | "bottom" }
   | { readonly kind: "selectAll" }
-  | { readonly kind: "goToPosition" };
+  | { readonly kind: "goToPosition" }
+  | { readonly kind: "find" }
+  | { readonly kind: "findNext" }
+  | { readonly kind: "findPrevious" };
 
 /**
  * Targets the pane resolves, because they depend on the file size and the
@@ -103,6 +106,13 @@ export function resolveHexKey(
       case "l":
       case "L":
         return { kind: "goToPosition" };
+      case "f":
+      case "F":
+        return { kind: "find" };
+      case "g":
+      case "G":
+        // The other spelling of Find Next, and Shift for the other direction.
+        return extend ? { kind: "findPrevious" } : { kind: "findNext" };
       case "z":
         return { kind: "undo", batch: false };
       case "Z":

@@ -7,8 +7,9 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
-import { HexGridRenderer } from "@/render/hexGrid/hexGridRenderer";
+import { HexGridRenderer, type MatchLookup } from "@/render/hexGrid/hexGridRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
+import { stepSearch } from "@/state/searchStore";
 import { activeDecoder } from "@/state/workspaceStore";
 import {
   detectKeyboardPlatform,
@@ -67,6 +68,10 @@ export interface HexPaneProps {
   readonly onSave?: (() => void) | undefined;
   readonly onSaveAs?: (() => void) | undefined;
   readonly onGoTo?: (() => void) | undefined;
+  readonly onFind?: (() => void) | undefined;
+  /** The search matches to grey in this pane, when a search is active. */
+  readonly matches?: MatchLookup | undefined;
+  readonly currentMatch?: { start: number; end: number } | undefined;
 }
 
 const platform = detectKeyboardPlatform();
@@ -99,6 +104,9 @@ export function HexPane({
   onSave,
   onSaveAs,
   onGoTo,
+  onFind,
+  matches,
+  currentMatch,
 }: HexPaneProps) {
   const readoutId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -284,6 +292,11 @@ export function HexPane({
     scheduleDraw();
   }, [peerSelection, scheduleDraw]);
 
+  useEffect(() => {
+    rendererRef.current?.setMatches(matches, currentMatch);
+    scheduleDraw();
+  }, [matches, currentMatch, scheduleDraw]);
+
   // Difference navigation asks the pane to show a range. The token makes a
   // repeat of the same range a fresh request — pressing Next twice on a file
   // with one difference should still scroll back to it.
@@ -427,6 +440,15 @@ export function HexPane({
         case "goToPosition":
           onGoTo?.();
           break;
+        case "find":
+          onFind?.();
+          break;
+        case "findNext":
+          stepSearch("forward");
+          break;
+        case "findPrevious":
+          stepSearch("backward");
+          break;
 
         case "hexDigit":
           void typing.typeHexDigit(command.digit).then(refreshCaret);
@@ -475,7 +497,7 @@ export function HexPane({
       }
       event.preventDefault();
     },
-    [doc, moveCaret, region, onSave, onSaveAs, onGoTo, typing, refreshCaret]
+    [doc, moveCaret, region, onSave, onSaveAs, onGoTo, onFind, typing, refreshCaret]
   );
 
   /**
