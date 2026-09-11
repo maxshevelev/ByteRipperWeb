@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "comment": [
+    "How a path in the DumpCompare (macOS) repository maps onto this one.",
+    "`modules` is matched by longest path prefix; `notApplicable` is checked",
+    "first and removes a path from the report entirely. `status` says how far",
+    "the port has got: planned | in-progress | ported.",
+    "Keeping this file honest is the whole point of the skill \u2014 an unmapped",
+    "path is reported as unmapped rather than silently ignored."
+  ],
+  "notApplicable": [
+    {
+      "prefix": "DumpCompareApp/Window/",
+      "why": "In-app tabs and window management are not ported: one workspace per browser tab."
+    },
+    {
+      "prefix": "DumpCompareApp/Documents/DocumentArbitration",
+      "why": "A browser cannot know a file is open in another tab."
+    },
+    {
+      "prefix": "DumpCompareApp/Settings/FileTypes",
+      "why": "File-type registration needs an installed PWA; out of scope."
+    },
+    {
+      "prefix": "DumpCompareApp/DragDrop/PaneDrag",
+      "why": "Pane dragging between tabs is replaced by explicit commands."
+    },
+    {
+      "prefix": "Packages/ALSplitView/",
+      "why": "AppKit split view; the web uses CSS grid with a resizer."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/",
+      "why": "AppKit-side tool-module contract; the web has its own."
+    },
+    {
+      "prefix": "Design/AppIcon.swift",
+      "why": "macOS app icon rendering."
+    },
+    {
+      "prefix": "Design/render-appicon.sh",
+      "why": "macOS app icon rendering."
+    },
+    {
+      "prefix": "Signing",
+      "why": "Code signing has no counterpart."
+    },
+    {
+      "prefix": "project.yml",
+      "why": "XcodeGen project generation."
+    },
+    {
+      "prefix": "DumpCompare.xcodeproj",
+      "why": "Generated Xcode project."
+    },
+    {
+      "prefix": "Scripts/",
+      "why": "macOS build and test scripts."
+    },
+    {
+      "prefix": "DumpCompareApp/Assets.xcassets",
+      "why": "Asset catalog."
+    }
+  ],
+  "modules": [
+    {
+      "swift": "Packages/DumpCompareCore",
+      "web": [
+        "src/core"
+      ],
+      "status": "planned",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port.",
+      "files": {
+        "ChunkCache.swift": "src/core/storage/chunkCache.ts",
+        "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
+        "MemoryBackedStorage.swift": "src/core/storage/memoryBackedStorage.ts",
+        "EditOverlayStorage.swift": "src/core/storage/editOverlayStorage.ts",
+        "PieceTable.swift": "src/core/storage/pieceTable.ts",
+        "BinaryDocument.swift": "src/core/document/binaryDocument.ts",
+        "DiffEngine.swift": "src/core/diff/diffEngine.ts",
+        "DiffBlock.swift": "src/core/diff/diffBlock.ts",
+        "DiffHunkIndex.swift": "src/core/diff/diffHunkIndex.ts",
+        "SearchEngine.swift": "src/core/search/searchEngine.ts",
+        "SmartSearch.swift": "src/core/search/smartSearch.ts",
+        "PatternLibrary.swift": "src/core/search/patternLibrary.ts",
+        "UndoHistory.swift": "src/core/edit/undoHistory.ts",
+        "SelectionModel.swift": "src/core/document/selectionModel.ts",
+        "OffsetParser.swift": "src/core/text/offsetParser.ts",
+        "TextDecoder.swift": "src/core/text/byteDecoder.ts",
+        "SegmentWriter.swift": "src/core/segments/segmentWriter.ts",
+        "SegmentReplacer.swift": "src/core/segments/segmentReplacer.ts"
+      }
+    },
+    {
+      "swift": "Packages/UEFIImage",
+      "web": [
+        "src/firmware/uefi"
+      ],
+      "status": "planned",
+      "note": "The shared UEFI image parser. Ported wholesale; the lazy-tree contract is the part to preserve exactly."
+    },
+    {
+      "swift": "Packages/MEFirmware",
+      "web": [
+        "src/firmware/me"
+      ],
+      "status": "planned",
+      "note": "ME/CSME analysis. Crypto/RSA.swift and Decompress/Huffman.swift are the two compute-bound spots kept behind a narrow interface."
+    },
+    {
+      "swift": "Packages/UEFIContentSource",
+      "web": [
+        "src/firmware/contentSource.ts"
+      ],
+      "status": "planned",
+      "note": "The bridge between the document's bytes and the parser's ByteSource."
+    },
+    {
+      "swift": "Packages/AppPalette",
+      "web": [
+        "src/ui/theme"
+      ],
+      "status": "planned",
+      "note": "Colours. A change here is usually a CSS-variable change there."
+    },
+    {
+      "swift": "Modules/UEFITool",
+      "web": [
+        "src/tools/uefi"
+      ],
+      "status": "planned",
+      "note": "Pure target ports to the tool's model; the UI target is rewritten as React."
+    },
+    {
+      "swift": "Modules/FITTool",
+      "web": [
+        "src/tools/fit"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "Modules/MEATool",
+      "web": [
+        "src/tools/mea"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "Modules/ZoneSketch",
+      "web": [
+        "src/render/minimap"
+      ],
+      "status": "planned",
+      "note": "Check on each change whether this is still the right counterpart."
+    },
+    {
+      "swift": "DumpCompareApp/Hex",
+      "web": [
+        "src/render/hexGrid",
+        "src/ui/pane"
+      ],
+      "status": "planned",
+      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas."
+    },
+    {
+      "swift": "DumpCompareApp/Minimap",
+      "web": [
+        "src/render/minimap",
+        "src/ui/minimap"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Search",
+      "web": [
+        "src/ui/search"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Bookmarks",
+      "web": [
+        "src/core/bookmarks",
+        "src/ui/bookmarks"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Segments",
+      "web": [
+        "src/core/segments",
+        "src/ui/segments"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Pane",
+      "web": [
+        "src/ui/pane"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Tools",
+      "web": [
+        "src/tools/registry.ts",
+        "src/ui/toolPanel"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Settings",
+      "web": [
+        "src/ui/settings"
+      ],
+      "status": "planned"
+    },
+    {
+      "swift": "DumpCompareApp/Documents",
+      "web": [
+        "src/core/document",
+        "src/platform/files"
+      ],
+      "status": "planned",
+      "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles."
+    },
+    {
+      "swift": "DumpCompareApp/DragDrop",
+      "web": [
+        "src/platform/dragDrop"
+      ],
+      "status": "planned",
+      "note": "File drops port; pane drags do not."
+    },
+    {
+      "swift": "DumpCompareApp/App",
+      "web": [
+        "src/app"
+      ],
+      "status": "planned",
+      "note": "Menu commands become the toolbar and the command palette."
+    },
+    {
+      "swift": "Design/",
+      "web": [
+        "Design/"
+      ],
+      "status": "planned",
+      "note": "A new design document upstream usually means a decision this project has to take a position on."
+    },
+    {
+      "swift": "Skills/",
+      "web": [
+        "Skills/"
+      ],
+      "status": "planned",
+      "note": "Data-refresh skills (GUIDs, NVRAM types, ME databases) have counterparts here, driven by CI rather than by hand."
+    },
+    {
+      "swift": "README.md",
+      "web": [
+        "README.md"
+      ],
+      "status": "planned",
+      "note": "A feature described upstream is a feature to decide about here."
+    },
+    {
+      "swift": "DumpCompareTests",
+      "web": [
+        "tests/e2e"
+      ],
+      "status": "planned",
+      "note": "The app-level flow tests. Their web counterpart is the end-to-end suite; a changed flow test upstream usually marks a behaviour change worth porting even when the production diff looks cosmetic."
+    }
+  ]
+}

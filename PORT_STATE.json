@@ -1,0 +1,11 @@
+{
+  "comment": [
+    "The DumpCompare commit this repository has been brought level with.",
+    "Everything after it is what Skills/port-from-dumpcompare reports on.",
+    "Updated by that skill's script, never by hand:",
+    "  python3 Skills/port-from-dumpcompare/scripts/port_report.py --set-base <sha>"
+  ],
+  "sourceRepo": "https://github.com/maxshevelev/DumpCompare",
+  "baseCommit": "00e9d8d6bf58851fe1347e8eb58653f0cd7c8544",
+  "baselineNote": "0.8.1 (2026-09-11)"
+}
