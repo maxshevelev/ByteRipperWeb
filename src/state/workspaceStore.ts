@@ -15,6 +15,7 @@ import {
 } from "@/platform/files/fileSink";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
+import { noteDocumentChanged } from "@/state/editStore";
 import { createStore } from "@/state/store";
 
 /**
@@ -62,6 +63,12 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
     onEdit: (edit) => editingHooks.onEdit?.(pane, edit),
     confirmInsertShift: () => editingHooks.confirmShift?.() ?? true,
   });
+  // Both signals, because neither alone is enough. A content change fires while
+  // an edit group is still open, so the document is not yet dirty when it
+  // arrives; the commit that makes it dirty fires no content change. Anything
+  // watching only one of them shows the wrong answer for a typed byte.
+  document.onContentChanged(noteDocumentChanged);
+  document.onTransactionCommitted(noteDocumentChanged);
   return { document, typing };
 }
 
@@ -253,6 +260,7 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
     const base = new FileBackedStorage(outcome.file.source, new ChunkCache());
     overlay.rebase(base);
     slot.document.markSaved();
+    noteDocumentChanged();
     workspaceStore.update((current) => ({
       ...current,
       panes: {
@@ -306,4 +314,5 @@ export async function revertPane(pane: PaneId): Promise<void> {
   const handle = slot.file.handle;
   const source = handle === undefined ? slot.file.source : await handle.getFile();
   slot.document.revert(new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache())));
+  noteDocumentChanged();
 }

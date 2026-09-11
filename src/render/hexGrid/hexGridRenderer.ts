@@ -220,7 +220,12 @@ export class HexGridRenderer {
     this.caret = caret;
     for (const each of [previous, caret]) {
       if (each === undefined) continue;
-      this.dirty.invalidateRow(Math.floor(each.offset / BYTES_PER_ROW));
+      const row = Math.floor(each.offset / BYTES_PER_ROW);
+      // The row below, too. The overwrite bar deliberately runs a pixel past
+      // its own row so it reads as a solid rule under the byte — which means
+      // repainting only the caret's row leaves that pixel behind, and every
+      // click a caret has been in keeps a stub of one.
+      this.dirty.invalidate(row, row + 2);
     }
   }
 
@@ -229,7 +234,9 @@ export class HexGridRenderer {
     if (this.active === active) return;
     this.active = active;
     const caret = this.caret;
-    if (caret !== undefined) this.dirty.invalidateRow(Math.floor(caret.offset / BYTES_PER_ROW));
+    if (caret === undefined) return;
+    const row = Math.floor(caret.offset / BYTES_PER_ROW);
+    this.dirty.invalidate(row, row + 2);
   }
 
   /**

@@ -1,6 +1,7 @@
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, type WordSize, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { diffStore } from "@/state/diffStore";
+import { editStore } from "@/state/editStore";
 import { useStore } from "@/state/useStore";
 import {
   GROUPING_GAP_CHOICES,
@@ -37,6 +38,8 @@ export function Toolbar({
 }) {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
+  // Subscribed for the nudge; the document itself is the truth.
+  useStore(editStore);
   const active = state.panes[state.activePane];
   // The verb follows the pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is.

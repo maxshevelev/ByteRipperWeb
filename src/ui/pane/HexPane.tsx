@@ -223,7 +223,14 @@ export function HexPane({
       scheduleDraw();
     };
     apply();
-    return doc.onContentChanged(apply);
+    const stopContent = doc.onContentChanged(apply);
+    // The commit is a separate signal: a grouped byte becomes dirty when its
+    // group closes, and that fires no content change.
+    const stopCommit = doc.onTransactionCommitted(apply);
+    return () => {
+      stopContent();
+      stopCommit();
+    };
   }, [doc, scheduleDraw]);
 
   // The comparison, and the other pane's selection outlined here.
@@ -493,6 +500,12 @@ export function HexPane({
       const layout = layoutRef.current;
       const point = contentPoint(event);
       if (layout === undefined || point === undefined) return;
+
+      // Take the focus first. The handler ends in preventDefault — needed so a
+      // drag does not turn into a text selection of the page — and that also
+      // suppresses the click's own focusing, so without this the grid never
+      // gets the keyboard and nothing typed into it arrives.
+      event.currentTarget.focus();
 
       const hit = layout.hitTest(point.x, point.y, layout.rowCount(doc.size));
       if (hit === undefined) return;

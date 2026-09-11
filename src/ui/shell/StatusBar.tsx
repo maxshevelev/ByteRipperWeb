@@ -1,5 +1,6 @@
 import { saveExplanation, saveVerb } from "@/platform/files/capabilities";
 import { diffStore } from "@/state/diffStore";
+import { editStore } from "@/state/editStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 
@@ -14,6 +15,8 @@ import { workspaceStore } from "@/state/workspaceStore";
 export function StatusBar() {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
+  // Subscribed for the nudge; the document itself is the truth.
+  useStore(editStore);
   const active = state.panes[state.activePane];
   const hasHandle = active?.file.handle !== undefined;
   const verb = saveVerb(state.capabilities, hasHandle);
