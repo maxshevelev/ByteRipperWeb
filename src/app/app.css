@@ -762,13 +762,23 @@ textarea,
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
+.search-results-head > span {
+  /* Clipped like the values under them, so a narrow pane makes the header
+     shorter-worded rather than two rows tall. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .search-results-head {
   flex: none;
   line-height: 1.25;
   padding-block: 2px;
   border-bottom: 1px solid var(--border);
+  /* Ink blue and a rule, like the dump's own column header — the same device
+     for the same job, rather than a second one invented here. */
   color: var(--address-text);
-  background: var(--surface-raised);
+  background: var(--surface);
   position: sticky;
   top: 0;
 }
@@ -791,18 +801,14 @@ textarea,
   line-height: 1.25;
   padding-block: 1px;
   border: 0;
+  /* No fill and no striping: the list sits on the dump's own ground, so the
+     panel reads as part of the pane rather than as a thing laid over it.
+     (Upstream stripes its rows; an NSTableView in a window is not a strip under
+     a dump, and the stripes here made the panel a different surface.) */
   background: none;
   color: var(--text);
   text-align: left;
   cursor: pointer;
-}
-
-.search-result:nth-child(odd) {
-  background: var(--surface-raised);
-}
-
-.search-results-list li:nth-child(even) .search-result {
-  background: var(--surface-raised);
 }
 
 .search-result:hover,
