@@ -6,7 +6,7 @@ import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
-import { noteMinimapEdit, watchForMinimap } from "@/state/minimapStore";
+import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
 import {
   closeSearch,
   noteSearchEdit,
@@ -239,29 +239,77 @@ export function AppShell() {
   }, [state.panes.a, state.panes.b]);
 
   /**
-   * Find, from anywhere.
+   * The app's own shortcuts, from anywhere.
    *
-   * The pane maps Cmd/Ctrl+F too, but only while it has the keyboard — and the
-   * browser's own find is waiting behind it everywhere else: in the toolbar, in
-   * the find bar's own field, with nothing focused at all. This takes the key
-   * at the window before it can get there.
+   * The panes map these too, but only while one of them holds the keyboard —
+   * and something else usually does: a toolbar button that was just clicked,
+   * the find bar's field, the menu. Worse, the browser is waiting behind
+   * Cmd/Ctrl+F with a find bar of its own. These are commands about the
+   * workspace rather than about a pane's caret, so they are taken at the window
+   * before anything else can have them.
    *
-   * Pressing it while the bar is already up re-selects the field, which is what
-   * every other find bar does and what makes the shortcut a way of starting
-   * over rather than a no-op.
+   * Find pressed while the bar is already up re-selects the field, which is
+   * what makes the shortcut a way of starting a new search rather than a no-op.
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "f" && event.key !== "F") return;
       if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-      // Nothing to search in yet: leave the browser's own find alone.
+      // Nothing open to act on: leave the keys to the browser.
       if (workspaceStore.getSnapshot().panes.a === undefined) return;
-      event.preventDefault();
-      openSearch();
-      focusFindInput();
+
+      switch (event.key) {
+        case "f":
+        case "F":
+          event.preventDefault();
+          openSearch();
+          focusFindInput();
+          return;
+        case "l":
+        case "L":
+          event.preventDefault();
+          setGoToOpen(true);
+          return;
+        case "m":
+        case "M":
+          event.preventDefault();
+          toggleMinimap();
+          return;
+        default:
+          return;
+      }
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
+
+  /**
+   * Keeps the keyboard where it was when a click lands on something that has
+   * nowhere to type.
+   *
+   * A toolbar button, a pane header, a divider: pressing one moves the focus to
+   * it, and from there every shortcut the pane owns — undo, select all, step
+   * through differences — stops working, with nothing on screen to say why. The
+   * fix is the one toolbars have always used: refuse the focus on mousedown.
+   * The click still fires, and Tab still reaches the button, so nothing is lost
+   * but the focus theft.
+   *
+   * Anything that can actually be typed into keeps its focus, and so does the
+   * commands menu, which drives itself with the arrow keys.
+   */
+  useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("input, textarea, select, [contenteditable], .menu-popup") !== null) {
+        return;
+      }
+      // The dump itself takes the keyboard on a click — that is how a pane is
+      // chosen, and its own handler asks for the focus.
+      if (target.closest(".hex-scroller") !== null) return;
+      event.preventDefault();
+    };
+    window.addEventListener("mousedown", onMouseDown);
+    return () => window.removeEventListener("mousedown", onMouseDown);
   }, []);
 
   const openFind = useCallback(() => {
