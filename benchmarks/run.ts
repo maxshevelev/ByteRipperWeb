@@ -9,6 +9,9 @@
 
 import { applyEdit, scanDiff } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
+import { MatchSetBuilder } from "@/core/search/matchSet";
+import { findOne, foldedPattern, scanAll } from "@/core/search/searchEngine";
+import { foldingFor, parsePattern } from "@/core/search/searchPattern";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
@@ -222,6 +225,57 @@ async function main(): Promise<void> {
       { samples: 15 }
     ),
   });
+
+  // M5. The budget in ANALYSIS.md is 100 ms to the first hit on 16 MB, and it
+  // has to hold for a pattern as common as FF — which is most of an erased
+  // flash chip, so the first hit is immediate and the *index* is the work.
+  const exact = foldingFor("hex", true);
+  const patternOf = (text: string) => {
+    const parsed = parsePattern(text, "hex");
+    if (!parsed.ok) throw new Error(`the benchmark's own pattern did not parse: ${text}`);
+    return parsed.pattern;
+  };
+
+  for (const [name, text] of [
+    ["a signature", "DEADBEEF"],
+    ["one common byte", "FF"],
+  ] as const) {
+    const pattern = patternOf(text);
+    rows.push({
+      name: `First hit, ${(blob.size / 1024 ** 2).toFixed(0)} MB, ${name}`,
+      budgetMs: 100,
+      note: `Scanning from the caret, which is what shows a user their match.`,
+      measurement: await measure(
+        () =>
+          findOne(foldedPattern(pattern.bytes, exact), left, { folding: exact }).then(
+            () => undefined
+          ),
+        { samples: 7 }
+      ),
+    });
+  }
+
+  {
+    // The index behind it: every occurrence of a byte that is most of the file.
+    const pattern = patternOf("FF");
+    rows.push({
+      name: "Index every FF, whole file",
+      note:
+        "The full scan that streams in behind the first hit. Its matches go into a bitmap " +
+        "once they pass extent/64, so the count stays exact however common the pattern is.",
+      measurement: await measure(
+        async () => {
+          const builder = new MatchSetBuilder(pattern, exact, blob.size);
+          await scanAll(foldedPattern(pattern.bytes, exact), left, {
+            folding: exact,
+            onMatches: (starts) => builder.add(starts),
+          });
+          builder.finish();
+        },
+        { samples: 3, bytes: blob.size }
+      ),
+    });
+  }
 
   printTable(rows);
   console.log("");
