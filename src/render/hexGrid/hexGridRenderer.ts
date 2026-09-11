@@ -5,7 +5,12 @@ import { addressSignificantFrom, byteInk, type InkRole } from "@/render/hexGrid/
 import { DirtyRows } from "@/render/hexGrid/dirtyRows";
 import { GlyphAtlas, type GlyphAtlasKey } from "@/render/hexGrid/glyphAtlas";
 import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
-import { type ContourPoint, selectionContours, traceContour } from "@/render/hexGrid/spanContour";
+import {
+  type ContourPoint,
+  contourRowSpan,
+  selectionContours,
+  traceContour,
+} from "@/render/hexGrid/spanContour";
 
 /**
  * The hex grid, drawn.
@@ -61,6 +66,34 @@ export interface HexGridCaret {
  * The companion outline's stroke. Padded outward where a spacer allows it, so
  * the line clears the glyphs; rounded so the staircase reads as one region.
  */
+/**
+ * The overwrite caret's bar: how much of it sits inside the row, and how far it
+ * runs past the bottom edge.
+ *
+ * It is an underline below the glyph — whose ink is centred in the row — so it
+ * never covers the symbol it marks. Running past the edge is what makes it read
+ * as a solid rule under the byte rather than a hairline squeezed into the last
+ * pixel; it lands on the row below, which is why {@link caretRowReach} exists.
+ */
+const CARET_BAR_HEIGHT = 2;
+const CARET_BAR_OVERHANG = 2;
+
+/**
+ * The rows the caret's ink reaches, half-open.
+ *
+ * Derived from the bar's own geometry rather than written out as `row + 2`, so
+ * a taller bar cannot quietly outgrow what gets repainted — which shows up as a
+ * stub of a rule under every row the caret has ever been in.
+ */
+export function caretRowReach(
+  offset: number,
+  rowHeight: number
+): { readonly first: number; readonly end: number } {
+  const row = Math.floor(offset / BYTES_PER_ROW);
+  const below = Math.ceil(CARET_BAR_OVERHANG / Math.max(1, rowHeight));
+  return { first: row, end: row + 1 + below };
+}
+
 const PEER_CONTOUR_PADDING = 2;
 const PEER_CONTOUR_RADIUS = 3;
 const PEER_CONTOUR_LINE_WIDTH = 1.5;
@@ -269,14 +302,14 @@ export class HexGridRenderer {
   setCaret(caret: HexGridCaret | undefined): void {
     const previous = this.caret;
     this.caret = caret;
+    const rowHeight = this.config?.layout.rowHeight ?? 1;
     for (const each of [previous, caret]) {
       if (each === undefined) continue;
-      const row = Math.floor(each.offset / BYTES_PER_ROW);
-      // The row below, too. The overwrite bar deliberately runs a pixel past
-      // its own row so it reads as a solid rule under the byte — which means
-      // repainting only the caret's row leaves that pixel behind, and every
-      // click a caret has been in keeps a stub of one.
-      this.dirty.invalidate(row, row + 2);
+      // Through the bar's own reach: it runs past its row deliberately, so
+      // repainting only the caret's row leaves that part behind — and every
+      // row the caret has been in keeps a stub of a rule.
+      const rows = caretRowReach(each.offset, rowHeight);
+      this.dirty.invalidate(rows.first, rows.end);
     }
   }
 
@@ -321,10 +354,11 @@ export class HexGridRenderer {
     this.peerSelection = selection;
     this.peerContourKey = undefined;
     for (const range of [previous, selection]) {
-      if (range === undefined || range.end < range.start) continue;
-      const first = Math.floor(range.start / BYTES_PER_ROW);
-      const last = Math.floor(Math.max(range.start, range.end - 1) / BYTES_PER_ROW);
-      this.dirty.invalidate(first, last + 1);
+      if (range === undefined || range.end <= range.start) continue;
+      // Through the contour's own reach, which is a row wider at each end than
+      // the span: the stroke straddles the row boundaries it is drawn on.
+      const rows = contourRowSpan(range.start, range.end);
+      this.dirty.invalidate(rows.first, rows.end);
     }
   }
 
@@ -411,6 +445,12 @@ export class HexGridRenderer {
         if (!this.paintRow(row, size)) missedBytes = true;
       }
     }
+    // After the rows, not inside one. The overwrite bar hangs below its own row
+    // on purpose, and rows are painted in ascending order — so drawn from
+    // inside its row, the part that hangs over was erased by the row beneath it
+    // before the frame was out, and the bar came out half the height it asks
+    // for. Nothing above it draws, so drawing it last costs one rect.
+    this.paintCaret(first, end);
     this.paintPastLastRow(rowCount);
     this.context.restore();
 
@@ -532,7 +572,6 @@ export class HexGridRenderer {
       this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
     }
     if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
-    this.paintCaret(rowStart, y);
     return !savedPending;
   }
 
@@ -574,13 +613,17 @@ export class HexGridRenderer {
    * With no selection the caret also outlines its byte in the *other* column,
    * linking the hex and the decoded views of the same byte.
    */
-  private paintCaret(rowStart: number, y: number): void {
+  /** Draws the caret, if it is in the rows `[firstRow, endRow)` being painted. */
+  private paintCaret(firstRow: number, endRow: number): void {
     const config = this.config;
     const caret = this.caret;
     if (config === undefined || caret === undefined || !this.active || !caret.visible) return;
-    if (caret.offset < rowStart || caret.offset >= rowStart + BYTES_PER_ROW) return;
 
     const { layout, colors } = config;
+    const row = Math.floor(caret.offset / BYTES_PER_ROW);
+    if (row < firstRow || row >= endRow) return;
+    const rowStart = row * BYTES_PER_ROW;
+    const y = row * layout.rowHeight;
     const column = caret.offset - rowStart;
 
     // The link to the same byte in the column the caret is not in.
@@ -619,10 +662,16 @@ export class HexGridRenderer {
     }
 
     const x = caret.region === "text" ? layout.textX(column) : layout.caretX(column, caret.nibble);
-    // Two pixels at the row's bottom edge, running a little past it, so it
-    // reads as a solid bar under the byte without eating into the row.
+    // An underline at the cell's bottom edge, below the glyph, running past the
+    // edge onto the row beneath so it reads as a solid rule rather than a
+    // hairline squeezed into the row's last pixels.
     this.context.fillStyle = colors.caret;
-    this.context.fillRect(x, y + layout.rowHeight - 2, layout.charWidth, 3);
+    this.context.fillRect(
+      x,
+      y + layout.rowHeight - CARET_BAR_HEIGHT,
+      layout.charWidth,
+      CARET_BAR_HEIGHT + CARET_BAR_OVERHANG
+    );
   }
 
   /** The address, with its leading zeros muted. */
@@ -728,9 +777,12 @@ export class HexGridRenderer {
     const config = this.config;
     const peer = this.peerSelection;
     if (config === undefined || peer === undefined || peer.end <= peer.start) return;
-    // Only the rows the span actually covers, and one past each end so a
-    // padded edge that leans into the neighbouring row still gets drawn.
-    if (peer.end <= rowStart - BYTES_PER_ROW || peer.start >= rowStart + 2 * BYTES_PER_ROW) return;
+    // The same reach the invalidation uses, from the same function: a row that
+    // is repainted but not drawn leaves a gap, and one drawn but not repainted
+    // leaves a line behind.
+    const rows = contourRowSpan(peer.start, peer.end);
+    const row = rowStart / BYTES_PER_ROW;
+    if (row < rows.first || row >= rows.end) return;
 
     const { layout, colors } = config;
     const context = this.context;

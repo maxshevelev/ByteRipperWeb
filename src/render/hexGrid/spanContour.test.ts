@@ -9,7 +9,12 @@
 
 import { describe, expect, it } from "vitest";
 import { BYTES_PER_ROW, HexLayout } from "@/render/hexGrid/hexLayout";
-import { hexColumns, spanContours, textColumns } from "@/render/hexGrid/spanContour";
+import {
+  contourRowSpan,
+  hexColumns,
+  spanContours,
+  textColumns,
+} from "@/render/hexGrid/spanContour";
 
 const layout = new HexLayout({ charWidth: 8, rowHeight: 17 });
 const columns = hexColumns(layout);
@@ -108,5 +113,40 @@ describe("an empty span", () => {
   it("outlines nothing", () => {
     expect(contour(10, 10)).toEqual([]);
     expect(contour(10, 4)).toEqual([]);
+  });
+});
+
+describe("the rows a contour touches", () => {
+  it("reaches a row past each end of the span", () => {
+    // The stroke is centred on the row boundaries the horizontal edges sit on,
+    // so half of it lands in the row beyond. Repainting only the span's own
+    // rows left that half behind as a line under rows that no longer had one.
+    const span = contourRowSpan(2 * BYTES_PER_ROW + 4, 5 * BYTES_PER_ROW + 4);
+    expect(span).toEqual({ first: 1, end: 7 });
+  });
+
+  it("does not reach above the first row", () => {
+    expect(contourRowSpan(0, 4)).toEqual({ first: 0, end: 2 });
+  });
+
+  it("touches nothing for an empty span", () => {
+    expect(contourRowSpan(10, 10)).toEqual({ first: 0, end: 0 });
+    expect(contourRowSpan(10, 2)).toEqual({ first: 0, end: 0 });
+  });
+
+  it("covers every row the contour actually draws into", () => {
+    // The guard in the renderer and the invalidation both come from here, so
+    // the property that matters is that the range contains the span's own rows
+    // with a margin on each side.
+    for (const [start, end] of [
+      [0, 1],
+      [15, 17],
+      [BYTES_PER_ROW, 3 * BYTES_PER_ROW],
+      [100, 1000],
+    ] as const) {
+      const span = contourRowSpan(start, end);
+      expect(span.first).toBeLessThanOrEqual(Math.floor(start / BYTES_PER_ROW));
+      expect(span.end).toBeGreaterThan(Math.floor((end - 1) / BYTES_PER_ROW) + 1);
+    }
   });
 });

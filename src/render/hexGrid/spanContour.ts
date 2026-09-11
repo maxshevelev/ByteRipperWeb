@@ -152,6 +152,28 @@ export function selectionContours(
 }
 
 /**
+ * The rows a contour over `[start, end)` touches, half-open.
+ *
+ * One row wider at each end than the span itself. The contour's horizontal
+ * edges sit *on* row boundaries and the stroke is centred on them, so half of
+ * it lands in the neighbouring row — and a padded vertical edge leans out
+ * sideways there too. Invalidating only the span's own rows leaves that half
+ * behind when the span moves, as a line under rows that no longer have one.
+ *
+ * Anything that outlines a span and repaints by row — the companion's mirror
+ * now, segments and zones later — has to invalidate through here.
+ */
+export function contourRowSpan(
+  start: number,
+  end: number
+): { readonly first: number; readonly end: number } {
+  if (end <= start) return { first: 0, end: 0 };
+  const firstRow = Math.floor(start / BYTES_PER_ROW);
+  const lastRow = Math.floor((end - 1) / BYTES_PER_ROW);
+  return { first: Math.max(0, firstRow - 1), end: lastRow + 2 };
+}
+
+/**
  * Drops vertices that are not corners, so the polygon stays minimal.
  *
  * A step of zero width or height collapses two vertices onto each other, and
