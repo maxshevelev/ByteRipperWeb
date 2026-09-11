@@ -115,8 +115,20 @@ export class HexGridRenderer {
     heightCss: 0,
   };
   private selection: HexGridSelection = { start: 0, end: 0 };
-  /** Offsets whose bytes differ from the saved file. Populated from M4. */
-  private modifiedRanges: readonly { start: number; end: number }[] = [];
+  /**
+   * The file as it was last saved, for deciding which bytes are unsaved edits.
+   *
+   * A byte is modified when it differs from the byte at the same offset in this
+   * source — compared per byte, not looked up in a record of which ranges were
+   * written. Those are not the same question: undo writes the original values
+   * back *through the edit buffer*, so a range-based answer keeps calling them
+   * modified long after they have gone back to what the file holds.
+   *
+   * Absent for a document that was never on disk — a new file, a duplicate —
+   * where every byte would otherwise compare as modified. The unsaved marker in
+   * the pane's readout already says what needs saying there.
+   */
+  private savedSource: HexGridSource | undefined;
   /** The comparison, when there is one. Differing bytes take the orange wash. */
   private differences: DiffBlockIndex | undefined;
   /** Where the other pane's selection falls at these offsets. */
@@ -263,9 +275,9 @@ export class HexGridRenderer {
     }
   }
 
-  /** The byte ranges drawn as unsaved edits. */
-  setModifiedRanges(ranges: readonly { start: number; end: number }[]): void {
-    this.modifiedRanges = ranges;
+  /** The file as it was last saved. `undefined` means nothing is an edit yet. */
+  setSavedSource(source: HexGridSource | undefined): void {
+    this.savedSource = source;
     this.invalidateAll();
   }
 
@@ -430,6 +442,11 @@ export class HexGridRenderer {
     }
 
     const bytes = this.source?.peek(rowStart, available);
+    const saved = this.savedSource?.peek(rowStart, available);
+    // Not knowing yet is not the same as not modified: paint the row when the
+    // saved bytes are in, rather than showing black ink that turns red later.
+    const savedPending = this.savedSource !== undefined && saved === undefined;
+
     if (bytes === undefined) {
       // Not resident. A placeholder band rather than a blank row, so a fast
       // scroll reads as "still loading" and not as "this file is empty here".
@@ -438,15 +455,21 @@ export class HexGridRenderer {
       return false;
     }
 
+    const savedSize = this.savedSource?.size ?? 0;
     for (let column = 0; column < bytes.length; column++) {
       const byte = bytes[column] ?? 0;
-      const role = byteInk(byte, this.isModified(rowStart + column));
+      const modified =
+        this.savedSource === undefined || saved === undefined
+          ? false
+          : // Past the saved file's end, every byte is new.
+            rowStart + column >= savedSize || saved[column] !== byte;
+      const role = byteInk(byte, modified);
       this.blit(atlas.hexPair(byte, role), layout.hexByteX(column), y, 2 * layout.charWidth);
       this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
     }
     if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
     this.paintCaret(rowStart, y);
-    return true;
+    return !savedPending;
   }
 
   /**
@@ -702,13 +725,6 @@ export class HexGridRenderer {
     );
   }
 
-  private isModified(offset: number): boolean {
-    for (const range of this.modifiedRanges) {
-      if (offset >= range.start && offset < range.end) return true;
-    }
-    return false;
-  }
-
   /**
    * Asks the storage for the viewport and a screen either side of it. One
    * request at a time: a fast scroll would otherwise queue a read per frame.
@@ -722,11 +738,22 @@ export class HexGridRenderer {
     const to = Math.min(size, (end + screens) * BYTES_PER_ROW);
     if (to <= from) return;
 
-    // Already resident: nothing to wait for, and no frame to schedule.
-    if (source.peek(from, to - from) !== undefined) return;
+    const saved = this.savedSource;
+    // Already resident on both sides: nothing to wait for, no frame to schedule.
+    if (
+      source.peek(from, to - from) !== undefined &&
+      (saved === undefined || saved.peek(from, Math.min(to, saved.size) - from) !== undefined)
+    ) {
+      return;
+    }
 
-    this.prefetching = source
-      .prefetch(from, to - from)
+    this.prefetching = Promise.all([
+      source.prefetch(from, to - from),
+      saved === undefined || from >= saved.size
+        ? Promise.resolve()
+        : saved.prefetch(from, Math.min(to, saved.size) - from),
+    ])
+      .then(() => undefined)
       .catch(() => undefined)
       .then(() => {
         this.prefetching = undefined;

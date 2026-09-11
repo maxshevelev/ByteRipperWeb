@@ -3,7 +3,7 @@ import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
-import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
+import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
@@ -59,6 +59,11 @@ export interface HexPaneProps {
    * neither of which should survive a remount or a layout change.
    */
   readonly typing: TypingController;
+  /**
+   * The file as it was last saved. Absent for a document never on disk, where
+   * every byte would otherwise be drawn as an unsaved edit.
+   */
+  readonly saved?: ByteStorage | undefined;
   readonly onSave?: (() => void) | undefined;
   readonly onSaveAs?: (() => void) | undefined;
   readonly onGoTo?: (() => void) | undefined;
@@ -90,6 +95,7 @@ export function HexPane({
   onSelectionChanged,
   revealRequest,
   typing,
+  saved,
   onSave,
   onSaveAs,
   onGoTo,
@@ -224,20 +230,40 @@ export function HexPane({
   }, [doc, scheduleDraw, onSelectionChanged, typing]);
 
   /**
-   * The red foreground on every byte that differs from the file on disk.
+   * The red foreground, and the pane's unsaved marker.
    *
-   * Read from the overlay after each change: it already tracks exactly this for
-   * the save path, so there is nothing here to keep in step separately.
+   * The red comes from comparing each byte with the file on disk, which the
+   * renderer does itself — this only has to hand it the saved file and repaint
+   * when the bytes move.
    */
   useEffect(() => {
+    rendererRef.current?.setSavedSource(saved);
+    scheduleDraw();
+  }, [saved, scheduleDraw]);
+
+  useEffect(() => {
     const apply = () => {
-      const overlay = doc.storage as Partial<EditOverlayStorage>;
-      rendererRef.current?.setModifiedRanges(overlay.changedRanges ?? []);
       setDirty(doc.isDirty);
+      setContentHeight(rendererRef.current?.contentHeight ?? 0);
       scheduleDraw();
     };
     apply();
-    const stopContent = doc.onContentChanged(apply);
+
+    /**
+     * Repaint what an edit touched.
+     *
+     * An overwrite dirties its own bytes. An insert or a delete moves every
+     * byte after it, so the whole tail is stale — and the document's height
+     * changes with it, which is what the scrollbar is measured from.
+     */
+    const stopContent = doc.onContentChanged((change) => {
+      const renderer = rendererRef.current;
+      for (const op of change.ops) {
+        if (op.kind === "overwrite") renderer?.invalidateBytes(op.at, op.at + op.after.length);
+        else renderer?.invalidateBytes(op.at, doc.size);
+      }
+      apply();
+    });
     // The commit is a separate signal: a grouped byte becomes dirty when its
     // group closes, and that fires no content change.
     const stopCommit = doc.onTransactionCommitted(apply);

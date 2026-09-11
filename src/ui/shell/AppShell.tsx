@@ -324,6 +324,7 @@ export function AppShell() {
                 onSelectionChanged={onSelectionChanged[id]}
                 revealRequest={reveal[id]}
                 typing={pane.typing}
+                saved={pane.saved}
                 onSave={() => void doSave(false)}
                 onSaveAs={() => void doSave(true)}
                 onGoTo={() => setGoToOpen(true)}

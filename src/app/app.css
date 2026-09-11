@@ -13,7 +13,27 @@ body,
   height: 100%;
 }
 
+html,
 body {
+  /*
+   * A swipe sideways is scrolling, never navigation. Without this a trackpad
+   * flick left in a dump wide enough to scroll takes the browser back a page,
+   * and everything unsaved goes with it.
+   */
+  overscroll-behavior: none;
+}
+
+body {
+  /*
+   * The only selection in this application is the one it draws itself, over
+   * bytes. Dragging across the grid used to smear the browser's own text
+   * selection over the toolbar and the pane headers — two highlights meaning
+   * different things, one of which the app cannot act on at all.
+   *
+   * Re-enabled below for the places where selecting text is the point.
+   */
+  user-select: none;
+  -webkit-user-select: none;
   margin: 0;
   background: var(--surface);
   color: var(--text);
@@ -23,6 +43,14 @@ body {
     "Segoe UI",
     sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Where text really is text: what you type into, and what you are meant to copy. */
+input,
+textarea,
+.dialog-preview {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .app-shell {
@@ -247,6 +275,9 @@ body {
   outline: none;
   background: var(--surface);
   contain: strict;
+  /* Scrolling past an edge stays in this pane: no rubber-banding the page, and
+     no swipe out of an unsaved edit. */
+  overscroll-behavior: contain;
 }
 
 .hex-scroller:focus-visible {

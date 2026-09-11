@@ -1,7 +1,7 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
 import { TypingController } from "@/core/edit/typingController";
-import type { EditableByteStorage } from "@/core/storage/byteStorage";
+import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
@@ -44,6 +44,12 @@ export interface PaneState {
    * neither of which should survive a pane remounting or a layout change.
    */
   readonly typing: TypingController;
+  /**
+   * The file as it was last saved, which is what says whether a byte is an
+   * unsaved edit. Absent for a document that has never been on disk — a new
+   * file, a duplicate — where every byte would otherwise read as modified.
+   */
+  readonly saved: ByteStorage | undefined;
   /** True when this file can be written back to itself (D7). */
   readonly writable: boolean;
 }
@@ -57,6 +63,18 @@ export const editingHooks: {
   onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
   confirmShift?: (() => boolean | Promise<boolean>) | undefined;
 } = {};
+
+/**
+ * A read-only view of the file as it sits on disk.
+ *
+ * Its own cache, because a chunk cache is keyed by chunk index alone and this
+ * reads the same offsets as the document's own storage — one shared between
+ * them would serve the edited bytes for the saved ones and paint every edit as
+ * unmodified.
+ */
+function savedStorageFor(file: OpenedFile): ByteStorage {
+  return new FileBackedStorage(file.source, new ChunkCache());
+}
 
 /** A scratch store where the browser has one, and none where it does not. */
 function scratchOptions(): { scratch?: OpfsScratchStore } {
@@ -188,7 +206,14 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
       ...state,
       panes: {
         ...state.panes,
-        [pane]: { name: file.name, file, document, typing, writable: file.handle !== undefined },
+        [pane]: {
+          name: file.name,
+          file,
+          document,
+          typing,
+          saved: savedStorageFor(file),
+          writable: file.handle !== undefined,
+        },
       },
       activePane: pane,
       problem: undefined,
@@ -307,6 +332,8 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
           ...slot,
           name: outcome.file.name,
           file: outcome.file,
+          // The file on disk now holds the document, so nothing is an edit.
+          saved: savedStorageFor(outcome.file),
           writable: outcome.file.handle !== undefined,
         },
       },
@@ -355,6 +382,9 @@ export async function duplicatePane(from: PaneId): Promise<void> {
         file: { name: copyName(slot.name), size: source.size, lastModified: Date.now(), source },
         document,
         typing,
+        // Never on disk, so nothing in it is an unsaved *edit* — the whole
+        // document is unsaved, which the readout says.
+        saved: undefined,
         writable: false,
       },
     },
@@ -380,7 +410,7 @@ export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
     ...state,
     panes: {
       ...state.panes,
-      [pane]: { name, file: emptyFile(name), document, typing, writable: false },
+      [pane]: { name, file: emptyFile(name), document, typing, saved: undefined, writable: false },
     },
     activePane: pane,
     problem: undefined,
@@ -405,6 +435,21 @@ export async function revertPane(pane: PaneId): Promise<void> {
 
   const handle = slot.file.handle;
   const source = handle === undefined ? slot.file.source : await handle.getFile();
-  slot.document.revert(new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache())));
+  slot.document.revert(
+    new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), scratchOptions())
+  );
+  // The file may have changed since it was opened, so the saved view is
+  // rebuilt from what was just read rather than kept from before.
+  workspaceStore.update((state) => {
+    const current = state.panes[pane];
+    if (current === undefined) return state;
+    return {
+      ...state,
+      panes: {
+        ...state.panes,
+        [pane]: { ...current, saved: new FileBackedStorage(source, new ChunkCache()) },
+      },
+    };
+  });
   noteDocumentChanged();
 }
