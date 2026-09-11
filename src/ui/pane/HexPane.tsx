@@ -51,7 +51,7 @@ export interface HexPaneProps {
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /** Asks the workspace to reveal a range — difference navigation uses it. */
-  readonly revealRequest?: { start: number; end: number; token: number } | undefined;
+  readonly revealRequest?: { offset: number; token: number } | undefined;
   /**
    * The document's editing state machine. It belongs to the document, not to
    * this component: it holds a half-typed nibble and an open undo group,
@@ -242,12 +242,15 @@ export function HexPane({
   // with one difference should still scroll back to it.
   useEffect(() => {
     if (revealRequest === undefined) return;
-    doc.setSelection(makeSelection(revealRequest.start, revealRequest.end, doc.size));
+    // The caret moves; the block is not selected. A selection would claim the
+    // user had chosen those bytes — and the next thing typed would replace
+    // them, which is not what stepping through differences is for.
+    doc.setSelection(caretAt(revealRequest.offset, doc.size));
     const host = scrollRef.current;
     const layout = layoutRef.current;
     if (host === null || layout === undefined) return;
 
-    const rowTop = Math.floor(revealRequest.start / BYTES_PER_ROW) * layout.rowHeight;
+    const rowTop = Math.floor(revealRequest.offset / BYTES_PER_ROW) * layout.rowHeight;
     // Centred, not merely brought inside the edge: a change the user asked to
     // be shown should have its surroundings visible too.
     host.scrollTop = Math.max(0, rowTop - host.clientHeight / 2 + layout.rowHeight);

@@ -33,9 +33,9 @@ import { Toolbar } from "@/ui/shell/Toolbar";
  */
 
 export interface RevealRequest {
-  readonly start: number;
-  readonly end: number;
-  /** Makes a repeat of the same range a fresh request. */
+  /** Where the caret goes. Navigation moves the caret; it does not select. */
+  readonly offset: number;
+  /** Makes a repeat of the same offset a fresh request. */
   readonly token: number;
 }
 
@@ -137,29 +137,6 @@ export function AppShell() {
    * active pane's caret — and shows it in *both* panes, because a comparison
    * that scrolled one side would be asking the user to find the other.
    */
-  const navigate = useCallback(
-    (what: "difference" | "same", direction: 1 | -1) => {
-      const hunks = diff.hunks;
-      if (hunks === undefined) return;
-
-      const from = selections[state.activePane].start;
-      const target =
-        what === "difference"
-          ? direction > 0
-            ? hunks.nextDifference(from)
-            : hunks.previousDifference(from)
-          : direction > 0
-            ? hunks.nextSame(from)
-            : hunks.previousSame(from);
-      if (target === undefined) return;
-
-      const token = ++revealToken.current;
-      const request: RevealRequest = { start: target.start, end: target.end, token };
-      setReveal({ a: request, b: request });
-    },
-    [diff.hunks, selections, state.activePane]
-  );
-
   const activePane = state.activePane;
 
   const doSave = useCallback(
@@ -201,6 +178,34 @@ export function AppShell() {
   const doDeleteBytes = useCallback(() => {
     void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
   }, [activePane]);
+
+  const navigate = useCallback(
+    (what: "difference" | "same", direction: 1 | -1) => {
+      const hunks = diff.hunks;
+      if (hunks === undefined) return;
+
+      const from = selections[state.activePane].start;
+      const target =
+        what === "difference"
+          ? direction > 0
+            ? hunks.nextDifference(from)
+            : hunks.previousDifference(from)
+          : direction > 0
+            ? hunks.nextSame(from)
+            : hunks.previousSame(from);
+      if (target === undefined) return;
+
+      // Forward lands on the block's first byte, backward on its LAST — not on
+      // the byte past it. Landing past the block would let the next Previous
+      // press find the same block again and go nowhere.
+      const offset = direction > 0 ? target.start : Math.max(target.start, target.end - 1);
+      setReveal({
+        a: { offset, token: ++revealToken.current },
+        b: { offset, token: revealToken.current },
+      });
+    },
+    [diff.hunks, selections, state.activePane]
+  );
 
   const onSelectionChanged = useMemo(
     () => ({
