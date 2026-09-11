@@ -1,7 +1,7 @@
 {
   "version": 1,
   "comment": [
-    "How a path in the DumpCompare (macOS) repository maps onto this one.",
+    "How a path in the ByteRipper (macOS) repository maps onto this one.",
     "`modules` is matched by longest path prefix; `notApplicable` is checked",
     "first and removes a path from the report entirely. `status` says how far",
     "the port has got: planned | in-progress | ported.",
@@ -10,19 +10,19 @@
   ],
   "notApplicable": [
     {
-      "prefix": "DumpCompareApp/Window/",
+      "prefix": "ByteRipperApp/Window/",
       "why": "In-app tabs and window management are not ported: one workspace per browser tab."
     },
     {
-      "prefix": "DumpCompareApp/Documents/DocumentArbitration",
+      "prefix": "ByteRipperApp/Documents/DocumentArbitration",
       "why": "A browser cannot know a file is open in another tab."
     },
     {
-      "prefix": "DumpCompareApp/Settings/FileTypes",
+      "prefix": "ByteRipperApp/Settings/FileTypes",
       "why": "File-type registration needs an installed PWA; out of scope."
     },
     {
-      "prefix": "DumpCompareApp/DragDrop/PaneDrag",
+      "prefix": "ByteRipperApp/DragDrop/PaneDrag",
       "why": "Pane dragging between tabs is replaced by explicit commands."
     },
     {
@@ -50,7 +50,7 @@
       "why": "XcodeGen project generation."
     },
     {
-      "prefix": "DumpCompare.xcodeproj",
+      "prefix": "ByteRipper.xcodeproj",
       "why": "Generated Xcode project."
     },
     {
@@ -58,13 +58,13 @@
       "why": "macOS build and test scripts."
     },
     {
-      "prefix": "DumpCompareApp/Assets.xcassets",
+      "prefix": "ByteRipperApp/Assets.xcassets",
       "why": "Asset catalog."
     }
   ],
   "modules": [
     {
-      "swift": "Packages/DumpCompareCore",
+      "swift": "Packages/ByteRipperCore",
       "web": [
         "src/core"
       ],
@@ -154,7 +154,7 @@
       "note": "Check on each change whether this is still the right counterpart."
     },
     {
-      "swift": "DumpCompareApp/Hex",
+      "swift": "ByteRipperApp/Hex",
       "web": [
         "src/render/hexGrid",
         "src/ui/pane"
@@ -163,7 +163,7 @@
       "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas."
     },
     {
-      "swift": "DumpCompareApp/Minimap",
+      "swift": "ByteRipperApp/Minimap",
       "web": [
         "src/render/minimap",
         "src/ui/minimap"
@@ -171,14 +171,14 @@
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Search",
+      "swift": "ByteRipperApp/Search",
       "web": [
         "src/ui/search"
       ],
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Bookmarks",
+      "swift": "ByteRipperApp/Bookmarks",
       "web": [
         "src/core/bookmarks",
         "src/ui/bookmarks"
@@ -186,7 +186,7 @@
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Segments",
+      "swift": "ByteRipperApp/Segments",
       "web": [
         "src/core/segments",
         "src/ui/segments"
@@ -194,14 +194,14 @@
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Pane",
+      "swift": "ByteRipperApp/Pane",
       "web": [
         "src/ui/pane"
       ],
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Tools",
+      "swift": "ByteRipperApp/Tools",
       "web": [
         "src/tools/registry.ts",
         "src/ui/toolPanel"
@@ -209,14 +209,14 @@
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Settings",
+      "swift": "ByteRipperApp/Settings",
       "web": [
         "src/ui/settings"
       ],
       "status": "planned"
     },
     {
-      "swift": "DumpCompareApp/Documents",
+      "swift": "ByteRipperApp/Documents",
       "web": [
         "src/core/document",
         "src/platform/files"
@@ -225,7 +225,7 @@
       "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles."
     },
     {
-      "swift": "DumpCompareApp/DragDrop",
+      "swift": "ByteRipperApp/DragDrop",
       "web": [
         "src/platform/dragDrop"
       ],
@@ -233,7 +233,7 @@
       "note": "File drops port; pane drags do not."
     },
     {
-      "swift": "DumpCompareApp/App",
+      "swift": "ByteRipperApp/App",
       "web": [
         "src/app"
       ],
@@ -265,7 +265,7 @@
       "note": "A feature described upstream is a feature to decide about here."
     },
     {
-      "swift": "DumpCompareTests",
+      "swift": "ByteRipperTests",
       "web": [
         "tests/e2e"
       ],

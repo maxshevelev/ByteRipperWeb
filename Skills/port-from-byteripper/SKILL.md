@@ -1,25 +1,25 @@
 ---
-name: port-from-dumpcompare
-description: Find what changed in the macOS DumpCompare repository since this project was last brought level with it, and work out what of it belongs in the web edition. Use when asked to sync with DumpCompare, port upstream changes, check what is new upstream, or update the port baseline.
+name: port-from-byteripper
+description: Find what changed in the macOS ByteRipper repository since this project was last brought level with it, and work out what of it belongs in the web edition. Use when asked to sync with ByteRipper, port upstream changes, check what is new upstream, or update the port baseline.
 ---
 
-# Porting changes from DumpCompare
+# Porting changes from ByteRipper
 
-DumpCompare (macOS, Swift) is the reference implementation; this repository is
+ByteRipper (macOS, Swift) is the reference implementation; this repository is
 its web edition. Upstream keeps moving, and this skill is how the movement gets
 here without anyone re-reading a year of commits.
 
 The rule this skill follows: **it reports and proposes; it never rewrites code
 on its own.** A run produces a report and, after you act on it, a diff to
-review — the same rule DumpCompare's own skills follow.
+review — the same rule ByteRipper's own skills follow.
 
 ## What you need
 
-A DumpCompare clone the script can read. It looks in this order:
+A ByteRipper clone the script can read. It looks in this order:
 
 1. `--repo <path>`
-2. `$DUMPCOMPARE_REPO`
-3. `../DumpCompare` beside this repository
+2. `$BYTERIPPER_REPO`
+3. `../ByteRipper` beside this repository
 
 The clone must contain the baseline commit recorded in `PORT_STATE.json`, so
 `git fetch` it first if it is stale.
@@ -27,7 +27,7 @@ The clone must contain the baseline commit recorded in `PORT_STATE.json`, so
 ## Running it
 
 ```bash
-python3 Skills/port-from-dumpcompare/scripts/port_report.py
+python3 Skills/port-from-byteripper/scripts/port_report.py
 ```
 
 That prints a Markdown report: the upstream commits since the baseline, grouped
@@ -43,8 +43,8 @@ something other than upstream `HEAD`.
 
 For each module the report names:
 
-1. **Read the upstream diff.** `git -C ../DumpCompare show <sha> -- <path>`. The
-   commit message is usually the design rationale; DumpCompare's commits are
+1. **Read the upstream diff.** `git -C ../ByteRipper show <sha> -- <path>`. The
+   commit message is usually the design rationale; ByteRipper's commits are
    written to be read.
 2. **Decide what the change actually is.** Three kinds turn up, and they are
    treated differently:
@@ -76,7 +76,7 @@ Handle the two lists at the end of the report:
 Only after the work is done and reviewed:
 
 ```bash
-python3 Skills/port-from-dumpcompare/scripts/port_report.py --set-base <sha>
+python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>
 ```
 
 This rewrites `PORT_STATE.json` and nothing else. Do not advance the baseline

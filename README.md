@@ -3,7 +3,7 @@
 A hex editor and binary-file comparator for firmware dumps, in the browser.
 
 ByteRipperWeb is the web edition of
-**[DumpCompare](https://github.com/maxshevelev/DumpCompare)** — a macOS tool
+**[ByteRipper](https://github.com/maxshevelev/ByteRipper)** — a macOS tool
 built around one question a repair bench asks constantly: *is this chip's
 content the same as the one that works?* Two dumps, compared byte by byte at
 absolute offsets, with the structure over those bytes — the UEFI tree, the FIT

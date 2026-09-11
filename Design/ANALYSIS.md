@@ -1,6 +1,6 @@
 # ByteRipperWeb — analysis and plan
 
-ByteRipperWeb brings [DumpCompare](https://github.com/maxshevelev/DumpCompare) —
+ByteRipperWeb brings [ByteRipper](https://github.com/maxshevelev/ByteRipper) —
 a macOS hex editor and firmware-dump comparator — into the browser, so that any
 bench in a repair shop can open two dumps and answer *is this chip's content the
 same as the one that works?* without installing anything, on whatever operating
@@ -13,7 +13,7 @@ takes away from us. It is the document to argue with before code is written.
 
 The macOS app is ~103k lines of Swift. It is not being replaced — it stays the
 reference implementation, and this project tracks it (see
-[Relationship to DumpCompare](#relationship-to-dumpcompare)). What the web
+[Relationship to ByteRipper](#relationship-to-byteripper)). What the web
 edition buys is reach: a URL instead of a `.dmg`, Windows and Linux benches
 instead of Macs, and a tool that a shop can put on every machine at once.
 
@@ -282,6 +282,13 @@ are worth knowing rather than engineering around:
   often. Only the microcode catalogue uses the API, and only when the FIT tool
   is opened, so the budget is unlikely to bind in practice.
 
+**A fetch anybody is waiting on is shown, with a cancel.** On the desktop this
+was learned the hard way: the analysis stops mid-flight on `await
+data.database()`, and a bench reported it as a random pause before ME Analyzer
+produced anything — a silent 350 KB download. Here every wait on the network
+reports progress in the status bar, names what it is fetching, and can be
+cancelled into the tool's "databases unavailable" state.
+
 As on the desktop, each source sits behind an interface (`GuidsSource`,
 `MEADataSource`) so that tests install their own: a suite that reaches GitHub is
 a suite that fails on a train.
@@ -362,26 +369,26 @@ is a bit-level decoder over 0x1000 chunks, 3–5× slower in TS. Both sit behind
 narrow interface. If the measured total exceeds the budget, a small WASM module
 replaces those two functions and nothing else moves.
 
-## Relationship to DumpCompare
+## Relationship to ByteRipper
 
 The macOS app keeps evolving, and the web edition has to be able to follow it
 without someone re-reading a year of commits.
 
-`Skills/port-from-dumpcompare/` is the mechanism, built to this repository's
+`Skills/port-from-byteripper/` is the mechanism, built to this repository's
 skill rules: `SKILL.md`, a stdlib-only script, and reference documents it ports
 against.
 
-- `PORT_STATE.json` records the last DumpCompare commit whose changes have been
+- `PORT_STATE.json` records the last ByteRipper commit whose changes have been
   considered here, plus per-module notes.
-- The script reads `git log` from a DumpCompare clone — found at `../DumpCompare`
-  or wherever `DUMPCOMPARE_REPO` points — since that commit.
+- The script reads `git log` from a ByteRipper clone — found at `../ByteRipper`
+  or wherever `BYTERIPPER_REPO` points — since that commit.
 - Changes are grouped by Swift module and mapped through
   `reference/module-map.json` to the TypeScript files that correspond to them.
 - Paths with no web counterpart (sandbox, entitlements, AppKit view code,
   tabs and window management, file-type registration) are classified as
   *not applicable* and stay out of the report instead of resurfacing every run.
 - The output is a report to act on and a diff to review. The skill never
-  rewrites code blindly; that is the same rule DumpCompare's own skills follow.
+  rewrites code blindly; that is the same rule ByteRipper's own skills follow.
 
 The macOS repository stays the source of truth for firmware knowledge. A fix to
 a parser belongs there first, and arrives here through this path.

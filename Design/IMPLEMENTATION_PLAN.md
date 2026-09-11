@@ -1,17 +1,17 @@
 # ByteRipperWeb — Implementation Plan
 
 Step-by-step plan to build the browser edition of
-[DumpCompare](https://github.com/maxshevelev/DumpCompare), described in
+[ByteRipper](https://github.com/maxshevelev/ByteRipper), described in
 [`ANALYSIS.md`](ANALYSIS.md). Every milestone ends with a testable definition of
 done, and the file paths here are the ones
-`Skills/port-from-dumpcompare/reference/module-map.json` already maps upstream
+`Skills/port-from-byteripper/reference/module-map.json` already maps upstream
 Swift onto — keep the two in step.
 
 **Read first, in this order:** `CLAUDE.md` (the rules), `ANALYSIS.md` (what is in
 scope and what the browser forbids), then this file (how it gets built).
 
 **The reference implementation is a sibling clone.** The macOS app lives at
-`../DumpCompare` (or `$DUMPCOMPARE_REPO`) — ~103k lines of Swift that already
+`../ByteRipper` (or `$BYTERIPPER_REPO`) — ~103k lines of Swift that already
 answer most design questions this project will run into. Read the Swift before
 inventing a mechanism; its `Design/` directory records why each feature came out
 the way it did, and its unit tests are the cheapest verification that a port is
@@ -68,13 +68,13 @@ Rules the layering exists to enforce:
 | D1 | **TypeScript, `strict` everywhere**, one package, no monorepo tooling. Layer boundaries enforced by an ESLint `no-restricted-imports` rule, not by convention. | The Swift side gets this from package boundaries; in TS a lint rule is the equivalent that actually fails a build. A monorepo would be ceremony for one deliverable. |
 | D2 | **Vite + React 19**, hex grid on a `<canvas>`. React never renders a byte. | Confirmed with the user. The framework's job is desktop chrome — trees, splitters, dialogs — and it is off the hot path entirely. |
 | D3 | **Offsets are `number`, not `bigint`.** | `Number.MAX_SAFE_INTEGER` is 9 PB; a flash dump is at most gigabytes. `bigint` arithmetic is several times slower and infects every signature. Document the limit and assert it once when a file is opened. |
-| D4 | **Storage: chunked reads over `Blob.slice()` through a bounded LRU cache, plus a piece table for edits.** | Ports `ChunkCache` and `PieceTable` from `DumpCompareCore` nearly unchanged. Reads are `async` here (a `Blob` slice is a promise), unlike the Swift side where they are synchronous — see M1 for what that costs the renderer. |
+| D4 | **Storage: chunked reads over `Blob.slice()` through a bounded LRU cache, plus a piece table for edits.** | Ports `ChunkCache` and `PieceTable` from `ByteRipperCore` nearly unchanged. Reads are `async` here (a `Blob` slice is a promise), unlike the Swift side where they are synchronous — see M1 for what that costs the renderer. |
 | D5 | **Workers speak a small typed request/response protocol written by hand**, with `ArrayBuffer` transfers. No RPC library. | The protocol is ~100 lines and the shape of cancellation and progress is exactly what this app needs. A dependency would hide the part worth controlling. |
 | D6 | **The hex grid draws through a glyph atlas and repaints dirty regions only.** | `fillText` costs ~2–5 µs; a screen is ~1600 cells, which is most of a frame budget. Pre-rendered glyph tiles blitted with `drawImage` are 5–10× cheaper. Decided before the first line of the renderer because retrofitting it means rewriting it. |
 | D7 | **File access behind `FileSource` / `FileSink` interfaces** with two implementations each: File System Access (Chromium) and `File` + download (elsewhere). Capability is detected once and exposed to the UI. | The difference between *Save* and *Download a copy* is a fact about the browser the user must see; everything else in the app stays ignorant of it. |
 | D8 | **State in hand-written stores consumed through `useSyncExternalStore`.** No state library. | State lives outside the React tree anyway — workers and an imperative renderer own most of it. A store is ~40 lines; a library would be a dependency for less. |
 | D9 | **Vitest for `core`/`firmware`, Playwright for flows.** Upstream's Swift unit tests are ported *with* the code they cover. | A ported parser with upstream's own cases behind it is a ported parser that can be trusted. The Swift tests are the specification. |
-| D10 | **Third-party databases: fetched live from GitHub, cached 24 h in the Cache API**, behind the same source interfaces the desktop uses. | Freshness with no manual updating, as upstream chose — plus the offline case the desktop lacks. Bodies carry their fetch date and the UI shows it. See `ANALYSIS.md` § Third-party data. |
+| D10 | **Third-party databases: fetched live from GitHub, cached 24 h in the Cache API**, behind the same source interfaces the desktop uses, and **a fetch anyone is waiting on is visible with a cancel**. | Freshness with no manual updating, as upstream chose — plus the offline case the desktop lacks. Bodies carry their fetch date and the UI shows it. Visibility is the desktop's own lesson: a reported "random pause" before ME Analyzer turned out to be a silent 350 KB download of `MEA.dat` mid-analysis, which is why it must never be silent here. See `ANALYSIS.md` § Third-party data. |
 | D11 | **One workspace per browser tab.** No in-app tabs, no window management, no pane dragging. | Confirmed with the user. It also frees the `Cmd+T` / `Cmd+N` / `Cmd+W` shortcuts the browser refuses to surrender. |
 | D12 | **A command palette (`Cmd/Ctrl+K`) replaces the menu bar**, with a toolbar for the handful of commands worth a permanent button. | A web page has no menu bar, and this app has more commands than a toolbar can hold honestly. |
 | D13 | **Ranges are half-open `[start, end)` internally**, inclusive ends converted at dialog edges only. | Same rule as upstream; the bugs it prevents are the same bugs. |
@@ -136,9 +136,9 @@ empty shell renders in both themes; `npm run bench` runs and prints a table.
 
 ## 5. Milestone 1 — Storage and document (pure TS, test-first)
 
-Ports `Packages/DumpCompareCore` storage and document files. Read the Swift
+Ports `Packages/ByteRipperCore` storage and document files. Read the Swift
 first; the piece-table design in particular is documented in
-`../DumpCompare/Design/PIECE_TABLE_PLAN.md`.
+`../ByteRipper/Design/PIECE_TABLE_PLAN.md`.
 
 1. `src/core/storage/byteStorage.ts` — the interface: `size`,
    `read(at, length): Promise<Uint8Array>`, clamped at EOF.
@@ -156,7 +156,7 @@ first; the piece-table design in particular is documented in
    (`0x` hex or decimal, validating), `src/core/text/byteDecoder.ts`
    (Windows-1252 and friends, table-driven).
 8. `src/core/edit/undoHistory.ts` — op stack with the typed-run grouping rule.
-9. Tests ported from `Packages/DumpCompareCore/Tests`.
+9. Tests ported from `Packages/ByteRipperCore/Tests`.
 
 **Async reads are the one real divergence from Swift** and they land here: a
 `Blob` slice is a promise, so the renderer cannot pull bytes synchronously
@@ -403,19 +403,19 @@ Benchmark fixtures are real firmware dumps and are gitignored. Put at least one
 
 ---
 
-## 18. Staying level with DumpCompare
+## 18. Staying level with ByteRipper
 
 The macOS app keeps moving. Before starting a milestone that ports a module,
 and after finishing one:
 
 ```bash
-python3 Skills/port-from-dumpcompare/scripts/port_report.py
+python3 Skills/port-from-byteripper/scripts/port_report.py
 ```
 
 It reports what changed upstream since the commit in `PORT_STATE.json`, mapped
 onto this repository. Update `reference/module-map.json` as modules move from
 `planned` to `ported` — a stale map makes every future run lie. Full procedure
-in `Skills/port-from-dumpcompare/SKILL.md`.
+in `Skills/port-from-byteripper/SKILL.md`.
 
 ---
 

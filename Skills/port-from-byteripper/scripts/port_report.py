@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Report what changed in DumpCompare since the last commit considered here.
+"""Report what changed in ByteRipper since the last commit considered here.
 
-Reads PORT_STATE.json for the baseline commit, asks a DumpCompare clone for the
+Reads PORT_STATE.json for the baseline commit, asks a ByteRipper clone for the
 commits after it, and maps every touched path through
 reference/module-map.json onto the files of this repository.
 
@@ -35,13 +35,13 @@ def fail(message: str) -> "NoReturn":  # type: ignore[name-defined]
 
 
 def find_source_repo(explicit: str | None) -> Path:
-    """Locate the DumpCompare clone: --repo, $DUMPCOMPARE_REPO, then ../DumpCompare."""
+    """Locate the ByteRipper clone: --repo, $BYTERIPPER_REPO, then ../ByteRipper."""
     candidates = []
     if explicit:
         candidates.append(Path(explicit).expanduser())
-    if os.environ.get("DUMPCOMPARE_REPO"):
-        candidates.append(Path(os.environ["DUMPCOMPARE_REPO"]).expanduser())
-    candidates.append(REPO_ROOT.parent / "DumpCompare")
+    if os.environ.get("BYTERIPPER_REPO"):
+        candidates.append(Path(os.environ["BYTERIPPER_REPO"]).expanduser())
+    candidates.append(REPO_ROOT.parent / "ByteRipper")
 
     for path in candidates:
         if (path / ".git").exists():
@@ -49,7 +49,7 @@ def find_source_repo(explicit: str | None) -> Path:
 
     tried = "\n  ".join(str(c) for c in candidates)
     fail(
-        "no DumpCompare clone found. Pass --repo, set DUMPCOMPARE_REPO, or put a "
+        "no ByteRipper clone found. Pass --repo, set BYTERIPPER_REPO, or put a "
         f"clone beside this one. Tried:\n  {tried}"
     )
 
@@ -158,7 +158,7 @@ def file_hint(module: dict, path: str) -> str | None:
 
 def print_markdown(state: dict, repo: Path, head: str, commits: list[dict], report: dict) -> None:
     base = state["baseCommit"]
-    print("# Port report — DumpCompare → ByteRipperWeb\n")
+    print("# Port report — ByteRipper → ByteRipperWeb\n")
     print(f"Source: `{repo}`")
     print(f"Baseline: `{base[:12]}` ({state.get('baselineNote', 'no note')})")
     print(f"Head: `{head[:12]}`")
@@ -212,7 +212,7 @@ def print_markdown(state: dict, repo: Path, head: str, commits: list[dict], repo
     print("Read the diffs for the modules above, port what belongs here, then record "
           "the new baseline:\n")
     print("```bash")
-    print(f"python3 Skills/port-from-dumpcompare/scripts/port_report.py --set-base {head}")
+    print(f"python3 Skills/port-from-byteripper/scripts/port_report.py --set-base {head}")
     print("```")
 
 
@@ -256,7 +256,7 @@ def set_base(sha: str, repo: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", help="path to a DumpCompare clone")
+    parser.add_argument("--repo", help="path to a ByteRipper clone")
     parser.add_argument("--head", default="HEAD", help="upstream ref to compare against")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     parser.add_argument("--set-base", metavar="SHA",

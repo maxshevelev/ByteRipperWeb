@@ -1,6 +1,6 @@
 SHORT PROJECT CONTEXT
 
-Project: ByteRipperWeb — the browser edition of DumpCompare, a tool for
+Project: ByteRipperWeb — the browser edition of ByteRipper, a tool for
 comparing and editing two binary firmware dumps. Same question as the macOS app
 (*is this chip's content the same as the one that works?*), reachable from any
 bench on any operating system without installing anything.
@@ -11,8 +11,8 @@ Two documents are the plan of record, in this order:
 - `Design/IMPLEMENTATION_PLAN.md` — the technical decisions and the milestones,
   each with a definition of done. Read it before writing code.
 
-The macOS reference implementation is a sibling clone at `../DumpCompare` (or
-`$DUMPCOMPARE_REPO`). Read the Swift before inventing a mechanism: it has
+The macOS reference implementation is a sibling clone at `../ByteRipper` (or
+`$BYTERIPPER_REPO`). Read the Swift before inventing a mechanism: it has
 already answered most of these questions, and its tests are the specification a
 port is checked against.
 
@@ -63,23 +63,23 @@ Skills:
   `mkdir -p .claude/skills && ln -s ../../Skills/<name> .claude/skills/<name>`
 - A skill's run is a diff to review, never a blind rewrite.
 
-Relationship to DumpCompare:
+Relationship to ByteRipper:
 - The macOS repository is the reference implementation and the source of truth
   for firmware knowledge. A parser fix belongs there first.
-- `Skills/port-from-dumpcompare/` reports what changed upstream since the commit
+- `Skills/port-from-byteripper/` reports what changed upstream since the commit
   in `PORT_STATE.json`, mapped onto this repository through
-  `Skills/port-from-dumpcompare/reference/module-map.json`.
-- The clone is found at `../DumpCompare` or via `$DUMPCOMPARE_REPO`.
+  `Skills/port-from-byteripper/reference/module-map.json`.
+- The clone is found at `../ByteRipper` or via `$BYTERIPPER_REPO`.
 - Keep the module map current as part of doing the work. A stale map makes every
   future run lie.
 
 Third-party data:
 - The GUID catalogue, the ME databases and the microcode catalogue are fetched
-  live from GitHub, as DumpCompare does: lazy and single-flight. Unlike the
+  live from GitHub, as ByteRipper does: lazy and single-flight. Unlike the
   desktop, bodies are cached for 24 hours in the Cache API, so a bench without
   network still has yesterday's databases — and the tool shows their date, so
   yesterday's data is never mistaken for today's.
 - Each source sits behind an interface so tests install their own. A test that
   reaches the network is a test that fails on a train.
 - The upstream projects these come from (UEFITool, MEAnalyzer, CPUMicrocodes)
-  are credited in the README, as they are in DumpCompare.
+  are credited in the README, as they are in ByteRipper.
