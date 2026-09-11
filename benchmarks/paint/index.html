@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ByteRipperWeb — paint benchmarks</title>
+    <style>
+      body { margin: 0; padding: 1.5rem; font: 13px/1.5 system-ui, sans-serif; }
+      pre { background: #f4f4f6; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+      canvas { position: absolute; left: -10000px; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #1b1b1f; color: #ececee; }
+        pre { background: #26262b; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Paint benchmarks</h1>
+    <p>
+      The rows <code>npm run bench</code> cannot measure: Node has no canvas, so the frame cost of a
+      repaint and of a scroll can only be taken in a browser. Open this page on the machine whose
+      numbers you want. In M12 Playwright drives it from CI.
+    </p>
+    <pre id="out">measuring…</pre>
+    <script type="module" src="./paint.ts"></script>
+  </body>
+</html>

@@ -4,6 +4,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // `benchmarks/paint/` is a page Vite serves in development and Playwright
+    // will drive in M12. It is not part of the app and does not ship.
+    rollupOptions: { input: fileURLToPath(new URL("./index.html", import.meta.url)) },
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

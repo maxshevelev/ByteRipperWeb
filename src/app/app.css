@@ -103,3 +103,121 @@ body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* ── Toolbar controls ─────────────────────────────────────────────────── */
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-button,
+.empty-state-button {
+  font: inherit;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.toolbar-button:hover,
+.empty-state-button:hover {
+  background: var(--surface-sunken);
+}
+
+.empty-state-button {
+  margin-top: 0.5rem;
+  padding: 0.4rem 1rem;
+}
+
+.toolbar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+}
+
+.toolbar-field select {
+  font: inherit;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.status-slot-problem {
+  color: var(--semantic-bad);
+}
+
+/* ── The pane ─────────────────────────────────────────────────────────── */
+
+.hex-pane {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  min-height: 0;
+}
+
+/*
+ * A real scrolling element with a spacer inside it, so the browser's own
+ * scrollbar, wheel handling and trackpad momentum all work — none of which is
+ * worth reimplementing on a canvas. The canvas is pinned to the viewport and
+ * painted for the current offset, which is why it is `sticky` rather than
+ * scrolling with the content.
+ */
+.hex-scroller {
+  position: relative;
+  overflow: auto;
+  outline: none;
+  background: var(--surface);
+  contain: strict;
+}
+
+.hex-scroller:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.hex-canvas {
+  position: sticky;
+  top: 0;
+  left: 0;
+  display: block;
+  /* The canvas must not eat the pointer events the scroller listens for. */
+  pointer-events: none;
+}
+
+.hex-spacer {
+  /* Pulls the document up under the sticky canvas so only the scrollbar shows. */
+  margin-top: -100%;
+  /* The width is set from the layout, so a narrow window scrolls sideways. */
+  pointer-events: none;
+}
+
+.hex-caret-readout {
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Dropping a file ──────────────────────────────────────────────────── */
+
+.drop-veil {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  outline: 3px dashed var(--accent);
+  outline-offset: -12px;
+  color: var(--text);
+  font-size: 1.1rem;
+  pointer-events: none;
+}

@@ -1,0 +1,498 @@
+import type { ByteDecoder } from "@/core/text/byteDecoder";
+import { addressString } from "@/core/text/offsetParser";
+import { addressSignificantFrom, byteInk, type InkRole } from "@/render/hexGrid/byteStyle";
+import { DirtyRows } from "@/render/hexGrid/dirtyRows";
+import { GlyphAtlas, type GlyphAtlasKey } from "@/render/hexGrid/glyphAtlas";
+import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
+
+/**
+ * The hex grid, drawn.
+ *
+ * Imperative, and it imports no React — M2's definition of done says so, and
+ * the lint rule in `biome.jsonc` enforces it. React's job is the chrome around
+ * this canvas; it never renders a byte.
+ *
+ * Three things make the frame budget:
+ *
+ * - **Only dirty rows are painted** ({@link DirtyRows}). A caret moving down a
+ *   column repaints two rows, not a screen.
+ * - **Scrolling blits.** The rows that stayed on screen are copied up or down
+ *   with one `drawImage` of the canvas onto itself, and only the newly exposed
+ *   band is painted.
+ * - **Glyphs are blitted, not shaped** ({@link GlyphAtlas}, D6).
+ *
+ * Bytes arrive through {@link HexGridSource.peek}, which is allowed to fail: a
+ * canvas cannot await. A row whose bytes are not resident paints as a
+ * placeholder and is left dirty, and the prefetch the renderer issues for the
+ * viewport brings it back as soon as the chunk lands.
+ */
+
+/** What the grid draws from. `BinaryDocument` satisfies this as it stands. */
+export interface HexGridSource {
+  readonly size: number;
+  peek(at: number, length: number): Uint8Array | undefined;
+  prefetch(at: number, length: number): Promise<void>;
+}
+
+/** The colours the grid paints with, resolved from the theme's CSS variables. */
+export interface HexGridColors extends Record<InkRole, string> {
+  readonly background: string;
+  readonly selection: string;
+  readonly eofHatch: string;
+}
+
+export interface HexGridConfig {
+  readonly layout: HexLayout;
+  readonly decoder: ByteDecoder;
+  readonly colors: HexGridColors;
+  readonly fontFamily: string;
+  readonly fontSizePx: number;
+  readonly devicePixelRatio: number;
+}
+
+export interface HexGridViewport {
+  /** Scroll offset in content coordinates. */
+  readonly scrollTop: number;
+  /**
+   * Horizontal scroll offset. A narrow window scrolls sideways rather than
+   * wrapping the row: 16 bytes a row is the rule, not a preference.
+   */
+  readonly scrollLeft: number;
+  readonly widthCss: number;
+  readonly heightCss: number;
+}
+
+/** The selection to paint, as a half-open byte range. */
+export interface HexGridSelection {
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * How many rows either side of the viewport are kept resident, so a scroll of
+ * a screen or so never paints a placeholder. One screen's worth is the useful
+ * amount: less and a flick outruns it, more and the prefetch competes with the
+ * reads the viewport itself needs.
+ */
+const READ_AHEAD_SCREENS = 1;
+
+export class HexGridRenderer {
+  private readonly canvas: HTMLCanvasElement;
+  private readonly context: CanvasRenderingContext2D;
+
+  private config: HexGridConfig | undefined;
+  private atlas: GlyphAtlas | undefined;
+  private source: HexGridSource | undefined;
+
+  private viewport: HexGridViewport = {
+    scrollTop: 0,
+    scrollLeft: 0,
+    widthCss: 0,
+    heightCss: 0,
+  };
+  private selection: HexGridSelection = { start: 0, end: 0 };
+  /** Offsets whose bytes differ from the saved file. Populated from M4. */
+  private modifiedRanges: readonly { start: number; end: number }[] = [];
+
+  private readonly dirty = new DirtyRows();
+  /** The scroll offset the canvas currently holds, for the blit. */
+  private paintedScrollTop = 0;
+  private paintedRows: { first: number; end: number } = { first: 0, end: 0 };
+
+  private prefetching: Promise<void> | undefined;
+  private onBytesArrived: (() => void) | undefined;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    const context = canvas.getContext("2d", { alpha: false });
+    if (context === null) throw new Error("the hex grid needs a 2D canvas context");
+    this.context = context;
+  }
+
+  /**
+   * Called when bytes the last paint was missing have arrived, so the host can
+   * schedule another frame.
+   */
+  setBytesArrivedHandler(handler: (() => void) | undefined): void {
+    this.onBytesArrived = handler;
+  }
+
+  configure(config: HexGridConfig): void {
+    this.config = config;
+    const key: GlyphAtlasKey = {
+      fontFamily: config.fontFamily,
+      fontSizePx: config.fontSizePx,
+      charWidth: config.layout.charWidth,
+      rowHeight: config.layout.rowHeight,
+      devicePixelRatio: config.devicePixelRatio,
+      colors: config.colors,
+      decoderIdentifier: config.decoder.identifier,
+      placeholder: config.decoder.placeholder,
+    };
+    if (this.atlas === undefined || !this.atlas.matches(key)) {
+      this.atlas = GlyphAtlas.build(key, config.decoder);
+    }
+    this.invalidateAll();
+  }
+
+  setSource(source: HexGridSource | undefined): void {
+    this.source = source;
+    this.invalidateAll();
+  }
+
+  setViewport(viewport: HexGridViewport): void {
+    const config = this.config;
+    if (config === undefined) return;
+
+    const sizeChanged =
+      viewport.widthCss !== this.viewport.widthCss ||
+      viewport.heightCss !== this.viewport.heightCss;
+    // The blit only ever moves rows vertically, so a sideways scroll has to be
+    // repainted rather than shifted.
+    const scrolledSideways = viewport.scrollLeft !== this.viewport.scrollLeft;
+    this.viewport = viewport;
+
+    if (sizeChanged) {
+      const scale = config.devicePixelRatio;
+      this.canvas.width = Math.max(1, Math.round(viewport.widthCss * scale));
+      this.canvas.height = Math.max(1, Math.round(viewport.heightCss * scale));
+      this.canvas.style.width = `${viewport.widthCss}px`;
+      this.canvas.style.height = `${viewport.heightCss}px`;
+      // A resized canvas is a cleared canvas: nothing of the old paint survives
+      // to be blitted, so there is nothing to preserve.
+      this.invalidateAll();
+    } else if (scrolledSideways) {
+      this.invalidateAll();
+    }
+  }
+
+  setSelection(selection: HexGridSelection): void {
+    const previous = this.selection;
+    this.selection = selection;
+    const config = this.config;
+    if (config === undefined) return;
+    // Only the rows the selection left and the rows it now covers.
+    for (const range of [previous, selection]) {
+      if (range.end < range.start) continue;
+      const first = Math.floor(range.start / BYTES_PER_ROW);
+      const last = Math.floor(Math.max(range.start, range.end - 1) / BYTES_PER_ROW);
+      this.dirty.invalidate(first, last + 1);
+    }
+  }
+
+  /** The byte ranges drawn as unsaved edits. */
+  setModifiedRanges(ranges: readonly { start: number; end: number }[]): void {
+    this.modifiedRanges = ranges;
+    this.invalidateAll();
+  }
+
+  /** Marks the rows covering `[start, end)` for repaint. */
+  invalidateBytes(start: number, end: number): void {
+    this.dirty.invalidate(
+      Math.floor(start / BYTES_PER_ROW),
+      Math.floor(Math.max(start, end - 1) / BYTES_PER_ROW) + 1
+    );
+  }
+
+  invalidateAll(): void {
+    this.dirty.clear();
+    this.dirty.invalidate(0, Number.MAX_SAFE_INTEGER);
+    this.paintedRows = { first: 0, end: 0 };
+  }
+
+  /** Total content height, for the scrollbar the pane puts beside this. */
+  get contentHeight(): number {
+    const config = this.config;
+    return config === undefined ? 0 : config.layout.totalHeight(this.source?.size ?? 0);
+  }
+
+  get contentWidth(): number {
+    return this.config?.layout.contentWidth ?? 0;
+  }
+
+  /**
+   * Paints whatever is dirty and visible. Cheap to call every frame: with
+   * nothing dirty and no scroll it does nothing at all.
+   */
+  draw(): void {
+    const config = this.config;
+    const atlas = this.atlas;
+    if (config === undefined || atlas === undefined) return;
+    if (this.canvas.width === 0 || this.canvas.height === 0) return;
+
+    const { layout } = config;
+    const size = this.source?.size ?? 0;
+    const rowCount = layout.rowCount(size);
+    const visible = layout.visibleRowRange(this.viewport.scrollTop, this.viewport.heightCss);
+    const first = Math.min(visible.first, rowCount);
+    const end = Math.min(visible.end, rowCount);
+
+    this.scrollBlit(first, end);
+    this.requestReadAhead(first, end, size);
+
+    const runs = this.dirty.within(first, end);
+    if (runs.length === 0) {
+      this.paintedScrollTop = this.viewport.scrollTop;
+      this.paintedRows = { first, end };
+      return;
+    }
+
+    const scale = config.devicePixelRatio;
+    this.context.save();
+    this.context.setTransform(
+      scale,
+      0,
+      0,
+      scale,
+      -this.viewport.scrollLeft * scale,
+      -this.viewport.scrollTop * scale
+    );
+
+    let missedBytes = false;
+    for (const run of runs) {
+      for (let row = run.start; row < run.end; row++) {
+        if (!this.paintRow(row, size)) missedBytes = true;
+      }
+    }
+    this.context.restore();
+
+    this.dirty.clearWithin(first, end);
+    if (missedBytes) {
+      // The rows that painted placeholders stay dirty, so the frame after the
+      // chunk lands paints them properly.
+      for (const run of runs) this.dirty.invalidate(run.start, run.end);
+    }
+    this.paintedScrollTop = this.viewport.scrollTop;
+    this.paintedRows = { first, end };
+  }
+
+  // MARK: - Internals
+
+  /**
+   * Moves what is already painted rather than repainting it.
+   *
+   * A scroll of one row copies the canvas onto itself, offset by a row, and
+   * leaves a one-row band dirty. Without this, every scroll frame paints a
+   * whole screen of glyphs.
+   */
+  private scrollBlit(first: number, end: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+
+    const delta = this.viewport.scrollTop - this.paintedScrollTop;
+    if (delta === 0 || this.paintedRows.end === this.paintedRows.first) return;
+
+    const scale = config.devicePixelRatio;
+    const shift = Math.round(delta * scale);
+    if (Math.abs(shift) >= this.canvas.height) {
+      // Nothing that is painted is still on screen.
+      this.dirty.invalidate(first, end);
+      return;
+    }
+
+    this.context.save();
+    this.context.setTransform(1, 0, 0, 1, 0, 0);
+    this.context.globalCompositeOperation = "copy";
+    this.context.drawImage(this.canvas, 0, -shift);
+    this.context.restore();
+
+    // The band the blit exposed, in rows, with one row of slack either side so
+    // a fractional scroll never leaves a half-painted row behind.
+    if (delta > 0) {
+      const exposedFrom = Math.floor(
+        (this.paintedScrollTop + this.viewport.heightCss) / config.layout.rowHeight
+      );
+      this.dirty.invalidate(exposedFrom - 1, end);
+    } else {
+      const exposedTo = Math.ceil(this.paintedScrollTop / config.layout.rowHeight);
+      this.dirty.invalidate(first, exposedTo + 1);
+    }
+  }
+
+  /**
+   * Paints one row. Returns false when its bytes were not resident, which
+   * leaves the row dirty for the frame after they arrive.
+   */
+  private paintRow(row: number, size: number): boolean {
+    const config = this.config;
+    const atlas = this.atlas;
+    if (config === undefined || atlas === undefined) return true;
+
+    const { layout, colors } = config;
+    const y = row * layout.rowHeight;
+    const rowStart = layout.byteOffset(row, 0);
+    const available = Math.max(0, Math.min(BYTES_PER_ROW, size - rowStart));
+
+    this.context.fillStyle = colors.background;
+    // Across the whole canvas, not only the row's content: a window wider than
+    // a row would otherwise leave whatever the last paint put there.
+    this.context.fillRect(
+      this.viewport.scrollLeft,
+      y,
+      Math.max(layout.contentWidth, this.viewport.widthCss),
+      layout.rowHeight
+    );
+
+    this.paintSelection(rowStart, y);
+    this.paintAddress(rowStart, y);
+
+    if (available === 0) {
+      this.paintEofHatch(0, BYTES_PER_ROW, y);
+      return true;
+    }
+
+    const bytes = this.source?.peek(rowStart, available);
+    if (bytes === undefined) {
+      // Not resident. A placeholder band rather than a blank row, so a fast
+      // scroll reads as "still loading" and not as "this file is empty here".
+      this.paintEofHatch(0, available, y, 0.4);
+      if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
+      return false;
+    }
+
+    for (let column = 0; column < bytes.length; column++) {
+      const byte = bytes[column] ?? 0;
+      const role = byteInk(byte, this.isModified(rowStart + column));
+      this.blit(atlas.hexPair(byte, role), layout.hexByteX(column), y, 2 * layout.charWidth);
+      this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
+    }
+    if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
+    return true;
+  }
+
+  /** The address, with its leading zeros muted. */
+  private paintAddress(rowStart: number, y: number): void {
+    const config = this.config;
+    const atlas = this.atlas;
+    if (config === undefined || atlas === undefined) return;
+
+    const { layout } = config;
+    const text = addressString(rowStart, layout.offsetColumnChars);
+    const significant = addressSignificantFrom(text);
+
+    for (let index = 0; index < text.length; index++) {
+      const digit = Number.parseInt(text[index] ?? "0", 16);
+      const role: InkRole = index < significant ? "mutedAddress" : "address";
+      this.blit(
+        atlas.digit(digit, role),
+        layout.leftPadding + index * layout.charWidth,
+        y,
+        layout.charWidth
+      );
+    }
+  }
+
+  private paintSelection(rowStart: number, y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    const { start, end } = this.selection;
+    if (end <= start) return;
+
+    const from = Math.max(start, rowStart) - rowStart;
+    const to = Math.min(end, rowStart + BYTES_PER_ROW) - rowStart;
+    if (to <= from) return;
+
+    const { layout, colors } = config;
+    this.context.fillStyle = colors.selection;
+    // The hex cells, and the decoded characters beside them.
+    this.context.fillRect(
+      layout.hexByteX(from),
+      y,
+      layout.hexByteX(to - 1) + layout.hexByteWidth - layout.hexByteX(from),
+      layout.rowHeight
+    );
+    this.context.fillRect(layout.textX(from), y, (to - from) * layout.charWidth, layout.rowHeight);
+  }
+
+  /**
+   * Past EOF, and where bytes have not arrived. Hatching rather than emptiness,
+   * because the state has to be carried by form as well as colour.
+   */
+  private paintEofHatch(fromColumn: number, toColumn: number, y: number, alpha = 1): void {
+    const config = this.config;
+    if (config === undefined || toColumn <= fromColumn) return;
+    const { layout, colors } = config;
+
+    const bands: [x: number, width: number][] = [
+      [
+        layout.hexByteX(fromColumn),
+        layout.hexByteX(toColumn - 1) + layout.hexByteWidth - layout.hexByteX(fromColumn),
+      ],
+      [layout.textX(fromColumn), (toColumn - fromColumn) * layout.charWidth],
+    ];
+
+    for (const [x, width] of bands) {
+      this.context.save();
+      this.context.beginPath();
+      this.context.rect(x, y, width, layout.rowHeight);
+      this.context.clip();
+
+      this.context.globalAlpha = alpha;
+      this.context.strokeStyle = colors.eofHatch;
+      this.context.lineWidth = 1;
+      this.context.beginPath();
+      // Diagonals at 45°, spaced so the band reads as hatched at any row
+      // height. They run past the band's edges and the clip trims them.
+      for (let offset = 0; offset < width + layout.rowHeight; offset += 6) {
+        this.context.moveTo(x + offset, y + layout.rowHeight);
+        this.context.lineTo(x + offset - layout.rowHeight, y);
+      }
+      this.context.stroke();
+      this.context.restore();
+    }
+  }
+
+  private blit(
+    tile: { x: number; y: number; width: number; height: number },
+    x: number,
+    y: number,
+    cssWidth: number
+  ): void {
+    const atlas = this.atlas;
+    const config = this.config;
+    if (atlas === undefined || config === undefined) return;
+    this.context.drawImage(
+      atlas.source,
+      tile.x,
+      tile.y,
+      tile.width,
+      tile.height,
+      x,
+      y,
+      cssWidth,
+      config.layout.rowHeight
+    );
+  }
+
+  private isModified(offset: number): boolean {
+    for (const range of this.modifiedRanges) {
+      if (offset >= range.start && offset < range.end) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Asks the storage for the viewport and a screen either side of it. One
+   * request at a time: a fast scroll would otherwise queue a read per frame.
+   */
+  private requestReadAhead(first: number, end: number, size: number): void {
+    const source = this.source;
+    if (source === undefined || this.prefetching !== undefined || size === 0) return;
+
+    const screens = (end - first) * READ_AHEAD_SCREENS;
+    const from = Math.max(0, (first - screens) * BYTES_PER_ROW);
+    const to = Math.min(size, (end + screens) * BYTES_PER_ROW);
+    if (to <= from) return;
+
+    // Already resident: nothing to wait for, and no frame to schedule.
+    if (source.peek(from, to - from) !== undefined) return;
+
+    this.prefetching = source
+      .prefetch(from, to - from)
+      .catch(() => undefined)
+      .then(() => {
+        this.prefetching = undefined;
+        this.onBytesArrived?.();
+      });
+  }
+}

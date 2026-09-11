@@ -151,6 +151,10 @@ async function main(): Promise<void> {
   console.log("");
   console.log("Budgets: Design/ANALYSIS.md § Performance budget. A row with no budget is a");
   console.log("baseline to watch, not a promise.");
+  console.log("");
+  console.log("The frame cost of a repaint and of a scroll is not measurable here — Node has no");
+  console.log("canvas, and a software one would measure the shim. Those rows live in a page:");
+  console.log("  npm run dev, then open /benchmarks/paint/");
 
   if (fixture.real && anyOverBudget(rows)) process.exitCode = 1;
 }

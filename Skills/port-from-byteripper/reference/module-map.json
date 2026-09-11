@@ -124,7 +124,7 @@
       "web": [
         "src/ui/theme"
       ],
-      "status": "planned",
+      "status": "ported",
       "note": "Colours. A change here is usually a CSS-variable change there."
     },
     {
@@ -163,8 +163,13 @@
         "src/render/hexGrid",
         "src/ui/pane"
       ],
-      "status": "planned",
-      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas."
+      "status": "in-progress",
+      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. Ported as of M2: HexLayout (whole, with its tests), WordSize, and the byte-significance and address-split rules out of HexTheme. HexView's 3.5k lines are split between src/render/hexGrid (drawing) and src/ui/pane (events); its editing, caret-nibble and difference paths wait on M3 and M4.",
+      "files": {
+        "HexLayout.swift": "src/render/hexGrid/hexLayout.ts",
+        "WordSize.swift": "src/render/hexGrid/hexLayout.ts",
+        "HexView.swift": "src/render/hexGrid/hexGridRenderer.ts"
+      }
     },
     {
       "swift": "ByteRipperApp/Minimap",
@@ -202,7 +207,7 @@
       "web": [
         "src/ui/pane"
       ],
-      "status": "planned"
+      "status": "in-progress"
     },
     {
       "swift": "ByteRipperApp/Tools",
@@ -225,15 +230,15 @@
         "src/core/document",
         "src/platform/files"
       ],
-      "status": "planned",
-      "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles."
+      "status": "in-progress",
+      "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles. src/platform/files carries the capability detection and the open and drop paths as of M2; the save path is M4."
     },
     {
       "swift": "ByteRipperApp/DragDrop",
       "web": [
         "src/platform/dragDrop"
       ],
-      "status": "planned",
+      "status": "in-progress",
       "note": "File drops port; pane drags do not."
     },
     {

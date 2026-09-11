@@ -13,5 +13,8 @@
     "lib": ["ES2023"],
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "benchmarks"]
+  "include": ["vite.config.ts", "benchmarks"],
+  // benchmarks/paint runs in a browser, not in Node: it is typechecked by
+  // tsconfig.json, which has the DOM and the @/ alias.
+  "exclude": ["benchmarks/paint"]
 }

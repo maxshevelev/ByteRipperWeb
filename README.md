@@ -22,10 +22,12 @@ file is part of that request.
 
 ## Status
 
-**Early.** The domain half is real — chunked storage, a piece table over it,
-the document with its undo history — and it is checked against the macOS app's
-own unit tests, ported with the code they cover. Nothing draws a byte yet.
-Milestone by milestone, the plan is
+**Early.** It opens a dump and draws it. The domain half is real — chunked
+storage, a piece table over it, the document with its undo history — and it is
+checked against the macOS app's own unit tests, ported with the code they
+cover. What is missing is everything that makes it a *comparator*: a second
+pane, editing, saving, and the firmware tools. Milestone by milestone, the plan
+is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
@@ -34,8 +36,9 @@ scope at all, and what the browser takes away, is
 | --- | --- |
 | M0 Scaffolding and benchmarks | done |
 | M1 Storage and document | done |
-| M2 Hex grid, read-only | next |
-| M3 – M12 | see the plan |
+| M2 Hex grid, read-only, one file | done |
+| M3 Comparison | next |
+| M4 – M12 | see the plan |
 
 ## Stack
 
@@ -60,6 +63,10 @@ npm run build    # production bundle
 `npm run bench` wants a real dump in `benchmarks/fixtures/` (gitignored). With
 nothing there it measures a synthetic stand-in and says so; those numbers are
 for watching a trend, not for quoting.
+
+The frame cost of a repaint and of a scroll cannot be measured in Node, which
+has no canvas. Those rows live in a page: `npm run dev`, then open
+`/benchmarks/paint/`.
 
 Chromium browsers get the File System Access API, which is what makes *Save*
 mean *save in place*. Firefox and Safari are fully usable and save a copy
