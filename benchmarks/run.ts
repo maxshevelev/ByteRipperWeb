@@ -7,7 +7,9 @@
  * `ChunkCache`, so a regression in either shows up here.
  */
 
+import { BinaryDocument } from "@/core/document/binaryDocument";
 import { ChunkCache } from "@/core/storage/chunkCache";
+import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { resolveFixture } from "./fixture.ts";
 import { anyOverBudget, measure, printTable, type Row } from "./harness.ts";
@@ -119,6 +121,31 @@ async function main(): Promise<void> {
       { samples: 15, bytes: 256 * 4096 }
     ),
   });
+
+  // What the piece table exists for: an edit costs the same wherever it lands
+  // and whatever the file's size. Upstream's previous design rewrote the whole
+  // file per typed byte — 25 ms on 8 MB, 87 ms on 32 MB, the same at either end
+  // of the file. If that ever comes back, it comes back here first.
+  for (const [where, at] of [
+    ["near the start", 1024],
+    ["near the end", Math.max(0, blob.size - 1024)],
+  ] as const) {
+    rows.push({
+      name: `Type 100 bytes ${where}`,
+      note: "One hundred single-byte inserts through the document, undo history and all.",
+      measurement: await measure(
+        async () => {
+          const document = new BinaryDocument(new EditOverlayStorage(fresh()));
+          document.beginSeries(1);
+          for (let i = 0; i < 100; i++) {
+            await document.insert(at + i, new Uint8Array([i & 0xff]));
+          }
+          document.endSeries();
+        },
+        { samples: 5 }
+      ),
+    });
+  }
 
   printTable(rows);
   console.log("");

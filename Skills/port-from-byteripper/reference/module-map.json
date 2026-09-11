@@ -5,7 +5,7 @@
     "`modules` is matched by longest path prefix; `notApplicable` is checked",
     "first and removes a path from the report entirely. `status` says how far",
     "the port has got: planned | in-progress | ported.",
-    "Keeping this file honest is the whole point of the skill \u2014 an unmapped",
+    "Keeping this file honest is the whole point of the skill — an unmapped",
     "path is reported as unmapped rather than silently ignored."
   ],
   "notApplicable": [
@@ -68,8 +68,8 @@
       "web": [
         "src/core"
       ],
-      "status": "planned",
-      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port.",
+      "status": "in-progress",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M1: ChunkCache, FileBackedStorage, MemoryBackedStorage, PieceTable, EditOverlayStorage, BinaryDocument, SelectionModel, BlockRange, OffsetParser, TextDecoder (as byteDecoder.ts) and UndoHistory, each with its upstream tests. Still planned: DiffEngine and DiffBlock (M3), SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11). BinaryDocument's save, join and duplicate paths need the platform layer and land in M4 and M7.",
       "files": {
         "ChunkCache.swift": "src/core/storage/chunkCache.ts",
         "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
@@ -88,7 +88,11 @@
         "OffsetParser.swift": "src/core/text/offsetParser.ts",
         "TextDecoder.swift": "src/core/text/byteDecoder.ts",
         "SegmentWriter.swift": "src/core/segments/segmentWriter.ts",
-        "SegmentReplacer.swift": "src/core/segments/segmentReplacer.ts"
+        "SegmentReplacer.swift": "src/core/segments/segmentReplacer.ts",
+        "BlockRange.swift": "src/core/document/blockRange.ts",
+        "ByteStorage.swift": "src/core/storage/byteStorage.ts",
+        "StorageError.swift": "src/core/storage/storageError.ts",
+        "TextDecoderRegistry.swift": "src/core/text/byteDecoderRegistry.ts"
       }
     },
     {

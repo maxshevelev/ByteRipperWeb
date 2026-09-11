@@ -22,18 +22,20 @@ file is part of that request.
 
 ## Status
 
-**Early.** The scaffolding stands — the app shell builds in both themes, the
-domain half is typechecked without a DOM to reach for, and the benchmark
-harness runs — but nothing opens a file yet. Milestone by milestone, the plan
-is **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is
-in scope at all, and what the browser takes away, is
+**Early.** The domain half is real — chunked storage, a piece table over it,
+the document with its undo history — and it is checked against the macOS app's
+own unit tests, ported with the code they cover. Nothing draws a byte yet.
+Milestone by milestone, the plan is
+**[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
+scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
 
 | Milestone | |
 | --- | --- |
 | M0 Scaffolding and benchmarks | done |
-| M1 Storage and document | next |
-| M2 – M12 | see the plan |
+| M1 Storage and document | done |
+| M2 Hex grid, read-only | next |
+| M3 – M12 | see the plan |
 
 ## Stack
 
