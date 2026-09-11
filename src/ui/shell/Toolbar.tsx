@@ -1,5 +1,5 @@
 import { saveVerb } from "@/platform/files/capabilities";
-import { WORD_SIZES, type WordSize, wordSizeTitle } from "@/render/hexGrid/hexLayout";
+import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
@@ -17,10 +17,17 @@ import {
   swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
+import { compactEntries, MenuButton } from "@/ui/shell/MenuButton";
 
 /**
- * A web page has no menu bar (D12). The handful of commands worth a permanent
- * button live here; everything else will be reachable from the command palette.
+ * A web page has no menu bar (D12), so the commands live behind one button at
+ * the head of the toolbar, in the sections the macOS app's menu bar uses.
+ *
+ * Two keep a permanent place beside it, and they are the two that are reached
+ * constantly while reading a dump rather than occasionally while managing one:
+ * Go To, which is how you get anywhere in a file too large to scroll, and the
+ * minimap toggle, which is where you are in it. Upstream gives the minimap the
+ * same treatment — a toolbar button *and* a menu item — for the same reason.
  */
 export function Toolbar({
   onOpen,
@@ -34,6 +41,7 @@ export function Toolbar({
   onGoTo,
   onDuplicate,
   onFind,
+  onClose,
 }: {
   readonly onOpen: (into?: PaneId) => void;
   readonly onNew: () => void;
@@ -46,6 +54,7 @@ export function Toolbar({
   readonly onGoTo: () => void;
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
+  readonly onClose: () => void;
 }) {
   const state = useStore(workspaceStore);
   const minimap = useStore(minimapStore);
@@ -59,221 +68,164 @@ export function Toolbar({
 
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
   const canNavigate = diff.status === "ready" && diff.hunks !== undefined;
+  const anyOpen = state.panes.a !== undefined;
+  const dirty = active?.document.isDirty === true;
+
+  /**
+   * The commands, in the macOS app's own sections and order.
+   *
+   * File, Edit, View — the menu bar's three document menus, flattened into one
+   * popup because a web page has only one place to put them. What does not port
+   * is left out rather than stubbed: New Window and New Tab belong to a window
+   * manager this application does not have (D11), and Enter Full Screen is the
+   * browser's own key.
+   */
+  const entries = compactEntries([
+    { kind: "heading", label: "File" },
+    { label: "New", onSelect: onNew },
+    { label: "Open…", onSelect: () => onOpen() },
+    anyOpen && state.panes.b === undefined
+      ? { label: "Compare with…", onSelect: () => onOpen("b") }
+      : undefined,
+    { kind: "separator" },
+    active === undefined
+      ? undefined
+      : {
+          label: verb,
+          disabled: !dirty && verb === "Save",
+          onSelect: onSave,
+        },
+    active === undefined
+      ? undefined
+      : { label: verb === "Save" ? "Save As…" : "Download As…", onSelect: onSaveAs },
+    active === undefined
+      ? undefined
+      : { label: "Revert to Saved", disabled: !dirty, onSelect: onRevert },
+    { kind: "separator" },
+    active === undefined ? undefined : { label: "Duplicate", onSelect: onDuplicate },
+    active === undefined ? undefined : { label: "Close", onSelect: onClose },
+
+    { kind: "separator" },
+    { kind: "heading", label: "Edit" },
+    active === undefined ? undefined : { label: "Fill Selection with…", onSelect: onFill },
+    active === undefined ? undefined : { label: "Delete Bytes…", onSelect: onDeleteBytes },
+    active === undefined ? undefined : { kind: "separator" },
+    active === undefined ? undefined : { label: "Find…", shortcut: "⌘F", onSelect: onFind },
+    active === undefined
+      ? undefined
+      : { label: "Go To Position…", shortcut: "⌘L", onSelect: onGoTo },
+
+    { kind: "separator" },
+    { kind: "heading", label: "View" },
+    bothOpen
+      ? {
+          label: state.layout === "sideBySide" ? "Stack the Panes" : "Put the Panes Side by Side",
+          onSelect: () => setLayout(state.layout === "sideBySide" ? "stacked" : "sideBySide"),
+        }
+      : undefined,
+    bothOpen ? { label: "Swap Panes", onSelect: swapPanes } : undefined,
+    anyOpen
+      ? {
+          label: minimap.visible ? "Hide Minimap" : "Show Minimap",
+          shortcut: "⌘M",
+          onSelect: toggleMinimap,
+        }
+      : undefined,
+    bothOpen ? { kind: "separator" } : undefined,
+    bothOpen
+      ? {
+          label: "Next Difference",
+          disabled: !canNavigate,
+          onSelect: () => onNavigate("difference", 1),
+        }
+      : undefined,
+    bothOpen
+      ? {
+          label: "Previous Difference",
+          disabled: !canNavigate,
+          onSelect: () => onNavigate("difference", -1),
+        }
+      : undefined,
+    bothOpen
+      ? { label: "Next Same Block", disabled: !canNavigate, onSelect: () => onNavigate("same", 1) }
+      : undefined,
+    bothOpen
+      ? {
+          label: "Previous Same Block",
+          disabled: !canNavigate,
+          onSelect: () => onNavigate("same", -1),
+        }
+      : undefined,
+
+    active === undefined ? undefined : { kind: "separator" },
+    active === undefined ? undefined : { kind: "heading", label: "Word size" },
+    ...(active === undefined
+      ? []
+      : WORD_SIZES.map((size) => ({
+          label: wordSizeTitle(size),
+          checked: state.wordSize === size,
+          exclusive: true,
+          onSelect: () => setWordSize(size),
+        }))),
+
+    active === undefined ? undefined : { kind: "separator" },
+    active === undefined
+      ? undefined
+      : {
+          label: "Zoom In",
+          disabled: state.fontSizePx >= MAX_FONT_SIZE_PX,
+          onSelect: () => setFontSize(state.fontSizePx + 1),
+        },
+    active === undefined
+      ? undefined
+      : {
+          label: "Zoom Out",
+          disabled: state.fontSizePx <= MIN_FONT_SIZE_PX,
+          onSelect: () => setFontSize(state.fontSizePx - 1),
+        },
+    active === undefined
+      ? undefined
+      : {
+          label: `Actual Size (${DEFAULT_FONT_SIZE_PX}px)`,
+          disabled: state.fontSizePx === DEFAULT_FONT_SIZE_PX,
+          onSelect: () => setFontSize(DEFAULT_FONT_SIZE_PX),
+        },
+
+    bothOpen ? { kind: "separator" } : undefined,
+    bothOpen ? { kind: "heading", label: "Grouping distance" } : undefined,
+    ...(bothOpen
+      ? GROUPING_GAP_CHOICES.map((gap) => ({
+          label: `${gap} bytes`,
+          checked: state.groupingGap === gap,
+          exclusive: true,
+          onSelect: () => setGroupingGap(gap),
+        }))
+      : []),
+  ]);
 
   return (
     <header className="toolbar">
+      <MenuButton label="☰" title="Commands" entries={entries} />
       <span className="toolbar-title">ByteRipper</span>
 
-      <button type="button" className="toolbar-button" onClick={() => onOpen()}>
-        Open…
-      </button>
-      <button type="button" className="toolbar-button" onClick={onNew}>
-        New
-      </button>
-      {state.panes.a !== undefined && state.panes.b === undefined ? (
-        <button type="button" className="toolbar-button" onClick={() => onOpen("b")}>
-          Compare with…
-        </button>
-      ) : null}
-
-      {bothOpen ? (
-        <>
-          <span className="toolbar-divider" />
-          {/*
-            A fieldset rather than a div with role="group": these four buttons
-            are one control with four directions, and a screen reader should
-            hear them that way.
-          */}
-          <fieldset className="toolbar-group">
-            <legend className="visually-hidden">Difference navigation</legend>
-            <button
-              type="button"
-              className="toolbar-button"
-              disabled={!canNavigate}
-              onClick={() => onNavigate("difference", -1)}
-              title="Previous difference"
-            >
-              ◀ Diff
-            </button>
-            <button
-              type="button"
-              className="toolbar-button"
-              disabled={!canNavigate}
-              onClick={() => onNavigate("difference", 1)}
-              title="Next difference"
-            >
-              Diff ▶
-            </button>
-            <button
-              type="button"
-              className="toolbar-button"
-              disabled={!canNavigate}
-              onClick={() => onNavigate("same", -1)}
-              title="Previous matching block"
-            >
-              ◀ Same
-            </button>
-            <button
-              type="button"
-              className="toolbar-button"
-              disabled={!canNavigate}
-              onClick={() => onNavigate("same", 1)}
-              title="Next matching block"
-            >
-              Same ▶
-            </button>
-          </fieldset>
-          <button type="button" className="toolbar-button" onClick={swapPanes} title="Swap A and B">
-            Swap
-          </button>
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={() => setLayout(state.layout === "sideBySide" ? "stacked" : "sideBySide")}
-          >
-            {state.layout === "sideBySide" ? "Stacked" : "Side by side"}
-          </button>
-        </>
-      ) : null}
-
       {active === undefined ? null : (
-        <>
-          <span className="toolbar-divider" />
-          {/*
-            The button says what will actually happen. In a browser that cannot
-            write back to a file, "Save" would be a lie — it downloads a copy,
-            and the file on disk is untouched.
-          */}
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={onSave}
-            disabled={!active.document.isDirty && verb === "Save"}
-            title={verb === "Save" ? "Write the edits back to the file" : "Download a copy"}
-          >
-            {verb}
-          </button>
-          <button type="button" className="toolbar-button" onClick={onSaveAs}>
-            {verb === "Save" ? "Save As…" : "Download As…"}
-          </button>
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={onRevert}
-            disabled={!active.document.isDirty}
-            title="Throw away every unsaved edit"
-          >
-            Revert
-          </button>
-          <span className="toolbar-divider" />
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={onFind}
-            title="Find (Cmd/Ctrl+F)"
-          >
-            Find…
-          </button>
-          <button
-            type="button"
-            className={`toolbar-button${minimap.visible ? " is-on" : ""}`}
-            aria-pressed={minimap.visible}
-            onClick={toggleMinimap}
-            disabled={state.panes.a === undefined}
-            title="Show the minimap (Cmd/Ctrl+M)"
-          >
-            Minimap
-          </button>
-          <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">
-            Go To…
-          </button>
-          <button type="button" className="toolbar-button" onClick={onFill}>
-            Fill…
-          </button>
-          <button type="button" className="toolbar-button" onClick={onDeleteBytes}>
-            Delete Bytes
-          </button>
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={onDuplicate}
-            title="Copy this pane's content, edits included, into the other pane"
-          >
-            Duplicate
-          </button>
-          {/*
-            Our own zoom steps the hex font only. It deliberately does not use
-            Cmd/Ctrl +/− : the browser owns those for page zoom, which the user
-            also wants, and a page this app fought over would be worse than no
-            zoom at all.
-          */}
-          <div className="toolbar-group">
-            <button
-              type="button"
-              className="toolbar-button"
-              onClick={() => setFontSize(state.fontSizePx - 1)}
-              disabled={state.fontSizePx <= MIN_FONT_SIZE_PX}
-              title="Smaller hex font"
-              aria-label="Smaller hex font"
-            >
-              A−
-            </button>
-            <button
-              type="button"
-              className="toolbar-button"
-              onClick={() => setFontSize(DEFAULT_FONT_SIZE_PX)}
-              title={`Reset the hex font to ${DEFAULT_FONT_SIZE_PX}px`}
-            >
-              {state.fontSizePx}px
-            </button>
-            <button
-              type="button"
-              className="toolbar-button"
-              onClick={() => setFontSize(state.fontSizePx + 1)}
-              disabled={state.fontSizePx >= MAX_FONT_SIZE_PX}
-              title="Larger hex font"
-              aria-label="Larger hex font"
-            >
-              A+
-            </button>
-          </div>
-
-          <label className="toolbar-field">
-            Word size
-            <select
-              value={state.wordSize}
-              onChange={(event) => setWordSize(Number(event.target.value) as WordSize)}
-            >
-              {WORD_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {wordSizeTitle(size)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
+        <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">
+          Go To…
+        </button>
       )}
 
-      {bothOpen ? (
-        <label
-          className="toolbar-field"
-          title="How far apart differences may sit and still count as one change"
-        >
-          Grouping
-          <select
-            value={state.groupingGap}
-            onChange={(event) => setGroupingGap(Number(event.target.value))}
-          >
-            {GROUPING_GAP_CHOICES.map((gap) => (
-              <option key={gap} value={gap}>
-                {gap} bytes
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
       <span className="toolbar-spacer" />
+
+      <button
+        type="button"
+        className={`toolbar-button${minimap.visible ? " is-on" : ""}`}
+        aria-pressed={minimap.visible}
+        onClick={toggleMinimap}
+        disabled={!anyOpen}
+        title="Show the minimap (Cmd/Ctrl+M)"
+      >
+        Minimap
+      </button>
     </header>
   );
 }

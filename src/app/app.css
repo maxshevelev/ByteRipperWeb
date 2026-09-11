@@ -59,9 +59,11 @@ textarea,
      index of the file's height, so it has to share that height. Everything
      else spans both columns. */
   grid-template-columns: minmax(0, 1fr) auto;
-  /* Toolbar, find bar, workspace. The find bar's row collapses to nothing when
-     it is not up, so the workspace keeps the height it had. */
-  grid-template-rows: auto auto minmax(0, 1fr);
+  /* Toolbar, find bar, workspace, results, status bar. Every one is placed by
+     hand below: auto-placement fills the first free track, so a find bar that
+     is not up let the status bar slide into its row and sit under the toolbar.
+     An empty row collapses to nothing, so the workspace keeps its height. */
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   height: 100%;
 }
 
@@ -69,14 +71,24 @@ textarea,
   grid-column: 1 / -1;
 }
 
+.search-results {
+  grid-row: 4;
+}
+
+.status-bar {
+  grid-row: 5;
+}
+
 .toolbar {
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.75rem;
-  /* A narrow window scrolls the toolbar rather than stacking it into two rows. */
-  overflow-x: auto;
-  scrollbar-width: thin;
+  /* No `overflow-x: auto` here any more. It let a crowded toolbar scroll, but
+     it also clipped the commands menu to the bar's own height — an overflow on
+     one axis computes to `auto` on the other, and the popup is an absolutely
+     positioned child. With three controls left there is nothing to scroll. */
   background: var(--surface-raised);
   border-bottom: 1px solid var(--border);
 }
@@ -569,6 +581,97 @@ textarea,
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.3rem;
+}
+
+/* ── The commands menu ────────────────────────────────────────────────── */
+
+.menu-root {
+  position: relative;
+  display: flex;
+}
+
+.menu-trigger {
+  /* A glyph, not a word: it sits at the head of the bar and has to stay square
+     at every font size. */
+  font-size: 15px;
+  line-height: 1;
+  padding-inline: 0.55rem;
+}
+
+.menu-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 15rem;
+  max-height: min(34rem, 80vh);
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+  background: var(--selection);
+  outline: none;
+}
+
+.menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A fixed column for the tick, so the labels line up whether or not one is on. */
+.menu-tick {
+  flex: none;
+  width: 1em;
+  text-align: center;
+  color: var(--accent);
+}
+
+.menu-label {
+  flex: 1;
+}
+
+.menu-shortcut {
+  flex: none;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-heading {
+  margin: 0.35rem 0 0.15rem;
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.menu-separator {
+  height: 0;
+  margin: 0.25rem 0.4rem;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 
 /* ── The find bar and its results ─────────────────────────────────────── */

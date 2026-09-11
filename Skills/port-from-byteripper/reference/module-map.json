@@ -280,10 +280,15 @@
     {
       "swift": "ByteRipperApp/App",
       "web": [
-        "src/app"
+        "src/app",
+        "src/ui/shell/Toolbar.tsx",
+        "src/ui/shell/MenuButton.tsx"
       ],
-      "status": "planned",
-      "note": "Menu commands become the toolbar and the command palette."
+      "status": "in-progress",
+      "note": "MainMenu.swift is the one to watch: a web page has no menu bar, so its File, Edit and View submenus are one popup behind a button at the head of the toolbar, in the same sections and the same order \u2014 a command added upstream belongs there. What does not port: New Window and New Tab (a window manager this application does not have, D11) and Enter Full Screen (the browser's own key). Two commands also keep a toolbar button, as the minimap does upstream: Go To and the minimap toggle.",
+      "files": {
+        "MainMenu.swift": "src/ui/shell/Toolbar.tsx"
+      }
     },
     {
       "swift": "Design/",

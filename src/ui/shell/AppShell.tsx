@@ -372,6 +372,7 @@ export function AppShell() {
         onGoTo={() => setGoToOpen(true)}
         onDuplicate={doDuplicate}
         onFind={openFind}
+        onClose={() => closeWithWarning(activePane)}
       />
       {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
       <main
