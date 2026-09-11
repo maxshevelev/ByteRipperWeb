@@ -33,9 +33,12 @@ body {
 
 .toolbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4rem 0.75rem;
+  /* A narrow window scrolls the toolbar rather than stacking it into two rows. */
+  overflow-x: auto;
+  scrollbar-width: thin;
   background: var(--surface-raised);
   border-bottom: 1px solid var(--border);
 }
@@ -51,9 +54,26 @@ body {
 }
 
 .app-workspace {
+  display: grid;
   min-height: 0;
   overflow: hidden;
   background: var(--surface);
+  gap: 1px;
+}
+
+/*
+ * Two panes side by side is the default: a dump is 16 bytes wide and two of
+ * those fit on any bench monitor. Stacked is for a narrow window, or a long
+ * region read down the page.
+ */
+.app-workspace[data-panes="2"][data-layout="sideBySide"] {
+  grid-template-columns: 1fr 1fr;
+  background: var(--border);
+}
+
+.app-workspace[data-panes="2"][data-layout="stacked"] {
+  grid-template-rows: 1fr 1fr;
+  background: var(--border);
 }
 
 .empty-state {
@@ -113,6 +133,7 @@ body {
 .toolbar-button,
 .empty-state-button {
   font: inherit;
+  white-space: nowrap;
   padding: 0.25rem 0.7rem;
   border: 1px solid var(--border-strong);
   border-radius: 5px;
@@ -136,6 +157,7 @@ body {
   align-items: center;
   gap: 0.35rem;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .toolbar-field select {
@@ -152,13 +174,6 @@ body {
 }
 
 /* ── The pane ─────────────────────────────────────────────────────────── */
-
-.hex-pane {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  height: 100%;
-  min-height: 0;
-}
 
 /*
  * A real scrolling element with a spacer inside it, so the browser's own
@@ -220,4 +235,115 @@ body {
   color: var(--text);
   font-size: 1.1rem;
   pointer-events: none;
+}
+
+/* ── The pane's own header ────────────────────────────────────────────── */
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  min-width: 0;
+}
+
+.pane-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pane-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.pane-close {
+  font: inherit;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.pane-close:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/*
+ * The active pane is the one the commands act on, so it says so — with a rule
+ * along its top edge rather than a tint, which would fight the difference wash.
+ */
+.hex-pane {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  border-top: 2px solid transparent;
+}
+
+.hex-pane[data-active] {
+  border-top-color: var(--accent);
+}
+
+.hex-pane[data-active] .pane-label {
+  color: var(--accent);
+}
+
+/* ── Toolbar groups ───────────────────────────────────────────────────── */
+
+.toolbar-group {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0 0.25rem;
+  background: var(--border);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.status-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+
+.status-slot-diff {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.toolbar-group {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Present to a screen reader, absent to the eye. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

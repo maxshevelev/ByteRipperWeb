@@ -10,8 +10,16 @@
   ],
   "notApplicable": [
     {
-      "prefix": "ByteRipperApp/Window/",
-      "why": "In-app tabs and window management are not ported: one workspace per browser tab."
+      "prefix": "ByteRipperApp/Window/MainViewController",
+      "why": "Window and tab management: one workspace per browser tab (D11)."
+    },
+    {
+      "prefix": "ByteRipperApp/Window/WindowMode",
+      "why": "Window and tab management: one workspace per browser tab (D11)."
+    },
+    {
+      "prefix": "ByteRipperApp/Window/WindowViewModel",
+      "why": "Window and tab management: one workspace per browser tab (D11)."
     },
     {
       "prefix": "ByteRipperApp/Documents/DocumentArbitration",
@@ -69,7 +77,7 @@
         "src/core"
       ],
       "status": "in-progress",
-      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M1: ChunkCache, FileBackedStorage, MemoryBackedStorage, PieceTable, EditOverlayStorage, BinaryDocument, SelectionModel, BlockRange, OffsetParser, TextDecoder (as byteDecoder.ts) and UndoHistory, each with its upstream tests. Still planned: DiffEngine and DiffBlock (M3), SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11). BinaryDocument's save, join and duplicate paths need the platform layer and land in M4 and M7.",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M3: the storage and document files, the text and selection files, UndoHistory, and DiffEngine with DiffBlock and DiffHunkIndex — each with its upstream tests. Still planned: SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11). BinaryDocument's save, join and duplicate paths need the platform layer and land in M4 and M7.",
       "files": {
         "ChunkCache.swift": "src/core/storage/chunkCache.ts",
         "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
@@ -280,6 +288,39 @@
       ],
       "status": "planned",
       "note": "The app-level flow tests. Their web counterpart is the end-to-end suite; a changed flow test upstream usually marks a behaviour change worth porting even when the production diff looks cosmetic."
+    },
+    {
+      "swift": "ByteRipperApp/Window/ComparisonCoordinator",
+      "web": [
+        "src/state/diffStore.ts",
+        "src/workers/diff.worker.ts"
+      ],
+      "status": "ported",
+      "note": "Drives the comparison: starts a scan, cancels a superseded one, applies an edit incrementally. The actor becomes a worker with a hand-written protocol (D5)."
+    },
+    {
+      "swift": "ByteRipperApp/Window/ComparisonView",
+      "web": [
+        "src/ui/shell/AppShell.tsx"
+      ],
+      "status": "in-progress",
+      "note": "The two-pane layout, side by side and stacked. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid, and the resizer is still to come."
+    },
+    {
+      "swift": "ByteRipperApp/Window/EmptyStateView",
+      "web": [
+        "src/ui/shell/EmptyState.tsx"
+      ],
+      "status": "in-progress",
+      "note": "Bookmarks and recents in the empty state arrive with M7 and M11."
+    },
+    {
+      "swift": "ByteRipperApp/Window/TransientNoticeView",
+      "web": [
+        "src/ui/shell/StatusBar.tsx"
+      ],
+      "status": "planned",
+      "note": "Transient notices — a wrapped search, a refused paste — land in the status bar here."
     }
   ]
 }

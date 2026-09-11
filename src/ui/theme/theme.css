@@ -37,6 +37,7 @@
   --grid-line: #e4e4e8;
   --eof-hatch: #c8c8ce;
   --selection: rgb(43 108 176 / 0.24);
+  --peer-selection: rgb(43 108 176 / 0.55);
 
   /* Ported from AppPalette */
   --semantic-bad: #e41f1f;
@@ -75,6 +76,7 @@
     --grid-line: #2c2c32;
     --eof-hatch: #43434b;
     --selection: rgb(106 169 233 / 0.28);
+    --peer-selection: rgb(106 169 233 / 0.6);
 
     --semantic-bad: #ff6b66;
     --semantic-caution: #dba85c;

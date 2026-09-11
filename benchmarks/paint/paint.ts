@@ -11,6 +11,7 @@
  * Run it with `npm run dev` and open `/benchmarks/paint/`.
  */
 
+import { DiffBlockIndex } from "@/core/diff/diffBlock";
 import { makeByteDecoder } from "@/core/text/byteDecoderRegistry";
 import { GlyphAtlas } from "@/render/hexGrid/glyphAtlas";
 import { HexGridRenderer, type HexGridSource } from "@/render/hexGrid/hexGridRenderer";
@@ -151,6 +152,43 @@ function run(): Row[] {
     budgetMs: SCROLL_FRAME_BUDGET_MS,
     note: "Nothing painted is still on screen, so this is a full repaint with a wasted blit.",
   });
+
+  // M3. The difference wash costs a binary search a row plus a fill per
+  // differing byte, and the pathological pair fills every one of them.
+  const scattered: { kind: "same" | "different"; start: number; end: number }[] = [];
+  for (let at = 0; at < 1 << 20; at += 64) {
+    scattered.push({ kind: "same", start: at, end: at + 60 });
+    scattered.push({ kind: "different", start: at + 60, end: at + 64 });
+  }
+  renderer.setDifferences(DiffBlockIndex.of(1 << 20, 1 << 20, scattered));
+  const withDifferences = measure(() => {
+    renderer.invalidateAll();
+    renderer.draw();
+  });
+  rows.push({
+    name: `Full repaint with differences, ${rowsOnScreen} rows`,
+    medianMs: withDifferences.median,
+    bestMs: withDifferences.best,
+    budgetMs: SCROLL_FRAME_BUDGET_MS,
+    note: "Four differing bytes in every sixteen — a block per row to look up and fills to draw.",
+  });
+
+  const everything: { kind: "same" | "different"; start: number; end: number }[] = [
+    { kind: "different", start: 0, end: 1 << 20 },
+  ];
+  renderer.setDifferences(DiffBlockIndex.of(1 << 20, 1 << 20, everything));
+  const allDifferent = measure(() => {
+    renderer.invalidateAll();
+    renderer.draw();
+  });
+  rows.push({
+    name: `Full repaint, every byte differing`,
+    medianMs: allDifferent.median,
+    bestMs: allDifferent.best,
+    budgetMs: SCROLL_FRAME_BUDGET_MS,
+    note: "Two unrelated dumps: thirty-two fills a row on top of the glyphs.",
+  });
+  renderer.setDifferences(undefined);
 
   let caret = 0;
   const caretMove = measure(() => {

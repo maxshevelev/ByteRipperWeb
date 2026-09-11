@@ -1,3 +1,4 @@
+import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { addressString } from "@/core/text/offsetParser";
 import { addressSignificantFrom, byteInk, type InkRole } from "@/render/hexGrid/byteStyle";
@@ -39,6 +40,10 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly background: string;
   readonly selection: string;
   readonly eofHatch: string;
+  /** The orange wash over a byte that differs from the other pane's. */
+  readonly difference: string;
+  /** The outline showing where the other pane's selection falls here. */
+  readonly peerSelection: string;
 }
 
 export interface HexGridConfig {
@@ -93,6 +98,10 @@ export class HexGridRenderer {
   private selection: HexGridSelection = { start: 0, end: 0 };
   /** Offsets whose bytes differ from the saved file. Populated from M4. */
   private modifiedRanges: readonly { start: number; end: number }[] = [];
+  /** The comparison, when there is one. Differing bytes take the orange wash. */
+  private differences: DiffBlockIndex | undefined;
+  /** Where the other pane's selection falls at these offsets. */
+  private peerSelection: HexGridSelection | undefined;
 
   private readonly dirty = new DirtyRows();
   /** The scroll offset the canvas currently holds, for the blit. */
@@ -174,6 +183,30 @@ export class HexGridRenderer {
     // Only the rows the selection left and the rows it now covers.
     for (const range of [previous, selection]) {
       if (range.end < range.start) continue;
+      const first = Math.floor(range.start / BYTES_PER_ROW);
+      const last = Math.floor(Math.max(range.start, range.end - 1) / BYTES_PER_ROW);
+      this.dirty.invalidate(first, last + 1);
+    }
+  }
+
+  /**
+   * The comparison to paint. Passing `undefined` clears it — which is what
+   * closing the other pane does, and the difference wash has to go with it.
+   */
+  setDifferences(index: DiffBlockIndex | undefined): void {
+    this.differences = index;
+    this.invalidateAll();
+  }
+
+  /**
+   * The other pane's selection, outlined here so the same offsets can be seen
+   * on both sides at once.
+   */
+  setPeerSelection(selection: HexGridSelection | undefined): void {
+    const previous = this.peerSelection;
+    this.peerSelection = selection;
+    for (const range of [previous, selection]) {
+      if (range === undefined || range.end < range.start) continue;
       const first = Math.floor(range.start / BYTES_PER_ROW);
       const last = Math.floor(Math.max(range.start, range.end - 1) / BYTES_PER_ROW);
       this.dirty.invalidate(first, last + 1);
@@ -333,7 +366,11 @@ export class HexGridRenderer {
       layout.rowHeight
     );
 
+    // Differences under the selection, as upstream draws them: the selection is
+    // what the user is doing now, the difference is what the file is.
+    this.paintDifferences(rowStart, y);
     this.paintSelection(rowStart, y);
+    this.paintPeerSelection(rowStart, y);
     this.paintAddress(rowStart, y);
 
     if (available === 0) {
@@ -380,6 +417,66 @@ export class HexGridRenderer {
         layout.charWidth
       );
     }
+  }
+
+  /**
+   * The orange wash, per byte.
+   *
+   * Per byte rather than per span: a difference is a fact about one offset, and
+   * a run drawn through the word and group gaps would claim the gaps differ
+   * too. The blocks touching this row are found by binary search, so a row
+   * costs a lookup and not a walk of the index.
+   */
+  private paintDifferences(rowStart: number, y: number): void {
+    const config = this.config;
+    const index = this.differences;
+    if (config === undefined || index === undefined) return;
+
+    const blocks = index.blocksIn(rowStart, rowStart + BYTES_PER_ROW);
+    if (blocks.length === 0) return;
+
+    const { layout, colors } = config;
+    this.context.fillStyle = colors.difference;
+    for (const block of blocks) {
+      if (block.kind !== "different") continue;
+      const from = Math.max(block.start, rowStart) - rowStart;
+      const to = Math.min(block.end, rowStart + BYTES_PER_ROW) - rowStart;
+      for (let column = from; column < to; column++) {
+        this.context.fillRect(layout.hexByteX(column), y, layout.hexByteWidth, layout.rowHeight);
+        this.context.fillRect(layout.textX(column), y, layout.charWidth, layout.rowHeight);
+      }
+    }
+  }
+
+  /**
+   * The other pane's selection, as an outline rather than a fill.
+   *
+   * An outline because a second fill would compete with this pane's own
+   * selection and with the difference wash underneath both; what it has to say
+   * is only "the same offsets, over there".
+   */
+  private paintPeerSelection(rowStart: number, y: number): void {
+    const config = this.config;
+    const peer = this.peerSelection;
+    if (config === undefined || peer === undefined || peer.end <= peer.start) return;
+
+    const from = Math.max(peer.start, rowStart) - rowStart;
+    const to = Math.min(peer.end, rowStart + BYTES_PER_ROW) - rowStart;
+    if (to <= from) return;
+
+    const { layout, colors } = config;
+    this.context.save();
+    this.context.strokeStyle = colors.peerSelection;
+    this.context.lineWidth = 1;
+    // Half-pixel offsets so a one-pixel stroke lands on a pixel, not across two.
+    const stroke = (x: number, width: number) =>
+      this.context.strokeRect(x + 0.5, y + 0.5, width - 1, layout.rowHeight - 1);
+    stroke(
+      layout.hexByteX(from),
+      layout.hexByteX(to - 1) + layout.hexByteWidth - layout.hexByteX(from)
+    );
+    stroke(layout.textX(from), (to - from) * layout.charWidth);
+    this.context.restore();
   }
 
   private paintSelection(rowStart: number, y: number): void {

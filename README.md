@@ -22,12 +22,12 @@ file is part of that request.
 
 ## Status
 
-**Early.** It opens a dump and draws it. The domain half is real — chunked
-storage, a piece table over it, the document with its undo history — and it is
-checked against the macOS app's own unit tests, ported with the code they
-cover. What is missing is everything that makes it a *comparator*: a second
-pane, editing, saving, and the firmware tools. Milestone by milestone, the plan
-is
+**Early.** It opens two dumps and compares them — the orange wash, the live
+`1,057 differing · 4,193,247 same` summary, and Next Difference stepping by
+change rather than by byte. The domain half is checked against the macOS app's
+own unit tests, ported with the code they cover. What is missing is editing,
+saving, search, the minimap and the firmware tools. Milestone by milestone, the
+plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
@@ -37,8 +37,9 @@ scope at all, and what the browser takes away, is
 | M0 Scaffolding and benchmarks | done |
 | M1 Storage and document | done |
 | M2 Hex grid, read-only, one file | done |
-| M3 Comparison | next |
-| M4 – M12 | see the plan |
+| M3 Comparison | done |
+| M4 Editing and saving | next |
+| M5 – M12 | see the plan |
 
 ## Stack
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
@@ -27,11 +28,39 @@ export interface HexPaneProps {
   readonly document: BinaryDocument;
   readonly wordSize: WordSize;
   readonly fontSizePx: number;
+  /** The file's name, shown in the pane's own header. */
+  readonly name: string;
+  /** Which slot this is, for the header and for focus. */
+  readonly label: string;
+  readonly isActive: boolean;
+  readonly onActivate: () => void;
+  readonly onClose: () => void;
+  /** The comparison, when there are two files. */
+  readonly differences?: DiffBlockIndex | undefined;
+  /** The other pane's selection, outlined here. */
+  readonly peerSelection?: { start: number; end: number } | undefined;
+  /** Called when this pane's selection moves, so the other pane can outline it. */
+  readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
+  /** Asks the workspace to reveal a range — difference navigation uses it. */
+  readonly revealRequest?: { start: number; end: number; token: number } | undefined;
 }
 
 const platform = detectKeyboardPlatform();
 
-export function HexPane({ document: doc, wordSize, fontSizePx }: HexPaneProps) {
+export function HexPane({
+  document: doc,
+  wordSize,
+  fontSizePx,
+  name,
+  label,
+  isActive,
+  onActivate,
+  onClose,
+  differences,
+  peerSelection,
+  onSelectionChanged,
+  revealRequest,
+}: HexPaneProps) {
   const readoutId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -131,11 +160,39 @@ export function HexPane({ document: doc, wordSize, fontSizePx }: HexPaneProps) {
       const current = doc.selection;
       rendererRef.current?.setSelection({ start: current.start, end: current.end });
       setCaret(current.start);
+      onSelectionChanged?.({ start: current.start, end: current.end });
       scheduleDraw();
     };
     apply();
     return doc.onSelectionChanged(apply);
-  }, [doc, scheduleDraw]);
+  }, [doc, scheduleDraw, onSelectionChanged]);
+
+  // The comparison, and the other pane's selection outlined here.
+  useEffect(() => {
+    rendererRef.current?.setDifferences(differences);
+    scheduleDraw();
+  }, [differences, scheduleDraw]);
+
+  useEffect(() => {
+    rendererRef.current?.setPeerSelection(peerSelection);
+    scheduleDraw();
+  }, [peerSelection, scheduleDraw]);
+
+  // Difference navigation asks the pane to show a range. The token makes a
+  // repeat of the same range a fresh request — pressing Next twice on a file
+  // with one difference should still scroll back to it.
+  useEffect(() => {
+    if (revealRequest === undefined) return;
+    doc.setSelection(makeSelection(revealRequest.start, revealRequest.end, doc.size));
+    const host = scrollRef.current;
+    const layout = layoutRef.current;
+    if (host === null || layout === undefined) return;
+
+    const rowTop = Math.floor(revealRequest.start / BYTES_PER_ROW) * layout.rowHeight;
+    // Centred, not merely brought inside the edge: a change the user asked to
+    // be shown should have its surroundings visible too.
+    host.scrollTop = Math.max(0, rowTop - host.clientHeight / 2 + layout.rowHeight);
+  }, [revealRequest, doc]);
 
   const onScroll = useCallback(() => {
     const host = scrollRef.current;
@@ -284,7 +341,24 @@ export function HexPane({ document: doc, wordSize, fontSizePx }: HexPaneProps) {
   }, []);
 
   return (
-    <div className="hex-pane">
+    // Clicking anywhere in a pane makes it the active one — that is the whole
+    // gesture. The keyboard route is the grid's own focus, which fires the same
+    // handler through onFocusCapture.
+    <div
+      className="hex-pane"
+      data-active={isActive ? "" : undefined}
+      onPointerDownCapture={onActivate}
+      onFocusCapture={onActivate}
+    >
+      <header className="pane-header">
+        <span className="pane-label">{label}</span>
+        <span className="pane-name" title={name}>
+          {name}
+        </span>
+        <button type="button" className="pane-close" onClick={onClose} title={`Close ${label}`}>
+          Close
+        </button>
+      </header>
       {/*
         The scroller is a real scrolling element with a spacer inside it, so the
         browser's own scrollbar, wheel handling, trackpad momentum and
