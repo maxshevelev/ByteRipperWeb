@@ -7,10 +7,12 @@
  * `ChunkCache`, so a regression in either shows up here.
  */
 
+import { applyEdit, scanDiff } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
+import { MemoryByteSource } from "@/core/storage/memoryByteSource";
 import { resolveFixture } from "./fixture.ts";
 import { anyOverBudget, measure, printTable, type Row } from "./harness.ts";
 
@@ -146,6 +148,80 @@ async function main(): Promise<void> {
       ),
     });
   }
+
+  // M3. The budget in ANALYSIS.md is 150 ms for 16 MB and 600 ms for 64 MB.
+  // Two shapes, because they exercise opposite halves of the comparison loop:
+  // two reads of the same chip match almost everywhere and the whole-chunk test
+  // carries them, while two unrelated dumps differ almost everywhere and every
+  // run boundary has to be found.
+  const whole = new Uint8Array(await blob.arrayBuffer());
+  const storageOf = (of: Uint8Array) =>
+    new FileBackedStorage(new MemoryByteSource(of), new ChunkCache({ chunkSize: CHUNK_SIZE }));
+
+  const nearlyIdentical = whole.slice();
+  // A rewritten config region, which is what a real pair usually differs by.
+  for (let i = 0x40000; i < 0x40400; i++) nearlyIdentical[i] = (nearlyIdentical[i] ?? 0) ^ 0xff;
+
+  const left = storageOf(whole);
+  rows.push({
+    name: `Full diff, ${(blob.size / 1024 ** 2).toFixed(0)} MB, near-identical`,
+    budgetMs: blob.size <= 20 * 1024 ** 2 ? 150 : 600,
+    note: "Two reads of the same chip, differing in one 1 KB region.",
+    measurement: await measure(
+      () => scanDiff(left, storageOf(nearlyIdentical)).then(() => undefined),
+      {
+        samples: 5,
+        bytes: blob.size,
+      }
+    ),
+  });
+
+  const unrelated = whole.map((byte) => byte ^ 0x5a);
+  rows.push({
+    name: `Full diff, ${(blob.size / 1024 ** 2).toFixed(0)} MB, wholly different`,
+    budgetMs: blob.size <= 20 * 1024 ** 2 ? 150 : 600,
+    note: "The worst case for run-finding: every byte differs, so nothing can be skipped whole.",
+    measurement: await measure(() => scanDiff(left, storageOf(unrelated)).then(() => undefined), {
+      samples: 5,
+      bytes: blob.size,
+    }),
+  });
+
+  const bigSize = 64 * 1024 * 1024;
+  const bigLeft = new Uint8Array(bigSize);
+  for (let at = 0; at < bigSize; at += whole.length) {
+    bigLeft.set(whole.subarray(0, Math.min(whole.length, bigSize - at)), at);
+  }
+  const bigRight = bigLeft.slice();
+  for (let i = 0x1000000; i < 0x1000400; i++) bigRight[i] = (bigRight[i] ?? 0) ^ 0xff;
+  rows.push({
+    name: "Full diff, 64 MB, near-identical",
+    budgetMs: 600,
+    note: "The larger budget in ANALYSIS.md, against a fixture tiled up to 64 MB.",
+    measurement: await measure(
+      () => scanDiff(storageOf(bigLeft), storageOf(bigRight)).then(() => undefined),
+      { samples: 3, bytes: bigSize }
+    ),
+  });
+
+  const baseIndex = await scanDiff(left, storageOf(nearlyIdentical));
+  const typed = nearlyIdentical.slice();
+  rows.push({
+    name: "Re-diff after one typed byte",
+    note:
+      "What incremental invalidation buys: an overwrite rescans its own window, " +
+      "not the file. This is the number a full rescan would replace with the row above.",
+    measurement: await measure(
+      () =>
+        applyEdit(
+          { kind: "overwrite", start: 0x800000, end: 0x800001 },
+          baseIndex,
+          left,
+          storageOf(typed)
+        ).then(() => undefined),
+      { samples: 15 }
+    ),
+  });
 
   printTable(rows);
   console.log("");
