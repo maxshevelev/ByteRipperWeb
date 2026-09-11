@@ -35,7 +35,7 @@
     },
     {
       "prefix": "Packages/ALSplitView/",
-      "why": "AppKit split view; the web uses CSS grid with a resizer."
+      "why": "AppKit split view. The web uses CSS grid with a focusable separator — src/ui/shell/PaneDivider.tsx — which shares none of its code."
     },
     {
       "prefix": "Packages/ToolModuleKit/",
@@ -77,7 +77,7 @@
         "src/core"
       ],
       "status": "in-progress",
-      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M4: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, and ClipboardCodec (as text/hexText.ts) — each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. Still planned: SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11), ContentSnapshot and TemporaryFileStore with Duplicate (M7).",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M4: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, and ClipboardCodec (as text/hexText.ts) — each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. Still planned: SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11), ContentSnapshot and TemporaryFileStore are across as contentSnapshot() over an origin-private scratch store: a browser has neither a value-typed array nor clonefile(2), so the copy is written out once rather than shared.",
       "files": {
         "ChunkCache.swift": "src/core/storage/chunkCache.ts",
         "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
@@ -103,7 +103,8 @@
         "TextDecoderRegistry.swift": "src/core/text/byteDecoderRegistry.ts",
         "ClipboardCodec.swift": "src/core/text/hexText.ts",
         "StorageSaver.swift": "src/platform/files/fileSink.ts",
-        "ContentSnapshot.swift": "src/core/storage/contentStream.ts"
+        "ContentSnapshot.swift": "src/core/storage/editOverlayStorage.ts",
+        "TemporaryFileStore.swift": "src/platform/files/opfsScratchStore.ts"
       }
     },
     {
@@ -308,8 +309,8 @@
       "web": [
         "src/ui/shell/AppShell.tsx"
       ],
-      "status": "in-progress",
-      "note": "The two-pane layout, side by side and stacked. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid, and the resizer is still to come."
+      "status": "ported",
+      "note": "The two-pane layout, side by side and stacked, the synchronised scroll, and the divider. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid with a focusable separator."
     },
     {
       "swift": "ByteRipperApp/Window/EmptyStateView",

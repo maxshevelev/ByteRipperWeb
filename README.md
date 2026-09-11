@@ -25,11 +25,11 @@ file is part of that request.
 **Usable, for what it does so far.** It opens two dumps, compares them, and
 lets you patch one and save it — the orange wash, the live
 `1,057 differing · 4,193,247 same` summary that follows your edits, Next
-Difference stepping by change rather than by byte, and a Save that writes back
-to the file in Chromium and downloads a copy where it cannot. The domain half
-is checked against the macOS app's own unit tests, ported with the code they
-cover. What is missing is search, the minimap, segments and the firmware tools.
-Milestone by milestone, the plan is
+Difference stepping by change rather than by byte, synchronised scrolling, and
+a Save that writes back to the file in Chromium and downloads a copy where it
+cannot. The domain half is checked against the macOS app's own unit tests,
+ported with the code they cover. What is missing is search, the minimap,
+segments and the firmware tools. Milestone by milestone, the plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.

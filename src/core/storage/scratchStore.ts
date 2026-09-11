@@ -1,4 +1,4 @@
-import type { ByteSource } from "@/core/storage/byteStorage";
+import type { ByteSource, Bytes } from "@/core/storage/byteStorage";
 
 /**
  * Somewhere to put a copy of a document's content that is not the user's file.
@@ -20,7 +20,7 @@ export interface ScratchStore {
    * The returned source must survive this store being asked for another one:
    * an overlay reads through its previous base until the moment it swaps.
    */
-  write(content: AsyncIterable<Uint8Array>): Promise<ByteSource>;
+  write(content: AsyncIterable<Bytes>): Promise<ByteSource>;
 
   /** Releases everything but the most recent write, which is still the base. */
   releaseAllButLatest(): Promise<void>;

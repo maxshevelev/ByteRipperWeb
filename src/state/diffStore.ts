@@ -1,5 +1,11 @@
 import { DiffBlockIndex } from "@/core/diff/diffBlock";
-import { applyEdit, collapseEdits, DiffCancelled, type DiffEdit } from "@/core/diff/diffEngine";
+import {
+  applyEdit,
+  collapseEdits,
+  DiffCancelled,
+  type DiffEdit,
+  scanDiff,
+} from "@/core/diff/diffEngine";
 import { DiffHunkIndex, type HunkRange } from "@/core/diff/diffHunkIndex";
 import { createStore } from "@/state/store";
 import { workspaceStore } from "@/state/workspaceStore";
@@ -137,6 +143,10 @@ export function refreshComparison(): void {
     right.file.size,
     right.file.lastModified,
     groupingGap,
+    // Whether each side is edited: a scan run against the files is not the
+    // scan to keep once one of them stops matching its file.
+    left.document.isDirty,
+    right.document.isDirty,
   ].join("|");
   if (inputs === currentInputs && diffStore.getSnapshot().status !== "idle") return;
   currentInputs = inputs;
@@ -146,18 +156,63 @@ export function refreshComparison(): void {
   currentJobId = id;
   diffStore.update((state) => ({ ...state, status: "scanning", progress: 0, problem: undefined }));
 
+  // The worker is given the two *files*. A document with unsaved edits is not
+  // its file — so comparing them there would show the dump as it is on disk
+  // while the screen shows the dump as it is now, which is the one thing this
+  // application must never get wrong. That case scans here instead, against the
+  // live documents, chunked with an await between chunks so the frame is never
+  // held.
   const leftBlob = blobOf(left.file.source);
   const rightBlob = blobOf(right.file.source);
-  if (leftBlob === undefined || rightBlob === undefined) {
-    diffStore.update((state) => ({
-      ...state,
-      status: "failed",
-      problem: "These files cannot be compared in a worker.",
-    }));
+  const canUseWorker =
+    !left.document.isDirty &&
+    !right.document.isDirty &&
+    leftBlob !== undefined &&
+    rightBlob !== undefined;
+
+  if (!canUseWorker) {
+    void scanOnThisThread(id, groupingGap);
     return;
   }
 
   send({ kind: "diff", id, left: leftBlob, right: rightBlob, gap: groupingGap });
+}
+
+/**
+ * The full scan, against the documents rather than the files.
+ *
+ * Slower than the worker and deliberately so: correctness first, and the reads
+ * it awaits are what keep the main thread answering between chunks.
+ */
+async function scanOnThisThread(id: JobId, gap: number): Promise<void> {
+  const { panes } = workspaceStore.getSnapshot();
+  const left = panes.a?.document;
+  const right = panes.b?.document;
+  if (left === undefined || right === undefined) return;
+
+  try {
+    const index = await scanDiff(left, right, {
+      chunkSize: INCREMENTAL_CHUNK_SIZE,
+      shouldCancel: () => currentJobId !== id,
+      onProgress: (fraction: number) => {
+        if (currentJobId === id) {
+          diffStore.update((state) => ({ ...state, status: "scanning", progress: fraction }));
+        }
+      },
+    });
+    if (currentJobId !== id) return;
+    publishIndex(index, gap);
+    currentJobId = undefined;
+  } catch (error) {
+    if (error instanceof DiffCancelled) return;
+    if (currentJobId !== id) return;
+    diffStore.update((state) => ({
+      ...state,
+      status: "failed",
+      problem: error instanceof Error ? error.message : "The comparison failed.",
+    }));
+    currentJobId = undefined;
+  }
 }
 
 function cancelRunning(): void {
@@ -175,6 +230,20 @@ function cancelRunning(): void {
  */
 function blobOf(source: unknown): Blob | undefined {
   return source instanceof Blob ? source : undefined;
+}
+
+/** Publishes an index and the navigation hunks derived from it. */
+function publishIndex(index: DiffBlockIndex, gap: number): void {
+  const summary = index.summary;
+  diffStore.update(() => ({
+    status: "ready",
+    progress: 1,
+    index,
+    hunks: DiffHunkIndex.from(index, gap),
+    differingBytes: summary.differing,
+    sameBytes: summary.same,
+    problem: undefined,
+  }));
 }
 
 /**
@@ -235,17 +304,7 @@ async function applyEditsToComparison(edits: readonly DiffEdit[]): Promise<void>
       });
     }
     if (incrementalRun !== run) return;
-
-    const summary = index.summary;
-    diffStore.update((state) => ({
-      ...state,
-      status: "ready",
-      progress: 1,
-      index,
-      hunks: DiffHunkIndex.from(index, groupingGap),
-      differingBytes: summary.differing,
-      sameBytes: summary.same,
-    }));
+    publishIndex(index, groupingGap);
   } catch (error) {
     if (error instanceof DiffCancelled) return;
     diffStore.update((state) => ({

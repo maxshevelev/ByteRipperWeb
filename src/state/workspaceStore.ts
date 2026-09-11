@@ -14,6 +14,7 @@ import {
   saveAs as saveFileAs,
 } from "@/platform/files/fileSink";
 import type { OpenedFile } from "@/platform/files/openedFile";
+import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import { noteDocumentChanged } from "@/state/editStore";
 import { createStore } from "@/state/store";
@@ -56,6 +57,11 @@ export const editingHooks: {
   onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
   confirmShift?: (() => boolean | Promise<boolean>) | undefined;
 } = {};
+
+/** A scratch store where the browser has one, and none where it does not. */
+function scratchOptions(): { scratch?: OpfsScratchStore } {
+  return OpfsScratchStore.isAvailable() ? { scratch: new OpfsScratchStore() } : {};
+}
 
 function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   const document = new BinaryDocument(storage);
@@ -174,7 +180,10 @@ export function slotForNewFile(): PaneId {
 export function openInPane(pane: PaneId, file: OpenedFile): void {
   try {
     const base = new FileBackedStorage(file.source, new ChunkCache());
-    const { document, typing } = makeDocument(new EditOverlayStorage(base), pane);
+    // The materialisation valve, now that there is somewhere private to write:
+    // an edit session pathological enough to grow the piece list past its
+    // budget folds it into a scratch file rather than letting reads crawl.
+    const { document, typing } = makeDocument(new EditOverlayStorage(base, scratchOptions()), pane);
     workspaceStore.update((state) => ({
       ...state,
       panes: {
@@ -305,6 +314,60 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   }
 
   return outcome;
+}
+
+/**
+ * Copies a pane's current content — edits included — into the other slot.
+ *
+ * The copy is its own document: attached to no file, and dirty with an empty
+ * history, because its bytes have never been on disk and there is no earlier
+ * state to undo to. The source is left completely alone.
+ *
+ * Refused where there is no origin-private filesystem to write the snapshot
+ * into. Sharing the source's base instead would leave the copy reading a file
+ * the next save replaces.
+ */
+export async function duplicatePane(from: PaneId): Promise<void> {
+  const slot = workspaceStore.getSnapshot().panes[from];
+  if (slot === undefined) return;
+  if (!OpfsScratchStore.isAvailable()) {
+    reportProblem("This browser cannot make a copy: it has no private storage to put one in.");
+    return;
+  }
+
+  const into: PaneId = from === "a" ? "b" : "a";
+  const scratch = new OpfsScratchStore();
+  const source = await (slot.document.storage as EditOverlayStorage).contentSnapshot(scratch);
+  const { document, typing } = makeDocument(
+    new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), { scratch }),
+    into
+  );
+  // Never-saved content with nothing behind it to undo to — the state a join
+  // leaves upstream, and what makes a close warn.
+  document.undoHistory.clearKeepingDirty();
+
+  workspaceStore.update((state) => ({
+    ...state,
+    panes: {
+      ...state.panes,
+      [into]: {
+        name: copyName(slot.name),
+        file: { name: copyName(slot.name), size: source.size, lastModified: Date.now(), source },
+        document,
+        typing,
+        writable: false,
+      },
+    },
+    activePane: into,
+    problem: undefined,
+  }));
+  noteDocumentChanged();
+}
+
+/** `bios.bin` becomes `bios copy.bin`, which is what a file manager would say. */
+function copyName(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? `${name} copy` : `${name.slice(0, dot)} copy${name.slice(dot)}`;
 }
 
 /** Opens an empty document in a slot — File ▸ New. */

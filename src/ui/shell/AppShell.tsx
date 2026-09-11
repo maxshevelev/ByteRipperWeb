@@ -3,11 +3,13 @@ import type { DiffEdit } from "@/core/diff/diffEngine";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
+import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
   closePane,
+  duplicatePane,
   editingHooks,
   openEmptyInPane,
   openInPane,
@@ -86,6 +88,10 @@ export function AppShell() {
   // The tab can be closed in a dozen ways this app never hears about; this is
   // the one hook it does get.
   useEffect(() => watchForUnsavedWork(), []);
+  // A crash or a killed tab leaves scratch files nothing will ever read again.
+  useEffect(() => {
+    void sweepOrphanedScratch();
+  }, []);
 
   // The two things the editing controllers need from the app: where to send an
   // edit, and who to ask before one that shifts every offset after it.
@@ -217,6 +223,12 @@ export function AppShell() {
     closePane(pane);
   }, []);
 
+  const doDuplicate = useCallback(() => {
+    void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
+      reportProblem(error instanceof Error ? error.message : "That copy could not be made.")
+    );
+  }, []);
+
   const doDeleteBytes = useCallback(() => {
     void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
   }, [activePane]);
@@ -273,6 +285,7 @@ export function AppShell() {
         onFill={() => setFillOpen(true)}
         onDeleteBytes={doDeleteBytes}
         onGoTo={() => setGoToOpen(true)}
+        onDuplicate={doDuplicate}
       />
       <main
         className="app-workspace"

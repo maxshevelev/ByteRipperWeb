@@ -1,5 +1,10 @@
 import { assertRepresentableSize } from "@/core/limits";
-import type { ByteStorage, Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
+import type {
+  ByteSource,
+  ByteStorage,
+  Bytes,
+  EditableByteStorage,
+} from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type OffsetRange, PieceTable } from "@/core/storage/pieceTable";
@@ -296,6 +301,26 @@ export class EditOverlayStorage implements EditableByteStorage {
     this.lengthChanged = false;
     this.shiftedFrom = undefined;
     this.retainedChangedRanges = [];
+  }
+
+  /**
+   * The content as it stands right now, as a source a second document can build
+   * its own overlay on — what Duplicate needs.
+   *
+   * Upstream shares the piece list and the add buffer by value and clones the
+   * base file with `clonefile(2)`, which on APFS is free until one side is
+   * written. A browser has neither a value-typed array nor a copy-on-write
+   * clone, and the base here is a `File` the *user's own save* replaces — after
+   * which the copy would be reading a file that no longer holds what it was
+   * copied from.
+   *
+   * So the content is written out once, to a private scratch file, and the copy
+   * reads that. It costs the document's size in origin storage and a pass over
+   * its bytes, paid once at the moment of copying rather than risked forever
+   * afterwards.
+   */
+  async contentSnapshot(scratch: ScratchStore): Promise<ByteSource> {
+    return await scratch.write(this.contentStream());
   }
 
   // MARK: - Internals

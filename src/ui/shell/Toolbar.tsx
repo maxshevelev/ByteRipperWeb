@@ -31,6 +31,7 @@ export function Toolbar({
   onFill,
   onDeleteBytes,
   onGoTo,
+  onDuplicate,
 }: {
   readonly onOpen: (into?: PaneId) => void;
   readonly onNew: () => void;
@@ -41,6 +42,7 @@ export function Toolbar({
   readonly onFill: () => void;
   readonly onDeleteBytes: () => void;
   readonly onGoTo: () => void;
+  readonly onDuplicate: () => void;
 }) {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
@@ -168,6 +170,14 @@ export function Toolbar({
           </button>
           <button type="button" className="toolbar-button" onClick={onDeleteBytes}>
             Delete Bytes
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={onDuplicate}
+            title="Copy this pane's content, edits included, into the other pane"
+          >
+            Duplicate
           </button>
           {/*
             Our own zoom steps the hex font only. It deliberately does not use

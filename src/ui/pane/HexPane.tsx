@@ -4,7 +4,8 @@ import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
 import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
-import { formatHex, parseHex } from "@/core/text/hexText";
+import { formatHex } from "@/core/text/hexText";
+import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
 import { HexGridRenderer } from "@/render/hexGrid/hexGridRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
@@ -452,17 +453,17 @@ export function HexPane({
   );
 
   /**
-   * Copy, as hex text.
+   * Copy.
    *
-   * Hex text is the format here, not a debug aid as it is upstream. A browser
-   * has no portable way to put raw bytes on the clipboard, and text is what
-   * travels anyway: into a forum post, a bug report, a terminal, and back into
-   * this application, which is why the paste side reads the same spelling.
+   * Hex text always goes on the clipboard, because that is what travels. Where
+   * the browser allows it the raw bytes go too, under a `web `-prefixed type,
+   * so a copy from this application pastes back into it losslessly and into
+   * everything else legibly.
    *
    * `clipboardData` is only writable while the event is being dispatched, so
-   * the bytes have to be in hand *now* — which is what `peek` is for. When the
-   * selection is not resident the copy falls back to the asynchronous clipboard
-   * API, which can wait for the read.
+   * the sync path needs the bytes in hand *now* — which is what `peek` is for.
+   * The asynchronous route covers both the not-yet-resident case and the raw
+   * type, which no copy event can carry.
    */
   const onCopy = useCallback(
     (event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -474,11 +475,16 @@ export function HexPane({
       const count = Math.min(end - start, COPY_LIMIT);
       const resident = doc.peek(start, count);
       if (resident !== undefined) {
+        // Written synchronously first, so the clipboard is never left empty if
+        // the asynchronous write is refused.
         event.clipboardData.setData("text/plain", formatHex(resident));
+        void writeBytes(resident);
         return;
       }
-      void doc.read(start, count).then((bytes) => {
-        void navigator.clipboard?.writeText(formatHex(bytes)).catch(() => undefined);
+      void doc.read(start, count).then(async (bytes) => {
+        if (!(await writeBytes(bytes))) {
+          await navigator.clipboard?.writeText(formatHex(bytes)).catch(() => undefined);
+        }
       });
     },
     [doc]
@@ -487,10 +493,18 @@ export function HexPane({
   const onPaste = useCallback(
     (event: React.ClipboardEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const bytes = parseHex(event.clipboardData.getData("text/plain"));
-      // Text that is not unambiguously hex is refused rather than guessed at.
-      if (bytes === undefined || bytes.length === 0) return;
-      void typing.pasteBytes(bytes);
+      // The raw type first, when the clipboard carries it: it needs no parsing
+      // and cannot be misread. The event's own text is the fallback, and is
+      // what every browser has.
+      const fromEvent = bytesFromClipboardData(event.clipboardData);
+      if (fromEvent !== undefined && fromEvent.length > 0) {
+        void typing.pasteBytes(fromEvent);
+        return;
+      }
+      void readBytes().then((bytes: Uint8Array | undefined) => {
+        // Text that is not unambiguously hex is refused rather than guessed at.
+        if (bytes !== undefined && bytes.length > 0) void typing.pasteBytes(bytes);
+      });
     },
     [typing]
   );
