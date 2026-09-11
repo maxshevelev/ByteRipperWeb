@@ -38,7 +38,6 @@ import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
-import { SearchResults } from "@/ui/search/SearchResults";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { StatusBar } from "@/ui/shell/StatusBar";
@@ -348,7 +347,6 @@ export function AppShell() {
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
-  const activeSlot = state.panes[activePane];
 
   /** Shows an offset in both panes, the way difference navigation does. */
   const revealInBoth = useCallback((offset: number) => {
@@ -420,6 +418,7 @@ export function AppShell() {
                 onFind={openFind}
                 matches={search.pane === id ? search.matches : undefined}
                 currentMatch={search.pane === id ? search.current : undefined}
+                onGoToMatch={revealInBoth}
               />
             );
           })
@@ -437,17 +436,6 @@ export function AppShell() {
         onActivate={setActivePane}
         stacked={state.layout === "stacked"}
       />
-      {searchOpen &&
-      search.matches !== undefined &&
-      search.matches.total > 0 &&
-      activeSlot !== undefined ? (
-        <SearchResults
-          matches={search.matches}
-          document={activeSlot.document}
-          current={search.current}
-          onGo={revealInBoth}
-        />
-      ) : null}
       <StatusBar />
       {dragging ? <div className="drop-veil">Drop to open</div> : null}
 

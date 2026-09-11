@@ -528,6 +528,30 @@ export function openSearch(): boolean {
   return wasOpen;
 }
 
+/**
+ * Makes the match starting at `offset` the current one.
+ *
+ * What a click in the results list means. Without it the list moved the panes
+ * but left the find bar and the grid still pointing at whichever match was
+ * current — so the ordinal said "1 of 12" over the sixth one, and ▶ carried on
+ * from somewhere the user had left.
+ */
+export function selectMatch(offset: number): void {
+  const state = searchStore.getSnapshot();
+  const matches = state.matches;
+  if (matches === undefined) return;
+  const index = matches.indexStartingAt(offset);
+  if (index === undefined) return;
+  const range = matches.rangeAt(index);
+  if (range === undefined) return;
+  searchStore.update((current) => ({
+    ...current,
+    status: "found",
+    current: range,
+    wrapped: false,
+  }));
+}
+
 export function closeSearch(): void {
   cancelRunning();
   if (editTimer !== undefined) clearTimeout(editTimer);

@@ -128,7 +128,6 @@ export function MenuButton({
       </button>
 
       {open ? (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: the keys are handled below
         <div id={menuId} className="menu-popup" role="menu" ref={menuRef} onKeyDown={onMenuKeyDown}>
           {entries.map((entry, index) => {
             if (entry.kind === "separator") {

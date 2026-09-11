@@ -60,9 +60,8 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 // the first time a search runs and keeps it for the life of the module.
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { closeSearch, noteSearchEdit, openSearch, searchStore, startSearch } = await import(
-  "@/state/searchStore"
-);
+const { closeSearch, noteSearchEdit, openSearch, searchStore, selectMatch, startSearch } =
+  await import("@/state/searchStore");
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 beforeEach(() => {
@@ -204,4 +203,32 @@ test("opening an already-open bar says so, so the shortcut can start over", () =
   closeSearch();
   expect(openSearch()).toBe(false);
   expect(openSearch()).toBe(true);
+});
+
+test("clicking a result makes it the current match", async () => {
+  // Without this the list moved the panes but left the ordinal and the grid
+  // pointing at whichever match was current before.
+  answerFor = "hex";
+  const slot = workspaceStore.getSnapshot().panes.a;
+  if (slot === undefined) throw new Error("the pane did not open");
+  await slot.document.overwrite(0, new Uint8Array([0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa]));
+
+  startSearch({ query: "AA", encoding: "hex", from: 0 });
+  await settle();
+
+  const matches = searchStore.getSnapshot().matches;
+  if (matches === undefined) throw new Error("the index did not arrive");
+  const third = matches.rangeAt(2);
+  if (third === undefined) throw new Error("there should be a third match");
+
+  selectMatch(third.start);
+  const state = searchStore.getSnapshot();
+  expect(state.current).toEqual(third);
+  expect(state.status).toBe("found");
+});
+
+test("a result that is not a match start is ignored", () => {
+  const before = searchStore.getSnapshot().current;
+  selectMatch(999_999);
+  expect(searchStore.getSnapshot().current).toEqual(before);
 });

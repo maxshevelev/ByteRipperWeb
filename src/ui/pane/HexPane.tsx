@@ -3,6 +3,7 @@ import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
+import type { MatchSet } from "@/core/search/matchSet";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
@@ -24,6 +25,7 @@ import {
   resolveTarget,
 } from "@/ui/pane/hexKeys";
 import { scrollLink } from "@/ui/pane/scrollLink";
+import { SearchResults } from "@/ui/search/SearchResults";
 import { observeHexColors, readHexColors } from "@/ui/theme/hexColors";
 
 /**
@@ -65,6 +67,14 @@ export interface HexPaneProps {
   readonly companionSize?: number | undefined;
   /** The other pane's selection, outlined here. */
   readonly peerSelection?: { start: number; end: number } | undefined;
+  /**
+   * Takes both panes to a match the results list was clicked on.
+   *
+   * The list lives in the pane whose file was searched — a result is about
+   * *this* file, and a panel across the bottom of the window did not say which
+   * of two open dumps it meant.
+   */
+  readonly onGoToMatch?: ((offset: number) => void) | undefined;
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /** Asks the workspace to reveal a range — difference navigation uses it. */
@@ -86,8 +96,14 @@ export interface HexPaneProps {
   readonly onSaveAs?: (() => void) | undefined;
   readonly onGoTo?: (() => void) | undefined;
   readonly onFind?: (() => void) | undefined;
-  /** The search matches to grey in this pane, when a search is active. */
-  readonly matches?: MatchLookup | undefined;
+  /**
+   * The search matches to grey in this pane, when a search is active.
+   *
+   * The whole set rather than the renderer's narrow {@link MatchLookup}: the
+   * results list under the dump needs to enumerate them, and the renderer takes
+   * the set through that interface anyway.
+   */
+  readonly matches?: MatchSet | undefined;
   readonly currentMatch?: { start: number; end: number } | undefined;
 }
 
@@ -115,6 +131,7 @@ export function HexPane({
   differences,
   companionSize,
   peerSelection,
+  onGoToMatch,
   onSelectionChanged,
   revealRequest,
   typing,
@@ -783,6 +800,9 @@ export function HexPane({
           style={{ height: `${contentHeight}px`, width: `${contentWidth}px` }}
         />
       </div>
+      {matches !== undefined && matches.total > 0 && onGoToMatch !== undefined ? (
+        <SearchResults matches={matches} document={doc} current={currentMatch} onGo={onGoToMatch} />
+      ) : null}
       <p className="hex-caret-readout" id={readoutId} aria-live="polite">
         <span>Offset {caret.toString(16).toUpperCase().padStart(8, "0")}</span>
         <span>{doc.size.toLocaleString()} bytes</span>

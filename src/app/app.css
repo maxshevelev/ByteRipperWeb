@@ -59,11 +59,11 @@ textarea,
      index of the file's height, so it has to share that height. Everything
      else spans both columns. */
   grid-template-columns: minmax(0, 1fr) auto;
-  /* Toolbar, find bar, workspace, results, status bar. Every one is placed by
-     hand below: auto-placement fills the first free track, so a find bar that
-     is not up let the status bar slide into its row and sit under the toolbar.
-     An empty row collapses to nothing, so the workspace keeps its height. */
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  /* Toolbar, find bar, workspace, status bar. Every one is placed by hand
+     below: auto-placement fills the first free track, so a find bar that is not
+     up let the status bar slide into its row and sit under the toolbar. An
+     empty row collapses to nothing, so the workspace keeps its height. */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100%;
 }
 
@@ -71,12 +71,8 @@ textarea,
   grid-column: 1 / -1;
 }
 
-.search-results {
-  grid-row: 4;
-}
-
 .status-bar {
-  grid-row: 5;
+  grid-row: 4;
 }
 
 .toolbar {
@@ -399,10 +395,12 @@ textarea,
  */
 .hex-pane {
   display: grid;
-  /* Pane header, column header, the dump, the caret readout. The column header
-     is its own row so it is pinned outside the scroller and never scrolls
-     vertically with the rows it names. */
-  grid-template-rows: auto auto 1fr auto;
+  /* Pane header, column header, the dump, the search results, the caret
+     readout. The column header is its own row so it is pinned outside the
+     scroller and never scrolls vertically with the rows it names; the results
+     are their own row so they take height from the dump rather than covering
+     it. Both collapse to nothing when absent. */
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
   border-top: 2px solid transparent;
 }
@@ -722,61 +720,124 @@ textarea,
 }
 
 .search-results {
-  max-height: 12rem;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
 
+/* The handle between the dump and the list. */
+.search-results-splitter {
+  height: 7px;
+  margin-bottom: -3px;
+  flex: none;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.search-results-splitter:hover,
+.search-results-splitter:focus-visible {
+  background: var(--accent);
+  opacity: 0.35;
+  outline: none;
+}
+
+/*
+ * One template for the header and every row, so a title sits over the values
+ * it names. The offset is fixed at its widest; the two excerpts share what is
+ * left, with the hex given the larger share because it is the wider text.
+ */
+.search-results-head,
+.search-result {
+  display: grid;
+  /* The offset is fixed at its widest; the hex excerpt gets the larger share of
+     what is left because it is the wider text — it is three characters a byte
+     against the decoded column's one. */
+  grid-template-columns: 9ch minmax(0, 5fr) minmax(0, 2fr);
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  /* The app's own size, as before. Only the row *pitch* is tighter. */
+  font: inherit;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.search-results-head {
+  flex: none;
+  line-height: 1.25;
+  padding-block: 2px;
+  border-bottom: 1px solid var(--border);
+  color: var(--address-text);
+  background: var(--surface-raised);
+  position: sticky;
+  top: 0;
+}
+
 .search-results-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   margin: 0;
   padding: 0;
   list-style: none;
+  overscroll-behavior: contain;
 }
 
 .search-result {
-  display: flex;
-  gap: 1rem;
   width: 100%;
-  padding: 0.15rem 0.75rem;
+  /* The pitch is the font's line box and little else: upstream adds four points
+     to it, and a couple is enough here to keep descenders clear. A tighter row
+     is more results on screen at the size they were already legible at. */
+  line-height: 1.25;
+  padding-block: 1px;
   border: 0;
-  background: transparent;
+  background: none;
   color: var(--text);
-  font: inherit;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   text-align: left;
   cursor: pointer;
-  white-space: nowrap;
 }
 
-.search-result:hover {
-  background: var(--surface-sunken);
+.search-result:nth-child(odd) {
+  background: var(--surface-raised);
+}
+
+.search-results-list li:nth-child(even) .search-result {
+  background: var(--surface-raised);
+}
+
+.search-result:hover,
+.search-result:focus-visible {
+  background: var(--selection);
+  outline: none;
 }
 
 .search-result.is-current {
   background: var(--selection);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .search-result-offset {
   color: var(--address-text);
 }
 
+.search-result-hex,
 .search-result-text {
-  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .search-results-refusal {
   margin: 0;
-  padding: 0.75rem;
-  color: var(--text);
-}
-
-.search-results-hint {
+  padding: 0.6rem;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
-/* The minimap panel, beside the panes. Its width is the two maps plus the
-   gutter between them, so a stacked layout stacks the maps the same way. */
+.search-results-hint {
+  color: var(--text-faint);
+}
+
 .minimap {
   grid-row: 3;
   grid-column: 2;
