@@ -54,6 +54,15 @@ export interface HexPaneProps {
   readonly onClose: () => void;
   /** The comparison, when there are two files. */
   readonly differences?: DiffBlockIndex | undefined;
+  /**
+   * The companion's length, when there is one.
+   *
+   * Both panes scroll by absolute offset, so both must reach the longer file's
+   * end — otherwise the shorter one stops at its own last row while the other
+   * keeps going, and the pair stops showing the same offsets. Rows past this
+   * pane's own EOF are simply empty.
+   */
+  readonly companionSize?: number | undefined;
   /** The other pane's selection, outlined here. */
   readonly peerSelection?: { start: number; end: number } | undefined;
   /** Called when this pane's selection moves, so the other pane can outline it. */
@@ -104,6 +113,7 @@ export function HexPane({
   onActivate,
   onClose,
   differences,
+  companionSize,
   peerSelection,
   onSelectionChanged,
   revealRequest,
@@ -237,6 +247,7 @@ export function HexPane({
         devicePixelRatio: window.devicePixelRatio,
       });
       renderer.setSource(doc);
+      renderer.setScrollExtent(companionSize);
       setContentHeight(renderer.contentHeight);
       setContentWidth(renderer.contentWidth);
       if (host !== null && anchorRow !== undefined) host.scrollTop = anchorRow * layout.rowHeight;
@@ -246,7 +257,7 @@ export function HexPane({
 
     configure();
     return observeHexColors(configure);
-  }, [doc, wordSize, fontSizePx, scheduleDraw, drawHeader]);
+  }, [doc, wordSize, fontSizePx, scheduleDraw, drawHeader, companionSize]);
 
   /**
    * The header is sized to its element, so it has to hear about a resize.

@@ -195,6 +195,24 @@ export class HexGridRenderer {
     this.invalidateAll();
   }
 
+  /**
+   * How far the pane must be scrollable, in bytes: its own file, or the
+   * comparison's extent when the companion is longer.
+   *
+   * The two panes scroll by absolute offset, so both must reach the longer
+   * file's end — otherwise the shorter one hits its own last row and stops
+   * while the other keeps going, and the pair, which exists to show the same
+   * offsets side by side, stops doing that. The rows past this pane's own EOF
+   * are simply empty.
+   */
+  setScrollExtent(extent: number | undefined): void {
+    if (this.scrollExtent === extent) return;
+    this.scrollExtent = extent;
+    this.invalidateAll();
+  }
+
+  private scrollExtent: number | undefined;
+
   setViewport(viewport: HexGridViewport): void {
     const config = this.config;
     if (config === undefined) return;
@@ -323,7 +341,9 @@ export class HexGridRenderer {
   /** Total content height, for the scrollbar the pane puts beside this. */
   get contentHeight(): number {
     const config = this.config;
-    return config === undefined ? 0 : config.layout.totalHeight(this.source?.size ?? 0);
+    if (config === undefined) return 0;
+    const own = this.source?.size ?? 0;
+    return config.layout.totalHeight(Math.max(own, this.scrollExtent ?? 0));
   }
 
   get contentWidth(): number {

@@ -266,3 +266,18 @@ describe("drag selection", () => {
     expect(w4.dragEndOffset(w4.hexByteX(15) + 8, 0, 10)).toBe(BYTES_PER_ROW);
   });
 });
+
+it("scrolls both panes of a comparison over the longer file", () => {
+  // The scroll extent is the comparison's, not each pane's own: the two scroll
+  // by absolute offset, so a shorter pane that stopped at its own last row
+  // would leave the pair showing different offsets — which is the one thing the
+  // arrangement exists to prevent. The rows past a pane's own EOF are empty.
+  const layout = new HexLayout({ charWidth: 8, rowHeight: 17 });
+  const shorter = 1024 * 1024;
+  const longer = 4 * 1024 * 1024;
+
+  expect(layout.totalHeight(Math.max(shorter, longer))).toBe(layout.totalHeight(longer));
+  expect(layout.totalHeight(Math.max(longer, shorter))).toBe(layout.totalHeight(longer));
+  // And a pane with no companion is sized to itself.
+  expect(layout.totalHeight(Math.max(shorter, 0))).toBe(layout.totalHeight(shorter));
+});

@@ -5,6 +5,7 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
+import { editStore } from "@/state/editStore";
 import { noteMinimapEdit, watchForMinimap } from "@/state/minimapStore";
 import { noteSearchEdit, searchStore, setSearchPane } from "@/state/searchStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
@@ -60,6 +61,11 @@ export interface RevealRequest {
 export function AppShell() {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
+  // An insert or a delete changes a document's length, and each pane has to
+  // stay scrollable to the *other* one's end. The workspace store does not
+  // change on an edit, so without this nudge a companion that grew would leave
+  // this pane unable to reach its new end.
+  useStore(editStore);
   const [dragging, setDragging] = useState(false);
   const [selections, setSelections] = useState<Record<PaneId, { start: number; end: number }>>({
     a: { start: 0, end: 0 },
@@ -362,6 +368,7 @@ export function AppShell() {
                 onActivate={() => setActivePane(id)}
                 onClose={() => closeWithWarning(id)}
                 differences={diff.index}
+                companionSize={state.panes[other]?.document.size}
                 peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
                 onSelectionChanged={onSelectionChanged[id]}
                 revealRequest={reveal[id]}

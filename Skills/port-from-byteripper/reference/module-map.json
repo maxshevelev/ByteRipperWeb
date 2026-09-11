@@ -329,7 +329,7 @@
         "src/ui/shell/AppShell.tsx"
       ],
       "status": "ported",
-      "note": "The two-pane layout, side by side and stacked, the synchronised scroll, and the divider. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid with a focusable separator."
+      "note": "The two-pane layout, side by side and stacked, the synchronised scroll, and the divider. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid with a focusable separator. The sync's clamp is only half the rule: it holds because HexView sizes each pane to the *comparison's* extent rather than its own file, so both reach the longer file's end and the shorter one shows its EOF area \u2014 ported as HexGridRenderer.setScrollExtent."
     },
     {
       "swift": "ByteRipperApp/Window/EmptyStateView",
