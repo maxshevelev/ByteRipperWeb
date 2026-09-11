@@ -22,12 +22,14 @@ file is part of that request.
 
 ## Status
 
-**Early.** It opens two dumps and compares them — the orange wash, the live
-`1,057 differing · 4,193,247 same` summary, and Next Difference stepping by
-change rather than by byte. The domain half is checked against the macOS app's
-own unit tests, ported with the code they cover. What is missing is editing,
-saving, search, the minimap and the firmware tools. Milestone by milestone, the
-plan is
+**Usable, for what it does so far.** It opens two dumps, compares them, and
+lets you patch one and save it — the orange wash, the live
+`1,057 differing · 4,193,247 same` summary that follows your edits, Next
+Difference stepping by change rather than by byte, and a Save that writes back
+to the file in Chromium and downloads a copy where it cannot. The domain half
+is checked against the macOS app's own unit tests, ported with the code they
+cover. What is missing is search, the minimap, segments and the firmware tools.
+Milestone by milestone, the plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
@@ -38,8 +40,9 @@ scope at all, and what the browser takes away, is
 | M1 Storage and document | done |
 | M2 Hex grid, read-only, one file | done |
 | M3 Comparison | done |
-| M4 Editing and saving | next |
-| M5 – M12 | see the plan |
+| M4 Editing and saving | done |
+| M5 Search | next |
+| M6 – M12 | see the plan |
 
 ## Stack
 

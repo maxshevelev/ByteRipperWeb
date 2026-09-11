@@ -55,20 +55,36 @@ export function detectFileCapabilities(scope: unknown = globalThis): FileCapabil
 }
 
 /**
- * How the app names the act of writing a file, given what the browser can do.
+ * How the app names the act of writing a file.
+ *
+ * Two things have to be true before the button may say *Save*: the browser can
+ * write back at all, and *this file* arrived with a handle to write back to. A
+ * file that came from an `<input>`, or from a drop the browser gave no handle
+ * for, will be downloaded however capable the browser is — and a button
+ * promising otherwise is exactly the discovery D7 exists to prevent.
+ *
  * The UI asks this rather than deciding for itself, so the wording can never
- * drift from the capability.
+ * drift from what will happen.
  */
-export function saveVerb(capabilities: FileCapabilities): "Save" | "Download" {
-  return capabilities.canSaveInPlace ? "Save" : "Download";
+export function saveVerb(capabilities: FileCapabilities, hasHandle = true): "Save" | "Download" {
+  return capabilities.canSaveInPlace && hasHandle ? "Save" : "Download";
 }
 
 /** One sentence a person can read about why the button says what it says. */
-export function saveExplanation(capabilities: FileCapabilities): string {
-  return capabilities.canSaveInPlace
-    ? "Edits are written back to the file you opened."
-    : "This browser cannot write to a file it opened, so saving downloads a copy instead. " +
-        "Chromium-based browsers can save in place.";
+export function saveExplanation(capabilities: FileCapabilities, hasHandle = true): string {
+  if (capabilities.canSaveInPlace && hasHandle) {
+    return "Edits are written back to the file you opened.";
+  }
+  if (capabilities.canSaveInPlace) {
+    return (
+      "This file was opened without a handle the browser will write through, so saving " +
+      "downloads a copy. Opening it again through Open… gives one."
+    );
+  }
+  return (
+    "This browser cannot write to a file it opened, so saving downloads a copy instead. " +
+    "Chromium-based browsers can save in place."
+  );
 }
 
 export const fileSystemAccess = (scope: unknown = globalThis): FileSystemAccessWindow =>

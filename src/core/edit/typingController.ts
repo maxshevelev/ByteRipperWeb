@@ -1,4 +1,4 @@
-import type { DiffEdit } from "@/core/diff/diffEngine";
+import { type DiffEdit, netDiffEdit } from "@/core/diff/diffEngine";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import {
   caretAt,
@@ -63,6 +63,16 @@ export interface TypingControllerOptions {
 }
 
 export class TypingController {
+  /**
+   * Where to scroll when typing starts at an offset that may be off screen.
+   *
+   * Settable rather than constructor-injected because the controller belongs to
+   * the document — it holds a half-typed nibble and an open undo group, neither
+   * of which should survive a component remounting — while the scrolling
+   * belongs to whichever pane is showing that document.
+   */
+  revealHandler: ((offset: number) => void) | undefined;
+
   private readonly doc: BinaryDocument;
   private readonly now: () => number;
   private readonly options: TypingControllerOptions;
@@ -230,6 +240,148 @@ export class TypingController {
     });
   }
 
+  // MARK: - Undo and redo
+
+  /**
+   * Undo, through the same queue as typing.
+   *
+   * Through the queue because an undo racing a keystroke would apply to a
+   * document the keystroke had not finished changing. And here rather than on
+   * the document because *this* is where the comparison is told what moved: an
+   * undo changes bytes exactly as an edit does, and a comparison that only
+   * heard about the forward direction would drift the moment anyone pressed
+   * Cmd+Z.
+   */
+  undo(batch = false): Promise<void> {
+    return this.run(async () => {
+      await this.closeGroup();
+      this.closeSeries();
+      this.nibbleIndex = 0;
+      this.consuming = undefined;
+
+      const applied = await this.doc.undo(batch);
+      if (applied === undefined) return;
+      const edit = netDiffEdit(applied);
+      if (edit !== undefined) this.options.onEdit?.(edit);
+    });
+  }
+
+  redo(): Promise<void> {
+    return this.run(async () => {
+      await this.closeGroup();
+      this.closeSeries();
+      this.nibbleIndex = 0;
+      this.consuming = undefined;
+
+      const applied = await this.doc.redo();
+      if (applied === undefined) return;
+      const edit = netDiffEdit(applied);
+      if (edit !== undefined) this.options.onEdit?.(edit);
+    });
+  }
+
+  // MARK: - Whole-range operations
+
+  /**
+   * Pastes bytes at the caret, or over the selection.
+   *
+   * In overwrite mode they replace what is there and the file keeps its length;
+   * in insert mode they go in and the tail shifts. Either way it is one undo
+   * step, because it was one gesture.
+   */
+  pasteBytes(bytes: Uint8Array): Promise<void> {
+    if (bytes.length === 0) return Promise.resolve();
+    return this.run(async () => {
+      if (!this.allowShift()) return;
+      await this.closeGroup();
+      this.closeSeries();
+      this.nibbleIndex = 0;
+      this.consuming = undefined;
+
+      const selection = this.doc.selection;
+      const at = selection.start;
+
+      if (this.insertMode) {
+        // A selection in insert mode is replaced: pasting over a highlighted
+        // span is what the highlight is for, and leaving it would be the only
+        // operation in the app that ignored it.
+        if (selection.end > selection.start) {
+          this.doc.beginEditGroup();
+          await this.doc.delete(selection.start, selection.end);
+          await this.doc.insert(at, bytes);
+          this.doc.endEditGroup();
+        } else {
+          await this.doc.insert(at, bytes);
+        }
+        this.options.onEdit?.({ kind: "insert", at, length: bytes.length });
+      } else if (selection.end > selection.start) {
+        await this.doc.replace(selection.start, selection.end, bytes);
+        this.options.onEdit?.(
+          bytes.length === selection.end - selection.start
+            ? { kind: "overwrite", start: at, end: at + bytes.length }
+            : { kind: "delete", start: at, end: selection.end }
+        );
+      } else {
+        await this.doc.overwrite(at, bytes);
+        this.options.onEdit?.({ kind: "overwrite", start: at, end: at + bytes.length });
+      }
+
+      this.doc.setSelection(caretAt(at + bytes.length, this.doc.size));
+      this.doc.noteSelectionAfterEdit();
+    });
+  }
+
+  /**
+   * Fills the selection by repeating a pattern across it — the Fill dialog.
+   *
+   * The caret is left at the range's start rather than its end: a fill is an
+   * act on a region, and coming back to the start is how you look at what you
+   * just did.
+   */
+  fillSelection(pattern: Uint8Array): Promise<void> {
+    if (pattern.length === 0) return Promise.resolve();
+    return this.run(async () => {
+      await this.closeGroup();
+      this.closeSeries();
+      this.nibbleIndex = 0;
+      this.consuming = undefined;
+
+      const { start, end } = this.doc.selection;
+      const range =
+        end > start ? { start, end } : { start, end: Math.min(start + 1, this.doc.size) };
+      if (range.end <= range.start) return;
+
+      await this.doc.fill(pattern, range.start, range.end, range.start);
+      this.doc.setSelection(makeSelection(range.start, range.end, this.doc.size));
+      this.doc.noteSelectionAfterEdit();
+      this.options.onEdit?.({ kind: "overwrite", start: range.start, end: range.end });
+    });
+  }
+
+  /**
+   * Removes the selection and shifts the tail left, whatever the mode.
+   *
+   * Distinct from Delete, which only removes bytes in insert mode: this is the
+   * explicit command, so it does what it says and asks first.
+   */
+  deleteBytes(): Promise<void> {
+    return this.run(async () => {
+      const { start, end } = this.doc.selection;
+      if (end <= start) return;
+      if (!this.confirmShiftOnce()) return;
+
+      await this.closeGroup();
+      this.closeSeries();
+      this.nibbleIndex = 0;
+      this.consuming = undefined;
+
+      await this.doc.delete(start, end);
+      this.doc.setSelection(caretAt(start, this.doc.size));
+      this.doc.noteSelectionAfterEdit();
+      this.options.onEdit?.({ kind: "delete", start, end });
+    });
+  }
+
   // MARK: - Delete and backspace
 
   /**
@@ -297,7 +449,13 @@ export class TypingController {
    * Answering no swallows the keystroke.
    */
   private allowShift(): boolean {
-    if (!this.insertMode || this.warnedAboutShift) return true;
+    if (!this.insertMode) return true;
+    return this.confirmShiftOnce();
+  }
+
+  /** The warning itself, for the commands that shift whatever the mode. */
+  private confirmShiftOnce(): boolean {
+    if (this.warnedAboutShift) return true;
     const confirm = this.options.confirmInsertShift;
     if (confirm === undefined) return true;
     if (!confirm()) return false;
@@ -341,7 +499,7 @@ export class TypingController {
 
     this.consuming = selection;
     this.nibbleIndex = 0;
-    this.options.onReveal?.(selection.start);
+    (this.options.onReveal ?? this.revealHandler)?.(selection.start);
   }
 
   /**

@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DiffEdit } from "@/core/diff/diffEngine";
+import { parseHex } from "@/core/text/hexText";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
-import { diffStore, watchWorkspaceForComparison } from "@/state/diffStore";
+import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { useStore } from "@/state/useStore";
 import {
   closePane,
+  editingHooks,
+  openEmptyInPane,
   openInPane,
   type PaneId,
   reportProblem,
+  revertPane,
+  savePane,
   setActivePane,
   slotForNewFile,
   workspaceStore,
@@ -44,7 +50,33 @@ export function AppShell() {
   const [reveal, setReveal] = useState<Partial<Record<PaneId, RevealRequest>>>({});
   const revealToken = useRef(0);
 
+  /**
+   * The one-time warning before an edit that shifts every offset after it.
+   *
+   * Asked once per pane, because the second time it is noise — the user has
+   * chosen insert mode and knows what it does.
+   */
+  const confirmInsertShift = useCallback(
+    () =>
+      window.confirm(
+        "This edit will shift every byte after it, so every offset past this point changes.\n\n" +
+          "That is what insert mode does, and it is undoable. Carry on?"
+      ),
+    []
+  );
+
   useEffect(() => watchWorkspaceForComparison(), []);
+
+  // The two things the editing controllers need from the app: where to send an
+  // edit, and who to ask before one that shifts every offset after it.
+  useEffect(() => {
+    editingHooks.onEdit = (_pane: PaneId, edit: DiffEdit) => noteEdit(edit);
+    editingHooks.confirmShift = confirmInsertShift;
+    return () => {
+      editingHooks.onEdit = undefined;
+      editingHooks.confirmShift = undefined;
+    };
+  }, [confirmInsertShift]);
 
   const accept = useCallback((files: OpenedFile[], into?: PaneId) => {
     // Two files chosen at once fill both slots, which is how a comparison is
@@ -128,6 +160,48 @@ export function AppShell() {
     [diff.hunks, selections, state.activePane]
   );
 
+  const activePane = state.activePane;
+
+  const doSave = useCallback(
+    async (as: boolean) => {
+      try {
+        const outcome = await savePane(activePane, as);
+        if (outcome.kind === "downloaded") {
+          reportProblem(`Downloaded ${outcome.name}. The file you opened is unchanged.`);
+        } else {
+          reportProblem(undefined);
+        }
+      } catch (error) {
+        reportProblem(error instanceof Error ? error.message : "That file could not be saved.");
+      }
+    },
+    [activePane]
+  );
+
+  const doRevert = useCallback(() => {
+    const pane = workspaceStore.getSnapshot().panes[activePane];
+    if (pane === undefined || !pane.document.isDirty) return;
+    if (!window.confirm(`Throw away every unsaved edit to ${pane.name}?`)) return;
+    void revertPane(activePane).catch(() =>
+      reportProblem("That file could not be read again — it may have changed or been moved.")
+    );
+  }, [activePane]);
+
+  const doFill = useCallback(() => {
+    const answer = window.prompt("Fill the selection by repeating these bytes:", "00");
+    if (answer === null) return;
+    const pattern = parseHex(answer);
+    if (pattern === undefined) {
+      reportProblem(`"${answer}" is not a hexadecimal byte pattern.`);
+      return;
+    }
+    void workspaceStore.getSnapshot().panes[activePane]?.typing.fillSelection(pattern);
+  }, [activePane]);
+
+  const doDeleteBytes = useCallback(() => {
+    void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
+  }, [activePane]);
+
   const onSelectionChanged = useMemo(
     () => ({
       a: (selection: { start: number; end: number }) =>
@@ -142,7 +216,16 @@ export function AppShell() {
 
   return (
     <div className="app-shell" data-dragging={dragging ? "" : undefined}>
-      <Toolbar onOpen={open} onNavigate={navigate} />
+      <Toolbar
+        onOpen={open}
+        onNew={() => openEmptyInPane(slotForNewFile())}
+        onNavigate={navigate}
+        onSave={() => void doSave(false)}
+        onSaveAs={() => void doSave(true)}
+        onRevert={doRevert}
+        onFill={doFill}
+        onDeleteBytes={doDeleteBytes}
+      />
       <main className="app-workspace" data-layout={state.layout} data-panes={panes.length}>
         {panes.length === 0 ? (
           <EmptyState onOpen={() => void open()} />
@@ -166,6 +249,9 @@ export function AppShell() {
                 peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
                 onSelectionChanged={onSelectionChanged[id]}
                 revealRequest={reveal[id]}
+                typing={pane.typing}
+                onSave={() => void doSave(false)}
+                onSaveAs={() => void doSave(true)}
               />
             );
           })

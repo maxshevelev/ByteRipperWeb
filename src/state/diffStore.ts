@@ -1,4 +1,5 @@
 import { DiffBlockIndex } from "@/core/diff/diffBlock";
+import { applyEdit, collapseEdits, DiffCancelled, type DiffEdit } from "@/core/diff/diffEngine";
 import { DiffHunkIndex, type HunkRange } from "@/core/diff/diffHunkIndex";
 import { createStore } from "@/state/store";
 import { workspaceStore } from "@/state/workspaceStore";
@@ -174,6 +175,85 @@ function cancelRunning(): void {
  */
 function blobOf(source: unknown): Blob | undefined {
   return source instanceof Blob ? source : undefined;
+}
+
+/**
+ * Notes an edit, so the comparison catches up without a full rescan.
+ *
+ * This is what M3's incremental invalidation was built for and what M4 finally
+ * has something to feed it. Edits are collected across a frame and collapsed
+ * before anything is rescanned: a run of typed bytes is one damaged window, and
+ * ten inserted bytes rescanned the file's tail ten times where one pass does.
+ *
+ * The update runs here rather than in the worker. The worker holds the two
+ * *files*; an edited document is a piece table over one, and shipping that
+ * across is a bigger change than the work it would save — an overwrite
+ * invalidates only the bytes it touched, which measures at hundredths of a
+ * millisecond. A length-changing edit does invalidate the tail, and that is
+ * why the rescan reads in small chunks with an await between them: the frame
+ * is never held for more than a chunk, and a newer edit cancels an older
+ * rescan mid-flight.
+ */
+let pendingEdits: DiffEdit[] = [];
+let editTimer: ReturnType<typeof setTimeout> | undefined;
+/** Bumped by every new rescan; an older one sees it and stops. */
+let incrementalRun = 0;
+
+/** Small enough that a tail rescan yields to the frame between chunks. */
+const INCREMENTAL_CHUNK_SIZE = 256 * 1024;
+
+export function noteEdit(edit: DiffEdit): void {
+  pendingEdits.push(edit);
+  if (editTimer !== undefined) return;
+  editTimer = setTimeout(() => {
+    editTimer = undefined;
+    const collapsed = collapseEdits(pendingEdits);
+    pendingEdits = [];
+    if (collapsed.length > 0) void applyEditsToComparison(collapsed);
+  }, EDIT_COALESCE_MS);
+}
+
+/** A fast typist produces one rescan rather than one per keystroke. */
+const EDIT_COALESCE_MS = 120;
+
+async function applyEditsToComparison(edits: readonly DiffEdit[]): Promise<void> {
+  const { panes, groupingGap } = workspaceStore.getSnapshot();
+  const left = panes.a?.document;
+  const right = panes.b?.document;
+  const current = diffStore.getSnapshot().index;
+  // Nothing to update: with one file there is no comparison, and with no index
+  // the full scan is still running and will see the edited content itself.
+  if (left === undefined || right === undefined || current === undefined) return;
+
+  const run = ++incrementalRun;
+  try {
+    let index = current;
+    for (const edit of edits) {
+      index = await applyEdit(edit, index, left, right, {
+        chunkSize: INCREMENTAL_CHUNK_SIZE,
+        shouldCancel: () => incrementalRun !== run,
+      });
+    }
+    if (incrementalRun !== run) return;
+
+    const summary = index.summary;
+    diffStore.update((state) => ({
+      ...state,
+      status: "ready",
+      progress: 1,
+      index,
+      hunks: DiffHunkIndex.from(index, groupingGap),
+      differingBytes: summary.differing,
+      sameBytes: summary.same,
+    }));
+  } catch (error) {
+    if (error instanceof DiffCancelled) return;
+    diffStore.update((state) => ({
+      ...state,
+      status: "failed",
+      problem: error instanceof Error ? error.message : "The comparison could not be updated.",
+    }));
+  }
 }
 
 /** Re-runs the comparison whenever the files or the grouping distance change. */

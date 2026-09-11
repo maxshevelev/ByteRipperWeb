@@ -44,6 +44,14 @@ describe("what the app calls it", () => {
     expect(saveVerb(detectFileCapabilities(firefoxOrSafari))).toBe("Download");
   });
 
+  it("says Download for a file with no handle, however capable the browser", () => {
+    // A file from an <input>, or a drop the browser gave no handle for, is
+    // downloaded whatever Chromium can do in general — and a button promising
+    // otherwise is exactly the discovery D7 exists to prevent.
+    expect(saveVerb(detectFileCapabilities(chromium), false)).toBe("Download");
+    expect(saveExplanation(detectFileCapabilities(chromium), false)).toMatch(/downloads a copy/);
+  });
+
   it("explains the difference rather than leaving it to be discovered", () => {
     expect(saveExplanation(detectFileCapabilities(firefoxOrSafari))).toMatch(/downloads a copy/);
     expect(saveExplanation(detectFileCapabilities(chromium))).toMatch(/written back/);

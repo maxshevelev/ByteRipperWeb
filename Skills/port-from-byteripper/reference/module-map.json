@@ -77,7 +77,7 @@
         "src/core"
       ],
       "status": "in-progress",
-      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M3: the storage and document files, the text and selection files, UndoHistory, and DiffEngine with DiffBlock and DiffHunkIndex — each with its upstream tests. Still planned: SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11). BinaryDocument's save, join and duplicate paths need the platform layer and land in M4 and M7.",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M4: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, and ClipboardCodec (as text/hexText.ts) — each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. Still planned: SearchEngine and SmartSearch (M5), SegmentWriter and SegmentReplacer (M7), PatternLibrary (M11), ContentSnapshot and TemporaryFileStore with Duplicate (M7).",
       "files": {
         "ChunkCache.swift": "src/core/storage/chunkCache.ts",
         "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
@@ -100,7 +100,10 @@
         "BlockRange.swift": "src/core/document/blockRange.ts",
         "ByteStorage.swift": "src/core/storage/byteStorage.ts",
         "StorageError.swift": "src/core/storage/storageError.ts",
-        "TextDecoderRegistry.swift": "src/core/text/byteDecoderRegistry.ts"
+        "TextDecoderRegistry.swift": "src/core/text/byteDecoderRegistry.ts",
+        "ClipboardCodec.swift": "src/core/text/hexText.ts",
+        "StorageSaver.swift": "src/platform/files/fileSink.ts",
+        "ContentSnapshot.swift": "src/core/storage/contentStream.ts"
       }
     },
     {
@@ -213,9 +216,11 @@
     {
       "swift": "ByteRipperApp/Pane",
       "web": [
-        "src/ui/pane"
+        "src/ui/pane",
+        "src/core/edit/typingController.ts"
       ],
-      "status": "in-progress"
+      "status": "in-progress",
+      "note": "PaneViewModel's editing half is src/core/edit/typingController.ts — a state machine with a dozen rules, kept out of the component so it can be tested without a DOM. Its view half is src/ui/pane/HexPane.tsx. Segments, bookmarks and the tool panel wait for M7 and M8."
     },
     {
       "swift": "ByteRipperApp/Tools",

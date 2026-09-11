@@ -5,7 +5,7 @@ import {
   selectionIsEmpty,
 } from "@/core/document/selectionModel";
 import { invertOperation, UndoHistory, type UndoOperation } from "@/core/edit/undoHistory";
-import type { EditableByteStorage } from "@/core/storage/byteStorage";
+import type { Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
 
 /**
  * One open binary file: its editable storage, its undo history, and its
@@ -82,12 +82,12 @@ export class BinaryDocument {
     return this.storageValue.size;
   }
 
-  read(at: number, length: number): Promise<Uint8Array> {
+  read(at: number, length: number): Promise<Bytes> {
     return this.storageValue.read(at, length);
   }
 
   /** The synchronous path, for a renderer inside a frame. */
-  peek(at: number, length: number): Uint8Array | undefined {
+  peek(at: number, length: number): Bytes | undefined {
     return this.storageValue.peek(at, length);
   }
 

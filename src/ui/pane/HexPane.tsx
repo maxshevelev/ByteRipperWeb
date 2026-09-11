@@ -2,6 +2,9 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
+import type { InputRegion, TypingController } from "@/core/edit/typingController";
+import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
+import { formatHex, parseHex } from "@/core/text/hexText";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
 import { HexGridRenderer } from "@/render/hexGrid/hexGridRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
@@ -43,9 +46,26 @@ export interface HexPaneProps {
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /** Asks the workspace to reveal a range — difference navigation uses it. */
   readonly revealRequest?: { start: number; end: number; token: number } | undefined;
+  /**
+   * The document's editing state machine. It belongs to the document, not to
+   * this component: it holds a half-typed nibble and an open undo group,
+   * neither of which should survive a remount or a layout change.
+   */
+  readonly typing: TypingController;
+  readonly onSave?: (() => void) | undefined;
+  readonly onSaveAs?: (() => void) | undefined;
 }
 
 const platform = detectKeyboardPlatform();
+
+/**
+ * How many bytes one copy will produce, at most.
+ *
+ * A megabyte of bytes is three megabytes of hex text — past what any clipboard
+ * is for, and past what anything would paste it into. A selection larger than
+ * this copies its first megabyte.
+ */
+const COPY_LIMIT = 1024 * 1024;
 
 export function HexPane({
   document: doc,
@@ -60,6 +80,9 @@ export function HexPane({
   peerSelection,
   onSelectionChanged,
   revealRequest,
+  typing,
+  onSave,
+  onSaveAs,
 }: HexPaneProps) {
   const readoutId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -72,6 +95,9 @@ export function HexPane({
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
+  const [mode, setMode] = useState<"INS" | "OVR">("OVR");
+  const [region, setRegion] = useState<InputRegion>("hex");
+  const [dirty, setDirty] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
 
@@ -167,6 +193,23 @@ export function HexPane({
     return doc.onSelectionChanged(apply);
   }, [doc, scheduleDraw, onSelectionChanged]);
 
+  /**
+   * The red foreground on every byte that differs from the file on disk.
+   *
+   * Read from the overlay after each change: it already tracks exactly this for
+   * the save path, so there is nothing here to keep in step separately.
+   */
+  useEffect(() => {
+    const apply = () => {
+      const overlay = doc.storage as Partial<EditOverlayStorage>;
+      rendererRef.current?.setModifiedRanges(overlay.changedRanges ?? []);
+      setDirty(doc.isDirty);
+      scheduleDraw();
+    };
+    apply();
+    return doc.onContentChanged(apply);
+  }, [doc, scheduleDraw]);
+
   // The comparison, and the other pane's selection outlined here.
   useEffect(() => {
     rendererRef.current?.setDifferences(differences);
@@ -233,9 +276,48 @@ export function HexPane({
     [doc, reveal]
   );
 
+  // The pane tells the controller where to scroll when typing starts at an
+  // offset that may be off screen.
+  useEffect(() => {
+    typing.revealHandler = reveal;
+    setMode(typing.modeLabel);
+    setRegion(typing.inputRegion);
+    return () => {
+      typing.revealHandler = undefined;
+    };
+  }, [typing, reveal]);
+
+  /**
+   * The red foreground on every byte that differs from the file on disk.
+   *
+   * Read from the overlay after each change: it already tracks exactly this for
+   * the save path, so there is nothing here to keep in step separately.
+   */
+  useEffect(() => {
+    const apply = () => {
+      const overlay = doc.storage as Partial<EditOverlayStorage>;
+      rendererRef.current?.setModifiedRanges(overlay.changedRanges ?? []);
+      setDirty(doc.isDirty);
+      scheduleDraw();
+    };
+    apply();
+    return doc.onContentChanged(apply);
+  }, [doc, scheduleDraw]);
+
+  // The comparison, and the other pane's selection outlined here.
+  useEffect(() => {
+    rendererRef.current?.setDifferences(differences);
+    scheduleDraw();
+  }, [differences, scheduleDraw]);
+
+  useEffect(() => {
+    rendererRef.current?.setPeerSelection(peerSelection);
+    scheduleDraw();
+  }, [peerSelection, scheduleDraw]);
+
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      const command = resolveHexKey(event as unknown as HexKeyEvent, platform);
+      const command = resolveHexKey(event as unknown as HexKeyEvent, platform, region);
       if (command === undefined) return;
 
       const host = scrollRef.current;
@@ -247,9 +329,11 @@ export function HexPane({
 
       switch (command.kind) {
         case "moveBy":
+          void typing.breakRun();
           moveCaret(doc.caret + command.delta, command.extend);
           break;
         case "moveTo":
+          void typing.breakRun();
           moveCaret(
             resolveTarget(command.target, doc.caret, doc.size, rowsPerPage, command.extend),
             command.extend
@@ -271,10 +355,96 @@ export function HexPane({
           // shortcut must still not fall through to the browser's own Cmd+L,
           // which would put focus in the address bar mid-edit.
           break;
+
+        case "hexDigit":
+          void typing.typeHexDigit(command.digit);
+          break;
+        case "character": {
+          // The decoding table decides whether the character is representable;
+          // one it cannot encode is refused rather than written as something
+          // else.
+          const byte = activeDecoder().encode(command.character);
+          if (byte !== undefined) void typing.typeByte(byte);
+          break;
+        }
+        case "delete":
+          void (command.forward ? typing.deleteForward() : typing.deleteBackward());
+          break;
+        case "toggleInsertMode":
+          void typing.toggleInsertMode().then(() => setMode(typing.modeLabel));
+          break;
+        case "switchColumn": {
+          const next: InputRegion = region === "hex" ? "text" : "hex";
+          setRegion(next);
+          void typing.setInputRegion(next);
+          break;
+        }
+        case "undo":
+          void typing.undo(command.batch);
+          break;
+        case "redo":
+          void typing.redo();
+          break;
+        case "save":
+          onSave?.();
+          break;
+        case "saveAs":
+          onSaveAs?.();
+          break;
+        case "copy":
+        case "paste":
+          // The clipboard needs the browser's own event to carry the data, so
+          // these are handled by onCopy/onPaste below rather than here. Falling
+          // through without preventDefault is what lets that happen.
+          return;
       }
       event.preventDefault();
     },
-    [doc, moveCaret]
+    [doc, moveCaret, region, onSave, onSaveAs, typing]
+  );
+
+  /**
+   * Copy, as hex text.
+   *
+   * Hex text is the format here, not a debug aid as it is upstream. A browser
+   * has no portable way to put raw bytes on the clipboard, and text is what
+   * travels anyway: into a forum post, a bug report, a terminal, and back into
+   * this application, which is why the paste side reads the same spelling.
+   *
+   * `clipboardData` is only writable while the event is being dispatched, so
+   * the bytes have to be in hand *now* — which is what `peek` is for. When the
+   * selection is not resident the copy falls back to the asynchronous clipboard
+   * API, which can wait for the read.
+   */
+  const onCopy = useCallback(
+    (event: React.ClipboardEvent<HTMLDivElement>) => {
+      const { start, end } = doc.selection;
+      if (end <= start) return;
+      event.preventDefault();
+
+      // Bounded: Select All on a 64 MB dump must not build a 190 MB string.
+      const count = Math.min(end - start, COPY_LIMIT);
+      const resident = doc.peek(start, count);
+      if (resident !== undefined) {
+        event.clipboardData.setData("text/plain", formatHex(resident));
+        return;
+      }
+      void doc.read(start, count).then((bytes) => {
+        void navigator.clipboard?.writeText(formatHex(bytes)).catch(() => undefined);
+      });
+    },
+    [doc]
+  );
+
+  const onPaste = useCallback(
+    (event: React.ClipboardEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const bytes = parseHex(event.clipboardData.getData("text/plain"));
+      // Text that is not unambiguously hex is refused rather than guessed at.
+      if (bytes === undefined || bytes.length === 0) return;
+      void typing.pasteBytes(bytes);
+    },
+    [typing]
   );
 
   /** Where a pointer is, in the grid's own content coordinates. */
@@ -388,6 +558,8 @@ export function HexPane({
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onCopy={onCopy}
+        onPaste={onPaste}
       >
         <canvas ref={canvasRef} className="hex-canvas" />
         <div
@@ -396,8 +568,13 @@ export function HexPane({
         />
       </div>
       <p className="hex-caret-readout" id={readoutId} aria-live="polite">
-        Offset {caret.toString(16).toUpperCase().padStart(8, "0")} · {doc.size.toLocaleString()}{" "}
-        bytes
+        <span>Offset {caret.toString(16).toUpperCase().padStart(8, "0")}</span>
+        <span>{doc.size.toLocaleString()} bytes</span>
+        <span className="readout-mode" data-insert={mode === "INS" ? "" : undefined}>
+          {mode}
+        </span>
+        <span className="readout-region">{region === "hex" ? "Hex" : "Text"}</span>
+        {dirty ? <span className="readout-dirty">Unsaved</span> : null}
       </p>
     </div>
   );

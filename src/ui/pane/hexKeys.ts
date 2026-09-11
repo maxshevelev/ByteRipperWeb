@@ -1,3 +1,4 @@
+import type { InputRegion } from "@/core/edit/typingController";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 
 /**
@@ -33,6 +34,19 @@ export interface HexKeyEvent {
 export type KeyboardPlatform = "apple" | "other";
 
 export type HexCommand =
+  /** A hex digit typed into the hex column. */
+  | { readonly kind: "hexDigit"; readonly digit: number }
+  /** A character typed into the decoded-text column, before decoding. */
+  | { readonly kind: "character"; readonly character: string }
+  | { readonly kind: "delete"; readonly forward: boolean }
+  | { readonly kind: "toggleInsertMode" }
+  | { readonly kind: "undo"; readonly batch: boolean }
+  | { readonly kind: "redo" }
+  | { readonly kind: "save" }
+  | { readonly kind: "saveAs" }
+  | { readonly kind: "copy" }
+  | { readonly kind: "paste" }
+  | { readonly kind: "switchColumn" }
   /** Move the caret by a signed number of bytes. */
   | { readonly kind: "moveBy"; readonly delta: number; readonly extend: boolean }
   /** Move the caret to an absolute offset. */
@@ -71,7 +85,8 @@ export function hasPrimaryModifier(event: HexKeyEvent, platform: KeyboardPlatfor
  */
 export function resolveHexKey(
   event: HexKeyEvent,
-  platform: KeyboardPlatform
+  platform: KeyboardPlatform,
+  region: InputRegion = "hex"
 ): HexCommand | undefined {
   const extend = event.shiftKey;
   const primary = hasPrimaryModifier(event, platform);
@@ -88,6 +103,24 @@ export function resolveHexKey(
       case "l":
       case "L":
         return { kind: "goToPosition" };
+      case "z":
+        return { kind: "undo", batch: false };
+      case "Z":
+        // Shift+Cmd/Ctrl+Z is Redo everywhere this app runs.
+        return extend ? { kind: "redo" } : { kind: "undo", batch: false };
+      case "y":
+      case "Y":
+        // Windows and Linux also spell Redo as Ctrl+Y.
+        return platform === "other" ? { kind: "redo" } : undefined;
+      case "s":
+      case "S":
+        return extend ? { kind: "saveAs" } : { kind: "save" };
+      case "c":
+      case "C":
+        return { kind: "copy" };
+      case "v":
+      case "V":
+        return { kind: "paste" };
       // The Mac's caret jumps. They work elsewhere too under Ctrl, where they
       // cost nothing: Ctrl+arrow is not spoken for in a browser.
       case "ArrowLeft":
@@ -133,9 +166,49 @@ export function resolveHexKey(
         ? { kind: "scrollByPage", down: true }
         : { kind: "moveTo", target: "pageDown", extend };
 
+    // Editing.
+    case "Delete":
+      return { kind: "delete", forward: true };
+    case "Backspace":
+      return { kind: "delete", forward: false };
+    case "Insert":
+      return { kind: "toggleInsertMode" };
+    case "Tab":
+      // Between the hex column and the decoded-text column. The browser's own
+      // focus order is not useful inside a grid of bytes.
+      return { kind: "switchColumn" };
+
     default:
-      return undefined;
+      // A key carrying the *other* platform's modifier is not typing. Ctrl+A on
+      // a Mac is not Select All here, but it is certainly not the byte 0x0A
+      // either — and without this guard every unclaimed modified key would
+      // write one into the file.
+      if (event.ctrlKey || event.metaKey) return undefined;
+      return typedKey(event.key, region);
   }
+}
+
+/**
+ * A key that types a byte, or nothing.
+ *
+ * The hex column takes hex digits and refuses everything else; the text column
+ * offers any single printable character to the decoding table, which is what
+ * decides whether it can be represented. Keys with a name longer than one
+ * character — F5, Escape, Enter — are never typing.
+ */
+function typedKey(key: string, region: InputRegion): HexCommand | undefined {
+  if (Array.from(key).length !== 1) return undefined;
+
+  if (region === "hex") {
+    const digit = Number.parseInt(key, 16);
+    return Number.isNaN(digit) || !/^[0-9a-fA-F]$/.test(key)
+      ? undefined
+      : { kind: "hexDigit", digit };
+  }
+
+  // Control characters are not text, whatever the decoding table says.
+  const code = key.codePointAt(0) ?? 0;
+  return code < 0x20 ? undefined : { kind: "character", character: key };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, type WordSize, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { diffStore } from "@/state/diffStore";
 import { useStore } from "@/state/useStore";
@@ -17,13 +18,29 @@ import {
  */
 export function Toolbar({
   onOpen,
+  onNew,
   onNavigate,
+  onSave,
+  onSaveAs,
+  onRevert,
+  onFill,
+  onDeleteBytes,
 }: {
   readonly onOpen: (into?: PaneId) => void;
+  readonly onNew: () => void;
   readonly onNavigate: (what: "difference" | "same", direction: 1 | -1) => void;
+  readonly onSave: () => void;
+  readonly onSaveAs: () => void;
+  readonly onRevert: () => void;
+  readonly onFill: () => void;
+  readonly onDeleteBytes: () => void;
 }) {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
+  const active = state.panes[state.activePane];
+  // The verb follows the pane, not only the browser: a file opened without a
+  // handle is downloaded however capable the browser is.
+  const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
 
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
   const canNavigate = diff.status === "ready" && diff.hunks !== undefined;
@@ -34,6 +51,9 @@ export function Toolbar({
 
       <button type="button" className="toolbar-button" onClick={() => onOpen()}>
         Open…
+      </button>
+      <button type="button" className="toolbar-button" onClick={onNew}>
+        New
       </button>
       {state.panes.a !== undefined && state.panes.b === undefined ? (
         <button type="button" className="toolbar-button" onClick={() => onOpen("b")}>
@@ -101,9 +121,42 @@ export function Toolbar({
         </>
       ) : null}
 
-      {state.panes.a === undefined ? null : (
+      {active === undefined ? null : (
         <>
           <span className="toolbar-divider" />
+          {/*
+            The button says what will actually happen. In a browser that cannot
+            write back to a file, "Save" would be a lie — it downloads a copy,
+            and the file on disk is untouched.
+          */}
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={onSave}
+            disabled={!active.document.isDirty && verb === "Save"}
+            title={verb === "Save" ? "Write the edits back to the file" : "Download a copy"}
+          >
+            {verb}
+          </button>
+          <button type="button" className="toolbar-button" onClick={onSaveAs}>
+            {verb === "Save" ? "Save As…" : "Download As…"}
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={onRevert}
+            disabled={!active.document.isDirty}
+            title="Throw away every unsaved edit"
+          >
+            Revert
+          </button>
+          <span className="toolbar-divider" />
+          <button type="button" className="toolbar-button" onClick={onFill}>
+            Fill…
+          </button>
+          <button type="button" className="toolbar-button" onClick={onDeleteBytes}>
+            Delete Bytes
+          </button>
           <label className="toolbar-field">
             Word size
             <select

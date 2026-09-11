@@ -177,3 +177,90 @@ describe("resolving a target", () => {
     expect(resolveTarget("fileEnd", 500, 10_000, 30, false)).toBe(10_000);
   });
 });
+
+describe("keys that type", () => {
+  it("takes hex digits in the hex column and refuses the rest", () => {
+    expect(resolveHexKey(key({ key: "a" }), "other", "hex")).toEqual({
+      kind: "hexDigit",
+      digit: 10,
+    });
+    expect(resolveHexKey(key({ key: "F" }), "other", "hex")).toEqual({
+      kind: "hexDigit",
+      digit: 15,
+    });
+    expect(resolveHexKey(key({ key: "7" }), "other", "hex")).toEqual({
+      kind: "hexDigit",
+      digit: 7,
+    });
+    // `g` is not a hex digit, and `0x` tricks like "0b" must not slip through.
+    expect(resolveHexKey(key({ key: "g" }), "other", "hex")).toBeUndefined();
+    expect(resolveHexKey(key({ key: " " }), "other", "hex")).toBeUndefined();
+  });
+
+  it("offers any printable character to the text column's decoding table", () => {
+    expect(resolveHexKey(key({ key: "A" }), "other", "text")).toEqual({
+      kind: "character",
+      character: "A",
+    });
+    expect(resolveHexKey(key({ key: "€" }), "other", "text")).toEqual({
+      kind: "character",
+      character: "€",
+    });
+    expect(resolveHexKey(key({ key: " " }), "other", "text")).toEqual({
+      kind: "character",
+      character: " ",
+    });
+  });
+
+  it("never mistakes a named key for typing", () => {
+    for (const named of ["F5", "Escape", "Enter", "ArrowUp", "Shift", "CapsLock"]) {
+      expect(resolveHexKey(key({ key: named }), "other", "text"), named).not.toMatchObject({
+        kind: "character",
+      });
+    }
+  });
+});
+
+describe("the editing commands", () => {
+  it("maps delete, backspace and the insert-mode toggle", () => {
+    expect(resolveHexKey(key({ key: "Delete" }), "other")).toEqual({
+      kind: "delete",
+      forward: true,
+    });
+    expect(resolveHexKey(key({ key: "Backspace" }), "other")).toEqual({
+      kind: "delete",
+      forward: false,
+    });
+    expect(resolveHexKey(key({ key: "Insert" }), "other")).toEqual({ kind: "toggleInsertMode" });
+    expect(resolveHexKey(key({ key: "Tab" }), "other")).toEqual({ kind: "switchColumn" });
+  });
+
+  it("maps undo and redo, in both spellings", () => {
+    expect(resolveHexKey(key({ key: "z", metaKey: true }), "apple")).toEqual({
+      kind: "undo",
+      batch: false,
+    });
+    expect(resolveHexKey(key({ key: "Z", metaKey: true, shiftKey: true }), "apple")).toEqual({
+      kind: "redo",
+    });
+    // Ctrl+Y is Redo on Windows and Linux, and nothing on a Mac.
+    expect(resolveHexKey(key({ key: "y", ctrlKey: true }), "other")).toEqual({ kind: "redo" });
+    expect(resolveHexKey(key({ key: "y", metaKey: true }), "apple")).toBeUndefined();
+  });
+
+  it("maps save, save as, copy and paste", () => {
+    expect(resolveHexKey(key({ key: "s", ctrlKey: true }), "other")).toEqual({ kind: "save" });
+    expect(resolveHexKey(key({ key: "S", ctrlKey: true, shiftKey: true }), "other")).toEqual({
+      kind: "saveAs",
+    });
+    expect(resolveHexKey(key({ key: "c", metaKey: true }), "apple")).toEqual({ kind: "copy" });
+    expect(resolveHexKey(key({ key: "v", metaKey: true }), "apple")).toEqual({ kind: "paste" });
+  });
+
+  it("does not treat a modified letter as typing", () => {
+    // Cmd+G is not the hex digit G — and more to the point, Ctrl+S must save
+    // rather than write 0x05 into the file.
+    expect(resolveHexKey(key({ key: "s", ctrlKey: true }), "other")).toEqual({ kind: "save" });
+    expect(resolveHexKey(key({ key: "b", ctrlKey: true }), "other", "hex")).toBeUndefined();
+  });
+});

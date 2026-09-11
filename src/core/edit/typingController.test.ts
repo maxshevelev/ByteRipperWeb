@@ -358,3 +358,192 @@ describe("keystrokes that arrive faster than the bytes can be read", () => {
     expect(await t.content()).toEqual([0xde, 0xad, 0xbe, 0xef]);
   });
 });
+
+describe("paste", () => {
+  it("overwrites at the caret, keeping the length", async () => {
+    const t = setUp([1, 2, 3, 4, 5]);
+    t.doc.setSelection(caretAt(1, t.doc.size));
+    await t.typing.pasteBytes(new Uint8Array([0xaa, 0xbb]));
+
+    expect(await t.content()).toEqual([1, 0xaa, 0xbb, 4, 5]);
+    expect(t.doc.size).toBe(5);
+    expect(t.doc.caret).toBe(3);
+  });
+
+  it("replaces a selection, shrinking the file when it is shorter", async () => {
+    const t = setUp([1, 2, 3, 4, 5]);
+    t.doc.setSelection(selection(1, 4, t.doc.size));
+    await t.typing.pasteBytes(new Uint8Array([0xff]));
+
+    expect(await t.content()).toEqual([1, 0xff, 5]);
+  });
+
+  it("inserts and shifts the tail in insert mode", async () => {
+    const t = setUp([1, 2, 3]);
+    await t.typing.setInsertMode(true);
+    t.doc.setSelection(caretAt(1, t.doc.size));
+    await t.typing.pasteBytes(new Uint8Array([0xaa, 0xbb]));
+
+    expect(await t.content()).toEqual([1, 0xaa, 0xbb, 2, 3]);
+  });
+
+  it("replaces a selection in insert mode too, as one undo step", async () => {
+    // Pasting over a highlighted span is what the highlight is for; leaving it
+    // would make paste the only operation in the app that ignored a selection.
+    const t = setUp([1, 2, 3, 4, 5]);
+    await t.typing.setInsertMode(true);
+    t.doc.setSelection(selection(1, 4, t.doc.size));
+    await t.typing.pasteBytes(new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]));
+
+    expect(await t.content()).toEqual([1, 0xaa, 0xbb, 0xcc, 0xdd, 5]);
+    await t.doc.undo();
+    expect(await t.content()).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("is one undo step", async () => {
+    const t = setUp([1, 2, 3, 4]);
+    t.doc.setSelection(caretAt(0, t.doc.size));
+    await t.typing.pasteBytes(new Uint8Array([9, 9, 9]));
+    await t.doc.undo();
+    expect(await t.content()).toEqual([1, 2, 3, 4]);
+    expect(t.doc.canUndo).toBe(false);
+  });
+});
+
+describe("fill", () => {
+  it("repeats the pattern across the selection and comes back to its start", async () => {
+    const t = setUp([1, 2, 3, 4, 5, 6]);
+    t.doc.setSelection(selection(1, 6, t.doc.size));
+    await t.typing.fillSelection(new Uint8Array([0xde, 0xad]));
+
+    expect(await t.content()).toEqual([1, 0xde, 0xad, 0xde, 0xad, 0xde]);
+    expect(t.doc.caret).toBe(1);
+  });
+
+  it("fills the byte at the caret when nothing is selected", async () => {
+    const t = setUp([1, 2, 3]);
+    t.doc.setSelection(caretAt(1, t.doc.size));
+    await t.typing.fillSelection(new Uint8Array([0xff]));
+    expect(await t.content()).toEqual([1, 0xff, 3]);
+  });
+
+  it("is one undo step whatever the range's length", async () => {
+    const t = setUp([1, 2, 3, 4, 5, 6]);
+    t.doc.setSelection(selection(0, 6, t.doc.size));
+    await t.typing.fillSelection(new Uint8Array([0]));
+    await t.doc.undo();
+    expect(await t.content()).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+});
+
+describe("Delete Bytes", () => {
+  it("removes the selection and shifts the tail, in either mode", async () => {
+    for (const insertMode of [false, true]) {
+      const t = setUp([1, 2, 3, 4, 5]);
+      await t.typing.setInsertMode(insertMode);
+      t.doc.setSelection(selection(1, 3, t.doc.size));
+      await t.typing.deleteBytes();
+
+      expect(await t.content(), `insert mode ${insertMode}`).toEqual([1, 4, 5]);
+      expect(t.doc.size).toBe(3);
+      expect(t.doc.caret).toBe(1);
+    }
+  });
+
+  it("does nothing without a selection", async () => {
+    const t = setUp([1, 2, 3]);
+    t.doc.setSelection(caretAt(1, t.doc.size));
+    await t.typing.deleteBytes();
+    expect(await t.content()).toEqual([1, 2, 3]);
+    expect(t.doc.isDirty).toBe(false);
+  });
+
+  it("asks before shifting, even in overwrite mode", async () => {
+    // It is the explicit command, so it does what it says — and asks, because
+    // shifting every offset after the cut is not what overwrite mode implies.
+    let asked = 0;
+    const doc = new BinaryDocument(new EditOverlayStorage(storageOver(new Uint8Array([1, 2, 3]))));
+    const typing = new TypingController(doc, {
+      confirmInsertShift: () => {
+        asked++;
+        return false;
+      },
+    });
+    doc.setSelection(selection(0, 2, doc.size));
+    await typing.deleteBytes();
+
+    expect(asked).toBe(1);
+    expect(asArray(await readAll(doc.storage))).toEqual([1, 2, 3]);
+  });
+});
+
+describe("undo and redo, through the controller", () => {
+  it("tells the comparison what moved, in both directions", async () => {
+    // A comparison that only heard about the forward direction would drift the
+    // moment anyone pressed Cmd+Z.
+    const t = setUp([0, 0, 0]);
+    await t.hex("a5");
+    t.edits.length = 0;
+
+    await t.typing.undo();
+    expect(t.edits).toEqual([{ kind: "overwrite", start: 0, end: 1 }]);
+
+    t.edits.length = 0;
+    await t.typing.redo();
+    expect(t.edits).toEqual([{ kind: "overwrite", start: 0, end: 1 }]);
+  });
+
+  it("names an undone insert as a delete, so the tail is rescanned", async () => {
+    const t = setUp([1, 2, 3]);
+    await t.typing.setInsertMode(true);
+    await t.hex("ff");
+    t.edits.length = 0;
+
+    await t.typing.undo();
+    expect(t.edits).toEqual([{ kind: "delete", start: 0, end: 1 }]);
+  });
+
+  it("says nothing when there is nothing to undo", async () => {
+    const t = setUp([1, 2, 3]);
+    await t.typing.undo();
+    expect(t.edits).toEqual([]);
+  });
+
+  it("flushes a half-typed byte before undoing it", async () => {
+    // The high nibble is already written, so the undo must take the whole
+    // group — not leave the byte half-typed with an open group behind it.
+    const t = setUp([0x00, 0x11]);
+    await t.typing.typeHexDigit(0xa);
+    expect(await t.content()).toEqual([0xa0, 0x11]);
+
+    await t.typing.undo();
+    expect(await t.content()).toEqual([0x00, 0x11]);
+    expect(t.typing.nibble).toBe(0);
+  });
+
+  it("stays in order with the typing around it", async () => {
+    // All three enqueued before any has run: the byte is completed and then
+    // undone, rather than the undo landing between its two nibbles.
+    const t = setUp([0, 0, 0]);
+    const high = t.typing.typeHexDigit(0xa);
+    const low = t.typing.typeHexDigit(0x5);
+    const undone = t.typing.undo();
+    await Promise.all([high, low, undone]);
+
+    expect(await t.content()).toEqual([0, 0, 0]);
+    expect(t.doc.canUndo).toBe(false);
+  });
+
+  it("undoes only the high nibble when it lands mid-byte", async () => {
+    // The other interleaving, and it is not a bug: an undo enqueued between the
+    // two digits takes back the half-typed byte, and the digit after it starts
+    // a fresh one.
+    const t = setUp([0, 0, 0]);
+    const high = t.typing.typeHexDigit(0xa);
+    const undone = t.typing.undo();
+    await Promise.all([high, undone]);
+    await t.typing.typeHexDigit(0x5);
+
+    expect(await t.content()).toEqual([0x50, 0, 0]);
+  });
+});

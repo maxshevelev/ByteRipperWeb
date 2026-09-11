@@ -14,7 +14,9 @@ import { workspaceStore } from "@/state/workspaceStore";
 export function StatusBar() {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
-  const verb = saveVerb(state.capabilities);
+  const active = state.panes[state.activePane];
+  const hasHandle = active?.file.handle !== undefined;
+  const verb = saveVerb(state.capabilities, hasHandle);
 
   return (
     <footer className="status-bar">
@@ -28,7 +30,10 @@ export function StatusBar() {
       <span className="status-slot status-slot-diff">{comparisonSummary(diff)}</span>
 
       <span className="status-spacer" />
-      <span className="status-slot status-slot-muted" title={saveExplanation(state.capabilities)}>
+      <span
+        className="status-slot status-slot-muted"
+        title={saveExplanation(state.capabilities, hasHandle)}
+      >
         {verb === "Save" ? "Saves in place" : "Saves by downloading a copy"}
       </span>
       <span className="status-slot status-slot-muted">Files never leave this machine</span>

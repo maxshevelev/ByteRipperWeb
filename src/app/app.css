@@ -347,3 +347,29 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ── The pane's readout ───────────────────────────────────────────────── */
+
+.hex-caret-readout {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+}
+
+.readout-mode {
+  padding: 0 0.3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Insert mode shifts every byte after the caret, so it does not look ordinary. */
+.readout-mode[data-insert] {
+  border-color: var(--semantic-caution);
+  color: var(--semantic-caution);
+}
+
+.readout-dirty {
+  color: var(--byte-modified);
+  font-weight: 600;
+}
