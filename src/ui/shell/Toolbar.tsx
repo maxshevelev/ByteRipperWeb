@@ -2,6 +2,7 @@ import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, type WordSize, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
+import { minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { useStore } from "@/state/useStore";
 import {
   DEFAULT_FONT_SIZE_PX,
@@ -47,6 +48,7 @@ export function Toolbar({
   readonly onFind: () => void;
 }) {
   const state = useStore(workspaceStore);
+  const minimap = useStore(minimapStore);
   const diff = useStore(diffStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
@@ -171,6 +173,16 @@ export function Toolbar({
             title="Find (Cmd/Ctrl+F)"
           >
             Find…
+          </button>
+          <button
+            type="button"
+            className={`toolbar-button${minimap.visible ? " is-on" : ""}`}
+            aria-pressed={minimap.visible}
+            onClick={toggleMinimap}
+            disabled={state.panes.a === undefined}
+            title="Show the minimap (Cmd/Ctrl+M)"
+          >
+            Minimap
           </button>
           <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">
             Go To…

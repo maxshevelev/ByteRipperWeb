@@ -16,6 +16,7 @@ import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { MemoryByteSource } from "@/core/storage/memoryByteSource";
+import { buildOverviewRows } from "@/render/minimap/overviewBuild";
 import { resolveFixture } from "./fixture.ts";
 import { anyOverBudget, measure, printTable, type Row } from "./harness.ts";
 
@@ -273,6 +274,29 @@ async function main(): Promise<void> {
           builder.finish();
         },
         { samples: 3, bytes: blob.size }
+      ),
+    });
+  }
+
+  // M6. The budget in ANALYSIS.md is 200 ms for a 16 MB overview. The row count
+  // is a full-height panel on a 2× display, which is the expensive end: the
+  // pass costs one read per pixel row, so more rows is more reads.
+  {
+    const rowCount = 1600;
+    rows.push({
+      name: `Overview build, ${(blob.size / 1024 ** 2).toFixed(0)} MB, ${rowCount} rows`,
+      budgetMs: 200,
+      note:
+        "One read per pixel row, counting the bytes that are not a 0x00/0xFF fill. This is " +
+        "what the minimap worker does once per file and then keeps — a search or a fresh " +
+        "comparison must not cost it again.",
+      measurement: await measure(
+        () =>
+          buildOverviewRows({ size: blob.size, storage: storageOf(whole) }, blob.size, rowCount, {
+            from: 0,
+            to: rowCount,
+          }).then(() => undefined),
+        { samples: 5, bytes: blob.size }
       ),
     });
   }

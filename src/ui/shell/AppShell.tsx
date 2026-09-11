@@ -5,6 +5,7 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
+import { noteMinimapEdit, watchForMinimap } from "@/state/minimapStore";
 import { noteSearchEdit, searchStore, setSearchPane } from "@/state/searchStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
@@ -27,6 +28,7 @@ import {
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
+import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { FindBar } from "@/ui/search/FindBar";
 import { SearchResults } from "@/ui/search/SearchResults";
@@ -48,6 +50,11 @@ export interface RevealRequest {
   readonly offset: number;
   /** Makes a repeat of the same offset a fresh request. */
   readonly token: number;
+  /**
+   * False scrolls without taking the caret along — what a minimap click does.
+   * Looking somewhere is not the same as putting the insertion point there.
+   */
+  readonly moveCaret?: boolean;
 }
 
 export function AppShell() {
@@ -105,6 +112,7 @@ export function AppShell() {
     editingHooks.onEdit = (pane: PaneId, edit: DiffEdit) => {
       noteEdit(edit);
       noteSearchEdit(pane, edit);
+      noteMinimapEdit(pane);
     };
     editingHooks.confirmShift = confirmInsertShift;
     return () => {
@@ -203,6 +211,8 @@ export function AppShell() {
   const [goToOpen, setGoToOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const search = useStore(searchStore);
+
+  useEffect(() => watchForMinimap(), []);
 
   // The find bar always searches the pane the commands act on.
   useEffect(() => {
@@ -375,6 +385,7 @@ export function AppShell() {
           />
         ) : null}
       </main>
+      <MinimapPanel onActivate={setActivePane} stacked={state.layout === "stacked"} />
       {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
       {searchOpen &&
       search.matches !== undefined &&

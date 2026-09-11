@@ -57,6 +57,7 @@ export type HexCommand =
   | { readonly kind: "selectAll" }
   | { readonly kind: "goToPosition" }
   | { readonly kind: "find" }
+  | { readonly kind: "toggleMinimap" }
   | { readonly kind: "findNext" }
   | { readonly kind: "findPrevious" };
 
@@ -109,6 +110,9 @@ export function resolveHexKey(
       case "f":
       case "F":
         return { kind: "find" };
+      case "m":
+      case "M":
+        return { kind: "toggleMinimap" };
       case "g":
       case "G":
         // The other spelling of Find Next, and Shift for the other direction.

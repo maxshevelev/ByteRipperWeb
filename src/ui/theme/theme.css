@@ -43,6 +43,11 @@
   --match-fill: rgb(120 120 130 / 0.3);
   --current-match-fill: rgb(120 120 130 / 0.62);
 
+  /* The minimap's viewport band: a wash the picture reads through, with an
+     edge, because a wash alone is hard to catch with the pointer. */
+  --minimap-viewport: rgb(60 90 160 / 0.16);
+  --minimap-viewport-border: rgb(60 90 160 / 0.55);
+
   /* Ported from AppPalette */
   --semantic-bad: #e41f1f;
   --semantic-caution: #da8600;
@@ -85,6 +90,9 @@
     --insert-caret: #ff6b66;
     --match-fill: rgb(170 170 185 / 0.26);
     --current-match-fill: rgb(190 190 205 / 0.58);
+
+    --minimap-viewport: rgb(130 165 235 / 0.16);
+    --minimap-viewport-border: rgb(130 165 235 / 0.5);
 
     --semantic-bad: #ff6b66;
     --semantic-caution: #dba85c;

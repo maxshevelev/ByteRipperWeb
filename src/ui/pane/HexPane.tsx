@@ -9,6 +9,7 @@ import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipbo
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
 import { HexGridRenderer, type MatchLookup } from "@/render/hexGrid/hexGridRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
+import { toggleMinimap } from "@/state/minimapStore";
 import { stepSearch } from "@/state/searchStore";
 import { activeDecoder } from "@/state/workspaceStore";
 import {
@@ -53,7 +54,9 @@ export interface HexPaneProps {
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /** Asks the workspace to reveal a range — difference navigation uses it. */
-  readonly revealRequest?: { offset: number; token: number } | undefined;
+  readonly revealRequest?:
+    | { offset: number; token: number; moveCaret?: boolean | undefined }
+    | undefined;
   /**
    * The document's editing state machine. It belongs to the document, not to
    * this component: it holds a half-typed nibble and an open undo group,
@@ -305,7 +308,12 @@ export function HexPane({
     // The caret moves; the block is not selected. A selection would claim the
     // user had chosen those bytes — and the next thing typed would replace
     // them, which is not what stepping through differences is for.
-    doc.setSelection(caretAt(revealRequest.offset, doc.size));
+    //
+    // A minimap click moves neither: it is a way of *looking* somewhere, and
+    // taking the caret along would lose the place the user was editing.
+    if (revealRequest.moveCaret !== false) {
+      doc.setSelection(caretAt(revealRequest.offset, doc.size));
+    }
     const host = scrollRef.current;
     const layout = layoutRef.current;
     if (host === null || layout === undefined) return;
@@ -436,6 +444,9 @@ export function HexPane({
           break;
         case "selectAll":
           doc.setSelection(makeSelection(0, doc.size, doc.size));
+          break;
+        case "toggleMinimap":
+          toggleMinimap();
           break;
         case "goToPosition":
           onGoTo?.();

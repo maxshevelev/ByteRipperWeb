@@ -30,9 +30,12 @@ a Save that writes back to the file in Chromium and downloads a copy where it
 cannot. Search is in: hex bytes or text, the encoding guessed from what you
 typed and named once it is found, every occurrence greyed with the current one
 raised, an exact count however common the pattern, and results that follow the
-bytes as you edit them. The domain half is checked against the macOS app's own
-unit tests, ported with the code they cover. What is missing is the minimap,
-segments and the firmware tools. Milestone by milestone, the plan is
+bytes as you edit them. So is the minimap — the whole file at a glance, shaded
+by how much of each slice is real content, with differences, edits and matches
+marked on it, and both maps on one scale so the same height is the same offset
+in each. The domain half is checked against the macOS app's own unit tests,
+ported with the code they cover. What is missing is segments, bookmarks and the
+firmware tools. Milestone by milestone, the plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
@@ -45,8 +48,9 @@ scope at all, and what the browser takes away, is
 | M3 Comparison | done |
 | M4 Editing and saving | done |
 | M5 Search | done |
-| M6 Minimap | next |
-| M7 – M12 | see the plan |
+| M6 Minimap | done |
+| M7 Bookmarks and segments | next |
+| M8 – M12 | see the plan |
 
 ## Stack
 

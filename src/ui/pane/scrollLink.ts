@@ -81,14 +81,87 @@ export class ScrollLink {
 
   register(id: string, scroller: LinkedScroller): () => void {
     this.panes.set(id, scroller);
+    this.announce();
     return () => {
       this.panes.delete(id);
       this.expected.delete(id);
+      this.announce();
     };
+  }
+
+  /**
+   * Told whenever a pane's position changes.
+   *
+   * The minimap draws where the panes are, so it needs to hear about every
+   * scroll — including the mirrored ones. It subscribes here rather than having
+   * the position passed down through the shell: the link already holds the
+   * scrolling elements, and a second path to the same number is a second way
+   * for the map and the dump to disagree.
+   */
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private readonly listeners = new Set<() => void>();
+
+  private announce(): void {
+    for (const listener of this.listeners) listener();
+  }
+
+  /**
+   * The byte range a pane is showing, or `undefined` when it is not measured.
+   *
+   * Rounded outward: a row half on screen is a row the user can see, and the
+   * band should cover it.
+   */
+  visibleRange(id: string, bytesPerRow: number): { start: number; end: number } | undefined {
+    const pane = this.panes.get(id);
+    if (pane === undefined) return undefined;
+    const rowHeight = pane.rowHeight();
+    if (rowHeight <= 0) return undefined;
+    const element = pane.element;
+    const firstRow = Math.floor(element.scrollTop / rowHeight);
+    const rows = Math.ceil(element.clientHeight / rowHeight);
+    return { start: firstRow * bytesPerRow, end: (firstRow + rows) * bytesPerRow };
+  }
+
+  /**
+   * Puts an offset's row at the top of a pane, clamped to what it can scroll.
+   *
+   * Nothing here touches the caret: this is a way of looking somewhere.
+   */
+  scrollToOffset(id: string, offset: number, bytesPerRow: number): void {
+    const pane = this.panes.get(id);
+    if (pane === undefined) return;
+    const rowHeight = pane.rowHeight();
+    if (rowHeight <= 0) return;
+    const element = pane.element;
+    // Centred, so a click on the map shows the surroundings of what was aimed
+    // at rather than putting it against the top edge.
+    const rowTop = Math.floor(offset / bytesPerRow) * rowHeight;
+    const target = rowTop - element.clientHeight / 2 + rowHeight;
+    element.scrollTop = Math.max(0, Math.min(target, element.scrollHeight - element.clientHeight));
+    this.report(id);
+  }
+
+  /** Scrolls a pane by a wheel's worth, and mirrors it. */
+  scrollBy(id: string, deltaY: number): void {
+    const pane = this.panes.get(id);
+    if (pane === undefined) return;
+    const element = pane.element;
+    element.scrollTop = Math.max(
+      0,
+      Math.min(element.scrollTop + deltaY, element.scrollHeight - element.clientHeight)
+    );
+    this.report(id);
   }
 
   /** Called when a pane has scrolled. Mirrors it to the others. */
   report(id: string): void {
+    this.announce();
     const source = this.panes.get(id);
     if (source === undefined || this.panes.size < 2) return;
 

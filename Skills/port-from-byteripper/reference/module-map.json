@@ -10,10 +10,6 @@
   ],
   "notApplicable": [
     {
-      "prefix": "ByteRipperApp/Window/MainViewController",
-      "why": "Window and tab management: one workspace per browser tab (D11)."
-    },
-    {
       "prefix": "ByteRipperApp/Window/WindowMode",
       "why": "Window and tab management: one workspace per browser tab (D11)."
     },
@@ -166,10 +162,10 @@
     {
       "swift": "Modules/ZoneSketch",
       "web": [
-        "src/render/minimap"
+        "src/tools/zoneSketch"
       ],
       "status": "planned",
-      "note": "Check on each change whether this is still the right counterpart."
+      "note": "User-drawn zones over a dump, as a tool module \u2014 not the minimap, which this entry used to point at. Checked at M6 and corrected: ZoneSketchModel is a list of named ranges with a focus, and the minimap's counterpart is ByteRipperApp/Minimap. No milestone claims it yet; it arrives with the tool panel's contract in M8."
     },
     {
       "swift": "ByteRipperApp/Hex",
@@ -189,9 +185,17 @@
       "swift": "ByteRipperApp/Minimap",
       "web": [
         "src/render/minimap",
-        "src/ui/minimap"
+        "src/ui/minimap",
+        "src/state/minimapStore.ts",
+        "src/workers/minimap.worker.ts"
       ],
-      "status": "planned"
+      "status": "in-progress",
+      "note": "Ported as of M6: OverviewBinning whole, the overview build out of MainViewController.overviewRows, and the geometry and drawing halves of MinimapView \u2014 detail and overview modes, the shared viewport band, click, drag and wheel. Three divergences. The build is split: the density picture crosses to a worker and is kept per file version, while the modified, difference and match masks are recomputed on the main thread from ranges it already holds, because the comparison index and the piece table live there. Each pane gets its own worker, unlike the diff and search workers \u2014 two maps are two independent questions, and sharing one made the second build cancel the first. And the bookmark marks, the segment strip and the zone brackets in MinimapView wait for M7 and M8.",
+      "files": {
+        "OverviewBinning.swift": "src/render/minimap/overviewBinning.ts",
+        "MinimapView.swift": "src/render/minimap/minimapRenderer.ts",
+        "MinimapPanelView.swift": "src/ui/minimap/MinimapPanel.tsx"
+      }
     },
     {
       "swift": "ByteRipperApp/Search",
@@ -341,6 +345,16 @@
       ],
       "status": "planned",
       "note": "Transient notices \u2014 a wrapped search, a refused paste \u2014 land in the status bar here."
+    },
+    {
+      "swift": "ByteRipperApp/Window/MainViewController",
+      "web": [
+        "src/state/workspaceStore.ts",
+        "src/state/minimapStore.ts",
+        "src/render/minimap/overviewBuild.ts"
+      ],
+      "status": "in-progress",
+      "note": "Was listed as not applicable on the strength of its name, which hid real logic: the window and tab management in it genuinely does not port (D11), but the overview build \u2014 overviewRows and significantByteCount \u2014 is the minimap's density pass, and the minimap data feeding is what the stores do. Corrected at M6, because a file that is filtered out is a file whose changes are never reported."
     }
   ]
 }

@@ -163,3 +163,44 @@ export type SearchWorkerResponse =
   | SearchProgress
   | DiffCancelledResponse
   | DiffFailed;
+
+/**
+ * The minimap's overview build.
+ *
+ * Only the density picture crosses: it is the part that reads the whole file,
+ * and the part worth caching per file version. The modified and difference
+ * masks are arithmetic over ranges the main thread already holds — the piece
+ * table's and the comparison index's — so shipping those in would cost more
+ * than computing them where they are.
+ */
+export interface OverviewRequest {
+  readonly kind: "overview";
+  readonly id: JobId;
+  readonly file: Blob;
+  /** The longest open file: both maps bin over it so heights line up. */
+  readonly extent: number;
+  readonly rowCount: number;
+}
+
+export type MinimapWorkerRequest = OverviewRequest | CancelRequest;
+
+export interface OverviewProgress {
+  readonly kind: "overviewProgress";
+  readonly id: JobId;
+  readonly fraction: number;
+}
+
+export interface OverviewDone {
+  readonly kind: "overviewDone";
+  readonly id: JobId;
+  readonly extent: number;
+  readonly rowCount: number;
+  /** `rowCount × 16`, row-major: how much of each cell is real content. */
+  readonly density: Uint8Array;
+}
+
+export type MinimapWorkerResponse =
+  | OverviewProgress
+  | OverviewDone
+  | DiffCancelledResponse
+  | DiffFailed;
