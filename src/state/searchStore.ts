@@ -24,6 +24,35 @@ import type { JobId, SearchWorkerRequest, SearchWorkerResponse } from "@/workers
 
 export type SearchStatus = "idle" | "searching" | "found" | "notFound" | "failed";
 
+/**
+ * What one pane's file was found to contain.
+ *
+ * Kept per pane, not per search. Each dump has its own results list under it,
+ * and a list is a claim about *that* file — clicking into the other pane does
+ * not make it untrue, so it does not clear. Searching a pane replaces only that
+ * pane's.
+ */
+export interface PaneResults {
+  readonly status: SearchStatus;
+  /** The encoding that actually found it, which Smart Search discovers. */
+  readonly foundEncoding: SearchEncoding | undefined;
+  readonly current: { readonly start: number; readonly end: number } | undefined;
+  /** True when the last step came round the end of the file. */
+  readonly wrapped: boolean;
+  readonly matches: MatchSet | undefined;
+  /** In `[0, 1]` while the index is still being built. */
+  readonly indexProgress: number;
+}
+
+const NO_RESULTS: PaneResults = {
+  status: "idle",
+  foundEncoding: undefined,
+  current: undefined,
+  wrapped: false,
+  matches: undefined,
+  indexProgress: 0,
+};
+
 export interface SearchState {
   /**
    * Whether the find bar is on screen.
@@ -34,41 +63,41 @@ export interface SearchState {
    * still deleting. Only {@link closeSearch} closes it.
    */
   readonly open: boolean;
-  readonly status: SearchStatus;
   readonly query: string;
   /** Empty means Smart Search: try the encodings in order and report which won. */
   readonly encoding: SearchEncoding | "smart";
   readonly caseSensitive: boolean;
-  /** Which pane is being searched. */
+  /** Which pane the bar acts on — the active one. */
   readonly pane: PaneId;
-  /** The encoding that actually found it, which Smart Search discovers. */
-  readonly foundEncoding: SearchEncoding | undefined;
-  readonly current: { readonly start: number; readonly end: number } | undefined;
-  /** True when the last step came round the end of the file. */
-  readonly wrapped: boolean;
-  readonly matches: MatchSet | undefined;
-  /** In `[0, 1]` while the index is still being built. */
-  readonly indexProgress: number;
   readonly problem: string | undefined;
   /** Most recent first, no duplicates. */
   readonly history: readonly string[];
+  readonly results: Readonly<Record<PaneId, PaneResults>>;
 }
 
 const IDLE: SearchState = {
   open: false,
-  status: "idle",
   query: "",
   encoding: "smart",
   caseSensitive: false,
   pane: "a",
-  foundEncoding: undefined,
-  current: undefined,
-  wrapped: false,
-  matches: undefined,
-  indexProgress: 0,
   problem: undefined,
   history: [],
+  results: { a: NO_RESULTS, b: NO_RESULTS },
 };
+
+/** One pane's results, which is what its list and the bar's counters read. */
+export function resultsFor(state: SearchState, pane: PaneId): PaneResults {
+  return state.results[pane];
+}
+
+/** Replaces part of one pane's results, leaving the other pane's alone. */
+function updateResults(pane: PaneId, patch: Partial<PaneResults>): void {
+  searchStore.update((state) => ({
+    ...state,
+    results: { ...state.results, [pane]: { ...state.results[pane], ...patch } },
+  }));
+}
 
 export const searchStore = createStore<SearchState>(IDLE);
 
@@ -77,6 +106,8 @@ let nextJobId: JobId = 1;
 let currentJobId: JobId | undefined;
 /** The attempt the running job is for, so its reply can name the encoding. */
 let currentAttempt: Attempt | undefined;
+/** Which pane the running job is searching, so its replies land there. */
+let currentPane: PaneId = "a";
 
 function ensureWorker(): Worker {
   if (worker !== undefined) return worker;
@@ -92,14 +123,13 @@ function ensureWorker(): Worker {
         // and reporting "not found" from here would end a Smart Search at its
         // first miss, which for a UTF-16 string is always the ASCII attempt.
         if (response.match === undefined) break;
-        searchStore.update((state) => ({
-          ...state,
+        updateResults(currentPane, {
           status: "found",
           current: response.match,
           wrapped: response.wrapped,
           foundEncoding: currentAttempt === undefined ? undefined : attemptEncoding(currentAttempt),
-          problem: undefined,
-        }));
+        });
+        searchStore.update((state) => ({ ...state, problem: undefined }));
         break;
 
       case "indexed": {
@@ -115,8 +145,7 @@ function ensureWorker(): Worker {
                 } as const)
               : ({ kind: "sparse", starts: response.starts ?? new Float64Array(0) } as const);
 
-        searchStore.update((state) => ({
-          ...state,
+        updateResults(currentPane, {
           matches: new MatchSet(
             attempt.pattern,
             attempt.folding,
@@ -125,12 +154,12 @@ function ensureWorker(): Worker {
             storage,
             response.indexedUpTo
           ),
-        }));
+        });
         break;
       }
 
       case "searchProgress":
-        searchStore.update((state) => ({ ...state, indexProgress: response.fraction }));
+        updateResults(currentPane, { indexProgress: response.fraction });
         break;
 
       case "cancelled":
@@ -138,11 +167,8 @@ function ensureWorker(): Worker {
         break;
 
       case "error":
-        searchStore.update((state) => ({
-          ...state,
-          status: "failed",
-          problem: response.message,
-        }));
+        updateResults(currentPane, { status: "failed" });
+        searchStore.update((state) => ({ ...state, problem: response.message }));
         currentJobId = undefined;
         break;
     }
@@ -189,14 +215,16 @@ export function startSearch(options: {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined || query.length === 0) {
     cancelRunning();
+    updateResults(pane, {
+      status: "idle",
+      matches: undefined,
+      current: undefined,
+    });
     searchStore.update((current) => ({
       ...current,
-      status: "idle",
       query,
       encoding,
       caseSensitive,
-      matches: undefined,
-      current: undefined,
       problem: undefined,
     }));
     return;
@@ -209,22 +237,20 @@ export function startSearch(options: {
       : resolveOne(query, encoding, caseSensitive);
 
   if (typeof attempts === "string") {
+    updateResults(pane, { status: "failed", matches: undefined, current: undefined });
     searchStore.update((current) => ({
       ...current,
-      status: "failed",
       query,
       encoding,
       caseSensitive,
       problem: FAILURE_MESSAGE[attempts],
-      matches: undefined,
-      current: undefined,
     }));
     return;
   }
   if (attempts.length === 0) {
+    updateResults(pane, { status: "failed" });
     searchStore.update((current) => ({
       ...current,
-      status: "failed",
       query,
       encoding,
       caseSensitive,
@@ -234,15 +260,18 @@ export function startSearch(options: {
   }
 
   cancelRunning();
+  updateResults(pane, {
+    status: "searching",
+    matches: undefined,
+    current: undefined,
+    indexProgress: 0,
+  });
   searchStore.update((current) => ({
     ...current,
-    status: "searching",
     query,
     encoding,
     caseSensitive,
     pane,
-    matches: undefined,
-    indexProgress: 0,
     problem: undefined,
     history: rememberQuery(current.history, query),
   }));
@@ -300,6 +329,7 @@ async function runAttempts(
     const id = nextJobId++;
     currentJobId = id;
     currentAttempt = attempt;
+    currentPane = pane;
 
     const found = inWorker
       ? await askWorker(id, attempt, file as Blob, from, direction)
@@ -309,12 +339,7 @@ async function runAttempts(
     if (found) return;
   }
 
-  searchStore.update((state) => ({
-    ...state,
-    status: "notFound",
-    current: undefined,
-    matches: undefined,
-  }));
+  updateResults(pane, { status: "notFound", current: undefined, matches: undefined });
   currentJobId = undefined;
 }
 
@@ -392,22 +417,21 @@ async function askHere(
     if (cancelled()) return true;
     if (match === undefined) return false;
 
-    searchStore.update((state) => ({
-      ...state,
+    updateResults(currentPane, {
       status: "found",
       current: match,
       wrapped: here === undefined,
       foundEncoding: attemptEncoding(attempt),
-      problem: undefined,
-    }));
+    });
+    searchStore.update((state) => ({ ...state, problem: undefined }));
 
-    void indexHere(id, attempt, document);
+    void indexHere(id, attempt, document, currentPane);
     return true;
   } catch (error) {
     if (error instanceof SearchCancelled) return true;
+    updateResults(currentPane, { status: "failed" });
     searchStore.update((state) => ({
       ...state,
-      status: "failed",
       problem: error instanceof Error ? error.message : "The search failed.",
     }));
     return true;
@@ -415,7 +439,12 @@ async function askHere(
 }
 
 /** The full index for a local attempt, published as it is built. */
-async function indexHere(id: JobId, attempt: Attempt, document: ByteStorage): Promise<void> {
+async function indexHere(
+  id: JobId,
+  attempt: Attempt,
+  document: ByteStorage,
+  pane: PaneId
+): Promise<void> {
   const builder = new MatchSetBuilder(attempt.pattern, attempt.folding, document.size);
   let lastPublished = 0;
 
@@ -423,7 +452,7 @@ async function indexHere(id: JobId, attempt: Attempt, document: ByteStorage): Pr
   // boundary here, so it is published as it is.
   const publish = (set: MatchSet) => {
     if (currentJobId !== id) return;
-    searchStore.update((state) => ({ ...state, matches: set }));
+    updateResults(pane, { matches: set });
   };
 
   try {
@@ -438,9 +467,7 @@ async function indexHere(id: JobId, attempt: Attempt, document: ByteStorage): Pr
         publish(builder.snapshot(upTo));
       },
       onProgress: (fraction) => {
-        if (currentJobId === id) {
-          searchStore.update((state) => ({ ...state, indexProgress: fraction }));
-        }
+        if (currentJobId === id) updateResults(pane, { indexProgress: fraction });
       },
     });
     publish(builder.finish());
@@ -469,21 +496,24 @@ let editTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
   const state = searchStore.getSnapshot();
-  if (state.pane !== pane) return;
-  if (state.status !== "found" && state.status !== "notFound") return;
+  const results = resultsFor(state, pane);
+  // Only the pane that was edited, and only if it holds a result an edit could
+  // have falsified. The other pane's list is about a file that did not change.
+  if (results.status !== "found" && results.status !== "notFound") return;
   if (state.query.length === 0) return;
 
   if (editTimer !== undefined) clearTimeout(editTimer);
   editTimer = setTimeout(() => {
     editTimer = undefined;
-    const current = searchStore.getSnapshot();
-    if (current.query.length === 0) return;
+    const now = searchStore.getSnapshot();
+    if (now.query.length === 0) return;
+    const at = resultsFor(now, pane).current;
     startSearch({
-      query: current.query,
-      encoding: current.encoding,
-      caseSensitive: current.caseSensitive,
-      pane: current.pane,
-      ...(current.current === undefined ? {} : { from: current.current.start }),
+      query: now.query,
+      encoding: now.encoding,
+      caseSensitive: now.caseSensitive,
+      pane,
+      ...(at === undefined ? {} : { from: at.start }),
     });
   }, EDIT_COALESCE_MS);
 }
@@ -504,21 +534,18 @@ function rememberQuery(history: readonly string[], query: string): string[] {
  */
 export function stepSearch(direction: "forward" | "backward"): void {
   const state = searchStore.getSnapshot();
-  const matches = state.matches;
+  const pane = state.pane;
+  const results = resultsFor(state, pane);
+  const matches = results.matches;
   if (matches === undefined || !matches.isHighlightable) return;
 
   const caret =
-    state.current?.start ?? workspaceStore.getSnapshot().panes[state.pane]?.document.caret ?? 0;
+    results.current?.start ?? workspaceStore.getSnapshot().panes[pane]?.document.caret ?? 0;
   const from = direction === "forward" ? caret + 1 : caret;
   const step = matches.step(direction, from);
   if (step === undefined) return;
 
-  searchStore.update((current) => ({
-    ...current,
-    status: "found",
-    current: step.range,
-    wrapped: step.wrapped,
-  }));
+  updateResults(pane, { status: "found", current: step.range, wrapped: step.wrapped });
 }
 
 /** Shows the find bar, and says whether it was already up. */
@@ -536,20 +563,15 @@ export function openSearch(): boolean {
  * current — so the ordinal said "1 of 12" over the sixth one, and ▶ carried on
  * from somewhere the user had left.
  */
-export function selectMatch(offset: number): void {
+export function selectMatch(pane: PaneId, offset: number): void {
   const state = searchStore.getSnapshot();
-  const matches = state.matches;
+  const matches = resultsFor(state, pane).matches;
   if (matches === undefined) return;
   const index = matches.indexStartingAt(offset);
   if (index === undefined) return;
   const range = matches.rangeAt(index);
   if (range === undefined) return;
-  searchStore.update((current) => ({
-    ...current,
-    status: "found",
-    current: range,
-    wrapped: false,
-  }));
+  updateResults(pane, { status: "found", current: range, wrapped: false });
 }
 
 export function closeSearch(): void {

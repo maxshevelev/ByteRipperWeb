@@ -9,7 +9,7 @@ import type { OverviewPicture } from "@/render/minimap/minimapRenderer";
 import { MINIMAP_COLUMNS, OverviewBinning } from "@/render/minimap/overviewBinning";
 import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overviewBuild";
 import { diffStore } from "@/state/diffStore";
-import { searchStore } from "@/state/searchStore";
+import { resultsFor, searchStore } from "@/state/searchStore";
 import { createStore } from "@/state/store";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type { JobId, MinimapWorkerRequest, MinimapWorkerResponse } from "@/workers/protocol";
@@ -368,6 +368,7 @@ export async function refreshMasks(): Promise<void> {
     const matches = matchMasks(pane, state.extent, state.rowCount, search);
     pictures[pane] = {
       extent: state.extent,
+      fileSize: slot.document.size,
       rowCount: state.rowCount,
       density: built,
       modified: masks.modified,
@@ -393,12 +394,13 @@ function matchMasks(
   rowCount: number,
   search: ReturnType<typeof searchStore.getSnapshot>
 ): { matched?: Uint16Array; current?: Uint16Array } {
-  if (search.pane !== pane || search.status !== "found") return {};
+  const results = resultsFor(search, pane);
+  if (results.status !== "found") return {};
   const binning = new OverviewBinning(extent, rowCount);
   const rows = { from: 0, to: rowCount };
   const result: { matched?: Uint16Array; current?: Uint16Array } = {};
 
-  const matches = search.matches;
+  const matches = results.matches;
   if (matches?.isHighlightable === true) {
     const matched = new Uint16Array(rowCount);
     for (const range of matches.matchesIntersecting(0, extent)) {
@@ -407,9 +409,9 @@ function matchMasks(
     result.matched = matched;
   }
 
-  if (search.current !== undefined) {
+  if (results.current !== undefined) {
     const current = new Uint16Array(rowCount);
-    binning.markHexColumns(search.current.start, search.current.end, rows, current);
+    binning.markHexColumns(results.current.start, results.current.end, rows, current);
     result.current = current;
   }
   return result;

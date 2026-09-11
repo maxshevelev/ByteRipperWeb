@@ -11,6 +11,7 @@ import {
   closeSearch,
   noteSearchEdit,
   openSearch,
+  resultsFor,
   searchStore,
   setSearchPane,
 } from "@/state/searchStore";
@@ -401,7 +402,6 @@ export function AppShell() {
                 name={pane.name}
                 document={pane.document}
                 wordSize={state.wordSize}
-                fontSizePx={state.fontSizePx}
                 isActive={state.activePane === id}
                 onActivate={() => setActivePane(id)}
                 onClose={() => closeWithWarning(id)}
@@ -416,8 +416,8 @@ export function AppShell() {
                 onSaveAs={() => void doSave(true)}
                 onGoTo={() => setGoToOpen(true)}
                 onFind={openFind}
-                matches={search.pane === id ? search.matches : undefined}
-                currentMatch={search.pane === id ? search.current : undefined}
+                matches={resultsFor(search, id).matches}
+                currentMatch={resultsFor(search, id).current}
                 onGoToMatch={revealInBoth}
               />
             );

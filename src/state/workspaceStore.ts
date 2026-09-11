@@ -116,14 +116,15 @@ export const GROUPING_GAP_CHOICES: readonly number[] = [16, 32, 64, 256];
 export const DEFAULT_GROUPING_GAP = 64;
 
 /**
- * How small and how large the hex font may be stepped.
+ * The hex font's size, fixed.
  *
- * Below nine pixels the two hex digits of a byte stop being two digits; above
- * twenty-four a row of sixteen no longer fits a pane worth having.
+ * There is no zoom of our own any more. The browser's page zoom is the one the
+ * user already has, it is on the keys their fingers already know, and it scales
+ * the whole interface rather than only the bytes — a second zoom beside it made
+ * two ways to make things bigger that did not agree about what "bigger" meant.
+ * The canvas re-measures on a zoom, so the dump stays crisp at any of them.
  */
-export const MIN_FONT_SIZE_PX = 9;
-export const MAX_FONT_SIZE_PX = 24;
-export const DEFAULT_FONT_SIZE_PX = 13;
+export const HEX_FONT_SIZE_PX = 13;
 
 export interface WorkspaceState {
   readonly panes: Readonly<Record<PaneId, PaneState | undefined>>;
@@ -135,7 +136,6 @@ export interface WorkspaceState {
   readonly capabilities: FileCapabilities;
   readonly wordSize: WordSize;
   readonly decoderIdentifier: string;
-  readonly fontSizePx: number;
   readonly groupingGap: number;
   /**
    * Whether to ask before an edit that shifts every offset after it. Turned off
@@ -154,7 +154,6 @@ export const workspaceStore = createStore<WorkspaceState>({
   capabilities: detectFileCapabilities(),
   wordSize: 1,
   decoderIdentifier: "cp1252",
-  fontSizePx: DEFAULT_FONT_SIZE_PX,
   groupingGap: DEFAULT_GROUPING_GAP,
   confirmShiftingEdits: true,
   problem: undefined,
@@ -276,13 +275,6 @@ export function setConfirmShiftingEdits(confirmShiftingEdits: boolean): void {
 
 export function setGroupingGap(groupingGap: number): void {
   workspaceStore.update((state) => ({ ...state, groupingGap }));
-}
-
-export function setFontSize(fontSizePx: number): void {
-  workspaceStore.update((state) => ({
-    ...state,
-    fontSizePx: Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, Math.round(fontSizePx))),
-  }));
 }
 
 export function reportProblem(problem: string | undefined): void {

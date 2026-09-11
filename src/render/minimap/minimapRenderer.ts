@@ -34,6 +34,11 @@ export interface CellState {
 /** The overview's precomputed picture of one file. */
 export interface OverviewPicture {
   readonly extent: number;
+  /**
+   * This file's own length, which is not the extent when the companion is
+   * longer. Cells past it hold none of this file's bytes and stay bare.
+   */
+  readonly fileSize: number;
   readonly rowCount: number;
   /** `rowCount × 16`, row-major. */
   readonly density: Uint8Array;
@@ -205,13 +210,24 @@ export class MinimapRenderer {
     const markHeight = Math.max(rowHeight, this.minMarkHeight);
 
     // The density picture first, as the ground everything else marks.
+    //
+    // Every cell inside the file is drawn, including the ones holding nothing
+    // but 0x00/0xFF fill: the tone ramp has a floor, so an erased region reads
+    // as a pale band that is part of the file rather than as bare paper. Skip
+    // those cells and a chip that is mostly erased flash looks like a chip that
+    // is mostly absent — which is the opposite of what the map is for.
+    //
+    // Cells past this file's own end are the ones that stay bare. The extent is
+    // the longer of the two files, so without that bound the shorter map's tail
+    // would wash pale all the way down and claim content it does not have.
     for (let row = 0; row < picture.rowCount; row++) {
       const y = row * rowHeight;
       const base = row * MINIMAP_COLUMNS;
-      for (let column = 0; column < MINIMAP_COLUMNS; column++) {
-        const density = picture.density[base + column] ?? 0;
-        if (density === 0) continue;
-        context.fillStyle = this.toneFor(density);
+      const rowStart = Math.floor((picture.extent * row) / picture.rowCount);
+      const rowEnd = Math.floor((picture.extent * (row + 1)) / picture.rowCount);
+      const lastColumn = lastColumnInFile(rowStart, rowEnd - rowStart, picture.fileSize);
+      for (let column = 0; column <= lastColumn; column++) {
+        context.fillStyle = this.toneFor(picture.density[base + column] ?? 0);
         context.fillRect(column * cellWidth, y, cellWidth, rowHeight);
       }
     }
@@ -271,10 +287,34 @@ export class MinimapRenderer {
    * grey, so the map follows the theme the dump follows.
    */
   private toneFor(density: number): string {
-    const share = density / 255;
-    const tone = MIN_TONE + (MAX_TONE - MIN_TONE) * share ** TONE_GAMMA;
-    return withAlpha(this.colors.byte, tone);
+    return withAlpha(this.colors.byte, overviewTone(density));
   }
+}
+
+/**
+ * The ink a cell's density earns, mapped into the tonal band the dump itself
+ * occupies rather than the full paper-to-black range.
+ *
+ * Ported from `MinimapView.overviewTone`. Note the floor: density 0 is
+ * {@link MIN_TONE}, not nothing — a cell of pure fill is still a cell of the
+ * file.
+ */
+export function overviewTone(density: number): number {
+  const fraction = density / 255;
+  const shaped = fraction > 0 ? fraction ** TONE_GAMMA : 0;
+  return MIN_TONE + (MAX_TONE - MIN_TONE) * shaped;
+}
+
+/**
+ * The last of a row's cells that holds a byte of this file, or -1 for none.
+ *
+ * Ported from `MinimapView.lastColumnInFile`.
+ */
+function lastColumnInFile(rowStart: number, span: number, fileSize: number): number {
+  if (fileSize <= rowStart) return -1;
+  const bytes = fileSize - rowStart;
+  if (bytes >= span) return MINIMAP_COLUMNS - 1;
+  return Math.min(MINIMAP_COLUMNS - 1, Math.floor((bytes * MINIMAP_COLUMNS) / Math.max(span, 1)));
 }
 
 /**

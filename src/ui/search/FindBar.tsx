@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
-import { closeSearch, searchStore, startSearch, stepSearch } from "@/state/searchStore";
+import { closeSearch, resultsFor, searchStore, startSearch, stepSearch } from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
 
 /**
@@ -38,7 +38,10 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Reveal whatever the search landed on.
-  const current = state.current;
+  // The bar reports on the pane it acts on. The other pane's list stays as it
+  // was — it is about a file this search is not touching.
+  const results = resultsFor(state, state.pane);
+  const current = results.current;
   useEffect(() => {
     if (current !== undefined) onReveal(current.start);
   }, [current, onReveal]);
@@ -52,7 +55,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
     event.preventDefault();
     // Return re-runs the search when the query changed, and steps when it did
     // not — which is what every find bar does and what the fingers expect.
-    if (state.status === "found" && state.matches !== undefined) stepSearch("forward");
+    if (results.status === "found" && results.matches !== undefined) stepSearch("forward");
     else startSearch({ query: inputRef.current?.value ?? state.query });
   };
 
@@ -122,7 +125,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           type="button"
           className="toolbar-button"
           onClick={() => stepSearch("backward")}
-          disabled={state.matches === undefined || !state.matches.isHighlightable}
+          disabled={results.matches === undefined || !results.matches.isHighlightable}
           title="Previous match"
         >
           ◀
@@ -131,7 +134,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           type="button"
           className="toolbar-button"
           onClick={() => stepSearch("forward")}
-          disabled={state.matches === undefined || !state.matches.isHighlightable}
+          disabled={results.matches === undefined || !results.matches.isHighlightable}
           title="Next match"
         >
           ▶
@@ -153,14 +156,15 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
 }
 
 function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
-  if (state.status === "failed") return state.problem ?? "That search could not be run.";
-  if (state.status === "idle") return "";
-  if (state.status === "notFound") return "Not found";
-  if (state.status === "searching" && state.current === undefined) return "Searching…";
+  const results = resultsFor(state, state.pane);
+  if (results.status === "failed") return state.problem ?? "That search could not be run.";
+  if (results.status === "idle") return "";
+  if (results.status === "notFound") return "Not found";
+  if (results.status === "searching" && results.current === undefined) return "Searching…";
 
   const parts: string[] = [];
-  const matches = state.matches;
-  const current = state.current;
+  const matches = results.matches;
+  const current = results.current;
 
   if (matches !== undefined && current !== undefined && matches.isHighlightable) {
     const ordinal = matches.indexStartingAt(current.start);
@@ -180,9 +184,9 @@ function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
   }
 
   // Which encoding answered, when Smart Search was the one asking.
-  if (state.encoding === "smart" && state.foundEncoding !== undefined) {
-    parts.push(`as ${encodingTitle(state.foundEncoding)}`);
+  if (state.encoding === "smart" && results.foundEncoding !== undefined) {
+    parts.push(`as ${encodingTitle(results.foundEncoding)}`);
   }
-  if (state.wrapped) parts.push("· wrapped");
+  if (results.wrapped) parts.push("· wrapped");
   return parts.join(" ");
 }

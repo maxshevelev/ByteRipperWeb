@@ -5,12 +5,8 @@ import { editStore } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { useStore } from "@/state/useStore";
 import {
-  DEFAULT_FONT_SIZE_PX,
   GROUPING_GAP_CHOICES,
-  MAX_FONT_SIZE_PX,
-  MIN_FONT_SIZE_PX,
   type PaneId,
-  setFontSize,
   setGroupingGap,
   setLayout,
   setWordSize,
@@ -167,29 +163,6 @@ export function Toolbar({
           exclusive: true,
           onSelect: () => setWordSize(size),
         }))),
-
-    active === undefined ? undefined : { kind: "separator" },
-    active === undefined
-      ? undefined
-      : {
-          label: "Zoom In",
-          disabled: state.fontSizePx >= MAX_FONT_SIZE_PX,
-          onSelect: () => setFontSize(state.fontSizePx + 1),
-        },
-    active === undefined
-      ? undefined
-      : {
-          label: "Zoom Out",
-          disabled: state.fontSizePx <= MIN_FONT_SIZE_PX,
-          onSelect: () => setFontSize(state.fontSizePx - 1),
-        },
-    active === undefined
-      ? undefined
-      : {
-          label: `Actual Size (${DEFAULT_FONT_SIZE_PX}px)`,
-          disabled: state.fontSizePx === DEFAULT_FONT_SIZE_PX,
-          onSelect: () => setFontSize(DEFAULT_FONT_SIZE_PX),
-        },
 
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen ? { kind: "heading", label: "Grouping distance" } : undefined,

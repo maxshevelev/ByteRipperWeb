@@ -4,7 +4,7 @@ import type { MatchSet } from "@/core/search/matchSet";
 import { DEFAULT_MAX_RESULTS } from "@/core/search/searchEngine";
 import { formatHex } from "@/core/text/hexText";
 import { selectMatch } from "@/state/searchStore";
-import { activeDecoder } from "@/state/workspaceStore";
+import { activeDecoder, type PaneId } from "@/state/workspaceStore";
 
 /**
  * Every match, as a list.
@@ -50,6 +50,8 @@ function storedHeight(): number {
 }
 
 export interface SearchResultsProps {
+  /** Whose results these are: the list belongs to one pane's file. */
+  readonly pane: PaneId;
   readonly matches: MatchSet;
   readonly document: BinaryDocument;
   readonly current: { readonly start: number; readonly end: number } | undefined;
@@ -62,7 +64,7 @@ interface Row {
   readonly text: string;
 }
 
-export function SearchResults({ matches, document: doc, current, onGo }: SearchResultsProps) {
+export function SearchResults({ pane, matches, document: doc, current, onGo }: SearchResultsProps) {
   const [rows, setRows] = useState<Row[]>([]);
 
   useEffect(() => {
@@ -206,7 +208,7 @@ export function SearchResults({ matches, document: doc, current, onGo }: SearchR
               onClick={() => {
                 // The row becomes the current match, then the panes go to it:
                 // clicking a result is choosing one, not only looking at it.
-                selectMatch(row.start);
+                selectMatch(pane, row.start);
                 onGo(row.start);
               }}
             >

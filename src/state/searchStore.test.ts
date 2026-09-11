@@ -60,8 +60,19 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 // the first time a search runs and keeps it for the life of the module.
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { closeSearch, noteSearchEdit, openSearch, searchStore, selectMatch, startSearch } =
-  await import("@/state/searchStore");
+const {
+  closeSearch,
+  noteSearchEdit,
+  openSearch,
+  resultsFor,
+  searchStore,
+  selectMatch,
+  setSearchPane,
+  startSearch,
+} = await import("@/state/searchStore");
+
+/** The pane under test; every assertion here is about pane A's results. */
+const paneResults = () => resultsFor(searchStore.getSnapshot(), "a");
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 beforeEach(() => {
@@ -95,10 +106,10 @@ test("a miss on an early encoding does not end the pass", async () => {
   const asked = posted.filter((request) => request.kind === "search").map((r) => r.encoding);
   expect(asked).toEqual(["ascii", "utf16LE"]);
 
-  const state = searchStore.getSnapshot();
-  expect(state.status).toBe("found");
-  expect(state.foundEncoding).toBe("utf16LE");
-  expect(state.current).toEqual({ start: 16, end: 20 });
+  const results = paneResults();
+  expect(results.status).toBe("found");
+  expect(results.foundEncoding).toBe("utf16LE");
+  expect(results.current).toEqual({ start: 16, end: 20 });
 });
 
 test("the pass stops at the first encoding that finds anything", async () => {
@@ -109,7 +120,7 @@ test("the pass stops at the first encoding that finds anything", async () => {
   expect(posted.filter((request) => request.kind === "search").map((r) => r.encoding)).toEqual([
     "ascii",
   ]);
-  expect(searchStore.getSnapshot().foundEncoding).toBe("ascii");
+  expect(paneResults().foundEncoding).toBe("ascii");
 });
 
 test("not found is reported once every encoding has missed", async () => {
@@ -119,9 +130,9 @@ test("not found is reported once every encoding has missed", async () => {
 
   // ASCII (standing in for UTF-8 too), then UTF-16 LE, then UTF-16 BE.
   expect(posted.filter((request) => request.kind === "search").length).toBe(3);
-  const state = searchStore.getSnapshot();
-  expect(state.status).toBe("notFound");
-  expect(state.current).toBeUndefined();
+  const results = paneResults();
+  expect(results.status).toBe("notFound");
+  expect(results.current).toBeUndefined();
 });
 
 test("a chosen encoding asks once and does not fall back", async () => {
@@ -132,7 +143,7 @@ test("a chosen encoding asks once and does not fall back", async () => {
   expect(posted.filter((request) => request.kind === "search").map((r) => r.encoding)).toEqual([
     "ascii",
   ]);
-  expect(searchStore.getSnapshot().status).toBe("notFound");
+  expect(paneResults().status).toBe("notFound");
 });
 
 test("an edited document is searched as it reads, not as the file does", async () => {
@@ -149,9 +160,9 @@ test("an edited document is searched as it reads, not as the file does", async (
   await settle();
 
   expect(posted.filter((request) => request.kind === "search")).toEqual([]);
-  const state = searchStore.getSnapshot();
-  expect(state.status).toBe("found");
-  expect(state.current).toEqual({ start: 8, end: 12 });
+  const results = paneResults();
+  expect(results.status).toBe("found");
+  expect(results.current).toEqual({ start: 8, end: 12 });
 });
 
 test("an edit re-runs the search, so the matches follow the bytes", async () => {
@@ -163,7 +174,7 @@ test("an edit re-runs the search, so the matches follow the bytes", async () => 
 
     startSearch({ query: "DEADBEEF", encoding: "hex", from: 0 });
     await vi.advanceTimersByTimeAsync(50);
-    expect(searchStore.getSnapshot().current).toEqual({ start: 8, end: 12 });
+    expect(paneResults().current).toEqual({ start: 8, end: 12 });
 
     // The match is typed over. Without the re-run the store would still be
     // pointing at bytes that are no longer there.
@@ -171,7 +182,7 @@ test("an edit re-runs the search, so the matches follow the bytes", async () => 
     noteSearchEdit("a", { kind: "overwrite", start: 10, end: 12 });
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(searchStore.getSnapshot().status).toBe("notFound");
+    expect(paneResults().status).toBe("notFound");
   } finally {
     vi.useRealTimers();
   }
@@ -186,10 +197,9 @@ test("emptying the query leaves the find bar up", () => {
   expect(searchStore.getSnapshot().open).toBe(true);
 
   startSearch({ query: "", encoding: "hex" });
-  const state = searchStore.getSnapshot();
-  expect(state.open).toBe(true);
-  expect(state.status).toBe("idle");
-  expect(state.matches).toBeUndefined();
+  expect(searchStore.getSnapshot().open).toBe(true);
+  expect(paneResults().status).toBe("idle");
+  expect(paneResults().matches).toBeUndefined();
 });
 
 test("only closing closes it", () => {
@@ -216,19 +226,59 @@ test("clicking a result makes it the current match", async () => {
   startSearch({ query: "AA", encoding: "hex", from: 0 });
   await settle();
 
-  const matches = searchStore.getSnapshot().matches;
+  const matches = paneResults().matches;
   if (matches === undefined) throw new Error("the index did not arrive");
   const third = matches.rangeAt(2);
   if (third === undefined) throw new Error("there should be a third match");
 
-  selectMatch(third.start);
-  const state = searchStore.getSnapshot();
-  expect(state.current).toEqual(third);
-  expect(state.status).toBe("found");
+  selectMatch("a", third.start);
+  expect(paneResults().current).toEqual(third);
+  expect(paneResults().status).toBe("found");
 });
 
 test("a result that is not a match start is ignored", () => {
-  const before = searchStore.getSnapshot().current;
-  selectMatch(999_999);
-  expect(searchStore.getSnapshot().current).toEqual(before);
+  const before = paneResults().current;
+  selectMatch("a", 999_999);
+  expect(paneResults().current).toEqual(before);
+});
+
+test("each pane keeps its own results when the other becomes active", async () => {
+  // The list under a dump is a claim about *that* file. Clicking into the other
+  // pane does not make it untrue, so it does not clear — which is what the
+  // single shared result set used to do.
+  const { openInPane, workspaceStore: workspace } = await import("@/state/workspaceStore");
+  const bytes = new Uint8Array(64);
+  bytes.set([0xde, 0xad], 8);
+  openInPane("b", {
+    name: "b.bin",
+    size: bytes.length,
+    lastModified: 0,
+    source: new Blob([bytes]),
+  });
+
+  answerFor = "hex";
+  startSearch({ query: "DEAD", encoding: "hex", pane: "a", from: 0 });
+  await settle();
+  expect(resultsFor(searchStore.getSnapshot(), "a").status).toBe("found");
+
+  // The user clicks the other pane, and searches it for something else.
+  setSearchPane("b");
+  startSearch({ query: "BEEF", encoding: "hex", pane: "b", from: 0 });
+  await settle();
+
+  const state = searchStore.getSnapshot();
+  expect(resultsFor(state, "b").status).toBe("found");
+  // Pane A's results are exactly where they were.
+  expect(resultsFor(state, "a").status).toBe("found");
+  expect(resultsFor(state, "a").current).toEqual({ start: 16, end: 20 });
+  expect(workspace.getSnapshot().panes.b).toBeDefined();
+});
+
+test("closing the bar clears every pane's results", () => {
+  closeSearch();
+  const state = searchStore.getSnapshot();
+  for (const pane of ["a", "b"] as const) {
+    expect(resultsFor(state, pane).matches).toBeUndefined();
+    expect(resultsFor(state, pane).status).toBe("idle");
+  }
 });

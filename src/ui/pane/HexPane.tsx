@@ -17,7 +17,7 @@ import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRende
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
 import { toggleMinimap } from "@/state/minimapStore";
 import { stepSearch } from "@/state/searchStore";
-import { activeDecoder } from "@/state/workspaceStore";
+import { activeDecoder, HEX_FONT_SIZE_PX, type PaneId } from "@/state/workspaceStore";
 import {
   detectKeyboardPlatform,
   type HexKeyEvent,
@@ -41,7 +41,6 @@ import { observeHexColors, readHexColors } from "@/ui/theme/hexColors";
 export interface HexPaneProps {
   readonly document: BinaryDocument;
   readonly wordSize: WordSize;
-  readonly fontSizePx: number;
   /** The file's name, shown in the pane's own header. */
   readonly name: string;
   /** Which slot this is, for the header and for focus. */
@@ -51,7 +50,7 @@ export interface HexPaneProps {
    * Which slot this is, as the scroll link's key. Comparison locks the two
    * panes to the same offsets, and the link needs to tell them apart.
    */
-  readonly paneId: string;
+  readonly paneId: PaneId;
   readonly onActivate: () => void;
   readonly onClose: () => void;
   /** The comparison, when there are two files. */
@@ -121,7 +120,6 @@ const COPY_LIMIT = 1024 * 1024;
 export function HexPane({
   document: doc,
   wordSize,
-  fontSizePx,
   name,
   label,
   isActive,
@@ -193,7 +191,7 @@ export function HexPane({
     headerRendererRef.current.resize(box.width, box.height, window.devicePixelRatio);
     headerRendererRef.current.draw({
       layout,
-      fontPx: fontSizePx,
+      fontPx: HEX_FONT_SIZE_PX,
       fontFamily: MONOSPACE_STACK,
       colors: {
         background: palette.background,
@@ -202,7 +200,7 @@ export function HexPane({
       },
       scrollLeft: host?.scrollLeft ?? 0,
     });
-  }, [fontSizePx]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -234,7 +232,7 @@ export function HexPane({
           ? undefined
           : Math.floor(host.scrollTop / previous.rowHeight);
 
-      const metrics = measureFont(fontSizePx);
+      const metrics = measureFont(HEX_FONT_SIZE_PX);
       const layout = new HexLayout({
         charWidth: metrics.charWidth,
         rowHeight: metrics.rowHeight,
@@ -260,7 +258,7 @@ export function HexPane({
         decoder: activeDecoder(),
         colors: palette,
         fontFamily: MONOSPACE_STACK,
-        fontSizePx,
+        fontSizePx: HEX_FONT_SIZE_PX,
         devicePixelRatio: window.devicePixelRatio,
       });
       renderer.setSource(doc);
@@ -273,8 +271,13 @@ export function HexPane({
     };
 
     configure();
-    return observeHexColors(configure);
-  }, [doc, wordSize, fontSizePx, scheduleDraw, drawHeader, companionSize]);
+    const stopWatchingColors = observeHexColors(configure);
+    const stopWatchingScale = observeDevicePixelRatio(configure);
+    return () => {
+      stopWatchingColors();
+      stopWatchingScale();
+    };
+  }, [doc, wordSize, scheduleDraw, drawHeader, companionSize]);
 
   /**
    * The header is sized to its element, so it has to hear about a resize.
@@ -801,7 +804,13 @@ export function HexPane({
         />
       </div>
       {matches !== undefined && matches.total > 0 && onGoToMatch !== undefined ? (
-        <SearchResults matches={matches} document={doc} current={currentMatch} onGo={onGoToMatch} />
+        <SearchResults
+          pane={paneId}
+          matches={matches}
+          document={doc}
+          current={currentMatch}
+          onGo={onGoToMatch}
+        />
       ) : null}
       <p className="hex-caret-readout" id={readoutId} aria-live="polite">
         <span>Offset {caret.toString(16).toUpperCase().padStart(8, "0")}</span>
@@ -814,4 +823,37 @@ export function HexPane({
       </p>
     </div>
   );
+}
+
+/**
+ * Calls back whenever the device pixel ratio changes.
+ *
+ * Which is what a page zoom is, as far as a canvas is concerned: the element
+ * keeps its size in CSS pixels and the backing store needs more of them. There
+ * is no event for it, so this watches a media query pinned to the current ratio
+ * and re-pins it each time — the query stops matching the moment the ratio
+ * moves.
+ *
+ * Without it the browser's zoom — now the only zoom there is — would leave the
+ * dump drawn at the old scale and blurred up to the new one.
+ */
+function observeDevicePixelRatio(onChange: () => void): () => void {
+  let query: MediaQueryList | undefined;
+  let stopped = false;
+
+  const listen = () => {
+    if (stopped) return;
+    query = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    query.addEventListener("change", handle, { once: true });
+  };
+  const handle = () => {
+    onChange();
+    listen();
+  };
+
+  listen();
+  return () => {
+    stopped = true;
+    query?.removeEventListener("change", handle);
+  };
 }
