@@ -29,7 +29,14 @@ export class MemoryByteSource implements ByteSource {
     const to = Math.min(Math.max(end, from), this.bytes.length);
     const view = this.bytes.subarray(from, to);
     return {
-      arrayBuffer: () => Promise.resolve(view.slice().buffer),
+      arrayBuffer: () => {
+        // A real Blob copies, so this does too: a test that relied on aliasing
+        // would pass here and fail in a browser. The copy is also what makes
+        // the result a plain ArrayBuffer whatever the source was backed by.
+        const copy = new Uint8Array(view.length);
+        copy.set(view);
+        return Promise.resolve(copy.buffer);
+      },
     };
   }
 }

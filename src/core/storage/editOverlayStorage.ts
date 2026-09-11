@@ -1,5 +1,5 @@
 import { assertRepresentableSize } from "@/core/limits";
-import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
+import type { ByteStorage, Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type OffsetRange, PieceTable } from "@/core/storage/pieceTable";
@@ -74,7 +74,7 @@ export class EditOverlayStorage implements EditableByteStorage {
    * pieces. Never rewritten, so a piece's offsets stay valid for its life — and
    * so an in-flight read cannot have its bytes moved out from under it.
    */
-  private added = new Uint8Array(0);
+  private added: Bytes = new Uint8Array(0);
   private addedLength = 0;
 
   private lengthChanged = false;
@@ -112,7 +112,7 @@ export class EditOverlayStorage implements EditableByteStorage {
     return this.table.size;
   }
 
-  async read(at: number, length: number): Promise<Uint8Array> {
+  async read(at: number, length: number): Promise<Bytes> {
     const plan = this.plan(at, length);
     if (plan === undefined) return new Uint8Array(0);
 
@@ -134,7 +134,7 @@ export class EditOverlayStorage implements EditableByteStorage {
     return result;
   }
 
-  peek(at: number, length: number): Uint8Array | undefined {
+  peek(at: number, length: number): Bytes | undefined {
     const plan = this.plan(at, length);
     if (plan === undefined) return new Uint8Array(0);
 
@@ -279,6 +279,25 @@ export class EditOverlayStorage implements EditableByteStorage {
     return this.table.pieceCount;
   }
 
+  /**
+   * Starts again over a base that already holds the current content — what a
+   * successful save leaves behind.
+   *
+   * The file on disk now *is* the document, so the piece table collapses to one
+   * base piece, the add buffer empties, and nothing is a change any more. Until
+   * this happens, `changedRanges` still names every edit and a second save
+   * would write them all again over bytes that already hold them.
+   */
+  rebase(base: ByteStorage): void {
+    this.base = base;
+    this.table = new PieceTable(base.size);
+    this.added = new Uint8Array(0);
+    this.addedLength = 0;
+    this.lengthChanged = false;
+    this.shiftedFrom = undefined;
+    this.retainedChangedRanges = [];
+  }
+
   // MARK: - Internals
 
   /** Copies `bytes` into the add buffer and returns the range they occupy. */
@@ -338,7 +357,7 @@ export class EditOverlayStorage implements EditableByteStorage {
   }
 
   /** The whole content, a megabyte at a time, for materialisation. */
-  private async *contentStream(): AsyncGenerator<Uint8Array> {
+  private async *contentStream(): AsyncGenerator<Bytes> {
     const total = this.table.size;
     for (let offset = 0; offset < total; ) {
       const bytes = await this.read(offset, Math.min(MATERIALISE_CHUNK, total - offset));

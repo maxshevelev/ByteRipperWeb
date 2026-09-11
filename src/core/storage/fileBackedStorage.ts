@@ -1,5 +1,5 @@
 import { assertRepresentableSize } from "@/core/limits";
-import type { ByteSource, ByteStorage } from "@/core/storage/byteStorage";
+import type { ByteSource, ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { StorageError } from "@/core/storage/storageError";
 
@@ -27,7 +27,7 @@ export class FileBackedStorage implements ByteStorage {
   readonly cache: ChunkCache;
 
   private readonly source: ByteSource;
-  private readonly inFlight = new Map<number, Promise<Uint8Array>>();
+  private readonly inFlight = new Map<number, Promise<Bytes>>();
 
   /**
    * @param source The file, or anything shaped like a `Blob`.
@@ -40,7 +40,7 @@ export class FileBackedStorage implements ByteStorage {
     this.cache = cache;
   }
 
-  async read(at: number, length: number): Promise<Uint8Array> {
+  async read(at: number, length: number): Promise<Bytes> {
     const span = this.clamp(at, length);
     if (span === undefined) return new Uint8Array(0);
 
@@ -52,7 +52,7 @@ export class FileBackedStorage implements ByteStorage {
     return assembled ?? (await this.readThrough(span.at, span.count));
   }
 
-  peek(at: number, length: number): Uint8Array | undefined {
+  peek(at: number, length: number): Bytes | undefined {
     const span = this.clamp(at, length);
     if (span === undefined) return new Uint8Array(0);
     return this.assemble(span.at, span.count);
@@ -98,7 +98,7 @@ export class FileBackedStorage implements ByteStorage {
    * Copies `count` bytes from `at` out of the cache, or `undefined` if any
    * chunk it needs is missing. Pure bookkeeping — no I/O, no awaiting.
    */
-  private assemble(at: number, count: number): Uint8Array | undefined {
+  private assemble(at: number, count: number): Bytes | undefined {
     const { chunkSize } = this.cache.config;
     const result = new Uint8Array(count);
     let written = 0;
@@ -122,7 +122,7 @@ export class FileBackedStorage implements ByteStorage {
   }
 
   /** Reads one chunk, sharing the promise with anyone else who wants it. */
-  private chunk(index: number): Promise<Uint8Array> {
+  private chunk(index: number): Promise<Bytes> {
     const outstanding = this.inFlight.get(index);
     if (outstanding !== undefined) return outstanding;
 
@@ -133,7 +133,7 @@ export class FileBackedStorage implements ByteStorage {
     return started;
   }
 
-  private async readChunk(index: number): Promise<Uint8Array> {
+  private async readChunk(index: number): Promise<Bytes> {
     const { chunkSize } = this.cache.config;
     const start = index * chunkSize;
     if (start >= this.size) return new Uint8Array(0);
@@ -144,7 +144,7 @@ export class FileBackedStorage implements ByteStorage {
   }
 
   /** One slice of the file, straight through, with the error the UI can read. */
-  private async readThrough(at: number, count: number): Promise<Uint8Array> {
+  private async readThrough(at: number, count: number): Promise<Bytes> {
     try {
       const buffer = await this.source.slice(at, at + count).arrayBuffer();
       return new Uint8Array(buffer);

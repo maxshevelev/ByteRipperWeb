@@ -1,5 +1,5 @@
 import { assertRepresentableSize } from "@/core/limits";
-import type { EditableByteStorage } from "@/core/storage/byteStorage";
+import type { Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
 
 /**
  * An editable buffer held entirely in memory — File ▸ New File, and the fixture
@@ -15,7 +15,7 @@ import type { EditableByteStorage } from "@/core/storage/byteStorage";
  * whole buffer per typed byte.
  */
 export class MemoryBackedStorage implements EditableByteStorage {
-  private buffer: Uint8Array;
+  private buffer: Bytes;
   private length: number;
 
   constructor(bytes: Uint8Array = new Uint8Array(0)) {
@@ -28,13 +28,13 @@ export class MemoryBackedStorage implements EditableByteStorage {
   }
 
   /** In memory nothing is ever absent, so `peek` always answers. */
-  peek(at: number, length: number): Uint8Array {
+  peek(at: number, length: number): Bytes {
     if (length <= 0 || at < 0 || at >= this.length) return new Uint8Array(0);
     const count = Math.min(length, this.length - at);
     return this.buffer.slice(at, at + count);
   }
 
-  read(at: number, length: number): Promise<Uint8Array> {
+  read(at: number, length: number): Promise<Bytes> {
     return Promise.resolve(this.peek(at, length));
   }
 

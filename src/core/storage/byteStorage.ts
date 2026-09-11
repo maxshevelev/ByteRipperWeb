@@ -18,6 +18,21 @@
  */
 
 /**
+ * Bytes backed by a plain `ArrayBuffer`.
+ *
+ * TypeScript models a typed array's backing store as a type parameter, and the
+ * bare `Uint8Array` means "backed by anything" — including a
+ * `SharedArrayBuffer`, which the DOM's `BufferSource` excludes. Every array
+ * this application *produces* is freshly allocated over an `ArrayBuffer`, so
+ * saying so here is what lets a read go straight to a writable stream without
+ * an assertion at every call site.
+ *
+ * Only return types are narrowed. What the editing methods *accept* stays the
+ * bare `Uint8Array`, because a caller's bytes may come from anywhere.
+ */
+export type Bytes = Uint8Array<ArrayBuffer>;
+
+/**
  * The shape of a `Blob`, named structurally so `src/core` never mentions one.
  *
  * A browser `File` or `Blob` satisfies this as it stands; tests supply a few
@@ -45,7 +60,7 @@ export interface ByteStorage {
    * is upstream's contract and the reason no caller range-checks before
    * reading.
    */
-  read(at: number, length: number): Promise<Uint8Array>;
+  read(at: number, length: number): Promise<Bytes>;
 
   /**
    * The same bytes, but only if they can be produced without awaiting —
@@ -55,7 +70,7 @@ export interface ByteStorage {
    * normal outcome, not a failure: paint a placeholder and repaint when
    * {@link prefetch} reports the bytes are in.
    */
-  peek(at: number, length: number): Uint8Array | undefined;
+  peek(at: number, length: number): Bytes | undefined;
 
   /**
    * Make the bytes covering `[at, at + length)` resident, so a later
