@@ -5,6 +5,7 @@ import { addressSignificantFrom, byteInk, type InkRole } from "@/render/hexGrid/
 import { DirtyRows } from "@/render/hexGrid/dirtyRows";
 import { GlyphAtlas, type GlyphAtlasKey } from "@/render/hexGrid/glyphAtlas";
 import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
+import { type ContourPoint, selectionContours, traceContour } from "@/render/hexGrid/spanContour";
 
 /**
  * The hex grid, drawn.
@@ -55,6 +56,14 @@ export interface HexGridCaret {
    */
   readonly visible: boolean;
 }
+
+/**
+ * The companion outline's stroke. Padded outward where a spacer allows it, so
+ * the line clears the glyphs; rounded so the staircase reads as one region.
+ */
+const PEER_CONTOUR_PADDING = 2;
+const PEER_CONTOUR_RADIUS = 3;
+const PEER_CONTOUR_LINE_WIDTH = 1.5;
 
 export interface HexGridColors extends Record<InkRole, string> {
   readonly background: string;
@@ -310,6 +319,7 @@ export class HexGridRenderer {
   setPeerSelection(selection: HexGridSelection | undefined): void {
     const previous = this.peerSelection;
     this.peerSelection = selection;
+    this.peerContourKey = undefined;
     for (const range of [previous, selection]) {
       if (range === undefined || range.end < range.start) continue;
       const first = Math.floor(range.start / BYTES_PER_ROW);
@@ -718,25 +728,63 @@ export class HexGridRenderer {
     const config = this.config;
     const peer = this.peerSelection;
     if (config === undefined || peer === undefined || peer.end <= peer.start) return;
-
-    const from = Math.max(peer.start, rowStart) - rowStart;
-    const to = Math.min(peer.end, rowStart + BYTES_PER_ROW) - rowStart;
-    if (to <= from) return;
+    // Only the rows the span actually covers, and one past each end so a
+    // padded edge that leans into the neighbouring row still gets drawn.
+    if (peer.end <= rowStart - BYTES_PER_ROW || peer.start >= rowStart + 2 * BYTES_PER_ROW) return;
 
     const { layout, colors } = config;
-    this.context.save();
-    this.context.strokeStyle = colors.peerSelection;
-    this.context.lineWidth = 1;
-    // Half-pixel offsets so a one-pixel stroke lands on a pixel, not across two.
-    const stroke = (x: number, width: number) =>
-      this.context.strokeRect(x + 0.5, y + 0.5, width - 1, layout.rowHeight - 1);
-    stroke(
-      layout.hexByteX(from),
-      layout.hexByteX(to - 1) + layout.hexByteWidth - layout.hexByteX(from)
+    const context = this.context;
+    context.save();
+    // Clipped to this row's band, and the *whole* contour stroked inside it.
+    // The renderer repaints dirty rows, not regions, so a contour drawn once
+    // would be erased the next time any row it crosses is repainted. Each row
+    // stroking its own slice of the same path puts them back together — and
+    // because the path has no interior edges, no line appears between rows.
+    context.beginPath();
+    context.rect(
+      this.viewport.scrollLeft,
+      y,
+      Math.max(layout.contentWidth, this.viewport.widthCss),
+      layout.rowHeight
     );
-    stroke(layout.textX(from), (to - from) * layout.charWidth);
-    this.context.restore();
+    context.clip();
+
+    context.strokeStyle = colors.peerSelection;
+    context.lineWidth = PEER_CONTOUR_LINE_WIDTH;
+    context.lineJoin = "round";
+    context.beginPath();
+    for (const contour of this.peerContours()) {
+      traceContour(context, contour, PEER_CONTOUR_RADIUS);
+    }
+    context.stroke();
+    context.restore();
   }
+
+  /**
+   * The companion's outline, rebuilt only when the span or the layout moves.
+   *
+   * Every row it crosses strokes it, so this would otherwise be recomputed a
+   * dozen times a frame for an answer that did not change.
+   */
+  private peerContours(): ContourPoint[][] {
+    const config = this.config;
+    const peer = this.peerSelection;
+    if (config === undefined || peer === undefined) return [];
+    const key = `${peer.start}:${peer.end}:${config.layout.wordSize}:${config.layout.charWidth}`;
+    if (this.peerContourKey !== key) {
+      this.peerContourKey = key;
+      this.peerContourCache = selectionContours(
+        peer.start,
+        peer.end,
+        config.layout,
+        PEER_CONTOUR_PADDING
+      );
+    }
+    return this.peerContourCache;
+  }
+
+  private peerContourKey: string | undefined;
+  private peerContourCache: ContourPoint[][] = [];
 
   private paintSelection(rowStart: number, y: number): void {
     const config = this.config;
