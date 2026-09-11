@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test",
-    "bench": "node benchmarks/run.ts"
+    "bench": "node --import ./benchmarks/register.mjs benchmarks/run.ts"
   },
   "dependencies": {
     "react": "^19.3.0",

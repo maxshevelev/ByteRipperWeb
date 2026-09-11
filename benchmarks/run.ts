@@ -1,17 +1,20 @@
 /**
  * `npm run bench`.
  *
- * M0 measures chunked reads and nothing else, because chunked reads are all
- * that exists. Each milestone adds its rows here as it lands them: M1 the real
- * `ChunkCache`, M2 a repaint, M3 a diff, and so on down the budget table in
- * `Design/ANALYSIS.md`.
+ * Each milestone adds its rows here as it lands them, down the budget table in
+ * `Design/ANALYSIS.md`. M1 replaced the harness's own slicing loop with the
+ * storage that ships: these numbers are `FileBackedStorage` over a real
+ * `ChunkCache`, so a regression in either shows up here.
  */
 
+import { ChunkCache } from "@/core/storage/chunkCache";
+import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { resolveFixture } from "./fixture.ts";
 import { anyOverBudget, measure, printTable, type Row } from "./harness.ts";
 
-/** Upstream's `ChunkCache` defaults, which M1 ports as they stand. */
+/** Upstream's `ChunkCache` defaults, ported as they stand. */
 const CHUNK_SIZE = 64 * 1024;
+const BYTE_BUDGET = 32 * 1024 * 1024;
 
 /**
  * Roughly what a first screen costs: the chunks covering the rows a pane shows
@@ -19,12 +22,6 @@ const CHUNK_SIZE = 64 * 1024;
  * bytes each, so this is one chunk of content and its neighbours.
  */
 const FIRST_SCREEN_CHUNKS = 3;
-
-async function readChunk(blob: Blob, index: number): Promise<number> {
-  const start = index * CHUNK_SIZE;
-  const slice = blob.slice(start, Math.min(start + CHUNK_SIZE, blob.size));
-  return (await slice.arrayBuffer()).byteLength;
-}
 
 async function main(): Promise<void> {
   const fixture = await resolveFixture();
@@ -46,17 +43,23 @@ async function main(): Promise<void> {
 
   const rows: Row[] = [];
 
+  // The storage that ships, with upstream's own defaults. A fresh one per row
+  // where a cold cache is the point, and a shared one where reuse is.
+  const fresh = () =>
+    new FileBackedStorage(blob, new ChunkCache({ chunkSize: CHUNK_SIZE, byteBudget: BYTE_BUDGET }));
+
   rows.push({
     name: "Open to first screen",
     budgetMs: 100,
     note:
-      `${FIRST_SCREEN_CHUNKS} × ${CHUNK_SIZE / 1024} KB read from a cold offset. ` +
-      "The budget in ANALYSIS.md is to the first *painted* row; the painting half " +
-      "arrives in M2 and its cost is not in this number yet.",
+      `${FIRST_SCREEN_CHUNKS} × ${CHUNK_SIZE / 1024} KB made resident through a cold cache, ` +
+      "which is what a pane prefetches before it paints. The budget in ANALYSIS.md is to " +
+      "the first *painted* row; the painting half arrives in M2 and is not in this number.",
     measurement: await measure(
       async () => {
+        const storage = fresh();
         const base = Math.floor(Math.random() * Math.max(1, chunkCount - FIRST_SCREEN_CHUNKS));
-        for (let i = 0; i < FIRST_SCREEN_CHUNKS; i++) await readChunk(blob, base + i);
+        await storage.prefetch(base * CHUNK_SIZE, FIRST_SCREEN_CHUNKS * CHUNK_SIZE);
       },
       { samples: 15 }
     ),
@@ -67,7 +70,10 @@ async function main(): Promise<void> {
     note: "What a full-file pass — a diff, a search, a minimap build — pays just to see the bytes.",
     measurement: await measure(
       async () => {
-        for (let index = 0; index < chunkCount; index++) await readChunk(blob, index);
+        const storage = fresh();
+        for (let at = 0; at < blob.size; at += CHUNK_SIZE) {
+          await storage.read(at, Math.min(CHUNK_SIZE, blob.size - at));
+        }
       },
       { samples: 5, bytes: blob.size }
     ),
@@ -79,9 +85,38 @@ async function main(): Promise<void> {
     note: "Scrolling around a dump, or a cache that keeps missing. 64 × 64 KB = 4 MB.",
     measurement: await measure(
       async () => {
-        for (const index of scatter) await readChunk(blob, index);
+        const storage = fresh();
+        for (const index of scatter) await storage.read(index * CHUNK_SIZE, CHUNK_SIZE);
       },
       { samples: 7, bytes: scatter.length * CHUNK_SIZE }
+    ),
+  });
+
+  const warm = fresh();
+  await warm.prefetch(0, Math.min(BYTE_BUDGET, blob.size));
+  rows.push({
+    name: "Cached read, 4 KB, cache hit",
+    note:
+      "A repaint reading rows it already has. This is the path M2's renderer sits on, so " +
+      "it has to be far below the 8 ms frame budget on its own.",
+    measurement: await measure(
+      async () => {
+        for (let i = 0; i < 256; i++) await warm.read((i * 4096) % (BYTE_BUDGET / 2), 4096);
+      },
+      { samples: 7, bytes: 256 * 4096 }
+    ),
+  });
+
+  rows.push({
+    name: "Peek, 4 KB, resident",
+    note:
+      "The synchronous path a canvas repaint uses: no await, no promise, straight out of the " +
+      "chunk cache. 256 peeks per sample.",
+    measurement: await measure(
+      () => {
+        for (let i = 0; i < 256; i++) warm.peek((i * 4096) % (BYTE_BUDGET / 2), 4096);
+      },
+      { samples: 15, bytes: 256 * 4096 }
     ),
   });
 
