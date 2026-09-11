@@ -1,0 +1,104 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    // Skills/ is committed data read by the port-report script, which rewrites
+    // it with Python; formatting it here would make every run of either tool a
+    // diff against the other. Design/ is prose.
+    "includes": ["**", "!**/dist", "!**/coverage", "!**/node_modules", "!Skills", "!Design"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
+      "style": {
+        "useConst": "error",
+        "noNonNullAssertion": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "double", "trailingCommas": "es5" }
+  },
+  "overrides": [
+    {
+      // D1, enforced. The domain half ports from Swift and is unit-tested
+      // headlessly, which it can only stay if it never reaches up into the app.
+      // The DOM side of the same rule is the compiler's job — see
+      // tsconfig.core.json, which withholds the DOM lib from these same
+      // directories.
+      "includes": ["src/core/**", "src/firmware/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/ui/**",
+                      "@/render/**",
+                      "@/platform/**",
+                      "@/state/**",
+                      "@/workers/**",
+                      "@/tools/**",
+                      "@/app/**",
+                      "**/../ui/**",
+                      "**/../render/**",
+                      "**/../platform/**",
+                      "**/../state/**",
+                      "**/../workers/**",
+                      "**/../tools/**",
+                      "**/../app/**"
+                    ],
+                    "message": "src/core and src/firmware are pure domain code (D1): they may not import the app, the renderer, or the platform layer. If two layers need the same thing, it belongs in src/core."
+                  },
+                  {
+                    "group": ["react", "react-dom", "react/**", "react-dom/**"],
+                    "message": "The domain half does not know React exists (D1). State reaches the UI through src/state, never the other way round."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // M2's definition of done is that nothing in the renderer imports React.
+      // It is imperative canvas code and it is on the hot path.
+      "includes": ["src/render/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["react", "react-dom", "react/**", "react-dom/**"],
+                    "message": "src/render draws through a canvas context, not a component tree (D2/D6). A renderer that imports React is a renderer on the hot path."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

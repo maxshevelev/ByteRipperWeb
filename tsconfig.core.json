@@ -1,0 +1,19 @@
+{
+  "//": [
+    "The domain half, compiled without the DOM.",
+    "",
+    "D1 says src/core and src/firmware reach no browser API. This config is how",
+    "that is enforced rather than asked for: `lib` stops at ES2023, so `window`,",
+    "`document`, `fetch`, `Blob` and `File` are not in scope and naming one is a",
+    "compile error. Where the domain needs to read bytes out of a File, it takes",
+    "a structural interface the platform layer satisfies — see src/core/storage.",
+    "",
+    "Run by `npm run typecheck` alongside tsconfig.json; both must pass."
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src/core", "src/firmware"]
+}

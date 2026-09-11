@@ -22,16 +22,42 @@ file is part of that request.
 
 ## Status
 
-**Planning.** No application code yet. What exists is the analysis of what to
-build and what the browser allows — read
-**[Design/ANALYSIS.md](Design/ANALYSIS.md)**, which records every feature of the
-macOS app and whether it ports as-is, adapts, shrinks, or cannot exist here, and
-why.
+**Early.** The scaffolding stands — the app shell builds in both themes, the
+domain half is typechecked without a DOM to reach for, and the benchmark
+harness runs — but nothing opens a file yet. Milestone by milestone, the plan
+is **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is
+in scope at all, and what the browser takes away, is
+**[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
 
-## Planned stack
+| Milestone | |
+| --- | --- |
+| M0 Scaffolding and benchmarks | done |
+| M1 Storage and document | next |
+| M2 – M12 | see the plan |
+
+## Stack
 
 TypeScript throughout, React 19 and Vite for the interface, the hex grid drawn
 on canvas, all heavy work in Web Workers. Static hosting, no server.
+
+## Build and run
+
+Node 22.18 or newer, which is what runs TypeScript files without a compile
+step — the benchmark harness is written in TypeScript and Node executes it
+directly, so there is no build tool in that path and no dependency standing in
+for one.
+
+```bash
+npm install
+npm run dev      # Vite dev server
+npm run check    # types, lint, unit tests — what CI runs
+npm run bench    # performance table against benchmarks/fixtures/
+npm run build    # production bundle
+```
+
+`npm run bench` wants a real dump in `benchmarks/fixtures/` (gitignored). With
+nothing there it measures a synthetic stand-in and says so; those numbers are
+for watching a trend, not for quoting.
 
 Chromium browsers get the File System Access API, which is what makes *Save*
 mean *save in place*. Firefox and Safari are fully usable and save a copy

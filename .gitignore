@@ -14,3 +14,6 @@ coverage/
 # Dumps used for benchmarking are someone's firmware. They stay off GitHub.
 benchmarks/fixtures/*.bin
 benchmarks/fixtures/*.rom
+
+# Vite's production output and the TypeScript build info.
+*.tsbuildinfo

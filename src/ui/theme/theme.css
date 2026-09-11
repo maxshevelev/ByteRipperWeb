@@ -1,0 +1,92 @@
+/*
+ * The palette, as CSS variables.
+ *
+ * The named colours below are ported from `Packages/AppPalette` in the macOS
+ * repository — its `Palette+Generated.swift`, which is itself generated from
+ * the Xcode asset catalogue. When a colour changes upstream, it changes here:
+ * the module map records this file as AppPalette's counterpart, and the port
+ * report will name it.
+ *
+ * The greys are not from upstream. AppKit supplies its own system greys and a
+ * browser does not, so the chrome's own surfaces are defined here directly.
+ *
+ * Both themes are defined in full on :root, with the dark values swapped in by
+ * `prefers-color-scheme` and, from M11, by a `data-theme` attribute for the
+ * manual override. A colour never has its only definition inside a media
+ * query.
+ */
+
+:root {
+  /* Chrome surfaces */
+  --surface: #ffffff;
+  --surface-raised: #f6f6f7;
+  --surface-sunken: #ececee;
+  --border: #d6d6da;
+  --border-strong: #b4b4bb;
+  --text: #1b1b1f;
+  --text-muted: #6a6a73;
+  --text-faint: #97979f;
+  --accent: #2b6cb0;
+  --focus-ring: #2b6cb0;
+
+  /* Hex grid: the bytes themselves */
+  --byte-text: #1b1b1f;
+  --byte-text-muted: #9a9aa2; /* 0x00 and 0xFF, which are most of a dump */
+  --byte-modified: #e41f1f; /* unsaved edit: red foreground, never a fill */
+  --address-text: #6a6a73;
+  --grid-line: #e4e4e8;
+  --eof-hatch: #c8c8ce;
+  --selection: rgb(43 108 176 / 0.24);
+
+  /* Ported from AppPalette */
+  --semantic-bad: #e41f1f;
+  --semantic-caution: #da8600;
+  --semantic-good: #12af1f;
+  --difference-fill: rgb(255 149 0 / 0.35);
+  --zone-focused: #59adc4;
+  --zone-other: #dad554;
+  --segment-0: #d6f0d6;
+  --segment-1: #f7d9e0;
+  --segment-2: #d6e6fa;
+  --segment-3: #faf2cc;
+  --segment-4: #e3d9f7;
+  --segment-5: #fce3d1;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #1b1b1f;
+    --surface-raised: #26262b;
+    --surface-sunken: #141417;
+    --border: #37373e;
+    --border-strong: #4e4e57;
+    --text: #ececee;
+    --text-muted: #9a9aa2;
+    --text-faint: #6a6a73;
+    --accent: #6aa9e9;
+    --focus-ring: #6aa9e9;
+
+    --byte-text: #ececee;
+    --byte-text-muted: #63636b;
+    --byte-modified: #ff6b66;
+    --address-text: #9a9aa2;
+    --grid-line: #2c2c32;
+    --eof-hatch: #43434b;
+    --selection: rgb(106 169 233 / 0.28);
+
+    --semantic-bad: #ff6b66;
+    --semantic-caution: #dba85c;
+    --semantic-good: #8cd166;
+    --difference-fill: rgb(255 159 10 / 0.45);
+    --zone-focused: #6ac4dc;
+    --zone-other: #dad554;
+    --segment-0: #29402b;
+    --segment-1: #4a2b36;
+    --segment-2: #29384d;
+    --segment-3: #4a4526;
+    --segment-4: #3b304f;
+    --segment-5: #4f3b29;
+  }
+}

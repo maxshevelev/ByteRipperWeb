@@ -1,0 +1,17 @@
+{
+  "//": [
+    "The files that run in Node rather than in the browser: the Vite config and",
+    "the benchmark harness.",
+    "",
+    "No DOM here either — these run in a terminal. `console`, `performance`,",
+    "`Blob` and `URL` are Node's own globals and come from @types/node, which is",
+    "a dev dependency for exactly this typecheck: Node itself strips the types",
+    "and never reads them."
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts", "benchmarks"]
+}

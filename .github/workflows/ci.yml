@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Types, lint, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - name: Production bundle builds
+        run: npx vite build
+
+  # The benchmark runs, but it cannot judge: CI has no real dump to measure
+  # against and a shared runner's timings are not comparable between runs. This
+  # step proves the harness still works. The numbers that decide anything are
+  # measured on a bench, against a real dump, per D14.
+  bench:
+    name: Benchmark harness runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run bench
