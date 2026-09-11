@@ -5,9 +5,16 @@ comparing and editing two binary firmware dumps. Same question as the macOS app
 (*is this chip's content the same as the one that works?*), reachable from any
 bench on any operating system without installing anything.
 
-The plan of record is `Design/ANALYSIS.md`. It says which features are in scope,
-which are adapted, and which the browser takes away. Read it before proposing
-anything structural.
+Two documents are the plan of record, in this order:
+- `Design/ANALYSIS.md` — which features are in scope, which are adapted, and
+  which the browser takes away. Read it before proposing anything structural.
+- `Design/IMPLEMENTATION_PLAN.md` — the technical decisions and the milestones,
+  each with a definition of done. Read it before writing code.
+
+The macOS reference implementation is a sibling clone at `../DumpCompare` (or
+`$DUMPCOMPARE_REPO`). Read the Swift before inventing a mechanism: it has
+already answered most of these questions, and its tests are the specification a
+port is checked against.
 
 Stack:
 - TypeScript, strict. Vite. React 19 for the chrome around the canvas.
