@@ -174,11 +174,12 @@
         "src/ui/pane"
       ],
       "status": "in-progress",
-      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. Ported as of M2: HexLayout (whole, with its tests), WordSize, and the byte-significance and address-split rules out of HexTheme. HexView's 3.5k lines are split between src/render/hexGrid (drawing) and src/ui/pane (events); its editing, caret-nibble and difference paths wait on M3 and M4.",
+      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. Ported as of M2: HexLayout (whole, with its tests), WordSize, and the byte-significance and address-split rules out of HexTheme. HexColumnHeaderView is across whole, drawn with fillText rather than through the glyph atlas \u2014 nineteen labels a redraw does not earn an atlas. HexView's 3.5k lines are split between src/render/hexGrid (drawing) and src/ui/pane (events); its editing, caret-nibble and difference paths wait on M3 and M4.",
       "files": {
         "HexLayout.swift": "src/render/hexGrid/hexLayout.ts",
         "WordSize.swift": "src/render/hexGrid/hexLayout.ts",
-        "HexView.swift": "src/render/hexGrid/hexGridRenderer.ts"
+        "HexView.swift": "src/render/hexGrid/hexGridRenderer.ts",
+        "HexColumnHeaderView.swift": "src/render/hexGrid/hexHeaderRenderer.ts"
       }
     },
     {

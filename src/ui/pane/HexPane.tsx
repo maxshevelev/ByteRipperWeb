@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
@@ -7,7 +7,12 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
-import { HexGridRenderer, type MatchLookup } from "@/render/hexGrid/hexGridRenderer";
+import {
+  type HexGridColors,
+  HexGridRenderer,
+  type MatchLookup,
+} from "@/render/hexGrid/hexGridRenderer";
+import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
 import { toggleMinimap } from "@/state/minimapStore";
 import { stepSearch } from "@/state/searchStore";
@@ -117,6 +122,10 @@ export function HexPane({
   const rendererRef = useRef<HexGridRenderer | null>(null);
   const frameRef = useRef<number | undefined>(undefined);
   const layoutRef = useRef<HexLayout | undefined>(undefined);
+  const headerRef = useRef<HTMLCanvasElement | null>(null);
+  const headerRendererRef = useRef<HexHeaderRenderer | null>(null);
+  const colorsRef = useRef<HexGridColors | undefined>(undefined);
+  const headerRuleRef = useRef("");
   const viewportHeightRef = useRef(0);
   const dragAnchorRef = useRef<number | undefined>(undefined);
 
@@ -138,6 +147,36 @@ export function HexPane({
   }, []);
 
   // The renderer, made once per canvas.
+  /**
+   * The header is pinned outside the scroller, so it has to be told about a
+   * sideways scroll — that is the whole reason it is redrawn on scroll at all.
+   */
+  const drawHeader = useCallback(() => {
+    const canvas = headerRef.current;
+    const layout = layoutRef.current;
+    const host = scrollRef.current;
+    if (canvas === null || layout === undefined) return;
+    if (headerRendererRef.current === null) {
+      headerRendererRef.current = new HexHeaderRenderer(canvas);
+    }
+    const box = canvas.getBoundingClientRect();
+    if (box.width <= 0 || box.height <= 0) return;
+    const palette = colorsRef.current;
+    if (palette === undefined) return;
+    headerRendererRef.current.resize(box.width, box.height, window.devicePixelRatio);
+    headerRendererRef.current.draw({
+      layout,
+      fontPx: fontSizePx,
+      fontFamily: MONOSPACE_STACK,
+      colors: {
+        background: palette.background,
+        ink: palette.address,
+        rule: headerRuleRef.current,
+      },
+      scrollLeft: host?.scrollLeft ?? 0,
+    });
+  }, [fontSizePx]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas === null) return;
@@ -176,10 +215,23 @@ export function HexPane({
         wordSize,
       });
       layoutRef.current = layout;
+      // The strip is one hex row plus the header's own padding, so it tracks
+      // the font size rather than being a number CSS guesses at.
+      headerRef.current?.parentElement?.style.setProperty(
+        "--hex-header-height",
+        `${headerHeight(layout.rowHeight)}px`
+      );
+      // Kept, because the header redraws on every sideways scroll and
+      // getComputedStyle on that path would be a style recalculation per frame.
+      const palette = readHexColors();
+      colorsRef.current = palette;
+      headerRuleRef.current = getComputedStyle(document.documentElement)
+        .getPropertyValue("--header-rule")
+        .trim();
       renderer.configure({
         layout,
         decoder: activeDecoder(),
-        colors: readHexColors(),
+        colors: palette,
         fontFamily: MONOSPACE_STACK,
         fontSizePx,
         devicePixelRatio: window.devicePixelRatio,
@@ -189,11 +241,27 @@ export function HexPane({
       setContentWidth(renderer.contentWidth);
       if (host !== null && anchorRow !== undefined) host.scrollTop = anchorRow * layout.rowHeight;
       scheduleDraw();
+      drawHeader();
     };
 
     configure();
     return observeHexColors(configure);
-  }, [doc, wordSize, fontSizePx, scheduleDraw]);
+  }, [doc, wordSize, fontSizePx, scheduleDraw, drawHeader]);
+
+  /**
+   * The header is sized to its element, so it has to hear about a resize.
+   *
+   * Without this its backing store keeps the width it was first drawn at and
+   * CSS stretches that drawing across the new one — which does not look broken,
+   * it looks like labels that no longer sit over their columns.
+   */
+  useLayoutEffect(() => {
+    const canvas = headerRef.current;
+    if (canvas === null) return;
+    const observer = new ResizeObserver(() => drawHeader());
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [drawHeader]);
 
   // The viewport, and its size.
   useEffect(() => {
@@ -336,6 +404,7 @@ export function HexPane({
   }, [paneId]);
 
   const onScroll = useCallback(() => {
+    drawHeader();
     const host = scrollRef.current;
     const renderer = rendererRef.current;
     if (host === null || renderer === null) return;
@@ -347,7 +416,7 @@ export function HexPane({
     });
     scheduleDraw();
     scrollLink.report(paneId);
-  }, [scheduleDraw, paneId]);
+  }, [scheduleDraw, paneId, drawHeader]);
 
   /** Brings an offset into view with the least scrolling that will do it. */
   const reveal = useCallback((offset: number) => {
@@ -679,6 +748,7 @@ export function HexPane({
         the caret readout below carries the state as a live region. The full
         accessible description of the caret and the document is M12's work.
       */}
+      <canvas ref={headerRef} className="hex-header" />
       <div
         ref={scrollRef}
         className="hex-scroller"

@@ -33,7 +33,14 @@
   --byte-text: #1b1b1f;
   --byte-text-muted: #9a9aa2; /* 0x00 and 0xFF, which are most of a dump */
   --byte-modified: #e41f1f; /* unsaved edit: red foreground, never a fill */
-  --address-text: #6a6a73;
+  /* Ink blue for the column header and the offset column: a pale, slightly
+     desaturated blue that reads as a quiet secondary element beside the dump's
+     byte content. srgb(0.33, 0.54, 0.78) in AppPalette. */
+  --address-text: rgb(84 138 199);
+  /* The offset's leading zeros, so the significant part of the address is what
+     the eye lands on. The same ink held back, not a different colour. */
+  --address-text-muted: rgb(84 138 199 / 0.4);
+  --header-rule: rgb(84 138 199 / 0.35);
   --grid-line: #e4e4e8;
   --eof-hatch: #c8c8ce;
   --selection: rgb(43 108 176 / 0.24);
@@ -81,7 +88,11 @@
     --byte-text: #ececee;
     --byte-text-muted: #63636b;
     --byte-modified: #ff6b66;
-    --address-text: #9a9aa2;
+    /* Lighter on dark, so it stays legible without competing with the bytes.
+       srgb(0.58, 0.73, 0.92). */
+    --address-text: rgb(148 186 235);
+    --address-text-muted: rgb(148 186 235 / 0.4);
+    --header-rule: rgb(148 186 235 / 0.35);
     --grid-line: #2c2c32;
     --eof-hatch: #43434b;
     --selection: rgb(106 169 233 / 0.28);

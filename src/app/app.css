@@ -385,9 +385,21 @@ textarea,
  */
 .hex-pane {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* Pane header, column header, the dump, the caret readout. The column header
+     is its own row so it is pinned outside the scroller and never scrolls
+     vertically with the rows it names. */
+  grid-template-rows: auto auto 1fr auto;
   min-width: 0;
   border-top: 2px solid transparent;
+}
+
+.hex-header {
+  display: block;
+  width: 100%;
+  /* One hex row plus the renderer's own padding above and below. Set from the
+     measured row height so it tracks the font size. */
+  height: var(--hex-header-height, 25px);
+  background: var(--surface);
 }
 
 .hex-pane[data-active] {
@@ -679,6 +691,26 @@ textarea,
   user-select: none;
 }
 
+/* The handle on the panel's leading edge, sitting over the border. */
+.minimap-splitter {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  margin-left: -3px;
+  cursor: col-resize;
+  z-index: 1;
+  touch-action: none;
+}
+
+.minimap-splitter:hover,
+.minimap-splitter:focus-visible {
+  background: var(--accent);
+  opacity: 0.35;
+  outline: none;
+}
+
 .minimap-maps {
   display: flex;
   flex: 1;
@@ -729,11 +761,6 @@ textarea,
 
 .minimap.is-stacked .minimap-maps {
   flex-direction: column;
-}
-
-/* One file open means one map, which does not need the width of two. */
-.minimap:has(.minimap-map:only-child) {
-  width: calc(var(--minimap-map-width, 84px) + var(--minimap-inset, 8px) * 2);
 }
 
 .minimap-canvas {

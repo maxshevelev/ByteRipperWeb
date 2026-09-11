@@ -18,10 +18,14 @@ import {
 } from "@/render/minimap/minimapRenderer";
 import { diffStore } from "@/state/diffStore";
 import {
+  DEFAULT_MINIMAP_WIDTH,
+  MAX_MINIMAP_WIDTH,
+  MIN_MINIMAP_WIDTH,
   minimapStore,
   overviewWorthShowing,
   setMinimapMode,
   setMinimapRows,
+  setMinimapWidth,
 } from "@/state/minimapStore";
 import { useStore } from "@/state/useStore";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
@@ -55,7 +59,12 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
   if (!state.visible || open.length === 0) return null;
 
   return (
-    <aside className={`minimap${stacked ? " is-stacked" : ""}`} aria-label="Minimap">
+    <aside
+      className={`minimap${stacked ? " is-stacked" : ""}`}
+      aria-label="Minimap"
+      style={{ width: state.width }}
+    >
+      <MinimapSplitter width={state.width} />
       <div className="minimap-maps">
         {open.map((pane) => (
           <MinimapCanvas
@@ -79,6 +88,72 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
       </div>
       <MinimapFooter />
     </aside>
+  );
+}
+
+/**
+ * The handle on the panel's leading edge.
+ *
+ * Dragging leftward widens the panel, which is the opposite of the pane divider
+ * next door — the panel is anchored to the window's right edge, so its width is
+ * the distance from the pointer to that edge. Keyboard-reachable for the same
+ * reason the pane divider is: a layout only a pointer can change is a layout
+ * some people cannot change.
+ */
+function MinimapSplitter({ width }: { readonly width: number }) {
+  const dragging = useRef(false);
+
+  const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }, []);
+
+  const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    const panel = event.currentTarget.parentElement;
+    if (panel === null) return;
+    setMinimapWidth(panel.getBoundingClientRect().right - event.clientX);
+  }, []);
+
+  const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
+  const onKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const step = event.shiftKey ? 24 : 8;
+      if (event.key === "ArrowLeft") setMinimapWidth(width + step);
+      else if (event.key === "ArrowRight") setMinimapWidth(width - step);
+      else if (event.key === "Home" || event.key === "Enter") {
+        setMinimapWidth(DEFAULT_MINIMAP_WIDTH);
+      } else return;
+      event.preventDefault();
+    },
+    [width]
+  );
+
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: an <hr> cannot be dragged
+    <div
+      className="minimap-splitter"
+      role="separator"
+      tabIndex={0}
+      aria-label="Resize the minimap"
+      aria-orientation="vertical"
+      aria-valuenow={width}
+      aria-valuemin={MIN_MINIMAP_WIDTH}
+      aria-valuemax={MAX_MINIMAP_WIDTH}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onDoubleClick={() => setMinimapWidth(DEFAULT_MINIMAP_WIDTH)}
+      onKeyDown={onKeyDown}
+    />
   );
 }
 

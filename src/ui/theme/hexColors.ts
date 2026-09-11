@@ -15,7 +15,7 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   mutedByte: "--byte-text-muted",
   modified: "--byte-modified",
   address: "--address-text",
-  mutedAddress: "--text-faint",
+  mutedAddress: "--address-text-muted",
   background: "--surface",
   selection: "--selection",
   eofHatch: "--eof-hatch",

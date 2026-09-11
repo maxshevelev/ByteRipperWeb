@@ -31,8 +31,43 @@ import type { JobId, MinimapWorkerRequest, MinimapWorkerResponse } from "@/worke
 
 export type MinimapStatus = "idle" | "building" | "ready" | "failed";
 
+/**
+ * The panel's width band, from `MainViewController`: it keeps at least the
+ * minimum when shown, and never grows past the maximum, so it stays a compact
+ * column beside the dumps however wide the window gets.
+ */
+export const MIN_MINIMAP_WIDTH = 120;
+export const MAX_MINIMAP_WIDTH = 240;
+/** Upstream opens at the minimum when the user has never chosen a width. */
+export const DEFAULT_MINIMAP_WIDTH = MIN_MINIMAP_WIDTH;
+
+const WIDTH_STORAGE_KEY = "byteripper.minimapWidth";
+
+export const clampMinimapWidth = (width: number): number =>
+  Math.min(MAX_MINIMAP_WIDTH, Math.max(MIN_MINIMAP_WIDTH, Math.round(width)));
+
+/**
+ * The width the user last chose.
+ *
+ * Upstream keeps this in `UserDefaults`; the browser's counterpart is
+ * `localStorage`, which can throw outright in a private window — so a failure
+ * to read it means the default, never a failure to open the panel.
+ */
+function storedWidth(): number {
+  try {
+    const raw = localStorage.getItem(WIDTH_STORAGE_KEY);
+    if (raw === null) return DEFAULT_MINIMAP_WIDTH;
+    const parsed = Number.parseFloat(raw);
+    return Number.isFinite(parsed) ? clampMinimapWidth(parsed) : DEFAULT_MINIMAP_WIDTH;
+  } catch {
+    return DEFAULT_MINIMAP_WIDTH;
+  }
+}
+
 export interface MinimapState {
   readonly visible: boolean;
+  /** The panel's width in CSS pixels, within the band above. */
+  readonly width: number;
   readonly mode: MinimapMode;
   /** True once the user has chosen a mode, which then survives opening a file. */
   readonly modeChosen: boolean;
@@ -49,6 +84,7 @@ export interface MinimapState {
 
 const IDLE: MinimapState = {
   visible: false,
+  width: storedWidth(),
   mode: "overview",
   modeChosen: false,
   rowCount: 0,
@@ -142,6 +178,18 @@ const send = (pane: PaneId, request: MinimapWorkerRequest) => workerFor(pane).po
 export function setMinimapVisible(visible: boolean): void {
   minimapStore.update((state) => (state.visible === visible ? state : { ...state, visible }));
   if (visible) void refreshMinimap();
+}
+
+/** Resizes the panel, clamped and remembered. */
+export function setMinimapWidth(width: number): void {
+  const next = clampMinimapWidth(width);
+  if (minimapStore.getSnapshot().width === next) return;
+  minimapStore.update((state) => ({ ...state, width: next }));
+  try {
+    localStorage.setItem(WIDTH_STORAGE_KEY, String(next));
+  } catch {
+    // A private window may refuse to store it; the width still applies here.
+  }
 }
 
 export function toggleMinimap(): void {
