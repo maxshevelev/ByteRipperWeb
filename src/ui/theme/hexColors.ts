@@ -21,6 +21,8 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   eofHatch: "--eof-hatch",
   difference: "--difference-fill",
   peerSelection: "--peer-selection",
+  caret: "--caret",
+  insertCaret: "--insert-caret",
 };
 
 /** Reads the palette as it currently resolves on `element`. */

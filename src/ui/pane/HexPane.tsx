@@ -192,13 +192,22 @@ export function HexPane({
     const apply = () => {
       const current = doc.selection;
       rendererRef.current?.setSelection({ start: current.start, end: current.end });
+      rendererRef.current?.setCaret({
+        offset: current.start,
+        nibble: typing.nibble,
+        region: typing.inputRegion,
+        insertMode: typing.isInsertMode,
+        // A standing selection shows the active region on its own; the caret
+        // reappears at its start the moment typing begins to consume it.
+        visible: current.end === current.start || typing.nibble === 1,
+      });
       setCaret(current.start);
       onSelectionChanged?.({ start: current.start, end: current.end });
       scheduleDraw();
     };
     apply();
     return doc.onSelectionChanged(apply);
-  }, [doc, scheduleDraw, onSelectionChanged]);
+  }, [doc, scheduleDraw, onSelectionChanged, typing]);
 
   /**
    * The red foreground on every byte that differs from the file on disk.
@@ -295,6 +304,11 @@ export function HexPane({
     [doc, reveal]
   );
 
+  useEffect(() => {
+    rendererRef.current?.setActive(isActive);
+    scheduleDraw();
+  }, [isActive, scheduleDraw]);
+
   // The pane tells the controller where to scroll when typing starts at an
   // offset that may be off screen.
   useEffect(() => {
@@ -307,32 +321,23 @@ export function HexPane({
   }, [typing, reveal]);
 
   /**
-   * The red foreground on every byte that differs from the file on disk.
+   * Repaints the caret from the controller's current state.
    *
-   * Read from the overlay after each change: it already tracks exactly this for
-   * the save path, so there is nothing here to keep in step separately.
+   * The selection does not change when the mode, the column or the nibble does,
+   * so those three need their own nudge — and the nibble changes on every hex
+   * digit, which is what makes the bar step across the byte as you type.
    */
-  useEffect(() => {
-    const apply = () => {
-      const overlay = doc.storage as Partial<EditOverlayStorage>;
-      rendererRef.current?.setModifiedRanges(overlay.changedRanges ?? []);
-      setDirty(doc.isDirty);
-      scheduleDraw();
-    };
-    apply();
-    return doc.onContentChanged(apply);
-  }, [doc, scheduleDraw]);
-
-  // The comparison, and the other pane's selection outlined here.
-  useEffect(() => {
-    rendererRef.current?.setDifferences(differences);
+  const refreshCaret = useCallback(() => {
+    const current = doc.selection;
+    rendererRef.current?.setCaret({
+      offset: current.start,
+      nibble: typing.nibble,
+      region: typing.inputRegion,
+      insertMode: typing.isInsertMode,
+      visible: current.end === current.start || typing.nibble === 1,
+    });
     scheduleDraw();
-  }, [differences, scheduleDraw]);
-
-  useEffect(() => {
-    rendererRef.current?.setPeerSelection(peerSelection);
-    scheduleDraw();
-  }, [peerSelection, scheduleDraw]);
+  }, [doc, typing, scheduleDraw]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -376,7 +381,7 @@ export function HexPane({
           break;
 
         case "hexDigit":
-          void typing.typeHexDigit(command.digit);
+          void typing.typeHexDigit(command.digit).then(refreshCaret);
           break;
         case "character": {
           // The decoding table decides whether the character is representable;
@@ -390,12 +395,15 @@ export function HexPane({
           void (command.forward ? typing.deleteForward() : typing.deleteBackward());
           break;
         case "toggleInsertMode":
-          void typing.toggleInsertMode().then(() => setMode(typing.modeLabel));
+          void typing.toggleInsertMode().then(() => {
+            setMode(typing.modeLabel);
+            refreshCaret();
+          });
           break;
         case "switchColumn": {
           const next: InputRegion = region === "hex" ? "text" : "hex";
           setRegion(next);
-          void typing.setInputRegion(next);
+          void typing.setInputRegion(next).then(refreshCaret);
           break;
         }
         case "undo":
@@ -419,7 +427,7 @@ export function HexPane({
       }
       event.preventDefault();
     },
-    [doc, moveCaret, region, onSave, onSaveAs, typing]
+    [doc, moveCaret, region, onSave, onSaveAs, typing, refreshCaret]
   );
 
   /**
@@ -488,6 +496,14 @@ export function HexPane({
 
       const column = hit.column.kind === "offset" ? 0 : hit.column.column;
       const offset = Math.min(layout.byteOffset(hit.row, column), doc.size);
+      // Clicking in a column is how you choose which one you are typing into.
+      if (hit.column.kind === "hex" || hit.column.kind === "text") {
+        const clicked: InputRegion = hit.column.kind === "hex" ? "hex" : "text";
+        if (clicked !== region) {
+          setRegion(clicked);
+          void typing.setInputRegion(clicked).then(refreshCaret);
+        }
+      }
       dragAnchorRef.current = offset;
       event.currentTarget.setPointerCapture(event.pointerId);
       doc.setSelection(
@@ -495,7 +511,7 @@ export function HexPane({
       );
       event.preventDefault();
     },
-    [contentPoint, doc]
+    [contentPoint, doc, region, typing, refreshCaret]
   );
 
   const onPointerMove = useCallback(

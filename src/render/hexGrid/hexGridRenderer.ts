@@ -36,6 +36,21 @@ export interface HexGridSource {
 }
 
 /** The colours the grid paints with, resolved from the theme's CSS variables. */
+/** Where the next typed byte will land, and how that is drawn. */
+export interface HexGridCaret {
+  readonly offset: number;
+  /** 0 before the high nibble, 1 before the low one. */
+  readonly nibble: 0 | 1;
+  readonly region: "hex" | "text";
+  readonly insertMode: boolean;
+  /**
+   * False while a selection stands and typing is not consuming it — the
+   * selection fill already shows the active region, and a caret inside it would
+   * claim a precision the user has not asked for.
+   */
+  readonly visible: boolean;
+}
+
 export interface HexGridColors extends Record<InkRole, string> {
   readonly background: string;
   readonly selection: string;
@@ -44,6 +59,10 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly difference: string;
   /** The outline showing where the other pane's selection falls here. */
   readonly peerSelection: string;
+  /** The overwrite-mode caret: a bar under the nibble about to be replaced. */
+  readonly caret: string;
+  /** The insert-mode caret: a line at the boundary bytes will be pushed from. */
+  readonly insertCaret: string;
 }
 
 export interface HexGridConfig {
@@ -102,6 +121,9 @@ export class HexGridRenderer {
   private differences: DiffBlockIndex | undefined;
   /** Where the other pane's selection falls at these offsets. */
   private peerSelection: HexGridSelection | undefined;
+  private caret: HexGridCaret | undefined;
+  /** Only the pane the commands act on draws a caret. */
+  private active = false;
 
   private readonly dirty = new DirtyRows();
   /** The scroll offset the canvas currently holds, for the blit. */
@@ -187,6 +209,27 @@ export class HexGridRenderer {
       const last = Math.floor(Math.max(range.start, range.end - 1) / BYTES_PER_ROW);
       this.dirty.invalidate(first, last + 1);
     }
+  }
+
+  /**
+   * Where the caret is. Dirties the row it left and the row it arrived at, so a
+   * caret walking down a column repaints two rows rather than a screen.
+   */
+  setCaret(caret: HexGridCaret | undefined): void {
+    const previous = this.caret;
+    this.caret = caret;
+    for (const each of [previous, caret]) {
+      if (each === undefined) continue;
+      this.dirty.invalidateRow(Math.floor(each.offset / BYTES_PER_ROW));
+    }
+  }
+
+  /** Whether this is the pane the keyboard is talking to. */
+  setActive(active: boolean): void {
+    if (this.active === active) return;
+    this.active = active;
+    const caret = this.caret;
+    if (caret !== undefined) this.dirty.invalidateRow(Math.floor(caret.offset / BYTES_PER_ROW));
   }
 
   /**
@@ -287,6 +330,7 @@ export class HexGridRenderer {
         if (!this.paintRow(row, size)) missedBytes = true;
       }
     }
+    this.paintPastLastRow(rowCount);
     this.context.restore();
 
     this.dirty.clearWithin(first, end);
@@ -394,7 +438,97 @@ export class HexGridRenderer {
       this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
     }
     if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
+    this.paintCaret(rowStart, y);
     return true;
+  }
+
+  /**
+   * The ground below the file's last row.
+   *
+   * A document shorter than the viewport leaves the rest of the canvas holding
+   * whatever was there before — which on a fresh canvas is transparent black.
+   * Nothing paints it, because there is no row there to paint.
+   */
+  private paintPastLastRow(rowCount: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+
+    const { layout, colors } = config;
+    const contentBottom = rowCount * layout.rowHeight;
+    const viewportBottom = this.viewport.scrollTop + this.viewport.heightCss;
+    if (contentBottom >= viewportBottom) return;
+
+    this.context.fillStyle = colors.background;
+    this.context.fillRect(
+      this.viewport.scrollLeft,
+      contentBottom,
+      Math.max(layout.contentWidth, this.viewport.widthCss),
+      viewportBottom - contentBottom
+    );
+  }
+
+  /**
+   * The caret, on the active pane only.
+   *
+   * Overwrite mode draws a bar under the nibble about to be replaced — below
+   * the glyph, whose ink is centred in the row, so it never covers the symbol
+   * it is pointing at. Insert mode draws a full-height line at the boundary the
+   * bytes will be pushed from, in a different colour, because the two do
+   * different things to the file and a caret that looked the same for both
+   * would be the app's most dangerous piece of ambiguity.
+   *
+   * With no selection the caret also outlines its byte in the *other* column,
+   * linking the hex and the decoded views of the same byte.
+   */
+  private paintCaret(rowStart: number, y: number): void {
+    const config = this.config;
+    const caret = this.caret;
+    if (config === undefined || caret === undefined || !this.active || !caret.visible) return;
+    if (caret.offset < rowStart || caret.offset >= rowStart + BYTES_PER_ROW) return;
+
+    const { layout, colors } = config;
+    const column = caret.offset - rowStart;
+
+    // The link to the same byte in the column the caret is not in.
+    this.context.save();
+    this.context.strokeStyle = colors.caret;
+    this.context.globalAlpha = 0.5;
+    this.context.lineWidth = 1;
+    if (caret.region === "hex") {
+      this.context.strokeRect(
+        layout.textX(column) + 0.5,
+        y + 0.5,
+        layout.charWidth - 1,
+        layout.rowHeight - 1
+      );
+    } else {
+      this.context.strokeRect(
+        layout.hexByteX(column) + 0.5,
+        y + 0.5,
+        layout.hexByteWidth - 1,
+        layout.rowHeight - 1
+      );
+    }
+    this.context.restore();
+
+    if (caret.insertMode) {
+      // A thin line at the byte's left edge — where the byte will go. After the
+      // first digit it shifts between the nibbles; the text column is
+      // whole-byte, so its line stays on the cell's edge.
+      const x =
+        caret.region === "text"
+          ? layout.textX(column)
+          : layout.hexByteX(column) + (caret.nibble === 1 ? layout.charWidth : 0);
+      this.context.fillStyle = colors.insertCaret;
+      this.context.fillRect(x, y, 1, layout.rowHeight);
+      return;
+    }
+
+    const x = caret.region === "text" ? layout.textX(column) : layout.caretX(column, caret.nibble);
+    // Two pixels at the row's bottom edge, running a little past it, so it
+    // reads as a solid bar under the byte without eating into the row.
+    this.context.fillStyle = colors.caret;
+    this.context.fillRect(x, y + layout.rowHeight - 2, layout.charWidth, 3);
   }
 
   /** The address, with its leading zeros muted. */

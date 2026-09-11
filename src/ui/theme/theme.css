@@ -38,6 +38,8 @@
   --eof-hatch: #c8c8ce;
   --selection: rgb(43 108 176 / 0.24);
   --peer-selection: rgb(43 108 176 / 0.55);
+  --caret: #2b6cb0;
+  --insert-caret: #e41f1f;
 
   /* Ported from AppPalette */
   --semantic-bad: #e41f1f;
@@ -77,6 +79,8 @@
     --eof-hatch: #43434b;
     --selection: rgb(106 169 233 / 0.28);
     --peer-selection: rgb(106 169 233 / 0.6);
+    --caret: #6aa9e9;
+    --insert-caret: #ff6b66;
 
     --semantic-bad: #ff6b66;
     --semantic-caution: #dba85c;
