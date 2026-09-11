@@ -371,7 +371,14 @@ export class HexGridRenderer {
     this.requestReadAhead(first, end, size);
 
     const runs = this.dirty.within(first, end);
-    if (runs.length === 0) {
+    // The ground below the last row is not a row, so no dirty run ever covers
+    // it. Past the end of a file — which a comparison reaches whenever the
+    // companion is longer — there are no rows to paint at all, and leaving on
+    // that early return handed back an untouched canvas: black, because it is
+    // opaque. Whether the ground is showing has to be part of the question.
+    const contentBottom = rowCount * layout.rowHeight;
+    const groundVisible = contentBottom < this.viewport.scrollTop + this.viewport.heightCss;
+    if (runs.length === 0 && !groundVisible) {
       this.paintedScrollTop = this.viewport.scrollTop;
       this.paintedRows = { first, end };
       return;
