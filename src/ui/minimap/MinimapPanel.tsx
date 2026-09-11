@@ -4,9 +4,12 @@ import {
   derivedTopRow,
   type MinimapMode,
   overviewRowCount,
+  scrollTargetForBand,
   snappedOffsetAtY,
   viewportBand,
   visibleRowCount,
+  wheelScrollTarget,
+  yOfOffset,
 } from "@/render/minimap/minimapGeometry";
 import {
   type CellState,
@@ -35,15 +38,18 @@ import { readMinimapColors } from "@/ui/theme/minimapColors";
  */
 
 export interface MinimapPanelProps {
+  /** What each pane has selected, drawn as a strip on its map. */
+  readonly selections: Partial<Record<PaneId, { readonly start: number; readonly end: number }>>;
   /** Makes a pane the active one, as clicking its dump does. */
   readonly onActivate: (pane: PaneId) => void;
   /** The maps mirror the panes' arrangement. */
   readonly stacked: boolean;
 }
 
-export function MinimapPanel({ onActivate, stacked }: MinimapPanelProps) {
+export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelProps) {
   const state = useStore(minimapStore);
   const workspace = useStore(workspaceStore);
+  const viewports = usePaneViewports();
   const open = PANE_IDS.filter((id) => workspace.panes[id] !== undefined);
 
   if (!state.visible || open.length === 0) return null;
@@ -52,11 +58,70 @@ export function MinimapPanel({ onActivate, stacked }: MinimapPanelProps) {
     <aside className={`minimap${stacked ? " is-stacked" : ""}`} aria-label="Minimap">
       <div className="minimap-maps">
         {open.map((pane) => (
-          <MinimapCanvas key={pane} pane={pane} mode={state.mode} onActivate={onActivate} />
+          <MinimapCanvas
+            key={pane}
+            pane={pane}
+            mode={state.mode}
+            selection={selections[pane]}
+            viewport={viewports[pane]}
+            stacked={stacked}
+            onActivate={onActivate}
+          />
         ))}
+        {/*
+         * Side by side, the band is one element across the whole panel rather
+         * than a rectangle inside each canvas. The panes are locked to the same
+         * offsets, so what it says is true of both maps at once — and drawn per
+         * canvas it broke at every seam, which read as two separate claims
+         * about two separate files. Stacked, each map keeps its own.
+         */}
+        {stacked ? null : <SharedBand mode={state.mode} viewport={viewports[open[0] ?? "a"]} />}
       </div>
       <MinimapFooter />
     </aside>
+  );
+}
+
+/** The one band the side-by-side layout draws, edge to edge and over the gap. */
+function SharedBand({
+  mode,
+  viewport,
+}: {
+  readonly mode: MinimapMode;
+  readonly viewport: { readonly start: number; readonly end: number } | undefined;
+}) {
+  const state = useStore(minimapStore);
+  const workspace = useStore(workspaceStore);
+  const [height, setHeight] = useState(0);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element === null) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) setHeight(entry.contentRect.height);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const sizes = PANE_IDS.map((id) => workspace.panes[id]?.document.size ?? 0).filter((s) => s > 0);
+  const band = viewportBand({
+    mode,
+    viewport,
+    areaHeight: height,
+    topRow: derivedTopRow({ mode, sizes, windowRows: visibleRowCount(height), viewport }),
+    extent: state.extent,
+    overviewRows: state.pictures.a?.rowCount ?? state.pictures.b?.rowCount ?? 0,
+    minHeight: MIN_BAND_HEIGHT,
+  });
+
+  return (
+    <div className="minimap-band-layer" ref={ref} aria-hidden="true">
+      {band === undefined ? null : (
+        <div className="minimap-band" style={{ top: band.top, height: band.height }} />
+      )}
+    </div>
   );
 }
 
@@ -137,11 +202,22 @@ function MinimapFooter() {
 interface CanvasProps {
   readonly pane: PaneId;
   readonly mode: MinimapMode;
+  readonly selection: { readonly start: number; readonly end: number } | undefined;
+  readonly viewport: { readonly start: number; readonly end: number } | undefined;
+  /** Stacked, each map carries its own band; side by side they share one. */
+  readonly stacked: boolean;
   readonly onActivate: (pane: PaneId) => void;
 }
 
-function MinimapCanvas({ pane, mode, onActivate }: CanvasProps) {
-  const viewport = usePaneViewports()[pane];
+/**
+ * The floor on the viewport band's height, in CSS pixels.
+ *
+ * The band is a handle before it is an indication: a viewport that is a sliver
+ * of a 16 MB file would otherwise be too thin to put a pointer on.
+ */
+const MIN_BAND_HEIGHT = 6;
+
+function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<MinimapRenderer | null>(null);
   const state = useStore(minimapStore);
@@ -238,6 +314,35 @@ function MinimapCanvas({ pane, mode, onActivate }: CanvasProps) {
     };
   }, [mode, slot, topRow, windowRows, differences]);
 
+  /** The band as it is currently drawn, which is also the drag handle. */
+  const band = viewportBand({
+    mode,
+    viewport,
+    areaHeight: size.height,
+    topRow,
+    extent: state.extent,
+    overviewRows: state.pictures[pane]?.rowCount ?? 0,
+    minHeight: MIN_BAND_HEIGHT,
+  });
+
+  /**
+   * The panes' own selection, as a strip across the map.
+   *
+   * A caret is not a selection and draws nothing: a single byte highlighted
+   * across the full width of a whole-file overview would claim far more of the
+   * file than the user picked.
+   */
+  const selectionStrip = (() => {
+    if (selection === undefined || selection.end <= selection.start) return undefined;
+    const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
+    const top = Math.max(0, yOfOffset({ ...shared, offset: selection.start }));
+    const bottom = Math.min(size.height, yOfOffset({ ...shared, offset: selection.end }));
+    if (bottom <= 0 || top >= size.height) return undefined;
+    // Given the same floor a difference mark gets, for the same reason: a
+    // selection of a few bytes in a 16 MB file is thinner than a pixel.
+    return { top, height: Math.max(bottom - top, MIN_BAND_HEIGHT) };
+  })();
+
   // The draw itself.
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -247,22 +352,8 @@ function MinimapCanvas({ pane, mode, onActivate }: CanvasProps) {
     renderer.setColors(colors);
     renderer.resize(size.width, size.height, window.devicePixelRatio);
 
-    const picture = state.pictures[pane];
-    renderer.draw({
-      mode,
-      cells,
-      picture,
-      band: viewportBand({
-        mode,
-        viewport,
-        areaHeight: size.height,
-        topRow,
-        extent: state.extent,
-        overviewRows: picture?.rowCount ?? 0,
-        minHeight: renderer.minMarkHeight * 2,
-      }),
-    });
-  }, [colors, size, state.pictures, state.extent, pane, mode, cells, viewport, topRow]);
+    renderer.draw({ mode, cells, picture: state.pictures[pane], selection: selectionStrip });
+  }, [colors, size, state.pictures, pane, mode, cells, selectionStrip]);
 
   const offsetFromEvent = useCallback(
     (event: { clientY: number }): number | undefined => {
@@ -282,36 +373,91 @@ function MinimapCanvas({ pane, mode, onActivate }: CanvasProps) {
     [mode, topRow, state.extent, state.pictures, pane, slot]
   );
 
-  // Click to jump, drag to scan. The pointer is captured so a drag that leaves
-  // the map keeps steering it, which is what makes dragging the band usable.
-  const dragging = useRef(false);
+  /**
+   * Where in the band the drag took hold, or `undefined` when no drag is on.
+   *
+   * Dragging the band is a scrollbar gesture: the grab offset is kept so the
+   * band stays under the point of the pointer that picked it up, rather than
+   * jumping its middle to the cursor.
+   */
+  const grab = useRef<{ offset: number; height: number } | undefined>(undefined);
+
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       if (event.button !== 0) return;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      dragging.current = true;
+      const canvas = event.currentTarget;
+      // Capture keeps a drag steering the map after the pointer leaves it,
+      // which is most of what makes the band usable. Failing to get it is not
+      // a reason to refuse the drag — it just stops at the canvas edge.
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch {
+        // No active pointer with that id; carry on without capture.
+      }
       onActivate(pane);
+
+      const y = event.clientY - canvas.getBoundingClientRect().top;
+      if (band !== undefined && y >= band.top && y <= band.top + band.height) {
+        // On the band: this press is the start of a scroll, so it must not also
+        // be read as a "take me here" jump.
+        grab.current = { offset: y - band.top, height: band.height };
+        return;
+      }
+
+      // Off the band: the click means the byte drawn under it, so the pane
+      // centres on it — and the drag then continues from the band's middle, so
+      // the press can still turn into a scroll.
       const offset = offsetFromEvent(event);
-      if (offset !== undefined) scrollLink.scrollToOffset(pane, offset, BYTES_PER_ROW);
+      if (offset !== undefined) {
+        scrollLink.scrollToOffset(pane, offset, BYTES_PER_ROW, { centre: true });
+      }
+      const height = band?.height ?? MIN_BAND_HEIGHT;
+      grab.current = { offset: height / 2, height };
     },
-    [offsetFromEvent, onActivate, pane]
+    [band, offsetFromEvent, onActivate, pane]
   );
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
-      if (!dragging.current) return;
-      const offset = offsetFromEvent(event);
-      if (offset !== undefined) scrollLink.scrollToOffset(pane, offset, BYTES_PER_ROW);
+      const held = grab.current;
+      if (held === undefined) return;
+      const canvas = event.currentTarget;
+      const y = event.clientY - canvas.getBoundingClientRect().top;
+      // A scrollbar gesture, and deliberately unsnapped: a continuous drag that
+      // jumped to a file edge would fight the hand holding it.
+      const target = scrollTargetForBand({
+        mode,
+        bandTop: y - held.offset,
+        bandHeight: held.height,
+        areaHeight: size.height,
+        sizes,
+        ...(viewport === undefined
+          ? {}
+          : { paneRows: Math.max(1, Math.ceil((viewport.end - viewport.start) / BYTES_PER_ROW)) }),
+      });
+      if (target !== undefined) scrollLink.scrollToOffset(pane, target, BYTES_PER_ROW);
     },
-    [offsetFromEvent, pane]
+    [mode, size.height, sizes, viewport, pane]
   );
 
   const endDrag = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    dragging.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    grab.current = undefined;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Nothing to release.
     }
   }, []);
+
+  const onWheel = useCallback(
+    (event: React.WheelEvent<HTMLCanvasElement>) => {
+      const target = wheelScrollTarget({ deltaY: event.deltaY, viewport, sizes });
+      if (target !== undefined) scrollLink.scrollToOffset(pane, target, BYTES_PER_ROW);
+    },
+    [viewport, sizes, pane]
+  );
 
   const label =
     slot === undefined
@@ -319,15 +465,20 @@ function MinimapCanvas({ pane, mode, onActivate }: CanvasProps) {
       : `Minimap of ${slot.name}, ${mode === "detail" ? "detail" : "overview"}`;
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="minimap-canvas"
-      aria-label={label}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onWheel={(event) => scrollLink.scrollBy(pane, event.deltaY)}
-    />
+    <div className="minimap-map">
+      <canvas
+        ref={canvasRef}
+        className="minimap-canvas"
+        aria-label={label}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onWheel={onWheel}
+      />
+      {stacked && band !== undefined ? (
+        <div className="minimap-band" style={{ top: band.top, height: band.height }} />
+      ) : null}
+    </div>
   );
 }

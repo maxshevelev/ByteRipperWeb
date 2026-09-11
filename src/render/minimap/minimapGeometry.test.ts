@@ -3,7 +3,7 @@
  * same claims against the geometry itself.
  */
 
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
   BYTES_PER_ROW,
   derivedTopRow,
@@ -12,9 +12,12 @@ import {
   overviewIsInformative,
   preferredMode,
   ROW_STEP,
+  scrollTargetForBand,
   snappedOffsetAtY,
   viewportBand,
   visibleRowCount,
+  wheelScrollTarget,
+  yOfOffset,
 } from "@/render/minimap/minimapGeometry";
 
 test("a row costs the same however large the file is", () => {
@@ -148,4 +151,151 @@ test("no file showing means no band", () => {
       overviewRows: 600,
     })
   ).toBeUndefined();
+});
+
+describe("dragging the band", () => {
+  // The band is a scrollbar handle, so its travel down the map stands for the
+  // file's whole scrollable range — in detail mode especially, where the map
+  // itself shows only a few hundred rows of a file that may have millions.
+  const fileSize = 4 * 1024 * 1024;
+  const sizes = [fileSize];
+  const areaHeight = 600;
+  const bandHeight = 60;
+
+  test("detail: the band reaches the end of the file", () => {
+    const totalRows = Math.ceil(fileSize / BYTES_PER_ROW);
+    const windowRows = visibleRowCount(areaHeight);
+    const paneRows = Math.round(bandHeight / ROW_STEP);
+
+    const atTop = scrollTargetForBand({
+      mode: "detail",
+      bandTop: 0,
+      bandHeight,
+      areaHeight,
+      sizes,
+    });
+    const atBottom = scrollTargetForBand({
+      mode: "detail",
+      bandTop: windowRows * ROW_STEP - bandHeight,
+      bandHeight,
+      areaHeight,
+      sizes,
+    });
+
+    expect(atTop).toBe(0);
+    // Dragged to the bottom of its travel, the band asks for the last page of
+    // the file — not for the bottom of the map's own little window.
+    expect(atBottom).toBe((totalRows - paneRows) * BYTES_PER_ROW);
+    expect(atBottom).toBeGreaterThan(4 * 1024 * 1024 - 4096);
+  });
+
+  test("detail: halfway down the travel is halfway through the file", () => {
+    const windowRows = visibleRowCount(areaHeight);
+    const travel = windowRows * ROW_STEP - bandHeight;
+    const middle = scrollTargetForBand({
+      mode: "detail",
+      bandTop: travel / 2,
+      bandHeight,
+      areaHeight,
+      sizes,
+    });
+    if (middle === undefined) throw new Error("the band should map to an offset");
+    expect(middle / fileSize).toBeGreaterThan(0.49);
+    expect(middle / fileSize).toBeLessThan(0.51);
+  });
+
+  test("detail: a file that fits on the map maps the band straight to its row", () => {
+    const small = [600];
+    expect(
+      scrollTargetForBand({
+        mode: "detail",
+        bandTop: ROW_STEP * 3,
+        bandHeight,
+        areaHeight,
+        sizes: small,
+      })
+    ).toBe(3 * BYTES_PER_ROW);
+  });
+
+  test("overview: the band is a proportional scrollbar over the whole file", () => {
+    const paneRows = 50;
+    const totalRows = Math.ceil(fileSize / BYTES_PER_ROW);
+    expect(
+      scrollTargetForBand({ mode: "overview", bandTop: 0, bandHeight, areaHeight, sizes, paneRows })
+    ).toBe(0);
+    expect(
+      scrollTargetForBand({
+        mode: "overview",
+        bandTop: areaHeight - bandHeight,
+        bandHeight,
+        areaHeight,
+        sizes,
+        paneRows,
+      })
+    ).toBe((totalRows - paneRows) * BYTES_PER_ROW);
+  });
+
+  test("a drag past either end clamps rather than running off", () => {
+    expect(
+      scrollTargetForBand({ mode: "detail", bandTop: -500, bandHeight, areaHeight, sizes })
+    ).toBe(0);
+    const far = scrollTargetForBand({
+      mode: "detail",
+      bandTop: 100_000,
+      bandHeight,
+      areaHeight,
+      sizes,
+    });
+    if (far === undefined) throw new Error("the band should map to an offset");
+    expect(far).toBeLessThan(fileSize);
+  });
+});
+
+describe("the wheel over a map", () => {
+  const sizes = [4 * 1024 * 1024];
+
+  test("scrolls at the map's own scale, not the pane's", () => {
+    // One hex row per ROW_STEP of wheel, which is what makes the map move with
+    // the hand rather than creeping.
+    const target = wheelScrollTarget({
+      deltaY: ROW_STEP * 20,
+      viewport: { start: 0, end: 800 },
+      sizes,
+    });
+    expect(target).toBe(20 * BYTES_PER_ROW);
+  });
+
+  test("scrolls towards the end of the file on a downward wheel", () => {
+    const start = 1000 * BYTES_PER_ROW;
+    const down = wheelScrollTarget({
+      deltaY: ROW_STEP * 10,
+      viewport: { start, end: start + 800 },
+      sizes,
+    });
+    const up = wheelScrollTarget({
+      deltaY: -ROW_STEP * 10,
+      viewport: { start, end: start + 800 },
+      sizes,
+    });
+    expect(down).toBe(1010 * BYTES_PER_ROW);
+    expect(up).toBe(990 * BYTES_PER_ROW);
+  });
+
+  test("clamps at both ends and ignores a wheel too small to move a row", () => {
+    expect(wheelScrollTarget({ deltaY: -100, viewport: { start: 0, end: 800 }, sizes })).toBe(0);
+    expect(
+      wheelScrollTarget({ deltaY: 1, viewport: { start: 0, end: 800 }, sizes })
+    ).toBeUndefined();
+    expect(wheelScrollTarget({ deltaY: 100, viewport: undefined, sizes })).toBeUndefined();
+  });
+});
+
+test("an offset's height and the byte at that height agree", () => {
+  // The selection strip, the band and a click all go through this pair.
+  const shared = { mode: "overview", areaHeight: 600, topRow: 0, extent: 8_000_000 } as const;
+  for (const offset of [0, 1_000_000, 4_000_000, 7_999_999]) {
+    const y = yOfOffset({ ...shared, offset });
+    const back = offsetAtY({ ...shared, y, overviewRows: 600 });
+    expect(Math.abs(back - offset)).toBeLessThan(8_000_000 / 600 + 1);
+  }
 });

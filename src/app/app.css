@@ -663,7 +663,14 @@ textarea,
   grid-column: 2;
   /* Two maps at a legible width, plus the seam between them. A map narrower
      than this cannot show 16 cells across without them blurring into one. */
-  width: var(--minimap-width, 170px);
+  /* Two maps at a legible width, plus the insets and the gap between them. */
+  width: calc(
+    var(--minimap-map-width, 84px) *
+    2 +
+    var(--minimap-gap, 10px) +
+    var(--minimap-inset, 8px) *
+    2
+  );
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
@@ -676,8 +683,48 @@ textarea,
   display: flex;
   flex: 1;
   min-height: 0;
-  gap: 1px;
-  background: var(--border);
+  /* Breathing room at the edges and between the maps: a map running into the
+     pane beside it, or into its neighbour, reads as one wide picture rather
+     than as two files being compared. */
+  padding: var(--minimap-inset, 8px);
+  gap: var(--minimap-gap, 4px);
+  /* The band is positioned against this box. */
+  position: relative;
+}
+
+/* One map and, when stacked, its own band. */
+.minimap-map {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * The band's own coordinate space: as tall as the canvases and as wide as the
+ * whole panel, so a band drawn in it runs edge to edge and straight across the
+ * gap between the maps. What it says is true of both at once — the panes are
+ * locked to the same offsets — so a seam through it would be a lie about that.
+ */
+.minimap-band-layer {
+  position: absolute;
+  top: var(--minimap-inset, 8px);
+  bottom: var(--minimap-inset, 8px);
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.minimap-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--minimap-viewport);
+  border-top: 1px solid var(--minimap-viewport-border);
+  border-bottom: 1px solid var(--minimap-viewport-border);
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .minimap.is-stacked .minimap-maps {
@@ -685,13 +732,16 @@ textarea,
 }
 
 /* One file open means one map, which does not need the width of two. */
-.minimap:has(.minimap-canvas:only-child) {
-  width: var(--minimap-width-single, 92px);
+.minimap:has(.minimap-map:only-child) {
+  width: calc(var(--minimap-map-width, 84px) + var(--minimap-inset, 8px) * 2);
 }
 
 .minimap-canvas {
   display: block;
   flex: 1;
+  /* The picture is content, so it gets an edge of its own to sit inside. */
+  border: 1px solid var(--border);
+  border-radius: 2px;
   min-width: 0;
   min-height: 0;
   /* Both dimensions come from CSS, never from the canvas's own attributes: the

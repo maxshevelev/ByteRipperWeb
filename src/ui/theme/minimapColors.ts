@@ -10,14 +10,13 @@ import type { MinimapColors } from "@/render/minimap/minimapRenderer";
 
 const VARIABLES: Record<keyof MinimapColors, string> = {
   background: "--surface",
+  selection: "--selection",
   byte: "--byte-text",
   mutedByte: "--byte-text-muted",
   modified: "--byte-modified",
   difference: "--difference-fill",
   matchFill: "--match-fill",
   currentMatchFill: "--current-match-fill",
-  viewport: "--minimap-viewport",
-  viewportBorder: "--minimap-viewport-border",
 };
 
 export function readMinimapColors(element: Element = document.documentElement): MinimapColors {

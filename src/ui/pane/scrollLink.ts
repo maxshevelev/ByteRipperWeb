@@ -129,33 +129,30 @@ export class ScrollLink {
   }
 
   /**
-   * Puts an offset's row at the top of a pane, clamped to what it can scroll.
+   * Takes a pane to an offset, clamped to what it can scroll.
+   *
+   * Two ways of arriving, because they answer different gestures. A click on
+   * the map means "show me this", so the row is **centred** and its
+   * surroundings come with it. A drag or a wheel is a scroll, so the row goes
+   * to the **top** — anything else would make the content slide under the hand
+   * by half a screen.
    *
    * Nothing here touches the caret: this is a way of looking somewhere.
    */
-  scrollToOffset(id: string, offset: number, bytesPerRow: number): void {
+  scrollToOffset(
+    id: string,
+    offset: number,
+    bytesPerRow: number,
+    options: { readonly centre?: boolean } = {}
+  ): void {
     const pane = this.panes.get(id);
     if (pane === undefined) return;
     const rowHeight = pane.rowHeight();
     if (rowHeight <= 0) return;
     const element = pane.element;
-    // Centred, so a click on the map shows the surroundings of what was aimed
-    // at rather than putting it against the top edge.
     const rowTop = Math.floor(offset / bytesPerRow) * rowHeight;
-    const target = rowTop - element.clientHeight / 2 + rowHeight;
+    const target = options.centre === true ? rowTop - element.clientHeight / 2 + rowHeight : rowTop;
     element.scrollTop = Math.max(0, Math.min(target, element.scrollHeight - element.clientHeight));
-    this.report(id);
-  }
-
-  /** Scrolls a pane by a wheel's worth, and mirrors it. */
-  scrollBy(id: string, deltaY: number): void {
-    const pane = this.panes.get(id);
-    if (pane === undefined) return;
-    const element = pane.element;
-    element.scrollTop = Math.max(
-      0,
-      Math.min(element.scrollTop + deltaY, element.scrollHeight - element.clientHeight)
-    );
     this.report(id);
   }
 

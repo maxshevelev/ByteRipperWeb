@@ -47,14 +47,13 @@ export interface OverviewPicture {
 
 export interface MinimapColors {
   readonly background: string;
+  readonly selection: string;
   readonly byte: string;
   readonly mutedByte: string;
   readonly modified: string;
   readonly difference: string;
   readonly matchFill: string;
   readonly currentMatchFill: string;
-  readonly viewport: string;
-  readonly viewportBorder: string;
 }
 
 /**
@@ -149,13 +148,20 @@ export class MinimapRenderer {
     readonly cells?: readonly CellState[] | undefined;
     /** Overview mode: the picture and its overlays. */
     readonly picture?: OverviewPicture | undefined;
-    /** The band standing for what the panes show. */
-    readonly band?: { readonly top: number; readonly height: number } | undefined;
+    /** What the pane has selected, as a strip. */
+    readonly selection?: { readonly top: number; readonly height: number } | undefined;
   }): void {
     this.begin();
     if (options.mode === "detail") this.drawDetail(options.cells ?? []);
     else if (options.picture !== undefined) this.drawOverview(options.picture);
-    if (options.band !== undefined) this.drawBand(options.band);
+    if (options.selection !== undefined) this.drawSelection(options.selection);
+  }
+
+  /** The pane's selection, across the width of its map. */
+  private drawSelection(strip: { readonly top: number; readonly height: number }): void {
+    const context = this.context;
+    context.fillStyle = this.colors.selection;
+    context.fillRect(0, strip.top, this.width, strip.height);
   }
 
   /** One cell per byte: the map reads as a miniature of the dump itself. */
@@ -256,22 +262,6 @@ export class MinimapRenderer {
         context.fillRect(column * cellWidth, y, cellWidth, markHeight);
       }
     }
-  }
-
-  /** The band standing for what the panes are showing. */
-  private drawBand(band: { readonly top: number; readonly height: number }): void {
-    const context = this.context;
-    context.fillStyle = this.colors.viewport;
-    context.fillRect(0, band.top, this.width, band.height);
-    context.strokeStyle = this.colors.viewportBorder;
-    context.lineWidth = 1 / this.ratio;
-    const half = context.lineWidth / 2;
-    context.strokeRect(
-      half,
-      band.top + half,
-      this.width - context.lineWidth,
-      band.height - context.lineWidth
-    );
   }
 
   /**

@@ -385,7 +385,11 @@ export function AppShell() {
           />
         ) : null}
       </main>
-      <MinimapPanel onActivate={setActivePane} stacked={state.layout === "stacked"} />
+      <MinimapPanel
+        selections={selections}
+        onActivate={setActivePane}
+        stacked={state.layout === "stacked"}
+      />
       {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
       {searchOpen &&
       search.matches !== undefined &&
