@@ -237,6 +237,7 @@ export function AppShell() {
             return (
               <HexPane
                 key={`${id}:${pane.name}:${pane.file.lastModified}`}
+                paneId={id}
                 label={id === "a" ? "File A" : "File B"}
                 name={pane.name}
                 document={pane.document}

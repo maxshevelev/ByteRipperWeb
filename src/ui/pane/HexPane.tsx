@@ -15,6 +15,7 @@ import {
   resolveHexKey,
   resolveTarget,
 } from "@/ui/pane/hexKeys";
+import { scrollLink } from "@/ui/pane/scrollLink";
 import { observeHexColors, readHexColors } from "@/ui/theme/hexColors";
 
 /**
@@ -36,6 +37,11 @@ export interface HexPaneProps {
   /** Which slot this is, for the header and for focus. */
   readonly label: string;
   readonly isActive: boolean;
+  /**
+   * Which slot this is, as the scroll link's key. Comparison locks the two
+   * panes to the same offsets, and the link needs to tell them apart.
+   */
+  readonly paneId: string;
   readonly onActivate: () => void;
   readonly onClose: () => void;
   /** The comparison, when there are two files. */
@@ -74,6 +80,7 @@ export function HexPane({
   name,
   label,
   isActive,
+  paneId,
   onActivate,
   onClose,
   differences,
@@ -237,6 +244,17 @@ export function HexPane({
     host.scrollTop = Math.max(0, rowTop - host.clientHeight / 2 + layout.rowHeight);
   }, [revealRequest, doc]);
 
+  // Comparison locks the panes to the same offsets. With one file open the
+  // link has nothing to mirror to and does nothing.
+  useEffect(() => {
+    const host = scrollRef.current;
+    if (host === null) return;
+    return scrollLink.register(paneId, {
+      element: host,
+      rowHeight: () => layoutRef.current?.rowHeight ?? 0,
+    });
+  }, [paneId]);
+
   const onScroll = useCallback(() => {
     const host = scrollRef.current;
     const renderer = rendererRef.current;
@@ -248,7 +266,8 @@ export function HexPane({
       heightCss: host.clientHeight,
     });
     scheduleDraw();
-  }, [scheduleDraw]);
+    scrollLink.report(paneId);
+  }, [scheduleDraw, paneId]);
 
   /** Brings an offset into view with the least scrolling that will do it. */
   const reveal = useCallback((offset: number) => {
