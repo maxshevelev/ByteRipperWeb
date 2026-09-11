@@ -59,7 +59,9 @@ textarea,
      index of the file's height, so it has to share that height. Everything
      else spans both columns. */
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto 1fr;
+  /* Toolbar, find bar, workspace. The find bar's row collapses to nothing when
+     it is not up, so the workspace keeps the height it had. */
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
 }
 
@@ -91,7 +93,7 @@ textarea,
 
 .app-workspace {
   display: grid;
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 1;
   min-height: 0;
   overflow: hidden;
@@ -572,7 +574,9 @@ textarea,
 /* ── The find bar and its results ─────────────────────────────────────── */
 
 .find-bar {
-  border-top: 1px solid var(--border);
+  /* Under the toolbar, above the dumps: the border goes on the bottom now. */
+  grid-row: 2;
+  border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
 }
 
@@ -671,7 +675,7 @@ textarea,
 /* The minimap panel, beside the panes. Its width is the two maps plus the
    gutter between them, so a stacked layout stacks the maps the same way. */
 .minimap {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 2;
   /* Two maps at a legible width, plus the seam between them. A map narrower
      than this cannot show 16 cells across without them blurring into one. */

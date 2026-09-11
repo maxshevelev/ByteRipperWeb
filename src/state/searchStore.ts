@@ -25,6 +25,15 @@ import type { JobId, SearchWorkerRequest, SearchWorkerResponse } from "@/workers
 export type SearchStatus = "idle" | "searching" | "found" | "notFound" | "failed";
 
 export interface SearchState {
+  /**
+   * Whether the find bar is on screen.
+   *
+   * Deliberately not derived from the query or the status. An empty query is a
+   * search with nothing to look for, not a closed find bar — deleting the last
+   * character used to make the bar vanish out from under the cursor that was
+   * still deleting. Only {@link closeSearch} closes it.
+   */
+  readonly open: boolean;
   readonly status: SearchStatus;
   readonly query: string;
   /** Empty means Smart Search: try the encodings in order and report which won. */
@@ -46,6 +55,7 @@ export interface SearchState {
 }
 
 const IDLE: SearchState = {
+  open: false,
   status: "idle",
   query: "",
   encoding: "smart",
@@ -509,6 +519,13 @@ export function stepSearch(direction: "forward" | "backward"): void {
     current: step.range,
     wrapped: step.wrapped,
   }));
+}
+
+/** Shows the find bar, and says whether it was already up. */
+export function openSearch(): boolean {
+  const wasOpen = searchStore.getSnapshot().open;
+  if (!wasOpen) searchStore.update((state) => ({ ...state, open: true }));
+  return wasOpen;
 }
 
 export function closeSearch(): void {

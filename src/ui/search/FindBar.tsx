@@ -12,6 +12,25 @@ import { useStore } from "@/state/useStore";
  * encoding actually found the match, when Smart Search was the one asking, and
  * whether the last step came round the end of the file.
  */
+/** The class the shell focuses through, so only one place names it. */
+export const FIND_INPUT_CLASS = "find-input";
+
+/**
+ * Puts the keyboard in the find field and selects what is there.
+ *
+ * Reaching for the element rather than passing a ref down: the bar is mounted
+ * and unmounted by the shell, so a ref would be null exactly when the shortcut
+ * that mounts it needs to use it.
+ */
+export function focusFindInput(): void {
+  // After the render that mounts the bar, not before it.
+  requestAnimationFrame(() => {
+    const input = document.querySelector<HTMLInputElement>(`input.${FIND_INPUT_CLASS}`);
+    input?.focus();
+    input?.select();
+  });
+}
+
 export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => void }) {
   const state = useStore(searchStore);
   const inputId = useId();

@@ -60,7 +60,9 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 // the first time a search runs and keeps it for the life of the module.
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { noteSearchEdit, searchStore, startSearch } = await import("@/state/searchStore");
+const { closeSearch, noteSearchEdit, openSearch, searchStore, startSearch } = await import(
+  "@/state/searchStore"
+);
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 beforeEach(() => {
@@ -174,4 +176,32 @@ test("an edit re-runs the search, so the matches follow the bytes", async () => 
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("emptying the query leaves the find bar up", () => {
+  // Deleting the last character is editing a search, not dismissing one. The
+  // bar used to be derived from the query, so it vanished out from under the
+  // cursor that was still deleting.
+  openSearch();
+  startSearch({ query: "DEADBEEF", encoding: "hex" });
+  expect(searchStore.getSnapshot().open).toBe(true);
+
+  startSearch({ query: "", encoding: "hex" });
+  const state = searchStore.getSnapshot();
+  expect(state.open).toBe(true);
+  expect(state.status).toBe("idle");
+  expect(state.matches).toBeUndefined();
+});
+
+test("only closing closes it", () => {
+  openSearch();
+  expect(searchStore.getSnapshot().open).toBe(true);
+  closeSearch();
+  expect(searchStore.getSnapshot().open).toBe(false);
+});
+
+test("opening an already-open bar says so, so the shortcut can start over", () => {
+  closeSearch();
+  expect(openSearch()).toBe(false);
+  expect(openSearch()).toBe(true);
 });

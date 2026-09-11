@@ -7,7 +7,13 @@ import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { noteMinimapEdit, watchForMinimap } from "@/state/minimapStore";
-import { noteSearchEdit, searchStore, setSearchPane } from "@/state/searchStore";
+import {
+  closeSearch,
+  noteSearchEdit,
+  openSearch,
+  searchStore,
+  setSearchPane,
+} from "@/state/searchStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -31,7 +37,7 @@ import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
-import { FindBar } from "@/ui/search/FindBar";
+import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { SearchResults } from "@/ui/search/SearchResults";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
@@ -215,8 +221,8 @@ export function AppShell() {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [goToOpen, setGoToOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const search = useStore(searchStore);
+  const searchOpen = search.open;
 
   useEffect(() => watchForMinimap(), []);
 
@@ -225,11 +231,43 @@ export function AppShell() {
     setSearchPane(activePane);
   }, [activePane]);
 
-  // Escape closes the bar from anywhere, and Cmd/Ctrl+F opens it.
+  // Closing the last file closes the find bar with it. Refusing to open it
+  // over an empty workspace while leaving one open there would be two answers
+  // to the same question.
   useEffect(() => {
-    // closeSearch() resets the store, which is how Escape reaches this.
-    if (search.status === "idle" && search.query === "") setSearchOpen(false);
-  }, [search.status, search.query]);
+    if (state.panes.a === undefined && state.panes.b === undefined) closeSearch();
+  }, [state.panes.a, state.panes.b]);
+
+  /**
+   * Find, from anywhere.
+   *
+   * The pane maps Cmd/Ctrl+F too, but only while it has the keyboard — and the
+   * browser's own find is waiting behind it everywhere else: in the toolbar, in
+   * the find bar's own field, with nothing focused at all. This takes the key
+   * at the window before it can get there.
+   *
+   * Pressing it while the bar is already up re-selects the field, which is what
+   * every other find bar does and what makes the shortcut a way of starting
+   * over rather than a no-op.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "f" && event.key !== "F") return;
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      // Nothing to search in yet: leave the browser's own find alone.
+      if (workspaceStore.getSnapshot().panes.a === undefined) return;
+      event.preventDefault();
+      openSearch();
+      focusFindInput();
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
+
+  const openFind = useCallback(() => {
+    openSearch();
+    focusFindInput();
+  }, []);
 
   const doFill = useCallback((pattern: Uint8Array) => {
     void workspaceStore
@@ -333,8 +371,9 @@ export function AppShell() {
         onDeleteBytes={doDeleteBytes}
         onGoTo={() => setGoToOpen(true)}
         onDuplicate={doDuplicate}
-        onFind={() => setSearchOpen(true)}
+        onFind={openFind}
       />
+      {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
       <main
         className="app-workspace"
         data-layout={state.layout}
@@ -377,7 +416,7 @@ export function AppShell() {
                 onSave={() => void doSave(false)}
                 onSaveAs={() => void doSave(true)}
                 onGoTo={() => setGoToOpen(true)}
-                onFind={() => setSearchOpen(true)}
+                onFind={openFind}
                 matches={search.pane === id ? search.matches : undefined}
                 currentMatch={search.pane === id ? search.current : undefined}
               />
@@ -397,7 +436,6 @@ export function AppShell() {
         onActivate={setActivePane}
         stacked={state.layout === "stacked"}
       />
-      {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
       {searchOpen &&
       search.matches !== undefined &&
       search.matches.total > 0 &&
