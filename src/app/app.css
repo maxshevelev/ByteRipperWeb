@@ -66,14 +66,73 @@ body {
  * those fit on any bench monitor. Stacked is for a narrow window, or a long
  * region read down the page.
  */
+/*
+ * The divider is a grid item between the two panes, so the three sit in one
+ * track list and the browser does the arithmetic. `--split` is File A's share.
+ */
 .app-workspace[data-panes="2"][data-layout="sideBySide"] {
-  grid-template-columns: 1fr 1fr;
-  background: var(--border);
+  grid-template-columns: var(--split, 1fr) 0 var(--split-rest, 1fr);
+  grid-template-areas: "a divider b";
+  gap: 0;
 }
 
 .app-workspace[data-panes="2"][data-layout="stacked"] {
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: var(--split, 1fr) 0 var(--split-rest, 1fr);
+  grid-template-areas: "a" "divider" "b";
+  gap: 0;
+}
+
+.app-workspace[data-panes="2"] > .hex-pane:first-of-type {
+  grid-area: a;
+}
+
+.app-workspace[data-panes="2"] > .hex-pane:nth-of-type(2) {
+  grid-area: b;
+}
+
+.pane-divider {
+  grid-area: divider;
+  position: relative;
+  z-index: 1;
   background: var(--border);
+  border: 0;
+  outline: none;
+  /* A one-pixel line is the right look and a hopeless target, so the hit area
+     reaches out either side of it without taking any space in the grid. */
+}
+
+.pane-divider::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.pane-divider[data-layout="sideBySide"] {
+  width: 1px;
+  cursor: col-resize;
+}
+
+.pane-divider[data-layout="sideBySide"]::after {
+  inset-inline: -4px;
+}
+
+.pane-divider[data-layout="stacked"] {
+  height: 1px;
+  cursor: row-resize;
+}
+
+.pane-divider[data-layout="stacked"]::after {
+  inset-block: -4px;
+}
+
+.pane-divider:hover,
+.pane-divider:focus-visible {
+  background: var(--accent);
+}
+
+.pane-divider:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .empty-state {
@@ -372,4 +431,87 @@ body {
 .readout-dirty {
   color: var(--byte-modified);
   font-weight: 600;
+}
+
+/* ── Dialogs ──────────────────────────────────────────────────────────── */
+
+.dialog {
+  min-width: 22rem;
+  max-width: min(32rem, 90vw);
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+
+.dialog-title {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  font-size: 1rem;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--text-muted);
+}
+
+.dialog-field input {
+  font: inherit;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.dialog-help,
+.dialog-message {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.dialog-message {
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.dialog-preview {
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  overflow-x: auto;
+}
+
+.dialog-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
 }

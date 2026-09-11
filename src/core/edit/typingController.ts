@@ -56,10 +56,14 @@ export interface TypingControllerOptions {
    */
   readonly onReveal?: (offset: number) => void;
   /**
-   * Asked once, before the first edit that shifts the file's offsets. Returning
-   * false swallows the keystroke. Absent means no confirmation is wanted.
+   * Asked once, before the first edit that shifts the file's offsets. Answering
+   * no swallows the keystroke. Absent means no confirmation is wanted.
+   *
+   * May answer asynchronously, because a real dialog does. That is safe here
+   * and nowhere else: every edit already goes through one queue, so the
+   * keystrokes behind this one wait rather than racing past it.
    */
-  readonly confirmInsertShift?: () => boolean;
+  readonly confirmInsertShift?: () => boolean | Promise<boolean>;
 }
 
 export class TypingController {
@@ -174,7 +178,7 @@ export class TypingController {
   typeHexDigit(digit: number): Promise<void> {
     if (!Number.isInteger(digit) || digit < 0 || digit > 15) return Promise.resolve();
     return this.run(async () => {
-      if (!this.allowShift()) return;
+      if (!(await this.allowShift())) return;
       this.region = "hex";
 
       if (this.insertMode) {
@@ -213,7 +217,7 @@ export class TypingController {
    */
   typeByte(byte: number): Promise<void> {
     return this.run(async () => {
-      if (!this.allowShift()) return;
+      if (!(await this.allowShift())) return;
       this.region = "text";
       await this.closeGroup();
 
@@ -292,7 +296,7 @@ export class TypingController {
   pasteBytes(bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return Promise.resolve();
     return this.run(async () => {
-      if (!this.allowShift()) return;
+      if (!(await this.allowShift())) return;
       await this.closeGroup();
       this.closeSeries();
       this.nibbleIndex = 0;
@@ -368,7 +372,7 @@ export class TypingController {
     return this.run(async () => {
       const { start, end } = this.doc.selection;
       if (end <= start) return;
-      if (!this.confirmShiftOnce()) return;
+      if (!(await this.confirmShiftOnce())) return;
 
       await this.closeGroup();
       this.closeSeries();
@@ -400,7 +404,7 @@ export class TypingController {
 
   private deleting(forward: boolean): Promise<void> {
     return this.run(async () => {
-      if (!this.allowShift()) return;
+      if (!(await this.allowShift())) return;
       await this.closeGroup();
       this.closeSeries();
 
@@ -448,17 +452,17 @@ export class TypingController {
    * The one-time warning before an edit that shifts every offset after it.
    * Answering no swallows the keystroke.
    */
-  private allowShift(): boolean {
+  private async allowShift(): Promise<boolean> {
     if (!this.insertMode) return true;
-    return this.confirmShiftOnce();
+    return await this.confirmShiftOnce();
   }
 
   /** The warning itself, for the commands that shift whatever the mode. */
-  private confirmShiftOnce(): boolean {
+  private async confirmShiftOnce(): Promise<boolean> {
     if (this.warnedAboutShift) return true;
     const confirm = this.options.confirmInsertShift;
     if (confirm === undefined) return true;
-    if (!confirm()) return false;
+    if (!(await confirm())) return false;
     this.warnedAboutShift = true;
     return true;
   }

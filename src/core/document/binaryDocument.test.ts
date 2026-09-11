@@ -505,3 +505,30 @@ describe("reverting", () => {
     expect(doc.selection).toEqual(caretAt(0, 3));
   });
 });
+
+describe("a half-typed byte", () => {
+  it("counts as unsaved while its edit group is still open", async () => {
+    // The bytes have already changed — the byte is on screen, in red — but the
+    // transaction is not recorded until the group closes. Reporting clean there
+    // is the one moment a close could discard a visible edit without asking.
+    const doc = documentOf([0x00, 0x11]);
+    doc.beginEditGroup();
+    await doc.overwrite(0, new Uint8Array([0xa0]));
+
+    expect(await content(doc)).toEqual([0xa0, 0x11]);
+    expect(doc.isDirty).toBe(true);
+
+    doc.endEditGroup();
+    expect(doc.isDirty).toBe(true);
+  });
+
+  it("goes clean again when the group is cancelled", async () => {
+    const doc = documentOf([0x00, 0x11]);
+    doc.beginEditGroup();
+    await doc.overwrite(0, new Uint8Array([0xa0]));
+    await doc.cancelEditGroup();
+
+    expect(await content(doc)).toEqual([0x00, 0x11]);
+    expect(doc.isDirty).toBe(false);
+  });
+});

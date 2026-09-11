@@ -547,3 +547,43 @@ describe("undo and redo, through the controller", () => {
     expect(await t.content()).toEqual([0x50, 0, 0]);
   });
 });
+
+describe("an asynchronous confirmation", () => {
+  it("holds the keystrokes behind it rather than letting them race past", async () => {
+    // A real dialog answers when the user does. The queue is what makes that
+    // safe: the digits typed while it is open land after the answer, in order.
+    let resolve: ((allowed: boolean) => void) | undefined;
+    const doc = new BinaryDocument(new EditOverlayStorage(storageOver(new Uint8Array([1, 2]))));
+    const typing = new TypingController(doc, {
+      confirmInsertShift: () =>
+        new Promise<boolean>((settle) => {
+          resolve = settle;
+        }),
+    });
+    await typing.setInsertMode(true);
+
+    const first = typing.typeHexDigit(0xa);
+    const second = typing.typeHexDigit(0x5);
+    await Promise.resolve();
+    expect(asArray(await readAll(doc.storage))).toEqual([1, 2]); // still waiting
+
+    resolve?.(true);
+    await Promise.all([first, second]);
+    expect(asArray(await readAll(doc.storage))).toEqual([0xa5, 1, 2]);
+  });
+
+  it("swallows the keystroke when the answer is no, and asks again next time", async () => {
+    const answers = [false, true];
+    const doc = new BinaryDocument(new EditOverlayStorage(storageOver(new Uint8Array([1, 2]))));
+    const typing = new TypingController(doc, {
+      confirmInsertShift: () => Promise.resolve(answers.shift() ?? true),
+    });
+    await typing.setInsertMode(true);
+
+    await typing.typeHexDigit(0xa);
+    expect(asArray(await readAll(doc.storage))).toEqual([1, 2]);
+
+    await typing.typeHexDigit(0xa);
+    expect(asArray(await readAll(doc.storage))).toEqual([0xa0, 1, 2]);
+  });
+});

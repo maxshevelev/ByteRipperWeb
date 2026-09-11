@@ -60,6 +60,7 @@ export interface HexPaneProps {
   readonly typing: TypingController;
   readonly onSave?: (() => void) | undefined;
   readonly onSaveAs?: (() => void) | undefined;
+  readonly onGoTo?: (() => void) | undefined;
 }
 
 const platform = detectKeyboardPlatform();
@@ -90,6 +91,7 @@ export function HexPane({
   typing,
   onSave,
   onSaveAs,
+  onGoTo,
 }: HexPaneProps) {
   const readoutId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -138,6 +140,16 @@ export function HexPane({
     if (renderer === null) return;
 
     const configure = () => {
+      // The byte at the top of the viewport, captured before the metrics move.
+      // Without this a font change scrolls the file out from under the reader,
+      // further the further down they are.
+      const host = scrollRef.current;
+      const previous = layoutRef.current;
+      const anchorRow =
+        host === null || previous === undefined
+          ? undefined
+          : Math.floor(host.scrollTop / previous.rowHeight);
+
       const metrics = measureFont(fontSizePx);
       const layout = new HexLayout({
         charWidth: metrics.charWidth,
@@ -157,6 +169,7 @@ export function HexPane({
       renderer.setSource(doc);
       setContentHeight(renderer.contentHeight);
       setContentWidth(renderer.contentWidth);
+      if (host !== null && anchorRow !== undefined) host.scrollTop = anchorRow * layout.rowHeight;
       scheduleDraw();
     };
 
@@ -385,9 +398,7 @@ export function HexPane({
           doc.setSelection(makeSelection(0, doc.size, doc.size));
           break;
         case "goToPosition":
-          // The Go To dialog arrives with the command palette; until then the
-          // shortcut must still not fall through to the browser's own Cmd+L,
-          // which would put focus in the address bar mid-edit.
+          onGoTo?.();
           break;
 
         case "hexDigit":
@@ -437,7 +448,7 @@ export function HexPane({
       }
       event.preventDefault();
     },
-    [doc, moveCaret, region, onSave, onSaveAs, typing, refreshCaret]
+    [doc, moveCaret, region, onSave, onSaveAs, onGoTo, typing, refreshCaret]
   );
 
   /**

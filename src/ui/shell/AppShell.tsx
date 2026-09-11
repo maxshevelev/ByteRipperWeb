@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
-import { parseHex } from "@/core/text/hexText";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
+import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
   closePane,
@@ -16,11 +16,17 @@ import {
   revertPane,
   savePane,
   setActivePane,
+  setConfirmShiftingEdits,
+  setSplitFraction,
   slotForNewFile,
   workspaceStore,
 } from "@/state/workspaceStore";
+import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
+import { FillDialog } from "@/ui/dialogs/FillDialog";
+import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { HexPane } from "@/ui/pane/HexPane";
 import { EmptyState } from "@/ui/shell/EmptyState";
+import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { StatusBar } from "@/ui/shell/StatusBar";
 import { Toolbar } from "@/ui/shell/Toolbar";
 
@@ -53,19 +59,33 @@ export function AppShell() {
   /**
    * The one-time warning before an edit that shifts every offset after it.
    *
-   * Asked once per pane, because the second time it is noise — the user has
-   * chosen insert mode and knows what it does.
+   * It resolves a promise the editing queue is waiting on, so the keystrokes
+   * behind it wait rather than racing past the answer — and it can be turned
+   * off from its own checkbox, because asking every session teaches people to
+   * dismiss the dialog without reading it.
    */
-  const confirmInsertShift = useCallback(
-    () =>
-      window.confirm(
-        "This edit will shift every byte after it, so every offset past this point changes.\n\n" +
-          "That is what insert mode does, and it is undoable. Carry on?"
-      ),
-    []
-  );
+  const shiftAnswer = useRef<((allowed: boolean) => void) | undefined>(undefined);
+  const [shiftAsking, setShiftAsking] = useState(false);
+
+  const confirmInsertShift = useCallback(() => {
+    if (!workspaceStore.getSnapshot().confirmShiftingEdits) return true;
+    setShiftAsking(true);
+    return new Promise<boolean>((resolve) => {
+      shiftAnswer.current = resolve;
+    });
+  }, []);
+
+  const answerShift = useCallback((allowed: boolean, remember = false) => {
+    setShiftAsking(false);
+    if (remember) setConfirmShiftingEdits(false);
+    shiftAnswer.current?.(allowed);
+    shiftAnswer.current = undefined;
+  }, []);
 
   useEffect(() => watchWorkspaceForComparison(), []);
+  // The tab can be closed in a dozen ways this app never hears about; this is
+  // the one hook it does get.
+  useEffect(() => watchForUnsavedWork(), []);
 
   // The two things the editing controllers need from the app: where to send an
   // edit, and who to ask before one that shifts every offset after it.
@@ -164,16 +184,38 @@ export function AppShell() {
     );
   }, [activePane]);
 
-  const doFill = useCallback(() => {
-    const answer = window.prompt("Fill the selection by repeating these bytes:", "00");
-    if (answer === null) return;
-    const pattern = parseHex(answer);
-    if (pattern === undefined) {
-      reportProblem(`"${answer}" is not a hexadecimal byte pattern.`);
-      return;
+  const [fillOpen, setFillOpen] = useState(false);
+  const [goToOpen, setGoToOpen] = useState(false);
+
+  const doFill = useCallback((pattern: Uint8Array) => {
+    void workspaceStore
+      .getSnapshot()
+      .panes[workspaceStore.getSnapshot().activePane]?.typing.fillSelection(pattern);
+  }, []);
+
+  /** Moves the caret, and shows it: a Go To that did not scroll would be a lie. */
+  const doGoTo = useCallback(
+    (offset: number) => {
+      setReveal({
+        a: { offset, token: ++revealToken.current },
+        b: { offset, token: revealToken.current },
+      });
+      setActivePane(activePane);
+    },
+    [activePane]
+  );
+
+  /**
+   * Closing a pane throws away whatever is unsaved in it, so it asks first —
+   * and names the file, because with two open the wrong one is easy to close.
+   */
+  const closeWithWarning = useCallback((pane: PaneId) => {
+    const slot = workspaceStore.getSnapshot().panes[pane];
+    if (slot?.document.isDirty) {
+      if (!window.confirm(`${slot.name} has unsaved edits. Close it and lose them?`)) return;
     }
-    void workspaceStore.getSnapshot().panes[activePane]?.typing.fillSelection(pattern);
-  }, [activePane]);
+    closePane(pane);
+  }, []);
 
   const doDeleteBytes = useCallback(() => {
     void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
@@ -228,10 +270,23 @@ export function AppShell() {
         onSave={() => void doSave(false)}
         onSaveAs={() => void doSave(true)}
         onRevert={doRevert}
-        onFill={doFill}
+        onFill={() => setFillOpen(true)}
         onDeleteBytes={doDeleteBytes}
+        onGoTo={() => setGoToOpen(true)}
       />
-      <main className="app-workspace" data-layout={state.layout} data-panes={panes.length}>
+      <main
+        className="app-workspace"
+        data-layout={state.layout}
+        data-panes={panes.length}
+        style={
+          panes.length === 2
+            ? ({
+                "--split": `${state.splitFraction}fr`,
+                "--split-rest": `${1 - state.splitFraction}fr`,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
         {panes.length === 0 ? (
           <EmptyState onOpen={() => void open()} />
         ) : (
@@ -250,7 +305,7 @@ export function AppShell() {
                 fontSizePx={state.fontSizePx}
                 isActive={state.activePane === id}
                 onActivate={() => setActivePane(id)}
-                onClose={() => closePane(id)}
+                onClose={() => closeWithWarning(id)}
                 differences={diff.index}
                 peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
                 onSelectionChanged={onSelectionChanged[id]}
@@ -258,13 +313,46 @@ export function AppShell() {
                 typing={pane.typing}
                 onSave={() => void doSave(false)}
                 onSaveAs={() => void doSave(true)}
+                onGoTo={() => setGoToOpen(true)}
               />
             );
           })
         )}
+        {panes.length === 2 ? (
+          <PaneDivider
+            layout={state.layout}
+            fraction={state.splitFraction}
+            onChange={setSplitFraction}
+          />
+        ) : null}
       </main>
       <StatusBar />
       {dragging ? <div className="drop-veil">Drop to open</div> : null}
+
+      <GoToDialog
+        open={goToOpen}
+        fileSize={state.panes[activePane]?.document.size ?? 0}
+        onGo={doGoTo}
+        onClose={() => setGoToOpen(false)}
+      />
+      <FillDialog
+        open={fillOpen}
+        byteCount={Math.max(1, selections[activePane].end - selections[activePane].start)}
+        onFill={doFill}
+        onClose={() => setFillOpen(false)}
+      />
+      <ConfirmDialog
+        open={shiftAsking}
+        title="This edit shifts the file"
+        message={
+          "Every byte after this point will move, so every offset past it changes. " +
+          "That is what insert mode does, and it is undoable."
+        }
+        confirmLabel="Carry on"
+        rememberLabel="Do not ask again"
+        onConfirm={(remember) => answerShift(true, remember)}
+        onCancel={() => answerShift(false)}
+      />
     </div>
   );
 }

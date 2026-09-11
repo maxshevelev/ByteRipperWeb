@@ -4,8 +4,12 @@ import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { useStore } from "@/state/useStore";
 import {
+  DEFAULT_FONT_SIZE_PX,
   GROUPING_GAP_CHOICES,
+  MAX_FONT_SIZE_PX,
+  MIN_FONT_SIZE_PX,
   type PaneId,
+  setFontSize,
   setGroupingGap,
   setLayout,
   setWordSize,
@@ -26,6 +30,7 @@ export function Toolbar({
   onRevert,
   onFill,
   onDeleteBytes,
+  onGoTo,
 }: {
   readonly onOpen: (into?: PaneId) => void;
   readonly onNew: () => void;
@@ -35,6 +40,7 @@ export function Toolbar({
   readonly onRevert: () => void;
   readonly onFill: () => void;
   readonly onDeleteBytes: () => void;
+  readonly onGoTo: () => void;
 }) {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
@@ -154,12 +160,52 @@ export function Toolbar({
             Revert
           </button>
           <span className="toolbar-divider" />
+          <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">
+            Go To…
+          </button>
           <button type="button" className="toolbar-button" onClick={onFill}>
             Fill…
           </button>
           <button type="button" className="toolbar-button" onClick={onDeleteBytes}>
             Delete Bytes
           </button>
+          {/*
+            Our own zoom steps the hex font only. It deliberately does not use
+            Cmd/Ctrl +/− : the browser owns those for page zoom, which the user
+            also wants, and a page this app fought over would be worse than no
+            zoom at all.
+          */}
+          <div className="toolbar-group">
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => setFontSize(state.fontSizePx - 1)}
+              disabled={state.fontSizePx <= MIN_FONT_SIZE_PX}
+              title="Smaller hex font"
+              aria-label="Smaller hex font"
+            >
+              A−
+            </button>
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => setFontSize(DEFAULT_FONT_SIZE_PX)}
+              title={`Reset the hex font to ${DEFAULT_FONT_SIZE_PX}px`}
+            >
+              {state.fontSizePx}px
+            </button>
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => setFontSize(state.fontSizePx + 1)}
+              disabled={state.fontSizePx >= MAX_FONT_SIZE_PX}
+              title="Larger hex font"
+              aria-label="Larger hex font"
+            >
+              A+
+            </button>
+          </div>
+
           <label className="toolbar-field">
             Word size
             <select

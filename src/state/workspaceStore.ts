@@ -54,7 +54,7 @@ export interface PaneState {
  */
 export const editingHooks: {
   onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
-  confirmShift?: (() => boolean) | undefined;
+  confirmShift?: (() => boolean | Promise<boolean>) | undefined;
 } = {};
 
 function makeDocument(storage: EditableByteStorage, pane: PaneId) {
@@ -91,9 +91,21 @@ export const GROUPING_GAP_CHOICES: readonly number[] = [16, 32, 64, 256];
  */
 export const DEFAULT_GROUPING_GAP = 64;
 
+/**
+ * How small and how large the hex font may be stepped.
+ *
+ * Below nine pixels the two hex digits of a byte stop being two digits; above
+ * twenty-four a row of sixteen no longer fits a pane worth having.
+ */
+export const MIN_FONT_SIZE_PX = 9;
+export const MAX_FONT_SIZE_PX = 24;
+export const DEFAULT_FONT_SIZE_PX = 13;
+
 export interface WorkspaceState {
   readonly panes: Readonly<Record<PaneId, PaneState | undefined>>;
   readonly layout: PaneLayout;
+  /** File A's share of the workspace, 0–1. The divider moves it. */
+  readonly splitFraction: number;
   /** Which pane the keyboard and the commands act on. */
   readonly activePane: PaneId;
   readonly capabilities: FileCapabilities;
@@ -101,6 +113,11 @@ export interface WorkspaceState {
   readonly decoderIdentifier: string;
   readonly fontSizePx: number;
   readonly groupingGap: number;
+  /**
+   * Whether to ask before an edit that shifts every offset after it. Turned off
+   * from the warning's own "don't ask again".
+   */
+  readonly confirmShiftingEdits: boolean;
   /** Something the user needs told — a file that would not open. */
   readonly problem: string | undefined;
 }
@@ -108,12 +125,14 @@ export interface WorkspaceState {
 export const workspaceStore = createStore<WorkspaceState>({
   panes: { a: undefined, b: undefined },
   layout: "sideBySide",
+  splitFraction: 0.5,
   activePane: "a",
   capabilities: detectFileCapabilities(),
   wordSize: 1,
   decoderIdentifier: "cp1252",
-  fontSizePx: 13,
+  fontSizePx: DEFAULT_FONT_SIZE_PX,
   groupingGap: DEFAULT_GROUPING_GAP,
+  confirmShiftingEdits: true,
   problem: undefined,
 });
 
@@ -194,6 +213,8 @@ export function swapPanes(): void {
     ...state,
     panes: { a: state.panes.b, b: state.panes.a },
     activePane: state.activePane === "a" ? "b" : "a",
+    // The files change sides, so the sizes they were given change with them.
+    splitFraction: 1 - state.splitFraction,
   }));
 }
 
@@ -201,6 +222,10 @@ export function setActivePane(pane: PaneId): void {
   workspaceStore.update((state) =>
     state.activePane === pane ? state : { ...state, activePane: pane }
   );
+}
+
+export function setSplitFraction(splitFraction: number): void {
+  workspaceStore.update((state) => ({ ...state, splitFraction }));
 }
 
 export function setLayout(layout: PaneLayout): void {
@@ -211,6 +236,10 @@ export function setWordSize(wordSize: WordSize): void {
   workspaceStore.update((state) => ({ ...state, wordSize }));
 }
 
+export function setConfirmShiftingEdits(confirmShiftingEdits: boolean): void {
+  workspaceStore.update((state) => ({ ...state, confirmShiftingEdits }));
+}
+
 export function setGroupingGap(groupingGap: number): void {
   workspaceStore.update((state) => ({ ...state, groupingGap }));
 }
@@ -218,7 +247,7 @@ export function setGroupingGap(groupingGap: number): void {
 export function setFontSize(fontSizePx: number): void {
   workspaceStore.update((state) => ({
     ...state,
-    fontSizePx: Math.min(24, Math.max(9, fontSizePx)),
+    fontSizePx: Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, Math.round(fontSizePx))),
   }));
 }
 

@@ -272,8 +272,17 @@ export class BinaryDocument {
 
   // MARK: - Dirty state
 
+  /**
+   * True when the document holds anything the file on disk does not.
+   *
+   * The undo history answers for committed transactions. An open edit group is
+   * the other half: a half-typed hex byte has already changed the bytes — it is
+   * on screen, in red — but its transaction is not recorded until the second
+   * nibble closes the group. Upstream reports that state as clean, which is the
+   * one moment a close could throw away a visible edit without asking.
+   */
   get isDirty(): boolean {
-    return this.undoHistory.isDirty;
+    return this.undoHistory.isDirty || this.pendingGroupOps.length > 0;
   }
 
   get canUndo(): boolean {
