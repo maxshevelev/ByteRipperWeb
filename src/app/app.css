@@ -889,10 +889,10 @@ textarea,
   display: flex;
   flex: 1;
   min-height: 0;
-  /* Breathing room at the edges and between the maps: a map running into the
-     pane beside it, or into its neighbour, reads as one wide picture rather
-     than as two files being compared. */
-  padding: var(--minimap-inset, 8px);
+  /* Breathing room at the sides and the foot, but not the top: the maps have to
+     start on the dump's own first row, and a top inset would put every offset a
+     few rows out from the bytes it stands for. */
+  padding: 0 var(--minimap-inset, 8px) var(--minimap-inset, 8px);
   gap: var(--minimap-gap, 4px);
   /* The band is positioned against this box. */
   position: relative;
@@ -915,7 +915,7 @@ textarea,
  */
 .minimap-band-layer {
   position: absolute;
-  top: var(--minimap-inset, 8px);
+  top: 0;
   bottom: var(--minimap-inset, 8px);
   left: 0;
   right: 0;
@@ -954,12 +954,18 @@ textarea,
   touch-action: none;
 }
 
-.minimap-footer {
+/*
+ * The strip the mode switch sits in. Its height is set from the page — the pane
+ * chrome beside it — so the maps below begin on the dump's own first row.
+ */
+.minimap-head {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 4px 6px;
-  border-top: 1px solid var(--border);
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .minimap-modes {

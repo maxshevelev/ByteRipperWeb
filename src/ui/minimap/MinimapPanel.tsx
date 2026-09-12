@@ -55,6 +55,8 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
   const workspace = useStore(workspaceStore);
   const viewports = usePaneViewports();
   const open = PANE_IDS.filter((id) => workspace.panes[id] !== undefined);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const headInset = useDumpTopInset(panelRef, open.length);
 
   if (!state.visible || open.length === 0) return null;
 
@@ -62,9 +64,17 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
     <aside
       className={`minimap${stacked ? " is-stacked" : ""}`}
       aria-label="Minimap"
+      ref={panelRef}
       style={{ width: state.width }}
     >
       <MinimapSplitter width={state.width} />
+      {/*
+        The switch sits in a strip exactly as tall as the pane chrome beside it
+        — the pane's own header plus the dump's column header — so the maps
+        begin on the same line the bytes do. A map that started higher than the
+        dump it stands for would put every offset a few rows out.
+      */}
+      <MinimapModes height={headInset} />
       <div className="minimap-maps">
         {open.map((pane) => (
           <MinimapCanvas
@@ -86,9 +96,47 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
          */}
         {stacked ? null : <SharedBand mode={state.mode} viewport={viewports[open[0] ?? "a"]} />}
       </div>
-      <MinimapFooter />
     </aside>
   );
+}
+
+/**
+ * How far below the workspace's top the dumps actually start.
+ *
+ * Measured rather than assumed: the pane's header and the dump's column header
+ * are both sized from the hex font's metrics, so the only number that stays
+ * right is the one read off the page.
+ */
+function useDumpTopInset(panelRef: React.RefObject<HTMLElement | null>, openPanes: number): number {
+  const [inset, setInset] = useState(0);
+
+  useLayoutEffect(() => {
+    // No panes, nothing to line up with.
+    if (openPanes === 0) {
+      setInset(0);
+      return;
+    }
+
+    const measure = () => {
+      const panel = panelRef.current;
+      const scroller = document.querySelector(".hex-scroller");
+      if (panel === null || scroller === null) return;
+      const gap = scroller.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+      setInset((previous) => (Math.abs(previous - gap) < 0.5 ? previous : Math.max(0, gap)));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const element of [panelRef.current, document.querySelector(".hex-scroller")]) {
+      if (element !== null) observer.observe(element);
+    }
+    return () => observer.disconnect();
+    // Re-bound when a pane opens or closes, and not otherwise: this component
+    // re-renders on every scroll, and rebuilding the observer each time would
+    // be a teardown and a measurement per frame of a drag.
+  }, [panelRef, openPanes]);
+
+  return inset;
 }
 
 /**
@@ -234,12 +282,12 @@ function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number
 }
 
 /** The mode switch and the build's progress. */
-function MinimapFooter() {
+function MinimapModes({ height }: { readonly height: number }) {
   const state = useStore(minimapStore);
   const overviewUseful = overviewWorthShowing();
 
   return (
-    <div className="minimap-footer">
+    <div className="minimap-head" style={height > 0 ? { height } : undefined}>
       <fieldset className="minimap-modes">
         <legend className="visually-hidden">Minimap mode</legend>
         {(["detail", "overview"] as const).map((mode) => (
