@@ -708,7 +708,9 @@ textarea,
   color: var(--text);
 }
 
-.find-case.is-on {
+/* Both find-bar toggles read the same way when they are on. */
+.find-case.is-on,
+.find-smart.is-on {
   border-color: var(--accent);
   color: var(--accent);
 }

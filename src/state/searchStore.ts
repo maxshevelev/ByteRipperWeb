@@ -64,8 +64,19 @@ export interface SearchState {
    */
   readonly open: boolean;
   readonly query: string;
-  /** Empty means Smart Search: try the encodings in order and report which won. */
-  readonly encoding: SearchEncoding | "smart";
+  /**
+   * The encoding the field is read in.
+   *
+   * With Smart Search on this is a *result* rather than an instruction: the
+   * pass tries it first and then its own order, and whatever worked is written
+   * back here. With Smart Search off it is the only encoding tried.
+   */
+  readonly encoding: SearchEncoding;
+  /**
+   * Whether the encoding is discovered rather than dictated. On unless turned
+   * off, and remembered — upstream keeps it in `UserDefaults`.
+   */
+  readonly smart: boolean;
   readonly caseSensitive: boolean;
   /** Which pane the bar acts on — the active one. */
   readonly pane: PaneId;
@@ -75,10 +86,23 @@ export interface SearchState {
   readonly results: Readonly<Record<PaneId, PaneResults>>;
 }
 
+const SMART_STORAGE_KEY = "byteripper.smartSearch";
+
+/** On unless the user has turned it off. */
+function storedSmart(): boolean {
+  try {
+    return localStorage.getItem(SMART_STORAGE_KEY) !== "off";
+  } catch {
+    // A private window may refuse to read it; on is the better default.
+    return true;
+  }
+}
+
 const IDLE: SearchState = {
   open: false,
   query: "",
-  encoding: "smart",
+  encoding: "hex",
+  smart: storedSmart(),
   caseSensitive: false,
   pane: "a",
   problem: undefined,
@@ -123,13 +147,16 @@ function ensureWorker(): Worker {
         // and reporting "not found" from here would end a Smart Search at its
         // first miss, which for a UTF-16 string is always the ASCII attempt.
         if (response.match === undefined) break;
-        updateResults(currentPane, {
-          status: "found",
-          current: response.match,
-          wrapped: response.wrapped,
-          foundEncoding: currentAttempt === undefined ? undefined : attemptEncoding(currentAttempt),
-        });
-        searchStore.update((state) => ({ ...state, problem: undefined }));
+        {
+          const found = currentAttempt === undefined ? undefined : attemptEncoding(currentAttempt);
+          updateResults(currentPane, {
+            status: "found",
+            current: response.match,
+            wrapped: response.wrapped,
+            foundEncoding: found,
+          });
+          adopt(found);
+        }
         break;
 
       case "indexed": {
@@ -200,7 +227,8 @@ const FAILURE_MESSAGE: Record<SearchFailure, string> = {
  */
 export function startSearch(options: {
   readonly query: string;
-  readonly encoding?: SearchEncoding | "smart";
+  readonly encoding?: SearchEncoding;
+  readonly smart?: boolean;
   readonly caseSensitive?: boolean;
   readonly pane?: PaneId;
   readonly direction?: "forward" | "backward";
@@ -209,6 +237,7 @@ export function startSearch(options: {
   const state = searchStore.getSnapshot();
   const query = options.query;
   const encoding = options.encoding ?? state.encoding;
+  const smart = options.smart ?? state.smart;
   const caseSensitive = options.caseSensitive ?? state.caseSensitive;
   const pane = options.pane ?? state.pane;
 
@@ -224,17 +253,19 @@ export function startSearch(options: {
       ...current,
       query,
       encoding,
+      smart,
       caseSensitive,
       problem: undefined,
     }));
     return;
   }
 
-  // Smart Search asks several questions in order; a chosen encoding asks one.
-  const attempts =
-    encoding === "smart"
-      ? attemptsFor(query, caseSensitive)
-      : resolveOne(query, encoding, caseSensitive);
+  // Smart Search asks several questions in order, starting with the encoding
+  // the popup is showing — which is either what the user chose or what the last
+  // pass settled on, and either way the likeliest answer. Off, it asks one.
+  const attempts = smart
+    ? attemptsFor(query, caseSensitive, encoding)
+    : resolveOne(query, encoding, caseSensitive);
 
   if (typeof attempts === "string") {
     updateResults(pane, { status: "failed", matches: undefined, current: undefined });
@@ -242,6 +273,7 @@ export function startSearch(options: {
       ...current,
       query,
       encoding,
+      smart,
       caseSensitive,
       problem: FAILURE_MESSAGE[attempts],
     }));
@@ -253,6 +285,7 @@ export function startSearch(options: {
       ...current,
       query,
       encoding,
+      smart,
       caseSensitive,
       problem: "There is no way to write that as bytes.",
     }));
@@ -270,6 +303,7 @@ export function startSearch(options: {
     ...current,
     query,
     encoding,
+    smart,
     caseSensitive,
     pane,
     problem: undefined,
@@ -423,7 +457,7 @@ async function askHere(
       wrapped: here === undefined,
       foundEncoding: attemptEncoding(attempt),
     });
-    searchStore.update((state) => ({ ...state, problem: undefined }));
+    adopt(attemptEncoding(attempt));
 
     void indexHere(id, attempt, document, currentPane);
     return true;
@@ -546,6 +580,36 @@ export function stepSearch(direction: "forward" | "backward"): void {
   if (step === undefined) return;
 
   updateResults(pane, { status: "found", current: step.range, wrapped: step.wrapped });
+}
+
+/**
+ * Takes the encoding a Smart Search settled on into the bar.
+ *
+ * What worked replaces what was asked for. Upstream is explicit about why:
+ * leaving the asked-for one standing meant the next press started another pass
+ * from it — trying UTF-16 BE and ASCII again before landing on the LE the
+ * search had *already* settled on — instead of stepping the index it now has.
+ *
+ * Only Smart Search adopts. With it off the encoding is the user's instruction,
+ * and an instruction is not something the application rewrites.
+ */
+function adopt(encoding: SearchEncoding | undefined): void {
+  searchStore.update((state) =>
+    encoding === undefined || !state.smart || state.encoding === encoding
+      ? { ...state, problem: undefined }
+      : { ...state, encoding, problem: undefined }
+  );
+}
+
+/** Turns Smart Search on or off, and remembers which. */
+export function setSmartSearch(smart: boolean): void {
+  if (searchStore.getSnapshot().smart === smart) return;
+  searchStore.update((state) => ({ ...state, smart }));
+  try {
+    localStorage.setItem(SMART_STORAGE_KEY, smart ? "on" : "off");
+  } catch {
+    // Not storable here; the choice still holds for this session.
+  }
 }
 
 /** Shows the find bar, and says whether it was already up. */

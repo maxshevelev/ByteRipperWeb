@@ -1,6 +1,13 @@
 import { useEffect, useId, useRef } from "react";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
-import { closeSearch, resultsFor, searchStore, startSearch, stepSearch } from "@/state/searchStore";
+import {
+  closeSearch,
+  resultsFor,
+  searchStore,
+  setSmartSearch,
+  startSearch,
+  stepSearch,
+} from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
 
 /**
@@ -90,18 +97,40 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           ))}
         </datalist>
 
+        {/*
+          A toggle of its own, beside the encoding it makes a result rather than
+          an instruction. With it on the popup shows what the last pass settled
+          on; with it off, what the next one is told to use.
+        */}
+        <button
+          type="button"
+          className={`toolbar-button find-smart${state.smart ? " is-on" : ""}`}
+          aria-pressed={state.smart}
+          onClick={() => {
+            setSmartSearch(!state.smart);
+            if (state.query.length > 0) startSearch({ query: state.query, smart: !state.smart });
+          }}
+          title={
+            state.smart
+              ? "Smart Search: the encoding is worked out from what you typed"
+              : "Smart Search off: only the chosen encoding is tried"
+          }
+        >
+          Smart
+        </button>
+
         <select
           className="find-encoding"
           value={state.encoding}
           onChange={(event) =>
-            startSearch({
-              query: state.query,
-              encoding: event.target.value as SearchEncoding | "smart",
-            })
+            startSearch({ query: state.query, encoding: event.target.value as SearchEncoding })
           }
-          title="How the text is turned into bytes"
+          title={
+            state.smart
+              ? "The encoding the search settled on. Picking one starts the next pass from it."
+              : "How the text is turned into bytes"
+          }
         >
-          <option value="smart">Smart</option>
           {SEARCH_ENCODINGS.map((encoding) => (
             <option key={encoding} value={encoding}>
               {encodingTitle(encoding)}
@@ -113,8 +142,10 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           type="button"
           className={`toolbar-button find-case${state.caseSensitive ? " is-on" : ""}`}
           aria-pressed={state.caseSensitive}
-          // Hex has no case to be sensitive about.
-          disabled={state.encoding === "hex"}
+          // Hex has no case to be sensitive about — but with Smart Search on a
+          // text pass will happen whatever the popup currently says, so the
+          // toggle is still offered.
+          disabled={!state.smart && state.encoding === "hex"}
           onClick={() => startSearch({ query: state.query, caseSensitive: !state.caseSensitive })}
           title="Match upper and lower case exactly"
         >
@@ -184,7 +215,7 @@ function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
   }
 
   // Which encoding answered, when Smart Search was the one asking.
-  if (state.encoding === "smart" && results.foundEncoding !== undefined) {
+  if (state.smart && results.foundEncoding !== undefined) {
     parts.push(`as ${encodingTitle(results.foundEncoding)}`);
   }
   if (results.wrapped) parts.push("· wrapped");

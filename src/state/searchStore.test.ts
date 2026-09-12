@@ -68,6 +68,7 @@ const {
   searchStore,
   selectMatch,
   setSearchPane,
+  setSmartSearch,
   startSearch,
 } = await import("@/state/searchStore");
 
@@ -97,7 +98,7 @@ test("a miss on an early encoding does not end the pass", async () => {
   // The bug: ASCII and UTF-8 miss, and the pass stopped before UTF-16 was
   // asked, so a UTF-16 string in the file was reported as absent.
   answerFor = "utf16LE";
-  startSearch({ query: "FirmwareVolume", encoding: "smart" });
+  startSearch({ query: "FirmwareVolume", smart: true, encoding: "ascii" });
   await settle();
 
   // Two scans, not three: "FirmwareVolume" is ASCII, so its UTF-8 encoding is
@@ -114,7 +115,7 @@ test("a miss on an early encoding does not end the pass", async () => {
 
 test("the pass stops at the first encoding that finds anything", async () => {
   answerFor = "ascii";
-  startSearch({ query: "FirmwareVolume", encoding: "smart" });
+  startSearch({ query: "FirmwareVolume", smart: true, encoding: "ascii" });
   await settle();
 
   expect(posted.filter((request) => request.kind === "search").map((r) => r.encoding)).toEqual([
@@ -125,7 +126,7 @@ test("the pass stops at the first encoding that finds anything", async () => {
 
 test("not found is reported once every encoding has missed", async () => {
   answerFor = undefined;
-  startSearch({ query: "FirmwareVolume", encoding: "smart" });
+  startSearch({ query: "FirmwareVolume", smart: true, encoding: "ascii" });
   await settle();
 
   // ASCII (standing in for UTF-8 too), then UTF-16 LE, then UTF-16 BE.
@@ -137,7 +138,7 @@ test("not found is reported once every encoding has missed", async () => {
 
 test("a chosen encoding asks once and does not fall back", async () => {
   answerFor = "utf16LE";
-  startSearch({ query: "FirmwareVolume", encoding: "ascii" });
+  startSearch({ query: "FirmwareVolume", smart: false, encoding: "ascii" });
   await settle();
 
   expect(posted.filter((request) => request.kind === "search").map((r) => r.encoding)).toEqual([
@@ -281,4 +282,44 @@ test("closing the bar clears every pane's results", () => {
     expect(resultsFor(state, pane).matches).toBeUndefined();
     expect(resultsFor(state, pane).status).toBe("idle");
   }
+});
+
+test("what worked replaces what was asked for", async () => {
+  // Upstream's reason, and it is about the *next* press: leaving the asked-for
+  // encoding standing meant the following search started another pass from it,
+  // trying the others again before landing on the one already settled on.
+  answerFor = "utf16LE";
+  setSmartSearch(true);
+  startSearch({ query: "FirmwareVolume", smart: true, encoding: "ascii" });
+  await settle();
+
+  expect(paneResults().foundEncoding).toBe("utf16LE");
+  expect(searchStore.getSnapshot().encoding).toBe("utf16LE");
+});
+
+test("the first attempt is the encoding the bar is showing", async () => {
+  // Which, after an adoption, is the answer to the last question — so a repeat
+  // press asks that one first instead of hunting from the top again.
+  answerFor = "utf16LE";
+  setSmartSearch(true);
+  startSearch({ query: "FirmwareVolume", smart: true, encoding: "utf16LE" });
+  await settle();
+
+  const asked = posted.filter((request) => request.kind === "search").map((r) => r.encoding);
+  expect(asked[0]).toBe("utf16LE");
+  expect(asked).toHaveLength(1);
+});
+
+test("with Smart Search off the encoding is an instruction, not a guess", async () => {
+  answerFor = "utf16LE";
+  setSmartSearch(false);
+  startSearch({ query: "FirmwareVolume", smart: false, encoding: "ascii" });
+  await settle();
+
+  const asked = posted.filter((request) => request.kind === "search").map((r) => r.encoding);
+  expect(asked).toEqual(["ascii"]);
+  // And nothing rewrites what the user chose.
+  expect(searchStore.getSnapshot().encoding).toBe("ascii");
+  expect(paneResults().status).toBe("notFound");
+  setSmartSearch(true);
 });
