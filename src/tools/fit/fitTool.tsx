@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
-import { firmwareStore, parsePaneFirmware, readPaneFit } from "@/state/firmwareStore";
+import { editPaneFit, firmwareStore, parsePaneFirmware, readPaneFit } from "@/state/firmwareStore";
 import {
   cancelMicrocodeCatalogue,
   loadMicrocodeCatalogue,
@@ -28,6 +28,11 @@ import {
   rowCommands,
 } from "@/tools/fit/fitDisplay";
 import type { MicrocodeLatest } from "@/tools/fit/microcodeCatalogue";
+import type { FitEditRequest } from "@/workers/protocol";
+
+type FitEdit = FitEditRequest["edit"];
+
+import { pickMicrocode } from "@/tools/fit/pickMicrocode";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 
@@ -50,6 +55,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const [report, setReport] = useState<FITReport | undefined>(undefined);
   const [reading, setReading] = useState(true);
   const [focus, setFocus] = useState<number | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
 
   // The image is parsed once for this pane. The table is read against the
   // tree — a row is named by whatever node covers the address it points at —
@@ -100,6 +106,21 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     else publishZones(context.pane, display.zones);
   }, [display.zones, context.pane]);
 
+  /**
+   * Plans the change in the worker, writes it through the document, and says
+   * what came of it. A refusal is a sentence, not a silence: the user is at a
+   * bench with a dump that has to boot afterwards.
+   */
+  const runEdit = useCallback(
+    async (edit: FitEdit) => {
+      setBusy(true);
+      const done = await editPaneFit(pane, edit);
+      setBusy(false);
+      context.report(done.problem ?? done.summary);
+    },
+    [pane, context]
+  );
+
   const run = useCallback(
     (command: FITRowCommand) => {
       switch (command.kind) {
@@ -133,14 +154,20 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           return;
         }
         case "replaceMicrocode":
+          // The file is picked first and the plan made after: a refusal the
+          // user reads before choosing anything tells them nothing about the
+          // file they were going to choose.
+          void pickMicrocode().then((component) => {
+            if (component === undefined) return;
+            void runEdit({ kind: "replaceAt", index: command.index, component });
+          });
+          return;
         case "removeMicrocode":
-          // The editing half is not in this build yet; the reading half says so
-          // rather than offering a command that does nothing.
-          context.report("Editing the table is not in this build yet.");
+          void runEdit({ kind: "remove", index: command.index });
           return;
       }
     },
-    [display, context, pane]
+    [display, context, pane, runEdit]
   );
 
   const choose = useCallback(
@@ -234,6 +261,23 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       )}
 
       <footer className="fit-status">
+        <button
+          type="button"
+          className="toolbar-button is-quiet"
+          disabled={busy || display.rows.length === 0}
+          onClick={() => {
+            void pickMicrocode().then((component) => {
+              if (component === undefined) return;
+              void runEdit({ kind: "addOrReplace", component });
+            });
+          }}
+          title={
+            "Add a microcode, or replace the one this table already has for its CPUID." +
+            " The file is checked before anything is written."
+          }
+        >
+          Add Microcode…
+        </button>
         <button
           type="button"
           className="toolbar-button is-quiet"

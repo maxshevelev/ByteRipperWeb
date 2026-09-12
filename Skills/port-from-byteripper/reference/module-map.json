@@ -141,6 +141,7 @@
       "swift": "Packages/UEFIImage",
       "web": [
         "src/firmware/byteSource.ts",
+        "src/firmware/overlayByteSource.ts",
         "src/firmware/imageReader.ts",
         "src/firmware/uefi",
         "src/firmware/testing/testImage.ts"
@@ -233,8 +234,8 @@
         "src/state/microcodeCatalogueStore.ts",
         "src/state/microcodeCatalogueSource.ts"
       ],
-      "status": "in-progress",
-      "note": "The reading half, the presentation and the microcode catalogue are across: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. FITEditor is still to come, and the panel says so where it offers its commands."
+      "status": "ported",
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel is src/tools/fit/fitTool.tsx; FITToolViewController and FITAddMicrocodeViewController are AppKit and have no counterpart."
     },
     {
       "swift": "Modules/MEATool",

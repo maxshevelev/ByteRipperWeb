@@ -273,6 +273,29 @@ export interface FitReadRequest {
   readonly id: JobId;
 }
 
+/**
+ * A change to the FIT table, planned in the worker and written on the main
+ * thread.
+ *
+ * Planned there because it needs the whole image — the run's own bytes, what is
+ * free behind it, and the checksums of whatever file it sits in — and written
+ * here because the document is the only way an edit can be taken back with the
+ * same key the user's own typing is.
+ */
+export interface FitEditRequest {
+  readonly kind: "fitEdit";
+  readonly id: JobId;
+  /**
+   * `addOrReplace` decides by the component's CPUID, `replaceAt` by the row the
+   * user pointed at, and `remove` takes one out. The first two carry the bytes
+   * of the file that was picked.
+   */
+  readonly edit:
+    | { readonly kind: "addOrReplace"; readonly component: Uint8Array }
+    | { readonly kind: "replaceAt"; readonly index: number; readonly component: Uint8Array }
+    | { readonly kind: "remove"; readonly index: number };
+}
+
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | FirmwareDetailRequest
@@ -280,6 +303,7 @@ export type FirmwareWorkerRequest =
   | FirmwareAddressesRequest
   | FirmwareRepairRequest
   | FitReadRequest
+  | FitEditRequest
   | CancelRequest;
 
 /**
@@ -395,7 +419,28 @@ export interface FitReportResponse {
   readonly report: FITReport;
 }
 
+/**
+ * What the edit came to: the writes to make, or the reason none can be.
+ *
+ * The writes cross as offsets and bytes rather than as a transaction, because
+ * the transaction is the main thread's to name, validate and apply — the worker
+ * has no document to write to.
+ */
+export interface FitEditResponse {
+  readonly kind: "fitEdit";
+  readonly id: JobId;
+  readonly name: string | undefined;
+  readonly writes: readonly { readonly offset: number; readonly bytes: Uint8Array }[];
+  /** A sentence the panel can show, when the edit was refused. */
+  readonly problem: string | undefined;
+  /** What happened, for the sentence said afterwards. */
+  readonly summary: string | undefined;
+  /** Where the component ended up, so the dump can be sent there. */
+  readonly landed: readonly [number, number] | undefined;
+}
+
 export type FirmwareWorkerResponse =
+  | FitEditResponse
   | FitReportResponse
   | FirmwareRootsResponse
   | FirmwareChildrenResponse

@@ -17,6 +17,14 @@ import { runSecondPass } from "@/firmware/uefi/secondPass";
 import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import type { UEFINode } from "@/firmware/uefi/uefiNode";
+import {
+  addOrReplaceMicrocode,
+  type FITEditOutcome,
+  type FITRemovalOutcome,
+  fitEditProblemMessage,
+  removeMicrocodeAt,
+  replaceMicrocodeAt,
+} from "@/tools/fit/fitEditor";
 import type {
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
@@ -62,6 +70,27 @@ class BlobByteSource implements ByteSource {
 }
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
+
+/** A FIT edit that did not happen, which only the reason differs between. */
+const NO_EDIT = {
+  kind: "fitEdit",
+  name: undefined,
+  writes: [],
+  summary: undefined,
+  landed: undefined,
+} as const;
+
+/** What the edit came to, in the sentence the panel says afterwards. */
+function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
+  const moved = outcome.moved === 0 ? "" : `, and ${outcome.moved} behind it moved up to suit`;
+  if (!("range" in outcome)) {
+    return `The microcode is out of the table${moved}.`;
+  }
+  const where = `0x${outcome.range.start.toString(16).toUpperCase()}`;
+  return outcome.kind === "added"
+    ? `The microcode went in at ${where}${moved}.`
+    : `The microcode at ${where} was replaced${moved}.`;
+}
 
 /** The image currently open. One per worker, as one worker serves one pane. */
 let reader: ImageReader | undefined;
@@ -253,6 +282,59 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           addressDiff: runSecondPass(parser, roots).addressDiff,
         });
         post({ kind: "fitReport", id: request.id, report: readFitTable(reader, image) });
+        return;
+      }
+
+      case "fitEdit": {
+        if (reader === undefined) {
+          post({ ...NO_EDIT, id: request.id, problem: "No image is open." });
+          return;
+        }
+        const parser = new Parser(reader, DEFAULT_LIMITS);
+        const diff = runSecondPass(parser, roots).addressDiff;
+        const image = new UEFIImage({ size: reader.count, roots, addressDiff: diff });
+        const report = readFitTable(reader, image);
+        if (report.table === undefined) {
+          post({ ...NO_EDIT, id: request.id, problem: fitEditProblemMessage({ kind: "noTable" }) });
+          return;
+        }
+        // The addresses the rows are rewritten with come from the same mapping
+        // the table was read against, so a repointed row lands where the reader
+        // will look for it.
+        const addressDiff = report.addressDiff;
+        const edit = request.edit;
+        const result =
+          edit.kind === "remove"
+            ? removeMicrocodeAt(edit.index, report.table, image, reader, addressDiff)
+            : edit.kind === "replaceAt"
+              ? replaceMicrocodeAt(
+                  edit.index,
+                  edit.component,
+                  report.table,
+                  image,
+                  reader,
+                  addressDiff
+                )
+              : addOrReplaceMicrocode(edit.component, report.table, image, reader, addressDiff);
+        if (!result.ok) {
+          post({ ...NO_EDIT, id: request.id, problem: fitEditProblemMessage(result.problem) });
+          return;
+        }
+        post({
+          kind: "fitEdit",
+          id: request.id,
+          name: result.transaction.name,
+          writes: result.transaction.writes.map((one) => ({
+            offset: one.offset,
+            bytes: one.bytes,
+          })),
+          problem: undefined,
+          summary: summaryOf(result.outcome),
+          landed:
+            "range" in result.outcome
+              ? [result.outcome.range.start, result.outcome.range.end]
+              : undefined,
+        });
         return;
       }
 

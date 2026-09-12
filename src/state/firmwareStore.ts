@@ -1,11 +1,14 @@
 import type { FITReport } from "@/firmware/fit/fitTable";
 import { editStore } from "@/state/editStore";
 import { createStore } from "@/state/store";
+import { applyTransaction } from "@/state/toolEdits";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type {
   FirmwareDetailResponse,
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
+  FitEditRequest,
+  FitEditResponse,
   WireDiagnostic,
   WireNode,
 } from "@/workers/protocol";
@@ -119,6 +122,11 @@ function ensureWorker(pane: PaneId): PaneWorker {
         });
         return;
       }
+      case "fitEdit": {
+        fitEditWaiters.get(pane)?.(response);
+        fitEditWaiters.delete(pane);
+        return;
+      }
       case "fitReport": {
         fitWaiters.get(pane)?.(response.report);
         fitWaiters.delete(pane);
@@ -141,6 +149,16 @@ function ensureWorker(pane: PaneId): PaneWorker {
         // holding a promise that will never settle.
         fitWaiters.get(pane)?.(undefined);
         fitWaiters.delete(pane);
+        fitEditWaiters.get(pane)?.({
+          kind: "fitEdit",
+          id: response.id,
+          name: undefined,
+          writes: [],
+          problem: response.problem,
+          summary: undefined,
+          landed: undefined,
+        });
+        fitEditWaiters.delete(pane);
         update(pane, { status: "failed", problem: response.problem });
         return;
     }
@@ -277,6 +295,44 @@ export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
     send(pane, { kind: "fitRead", id: job });
   });
 }
+
+/**
+ * Changes the pane's FIT table, as one undoable step.
+ *
+ * The worker plans it because it has the image; the document performs the
+ * writes because that is the only way an edit this application makes can be
+ * taken back with the same key the user's own typing is. What comes back is
+ * the sentence to say — which is the reason it could not be made, or what it
+ * came to.
+ */
+export async function editPaneFit(
+  pane: PaneId,
+  edit: FitEditRequest["edit"]
+): Promise<{ readonly problem: string | undefined; readonly summary: string | undefined }> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") {
+    return { problem: "That image has not been read yet.", summary: undefined };
+  }
+  const job = workers[pane]?.job ?? 0;
+  const planned = await new Promise<FitEditResponse>((resolve) => {
+    fitEditWaiters.set(pane, resolve);
+    send(pane, { kind: "fitEdit", id: job, edit });
+  });
+  if (planned.problem !== undefined) {
+    return { problem: planned.problem, summary: undefined };
+  }
+
+  const problem = await applyTransaction(pane, {
+    name: planned.name ?? "Edit FIT Table",
+    writes: planned.writes,
+  });
+  return problem === undefined
+    ? { problem: undefined, summary: planned.summary }
+    : { problem, summary: undefined };
+}
+
+/** Who is waiting for a planned FIT edit, by pane. */
+const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse) => void>();
 
 /** Who is waiting for a FIT report, by pane. One panel asks at a time. */
 const fitWaiters = new Map<PaneId, (report: FITReport | undefined) => void>();
