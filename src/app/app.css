@@ -813,10 +813,18 @@ textarea,
   cursor: pointer;
 }
 
-.search-result:hover,
+/*
+ * No hover fill. It used the same wash as the current match, so running the
+ * mouse down the list made every row under the pointer read as the chosen one —
+ * a selection that follows the cursor says nothing about where the search
+ * actually is. The pointer already says the rows are clickable.
+ */
+
+/* The keyboard's position is a ring, not a fill, so it cannot be mistaken for
+   the current match either. */
 .search-result:focus-visible {
-  background: var(--selection);
-  outline: none;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .search-result.is-current {
