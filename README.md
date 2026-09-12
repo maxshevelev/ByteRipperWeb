@@ -49,8 +49,9 @@ scope at all, and what the browser takes away, is
 | M4 Editing and saving | done |
 | M5 Search | done |
 | M6 Minimap | done |
-| M7 Bookmarks and segments | next |
-| M8 – M12 | see the plan |
+| M7 Bookmarks and segments | done |
+| M8 Tool panel and UEFI Structure | next |
+| M9 – M12 | see the plan |
 
 ## Stack
 

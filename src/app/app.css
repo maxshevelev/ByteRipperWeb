@@ -608,6 +608,24 @@ textarea,
   width: auto;
 }
 
+/* A named mark's name, while the pointer rests on it. Positioned against the
+   scroller's viewport, so it stays put while the rows under it scroll. */
+.bookmark-tip {
+  position: absolute;
+  z-index: 5;
+  width: max-content;
+  max-width: 24rem;
+  margin: 0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--bookmark);
+  color: var(--bookmark-text);
+  font-size: 0.85em;
+  pointer-events: none;
+  transform: translateY(-0.15rem);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+}
+
 /* The join bands (§22.4): a file dropped at a pane's top goes in before what it
    holds, one dropped at the bottom after it. */
 .join-band {

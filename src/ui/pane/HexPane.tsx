@@ -181,6 +181,16 @@ export function HexPane({
   const markDragRef = useRef<number | undefined>(undefined);
   /** Which join band a dragged file is currently over, if either (§22.4). */
   const [overBand, setOverBand] = useState<"start" | "end" | undefined>(undefined);
+  /**
+   * The named bookmark the pointer is resting on, and where to show its name.
+   *
+   * A mark says *that* a row is marked; the name says what it was marked for,
+   * and there is nowhere in a 16-byte row to print it. So it is a tooltip — but
+   * the dump is a canvas, and a canvas has no elements to hang `title` on.
+   */
+  const [markTip, setMarkTip] = useState<{ name: string; top: number; left: number } | undefined>(
+    undefined
+  );
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
@@ -843,8 +853,39 @@ export function HexPane({
     [contentPoint, doc, region, typing, refreshCaret]
   );
 
+  /** Shows a named mark's name while the pointer rests on it. */
+  const trackMarkTip = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const layout = layoutRef.current;
+    const host = scrollRef.current;
+    if (layout === undefined || host === null) return;
+    const bounds = host.getBoundingClientRect();
+    const x = event.clientX - bounds.left + host.scrollLeft;
+    const y = event.clientY - bounds.top + host.scrollTop;
+    // The offset column only: the tip is about the mark, not about the row.
+    if (x > layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
+      setMarkTip(undefined);
+      return;
+    }
+    const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
+    const mark = bookmarkAt(row);
+    if (mark === undefined || mark.name.length === 0) {
+      setMarkTip(undefined);
+      return;
+    }
+    // In the scroller's own content coordinates, so it travels with the row it
+    // names rather than hanging at a fixed height while the dump scrolls. And
+    // beside the mark rather than over it: the address it names is the one
+    // thing the tip must not hide.
+    setMarkTip({
+      name: mark.name,
+      top: (row / BYTES_PER_ROW) * layout.rowHeight,
+      left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
+    });
+  }, []);
+
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      trackMarkTip(event);
       const dragging = markDragRef.current;
       if (dragging !== undefined) {
         const layout = layoutRef.current;
@@ -880,7 +921,7 @@ export function HexPane({
 
       doc.setSelection(makeSelection(anchor, Math.min(end, doc.size), doc.size));
     },
-    [doc]
+    [doc, trackMarkTip]
   );
 
   /**
@@ -1054,8 +1095,14 @@ export function HexPane({
         onPaste={onPaste}
         onContextMenu={onContextMenu}
         onDoubleClick={onDoubleClick}
+        onPointerLeave={() => setMarkTip(undefined)}
       >
         <canvas ref={canvasRef} className="hex-canvas" />
+        {markTip === undefined ? null : (
+          <p className="bookmark-tip" style={{ top: markTip.top, left: markTip.left }}>
+            {markTip.name}
+          </p>
+        )}
         <div
           className="hex-spacer"
           style={{ height: `${contentHeight}px`, width: `${contentWidth}px` }}
