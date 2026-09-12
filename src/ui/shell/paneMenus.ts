@@ -12,6 +12,8 @@ import {
   swapPanes,
   type WorkspaceState,
 } from "@/state/workspaceStore";
+import { zonesFor } from "@/state/zoneStore";
+import { type Zone, zonesContaining } from "@/tools/zone";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
@@ -45,6 +47,8 @@ export interface PaneMenuActions {
   readonly onEditBookmark: (offset: number) => void;
   /** Opens the cut dialog, prefilled with this offset (§21.3). */
   readonly onSplitHere: (pane: PaneId, offset: number) => void;
+  /** Selects a zone the open tool published, and shows it. */
+  readonly onSelectZone: (pane: PaneId, zone: Zone) => void;
   readonly onSegments: (pane: PaneId) => void;
   /** Append File… / Insert File at Start… (§22). */
   readonly onJoin: (pane: PaneId, position: "start" | "end") => void;
@@ -122,6 +126,10 @@ export function dumpMenu(
       onSelect: () => actions.onSelectBlockFrom(pane, offset),
     },
     ...extra,
+    // The zone block: a right-click inside a range the open tool published
+    // offers that range by name. Nothing at all where there are no zones —
+    // which is most files, most of the time.
+    ...zoneItems(pane, offset, actions),
     // The segment block (§21.3): the commands that shape the file's partition,
     // set off from the address-scoped commands above and the bookmark commands
     // below by their own separators.
@@ -129,6 +137,29 @@ export function dumpMenu(
     ...segmentItems(pane, offset, actions),
     { kind: "separator" },
     ...bookmarkItems(offset, actions),
+  ];
+}
+
+/**
+ * The zone block.
+ *
+ * Zones nest, so a byte is often inside several: the FIT table, the row in it,
+ * the microcode a row points at. All of them are offered, innermost first,
+ * because the smallest zone under the pointer is the one being aimed at.
+ */
+function zoneItems(
+  pane: PaneId,
+  offset: number,
+  actions: PaneMenuActions
+): (MenuEntry | undefined)[] {
+  const zones = zonesContaining(zonesFor(pane), offset);
+  if (zones.length === 0) return [];
+  return [
+    { kind: "separator" },
+    ...zones.map((zone) => ({
+      label: `Select Zone “${zone.name}”`,
+      onSelect: () => actions.onSelectZone(pane, zone),
+    })),
   ];
 }
 

@@ -36,8 +36,14 @@ export type MinimapStatus = "idle" | "building" | "ready" | "failed";
  * minimum when shown, and never grows past the maximum, so it stays a compact
  * column beside the dumps however wide the window gets.
  */
-export const MIN_MINIMAP_WIDTH = 120;
-export const MAX_MINIMAP_WIDTH = 240;
+/*
+ * Upstream's band, plus what this application's maps carry down their sides:
+ * a margin for the bookmark marks, a strip for the segment tints, and a gutter
+ * for the open tool's zones. Those are about twenty-five pixels a map, and the
+ * band has to leave the map itself room for sixteen columns after them.
+ */
+export const MIN_MINIMAP_WIDTH = 172;
+export const MAX_MINIMAP_WIDTH = 300;
 /** Upstream opens at the minimum when the user has never chosen a width. */
 export const DEFAULT_MINIMAP_WIDTH = MIN_MINIMAP_WIDTH;
 

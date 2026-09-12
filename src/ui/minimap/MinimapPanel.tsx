@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { selection as makeSelection } from "@/core/document/selectionModel";
 import type { Segment } from "@/core/segments/segmentation";
 import {
   BYTES_PER_ROW,
@@ -17,6 +18,8 @@ import {
   type MinimapColors,
   MinimapRenderer,
   SEGMENT_STRIP,
+  ZONE_GUTTER,
+  type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
 import { bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
@@ -33,6 +36,8 @@ import {
 import { segmentsStore } from "@/state/segmentsStore";
 import { useStore } from "@/state/useStore";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { zoneStore } from "@/state/zoneStore";
+import type { Zone } from "@/tools/zone";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { pieceMenu, selectPiece } from "@/ui/segments/segmentMenu";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -546,6 +551,35 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
   })();
 
   /**
+   * The open tool's zones, as brackets down the gutter.
+   *
+   * Depth is how many zones contain this one: nested brackets step inward, so
+   * the nesting is what the eye reads rather than something to work out.
+   */
+  const zones = useStore(zoneStore).panes[pane];
+  const zoneBrackets = (() => {
+    if (zones.zones.length === 0) return undefined;
+    const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
+    const brackets: (ZoneBracket & { id: string })[] = [];
+    for (const zone of zones.zones) {
+      const top = yOfOffset({ ...shared, offset: zone.start });
+      const bottom = yOfOffset({ ...shared, offset: zone.end });
+      if (bottom < 0 || top > size.height) continue;
+      const depth = zones.zones.filter(
+        (other) => other !== zone && other.start <= zone.start && other.end >= zone.end
+      ).length;
+      brackets.push({
+        id: zone.id,
+        top: Math.max(0, top),
+        height: Math.min(size.height, bottom) - Math.max(0, top),
+        depth,
+        focused: zones.focus === zone.id,
+      });
+    }
+    return brackets;
+  })();
+
+  /**
    * The panes' own selection, as a strip across the map.
    *
    * A caret is not a selection and draws nothing: a single byte highlighted
@@ -579,8 +613,20 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
       selection: selectionStrip,
       bookmarks: markYs,
       segments: segmentBands,
+      zones: zoneBrackets,
     });
-  }, [colors, size, state.pictures, pane, mode, cells, selectionStrip, markYs, segmentBands]);
+  }, [
+    colors,
+    size,
+    state.pictures,
+    pane,
+    mode,
+    cells,
+    selectionStrip,
+    markYs,
+    segmentBands,
+    zoneBrackets,
+  ]);
 
   const offsetFromEvent = useCallback(
     (event: { clientY: number }): number | undefined => {
@@ -648,6 +694,24 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
    * The piece the pointer is over in the strip, or nothing when it is not in
    * the strip at all.
    */
+  /** The zone whose bracket is under the pointer, if the pointer is in the gutter. */
+  const zoneUnder = useCallback(
+    (event: { clientX: number; clientY: number }): Zone | undefined => {
+      const canvas = canvasRef.current;
+      if (canvas === null || zoneBrackets === undefined) return undefined;
+      const box = canvas.getBoundingClientRect();
+      if (event.clientX < box.right - ZONE_GUTTER) return undefined;
+      const y = event.clientY - box.top;
+      // Innermost first: the deepest bracket under the pointer is the one being
+      // aimed at, the way the dump's own zone menu orders them.
+      const hit = [...zoneBrackets]
+        .sort((left, right) => right.depth - left.depth)
+        .find((bracket) => y >= bracket.top - 2 && y <= bracket.top + bracket.height + 2);
+      return hit === undefined ? undefined : zones.zones.find((one) => one.id === hit.id);
+    },
+    [zoneBrackets, zones.zones]
+  );
+
   const pieceUnder = useCallback(
     (event: { clientX: number; clientY: number }): Segment | undefined => {
       const canvas = canvasRef.current;
@@ -725,6 +789,25 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
           // The strip's own menu, and nothing anywhere else on the map: the map
           // has no other context menu, and a browser's own is better than an
           // empty one.
+          const zone = zoneUnder(event);
+          if (zone !== undefined) {
+            // The gutter's own menu: the commands that act on the zone under
+            // the pointer (§19.4.5).
+            openContextMenu(event, [
+              {
+                label: `Select Zone “${zone.name}”`,
+                onSelect: () => {
+                  const slot = workspaceStore.getSnapshot().panes[pane];
+                  if (slot === undefined) return;
+                  slot.document.setSelection(
+                    makeSelection(zone.start, zone.end, slot.document.size)
+                  );
+                  scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW);
+                },
+              },
+            ]);
+            return;
+          }
           const piece = pieceUnder(event);
           if (piece === undefined) return;
           openContextMenu(

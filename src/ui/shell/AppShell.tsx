@@ -573,11 +573,17 @@ export function AppShell() {
       // things about one of them.
       onEditBookmark: () => setGoTo("bookmarks"),
       onSplitHere: (pane, offset) => setCutAt({ pane, offset }),
+      onSelectZone: (pane, zone) => {
+        const slot = workspaceStore.getSnapshot().panes[pane];
+        if (slot === undefined) return;
+        slot.document.setSelection(makeSelection(zone.start, zone.end, slot.document.size));
+        revealInBoth(zone.start);
+      },
       onJoin: (pane, position) => void doJoin(pane, position),
       onSegments: (pane) => setSegmentsPane(pane),
       onProblem: reportProblem,
     }),
-    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin]
+    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin, revealInBoth]
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);

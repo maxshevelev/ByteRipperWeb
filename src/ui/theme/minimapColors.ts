@@ -18,6 +18,8 @@ const VARIABLES: Record<keyof MinimapColors, string> = {
   difference: "--difference-fill",
   matchFill: "--match-fill",
   bookmark: "--bookmark",
+  zoneFocused: "--zone-focused",
+  zoneOther: "--zone-other",
   currentMatchFill: "--current-match-fill",
 };
 

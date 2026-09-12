@@ -18,6 +18,7 @@ import {
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { useStore } from "@/state/useStore";
+import { clearZones, publishZones } from "@/state/zoneStore";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import type { FirmwareDetailResponse, WireNode } from "@/workers/protocol";
@@ -65,9 +66,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(0);
 
-  // The pane's image, parsed when the panel first asks for it.
+  // The pane's image, parsed when the panel first asks for it. The zones go
+  // when the panel does: a gutter still marking a tool nobody has open is a
+  // promise about bytes nothing is watching.
   useEffect(() => {
     void parsePaneFirmware(context.pane);
+    return () => clearZones(context.pane);
   }, [context.pane]);
 
   useEffect(() => {
@@ -141,6 +145,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     (row: Row) => {
       setSelected(row.key);
       askFirmwareDetail(context.pane, row.node.id);
+      // The extent of what is selected, and of what is directly inside it — so
+      // the minimap's gutter shows where this thing is and how it is made up.
+      // The whole tree would be thousands of brackets and no information.
+      publishZones(context.pane, {
+        zones: [row.node, ...row.node.children].map((node) => ({
+          id: pathKey(node.id),
+          name: node.name,
+          start: node.header[0],
+          end: Math.max(node.body[1], node.tail[1]),
+        })),
+        focus: row.key,
+      });
       // The whole node, header through tail — what a reader clicking a row in a
       // structure tree means by it.
       context.reveal(row.node.header[0], Math.max(row.node.body[1], row.node.tail[1]));

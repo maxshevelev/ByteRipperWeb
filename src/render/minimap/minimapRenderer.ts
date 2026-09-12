@@ -58,6 +58,15 @@ export interface SegmentBandStrip {
   readonly hovered?: boolean | undefined;
 }
 
+/** One zone as the gutter draws it. */
+export interface ZoneBracket {
+  readonly top: number;
+  readonly height: number;
+  /** How deeply nested, so brackets inside brackets step inward. */
+  readonly depth: number;
+  readonly focused?: boolean | undefined;
+}
+
 export interface MinimapColors {
   readonly background: string;
   readonly selection: string;
@@ -71,6 +80,9 @@ export interface MinimapColors {
   readonly currentMatchFill: string;
   /** The bookmark marks in the margin (§19.4.3). */
   readonly bookmark: string;
+  /** The zone the open tool is looking at, and the rest of them (§19.4.5). */
+  readonly zoneFocused: string;
+  readonly zoneOther: string;
 }
 
 /**
@@ -134,6 +146,17 @@ const MARK_SIDE = 7;
  */
 export const SEGMENT_STRIP = 8;
 
+/**
+ * The gutter beyond the segment strip, where the open tool's zones are drawn
+ * (§19.4.5).
+ *
+ * A bracket per zone rather than a band: zones nest and overlap, and a band per
+ * zone would paint the outer ones over the inner. Reserved whether or not a
+ * tool is open, for the reason the strip is: a gutter that appeared with the
+ * panel would re-scale the picture beside it.
+ */
+export const ZONE_GUTTER = 8;
+
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
@@ -184,12 +207,17 @@ export class MinimapRenderer {
   }
 
   private get mapWidth(): number {
-    return Math.max(1, this.width - MARK_MARGIN - SEGMENT_STRIP);
+    return Math.max(1, this.width - MARK_MARGIN - SEGMENT_STRIP - ZONE_GUTTER);
   }
 
   /** Where the segment strip starts. */
   private get stripLeft(): number {
-    return this.width - SEGMENT_STRIP;
+    return this.width - SEGMENT_STRIP - ZONE_GUTTER;
+  }
+
+  /** Where the zone gutter starts. */
+  private get gutterLeft(): number {
+    return this.width - ZONE_GUTTER;
   }
 
   private get height(): number {
@@ -217,6 +245,8 @@ export class MinimapRenderer {
     readonly bookmarks?: readonly number[] | undefined;
     /** One band per piece, in CSS pixels down the map. */
     readonly segments?: readonly SegmentBandStrip[] | undefined;
+    /** One bracket per zone the open tool published, in CSS pixels. */
+    readonly zones?: readonly ZoneBracket[] | undefined;
     /** Detail mode: the states of the window's bytes, row-major, 16 per row. */
     readonly cells?: readonly CellState[] | undefined;
     /** Overview mode: the picture and its overlays. */
@@ -229,7 +259,35 @@ export class MinimapRenderer {
     else if (options.picture !== undefined) this.drawOverview(options.picture);
     if (options.selection !== undefined) this.drawSelection(options.selection);
     if (options.segments !== undefined) this.drawSegmentStrip(options.segments);
+    if (options.zones !== undefined) this.drawZones(options.zones);
     if (options.bookmarks !== undefined) this.drawBookmarks(options.bookmarks);
+  }
+
+  /**
+   * The open tool's zones, as brackets down the gutter.
+   *
+   * A bracket and not a band: zones nest — a FIT table, a row in it, the
+   * microcode that row points at — and a band per zone would paint the outer
+   * ones over the inner. Nested brackets step inward so the nesting is what the
+   * eye reads. The one in focus takes the louder colour, which is how the panel
+   * says which zone it is looking at.
+   */
+  private drawZones(brackets: readonly ZoneBracket[]): void {
+    const context = this.context;
+    const left = this.gutterLeft;
+    for (const bracket of brackets) {
+      const depth = Math.min(bracket.depth, 2);
+      const x = left + 1 + depth * 2;
+      const width = Math.max(1, ZONE_GUTTER - 2 - depth * 2);
+      const height = Math.max(2, bracket.height);
+      context.fillStyle =
+        bracket.focused === true ? this.colors.zoneFocused : this.colors.zoneOther;
+      // The spine, and a tick at each end: an extent with ends the eye can find
+      // is what tells one zone from the one it sits inside.
+      context.fillRect(x, bracket.top, 1.5, height);
+      context.fillRect(x, bracket.top, width, 1.5);
+      context.fillRect(x, bracket.top + height - 1.5, width, 1.5);
+    }
   }
 
   /**
