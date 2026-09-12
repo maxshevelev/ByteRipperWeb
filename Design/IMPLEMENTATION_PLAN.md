@@ -426,5 +426,10 @@ in `Skills/port-from-byteripper/SKILL.md`.
 - **Hosting.** GitHub Pages from CI is the default; a shop's own server changes
   nothing architecturally.
 - **Telemetry.** None, and the README says so.
-- **WASM.** Not in the project. It enters only if M10's measurement says the ME
-  budget cannot be met in TypeScript, and then only for RSA and Huffman.
+- **WASM.** Not in the project, and now settled rather than deferred. M10's
+  measurement was the condition, and it has been taken: a 16 MB region analyses
+  in ~22 ms against a 2 s budget, and the three real manifests — one 2048-bit
+  PKCS #1 and two 3072-bit PSS over SHA-384 — check in 3.3 ms between them. The
+  modular exponentiation the budget was written around costs about a
+  millisecond, because the language has a `bigint` and upstream's Swift did not.
+  Both rows are in `npm run bench`. WASM does not enter.

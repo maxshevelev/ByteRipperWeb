@@ -20,6 +20,20 @@ import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { MemoryByteSource } from "@/core/storage/memoryByteSource";
 import { assembleWord, type ByteSource } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
+import { validateSignature } from "@/firmware/me/crypto/rsa";
+import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
+import { meRegion } from "@/firmware/me/layout/flashDescriptor";
+import {
+  CSME12_KEY,
+  CSME12_PROTECTED,
+  CSME12_SIG,
+  CSME15_KEY,
+  CSME15_PROTECTED,
+  CSME15_SIG,
+  CSME16_KEY,
+  CSME16_PROTECTED,
+  CSME16_SIG,
+} from "@/firmware/me/testing/realManifests";
 import { DEFAULT_LIMITS } from "@/firmware/uefi/parserState";
 import { rootsOf } from "@/firmware/uefi/treeMaterialization";
 import { buildOverviewRows } from "@/render/minimap/overviewBuild";
@@ -36,6 +50,13 @@ const BYTE_BUDGET = 32 * 1024 * 1024;
  * bytes each, so this is one chunk of content and its neighbours.
  */
 const FIRST_SCREEN_CHUNKS = 3;
+
+/** The three real manifests the RSA row is measured against. */
+const REAL_MANIFESTS = [
+  { key: CSME12_KEY, signature: CSME12_SIG, protectedData: CSME12_PROTECTED },
+  { key: CSME15_KEY, signature: CSME15_SIG, protectedData: CSME15_PROTECTED },
+  { key: CSME16_KEY, signature: CSME16_SIG, protectedData: CSME16_PROTECTED },
+];
 
 async function main(): Promise<void> {
   const fixture = await resolveFixture();
@@ -346,6 +367,60 @@ async function main(): Promise<void> {
       await handle.close();
     }
   }
+
+  // M10. The budget in ANALYSIS.md is 2 s for a whole ME region. What costs
+  // is the manifest scan over the region, the signature's modular
+  // exponentiation and the digests over its protected window — the rest is a
+  // handful of structure reads. There is no database here: identification is a
+  // few substring searches and it needs a fetch, so measuring it would be
+  // measuring the network.
+  {
+    const whole = new Uint8Array(await (await fixture.blob()).arrayBuffer());
+    const region = meRegion(whole);
+    const bytes =
+      region === undefined ? whole : whole.subarray(region.base, region.base + region.size);
+    rows.push({
+      name: `ME analysis, ${(bytes.length / 1024 ** 2).toFixed(1)} MB region`,
+      budgetMs: 2000,
+      note:
+        "The manifest scan, the directory walk, the extension chain and the RSA signature " +
+        "check. Identification is left out: it is a few substring searches behind a fetch, " +
+        "so timing it would time the network.",
+      measurement: await measure(
+        async () => {
+          analyzeMeRegion({ bytes, baseOffset: region?.base ?? 0 });
+        },
+        { samples: 3, bytes: bytes.length }
+      ),
+    });
+  }
+
+  // The half of the budget the row above cannot reach: a synthetic fixture has
+  // no real manifest, so its signature is never checkable and the modular
+  // exponentiation the budget names never runs. These three are real — 2048-bit
+  // PKCS #1 over SHA-256 and two 3072-bit PSS over SHA-384 — and they are what
+  // an analysis of a real image adds to the scan above.
+  rows.push({
+    name: "RSA signature check, 3 real manifests",
+    budgetMs: 200,
+    note:
+      "One 2048-bit PKCS #1 and two 3072-bit PSS, which is what a real image's manifest " +
+      "costs on top of the region scan. The language's own bigint does the modpow.",
+    measurement: await measure(
+      async () => {
+        for (const one of REAL_MANIFESTS) {
+          validateSignature({
+            tag: "$MN2",
+            publicKey: one.key,
+            exponent: 65537,
+            signature: one.signature,
+            protectedData: one.protectedData,
+          });
+        }
+      },
+      { samples: 5 }
+    ),
+  });
 
   printTable(rows);
   console.log("");
