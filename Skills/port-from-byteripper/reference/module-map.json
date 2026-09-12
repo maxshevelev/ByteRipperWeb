@@ -192,8 +192,8 @@
       "web": [
         "src/firmware/me"
       ],
-      "status": "planned",
-      "note": "ME/CSME analysis. Crypto/RSA.swift and Decompress/Huffman.swift are the two compute-bound spots kept behind a narrow interface."
+      "status": "in-progress",
+      "note": "The compute-bound half first: CRC-32 in both of the spellings ME uses, the MFS 14-bit obfuscation transform, SHA-1/256/384 written out because the parser is synchronous and src/firmware has no crypto API, the RSA manifest check over the language's own bigint, and the CSE Huffman decoder. Layout, file systems, identification and the engine are still to come."
     },
     {
       "swift": "Packages/UEFIContentSource",
