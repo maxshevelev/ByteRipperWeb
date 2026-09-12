@@ -1,7 +1,9 @@
+import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
+import { bookmarkAt, toggleBookmark } from "@/state/bookmarksStore";
 import {
   type PaneId,
   type PaneState,
@@ -36,6 +38,8 @@ export interface PaneMenuActions {
   readonly onFill: (pane: PaneId) => void;
   readonly onDeleteBytes: (pane: PaneId) => void;
   readonly onSelectBlockFrom: (pane: PaneId, offset: number) => void;
+  /** Opens the bookmark list on the mark at this row, for renaming or moving. */
+  readonly onEditBookmark: (offset: number) => void;
   readonly onProblem: (message: string | undefined) => void;
 }
 
@@ -105,6 +109,26 @@ export function dumpMenu(
       onSelect: () => actions.onSelectBlockFrom(pane, offset),
     },
     ...extra,
+    { kind: "separator" },
+    ...bookmarkItems(offset, actions),
+  ];
+}
+
+/**
+ * The bookmark block (§20.3).
+ *
+ * One item marks and unmarks — the same command ⌘D is, so there is one thing to
+ * learn — and a marked row is offered Edit Bookmark besides. The address is the
+ * **row's**, not the clicked byte's: a right-click on a byte marks its row, and
+ * the title is what says so.
+ */
+function bookmarkItems(offset: number, actions: PaneMenuActions): (MenuEntry | undefined)[] {
+  const row = rowContaining(offset);
+  return [
+    { label: `Toggle Bookmark at ${hexAddress(row)}`, onSelect: () => void toggleBookmark(offset) },
+    bookmarkAt(offset) === undefined
+      ? undefined
+      : { label: "Edit Bookmark…", onSelect: () => actions.onEditBookmark(offset) },
   ];
 }
 

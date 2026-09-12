@@ -604,6 +604,97 @@ textarea,
   width: auto;
 }
 
+/* The bookmark list inside Go To. */
+.bookmark-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.toolbar-button.is-quiet {
+  border: 0;
+  background: none;
+  padding: 0.1rem 0.25rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.bookmark-list {
+  margin: 0;
+  padding: 0.2rem;
+  list-style: none;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+}
+
+.bookmark-list:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.bookmark-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.25rem;
+  border-radius: 4px;
+}
+
+.bookmark-row[data-selected] {
+  background: var(--selection);
+}
+
+.bookmark-address {
+  flex: none;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--bookmark);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bookmark-name,
+.bookmark-name-field {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.bookmark-name-field {
+  font: inherit;
+  padding: 0.1rem 0.25rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.bookmark-remove {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0 0.25rem;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.bookmark-remove:hover {
+  color: var(--semantic-bad);
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;

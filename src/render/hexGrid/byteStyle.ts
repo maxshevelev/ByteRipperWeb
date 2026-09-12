@@ -21,7 +21,9 @@ export type InkRole =
   /** The significant digits of an address. */
   | "address"
   /** An address's leading zeros. */
-  | "mutedAddress";
+  | "mutedAddress"
+  /** An address standing on a bookmark's mark, which is a filled shape. */
+  | "bookmarkAddress";
 
 export const INK_ROLES: readonly InkRole[] = [
   "byte",
@@ -29,6 +31,7 @@ export const INK_ROLES: readonly InkRole[] = [
   "modified",
   "address",
   "mutedAddress",
+  "bookmarkAddress",
 ];
 
 /**

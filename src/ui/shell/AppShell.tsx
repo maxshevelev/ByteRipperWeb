@@ -5,6 +5,7 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
+import { noteVisited, restoreBookmarks, toggleBookmark } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
@@ -224,7 +225,8 @@ export function AppShell() {
   }, [activePane]);
 
   const [fillOpen, setFillOpen] = useState(false);
-  const [goToOpen, setGoToOpen] = useState(false);
+  /** Go To, and which half of it the keyboard starts in. */
+  const [goTo, setGoTo] = useState<"offset" | "bookmarks" | undefined>(undefined);
   /** The pane and address a Select Block was asked for from, or nothing. */
   const [selectBlock, setSelectBlock] = useState<
     { pane: PaneId; start: number | undefined } | undefined
@@ -233,6 +235,13 @@ export function AppShell() {
   const searchOpen = search.open;
 
   useEffect(() => watchForMinimap(), []);
+
+  // The marks this workspace had when it was last open (ANALYSIS.md §
+  // Bookmarks). Read once; a failure to read is a workspace with no marks yet,
+  // which is what it looks like anyway.
+  useEffect(() => {
+    void restoreBookmarks();
+  }, []);
 
   // The find bar always searches the pane the commands act on.
   useEffect(() => {
@@ -261,9 +270,28 @@ export function AppShell() {
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if (!(event.metaKey || event.ctrlKey)) return;
       // Nothing open to act on: leave the keys to the browser.
       if (workspaceStore.getSnapshot().panes.a === undefined) return;
+
+      // Alt is the bookmark list's own modifier and difference navigation's;
+      // everything else below is Alt-free. The dump has no handler for it, so
+      // it is taken here wherever the keyboard is.
+      if (event.altKey) {
+        if (event.key === "b" || event.key === "B" || event.code === "KeyB") {
+          event.preventDefault();
+          setGoTo("bookmarks");
+        }
+        return;
+      }
+
+      // The dump has its own handler for every shortcut below, and this one
+      // runs first because it captures at the window. Acting on both is acting
+      // twice — which for a toggle is doing nothing at all, measured: Cmd+M
+      // with the keyboard in the dump left the minimap exactly as it was. So
+      // where the dump will handle it, this stands aside.
+      const target = event.target;
+      if (target instanceof Element && target.closest(".hex-scroller") !== null) return;
 
       switch (event.key) {
         case "f":
@@ -275,13 +303,22 @@ export function AppShell() {
         case "l":
         case "L":
           event.preventDefault();
-          setGoToOpen(true);
+          setGoTo("offset");
           return;
         case "m":
         case "M":
           event.preventDefault();
           toggleMinimap();
           return;
+        case "d":
+        case "D": {
+          // The pane's own handler has this too, but only while the dump has
+          // the keyboard — and marking a row is a workspace command.
+          event.preventDefault();
+          const slot = workspaceStore.getSnapshot().panes[workspaceStore.getSnapshot().activePane];
+          if (slot !== undefined) toggleBookmark(slot.document.caret);
+          return;
+        }
         default:
           return;
       }
@@ -339,6 +376,8 @@ export function AppShell() {
         b: { offset, token: revealToken.current },
       });
       setActivePane(activePane);
+      // Remembered, so the next Go To offers it back rather than being retyped.
+      noteVisited(offset);
     },
     [activePane]
   );
@@ -420,6 +459,10 @@ export function AppShell() {
       onFill: () => setFillOpen(true),
       onDeleteBytes: doDeleteBytes,
       onSelectBlockFrom: (pane, offset) => setSelectBlock({ pane, start: offset }),
+      // Editing a mark is picking it out of the list that already renames,
+      // moves and removes marks — rather than a second dialog saying the same
+      // things about one of them.
+      onEditBookmark: () => setGoTo("bookmarks"),
       onProblem: reportProblem,
     }),
     [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes]
@@ -446,7 +489,12 @@ export function AppShell() {
         onRevert={doRevert}
         onFill={() => setFillOpen(true)}
         onDeleteBytes={doDeleteBytes}
-        onGoTo={() => setGoToOpen(true)}
+        onGoTo={() => setGoTo("offset")}
+        onBookmarks={() => setGoTo("bookmarks")}
+        onToggleBookmark={() => {
+          const slot = workspaceStore.getSnapshot().panes[activePane];
+          if (slot !== undefined) toggleBookmark(slot.document.caret);
+        }}
         onDuplicate={doDuplicate}
         onFind={openFind}
         onClose={() => closeWithWarning(activePane)}
@@ -492,7 +540,7 @@ export function AppShell() {
                 saved={pane.saved}
                 onSave={() => void doSave(false)}
                 onSaveAs={() => void doSave(true)}
-                onGoTo={() => setGoToOpen(true)}
+                onGoTo={() => setGoTo("offset")}
                 onFind={openFind}
                 matches={resultsFor(search, id).matches}
                 currentMatch={resultsFor(search, id).current}
@@ -524,10 +572,12 @@ export function AppShell() {
       {dragging ? <div className="drop-veil">Drop to open</div> : null}
 
       <GoToDialog
-        open={goToOpen}
+        open={goTo !== undefined}
         fileSize={state.panes[activePane]?.document.size ?? 0}
+        document={state.panes[activePane]?.document}
+        focus={goTo ?? "offset"}
         onGo={doGoTo}
-        onClose={() => setGoToOpen(false)}
+        onClose={() => setGoTo(undefined)}
       />
       <FillDialog
         open={fillOpen}

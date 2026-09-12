@@ -16,6 +16,7 @@ import {
   type MinimapColors,
   MinimapRenderer,
 } from "@/render/minimap/minimapRenderer";
+import { bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import {
   DEFAULT_MINIMAP_WIDTH,
@@ -481,6 +482,8 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
     };
   }, [mode, slot, topRow, windowRows, differences]);
 
+  const marks = useStore(bookmarksStore).bookmarks;
+
   /** The band as it is currently drawn, which is also the drag handle. */
   const band = viewportBand({
     mode,
@@ -491,6 +494,25 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
     overviewRows: state.pictures[pane]?.rowCount ?? 0,
     minHeight: MIN_BAND_HEIGHT,
   });
+
+  /**
+   * Where each bookmarked row falls on this map.
+   *
+   * The same mapping the selection strip uses, so a mark and the bytes it
+   * marks are at the same height. A row outside the map is dropped here rather
+   * than clamped: a mark pinned to the top edge would claim a position the file
+   * does not have there.
+   */
+  const markYs = (() => {
+    if (marks.length === 0) return undefined;
+    const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
+    const ys: number[] = [];
+    for (const mark of marks) {
+      const y = yOfOffset({ ...shared, offset: mark.row });
+      if (y >= 0 && y <= size.height) ys.push(y);
+    }
+    return ys;
+  })();
 
   /**
    * The panes' own selection, as a strip across the map.
@@ -519,8 +541,14 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
     renderer.setColors(colors);
     renderer.resize(size.width, size.height, window.devicePixelRatio);
 
-    renderer.draw({ mode, cells, picture: state.pictures[pane], selection: selectionStrip });
-  }, [colors, size, state.pictures, pane, mode, cells, selectionStrip]);
+    renderer.draw({
+      mode,
+      cells,
+      picture: state.pictures[pane],
+      selection: selectionStrip,
+      bookmarks: markYs,
+    });
+  }, [colors, size, state.pictures, pane, mode, cells, selectionStrip, markYs]);
 
   const offsetFromEvent = useCallback(
     (event: { clientY: number }): number | undefined => {

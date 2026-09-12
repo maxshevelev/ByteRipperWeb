@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
@@ -15,8 +16,10 @@ import {
 } from "@/render/hexGrid/hexGridRenderer";
 import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
+import { bookmarkAt, bookmarksStore, moveBookmark, toggleBookmark } from "@/state/bookmarksStore";
 import { toggleMinimap } from "@/state/minimapStore";
 import { stepSearch } from "@/state/searchStore";
+import { useStore } from "@/state/useStore";
 import { activeDecoder, HEX_FONT_SIZE_PX, type PaneId } from "@/state/workspaceStore";
 import {
   detectKeyboardPlatform,
@@ -163,6 +166,8 @@ export function HexPane({
   const headerRuleRef = useRef("");
   const viewportHeightRef = useRef(0);
   const dragAnchorRef = useRef<number | undefined>(undefined);
+  /** The row a bookmark is being dragged from, while that drag is happening. */
+  const markDragRef = useRef<number | undefined>(undefined);
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
@@ -627,6 +632,9 @@ export function HexPane({
         case "saveAs":
           onSaveAs?.();
           break;
+        case "toggleBookmark":
+          toggleBookmark(doc.caret);
+          break;
         case "contextMenu": {
           // Shift+F10 and the Menu key are the platform's own way of asking for
           // a context menu, and the caret is what they aim at.
@@ -716,6 +724,19 @@ export function HexPane({
     [typing]
   );
 
+  /**
+   * The marks the offset column draws.
+   *
+   * The whole set on every change: there are a handful of bookmarks and
+   * thousands of rows, and the renderer refuses an identical set, so this
+   * repaints exactly when a mark actually moved.
+   */
+  const marks = useStore(bookmarksStore).bookmarks;
+  useEffect(() => {
+    rendererRef.current?.setBookmarks(new Set(marks.map((mark) => mark.row)));
+    scheduleDraw();
+  }, [marks, scheduleDraw]);
+
   /** Where a pointer is, in the grid's own content coordinates. */
   const contentPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const host = scrollRef.current;
@@ -744,6 +765,16 @@ export function HexPane({
 
       const column = hit.column.kind === "offset" ? 0 : hit.column.column;
       const offset = Math.min(layout.byteOffset(hit.row, column), doc.size);
+
+      // A press on a marked address picks the mark up rather than starting a
+      // selection: the offset column is where marks live, and dragging one to
+      // another row is how §20.3 says a mark is moved.
+      if (hit.column.kind === "offset" && bookmarkAt(offset) !== undefined) {
+        markDragRef.current = rowContaining(offset);
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        return;
+      }
       // Clicking in a column is how you choose which one you are typing into.
       if (hit.column.kind === "hex" || hit.column.kind === "text") {
         const clicked: InputRegion = hit.column.kind === "hex" ? "hex" : "text";
@@ -764,6 +795,22 @@ export function HexPane({
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      const dragging = markDragRef.current;
+      if (dragging !== undefined) {
+        const layout = layoutRef.current;
+        const host = scrollRef.current;
+        if (layout === undefined || host === null) return;
+        const bounds = host.getBoundingClientRect();
+        const y = event.clientY - bounds.top + host.scrollTop;
+        const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
+        // The last row this pane draws is the limit, not a size held elsewhere:
+        // a mark may not be dragged out of the file.
+        const lastRow = rowContaining(Math.max(0, doc.size - 1));
+        const landed = moveBookmark(dragging, Math.min(row, lastRow), lastRow);
+        if (landed !== undefined) markDragRef.current = landed;
+        return;
+      }
+
       const anchor = dragAnchorRef.current;
       const layout = layoutRef.current;
       const host = scrollRef.current;
@@ -782,6 +829,30 @@ export function HexPane({
       if (end === undefined) return;
 
       doc.setSelection(makeSelection(anchor, Math.min(end, doc.size), doc.size));
+    },
+    [doc]
+  );
+
+  /**
+   * A double-click on an address marks that row, or unmarks it (§20.3).
+   *
+   * The mouse gesture for the same command ⌘D is, on the one column where a
+   * double-click has nothing else to mean — in the bytes it selects a word.
+   */
+  const onDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const layout = layoutRef.current;
+      const host = scrollRef.current;
+      if (layout === undefined || host === null) return;
+      const bounds = host.getBoundingClientRect();
+      const hit = layout.hitTest(
+        event.clientX - bounds.left + host.scrollLeft,
+        event.clientY - bounds.top + host.scrollTop,
+        layout.rowCount(doc.size)
+      );
+      if (hit === undefined || hit.column.kind !== "offset") return;
+      event.preventDefault();
+      toggleBookmark(layout.byteOffset(hit.row, 0));
     },
     [doc]
   );
@@ -820,6 +891,7 @@ export function HexPane({
 
   const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     dragAnchorRef.current = undefined;
+    markDragRef.current = undefined;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -883,6 +955,7 @@ export function HexPane({
         onCopy={onCopy}
         onPaste={onPaste}
         onContextMenu={onContextMenu}
+        onDoubleClick={onDoubleClick}
       >
         <canvas ref={canvasRef} className="hex-canvas" />
         <div

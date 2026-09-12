@@ -224,9 +224,16 @@
       "swift": "ByteRipperApp/Bookmarks",
       "web": [
         "src/core/bookmarks",
-        "src/ui/bookmarks"
+        "src/state/bookmarksStore.ts",
+        "src/ui/dialogs/GoToDialog.tsx",
+        "src/platform/storage/keyValueStore.ts"
       ],
-      "status": "planned"
+      "status": "in-progress",
+      "files": {
+        "BookmarkStore.swift": "src/core/bookmarks/bookmarkStore.ts",
+        "GoToBookmarksForm.swift": "src/ui/dialogs/GoToDialog.tsx"
+      },
+      "note": "Across at M7. BookmarkStore whole, with the drag rule that is the substance of it: a mark dragged onto an occupied row jumps over it, stops before it when there is no room beyond, and moves nothing only when even that room is missing. GoToHistoryStore's UserDefaults become the workspace record: the tab's id is in sessionStorage (which is exactly per-tab and survives a reload) and the marks and recent addresses are in IndexedDB under it, through src/platform/storage/keyValueStore.ts — ANALYSIS.md § Bookmarks asks for a reload to keep them, which upstream's window scope does not have to answer. The form is one dialog as upstream has it: Go To and the bookmark list are one question. The naming popover is the list's own inline rename rather than a popover of its own. The marks themselves are drawn by the hex grid (the offset column's pentagon, §20.4) and by the minimap (a triangle in a margin of its own, §19.4.3)."
     },
     {
       "swift": "ByteRipperApp/Segments",

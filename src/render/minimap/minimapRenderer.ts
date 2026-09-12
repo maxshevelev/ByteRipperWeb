@@ -61,6 +61,8 @@ export interface MinimapColors {
   readonly difference: string;
   readonly matchFill: string;
   readonly currentMatchFill: string;
+  /** The bookmark marks in the margin (§19.4.3). */
+  readonly bookmark: string;
 }
 
 /**
@@ -102,6 +104,17 @@ const MIN_MARK_DEVICE_PIXELS = 2;
 const MATCH_HEIGHT = 2;
 const MATCH_MIN_WIDTH = 7;
 const CURRENT_MATCH_HEIGHT = 4;
+
+/**
+ * The strip down the left of each map where the bookmark marks live (§19.4.3).
+ *
+ * A margin rather than an overlay: a mark drawn on the map would sit on the
+ * bytes it is about and be read as something the file contains. The map keeps
+ * what is left, which at the panel's narrowest is still most of it.
+ */
+const MARK_MARGIN = 9;
+/** The mark's height, and so the base of the triangle pointing at its row. */
+const MARK_SIDE = 7;
 
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
@@ -147,6 +160,15 @@ export class MinimapRenderer {
     return this.canvas.width / this.ratio;
   }
 
+  /** Where the map itself starts: past the margin the marks are drawn in. */
+  private get mapLeft(): number {
+    return MARK_MARGIN;
+  }
+
+  private get mapWidth(): number {
+    return Math.max(1, this.width - MARK_MARGIN);
+  }
+
   private get height(): number {
     return this.canvas.height / this.ratio;
   }
@@ -168,6 +190,8 @@ export class MinimapRenderer {
    */
   draw(options: {
     readonly mode: MinimapMode;
+    /** The y of each bookmarked row inside this map, in CSS pixels. */
+    readonly bookmarks?: readonly number[] | undefined;
     /** Detail mode: the states of the window's bytes, row-major, 16 per row. */
     readonly cells?: readonly CellState[] | undefined;
     /** Overview mode: the picture and its overlays. */
@@ -179,19 +203,43 @@ export class MinimapRenderer {
     if (options.mode === "detail") this.drawDetail(options.cells ?? []);
     else if (options.picture !== undefined) this.drawOverview(options.picture);
     if (options.selection !== undefined) this.drawSelection(options.selection);
+    if (options.bookmarks !== undefined) this.drawBookmarks(options.bookmarks);
+  }
+
+  /**
+   * The bookmark marks: a small purple triangle per marked row, in the margin,
+   * pointing at the row it marks.
+   *
+   * Purple is the bookmark colour throughout (§20.4), which keeps a mark apart
+   * from the grey viewport band that shares the map with it. Last, so a mark is
+   * never buried under an overlay.
+   */
+  private drawBookmarks(rows: readonly number[]): void {
+    const context = this.context;
+    context.fillStyle = this.colors.bookmark;
+    for (const y of rows) {
+      if (y < -MARK_SIDE || y > this.height + MARK_SIDE) continue;
+      const top = y - MARK_SIDE / 2;
+      context.beginPath();
+      context.moveTo(0, top);
+      context.lineTo(MARK_MARGIN - 2, y);
+      context.lineTo(0, top + MARK_SIDE);
+      context.closePath();
+      context.fill();
+    }
   }
 
   /** The pane's selection, across the width of its map. */
   private drawSelection(strip: { readonly top: number; readonly height: number }): void {
     const context = this.context;
     context.fillStyle = this.colors.selection;
-    context.fillRect(0, strip.top, this.width, strip.height);
+    context.fillRect(this.mapLeft, strip.top, this.mapWidth, strip.height);
   }
 
   /** One cell per byte: the map reads as a miniature of the dump itself. */
   private drawDetail(cells: readonly CellState[]): void {
     const context = this.context;
-    const cellWidth = this.width / BYTES_PER_ROW;
+    const cellWidth = this.mapWidth / BYTES_PER_ROW;
     const rows = Math.ceil(cells.length / BYTES_PER_ROW);
 
     for (let row = 0; row < rows; row++) {
@@ -200,7 +248,7 @@ export class MinimapRenderer {
       for (let column = 0; column < BYTES_PER_ROW; column++) {
         const cell = cells[row * BYTES_PER_ROW + column];
         if (cell === undefined) continue;
-        const x = column * cellWidth;
+        const x = this.mapLeft + column * cellWidth;
 
         // Difference is a background and the byte is drawn on top, matching the
         // panes — a byte that is both differing and edited shows both.
@@ -225,7 +273,7 @@ export class MinimapRenderer {
   private drawOverview(picture: OverviewPicture): void {
     const context = this.context;
     const rowHeight = this.height / Math.max(1, picture.rowCount);
-    const cellWidth = this.width / MINIMAP_COLUMNS;
+    const cellWidth = this.mapWidth / MINIMAP_COLUMNS;
     const markHeight = Math.max(rowHeight, this.minMarkHeight);
 
     // The density picture first, as the ground everything else marks.
@@ -247,7 +295,7 @@ export class MinimapRenderer {
       const lastColumn = lastColumnInFile(rowStart, rowEnd - rowStart, picture.fileSize);
       for (let column = 0; column <= lastColumn; column++) {
         context.fillStyle = this.toneFor(picture.density[base + column] ?? 0);
-        context.fillRect(column * cellWidth, y, cellWidth, rowHeight);
+        context.fillRect(this.mapLeft + column * cellWidth, y, cellWidth, rowHeight);
       }
     }
 

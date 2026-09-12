@@ -94,6 +94,11 @@ export function caretRowReach(
   return { first: row, end: row + 1 + below };
 }
 
+/** The mark's body reaches this far past the offset column, as the ring does. */
+const BOOKMARK_PADDING = 2;
+/** The apex angle of the mark's tip, held at every font size. */
+const BOOKMARK_TIP_ANGLE = Math.PI / 2;
+
 const PEER_CONTOUR_PADDING = 2;
 const PEER_CONTOUR_RADIUS = 3;
 const PEER_CONTOUR_LINE_WIDTH = 1.5;
@@ -114,6 +119,8 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly caret: string;
   /** The insert-mode caret: a line at the boundary bytes will be pushed from. */
   readonly insertCaret: string;
+  /** The bookmark's own colour, for the mark in the offset column (§20.4). */
+  readonly bookmark: string;
 }
 
 export interface HexGridConfig {
@@ -190,6 +197,8 @@ export class HexGridRenderer {
   private currentMatch: HexGridSelection | undefined;
   /** Only the pane the commands act on draws a caret. */
   private active = false;
+  /** The bookmarked rows, by the offset each row opens at (§20.4). */
+  private bookmarkRows: ReadonlySet<number> = new Set();
 
   private readonly dirty = new DirtyRows();
   /** The scroll offset the canvas currently holds, for the blit. */
@@ -349,6 +358,21 @@ export class HexGridRenderer {
    * The other pane's selection, outlined here so the same offsets can be seen
    * on both sides at once.
    */
+  /**
+   * The bookmarked rows, by their first byte's offset.
+   *
+   * A set rather than a list because the question asked per row is only
+   * "is this one marked", and a row is drawn thousands of times more often
+   * than a bookmark is set.
+   */
+  setBookmarks(rows: ReadonlySet<number>): void {
+    // Compared rather than replaced blindly: this is handed the whole set on
+    // every change, and an identical set must not repaint the dump.
+    if (sameRows(this.bookmarkRows, rows)) return;
+    this.bookmarkRows = rows;
+    this.invalidateAll();
+  }
+
   setPeerSelection(selection: HexGridSelection | undefined): void {
     const previous = this.peerSelection;
     this.peerSelection = selection;
@@ -674,7 +698,7 @@ export class HexGridRenderer {
     );
   }
 
-  /** The address, with its leading zeros muted. */
+  /** The address, with its leading zeros muted — or standing on its mark. */
   private paintAddress(rowStart: number, y: number): void {
     const config = this.config;
     const atlas = this.atlas;
@@ -683,10 +707,19 @@ export class HexGridRenderer {
     const { layout } = config;
     const text = addressString(rowStart, layout.offsetColumnChars);
     const significant = addressSignificantFrom(text);
+    const marked = this.bookmarkRows.has(rowStart);
+    if (marked) this.paintBookmarkMark(y);
 
     for (let index = 0; index < text.length; index++) {
       const digit = Number.parseInt(text[index] ?? "0", 16);
-      const role: InkRole = index < significant ? "mutedAddress" : "address";
+      // On a mark the address is read against a filled shape, so every digit
+      // takes the mark's own text colour — the leading zeros included, because
+      // muting them there would sink them into the fill.
+      const role: InkRole = marked
+        ? "bookmarkAddress"
+        : index < significant
+          ? "mutedAddress"
+          : "address";
       this.blit(
         atlas.digit(digit, role),
         layout.leftPadding + index * layout.charWidth,
@@ -694,6 +727,47 @@ export class HexGridRenderer {
         layout.charWidth
       );
     }
+  }
+
+  /**
+   * A bookmark's mark: the row's address on a filled tag pointing at the bytes.
+   *
+   * Upstream's pentagon (§20.4) — the offset column's own box with a triangular
+   * tip growing out of its right edge, at a fixed apex angle so the shape holds
+   * at every font size. The tip is clamped to the gap before the hex column,
+   * because a mark that touched the bytes would read as a highlight on them.
+   */
+  private paintBookmarkMark(y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    const { layout, colors } = config;
+
+    const top = y;
+    const height = layout.rowHeight;
+    const left = layout.leftPadding - BOOKMARK_PADDING;
+    const right = layout.leftPadding + layout.offsetColumnWidth + BOOKMARK_PADDING;
+    // Each of the tip's edges rises over half the height, so the reach that
+    // opens the apex to BOOKMARK_TIP_ANGLE is (height / 2) / tan(angle / 2).
+    const reach = Math.max(
+      0,
+      Math.min(
+        height / 2 / Math.tan(BOOKMARK_TIP_ANGLE / 2),
+        layout.gapAfterOffset - BOOKMARK_PADDING - 1
+      )
+    );
+
+    const context = this.context;
+    context.save();
+    context.fillStyle = colors.bookmark;
+    context.beginPath();
+    context.moveTo(left, top);
+    context.lineTo(right, top);
+    context.lineTo(right + reach, top + height / 2);
+    context.lineTo(right, top + height);
+    context.lineTo(left, top + height);
+    context.closePath();
+    context.fill();
+    context.restore();
   }
 
   /**
@@ -955,4 +1029,11 @@ export class HexGridRenderer {
         this.onBytesArrived?.();
       });
   }
+}
+
+/** Whether two row sets hold the same rows, so an unchanged set repaints nothing. */
+function sameRows(left: ReadonlySet<number>, right: ReadonlySet<number>): boolean {
+  if (left.size !== right.size) return false;
+  for (const row of left) if (!right.has(row)) return false;
+  return true;
 }

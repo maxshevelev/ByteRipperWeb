@@ -61,6 +61,8 @@
   --minimap-viewport-border: rgb(60 90 160 / 0.55);
 
   /* Ported from AppPalette */
+  --bookmark: #8a4fd0;
+  --bookmark-text: #ffffff;
   --semantic-bad: #e41f1f;
   --semantic-caution: #da8600;
   --semantic-good: #12af1f;
@@ -112,6 +114,8 @@
     --minimap-viewport: rgb(130 165 235 / 0.16);
     --minimap-viewport-border: rgb(130 165 235 / 0.5);
 
+    --bookmark: #a97ae0;
+    --bookmark-text: #16121c;
     --semantic-bad: #ff6b66;
     --semantic-caution: #dba85c;
     --semantic-good: #8cd166;

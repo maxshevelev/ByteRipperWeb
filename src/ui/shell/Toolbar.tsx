@@ -1,5 +1,6 @@
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
+import { bookmarkAt, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
@@ -36,6 +37,8 @@ export function Toolbar({
   onFill,
   onDeleteBytes,
   onGoTo,
+  onBookmarks,
+  onToggleBookmark,
   onDuplicate,
   onFind,
   onClose,
@@ -49,6 +52,8 @@ export function Toolbar({
   readonly onFill: () => void;
   readonly onDeleteBytes: () => void;
   readonly onGoTo: () => void;
+  readonly onBookmarks: () => void;
+  readonly onToggleBookmark: () => void;
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
   readonly onClose: () => void;
@@ -58,6 +63,9 @@ export function Toolbar({
   const diff = useStore(diffStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
+  // The Add/Remove wording follows the caret's row, so the item says what it
+  // will do rather than what it might.
+  useStore(bookmarksStore);
   const active = state.panes[state.activePane];
   // The verb follows the pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is.
@@ -111,6 +119,20 @@ export function Toolbar({
     active === undefined
       ? undefined
       : { label: "Go To Position…", shortcut: "⌘L", onSelect: onGoTo },
+
+    active === undefined ? undefined : { kind: "separator" },
+    active === undefined ? undefined : { kind: "heading", label: "Bookmarks" },
+    active === undefined
+      ? undefined
+      : {
+          label:
+            bookmarkAt(active.document.caret) === undefined ? "Add Bookmark" : "Remove Bookmark",
+          shortcut: "⌘D",
+          onSelect: onToggleBookmark,
+        },
+    active === undefined
+      ? undefined
+      : { label: "Bookmarks…", shortcut: "⌥⌘B", onSelect: onBookmarks },
 
     { kind: "separator" },
     { kind: "heading", label: "View" },

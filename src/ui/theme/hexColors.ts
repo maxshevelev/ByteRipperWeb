@@ -16,6 +16,7 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   modified: "--byte-modified",
   address: "--address-text",
   mutedAddress: "--address-text-muted",
+  bookmarkAddress: "--bookmark-text",
   background: "--surface",
   selection: "--selection",
   eofHatch: "--eof-hatch",
@@ -25,6 +26,7 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   insertCaret: "--insert-caret",
   matchFill: "--match-fill",
   currentMatchFill: "--current-match-fill",
+  bookmark: "--bookmark",
 };
 
 /** Reads the palette as it currently resolves on `element`. */

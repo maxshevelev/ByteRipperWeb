@@ -17,6 +17,7 @@ const VARIABLES: Record<keyof MinimapColors, string> = {
   modified: "--byte-modified",
   difference: "--difference-fill",
   matchFill: "--match-fill",
+  bookmark: "--bookmark",
   currentMatchFill: "--current-match-fill",
 };
 

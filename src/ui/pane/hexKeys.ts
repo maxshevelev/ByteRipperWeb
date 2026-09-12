@@ -58,6 +58,8 @@ export type HexCommand =
   | { readonly kind: "goToPosition" }
   | { readonly kind: "find" }
   | { readonly kind: "toggleMinimap" }
+  /** Mark the caret's row, or unmark it (§20.3). */
+  | { readonly kind: "toggleBookmark" }
   /** Shift+F10 or the Menu key: the platform's ask for a context menu. */
   | { readonly kind: "contextMenu" }
   | { readonly kind: "findNext" }
@@ -115,6 +117,9 @@ export function resolveHexKey(
       case "m":
       case "M":
         return { kind: "toggleMinimap" };
+      case "d":
+      case "D":
+        return { kind: "toggleBookmark" };
       case "g":
       case "G":
         // The other spelling of Find Next, and Shift for the other direction.
