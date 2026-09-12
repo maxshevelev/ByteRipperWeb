@@ -64,7 +64,7 @@ export function SegmentsDialog({
     <Dialog open={open} title="Segments" onClose={onClose}>
       <div className="dialog-body">
         <div className="segments-scroll">
-          <table className="segments-table">
+          <table className="panel-table segments-table">
             <caption className="visually-hidden">Segments</caption>
             <thead>
               <tr>

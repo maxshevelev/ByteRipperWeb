@@ -251,8 +251,16 @@ export interface FirmwareRepairRequest {
   readonly volumeRevision: number;
 }
 
+/** Everything the detail panel shows about one node, read once. */
+export interface FirmwareDetailRequest {
+  readonly kind: "firmwareDetail";
+  readonly id: JobId;
+  readonly node: readonly number[];
+}
+
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
+  | FirmwareDetailRequest
   | FirmwareChildrenRequest
   | FirmwareAddressesRequest
   | FirmwareRepairRequest
@@ -330,10 +338,38 @@ export interface FirmwareRepairResponse {
   readonly writes: readonly { readonly offset: number; readonly bytes: Uint8Array }[];
 }
 
+/** A flash descriptor's own detail, flattened for the wire. */
+export interface WireDescriptor {
+  readonly reservedVector: string;
+  readonly regionOffsets: readonly { readonly name: string; readonly offset: number }[];
+  readonly masters: readonly {
+    readonly name: string;
+    readonly read: number;
+    readonly write: number;
+  }[];
+  readonly maskDigits: number;
+  readonly biosAccess: readonly {
+    readonly region: string;
+    readonly read: boolean;
+    readonly write: boolean;
+  }[];
+  readonly chips: readonly { readonly jedecId: number; readonly name: string | undefined }[];
+}
+
+export interface FirmwareDetailResponse {
+  readonly kind: "firmwareDetail";
+  readonly id: JobId;
+  readonly node: readonly number[];
+  /** Where this node's first byte is mapped, when the image says. */
+  readonly address: number | undefined;
+  readonly descriptor: WireDescriptor | undefined;
+}
+
 export type FirmwareWorkerResponse =
   | FirmwareRootsResponse
   | FirmwareChildrenResponse
   | FirmwareAddressesResponse
+  | FirmwareDetailResponse
   | FirmwareRepairResponse
   | FirmwareProgress
   | FirmwareFailed;

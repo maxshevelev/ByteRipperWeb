@@ -1,6 +1,7 @@
 import { createStore } from "@/state/store";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type {
+  FirmwareDetailResponse,
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
   WireDiagnostic,
@@ -34,6 +35,8 @@ export interface PaneFirmware {
   readonly problem: string | undefined;
   /** The paths currently being expanded, so a row can say it is working. */
   readonly expanding: ReadonlySet<string>;
+  /** What the detail panel shows about the node it was last asked about. */
+  readonly detail: FirmwareDetailResponse | undefined;
 }
 
 export interface FirmwareState {
@@ -49,6 +52,7 @@ const empty: PaneFirmware = {
   fraction: 0,
   problem: undefined,
   expanding: new Set(),
+  detail: undefined,
 };
 
 export const firmwareStore = createStore<FirmwareState>({ panes: { a: undefined, b: undefined } });
@@ -116,6 +120,9 @@ function ensureWorker(pane: PaneId): PaneWorker {
       case "firmwareAddresses":
         update(pane, { addressDiff: response.addressDiff });
         return;
+      case "firmwareDetail":
+        update(pane, { detail: response });
+        return;
       case "firmwareRepair": {
         const waiting = repairWaiters.get(pathKey(response.node));
         repairWaiters.delete(pathKey(response.node));
@@ -152,6 +159,7 @@ export function openFirmware(pane: PaneId, content: Blob): void {
     diagnostics: [],
     addressDiff: undefined,
     expanding: new Set(),
+    detail: undefined,
     problem: undefined,
   });
   held.worker.postMessage({ kind: "openFirmware", id: held.job, content });
@@ -196,6 +204,13 @@ export function resolveFirmwareAddresses(pane: PaneId): void {
     return;
   }
   send(pane, { kind: "firmwareAddresses", id: workers[pane]?.job ?? 0 });
+}
+
+/** Asks for everything the detail panel shows about one node. */
+export function askFirmwareDetail(pane: PaneId, path: readonly number[]): void {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return;
+  send(pane, { kind: "firmwareDetail", id: workers[pane]?.job ?? 0, node: path });
 }
 
 /**

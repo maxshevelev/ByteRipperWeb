@@ -7,6 +7,8 @@ import {
   repairsForMicrocode,
   repairsForVolume,
 } from "@/firmware/uefi/checksumRepair";
+import { readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
+import { regionLabel } from "@/firmware/uefi/descriptorParser";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
@@ -181,6 +183,55 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           id: request.id,
           node: request.node,
           writes: repairs.map((one) => ({ offset: one.offset, bytes: one.bytes })),
+        });
+        return;
+      }
+
+      case "firmwareDetail": {
+        const node = nodeAt(request.node);
+        if (reader === undefined || node === undefined) {
+          post({
+            kind: "firmwareDetail",
+            id: request.id,
+            node: request.node,
+            address: undefined,
+            descriptor: undefined,
+          });
+          return;
+        }
+        // The mapping is worked out here rather than asked for separately: a
+        // panel showing one node's address would otherwise need two round
+        // trips, and the anchor is already in hand once the tree is.
+        const parser = new Parser(reader, DEFAULT_LIMITS);
+        const diff = runSecondPass(parser, roots).addressDiff;
+        const start = node.header.start;
+        const address = diff === undefined || start >= reader.count ? undefined : start + diff;
+
+        const info =
+          node.kind === "flashDescriptor"
+            ? readDescriptorInfo(node.header.start, reader)
+            : undefined;
+        post({
+          kind: "firmwareDetail",
+          id: request.id,
+          node: request.node,
+          address,
+          descriptor:
+            info === undefined
+              ? undefined
+              : {
+                  reservedVector: [...info.reservedVector]
+                    .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
+                    .join(" "),
+                  regionOffsets: info.regionOffsets.map((one) => ({
+                    name: regionLabel(one.type),
+                    offset: one.offset,
+                  })),
+                  masters: info.masters.map((one) => ({ ...one })),
+                  maskDigits: info.maskDigits,
+                  biosAccess: info.biosAccess.map((one) => ({ ...one })),
+                  chips: info.chips.map((one) => ({ ...one })),
+                },
         });
         return;
       }

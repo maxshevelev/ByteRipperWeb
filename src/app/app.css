@@ -626,158 +626,6 @@ textarea,
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
 }
 
-/* ── The tool panel ───────────────────────────────────────────────────── */
-
-.tool-panel {
-  grid-row: 3;
-  grid-column: 2;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  /* Wide enough for a tree row to say a name, a type, an offset and a size
-     without any of them becoming an ellipsis. */
-  width: clamp(22rem, 32vw, 40rem);
-  min-width: 0;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.tool-panel-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-raised);
-}
-
-.tool-picker,
-.tool-pane {
-  font: inherit;
-  max-width: 12rem;
-}
-
-.tool-panel-body {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.tool-empty {
-  display: grid;
-  gap: 0.5rem;
-  align-content: center;
-  justify-items: center;
-  height: 100%;
-  padding: 1rem;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.uefi-tool {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  height: 100%;
-}
-
-.uefi-tree {
-  overflow: auto;
-  contain: strict;
-}
-
-/* The rows are absolutely positioned inside a spacer of the full height: a
-   firmware image is routinely a few thousand nodes, and a row per node is a few
-   thousand elements the browser would lay out on every scroll. */
-.uefi-tree-spacer {
-  position: relative;
-}
-
-.uefi-row {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding-right: 0.5rem;
-  white-space: nowrap;
-}
-
-.uefi-row[data-selected] {
-  background: var(--selection);
-}
-
-.uefi-twist {
-  flex: none;
-  width: 1.1em;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.8em;
-}
-
-.uefi-twist:disabled {
-  cursor: default;
-  opacity: 0;
-}
-
-.uefi-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--text);
-  cursor: pointer;
-}
-
-/* The type yields before the name does: a row whose name is an ellipsis is a
-   row that says nothing, and the type is already a fixed vocabulary. */
-.uefi-type {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-muted);
-  font-size: 0.85em;
-}
-
-.uefi-name {
-  flex: 2 1 auto;
-}
-
-.uefi-offset,
-.uefi-size {
-  flex: none;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.85em;
-  color: var(--text-faint);
-}
-
-.uefi-size {
-  width: 5rem;
-  text-align: right;
-}
-
-.uefi-status {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-size: 0.85em;
-}
-
-.uefi-diagnostics {
-  color: var(--semantic-caution);
-}
-
 /* The join bands (§22.4): a file dropped at a pane's top goes in before what it
    holds, one dropped at the bottom after it. */
 .join-band {
@@ -820,26 +668,37 @@ textarea,
   background: var(--surface-sunken);
 }
 
-.segments-table {
-  width: 100%;
+/* Every table in a panel reads the same: flush left, a quiet head, and rows
+   that do not shout. The two that exist differ only in what they add. */
+.panel-table {
   border-collapse: collapse;
   text-align: left;
 }
 
-.segments-table th,
-.segments-table td {
-  padding: 0.2rem 0.45rem;
+/* The cell padding is a variable so a table can be tighter without a selector
+   that reaches back past the shared rule to say so. */
+.panel-table th,
+.panel-table td {
+  padding: var(--panel-cell-padding, 0.2rem 0.45rem);
   font-weight: inherit;
 }
 
-.segments-table thead th {
-  position: sticky;
-  top: 0;
-  background: var(--surface-sunken);
+.panel-table thead th {
   color: var(--text-faint);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.segments-table {
+  width: 100%;
+}
+
+/* The head stays put while the rows scroll under it. */
+.segments-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-sunken);
 }
 
 .segments-table tbody tr[data-selected] {
@@ -1426,4 +1285,212 @@ textarea,
 .minimap-progress {
   flex: 1;
   height: 3px;
+}
+
+/* ── The tool panel ───────────────────────────────────────────────────── */
+
+.tool-panel {
+  grid-row: 3;
+  grid-column: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  /* Wide enough for a tree row to say a name, a type, an offset and a size
+     without any of them becoming an ellipsis. */
+  width: clamp(22rem, 32vw, 40rem);
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tool-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.tool-picker,
+.tool-pane {
+  font: inherit;
+  max-width: 12rem;
+}
+
+.tool-panel-body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tool-empty {
+  display: grid;
+  gap: 0.5rem;
+  align-content: center;
+  justify-items: center;
+  height: 100%;
+  padding: 1rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.uefi-tool {
+  display: grid;
+  /* The tree, the detail of what is selected in it, and the status line. The
+     detail row collapses to nothing when nothing is selected. */
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  height: 100%;
+}
+
+.uefi-tree {
+  overflow: auto;
+  contain: strict;
+}
+
+/* The rows are absolutely positioned inside a spacer of the full height: a
+   firmware image is routinely a few thousand nodes, and a row per node is a few
+   thousand elements the browser would lay out on every scroll. */
+.uefi-tree-spacer {
+  position: relative;
+}
+
+.uefi-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.uefi-row[data-selected] {
+  background: var(--selection);
+}
+
+.uefi-twist {
+  flex: none;
+  width: 1.1em;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.uefi-twist:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.uefi-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* The type yields before the name does: a row whose name is an ellipsis is a
+   row that says nothing, and the type is already a fixed vocabulary. */
+.uefi-type {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.uefi-name {
+  flex: 2 1 auto;
+}
+
+.uefi-offset,
+.uefi-size {
+  flex: none;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: var(--text-faint);
+}
+
+.uefi-size {
+  width: 5rem;
+  text-align: right;
+}
+
+/* The detail of the selected node, under the tree. */
+.uefi-detail {
+  max-height: 40%;
+  overflow: auto;
+  padding: 0.4rem 0.6rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font-size: 0.9em;
+}
+
+.uefi-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  margin: 0;
+}
+
+.uefi-fields dt {
+  color: var(--text-muted);
+}
+
+.uefi-fields dd {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.uefi-guid {
+  word-break: break-all;
+}
+
+.uefi-fields-head {
+  margin: 0.6rem 0 0.2rem;
+  color: var(--text-faint);
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.uefi-bytes,
+.uefi-chips {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+
+.uefi-chips {
+  padding-left: 1.1rem;
+}
+
+.uefi-table {
+  --panel-cell-padding: 0.05rem 0.6rem 0.05rem 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.uefi-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.uefi-diagnostics {
+  color: var(--semantic-caution);
 }

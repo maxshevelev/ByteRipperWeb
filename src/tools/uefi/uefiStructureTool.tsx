@@ -7,7 +7,9 @@ import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import { subtypeName, typeName } from "@/firmware/uefi/uefiTypes";
 import {
+  askFirmwareDetail,
   expandFirmwareNode,
+  firmwareNodeAt,
   firmwareStore,
   fixFirmwareChecksum,
   parsePaneFirmware,
@@ -18,7 +20,7 @@ import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/
 import { useStore } from "@/state/useStore";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
-import type { WireNode } from "@/workers/protocol";
+import type { FirmwareDetailResponse, WireNode } from "@/workers/protocol";
 
 /**
  * UEFI Structure: the image as a tree.
@@ -138,6 +140,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const choose = useCallback(
     (row: Row) => {
       setSelected(row.key);
+      askFirmwareDetail(context.pane, row.node.id);
       // The whole node, header through tail — what a reader clicking a row in a
       // structure tree means by it.
       context.reveal(row.node.header[0], Math.max(row.node.body[1], row.node.tail[1]));
@@ -215,6 +218,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         </div>
       </div>
 
+      {state.detail === undefined || pathKey(state.detail.node) !== selected ? null : (
+        <NodeDetail detail={state.detail} node={firmwareNodeAt(state.roots, state.detail.node)} />
+      )}
+
       <footer className="uefi-status">
         <span>{rows.length.toLocaleString()} rows</span>
         <span>{friendlySize(state.size)}</span>
@@ -253,6 +260,123 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             : `Mapped at ${hexAddress(state.addressDiff)}`}
         </button>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * What the selected node is, in the words the format uses.
+ *
+ * The address matters more than the offset for most of what this tree holds —
+ * a FIT entry, a reset vector and a Boot Guard range are all written as
+ * addresses — so it is shown whenever the image says where it is mapped, and
+ * plainly absent when it does not. Not zero, and not a guess.
+ */
+function NodeDetail({
+  detail,
+  node,
+}: {
+  readonly detail: FirmwareDetailResponse;
+  readonly node: WireNode | undefined;
+}) {
+  if (node === undefined) return null;
+  const end = Math.max(node.body[1], node.tail[1]);
+  const hexWord = (value: number, digits = 8) =>
+    `0x${value.toString(16).toUpperCase().padStart(digits, "0")}`;
+
+  return (
+    <div className="uefi-detail">
+      <dl className="uefi-fields">
+        <dt>Offset</dt>
+        <dd>{hexAddress(node.header[0])}</dd>
+        <dt>Size</dt>
+        <dd>
+          {friendlySize(end - node.header[0])} ({(end - node.header[0]).toLocaleString()} bytes)
+        </dd>
+        {detail.address === undefined ? null : (
+          <>
+            <dt>Address</dt>
+            <dd>{hexWord(detail.address)}</dd>
+          </>
+        )}
+        {node.guid === undefined ? null : (
+          <>
+            <dt>GUID</dt>
+            <dd className="uefi-guid">{node.guid}</dd>
+          </>
+        )}
+        {node.isFixed ? (
+          <>
+            <dt>Fixed</dt>
+            <dd>Cannot be moved when the image is rebuilt</dd>
+          </>
+        ) : null}
+      </dl>
+
+      {detail.descriptor === undefined ? null : (
+        <div className="uefi-descriptor">
+          <p className="uefi-fields-head">Reserved vector</p>
+          <p className="uefi-bytes">{detail.descriptor.reservedVector}</p>
+
+          {detail.descriptor.biosAccess.length === 0 ? null : (
+            <>
+              {/* The question behind "why can't my programmer write this area
+                  from inside the OS". */}
+              <p className="uefi-fields-head">What the BIOS master may do</p>
+              <table className="panel-table uefi-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Region</th>
+                    <th scope="col">Read</th>
+                    <th scope="col">Write</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.descriptor.biosAccess.map((row) => (
+                    <tr key={row.region}>
+                      <th scope="row">{row.region}</th>
+                      <td>{row.read ? "yes" : "no"}</td>
+                      <td>{row.write ? "yes" : "no"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {detail.descriptor.masters.length === 0 ? null : (
+            <>
+              <p className="uefi-fields-head">Masters</p>
+              <table className="panel-table uefi-table">
+                <tbody>
+                  {detail.descriptor.masters.map((master) => (
+                    <tr key={master.name}>
+                      <th scope="row">{master.name}</th>
+                      <td>read {hexWord(master.read, detail.descriptor?.maskDigits ?? 3)}</td>
+                      <td>write {hexWord(master.write, detail.descriptor?.maskDigits ?? 3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {detail.descriptor.chips.length === 0 ? null : (
+            <>
+              {/* The chips this firmware was built to drive — the other half of
+                  "is the chip I am about to solder on one it knows". */}
+              <p className="uefi-fields-head">Flash chips</p>
+              <ul className="uefi-chips">
+                {detail.descriptor.chips.map((chip) => (
+                  <li key={chip.jedecId}>
+                    {hexWord(chip.jedecId, 6)} {chip.name ?? "(not in the catalogue)"}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
