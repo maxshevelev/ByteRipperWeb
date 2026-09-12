@@ -123,6 +123,13 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly bookmark: string;
 }
 
+/** One piece's extent and the colour its rows are printed on. */
+export interface SegmentBand {
+  readonly start: number;
+  readonly end: number;
+  readonly tint: string;
+}
+
 export interface HexGridConfig {
   readonly layout: HexLayout;
   readonly decoder: ByteDecoder;
@@ -199,6 +206,8 @@ export class HexGridRenderer {
   private active = false;
   /** The bookmarked rows, by the offset each row opens at (§20.4). */
   private bookmarkRows: ReadonlySet<number> = new Set();
+  /** The pieces and the paper each is printed on, in file order (§21.3). */
+  private segments: readonly SegmentBand[] = [];
 
   private readonly dirty = new DirtyRows();
   /** The scroll offset the canvas currently holds, for the blit. */
@@ -370,6 +379,13 @@ export class HexGridRenderer {
     // every change, and an identical set must not repaint the dump.
     if (sameRows(this.bookmarkRows, rows)) return;
     this.bookmarkRows = rows;
+    this.invalidateAll();
+  }
+
+  /** The segment tints. Empty for a file that has not been cut. */
+  setSegments(bands: readonly SegmentBand[]): void {
+    if (sameBands(this.segments, bands)) return;
+    this.segments = bands;
     this.invalidateAll();
   }
 
@@ -555,6 +571,11 @@ export class HexGridRenderer {
       layout.rowHeight
     );
 
+    // The segment tint is the paper the row is printed on: under everything,
+    // because it says which piece of the file this row belongs to and not
+    // anything about the bytes themselves (§21.3).
+    this.paintSegments(rowStart, y, size);
+
     // The greys go under the difference wash, which goes under the selection:
     // telling two dumps apart is what the application is for, so orange yields
     // to nothing but what the user is doing right now.
@@ -726,6 +747,44 @@ export class HexGridRenderer {
         y,
         layout.charWidth
       );
+    }
+  }
+
+  /**
+   * The segment tints under this row.
+   *
+   * A piece that opens the row is tinted from the panel's own left edge, so the
+   * band reaches past the offset column; one that closes it runs to the right
+   * edge. In between, a boundary falls in the middle of the gap between the two
+   * bytes it separates, which is the only place it can fall without landing on
+   * a glyph.
+   */
+  private paintSegments(rowStart: number, y: number, size: number): void {
+    const config = this.config;
+    if (config === undefined || this.segments.length === 0) return;
+    const { layout } = config;
+    const rowEnd = rowStart + BYTES_PER_ROW;
+    // Past EOF there is no tint: a piece ends where the file does.
+    const lastByte = Math.min(rowEnd, size);
+    if (lastByte <= rowStart) return;
+
+    const context = this.context;
+    const left = this.viewport.scrollLeft;
+    const right = left + Math.max(layout.contentWidth, this.viewport.widthCss);
+    // The middle of the gap between byte `column - 1` and byte `column`.
+    const midGap = (column: number) =>
+      (layout.hexByteX(column - 1) + layout.hexByteWidth + layout.hexByteX(column)) / 2;
+
+    for (const span of this.segments) {
+      const start = Math.max(span.start, rowStart);
+      const end = Math.min(span.end, lastByte);
+      if (end <= start) continue;
+      const first = start - rowStart;
+      const last = end - rowStart - 1;
+      context.fillStyle = span.tint;
+      const from = first === 0 ? left : midGap(first);
+      const to = last === BYTES_PER_ROW - 1 ? right : midGap(last + 1);
+      context.fillRect(from, y, to - from, layout.rowHeight);
     }
   }
 
@@ -1036,4 +1095,17 @@ function sameRows(left: ReadonlySet<number>, right: ReadonlySet<number>): boolea
   if (left.size !== right.size) return false;
   for (const row of left) if (!right.has(row)) return false;
   return true;
+}
+
+function sameBands(left: readonly SegmentBand[], right: readonly SegmentBand[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((band, index) => {
+    const other = right[index];
+    return (
+      other !== undefined &&
+      band.start === other.start &&
+      band.end === other.end &&
+      band.tint === other.tint
+    );
+  });
 }

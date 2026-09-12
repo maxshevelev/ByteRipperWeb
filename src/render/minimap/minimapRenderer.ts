@@ -50,6 +50,14 @@ export interface OverviewPicture {
   readonly current?: Uint16Array | undefined;
 }
 
+/** One piece as the strip draws it. */
+export interface SegmentBandStrip {
+  readonly top: number;
+  readonly height: number;
+  readonly tint: string;
+  readonly hovered?: boolean | undefined;
+}
+
 export interface MinimapColors {
   readonly background: string;
   readonly selection: string;
@@ -112,9 +120,19 @@ const CURRENT_MATCH_HEIGHT = 4;
  * bytes it is about and be read as something the file contains. The map keeps
  * what is left, which at the panel's narrowest is still most of it.
  */
-const MARK_MARGIN = 9;
+export const MARK_MARGIN = 9;
 /** The mark's height, and so the base of the triangle pointing at its row. */
 const MARK_SIDE = 7;
+
+/**
+ * The strip down the right of each map: one colour band per piece (§19.4.4).
+ *
+ * The same tints the dump's own rows take, so a boundary on the strip is a
+ * boundary in the dump and the two agree about which piece is which. Reserved
+ * whether or not the file has been cut: a strip that appeared with the first
+ * cut would re-scale the whole picture beside it.
+ */
+export const SEGMENT_STRIP = 8;
 
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
@@ -166,7 +184,12 @@ export class MinimapRenderer {
   }
 
   private get mapWidth(): number {
-    return Math.max(1, this.width - MARK_MARGIN);
+    return Math.max(1, this.width - MARK_MARGIN - SEGMENT_STRIP);
+  }
+
+  /** Where the segment strip starts. */
+  private get stripLeft(): number {
+    return this.width - SEGMENT_STRIP;
   }
 
   private get height(): number {
@@ -192,6 +215,8 @@ export class MinimapRenderer {
     readonly mode: MinimapMode;
     /** The y of each bookmarked row inside this map, in CSS pixels. */
     readonly bookmarks?: readonly number[] | undefined;
+    /** One band per piece, in CSS pixels down the map. */
+    readonly segments?: readonly SegmentBandStrip[] | undefined;
     /** Detail mode: the states of the window's bytes, row-major, 16 per row. */
     readonly cells?: readonly CellState[] | undefined;
     /** Overview mode: the picture and its overlays. */
@@ -203,7 +228,27 @@ export class MinimapRenderer {
     if (options.mode === "detail") this.drawDetail(options.cells ?? []);
     else if (options.picture !== undefined) this.drawOverview(options.picture);
     if (options.selection !== undefined) this.drawSelection(options.selection);
+    if (options.segments !== undefined) this.drawSegmentStrip(options.segments);
     if (options.bookmarks !== undefined) this.drawBookmarks(options.bookmarks);
+  }
+
+  /**
+   * The segment strip: one band per piece, from one cut to the next, at the y
+   * the map's own rows use.
+   *
+   * The piece under the pointer is painted at full strength and the rest are
+   * given a little air, so the strip says which piece is being asked about
+   * without changing which colour it is.
+   */
+  private drawSegmentStrip(bands: readonly SegmentBandStrip[]): void {
+    if (bands.length < 2) return;
+    const context = this.context;
+    for (const band of bands) {
+      context.globalAlpha = band.hovered === true ? 1 : 0.75;
+      context.fillStyle = band.tint;
+      context.fillRect(this.stripLeft, band.top, SEGMENT_STRIP, Math.max(1, band.height));
+    }
+    context.globalAlpha = 1;
   }
 
   /**

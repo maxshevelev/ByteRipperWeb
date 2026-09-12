@@ -17,6 +17,7 @@ import {
   searchStore,
   setSearchPane,
 } from "@/state/searchStore";
+import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -36,12 +37,15 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
+import { CutDialog } from "@/ui/dialogs/CutDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
+import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
+import { addCut, saveAllPieces } from "@/ui/segments/segmentCommands";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
@@ -130,6 +134,10 @@ export function AppShell() {
       noteEdit(edit);
       noteSearchEdit(pane, edit);
       noteMinimapEdit(pane);
+      // A cut travels with the content: an insert before it moves it, a delete
+      // across it merges the pieces it separated.
+      const size = workspaceStore.getSnapshot().panes[pane]?.document.size ?? 0;
+      noteSegmentEdit(pane, edit, size);
     };
     editingHooks.confirmShift = confirmInsertShift;
     return () => {
@@ -230,6 +238,18 @@ export function AppShell() {
   /** The pane and address a Select Block was asked for from, or nothing. */
   const [selectBlock, setSelectBlock] = useState<
     { pane: PaneId; start: number | undefined } | undefined
+  >(undefined);
+  /** The pane and offset a cut was asked for at, or nothing. */
+  const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
+  /** The pane whose segments form is open, or nothing. */
+  const [segmentsPane, setSegmentsPane] = useState<PaneId | undefined>(undefined);
+  /**
+   * The question Save All asks before it writes, and the answer it is waiting
+   * for. A promise rather than a callback so the command reads as one sequence:
+   * pick a folder, ask, write.
+   */
+  const [writeAsk, setWriteAsk] = useState<
+    { title: string; message: string; answer: (yes: boolean) => void } | undefined
   >(undefined);
   const search = useStore(searchStore);
   const searchOpen = search.open;
@@ -400,6 +420,20 @@ export function AppShell() {
     );
   }, []);
 
+  /**
+   * Save All as Separate Files: the command asks its question through the
+   * shell's own confirmation rather than `window.confirm`, which cannot show a
+   * preview of several lines.
+   */
+  const doSaveAllSegments = useCallback(async (pane: PaneId) => {
+    await saveAllPieces(
+      pane,
+      (title, message) =>
+        new Promise<boolean>((resolve) => setWriteAsk({ title, message, answer: resolve }))
+    );
+    setSegmentsPane(undefined);
+  }, []);
+
   const doDeleteBytes = useCallback(() => {
     void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
   }, [activePane]);
@@ -463,6 +497,8 @@ export function AppShell() {
       // moves and removes marks — rather than a second dialog saying the same
       // things about one of them.
       onEditBookmark: () => setGoTo("bookmarks"),
+      onSplitHere: (pane, offset) => setCutAt({ pane, offset }),
+      onSegments: (pane) => setSegmentsPane(pane),
       onProblem: reportProblem,
     }),
     [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes]
@@ -491,6 +527,14 @@ export function AppShell() {
         onDeleteBytes={doDeleteBytes}
         onGoTo={() => setGoTo("offset")}
         onBookmarks={() => setGoTo("bookmarks")}
+        onSegments={() => setSegmentsPane(activePane)}
+        onSplitHere={() =>
+          setCutAt({
+            pane: activePane,
+            offset: workspaceStore.getSnapshot().panes[activePane]?.document.caret ?? 0,
+          })
+        }
+        onSaveAllSegments={() => void doSaveAllSegments(activePane)}
         onToggleBookmark={() => {
           const slot = workspaceStore.getSnapshot().panes[activePane];
           if (slot !== undefined) toggleBookmark(slot.document.caret);
@@ -609,6 +653,45 @@ export function AppShell() {
         rememberLabel="Do not ask again"
         onConfirm={(remember) => answerShift(true, remember)}
         onCancel={() => answerShift(false)}
+      />
+      <CutDialog
+        open={cutAt !== undefined}
+        fileSize={state.panes[cutAt?.pane ?? activePane]?.document.size ?? 0}
+        presetOffset={cutAt?.offset ?? 0}
+        existingCuts={segmentsFor(cutAt?.pane ?? activePane)?.cuts ?? []}
+        onCut={(offset, name) => addCut(cutAt?.pane ?? activePane, offset, name)}
+        onClose={() => setCutAt(undefined)}
+      />
+      <SegmentsDialog
+        open={segmentsPane !== undefined}
+        pane={segmentsPane ?? activePane}
+        onAddCut={() => {
+          const pane = segmentsPane ?? activePane;
+          setCutAt({ pane, offset: state.panes[pane]?.document.caret ?? 0 });
+        }}
+        onSaveAll={() => void doSaveAllSegments(segmentsPane ?? activePane)}
+        onSelectPiece={(piece) => {
+          const pane = segmentsPane ?? activePane;
+          const slot = state.panes[pane];
+          if (slot === undefined) return;
+          slot.document.setSelection(makeSelection(piece.start, piece.end, slot.document.size));
+          revealInBoth(piece.start);
+        }}
+        onClose={() => setSegmentsPane(undefined)}
+      />
+      <ConfirmDialog
+        open={writeAsk !== undefined}
+        title={writeAsk?.title ?? ""}
+        message={writeAsk?.message ?? ""}
+        confirmLabel="Save"
+        onConfirm={() => {
+          writeAsk?.answer(true);
+          setWriteAsk(undefined);
+        }}
+        onCancel={() => {
+          writeAsk?.answer(false);
+          setWriteAsk(undefined);
+        }}
       />
       <ContextMenuHost />
     </div>

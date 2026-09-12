@@ -17,7 +17,9 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import { noteDocumentChanged } from "@/state/editStore";
+import { clearSegments, resetSegments, swapSegments } from "@/state/segmentsStore";
 import { createStore } from "@/state/store";
+import { noteDocumentAct } from "@/state/undoRouter";
 
 /**
  * The workspace: one per browser tab (D11), so this is a module-level store and
@@ -93,6 +95,9 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   // watching only one of them shows the wrong answer for a typed byte.
   document.onContentChanged(noteDocumentChanged);
   document.onTransactionCommitted(noteDocumentChanged);
+  // The order the two histories are undone in — an edit and a cut are both
+  // undoable and Cmd/Ctrl+Z has to take back whichever came last.
+  document.onTransactionCommitted(() => noteDocumentAct(pane));
   return { document, typing };
 }
 
@@ -217,6 +222,8 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
       activePane: pane,
       problem: undefined,
     }));
+    // A file arrives as one piece covering it, whatever the pane held before.
+    resetSegments(pane, document.size);
   } catch (error) {
     workspaceStore.update((state) => ({
       ...state,
@@ -226,6 +233,7 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
 }
 
 export function closePane(pane: PaneId): void {
+  clearSegments(pane);
   workspaceStore.update((state) => ({
     ...state,
     panes: { ...state.panes, [pane]: undefined },
@@ -242,6 +250,7 @@ export function closePane(pane: PaneId): void {
  * from "the one that does not".
  */
 export function swapPanes(): void {
+  swapSegments();
   workspaceStore.update((state) => ({
     ...state,
     panes: { a: state.panes.b, b: state.panes.a },
@@ -383,6 +392,9 @@ export async function duplicatePane(from: PaneId): Promise<void> {
     activePane: into,
     problem: undefined,
   }));
+  // The copy is a document of its own: it starts as one piece, and the
+  // original's cuts stay with the original.
+  resetSegments(into, document.size);
   noteDocumentChanged();
 }
 
@@ -407,6 +419,7 @@ export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
     activePane: pane,
     problem: undefined,
   }));
+  resetSegments(pane, 0);
 }
 
 /** The placeholder a never-saved document points at until it is given a home. */
@@ -443,5 +456,7 @@ export async function revertPane(pane: PaneId): Promise<void> {
       },
     };
   });
+  // Reverting throws the edits away, and the cuts travelled with them.
+  resetSegments(pane, slot.document.size);
   noteDocumentChanged();
 }

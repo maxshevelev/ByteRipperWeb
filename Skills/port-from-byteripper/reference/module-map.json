@@ -239,9 +239,24 @@
       "swift": "ByteRipperApp/Segments",
       "web": [
         "src/core/segments",
-        "src/ui/segments"
+        "src/state/segmentsStore.ts",
+        "src/ui/segments",
+        "src/ui/dialogs/SegmentsDialog.tsx",
+        "src/ui/dialogs/CutDialog.tsx"
       ],
-      "status": "planned"
+      "status": "in-progress",
+      "files": {
+        "SegmentStore.swift": [
+          "src/core/segments/segmentation.ts",
+          "src/state/segmentsStore.ts"
+        ],
+        "SegmentsForm.swift": [
+          "src/ui/dialogs/SegmentsDialog.tsx",
+          "src/ui/segments/segmentMenu.ts"
+        ],
+        "CutEditPopover.swift": "src/ui/dialogs/CutDialog.tsx"
+      },
+      "note": "Across at M7. The partition is immutable here where Swift's is a mutating value type, which is what makes the pane's own undo a stack of whole partitions rather than a log of changes to one. Cuts are undoable, which upstream's are not: Cmd/Ctrl+Z takes back whichever of the pane's two histories acted last (src/state/undoRouter.ts). They cannot be one history — the document's dirty state is a function of its own, and a cut changes no byte and must not make a file look unsaved. The popover is a dialog: a browser has no popover worth the machinery, and the offset is in the form. The form's row menu and the minimap strip's menu are one function (src/ui/segments/segmentMenu.ts), as upstream intends by building them the same shape."
     },
     {
       "swift": "ByteRipperApp/Pane",

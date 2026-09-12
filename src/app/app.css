@@ -554,6 +554,8 @@ textarea,
 .dialog-message {
   color: var(--text);
   line-height: 1.45;
+  /* A write preview is a list of lines, and the lines are the message. */
+  white-space: pre-wrap;
 }
 
 .dialog-preview {
@@ -602,6 +604,74 @@ textarea,
   border: 0;
   background: none;
   width: auto;
+}
+
+/* The segments table. */
+.segments-scroll {
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+}
+
+.segments-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.segments-table th,
+.segments-table td {
+  padding: 0.2rem 0.45rem;
+  font-weight: inherit;
+}
+
+.segments-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-sunken);
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.segments-table tbody tr[data-selected] {
+  background: var(--selection);
+}
+
+.segments-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+/* The piece's own tint, so the table and the dump agree about which is which. */
+.segments-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  border: 1px solid var(--border-strong);
+}
+
+.segments-start,
+.segments-size {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--text-muted);
+}
+
+.segments-size {
+  text-align: right;
+}
+
+.segments-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
 }
 
 /* The bookmark list inside Go To. */
@@ -697,6 +767,7 @@ textarea,
 
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.3rem;

@@ -1,15 +1,18 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
+import { mergeTitle } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
 import { bookmarkAt, toggleBookmark } from "@/state/bookmarksStore";
+import { segmentsFor } from "@/state/segmentsStore";
 import {
   type PaneId,
   type PaneState,
   swapPanes,
   type WorkspaceState,
 } from "@/state/workspaceStore";
+import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -40,6 +43,9 @@ export interface PaneMenuActions {
   readonly onSelectBlockFrom: (pane: PaneId, offset: number) => void;
   /** Opens the bookmark list on the mark at this row, for renaming or moving. */
   readonly onEditBookmark: (offset: number) => void;
+  /** Opens the cut dialog, prefilled with this offset (§21.3). */
+  readonly onSplitHere: (pane: PaneId, offset: number) => void;
+  readonly onSegments: (pane: PaneId) => void;
   readonly onProblem: (message: string | undefined) => void;
 }
 
@@ -109,8 +115,38 @@ export function dumpMenu(
       onSelect: () => actions.onSelectBlockFrom(pane, offset),
     },
     ...extra,
+    // The segment block (§21.3): the commands that shape the file's partition,
+    // set off from the address-scoped commands above and the bookmark commands
+    // below by their own separators.
+    { kind: "separator" },
+    ...segmentItems(pane, offset, actions),
     { kind: "separator" },
     ...bookmarkItems(offset, actions),
+  ];
+}
+
+/** The segment block (§21.3): cut here, or merge the piece this byte is in. */
+function segmentItems(
+  pane: PaneId,
+  offset: number,
+  actions: PaneMenuActions
+): (MenuEntry | undefined)[] {
+  const piece = pieceAt(pane, offset);
+  const pieces = segmentsFor(pane)?.segments.length ?? 0;
+  return [
+    {
+      label: `Split Here at ${hexAddress(offset)}…`,
+      onSelect: () => actions.onSplitHere(pane, offset),
+    },
+    piece === undefined
+      ? undefined
+      : {
+          label: mergeTitle(piece.index),
+          disabled: pieces < 2,
+          destructive: true,
+          onSelect: () => mergePiece(pane, piece.index),
+        },
+    { label: "Segments…", onSelect: () => actions.onSegments(pane) },
   ];
 }
 

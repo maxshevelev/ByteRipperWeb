@@ -4,6 +4,7 @@ import { bookmarkAt, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
+import { segmentsStore } from "@/state/segmentsStore";
 import { useStore } from "@/state/useStore";
 import {
   GROUPING_GAP_CHOICES,
@@ -14,6 +15,7 @@ import {
   swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
+import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
 
@@ -39,6 +41,9 @@ export function Toolbar({
   onGoTo,
   onBookmarks,
   onToggleBookmark,
+  onSegments,
+  onSplitHere,
+  onSaveAllSegments,
   onDuplicate,
   onFind,
   onClose,
@@ -54,6 +59,9 @@ export function Toolbar({
   readonly onGoTo: () => void;
   readonly onBookmarks: () => void;
   readonly onToggleBookmark: () => void;
+  readonly onSegments: () => void;
+  readonly onSplitHere: () => void;
+  readonly onSaveAllSegments: () => void;
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
   readonly onClose: () => void;
@@ -66,6 +74,9 @@ export function Toolbar({
   // The Add/Remove wording follows the caret's row, so the item says what it
   // will do rather than what it might.
   useStore(bookmarksStore);
+  // The same for the segment commands, which say what they would merge.
+  const pieceCount =
+    useStore(segmentsStore).panes[state.activePane]?.partition.segments.length ?? 0;
   const active = state.panes[state.activePane];
   // The verb follows the pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is.
@@ -133,6 +144,28 @@ export function Toolbar({
     active === undefined
       ? undefined
       : { label: "Bookmarks…", shortcut: "⌥⌘B", onSelect: onBookmarks },
+
+    active === undefined ? undefined : { kind: "separator" },
+    active === undefined ? undefined : { kind: "heading", label: "Segments" },
+    active === undefined ? undefined : { label: "Split Here…", onSelect: onSplitHere },
+    active === undefined
+      ? undefined
+      : {
+          label: "Merge",
+          disabled: pieceCount < 2,
+          onSelect: () => {
+            const piece = pieceAt(state.activePane, active.document.caret);
+            if (piece !== undefined) mergePiece(state.activePane, piece.index);
+          },
+        },
+    active === undefined ? undefined : { label: "Segments…", onSelect: onSegments },
+    active === undefined
+      ? undefined
+      : {
+          label: "Save All as Separate Files…",
+          disabled: pieceCount < 2,
+          onSelect: onSaveAllSegments,
+        },
 
     { kind: "separator" },
     { kind: "heading", label: "View" },

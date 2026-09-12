@@ -1,0 +1,167 @@
+import { useEffect, useState } from "react";
+import type { Segment } from "@/core/segments/segmentation";
+import { segmentLabel } from "@/core/segments/segmentation";
+import { friendlySize } from "@/core/text/byteSize";
+import { hexAddress } from "@/core/text/hexText";
+import { segmentsStore } from "@/state/segmentsStore";
+import { useStore } from "@/state/useStore";
+import type { PaneId } from "@/state/workspaceStore";
+import { Dialog } from "@/ui/dialogs/Dialog";
+import { mergeAll, mergePiece, renamePiece } from "@/ui/segments/segmentCommands";
+import { pieceMenu } from "@/ui/segments/segmentMenu";
+import { openContextMenu } from "@/ui/shell/ContextMenu";
+import { readSegmentTints } from "@/ui/theme/hexColors";
+
+/**
+ * The segments form (§21.4): the partition as a table, and what acts on it.
+ *
+ * A row per piece — its label, where it opens, how big it is, and whatever it
+ * has been called. The whole-partition commands sit in the footer; the ones
+ * that act on *one* piece are in the row's own right-click menu, which is the
+ * same menu the strip beside the minimap offers, because the reader asking from
+ * either place is asking about the same piece.
+ */
+export interface SegmentsDialogProps {
+  readonly open: boolean;
+  readonly pane: PaneId;
+  readonly onAddCut: () => void;
+  readonly onSaveAll: () => void;
+  readonly onSelectPiece: (piece: Segment) => void;
+  readonly onClose: () => void;
+}
+
+export function SegmentsDialog({
+  open,
+  pane,
+  onAddCut,
+  onSaveAll,
+  onSelectPiece,
+  onClose,
+}: SegmentsDialogProps) {
+  const partition = useStore(segmentsStore).panes[pane]?.partition;
+  const pieces = partition?.segments ?? [];
+  const [selected, setSelected] = useState(0);
+  const [renaming, setRenaming] = useState<number | undefined>(undefined);
+  const tints = readSegmentTints();
+
+  useEffect(() => {
+    if (open) setRenaming(undefined);
+  }, [open]);
+
+  const rowMenu = (piece: Segment) =>
+    pieceMenu({
+      pane,
+      piece,
+      pieceCount: pieces.length,
+      onReveal: (chosen) => {
+        onSelectPiece(chosen);
+        onClose();
+      },
+      onEdit: (chosen) => setRenaming(chosen.index),
+    });
+
+  return (
+    <Dialog open={open} title="Segments" onClose={onClose}>
+      <div className="dialog-body">
+        <div className="segments-scroll">
+          <table className="segments-table">
+            <caption className="visually-hidden">Segments</caption>
+            <thead>
+              <tr>
+                <th scope="col">Piece</th>
+                <th scope="col">Start</th>
+                <th scope="col">Size</th>
+                <th scope="col">Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pieces.map((piece) => (
+                <tr
+                  key={piece.start}
+                  data-selected={selected === piece.index ? "" : undefined}
+                  onPointerDown={() => setSelected(piece.index)}
+                  onDoubleClick={() => setRenaming(piece.index)}
+                  onContextMenu={(event) => {
+                    setSelected(piece.index);
+                    openContextMenu(event, rowMenu(piece));
+                  }}
+                >
+                  <th scope="row" className="segments-label">
+                    <i
+                      className="segments-swatch"
+                      style={{ background: tints[piece.index % tints.length] }}
+                      aria-hidden="true"
+                    />
+                    {segmentLabel(piece.index)}
+                  </th>
+                  <td className="segments-start">{hexAddress(piece.start)}</td>
+                  <td className="segments-size">{friendlySize(piece.end - piece.start)}</td>
+                  <td className="segments-name">
+                    {renaming === piece.index ? (
+                      <input
+                        className="bookmark-name-field"
+                        ref={(element) => element?.select()}
+                        defaultValue={piece.name}
+                        aria-label={`Name for ${segmentLabel(piece.index)}`}
+                        onBlur={(event) => {
+                          renamePiece(pane, piece.index, event.target.value);
+                          setRenaming(undefined);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            renamePiece(pane, piece.index, event.currentTarget.value);
+                            setRenaming(undefined);
+                          }
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            setRenaming(undefined);
+                          }
+                        }}
+                      />
+                    ) : (
+                      piece.name
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="dialog-help">
+          Right-click a piece to save it, replace it from a file, select it, rename it, or merge it.
+        </p>
+
+        <div className="dialog-actions">
+          <button type="button" className="toolbar-button" onClick={onAddCut} title="Add a cut">
+            Add Cut…
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={pieces.length < 2}
+            onClick={() => mergePiece(pane, selected)}
+            title="Merge the selected piece into its neighbour"
+          >
+            Merge
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={pieces.length < 2}
+            onClick={() => mergeAll(pane)}
+          >
+            Merge All
+          </button>
+          <span className="toolbar-spacer" />
+          <button type="button" className="toolbar-button" onClick={onSaveAll}>
+            Save All as Separate Files…
+          </button>
+          <button type="button" className="toolbar-button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}

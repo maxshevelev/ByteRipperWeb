@@ -63,3 +63,21 @@ export function observeHexColors(onChange: () => void): () => void {
 
 /** Every ink role, for the atlas's own bookkeeping. */
 export type { InkRole };
+
+/**
+ * The segment tints, in the order the pieces take them.
+ *
+ * Pastels, and deliberately few: they are paper under bytes, and a palette long
+ * enough never to repeat would have to reach colours that stop being paper. Six
+ * is what upstream uses, and the seventh piece takes the first tint again.
+ */
+export const SEGMENT_TINT_COUNT = 6;
+
+export function readSegmentTints(element: Element = document.documentElement): string[] {
+  const computed = getComputedStyle(element);
+  const tints: string[] = [];
+  for (let index = 0; index < SEGMENT_TINT_COUNT; index++) {
+    tints.push(computed.getPropertyValue(`--segment-${index}`).trim());
+  }
+  return tints;
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Segment } from "@/core/segments/segmentation";
 import {
   BYTES_PER_ROW,
   derivedTopRow,
@@ -15,6 +16,7 @@ import {
   type CellState,
   type MinimapColors,
   MinimapRenderer,
+  SEGMENT_STRIP,
 } from "@/render/minimap/minimapRenderer";
 import { bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
@@ -28,10 +30,13 @@ import {
   setMinimapRows,
   setMinimapWidth,
 } from "@/state/minimapStore";
+import { segmentsStore } from "@/state/segmentsStore";
 import { useStore } from "@/state/useStore";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
 import { scrollLink } from "@/ui/pane/scrollLink";
-import { observeHexColors } from "@/ui/theme/hexColors";
+import { pieceMenu, selectPiece } from "@/ui/segments/segmentMenu";
+import { openContextMenu } from "@/ui/shell/ContextMenu";
+import { observeHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 import { readMinimapColors } from "@/ui/theme/minimapColors";
 
 /**
@@ -483,6 +488,8 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
   }, [mode, slot, topRow, windowRows, differences]);
 
   const marks = useStore(bookmarksStore).bookmarks;
+  /** The piece the pointer is over, so the strip can say which it would act on. */
+  const [hoveredPiece, setHoveredPiece] = useState<number | undefined>(undefined);
 
   /** The band as it is currently drawn, which is also the drag handle. */
   const band = viewportBand({
@@ -512,6 +519,30 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
       if (y >= 0 && y <= size.height) ys.push(y);
     }
     return ys;
+  })();
+
+  /**
+   * The pieces, as bands down the strip beside the map.
+   *
+   * The same mapping the selection strip uses, so a boundary on the strip is a
+   * boundary in the dump. A file that has not been cut gets no bands: one band
+   * the length of the map would say nothing.
+   */
+  const pieces = useStore(segmentsStore).panes[pane]?.partition.segments ?? [];
+  const segmentBands = (() => {
+    if (pieces.length < 2) return undefined;
+    const tints = readSegmentTints();
+    const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
+    return pieces.map((piece) => {
+      const top = Math.max(0, yOfOffset({ ...shared, offset: piece.start }));
+      const bottom = Math.min(size.height, yOfOffset({ ...shared, offset: piece.end }));
+      return {
+        top,
+        height: bottom - top,
+        tint: tints[piece.index % tints.length] ?? "",
+        hovered: hoveredPiece === piece.index,
+      };
+    });
   })();
 
   /**
@@ -547,8 +578,9 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
       picture: state.pictures[pane],
       selection: selectionStrip,
       bookmarks: markYs,
+      segments: segmentBands,
     });
-  }, [colors, size, state.pictures, pane, mode, cells, selectionStrip, markYs]);
+  }, [colors, size, state.pictures, pane, mode, cells, selectionStrip, markYs, segmentBands]);
 
   const offsetFromEvent = useCallback(
     (event: { clientY: number }): number | undefined => {
@@ -612,8 +644,26 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
     [band, offsetFromEvent, onActivate, pane]
   );
 
+  /**
+   * The piece the pointer is over in the strip, or nothing when it is not in
+   * the strip at all.
+   */
+  const pieceUnder = useCallback(
+    (event: { clientX: number; clientY: number }): Segment | undefined => {
+      const canvas = canvasRef.current;
+      if (canvas === null || segmentBands === undefined) return undefined;
+      const box = canvas.getBoundingClientRect();
+      if (event.clientX < box.right - SEGMENT_STRIP) return undefined;
+      const y = event.clientY - box.top;
+      const at = segmentBands.findIndex((band) => y >= band.top && y < band.top + band.height);
+      return at < 0 ? undefined : pieces[at];
+    },
+    [segmentBands, pieces]
+  );
+
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
+      setHoveredPiece(pieceUnder(event)?.index);
       const held = grab.current;
       if (held === undefined) return;
       const canvas = event.currentTarget;
@@ -632,7 +682,7 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
       });
       if (target !== undefined) scrollLink.scrollToOffset(pane, target, BYTES_PER_ROW);
     },
-    [mode, size.height, sizes, viewport, pane]
+    [mode, size.height, sizes, viewport, pane, pieceUnder]
   );
 
   const endDrag = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -669,7 +719,27 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onPointerLeave={() => setHoveredPiece(undefined)}
         onWheel={onWheel}
+        onContextMenu={(event) => {
+          // The strip's own menu, and nothing anywhere else on the map: the map
+          // has no other context menu, and a browser's own is better than an
+          // empty one.
+          const piece = pieceUnder(event);
+          if (piece === undefined) return;
+          openContextMenu(
+            event,
+            pieceMenu({
+              pane,
+              piece,
+              pieceCount: pieces.length,
+              onReveal: (chosen) => {
+                selectPiece(pane, chosen);
+                scrollLink.scrollToOffset(pane, chosen.start, BYTES_PER_ROW);
+              },
+            })
+          );
+        }}
       />
       {stacked && band !== undefined ? (
         <div className="minimap-band" style={{ top: band.top, height: band.height }} />

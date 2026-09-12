@@ -19,6 +19,8 @@ import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLay
 import { bookmarkAt, bookmarksStore, moveBookmark, toggleBookmark } from "@/state/bookmarksStore";
 import { toggleMinimap } from "@/state/minimapStore";
 import { stepSearch } from "@/state/searchStore";
+import { segmentsStore } from "@/state/segmentsStore";
+import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import { activeDecoder, HEX_FONT_SIZE_PX, type PaneId } from "@/state/workspaceStore";
 import {
@@ -29,7 +31,7 @@ import {
 } from "@/ui/pane/hexKeys";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
-import { observeHexColors, readHexColors } from "@/ui/theme/hexColors";
+import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 
 /**
  * A pane: the canvas the grid is drawn on, and everything that has to be a DOM
@@ -621,10 +623,12 @@ export function HexPane({
           break;
         }
         case "undo":
-          void typing.undo(command.batch);
+          // Through the router: a cut is undoable too, and the last thing done
+          // is what a press should take back.
+          void undoLast(paneId, command.batch);
           break;
         case "redo":
-          void typing.redo();
+          void redoLast(paneId);
           break;
         case "save":
           onSave?.();
@@ -664,7 +668,19 @@ export function HexPane({
       }
       event.preventDefault();
     },
-    [doc, moveCaret, region, onSave, onSaveAs, onGoTo, onFind, onDumpMenu, typing, refreshCaret]
+    [
+      doc,
+      moveCaret,
+      region,
+      onSave,
+      onSaveAs,
+      onGoTo,
+      onFind,
+      onDumpMenu,
+      paneId,
+      typing,
+      refreshCaret,
+    ]
   );
 
   /**
@@ -736,6 +752,29 @@ export function HexPane({
     rendererRef.current?.setBookmarks(new Set(marks.map((mark) => mark.row)));
     scheduleDraw();
   }, [marks, scheduleDraw]);
+
+  /**
+   * The paper each row is printed on: one tint per piece (§21.3).
+   *
+   * A file that has not been cut is one piece and is given no bands at all —
+   * tinting the whole dump one colour would say something about it that is not
+   * true of any part of it.
+   */
+  const partition = useStore(segmentsStore).panes[paneId]?.partition;
+  useEffect(() => {
+    const pieces = partition?.segments ?? [];
+    const tints = readSegmentTints();
+    rendererRef.current?.setSegments(
+      pieces.length < 2
+        ? []
+        : pieces.map((piece) => ({
+            start: piece.start,
+            end: piece.end,
+            tint: tints[piece.index % tints.length] ?? "",
+          }))
+    );
+    scheduleDraw();
+  }, [partition, scheduleDraw]);
 
   /** Where a pointer is, in the grid's own content coordinates. */
   const contentPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
