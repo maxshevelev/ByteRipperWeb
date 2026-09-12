@@ -193,7 +193,7 @@
         "src/firmware/me"
       ],
       "status": "in-progress",
-      "note": "The compute-bound half and the layout spine: CRC-32 in both of the spellings ME uses, SHA-1/256/384 written out because the parser is synchronous and src/firmware has no crypto API, the RSA manifest check over the language's own bigint, the CSE Huffman decoder, and then the Flash Descriptor, the CSE Layout Table, the Boot Partition Descriptor Tables, $FPT, $CPD and the $MN2/$MAN manifest. File systems, identification and the engine are still to come."
+      "note": "The compute-bound half, the layout spine and a first analysis end to end: an engine region now reports its family, version, release, type, partitions, boot descriptor tables and signature verdict. Still to come: the CSE extension chain, the MFS/EFS file systems, the SKU and OEM derivations, and the firmware-end size."
     },
     {
       "swift": "Packages/UEFIContentSource",

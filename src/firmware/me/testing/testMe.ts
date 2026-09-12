@@ -252,7 +252,10 @@ export function manifest(options: TestManifest = {}): Uint8Array {
   putU32(bytes, 0x04, options.headerLength ?? 0xa1); // in dwords
   putU32(bytes, 0x08, format === "r2" ? 0x2_1000 : 0x1_0000);
   putU32(bytes, 0x0c, options.flags ?? 0x1); // production, not debug
-  putU32(bytes, 0x18, options.manifestSize ?? 0xa1); // in dwords, like the header
+  // Left at zero unless a test asks for one, as upstream's fixture leaves it:
+  // a manifest whose size field is zero describes no protected window at all,
+  // and a signature over no window is *unchecked* rather than invalid.
+  putU32(bytes, 0x18, options.manifestSize ?? 0);
   put16(0x10, 0x8086); // the vendor id the anchor scan looks for
   bytes[0x14] = options.day ?? 0x24;
   bytes[0x15] = options.month ?? 0x03;
