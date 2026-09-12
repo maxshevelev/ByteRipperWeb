@@ -86,7 +86,14 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
         it stands for would put every offset a few rows out.
       */}
       <MinimapModes offsetTop={chrome.offsetTop} height={chrome.headerHeight} />
-      <div className="minimap-maps" style={{ paddingTop: chrome.gapBelowHeader }}>
+      {/*
+       * A margin rather than padding: the shared band is positioned against
+       * this element, and an absolute child is placed against the padding box
+       * while the canvases are laid out in the content box. Any padding here
+       * and the band sits that much higher than the map it is about — which is
+       * a band that drifts from the pointer dragging it.
+       */}
+      <div className="minimap-maps" style={{ marginTop: chrome.gapBelowHeader }}>
         {open.map((pane, index) => (
           <MinimapCanvas
             key={pane}

@@ -1130,7 +1130,7 @@ textarea,
      than this cannot show 16 cells across without them blurring into one, and
      each one carries its own side padding inside its canvas rather than out
      here — see `minimapLayout.ts`, which owns every horizontal inset. */
-  width: calc(var(--minimap-map-width, 84px) * 2 / (1 - var(--minimap-gutter, 0.05)));
+  width: calc(var(--minimap-map-width, 57px) * 2 / (1 - var(--minimap-gutter, 0.05)));
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
@@ -1163,16 +1163,22 @@ textarea,
   display: flex;
   flex: 1;
   min-height: 0;
-  /* Room at the foot, and none at the sides or the top.
+  /* No padding at all, on any side.
      
-     None at the top because the maps have to start on the dump's own first row,
-     and a top inset would put every offset a few rows out from the bytes it
-     stands for. None at the sides because the side inset belongs to the map,
-     not to the panel: each canvas pads its own content by `CONTENT_PADDING` and
-     drops that padding on the edge it shares with the other map. Padding here
-     as well would add a second inset the renderer knows nothing about — which
-     is what made the two maps' margins disagree. */
-  padding: 0 0 var(--minimap-inset, 8px);
+     The maps run edge to edge top and bottom, as the rows of a dump do. The
+     side inset belongs to the map rather than to the panel: each canvas pads
+     its own content and drops that padding on the edge it shares with the
+     other map, so padding here would be a second inset the renderer knows
+     nothing about — which is what made the two maps' margins disagree.
+     
+     It also has to be zero for the shared viewport band to be right. The band
+     is absolutely positioned against this box, and an absolute child is placed
+     against the *padding* box while the canvases are laid out in the *content*
+     box: any padding here and the two coordinate spaces differ by exactly it,
+     which is a band that drifts from the pointer dragging it. Where the maps
+     start relative to the dump is a margin instead, which is outside the box
+     and so outside both. */
+  padding: 0;
   /* The gutter between the two maps, as a fraction of the panel's own width, so
      the gap scales with the panel rather than staying a fixed sliver on a wide
      one. It is the whole of the space between them: neither map pads its inner
@@ -1199,10 +1205,9 @@ textarea,
  */
 .minimap-band-layer {
   position: absolute;
-  top: 0;
-  bottom: var(--minimap-inset, 8px);
-  left: 0;
-  right: 0;
+  /* Exactly the maps' own box — see the padding note above, which is what makes
+     these four zeros the same coordinate space the canvases are laid out in. */
+  inset: 0;
   pointer-events: none;
 }
 

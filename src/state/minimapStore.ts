@@ -37,16 +37,18 @@ export type MinimapStatus = "idle" | "building" | "ready" | "failed";
  * column beside the dumps however wide the window gets.
  */
 /*
- * Upstream's band, plus room for what a map carries down its sides.
+ * Upstream's own band, unchanged.
  *
- * Each map pads its content by `CONTENT_PADDING` on the outside, and gives up a
- * little more to a segment strip or a zone gutter — but only while it has one
- * to show, so an uncut file nobody is parsing keeps nearly the whole width for
- * its sixteen columns. The minimum is what leaves those columns legible on the
- * map that is carrying both.
+ * It was widened for a while to pay for what a map carried down its sides — a
+ * margin, a strip and a gutter, all reserved whether or not the file had
+ * anything to put in them. They are conditional now, so an uncut file nobody is
+ * parsing keeps nearly the whole width for its sixteen columns and the original
+ * band fits again. It matters beyond the width: the gutter between two maps is
+ * a fraction of the panel, so a panel kept artificially wide held them
+ * artificially far apart.
  */
-export const MIN_MINIMAP_WIDTH = 172;
-export const MAX_MINIMAP_WIDTH = 300;
+export const MIN_MINIMAP_WIDTH = 120;
+export const MAX_MINIMAP_WIDTH = 240;
 /** Upstream opens at the minimum when the user has never chosen a width. */
 export const DEFAULT_MINIMAP_WIDTH = MIN_MINIMAP_WIDTH;
 

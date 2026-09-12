@@ -492,7 +492,10 @@ export class MinimapRenderer {
    * minimum and kept inside the map.
    */
   private matchBar(mask: number, cellWidth: number) {
-    return matchBarFor(mask, cellWidth, this.width);
+    const bar = matchBarFor(mask, cellWidth, this.mapWidth);
+    // The bar is measured within the map, so it is moved onto it: a mark that
+    // stands for bytes has to sit over them, margins and all.
+    return bar === undefined ? undefined : { x: this.mapLeft + bar.x, width: bar.width };
   }
 
   private drawMask(
@@ -504,7 +507,13 @@ export class MinimapRenderer {
   ): void {
     if (mask === undefined) return;
     const context = this.context;
-    const cellWidth = this.width / MINIMAP_COLUMNS;
+    // The map's own columns, not the canvas's: a mark stands for the bytes
+    // under it, so it has to sit over them. Measured from the canvas it ran
+    // into the margins, and a whole-row mark reached edge to edge where the
+    // bytes it was about stopped two columns short.
+    const left = this.mapLeft;
+    const mapWidth = this.mapWidth;
+    const cellWidth = mapWidth / MINIMAP_COLUMNS;
     context.fillStyle = color;
 
     for (let row = 0; row < rowCount; row++) {
@@ -513,12 +522,12 @@ export class MinimapRenderer {
       // A mark grown past its row must not be pushed off the bottom edge.
       const y = Math.min(row * rowHeight, this.height - markHeight);
       if (word === 0xffff) {
-        context.fillRect(0, y, this.width, markHeight);
+        context.fillRect(left, y, mapWidth, markHeight);
         continue;
       }
       for (let column = 0; column < MINIMAP_COLUMNS; column++) {
         if ((word & (1 << column)) === 0) continue;
-        context.fillRect(column * cellWidth, y, cellWidth, markHeight);
+        context.fillRect(left + column * cellWidth, y, cellWidth, markHeight);
       }
     }
   }
