@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { friendlySize } from "@/core/text/byteSize";
 import { hexAddress } from "@/core/text/hexText";
+import { guidFromText } from "@/firmware/uefi/efiGuid";
+import { fileTypeName } from "@/firmware/uefi/fileParser";
+import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
+import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import { subtypeName, typeName } from "@/firmware/uefi/uefiTypes";
 import {
   expandFirmwareNode,
@@ -10,6 +14,7 @@ import {
   pathKey,
   resolveFirmwareAddresses,
 } from "@/state/firmwareStore";
+import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { useStore } from "@/state/useStore";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -51,6 +56,7 @@ function rowsOf(nodes: readonly WireNode[], open: ReadonlySet<string>, depth = 0
 
 function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const state = useStore(firmwareStore).panes[context.pane];
+  const catalogue = useStore(catalogueStore);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -175,6 +181,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             <TreeRow
               key={row.key}
               row={row}
+              named={nameOf(row.node, catalogue.catalogue)}
               top={(first + index) * ROW_HEIGHT}
               isOpen={open.has(row.key)}
               isSelected={selected === row.key}
@@ -220,6 +227,24 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         <button
           type="button"
           className="toolbar-button is-quiet"
+          onClick={() =>
+            catalogue.status === "loading" ? cancelGuidCatalogue() : loadGuidCatalogue()
+          }
+          title={
+            catalogue.fetchedAt === undefined
+              ? "Download the GUID names from UEFITool"
+              : `Fetched ${new Date(catalogue.fetchedAt).toLocaleString()}`
+          }
+        >
+          {catalogue.status === "loading"
+            ? "Downloading names… cancel"
+            : catalogue.status === "ready"
+              ? `${catalogue.catalogue.names.size.toLocaleString()} names`
+              : "Get GUID names"}
+        </button>
+        <button
+          type="button"
+          className="toolbar-button is-quiet"
           onClick={() => resolveFirmwareAddresses(context.pane)}
           title="Work out where this image is mapped, from its Volume Top File"
         >
@@ -238,11 +263,13 @@ function TreeRow({
   isOpen,
   isSelected,
   isExpanding,
+  named,
   onToggle,
   onChoose,
   onMenu,
 }: {
   readonly row: Row;
+  readonly named: string;
   readonly top: number;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
@@ -283,13 +310,33 @@ function TreeRow({
         {hasChildren ? (isExpanding ? "…" : isOpen ? "▾" : "▸") : ""}
       </button>
       <button type="button" className="uefi-name" onClick={onChoose} title={node.guid}>
-        {node.name}
+        {named}
       </button>
       <span className="uefi-type">{describe(node)}</span>
       <span className="uefi-offset">{hexAddress(node.header[0])}</span>
       <span className="uefi-size">{friendlySize(size)}</span>
     </div>
   );
+}
+
+/**
+ * What to call a node.
+ *
+ * The parser's own name wins, because it is the better one when it exists: a
+ * user-interface section's string, or a GUID from the table this build carries.
+ * The downloaded catalogue fills in the rest — the hundreds of GUIDs nobody
+ * hard-codes — and where it has nothing either, the GUID itself is shown, which
+ * is more use than a type repeated in the next column.
+ */
+function nameOf(node: WireNode, catalogue: GuidsCatalogue): string {
+  const generic =
+    node.subtype !== undefined &&
+    ((node.kind === "file" && node.name === fileTypeName(node.subtype)) ||
+      (node.kind === "section" && node.name === sectionTypeName(node.subtype)));
+  if (!generic || node.guid === undefined) return node.name;
+  const parsed = guidFromText(node.guid);
+  const known = parsed === undefined ? undefined : catalogue.nameOf(parsed);
+  return known ?? node.guid;
 }
 
 /** The Type and Subtype columns UEFITool shows, in one cell. */
