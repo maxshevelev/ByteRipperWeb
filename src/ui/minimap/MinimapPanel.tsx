@@ -56,7 +56,7 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
   const viewports = usePaneViewports();
   const open = PANE_IDS.filter((id) => workspace.panes[id] !== undefined);
   const panelRef = useRef<HTMLElement | null>(null);
-  const headInset = useDumpTopInset(panelRef, open.length);
+  const chrome = usePaneChrome(panelRef, open.length);
 
   if (!state.visible || open.length === 0) return null;
 
@@ -69,13 +69,14 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
     >
       <MinimapSplitter width={state.width} />
       {/*
-        The switch sits in a strip exactly as tall as the pane chrome beside it
-        — the pane's own header plus the dump's column header — so the maps
-        begin on the same line the bytes do. A map that started higher than the
-        dump it stands for would put every offset a few rows out.
+        The switch strip stands in for the pane's header: same height, same
+        surface, same rule under it. Below it the minimap leaves the column
+        header's band blank — it has no columns to name — so the maps still
+        begin on the line the bytes do. A map that started higher than the dump
+        it stands for would put every offset a few rows out.
       */}
-      <MinimapModes height={headInset} />
-      <div className="minimap-maps">
+      <MinimapModes offsetTop={chrome.offsetTop} height={chrome.headerHeight} />
+      <div className="minimap-maps" style={{ paddingTop: chrome.gapBelowHeader }}>
         {open.map((pane) => (
           <MinimapCanvas
             key={pane}
@@ -101,33 +102,70 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
 }
 
 /**
- * How far below the workspace's top the dumps actually start.
+ * Where the pane's chrome sits, measured off the page.
  *
- * Measured rather than assumed: the pane's header and the dump's column header
- * are both sized from the hex font's metrics, so the only number that stays
- * right is the one read off the page.
+ * Three numbers, because the minimap has to line up with two different things
+ * at once: its switch strip stands in for the pane's header and must match it,
+ * and its maps stand in for the dump and must start where the dump does. The
+ * band between the two is the dump's column header, which the minimap has no
+ * counterpart for and simply leaves blank.
+ *
+ * Measured rather than assumed: the pane header's height comes from its own
+ * padding and font, and the column header's from the hex font's metrics, so a
+ * constant here would be right until one of them moved.
  */
-function useDumpTopInset(panelRef: React.RefObject<HTMLElement | null>, openPanes: number): number {
-  const [inset, setInset] = useState(0);
+interface PaneChrome {
+  /** The pane's transparent top border, which the minimap has to clear too. */
+  readonly offsetTop: number;
+  readonly headerHeight: number;
+  /** What is left between the header and the dump: the column header. */
+  readonly gapBelowHeader: number;
+}
+
+const NO_CHROME: PaneChrome = { offsetTop: 0, headerHeight: 0, gapBelowHeader: 0 };
+
+function usePaneChrome(
+  panelRef: React.RefObject<HTMLElement | null>,
+  openPanes: number
+): PaneChrome {
+  const [chrome, setChrome] = useState<PaneChrome>(NO_CHROME);
 
   useLayoutEffect(() => {
     // No panes, nothing to line up with.
     if (openPanes === 0) {
-      setInset(0);
+      setChrome(NO_CHROME);
       return;
     }
 
     const measure = () => {
       const panel = panelRef.current;
+      const header = document.querySelector(".pane-header");
       const scroller = document.querySelector(".hex-scroller");
-      if (panel === null || scroller === null) return;
-      const gap = scroller.getBoundingClientRect().top - panel.getBoundingClientRect().top;
-      setInset((previous) => (Math.abs(previous - gap) < 0.5 ? previous : Math.max(0, gap)));
+      if (panel === null || header === null || scroller === null) return;
+
+      const panelTop = panel.getBoundingClientRect().top;
+      const headerBox = header.getBoundingClientRect();
+      const next: PaneChrome = {
+        offsetTop: Math.max(0, headerBox.top - panelTop),
+        headerHeight: headerBox.height,
+        gapBelowHeader: Math.max(0, scroller.getBoundingClientRect().top - headerBox.bottom),
+      };
+      setChrome((previous) =>
+        Math.abs(previous.offsetTop - next.offsetTop) < 0.5 &&
+        Math.abs(previous.headerHeight - next.headerHeight) < 0.5 &&
+        Math.abs(previous.gapBelowHeader - next.gapBelowHeader) < 0.5
+          ? previous
+          : next
+      );
     };
 
     measure();
     const observer = new ResizeObserver(measure);
-    for (const element of [panelRef.current, document.querySelector(".hex-scroller")]) {
+    for (const element of [
+      panelRef.current,
+      document.querySelector(".pane-header"),
+      document.querySelector(".hex-scroller"),
+    ]) {
       if (element !== null) observer.observe(element);
     }
     return () => observer.disconnect();
@@ -136,7 +174,7 @@ function useDumpTopInset(panelRef: React.RefObject<HTMLElement | null>, openPane
     // be a teardown and a measurement per frame of a drag.
   }, [panelRef, openPanes]);
 
-  return inset;
+  return chrome;
 }
 
 /**
@@ -282,12 +320,18 @@ function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number
 }
 
 /** The mode switch and the build's progress. */
-function MinimapModes({ height }: { readonly height: number }) {
+function MinimapModes({
+  offsetTop,
+  height,
+}: {
+  readonly offsetTop: number;
+  readonly height: number;
+}) {
   const state = useStore(minimapStore);
   const overviewUseful = overviewWorthShowing();
 
   return (
-    <div className="minimap-head" style={height > 0 ? { height } : undefined}>
+    <div className="minimap-head" style={height > 0 ? { height, marginTop: offsetTop } : undefined}>
       <fieldset className="minimap-modes">
         <legend className="visually-hidden">Minimap mode</legend>
         {(["detail", "overview"] as const).map((mode) => (

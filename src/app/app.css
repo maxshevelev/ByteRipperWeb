@@ -957,8 +957,10 @@ textarea,
 }
 
 /*
- * The strip the mode switch sits in. Its height is set from the page — the pane
- * chrome beside it — so the maps below begin on the dump's own first row.
+ * The strip the mode switch sits in: the minimap's counterpart to a pane's
+ * header, and dressed as one — the same surface and the same rule beneath it.
+ * Its height is set from the page, off the pane header beside it, because that
+ * height comes from the header's own padding and font.
  */
 .minimap-head {
   display: flex;
@@ -967,6 +969,8 @@ textarea,
   gap: 6px;
   padding: 0 6px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-sizing: border-box;
   overflow: hidden;
 }
 
