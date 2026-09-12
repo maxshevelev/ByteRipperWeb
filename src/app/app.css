@@ -1126,16 +1126,11 @@ textarea,
 .minimap {
   grid-row: 3;
   grid-column: 3;
-  /* Two maps at a legible width, plus the seam between them. A map narrower
-     than this cannot show 16 cells across without them blurring into one. */
-  /* Two maps at a legible width, plus the insets and the gap between them. */
-  width: calc(
-    var(--minimap-map-width, 84px) *
-    2 +
-    var(--minimap-gap, 10px) +
-    var(--minimap-inset, 8px) *
-    2
-  );
+  /* Two maps at a legible width, plus the gutter between them. A map narrower
+     than this cannot show 16 cells across without them blurring into one, and
+     each one carries its own side padding inside its canvas rather than out
+     here — see `minimapLayout.ts`, which owns every horizontal inset. */
+  width: calc(var(--minimap-map-width, 84px) * 2 / (1 - var(--minimap-gutter, 0.05)));
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
@@ -1168,11 +1163,21 @@ textarea,
   display: flex;
   flex: 1;
   min-height: 0;
-  /* Breathing room at the sides and the foot, but not the top: the maps have to
-     start on the dump's own first row, and a top inset would put every offset a
-     few rows out from the bytes it stands for. */
-  padding: 0 var(--minimap-inset, 8px) var(--minimap-inset, 8px);
-  gap: var(--minimap-gap, 4px);
+  /* Room at the foot, and none at the sides or the top.
+     
+     None at the top because the maps have to start on the dump's own first row,
+     and a top inset would put every offset a few rows out from the bytes it
+     stands for. None at the sides because the side inset belongs to the map,
+     not to the panel: each canvas pads its own content by `CONTENT_PADDING` and
+     drops that padding on the edge it shares with the other map. Padding here
+     as well would add a second inset the renderer knows nothing about — which
+     is what made the two maps' margins disagree. */
+  padding: 0 0 var(--minimap-inset, 8px);
+  /* The gutter between the two maps, as a fraction of the panel's own width, so
+     the gap scales with the panel rather than staying a fixed sliver on a wide
+     one. It is the whole of the space between them: neither map pads its inner
+     edge. */
+  gap: calc(var(--minimap-gutter, 0.05) * 100%);
   /* The band is positioned against this box. */
   position: relative;
 }

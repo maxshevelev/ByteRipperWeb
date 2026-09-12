@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { selection as makeSelection } from "@/core/document/selectionModel";
 import type { Segment } from "@/core/segments/segmentation";
 import {
@@ -13,12 +13,11 @@ import {
   wheelScrollTarget,
   yOfOffset,
 } from "@/render/minimap/minimapGeometry";
+import { type MapPlacement, MinimapLayout, ZONE_MAX_LANES } from "@/render/minimap/minimapLayout";
 import {
   type CellState,
   type MinimapColors,
   MinimapRenderer,
-  SEGMENT_STRIP,
-  ZONE_GUTTER,
   type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
 import { bookmarksStore } from "@/state/bookmarksStore";
@@ -88,7 +87,7 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
       */}
       <MinimapModes offsetTop={chrome.offsetTop} height={chrome.headerHeight} />
       <div className="minimap-maps" style={{ paddingTop: chrome.gapBelowHeader }}>
-        {open.map((pane) => (
+        {open.map((pane, index) => (
           <MinimapCanvas
             key={pane}
             pane={pane}
@@ -96,6 +95,14 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
             selection={selections[pane]}
             viewport={viewports[pane]}
             stacked={stacked}
+            /*
+             * Side by side the two maps are not laid out alike: the inner edges
+             * carry no padding, so each map's margins — and so where its
+             * bookmark marks and its segment strip go — depend on which of the
+             * pair it is. Stacked, both are padded on both sides like a single
+             * map, which is what "single" means here.
+             */
+            placement={placementFor(stacked, open.length, index)}
             onActivate={onActivate}
           />
         ))}
@@ -377,6 +384,18 @@ function MinimapModes({
   );
 }
 
+/**
+ * Which of the pair a map is.
+ *
+ * Stacked, both are padded on both sides like a single map — the inner edge
+ * that loses its padding is the one two maps *share*, and stacked maps share a
+ * horizontal edge rather than a vertical one.
+ */
+function placementFor(stacked: boolean, openCount: number, index: number): MapPlacement {
+  if (stacked || openCount < 2) return "single";
+  return index === 0 ? "left" : "right";
+}
+
 interface CanvasProps {
   readonly pane: PaneId;
   readonly mode: MinimapMode;
@@ -384,6 +403,12 @@ interface CanvasProps {
   readonly viewport: { readonly start: number; readonly end: number } | undefined;
   /** Stacked, each map carries its own band; side by side they share one. */
   readonly stacked: boolean;
+  /**
+   * Which of the pair this map is. Side by side the inner edges carry no
+   * padding, so the two are not laid out alike — and that decides which margin
+   * this map's bookmark marks and segment strip sit in.
+   */
+  readonly placement: MapPlacement;
   readonly onActivate: (pane: PaneId) => void;
 }
 
@@ -395,7 +420,15 @@ interface CanvasProps {
  */
 const MIN_BAND_HEIGHT = 6;
 
-function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }: CanvasProps) {
+function MinimapCanvas({
+  pane,
+  mode,
+  selection,
+  viewport,
+  stacked,
+  placement,
+  onActivate,
+}: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<MinimapRenderer | null>(null);
   const state = useStore(minimapStore);
@@ -608,6 +641,7 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
 
     renderer.draw({
       mode,
+      placement,
       cells,
       picture: state.pictures[pane],
       selection: selectionStrip,
@@ -621,12 +655,35 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
     state.pictures,
     pane,
     mode,
+    placement,
     cells,
     selectionStrip,
     markYs,
     segmentBands,
     zoneBrackets,
   ]);
+
+  /**
+   * The same layout the renderer uses, so the pointer finds what was painted.
+   *
+   * Built here rather than asked of the renderer because the hit-tests run on
+   * events and the renderer runs on paints: two objects deriving the same
+   * numbers from the same inputs is what this whole change is undoing, so there
+   * is one expression of it and both sides read it.
+   */
+  const layout = useMemo(
+    () =>
+      new MinimapLayout({
+        width: size.width,
+        placement,
+        segmentStripVisible: (segmentBands?.length ?? 0) > 1,
+        zoneLaneCount:
+          zoneBrackets === undefined || zoneBrackets.length === 0
+            ? 0
+            : Math.min(Math.max(...zoneBrackets.map((one) => one.depth)) + 1, ZONE_MAX_LANES),
+      }),
+    [size.width, placement, segmentBands, zoneBrackets]
+  );
 
   const offsetFromEvent = useCallback(
     (event: { clientY: number }): number | undefined => {
@@ -699,8 +756,11 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
     (event: { clientX: number; clientY: number }): Zone | undefined => {
       const canvas = canvasRef.current;
       if (canvas === null || zoneBrackets === undefined) return undefined;
+      const gutter = layout.zoneGutterRect;
+      if (gutter === undefined) return undefined;
       const box = canvas.getBoundingClientRect();
-      if (event.clientX < box.right - ZONE_GUTTER) return undefined;
+      const x = event.clientX - box.left;
+      if (x < gutter.x || x > gutter.x + gutter.width) return undefined;
       const y = event.clientY - box.top;
       // Innermost first: the deepest bracket under the pointer is the one being
       // aimed at, the way the dump's own zone menu orders them.
@@ -709,20 +769,23 @@ function MinimapCanvas({ pane, mode, selection, viewport, stacked, onActivate }:
         .find((bracket) => y >= bracket.top - 2 && y <= bracket.top + bracket.height + 2);
       return hit === undefined ? undefined : zones.zones.find((one) => one.id === hit.id);
     },
-    [zoneBrackets, zones.zones]
+    [zoneBrackets, zones.zones, layout]
   );
 
   const pieceUnder = useCallback(
     (event: { clientX: number; clientY: number }): Segment | undefined => {
       const canvas = canvasRef.current;
       if (canvas === null || segmentBands === undefined) return undefined;
+      const strip = layout.segmentStripRect;
+      if (strip === undefined) return undefined;
       const box = canvas.getBoundingClientRect();
-      if (event.clientX < box.right - SEGMENT_STRIP) return undefined;
+      const x = event.clientX - box.left;
+      if (x < strip.x || x > strip.x + strip.width) return undefined;
       const y = event.clientY - box.top;
       const at = segmentBands.findIndex((band) => y >= band.top && y < band.top + band.height);
       return at < 0 ? undefined : pieces[at];
     },
-    [segmentBands, pieces]
+    [segmentBands, pieces, layout]
   );
 
   const onPointerMove = useCallback(

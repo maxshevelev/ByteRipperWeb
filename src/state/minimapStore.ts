@@ -37,10 +37,13 @@ export type MinimapStatus = "idle" | "building" | "ready" | "failed";
  * column beside the dumps however wide the window gets.
  */
 /*
- * Upstream's band, plus what this application's maps carry down their sides:
- * a margin for the bookmark marks, a strip for the segment tints, and a gutter
- * for the open tool's zones. Those are about twenty-five pixels a map, and the
- * band has to leave the map itself room for sixteen columns after them.
+ * Upstream's band, plus room for what a map carries down its sides.
+ *
+ * Each map pads its content by `CONTENT_PADDING` on the outside, and gives up a
+ * little more to a segment strip or a zone gutter — but only while it has one
+ * to show, so an uncut file nobody is parsing keeps nearly the whole width for
+ * its sixteen columns. The minimum is what leaves those columns legible on the
+ * map that is carrying both.
  */
 export const MIN_MINIMAP_WIDTH = 172;
 export const MAX_MINIMAP_WIDTH = 300;

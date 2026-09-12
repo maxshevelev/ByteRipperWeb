@@ -19,6 +19,14 @@ import {
   type MinimapMode,
   ROW_STEP,
 } from "@/render/minimap/minimapGeometry";
+import {
+  BOOKMARK_MARK_SIDE,
+  MARGIN_MARKER_INSET,
+  type MapPlacement,
+  MinimapLayout,
+  ZONE_BRACKET_MIN_HEIGHT,
+  ZONE_MAX_LANES,
+} from "@/render/minimap/minimapLayout";
 import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 
 /** The flags that colour a cell. A byte can carry any combination. */
@@ -126,42 +134,36 @@ const MATCH_MIN_WIDTH = 7;
 const CURRENT_MATCH_HEIGHT = 4;
 
 /**
- * The strip down the left of each map where the bookmark marks live (§19.4.3).
+ * The map's own horizontal layout — its margins, its strip and its gutter.
  *
- * A margin rather than an overlay: a mark drawn on the map would sit on the
- * bytes it is about and be read as something the file contains. The map keeps
- * what is left, which at the panel's narrowest is still most of it.
+ * Every layer asks the layout rather than deriving its own margins, which is
+ * what stopped them agreeing: the bookmark margin, the segment strip and the
+ * zone gutter each measured from a different edge, so a mark, a band and a
+ * bracket disagreed about where the map ended. It also differs by *which* map
+ * this is — the inner edge of a side-by-side pair carries no padding at all.
  */
-export const MARK_MARGIN = 9;
-/** The mark's height, and so the base of the triangle pointing at its row. */
-const MARK_SIDE = 7;
-
 /**
- * The strip down the right of each map: one colour band per piece (§19.4.4).
- *
- * The same tints the dump's own rows take, so a boundary on the strip is a
- * boundary in the dump and the two agree about which piece is which. Reserved
- * whether or not the file has been cut: a strip that appeared with the first
- * cut would re-scale the whole picture beside it.
+ * How many lanes the gutter needs: one per level of nesting the published zones
+ * actually reach, capped. A tree a dozen levels deep would leave no map.
  */
-export const SEGMENT_STRIP = 8;
-
-/**
- * The gutter beyond the segment strip, where the open tool's zones are drawn
- * (§19.4.5).
- *
- * A bracket per zone rather than a band: zones nest and overlap, and a band per
- * zone would paint the outer ones over the inner. Reserved whether or not a
- * tool is open, for the reason the strip is: a gutter that appeared with the
- * panel would re-scale the picture beside it.
- */
-export const ZONE_GUTTER = 8;
+function laneCount(zones: readonly ZoneBracket[] | undefined): number {
+  if (zones === undefined || zones.length === 0) return 0;
+  const deepest = Math.max(...zones.map((one) => one.depth));
+  return Math.min(deepest + 1, ZONE_MAX_LANES);
+}
 
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
   private colors: MinimapColors;
   private ratio = 1;
+  /** Rebuilt on every paint, since the strip and the gutter come and go. */
+  private layout = new MinimapLayout({
+    width: 0,
+    placement: "single",
+    segmentStripVisible: false,
+    zoneLaneCount: 0,
+  });
 
   constructor(canvas: HTMLCanvasElement, colors: MinimapColors) {
     const context = canvas.getContext("2d", { alpha: false });
@@ -201,23 +203,13 @@ export class MinimapRenderer {
     return this.canvas.width / this.ratio;
   }
 
-  /** Where the map itself starts: past the margin the marks are drawn in. */
+  /** Where the dump itself starts, and how wide it is. */
   private get mapLeft(): number {
-    return MARK_MARGIN;
+    return this.layout.contentArea.x;
   }
 
   private get mapWidth(): number {
-    return Math.max(1, this.width - MARK_MARGIN - SEGMENT_STRIP - ZONE_GUTTER);
-  }
-
-  /** Where the segment strip starts. */
-  private get stripLeft(): number {
-    return this.width - SEGMENT_STRIP - ZONE_GUTTER;
-  }
-
-  /** Where the zone gutter starts. */
-  private get gutterLeft(): number {
-    return this.width - ZONE_GUTTER;
+    return Math.max(1, this.layout.contentArea.width);
   }
 
   private get height(): number {
@@ -241,6 +233,12 @@ export class MinimapRenderer {
    */
   draw(options: {
     readonly mode: MinimapMode;
+    /**
+     * Which map this is. Side by side the inner edges carry no padding, so the
+     * two maps are not laid out alike — which is the whole reason the layout
+     * needs telling.
+     */
+    readonly placement?: MapPlacement | undefined;
     /** The y of each bookmarked row inside this map, in CSS pixels. */
     readonly bookmarks?: readonly number[] | undefined;
     /** One band per piece, in CSS pixels down the map. */
@@ -254,6 +252,15 @@ export class MinimapRenderer {
     /** What the pane has selected, as a strip. */
     readonly selection?: { readonly top: number; readonly height: number } | undefined;
   }): void {
+    // The strip and the gutter are only there when they have something to say,
+    // and the dump takes the width back when they are not — so the layout is
+    // built from what this paint actually holds rather than reserved for good.
+    this.layout = new MinimapLayout({
+      width: this.width,
+      placement: options.placement ?? "single",
+      segmentStripVisible: (options.segments?.length ?? 0) > 1,
+      zoneLaneCount: laneCount(options.zones),
+    });
     this.begin();
     if (options.mode === "detail") this.drawDetail(options.cells ?? []);
     else if (options.picture !== undefined) this.drawOverview(options.picture);
@@ -273,20 +280,26 @@ export class MinimapRenderer {
    * says which zone it is looking at.
    */
   private drawZones(brackets: readonly ZoneBracket[]): void {
+    const gutter = this.layout.zoneGutterRect;
+    if (gutter === undefined) return;
     const context = this.context;
-    const left = this.gutterLeft;
     for (const bracket of brackets) {
-      const depth = Math.min(bracket.depth, 2);
-      const x = left + 1 + depth * 2;
-      const width = Math.max(1, ZONE_GUTTER - 2 - depth * 2);
-      const height = Math.max(2, bracket.height);
+      // Lane 0 — the outermost zones — is furthest from the map, and each level
+      // of nesting steps one lane toward it, so a child's bracket is drawn
+      // inside its parent's and the gutter reads as the tree it stands for.
+      const lane = Math.min(bracket.depth, ZONE_MAX_LANES - 1);
+      const x = this.layout.zoneLaneX(lane);
+      // The arm reaches from the stem toward the map, across the lanes inside
+      // it — which is what a nest of brackets looks like on paper.
+      const arm = Math.max(1, gutter.x + gutter.width - x);
+      const height = Math.max(ZONE_BRACKET_MIN_HEIGHT, bracket.height);
       context.fillStyle =
         bracket.focused === true ? this.colors.zoneFocused : this.colors.zoneOther;
-      // The spine, and a tick at each end: an extent with ends the eye can find
+      // The stem, and an arm at each end: an extent with ends the eye can find
       // is what tells one zone from the one it sits inside.
       context.fillRect(x, bracket.top, 1.5, height);
-      context.fillRect(x, bracket.top, width, 1.5);
-      context.fillRect(x, bracket.top + height - 1.5, width, 1.5);
+      context.fillRect(x, bracket.top, arm, 1.5);
+      context.fillRect(x, bracket.top + height - 1.5, arm, 1.5);
     }
   }
 
@@ -299,12 +312,13 @@ export class MinimapRenderer {
    * without changing which colour it is.
    */
   private drawSegmentStrip(bands: readonly SegmentBandStrip[]): void {
-    if (bands.length < 2) return;
+    const strip = this.layout.segmentStripRect;
+    if (strip === undefined) return;
     const context = this.context;
     for (const band of bands) {
       context.globalAlpha = band.hovered === true ? 1 : 0.75;
       context.fillStyle = band.tint;
-      context.fillRect(this.stripLeft, band.top, SEGMENT_STRIP, Math.max(1, band.height));
+      context.fillRect(strip.x, band.top, strip.width, Math.max(1, band.height));
     }
     context.globalAlpha = 1;
   }
@@ -318,15 +332,24 @@ export class MinimapRenderer {
    * never buried under an overlay.
    */
   private drawBookmarks(rows: readonly number[]): void {
+    const margin = this.layout.bookmarkMargin;
+    if (margin === undefined) return;
     const context = this.context;
     context.fillStyle = this.colors.bookmark;
+    // The apex stops just short of the margin's inner edge, and the base sits on
+    // its outer one — so the triangle points *at* the row it marks from outside
+    // the dump, and never over a byte.
+    const apex = margin.pointsRight
+      ? margin.x + margin.width - MARGIN_MARKER_INSET
+      : margin.x + MARGIN_MARKER_INSET;
+    const base = margin.pointsRight ? margin.x : margin.x + margin.width;
     for (const y of rows) {
-      if (y < -MARK_SIDE || y > this.height + MARK_SIDE) continue;
-      const top = y - MARK_SIDE / 2;
+      if (y < -BOOKMARK_MARK_SIDE || y > this.height + BOOKMARK_MARK_SIDE) continue;
+      const top = y - BOOKMARK_MARK_SIDE / 2;
       context.beginPath();
-      context.moveTo(0, top);
-      context.lineTo(MARK_MARGIN - 2, y);
-      context.lineTo(0, top + MARK_SIDE);
+      context.moveTo(base, top);
+      context.lineTo(apex, y);
+      context.lineTo(base, top + BOOKMARK_MARK_SIDE);
       context.closePath();
       context.fill();
     }

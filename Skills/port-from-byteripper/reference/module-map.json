@@ -279,7 +279,7 @@
         "src/workers/minimap.worker.ts"
       ],
       "status": "in-progress",
-      "note": "Ported as of M6: OverviewBinning whole, the overview build out of MainViewController.overviewRows, and the geometry and drawing halves of MinimapView — detail and overview modes, the shared viewport band, click, drag and wheel. Three divergences. The build is split: the density picture crosses to a worker and is kept per file version, while the modified, difference and match masks are recomputed on the main thread from ranges it already holds, because the comparison index and the piece table live there. Each pane gets its own worker, unlike the diff and search workers — two maps are two independent questions, and sharing one made the second build cancel the first. The search overlay is across as upstream draws it: a match is a solid stroke with a minimum width (a row is kilobytes, so being seen matters more than being exact), the current match is the find indicator's yellow inside an ink frame, and the two are separate passes so a later row's stroke cannot land on the plate. And the bookmark marks, the segment strip and the zone brackets in MinimapView wait for M7 and M8.",
+      "note": "The geometry is split in two, as upstream's own MINIMAP_LAYERS_IDEA.md recommends building first: minimapGeometry.ts is the byte-to-pixel axis and minimapLayout.ts the horizontal one — the margins, the strip, the gutter and what is left for the dump, per map. Every layer reads the layout rather than deriving its own margins.",
       "files": {
         "OverviewBinning.swift": "src/render/minimap/overviewBinning.ts",
         "MinimapView.swift": "src/render/minimap/minimapRenderer.ts",
