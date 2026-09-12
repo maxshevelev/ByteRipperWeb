@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "vitest";
-import { overviewTone, withAlpha } from "@/render/minimap/minimapRenderer";
+import { matchBarFor, overviewTone, withAlpha } from "@/render/minimap/minimapRenderer";
 
 // The renderer itself needs a canvas; what is testable without one is the
 // colour arithmetic the tone scale rests on. The drawing is checked in the
@@ -46,5 +46,35 @@ describe("the tone an overview cell is drawn at", () => {
     // sit one per cent above the floor and be indistinguishable from it.
     const sparse = overviewTone(3);
     expect(sparse).toBeGreaterThan(overviewTone(0) + 0.01);
+  });
+});
+
+describe("a match's mark on the overview", () => {
+  // Ported from `MinimapView.overviewMatchBars`. A row there is kilobytes, so
+  // precision is not the point — being *visible* is. A match whose bytes fall
+  // in one cell would otherwise be a mark a few pixels wide on a map a hundred
+  // and fifty wide.
+  const cellWidth = 5;
+
+  it("spans the cells its bytes fall in", () => {
+    // Columns 2 through 5 set.
+    expect(matchBarFor(0b0000_0000_0011_1100, cellWidth, 80)).toEqual({ x: 10, width: 20 });
+  });
+
+  it("widens a mark too narrow to see", () => {
+    const bar = matchBarFor(0b0000_0000_0000_0001, cellWidth, 80);
+    expect(bar?.width).toBe(7);
+    expect(bar?.x).toBe(0);
+  });
+
+  it("keeps a widened mark inside the map", () => {
+    // The last column, on a map barely wider than the mark itself.
+    const bar = matchBarFor(0b1000_0000_0000_0000, cellWidth, 80);
+    if (bar === undefined) throw new Error("the last column should mark");
+    expect(bar.x + bar.width).toBeLessThanOrEqual(80);
+  });
+
+  it("marks nothing for an empty mask", () => {
+    expect(matchBarFor(0, cellWidth, 80)).toBeUndefined();
   });
 });

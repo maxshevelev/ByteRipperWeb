@@ -53,6 +53,8 @@ export interface OverviewPicture {
 export interface MinimapColors {
   readonly background: string;
   readonly selection: string;
+  /** The one hue reserved for search: the current match's plate. */
+  readonly findIndicator: string;
   readonly byte: string;
   readonly mutedByte: string;
   readonly modified: string;
@@ -83,6 +85,23 @@ const TONE_GAMMA = 0.75;
  * Two device pixels is the smallest mark that reliably survives it.
  */
 const MIN_MARK_DEVICE_PIXELS = 2;
+
+/**
+ * A match's stroke on the overview, and the current match's plate.
+ *
+ * Precision is not the point at this scale — a row is kilobytes — so a match is
+ * solid ink a couple of pixels tall and wide enough to be seen when its bytes
+ * fall in a single cell. A grey tint could not do that against a grey density
+ * picture.
+ *
+ * The current match is a plate instead: the find indicator's yellow inside a
+ * thin frame, "you are here" in the one hue reserved for search. Taller than a
+ * stroke, but only just — a tall plate reads as a block on the map rather than
+ * as a position in it.
+ */
+const MATCH_HEIGHT = 2;
+const MATCH_MIN_WIDTH = 7;
+const CURRENT_MATCH_HEIGHT = 4;
 
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
@@ -241,15 +260,65 @@ export class MinimapRenderer {
       markHeight,
       this.colors.difference
     );
-    this.drawMask(picture.matched, picture.rowCount, rowHeight, markHeight, this.colors.matchFill);
     this.drawMask(picture.modified, picture.rowCount, rowHeight, markHeight, this.colors.modified);
-    this.drawMask(
-      picture.current,
-      picture.rowCount,
-      rowHeight,
-      markHeight,
-      this.colors.currentMatchFill
-    );
+    // Matches last, and in two passes of their own — see below.
+    this.drawMatches(picture, rowHeight, cellWidth);
+  }
+
+  /**
+   * The search's matches over the density picture.
+   *
+   * Two passes, because a row here is about a pixel tall while the marks are a
+   * few: a stroke drawn for a later row would otherwise land on top of the
+   * current match's plate, and the plate has to be the topmost thing on the map.
+   */
+  private drawMatches(picture: OverviewPicture, rowHeight: number, cellWidth: number): void {
+    const context = this.context;
+    const matched = picture.matched;
+    const current = picture.current;
+    const strokeHeight = Math.max(MATCH_HEIGHT, this.minMarkHeight);
+
+    if (matched !== undefined) {
+      context.fillStyle = this.colors.byte;
+      for (let row = 0; row < picture.rowCount; row++) {
+        const bar = this.matchBar(matched[row] ?? 0, cellWidth);
+        if (bar === undefined) continue;
+        const y = Math.min(row * rowHeight, this.height - strokeHeight);
+        context.fillRect(bar.x, y, bar.width, strokeHeight);
+      }
+    }
+
+    if (current === undefined) return;
+    // The first row carrying it is the plate: the current match is one range,
+    // and a second plate would be a second "you are here".
+    for (let row = 0; row < picture.rowCount; row++) {
+      const bar = this.matchBar(current[row] ?? 0, cellWidth);
+      if (bar === undefined) continue;
+      const height = Math.max(CURRENT_MATCH_HEIGHT, strokeHeight * 2);
+      const inset = (height - strokeHeight) / 2;
+      const y = Math.max(0, Math.min(row * rowHeight - inset, this.height - height));
+
+      context.fillStyle = this.colors.findIndicator;
+      context.fillRect(bar.x, y, bar.width, height);
+      context.strokeStyle = this.colors.byte;
+      context.lineWidth = 1 / this.ratio;
+      const half = context.lineWidth / 2;
+      context.strokeRect(
+        bar.x + half,
+        y + half,
+        bar.width - context.lineWidth,
+        height - context.lineWidth
+      );
+      return;
+    }
+  }
+
+  /**
+   * The mark for a row's mask: the marked cells' span, widened to a readable
+   * minimum and kept inside the map.
+   */
+  private matchBar(mask: number, cellWidth: number) {
+    return matchBarFor(mask, cellWidth, this.width);
   }
 
   private drawMask(
@@ -303,6 +372,38 @@ export function overviewTone(density: number): number {
   const fraction = density / 255;
   const shaped = fraction > 0 ? fraction ** TONE_GAMMA : 0;
   return MIN_TONE + (MAX_TONE - MIN_TONE) * shaped;
+}
+
+/**
+ * The mark for a row's mask: the marked cells' span, widened to a readable
+ * minimum and kept inside a map `mapWidth` wide.
+ *
+ * Ported from the `mark(for:y:height:)` inside
+ * `MinimapView.overviewMatchBars`.
+ */
+export function matchBarFor(
+  mask: number,
+  cellWidth: number,
+  mapWidth: number
+): { readonly x: number; readonly width: number } | undefined {
+  if (mask === 0) return undefined;
+  let first = MINIMAP_COLUMNS;
+  let last = -1;
+  for (let column = 0; column < MINIMAP_COLUMNS; column++) {
+    if ((mask & (1 << column)) === 0) continue;
+    first = Math.min(first, column);
+    last = Math.max(last, column);
+  }
+  if (last < first) return undefined;
+
+  const left = first * cellWidth;
+  let width = (last + 1) * cellWidth - left;
+  let x = left;
+  if (width < MATCH_MIN_WIDTH) {
+    width = MATCH_MIN_WIDTH;
+    x = Math.max(0, Math.min(left, mapWidth - width));
+  }
+  return { x, width };
 }
 
 /**

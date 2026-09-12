@@ -11,6 +11,7 @@ import type { MinimapColors } from "@/render/minimap/minimapRenderer";
 const VARIABLES: Record<keyof MinimapColors, string> = {
   background: "--surface",
   selection: "--selection",
+  findIndicator: "--find-indicator",
   byte: "--byte-text",
   mutedByte: "--byte-text-muted",
   modified: "--byte-modified",
