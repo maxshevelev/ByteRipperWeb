@@ -7,6 +7,8 @@
  * `ChunkCache`, so a regression in either shows up here.
  */
 
+import { readSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { applyEdit, scanDiff } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
 import { MatchSetBuilder } from "@/core/search/matchSet";
@@ -16,6 +18,10 @@ import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { MemoryByteSource } from "@/core/storage/memoryByteSource";
+import { assembleWord, type ByteSource } from "@/firmware/byteSource";
+import { ImageReader } from "@/firmware/imageReader";
+import { DEFAULT_LIMITS } from "@/firmware/uefi/parserState";
+import { rootsOf } from "@/firmware/uefi/treeMaterialization";
 import { buildOverviewRows } from "@/render/minimap/overviewBuild";
 import { resolveFixture } from "./fixture.ts";
 import { anyOverBudget, measure, printTable, type Row } from "./harness.ts";
@@ -299,6 +305,46 @@ async function main(): Promise<void> {
         { samples: 5, bytes: blob.size }
       ),
     });
+  }
+
+  // M8. The budget in ANALYSIS.md is 50 ms for the top level. It is the raw
+  // signature scan that costs — the two expensive containers, a region's raw
+  // area and a volume's file walk, are left closed until a row is opened — so
+  // this measures the thing the user waits for when a firmware panel opens.
+  {
+    const handle = await open(fixture.path, "r");
+    try {
+      // Slices read synchronously off the disk, which is the closest a Node
+      // process gets to the worker's FileReaderSync. A memory buffer would
+      // measure the parser without the reads it actually makes.
+      const source: ByteSource = {
+        byteCount: fixture.size,
+        bytes(start, end) {
+          const buffer = Buffer.allocUnsafe(Math.max(0, end - start));
+          if (buffer.length > 0) readSync(handle.fd, buffer, 0, buffer.length, start);
+          return new Uint8Array(buffer);
+        },
+        word(offset, count) {
+          return assembleWord(this.bytes(offset, offset + count), 0, count);
+        },
+      };
+      rows.push({
+        name: `UEFI top level, ${(blob.size / 1024 ** 2).toFixed(0)} MB`,
+        budgetMs: 50,
+        note:
+          "The raw-area signature scan and the headers it finds. A region's contents and a " +
+          "volume's files are deliberately not read here — those are what expanding a row " +
+          "costs, and what the lazy tree exists to defer.",
+        measurement: await measure(
+          async () => {
+            rootsOf(new ImageReader(source), DEFAULT_LIMITS);
+          },
+          { samples: 5, bytes: blob.size }
+        ),
+      });
+    } finally {
+      await handle.close();
+    }
   }
 
   printTable(rows);

@@ -11,7 +11,8 @@ import type { Parser } from "@/firmware/uefi/parserState";
 import { ucs2String } from "@/firmware/uefi/sectionParser";
 import { makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
-import { FV, parseVolume } from "@/firmware/uefi/volumeParser";
+import { FV } from "@/firmware/uefi/volumeFormat";
+import { parseVolume } from "@/firmware/uefi/volumeParser";
 
 export { isStoreVolume };
 

@@ -2,7 +2,7 @@ import type { ImageReader } from "@/firmware/imageReader";
 import { checksum16, sum8, sum8Of, sum32Of } from "@/firmware/uefi/checksums";
 import { FFS } from "@/firmware/uefi/fileParser";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { FV } from "@/firmware/uefi/volumeParser";
+import { FV } from "@/firmware/uefi/volumeFormat";
 
 /**
  * Bytes that have to be written to put a structure's checksums back in order.

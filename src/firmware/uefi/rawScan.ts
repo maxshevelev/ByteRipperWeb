@@ -5,7 +5,8 @@ import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
-import { FV, parseVolume } from "@/firmware/uefi/volumeParser";
+import { FV } from "@/firmware/uefi/volumeFormat";
+import { parseVolume } from "@/firmware/uefi/volumeParser";
 
 /**
  * What kind of thing this is: an update capsule, a full flash dump with an
@@ -93,25 +94,47 @@ export function scanRawArea(
     const end = Math.min(offset + window, range.end);
     const bytes = parser.reader.bytes({ start: offset, end });
     if (bytes === undefined) break;
-    let index = 0;
-    while (index + 4 <= bytes.length) {
+    // Candidates are found with the platform's own byte search rather than by
+    // stepping: `indexOf` on a typed array is native and vectorised, and this
+    // loop would otherwise run once per byte of the image. Each signature is
+    // looked for by its rarest fixed byte and confirmed with three more reads,
+    // so a 16 MB raw area costs two native passes and a few thousand checks
+    // instead of sixteen million.
+    //
+    // The two searches are merged rather than run one after the other: a
+    // structure claims the bytes after it, so candidates have to be considered
+    // in the order they lie in the file.
+    let fvAt = bytes.indexOf(FV_FIRST_BYTE);
+    let microcodeAt = bytes.indexOf(MICROCODE_FIRST_BYTE);
+    const limit = bytes.length - 4;
+
+    for (;;) {
+      if (fvAt > limit) fvAt = -1;
+      if (microcodeAt > limit) microcodeAt = -1;
+      if (fvAt < 0 && microcodeAt < 0) break;
+      const isFv = microcodeAt < 0 || (fvAt >= 0 && fvAt <= microcodeAt);
+      const index = isFv ? fvAt : microcodeAt;
+
       const dword =
         ((bytes[index] ?? 0) |
           ((bytes[index + 1] ?? 0) << 8) |
           ((bytes[index + 2] ?? 0) << 16) |
           ((bytes[index + 3] ?? 0) << 24)) >>>
         0;
-      const at = offset + index;
-      const found = elementAtSignature(parser, dword, at, range, depth);
-      if (found !== undefined) {
-        nodes.push(...parser.padding(claimed, nodeRange(found).start, emptyByte));
-        nodes.push(found);
-        claimed = nodeRange(found).end;
-        offset = claimed;
-        continue scan;
+      if (dword === FV.signature || dword === Microcode.headerType) {
+        const found = elementAtSignature(parser, dword, offset + index, range, depth);
+        if (found !== undefined) {
+          nodes.push(...parser.padding(claimed, nodeRange(found).start, emptyByte));
+          nodes.push(found);
+          claimed = nodeRange(found).end;
+          offset = claimed;
+          continue scan;
+        }
       }
-      index += 1;
+      if (isFv) fvAt = bytes.indexOf(FV_FIRST_BYTE, index + 1);
+      else microcodeAt = bytes.indexOf(MICROCODE_FIRST_BYTE, index + 1);
     }
+
     if (end === range.end) break;
     offset = end - 3; // so a signature straddling the window is still seen
   }
@@ -123,6 +146,11 @@ export function scanRawArea(
   nodes.push(...parser.padding(claimed, range.end, emptyByte));
   return nodes;
 }
+
+/** `_` — the first byte of `_FVH`, and the rarest of its four. */
+const FV_FIRST_BYTE = FV.signature & 0xff;
+/** `0x01` — the first byte of a microcode header's `HeaderType`. */
+const MICROCODE_FIRST_BYTE = Microcode.headerType & 0xff;
 
 /**
  * A signature is a candidate, not a find: the four bytes turn up inside

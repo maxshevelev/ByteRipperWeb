@@ -113,8 +113,8 @@
         "src/firmware/uefi",
         "src/firmware/testing/testImage.ts"
       ],
-      "status": "in-progress",
-      "note": "Across at M8, except the descriptor detail (DescriptorInfo, JedecIDs). Swift's protocol extensions become free functions taking a Parser, which is the same layering with the syntax the language has. Two divergences worth knowing. Reads are synchronous here as they are there, which is why parsing belongs in a worker: a worker has FileReaderSync, so six thousand lines written against synchronous reads port as they stand. And words are assembled by multiplication rather than by shifting, because JavaScript's bitwise operators are 32-bit — a dword with its top bit set comes back negative from a shift. Eight-byte fields are exact to 2^53 (every real offset and size) with a bigint path where the bits matter. Upstream's tests came across with the fixtures they need (TestImage.swift), which is what a port of a parser is checked by.",
+      "status": "done",
+      "note": "Across whole at M8, with every one of its tests. Swift's protocol extensions become free functions taking a Parser, which is the same layering with the syntax the language has. Two divergences worth knowing. Reads are synchronous here as they are there, which is why parsing belongs in a worker: a worker has FileReaderSync, so six thousand lines written against synchronous reads port as they stand. And words are assembled by multiplication rather than by shifting, because JavaScript's bitwise operators are 32-bit — a dword with its top bit set comes back negative from a shift. Eight-byte fields are exact to 2^53 (every real offset and size) with a bigint path where the bits matter. Upstream's tests came across with the fixtures they need (TestImage.swift), which is what a port of a parser is checked by. One divergence the port had to find for itself: the raw-area scan finds its candidates with Uint8Array.indexOf rather than by stepping a dword along, because a loop that runs once per byte of a 32 MB image is the whole cost of a parse — measured 65 ms, then 52 with a rolled dword, then 25 with the native search (16 MB, synthetic worst case). And FV's constants live in a leaf module of their own: the scan and the volume parser import each other, which is fine for functions and not for a constant read at module load.",
       "files": {
         "ByteSource.swift": [
           "src/firmware/byteSource.ts",
@@ -149,7 +149,9 @@
         "UEFIImage.swift": "src/firmware/uefi/uefiImage.ts",
         "NvramParser.swift": "src/firmware/uefi/nvramParser.ts",
         "NvramGuids.swift": "src/firmware/uefi/nvramGuids.ts",
-        "ChecksumRepair.swift": "src/firmware/uefi/checksumRepair.ts"
+        "ChecksumRepair.swift": "src/firmware/uefi/checksumRepair.ts",
+        "DescriptorInfo.swift": "src/firmware/uefi/descriptorInfo.ts",
+        "JedecIDs.swift": "src/firmware/uefi/jedecIds.ts"
       }
     },
     {

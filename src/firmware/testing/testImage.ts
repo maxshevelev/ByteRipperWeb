@@ -8,7 +8,7 @@ import { FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { Microcode } from "@/firmware/uefi/microcodeParser";
 import { RESET_VECTOR_SIZE } from "@/firmware/uefi/secondPass";
 import { Section } from "@/firmware/uefi/sectionParser";
-import { FV } from "@/firmware/uefi/volumeParser";
+import { FV } from "@/firmware/uefi/volumeFormat";
 
 /**
  * Images built by hand, byte for byte. Ported from upstream's `TestImage.swift`.
@@ -399,6 +399,10 @@ export function descriptor(options: {
   readonly regionBase?: number;
   readonly version1?: boolean;
   readonly reservedVector?: Uint8Array;
+  readonly masterBase?: number;
+  readonly masters?: readonly { readonly read: number; readonly write: number }[];
+  readonly vsccBase?: number;
+  readonly chips?: readonly number[];
 }): Uint8Array {
   const regionBase = options.regionBase ?? 0x04;
   const bytes = new Uint8Array(Descriptor.size).fill(0xff);
@@ -432,6 +436,50 @@ export function descriptor(options: {
   }
 
   if (options.reservedVector !== undefined) bytes.set(options.reservedVector, 0);
+
+  // The master section and the VSCC table are written only when a test asks for
+  // them: what they say is the descriptor's *detail*, not its map, and the
+  // parse tests that use this fixture read neither.
+  const masters = options.masters ?? [];
+  if (masters.length > 0) {
+    const masterBase = options.masterBase ?? 0x0a;
+    put32(masterBase, 0x18);
+    const base = masterBase * 16;
+    for (let index = 0; index < masters.length; index++) {
+      const master = masters[index];
+      if (master === undefined) continue;
+      if (options.version1 === true) {
+        // id, read, write — four bytes a master.
+        put16(0, base + index * 4);
+        bytes[base + index * 4 + 2] = master.read & 0xff;
+        bytes[base + index * 4 + 3] = master.write & 0xff;
+      } else {
+        // One dword: eight reserved bits, twelve of read, twelve of write — and
+        // EC's is a dword past a reserved one.
+        const offsets = [0, 4, 8, 16];
+        const at = offsets[index];
+        if (at === undefined) break;
+        put32(((master.read & 0xfff) << 8) | ((master.write & 0xfff) << 20), base + at);
+      }
+    }
+  }
+
+  const chips = options.chips ?? [];
+  if (chips.length > 0) {
+    const vsccBase = options.vsccBase ?? 0x10;
+    // The upper map: where the VSCC table is, and its length in dwords.
+    put16(((chips.length * 2) << 8) | vsccBase, 0x0efc);
+    const base = vsccBase * 16;
+    for (let index = 0; index < chips.length; index++) {
+      const id = chips[index] ?? 0;
+      const entry = base + index * 8;
+      bytes[entry] = (id >>> 16) & 0xff;
+      bytes[entry + 1] = (id >>> 8) & 0xff;
+      bytes[entry + 2] = id & 0xff;
+      bytes[entry + 3] = 0;
+      put32(0x2005, entry + 4);
+    }
+  }
   return bytes;
 }
 

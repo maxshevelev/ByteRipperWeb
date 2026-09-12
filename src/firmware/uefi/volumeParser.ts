@@ -6,24 +6,9 @@ import { ffsVersionOfFileSystem, nameOfGuid } from "@/firmware/uefi/knownGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { FV } from "@/firmware/uefi/volumeFormat";
 
-/** `EFI_FIRMWARE_VOLUME_HEADER` and what follows from it. */
-export const FV = {
-  /**
-   * `_FVH`, which sits at a fixed `0x28` from the start of the header. The
-   * search is for the signature and the header is found by stepping back —
-   * there is nothing at offset zero of a volume worth matching on.
-   */
-  signature: 0x4856_465f,
-  signatureOffset: 0x28,
-  /** Up to the block map. */
-  headerSize: 0x38,
-  blockMapEntrySize: 8,
-  /** A block map long enough to be a loop rather than a map. */
-  maxBlockMapEntries: 0x1000,
-  erasePolarity: 0x0000_0800,
-  checksumOffset: 0x32,
-} as const;
+export { FV };
 
 /**
  * A volume header that passed every test — which is what separates a volume
