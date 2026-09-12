@@ -7,6 +7,7 @@ import type {
   MEVersion,
   ReleaseType,
 } from "@/firmware/me/models/firmwareFacts";
+import type { CPDExtension } from "@/firmware/me/partition/extensions";
 
 /**
  * What an ME analysis reports.
@@ -68,6 +69,8 @@ export interface CodePartition {
   /** Nothing when the region is too short to cover the whole directory. */
   readonly checksumValid: boolean | undefined;
   readonly modules: readonly CPDModuleRow[];
+  /** The extension chain of the manifest's own module. */
+  readonly extensions: readonly CPDExtension[];
 }
 
 /** One slot of the CSE Layout Table's inventory. */
@@ -126,5 +129,24 @@ export interface FirmwareAnalysis {
   /** The Flash Image Tool version of a non-IFWI image, where it has one. */
   readonly fptHeaderFIT: FITVersion | undefined;
   readonly powerDownMitigation: string | undefined;
+  /**
+   * The anti-rollback security version number the chain records, when it
+   * carries one.
+   */
+  readonly arbSvn: number | undefined;
+  /**
+   * The version control number. The partition-information block is preferred
+   * where there is one, since it is the partition's own; the signed package's
+   * is the fallback, and a pre-CSE manifest keeps its own in its struct.
+   */
+  readonly vcn: number | undefined;
+  /**
+   * Which storage this firmware is compatible with, as the raw two-bit field.
+   * A number rather than a label: "UFS" and "SPI" are display text, and which
+   * words to use is the panel's decision.
+   */
+  readonly nvmCompatibility: number | undefined;
+  /** Whether the firmware supports the workstation platform. */
+  readonly workstationSupport: boolean | undefined;
   readonly issues: readonly Issue[];
 }

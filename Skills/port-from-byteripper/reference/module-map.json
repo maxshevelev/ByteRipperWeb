@@ -193,7 +193,7 @@
         "src/firmware/me"
       ],
       "status": "in-progress",
-      "note": "The compute-bound half, the layout spine and a first analysis end to end: an engine region now reports its family, version, release, type, partitions, boot descriptor tables and signature verdict. Still to come: the CSE extension chain, the MFS/EFS file systems, the SKU and OEM derivations, and the firmware-end size."
+      "note": "The compute-bound half, the layout spine, the CSE extension chain and an analysis end to end: an engine region reports its family, version, release, type, partitions, boot descriptor tables, extension blocks, health facts and signature verdict. Still to come: the MFS/EFS file systems, the SKU and OEM derivations, the pre-CSE module directory, and the firmware-end size."
     },
     {
       "swift": "Packages/UEFIContentSource",

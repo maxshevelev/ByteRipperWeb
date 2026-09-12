@@ -120,6 +120,18 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       { label: "Type", value: typeText(analysis) },
       { label: "Chipset stepping", value: analysis.chipsetStepping },
       { label: "Power-down mitigation", value: analysis.powerDownMitigation },
+      { label: "ARB security version", value: numberText(analysis.arbSvn) },
+      { label: "Version control number", value: numberText(analysis.vcn) },
+      { label: "NVM compatibility", value: nvmText(analysis.nvmCompatibility) },
+      {
+        label: "Workstation support",
+        value:
+          analysis.workstationSupport === undefined
+            ? undefined
+            : analysis.workstationSupport
+              ? "Yes"
+              : "No",
+      },
       { label: "Database name", value: analysis.databaseName },
       {
         label: "RSA signature",
@@ -191,6 +203,40 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               <dt>Signed</dt>
               <dd>{analysis.manifest.debugSigned ? "Debug" : "Production"}</dd>
             </dl>
+          </Section>
+        )}
+
+        {analysis.codePartition === undefined ||
+        analysis.codePartition.extensions.length === 0 ? null : (
+          <Section title={`Extensions · ${analysis.codePartition.extensions.length} blocks`}>
+            <table className="panel-table me-table">
+              <thead>
+                <tr>
+                  <th scope="col">Tag</th>
+                  <th scope="col">What it says</th>
+                  <th scope="col">Offset</th>
+                  <th scope="col">Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.codePartition.extensions.map((block) => (
+                  <tr
+                    key={block.offset}
+                    onClick={() => reveal(block.offset, block.offset + Math.max(1, block.size))}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      reveal(block.offset, block.offset + Math.max(1, block.size));
+                    }}
+                    tabIndex={-1}
+                  >
+                    <td className="me-mono">{extensionTag(block.tag)}</td>
+                    <td>{extensionName(block.tag)}</td>
+                    <td className="me-mono">{hexAddress(block.offset)}</td>
+                    <td className="me-mono">{friendlySize(block.size)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Section>
         )}
 
@@ -398,7 +444,62 @@ function typeText(analysis: FirmwareAnalysis): string | undefined {
 
 const emptyToNothing = (value: string) => (value.length === 0 ? undefined : value);
 
+const numberText = (value: number | undefined) => (value === undefined ? undefined : `${value}`);
+
+/**
+ * Which storage the firmware is compatible with.
+ *
+ * The field is two bits and only three of its four values mean anything; the
+ * fourth is reserved, and it is shown as the number it is rather than given a
+ * word it has not got.
+ */
+function nvmText(value: number | undefined): string | undefined {
+  switch (value) {
+    case undefined:
+      return undefined;
+    case 0:
+      return "Undefined";
+    case 1:
+      return "UFS";
+    case 2:
+      return "SPI";
+    default:
+      return `Reserved (${value})`;
+  }
+}
+
 const issueKey = (issue: Issue) => `${issue.id}:${issue.message}`;
+
+const extensionTag = (tag: number) => `0x${tag.toString(16).toUpperCase().padStart(2, "0")}`;
+
+/**
+ * What an extension block is.
+ *
+ * A tag with no name is still a row: the chain is what it is, and a panel that
+ * listed only the understood blocks would say the firmware carried fewer than
+ * it does.
+ */
+function extensionName(tag: number): string {
+  const named: Readonly<Record<number, string>> = {
+    0: "System information",
+    1: "Initialisation script",
+    2: "Feature permissions",
+    3: "Partition information",
+    4: "Shared library",
+    5: "Process attributes",
+    6: "Thread attributes",
+    7: "Device types",
+    8: "MMIO ranges",
+    9: "Special files",
+    10: "Module attributes",
+    11: "Locked ranges",
+    12: "Client system information",
+    13: "User information",
+    15: "Signed package",
+    22: "Partition information",
+  };
+  return named[tag] ?? "Unknown";
+}
 
 export const meTool: ToolModule = {
   id: "me-analyzer",

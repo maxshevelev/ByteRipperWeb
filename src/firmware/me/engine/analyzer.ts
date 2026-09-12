@@ -25,6 +25,12 @@ import {
   findPrecedingCpd,
   trailingEmptyCpdEntries,
 } from "@/firmware/me/partition/cpd";
+import {
+  type CPDExtension,
+  decodeExtensionChain,
+  extensionFacts,
+  extensionFamily,
+} from "@/firmware/me/partition/extensions";
 
 /**
  * Analyses one engine region.
@@ -135,6 +141,7 @@ export function analyzeMeRegion(options: {
   // MARK: The directory that owns it
 
   let codePartition: CodePartition | undefined;
+  let extensions: CPDExtension[] = [];
   if (manifest !== undefined) {
     const owner = findPrecedingCpd(bytes, manifest.base);
     if (owner !== undefined) {
@@ -170,12 +177,40 @@ export function analyzeMeRegion(options: {
             `0x${bytes.length.toString(16)}).`,
         });
       }
+      // The chain lives in the manifest's own module: the entry whose content
+      // starts where the manifest does is the one that carries it.
+      const family = extensionFamily({
+        major: manifest.major,
+        minor: manifest.minor,
+        hotfix: manifest.hotfix,
+        build: manifest.build,
+        year: manifest.year,
+        month: manifest.month,
+        keyLength: manifest.rsaPublicKey?.length,
+      });
+      const manifestModule = entries.find(
+        (entry) =>
+          !entry.isHuffman && header.base + entry.offset === manifest.base && entry.size > 0
+      );
+      extensions =
+        manifestModule === undefined
+          ? []
+          : decodeExtensionChain({
+              bytes,
+              moduleContentBase: manifest.base,
+              moduleSize: manifestModule.size,
+              chainStart: manifest.base + manifest.headerLengthBytes,
+              family,
+              baseOffset,
+            });
+
       codePartition = {
         name: header.partitionName,
         offset: baseOffset + header.base,
         headerVersion: header.headerVersion,
         numModules: header.numModules,
         checksumValid,
+        extensions,
         modules: entries.map((entry) => ({
           name: entry.name,
           offset: baseOffset + header.base + entry.offset,
@@ -241,6 +276,10 @@ export function analyzeMeRegion(options: {
       rsaSignatureValid: undefined,
       fptHeaderFIT: undefined,
       powerDownMitigation: undefined,
+      arbSvn: undefined,
+      vcn: undefined,
+      nvmCompatibility: undefined,
+      workstationSupport: undefined,
       issues,
       ...structural,
     };
@@ -255,6 +294,7 @@ export function analyzeMeRegion(options: {
       one.size !== 0xffff_ffff &&
       one.offset !== 0xffff_ffff
   );
+  const facts = extensionFacts(extensions);
   const identity = identify({
     manifest,
     database,
@@ -300,6 +340,12 @@ export function analyzeMeRegion(options: {
     chipsetStepping: identity.chipsetStepping,
     platform: undefined,
     databaseName: identity.databaseName,
+    arbSvn: facts.arbSvn,
+    // The partition's own number where the chain gives one, then the signed
+    // package's, then the pre-CSE manifest's own field.
+    vcn: facts.vcnFromPartitionInfo ?? facts.vcnFromSignedPackage ?? manifest.vcn,
+    nvmCompatibility: facts.nvmCompatibility,
+    workstationSupport: facts.workstation,
     rsaSignatureValid,
     fptHeaderFIT: fptHeaderFIT({
       family: identity.family,
