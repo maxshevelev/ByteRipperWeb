@@ -32,9 +32,25 @@ export async function* contentStream(
   storage: ByteStorage,
   chunkSize = CONTENT_CHUNK_SIZE
 ): AsyncGenerator<Bytes> {
-  const total = storage.size;
-  for (let at = 0; at < total; ) {
-    const wanted = Math.min(chunkSize, total - at);
+  yield* rangeStream(storage, 0, storage.size, chunkSize);
+}
+
+/**
+ * One range of a storage, a chunk at a time.
+ *
+ * What writing a segment out reads (§21.5), and what {@link contentStream} is
+ * the whole-file case of. The refusal above is the reason this is not a loop at
+ * the call site: a piece written short would be published under its own name
+ * and look exactly like a complete one.
+ */
+export async function* rangeStream(
+  storage: ByteStorage,
+  start: number,
+  end: number,
+  chunkSize = CONTENT_CHUNK_SIZE
+): AsyncGenerator<Bytes> {
+  for (let at = start; at < end; ) {
+    const wanted = Math.min(chunkSize, end - at);
     const bytes = await storage.read(at, wanted);
     if (bytes.length !== wanted) throw new ContentUnreadable(at, wanted, bytes.length);
     yield bytes;
