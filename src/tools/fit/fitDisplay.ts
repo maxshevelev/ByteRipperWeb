@@ -19,6 +19,12 @@ import {
 import { microcodeDate, microcodeRange } from "@/firmware/uefi/microcodeParser";
 import { buildDetail, EMPTY_DETAIL, type FITRowDetail } from "@/tools/fit/fitDetail";
 import { cpuidText, fitHex as hex } from "@/tools/fit/fitText";
+import {
+  latestOf,
+  type MicrocodeCatalogueEntry,
+  type MicrocodeLatest,
+  NOT_RATED,
+} from "@/tools/fit/microcodeCatalogue";
 import type { ToolTransaction } from "@/tools/toolTransaction";
 import { EMPTY_ZONES, type Zone, type ZoneMap } from "@/tools/zone";
 
@@ -124,6 +130,14 @@ export interface FITDisplayRow {
    * other.
    */
   readonly checksumFixAvailable: boolean;
+  /**
+   * How this row's microcode stands against the catalogue, when the row leads
+   * to one and there is a basis for a verdict: whether a newer revision for the
+   * same processor and platform is out there. Not rated before the catalogue
+   * arrives, for a row that is not a microcode, and wherever nothing the
+   * collection holds matches. The Type column wears it as a mark.
+   */
+  readonly latestState: MicrocodeLatest;
   /**
    * The row as the table read it — entry and what it points at — kept so the
    * detail can be rebuilt for whatever row comes into focus.
@@ -263,6 +277,51 @@ export function focusingZone(display: FITDisplay, zoneId: string | undefined): F
   };
 }
 
+/**
+ * The same display with every microcode row's "latest" verdict decided against
+ * the catalogue — the newest revision it lists for that row's processor and
+ * platform, or nothing where there is no basis for one.
+ *
+ * Applied when the catalogue arrives, and again whenever the table is re-read
+ * with the catalogue already in hand. It changes the marks, never the map: the
+ * zones, the focus and the detail ride on untouched, so a catalogue landing
+ * late does not move the outline the user is looking at.
+ */
+export function ratingLatest(
+  display: FITDisplay,
+  catalogue: readonly MicrocodeCatalogueEntry[]
+): FITDisplay {
+  if (catalogue.length === 0) return display;
+  return {
+    ...display,
+    rows: display.rows.map((row) =>
+      row.model.target.kind === "microcode"
+        ? { ...row, latestState: latestOf(row.model.target.header, catalogue) }
+        : row
+    ),
+  };
+}
+
+/** What a "latest" verdict says, for the mark's own tooltip. */
+export function latestText(state: MicrocodeLatest): string | undefined {
+  switch (state.kind) {
+    case "latest":
+      return "The newest revision the catalogue lists for this processor and platform.";
+    case "outdated":
+      return `The catalogue has r.${hexDigits(state.newestRevision)} for this board.`;
+    case "undecided":
+      return (
+        `The catalogue has r.${hexDigits(state.newestRevision)} for this processor, ` +
+        "on platforms that overlap this one without covering it — whether it serves " +
+        "this board depends on which platform the board is, and the image does not say."
+      );
+    case "notRated":
+      return undefined;
+  }
+}
+
+const hexDigits = (value: number) => value.toString(16).toUpperCase();
+
 /** What to show for a report. `focus` is the row the user has selected. */
 export function fitDisplay(report: FITReport, focus?: number | undefined): FITDisplay {
   const table = report.table;
@@ -306,6 +365,10 @@ export function fitDisplay(report: FITReport, focus?: number | undefined): FITDi
       canRemove: row.entry.type === FIT.microcodeType && microcodeCount > 1,
       canReplace: row.entry.type === FIT.microcodeType,
       checksumFixAvailable: fix !== undefined && row.entry.index === 0,
+      // No catalogue here: a display built fresh from a parse does not know
+      // what is out there, and `ratingLatest` fills the verdicts in once the
+      // catalogue is in hand.
+      latestState: NOT_RATED,
       model: row,
     };
   });

@@ -18,6 +18,70 @@
  * the network — a test that reaches the network is a test that fails on a train.
  */
 
+/**
+ * Why a body did not arrive, in a form a panel can act on rather than print.
+ *
+ * The three are not the same problem and do not have the same answer. Being
+ * rate-limited is temporary and is waited out; being offline means yesterday's
+ * copy is the best there is; a 404 means the URL has moved and no amount of
+ * waiting helps. A panel that showed one message for all three would be telling
+ * a bench to keep pressing a button that cannot work.
+ */
+export type RemoteFailure =
+  /** The request never got an answer: no network, or it was refused outright. */
+  | { readonly kind: "offline"; readonly detail: string }
+  /**
+   * GitHub answered 403 or 429. Anonymous requests to `api.github.com` are
+   * limited by address, and a bench behind one office NAT reaches the limit
+   * without ever having asked for anything itself.
+   */
+  | { readonly kind: "rateLimited" }
+  | { readonly kind: "badResponse"; readonly status: number };
+
+export class RemoteFetchError extends Error {
+  readonly failure: RemoteFailure;
+
+  constructor(failure: RemoteFailure) {
+    super(remoteFailureMessage(failure));
+    this.name = "RemoteFetchError";
+    this.failure = failure;
+  }
+}
+
+/**
+ * Whether an error carries one of these failures, asked by shape and not by
+ * `instanceof`.
+ *
+ * `instanceof` is a question about which *copy* of this module built the error,
+ * and the answer is no whenever there are two — a second module graph, a worker
+ * with its own bundle. The failure a panel branches on must not depend on that:
+ * the first thing it got wrong was calling a rate-limited fetch "offline",
+ * which is the one state this is here to tell apart.
+ */
+export function remoteFailureOf(error: unknown): RemoteFailure | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const failure = (error as { failure?: unknown }).failure;
+  if (typeof failure !== "object" || failure === null) return undefined;
+  const kind = (failure as { kind?: unknown }).kind;
+  return kind === "offline" || kind === "rateLimited" || kind === "badResponse"
+    ? (failure as RemoteFailure)
+    : undefined;
+}
+
+export function remoteFailureMessage(failure: RemoteFailure): string {
+  switch (failure.kind) {
+    case "offline":
+      return `Could not reach the server: ${failure.detail}`;
+    case "rateLimited":
+      return (
+        "GitHub is rate-limiting this address. Try again in a few minutes, or " +
+        "choose a file you already have."
+      );
+    case "badResponse":
+      return `The server answered ${failure.status}.`;
+  }
+}
+
 export interface FetchedBody {
   readonly text: string;
   /** When these bytes were fetched, so the interface can say how old they are. */
@@ -86,8 +150,23 @@ async function readCache(url: string, lifetime: number): Promise<FetchedBody | u
 
 async function fetchAndCache(url: string, signal?: AbortSignal): Promise<FetchedBody> {
   const request: RequestInit = signal === undefined ? {} : { signal };
-  const response = await fetch(url, request);
-  if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
+  let response: Response;
+  try {
+    response = await fetch(url, request);
+  } catch (error) {
+    // A cancel is the caller's own doing and is not a failure to report as one.
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new RemoteFetchError({
+      kind: "offline",
+      detail: error instanceof Error ? error.message : "the request did not complete",
+    });
+  }
+  if (response.status === 403 || response.status === 429) {
+    throw new RemoteFetchError({ kind: "rateLimited" });
+  }
+  if (!response.ok) {
+    throw new RemoteFetchError({ kind: "badResponse", status: response.status });
+  }
   const text = await response.text();
   const fetchedAt = Date.now();
 

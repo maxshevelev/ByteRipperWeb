@@ -229,10 +229,12 @@
       "web": [
         "src/firmware/fit",
         "src/tools/fit",
-        "src/firmware/testing/testFit.ts"
+        "src/firmware/testing/testFit.ts",
+        "src/state/microcodeCatalogueStore.ts",
+        "src/state/microcodeCatalogueSource.ts"
       ],
       "status": "in-progress",
-      "note": "The reading half and the presentation are across: FITEntry, FITTable, FITValidator, FITProblem, FITDetail and FITDisplay, with the row menu the display decides. FITEditor and MicrocodeCatalogue are still to come, and the panel says so where it offers their commands."
+      "note": "The reading half, the presentation and the microcode catalogue are across: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. FITEditor is still to come, and the panel says so where it offers its commands."
     },
     {
       "swift": "Modules/MEATool",

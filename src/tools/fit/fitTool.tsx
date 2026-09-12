@@ -3,6 +3,12 @@ import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import { firmwareStore, parsePaneFirmware, readPaneFit } from "@/state/firmwareStore";
+import {
+  cancelMicrocodeCatalogue,
+  loadMicrocodeCatalogue,
+  microcodeCatalogueMessage,
+  microcodeCatalogueStore,
+} from "@/state/microcodeCatalogueStore";
 import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
@@ -16,9 +22,12 @@ import {
   fitDisplay,
   focusingRow,
   focusingTarget,
+  latestText,
   offsetToGoTo,
+  ratingLatest,
   rowCommands,
 } from "@/tools/fit/fitDisplay";
+import type { MicrocodeLatest } from "@/tools/fit/microcodeCatalogue";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 
@@ -37,6 +46,7 @@ import { openContextMenu } from "@/ui/shell/ContextMenu";
 function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
+  const catalogue = useStore(microcodeCatalogueStore);
   const [report, setReport] = useState<FITReport | undefined>(undefined);
   const [reading, setReading] = useState(true);
   const [focus, setFocus] = useState<number | undefined>(undefined);
@@ -72,9 +82,15 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     };
   }, [roots, status, pane]);
 
+  // The verdicts ride on top of the display rather than inside the read: a
+  // catalogue landing late must change the marks and nothing else, so the
+  // zones, the focus and the detail are not rebuilt when it does.
   const display: FITDisplay = useMemo(
-    () => (report === undefined ? EMPTY_DISPLAY : fitDisplay(report, focus)),
-    [report, focus]
+    () =>
+      report === undefined
+        ? EMPTY_DISPLAY
+        : ratingLatest(fitDisplay(report, focus), catalogue.entries),
+    [report, focus, catalogue.entries]
   );
 
   // Whatever the panel has decided is worth drawing, handed to the shell. The
@@ -138,6 +154,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     [display, context]
   );
 
+  const message = microcodeCatalogueMessage(catalogue);
+
   if (reading) return <div className="tool-empty">Reading the table…</div>;
   if (report === undefined) {
     return <div className="tool-empty">{firmware?.problem ?? "That image could not be read."}</div>;
@@ -186,7 +204,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                   tabIndex={-1}
                 >
                   <td className="fit-number">{displayNumber(row)}</td>
-                  <td>{row.typeText}</td>
+                  <td>
+                    <LatestMark state={row.latestState} />
+                    {row.typeText}
+                  </td>
                   <td className="fit-mono">{row.addressText}</td>
                   <td className="fit-mono">{row.sizeText}</td>
                   <td className="fit-mono">{row.versionText}</td>
@@ -212,6 +233,41 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         </div>
       )}
 
+      <footer className="fit-status">
+        <button
+          type="button"
+          className="toolbar-button is-quiet"
+          onClick={() =>
+            catalogue.status === "loading" ? cancelMicrocodeCatalogue() : loadMicrocodeCatalogue()
+          }
+          title={
+            catalogue.fetchedAt === undefined
+              ? "Download the microcode listing from platomav/CPUMicrocodes"
+              : `Fetched ${new Date(catalogue.fetchedAt).toLocaleString()}`
+          }
+        >
+          {catalogue.status === "loading"
+            ? "Downloading listing… cancel"
+            : catalogue.status === "ready"
+              ? `${catalogue.entries.length.toLocaleString()} microcodes listed`
+              : catalogue.status === "failed"
+                ? "Try the listing again"
+                : "Check for newer microcode"}
+        </button>
+        {/* Named rather than printed as "it failed": being rate-limited is
+            temporary and is waited out, being offline means yesterday's copy is
+            the best there is, and a 404 means no amount of waiting helps. */}
+        {message === undefined ? null : (
+          <span
+            className="fit-catalogue-problem"
+            data-kind={catalogue.failure?.kind}
+            title={message}
+          >
+            {catalogue.failure?.kind === "rateLimited" ? "Rate-limited" : "Offline"}
+          </span>
+        )}
+      </footer>
+
       {display.problems.length === 0 ? null : (
         <ul className="fit-problems">
           {display.problems.map((problem) => (
@@ -231,6 +287,26 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * How a row's microcode stands against the catalogue, as a mark in the Type
+ * column.
+ *
+ * A glyph *and* a colour, as every other state in this application is carried:
+ * a mark that is only green or only orange says nothing to a reader who cannot
+ * tell them apart, and nothing at all in print. Absent where there is no
+ * verdict — a mark meaning "no basis for an answer" is a mark that has to be
+ * looked up every time.
+ */
+function LatestMark({ state }: { readonly state: MicrocodeLatest }) {
+  if (state.kind === "notRated") return null;
+  const glyph = state.kind === "latest" ? "✓" : state.kind === "outdated" ? "▲" : "?";
+  return (
+    <span className="fit-latest" data-state={state.kind} title={latestText(state)}>
+      {glyph}
+    </span>
   );
 }
 

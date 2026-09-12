@@ -1499,9 +1499,10 @@ textarea,
 
 .fit-tool {
   display: grid;
-  /* The table, the detail of the row selected in it, and the problem list.
-     Both lower rows collapse to nothing when there is nothing to say. */
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /* The table, the detail of the row selected in it, the catalogue's status
+     line, and the problem list. The detail and the problems collapse to
+     nothing when there is nothing to say. */
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   height: 100%;
 }
 
@@ -1601,6 +1602,50 @@ textarea,
    nothing else in the list changes. */
 .fit-fields dd[data-problem] {
   color: var(--semantic-bad);
+}
+
+.fit-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+/* Named rather than coloured alone: the three failures have three answers, and
+   the word is what says which. */
+.fit-catalogue-problem {
+  color: var(--semantic-caution);
+}
+
+.fit-catalogue-problem[data-kind="badResponse"] {
+  color: var(--semantic-bad);
+}
+
+/* How a row's microcode stands against the catalogue: a glyph and a colour, so
+   the state survives a theme switch, colour blindness and print. */
+.fit-latest {
+  display: inline-block;
+  width: 1.1em;
+  margin-right: 0.15rem;
+  font-size: 0.9em;
+  text-align: center;
+  cursor: help;
+}
+
+.fit-latest[data-state="latest"] {
+  color: var(--semantic-good);
+}
+
+.fit-latest[data-state="outdated"] {
+  color: var(--semantic-caution);
+}
+
+.fit-latest[data-state="undecided"] {
+  color: var(--text-faint);
 }
 
 .fit-problems {

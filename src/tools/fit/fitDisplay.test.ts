@@ -14,11 +14,13 @@ import {
   focusingRow,
   focusingTarget,
   POINTER_ZONE_ID,
+  ratingLatest,
   rowCommands,
   rowIndexOfZone,
   TABLE_ZONE_ID,
   zoneToFocus,
 } from "@/tools/fit/fitDisplay";
+import { entryAt, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 
 /**
  * What the panel draws, decided here so the component has no decisions left in
@@ -314,6 +316,108 @@ describe("the right-button menu", () => {
     const good = display([microcodeRow]).rows;
     expect(good[0]?.checksumFixAvailable).toBe(false);
     expect(good[1]?.checksumFixAvailable).toBe(false);
+  });
+});
+
+describe('"latest" against the catalogue', () => {
+  /**
+   * One Intel catalogue entry, as the file name would write it — the reading of
+   * the name is tested elsewhere, so the name is written plainly.
+   */
+  function catalogueEntry(cpuid: number, platform: number, revision: number) {
+    const padded = platform.toString(16).toUpperCase().padStart(2, "0");
+    const name =
+      `Intel/cpu${cpuid.toString(16).toUpperCase()}` +
+      `_plat${padded}_ver${revision.toString(16).toUpperCase()}` +
+      "_2019-01-01_PRD_5046D998.bin";
+    const entry = entryAt(name, 0x100);
+    if (entry === undefined) throw new Error(`${name} should read as microcode`);
+    return entry;
+  }
+
+  const rated = (
+    options: Parameters<typeof display>[1],
+    catalogue: readonly MicrocodeCatalogueEntry[]
+  ) => ratingLatest(display([microcodeRow], options), catalogue).rows;
+
+  it("starts every row without a verdict", () => {
+    // A display built fresh from a parse does not know what is out there.
+    expect(display([microcodeRow]).rows.map((row) => row.latestState)).toEqual([
+      { kind: "notRated" },
+      { kind: "notRated" },
+    ]);
+  });
+
+  it("leaves the verdicts unrated for an empty catalogue", () => {
+    // Nothing fetched, or the fetch failed: it must not flip a display into
+    // pretending a verdict exists.
+    const shown = ratingLatest(display([microcodeRow]), []);
+    expect(shown.rows.map((row) => row.latestState)).toEqual([
+      { kind: "notRated" },
+      { kind: "notRated" },
+    ]);
+  });
+
+  it("calls the row matching the catalogue's newest latest", () => {
+    const rows = rated({ platformIDs: 0x02 }, [
+      catalogueEntry(0x0008_06ea, 0x02, 0x7c),
+      catalogueEntry(0x0008_06ea, 0x02, 0xf0),
+    ]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "latest" });
+    // The header row is not a microcode and has no verdict.
+    expect(rows[0]?.latestState).toEqual({ kind: "notRated" });
+  });
+
+  it("names the newer revision a row behind the catalogue is behind", () => {
+    const rows = rated({ revision: 0x7c, platformIDs: 0x02 }, [
+      catalogueEntry(0x0008_06ea, 0x02, 0xf0),
+    ]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "outdated", newestRevision: 0xf0 });
+  });
+
+  it("does not call an equal revision behind a partial overlap a doubt", () => {
+    // The row is `plat22` and the catalogue's 806EA is `plat02` — the sets meet
+    // on bit 1 without either covering the other — but both are r.F0, so there
+    // is nothing to be in doubt about.
+    const rows = rated({ platformIDs: 0x22 }, [catalogueEntry(0x0008_06ea, 0x02, 0xf0)]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "notRated" });
+  });
+
+  it("leaves a newer revision behind a partial overlap undecided", () => {
+    // Whether that update serves this board depends on which platform the board
+    // is, and the image does not say.
+    const rows = rated({ revision: 0x7c, platformIDs: 0x22 }, [
+      catalogueEntry(0x0008_06ea, 0x02, 0xf0),
+    ]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "undecided", newestRevision: 0xf0 });
+  });
+
+  it("treats a covering set as a verdict rather than a doubt", () => {
+    // `plat36` is bits 1, 2, 4 and 5, `plat32` is bits 1, 4 and 5, so the
+    // `plat36` update serves this board whichever of the three it is.
+    const rows = rated({ revision: 0x127, platformIDs: 0x32 }, [
+      catalogueEntry(0x0008_06ea, 0x36, 0x137),
+    ]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "outdated", newestRevision: 0x137 });
+  });
+
+  it("does not rate a CPUID the catalogue does not list", () => {
+    const rows = rated({ platformIDs: 0x02 }, [catalogueEntry(0x0009_06eb, 0x02, 0xf0)]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "notRated" });
+  });
+
+  it("does not call a row newer than the catalogue latest", () => {
+    // The collection is behind the board, and a behind catalogue cannot confirm
+    // what it does not know.
+    const rows = rated({ revision: 0x100 }, [catalogueEntry(0x0008_06ea, 0x01, 0xf0)]);
+
+    expect(rows[1]?.latestState).toEqual({ kind: "notRated" });
   });
 });
 
