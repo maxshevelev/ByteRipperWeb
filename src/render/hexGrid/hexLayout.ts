@@ -1,3 +1,6 @@
+import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+
+export { BYTES_PER_ROW };
 /**
  * Pure geometry for the hex grid.
  *
@@ -16,7 +19,6 @@
  * Y grows downward: row 0 is at y = 0, which is how a canvas is drawn.
  */
 
-export const BYTES_PER_ROW = 16;
 export const GROUP_SIZE = 8;
 
 /** The word sizes the view offers. Anything else falls back to one byte. */

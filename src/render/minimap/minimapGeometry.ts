@@ -1,3 +1,6 @@
+import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+
+export { BYTES_PER_ROW };
 /**
  * Where a byte sits on the map, and which byte sits under a point.
  *
@@ -13,7 +16,6 @@
  */
 
 /** The dump's row width, and the map's. */
-export const BYTES_PER_ROW = 16;
 
 /**
  * The detail scale, fixed by design: a byte cell is `BYTE_HEIGHT` tall with
