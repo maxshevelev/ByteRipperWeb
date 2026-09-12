@@ -1,0 +1,275 @@
+import type { ImageRange } from "@/firmware/imageReader";
+import { alignUp } from "@/firmware/uefi/checksums";
+import type { EFIGUID } from "@/firmware/uefi/efiGuid";
+import { guidedSection } from "@/firmware/uefi/knownGuids";
+import type { Parser } from "@/firmware/uefi/parserState";
+import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { parseVolume } from "@/firmware/uefi/volumeParser";
+
+/**
+ * `EFI_COMMON_SECTION_HEADER` and the section types.
+ *
+ * Encapsulating sections are where the tree stops being a list: a compression
+ * section holds sections, a volume image section holds a volume, and the volume
+ * holds files again.
+ *
+ * What this parser will not do is decompress — five algorithms, none of them in
+ * the platform, and the rule of this project is no dependency without a reason
+ * worth writing down. A compressed section is a leaf that says which algorithm
+ * it is, and the day one is implemented it grows children instead.
+ */
+
+export const Section = {
+  headerSize: 4,
+  /** FFSv3 only: a size of `0xFFFFFF` means the real one follows in 32 bits. */
+  extendedHeaderSize: 8,
+  extendedSizeMarker: 0xff_ffff,
+  /** Sections sit on four-byte boundaries, where files sit on eight. */
+  alignment: 4,
+
+  compression: 0x01,
+  guidDefined: 0x02,
+  disposable: 0x03,
+  userInterface: 0x15,
+  firmwareVolumeImage: 0x17,
+  raw: 0x19,
+
+  /** `EFI_COMPRESSION_SECTION`, which follows the common header. */
+  compressionHeaderSize: 5,
+  notCompressed: 0x00,
+
+  /** `EFI_GUID_DEFINED_SECTION`: a GUID, a `DataOffset` and attributes. */
+  guidDefinedHeaderSize: 20,
+} as const;
+
+const SECTION_TYPE_NAMES: Readonly<Record<number, string>> = {
+  1: "Compressed section",
+  2: "GUID-defined section",
+  3: "Disposable section",
+  16: "PE32 image",
+  17: "PIC image",
+  18: "TE image",
+  19: "DXE dependency",
+  20: "Version",
+  21: "Name",
+  22: "Compatibility16",
+  23: "Volume image",
+  24: "Freeform subtype GUID",
+  25: "Raw",
+  27: "PEI dependency",
+  28: "MM dependency",
+  32: "Insyde postcode",
+  240: "Phoenix postcode",
+};
+
+/** A vendor type nobody documented keeps its number. */
+export function sectionTypeName(type: number): string {
+  return (
+    SECTION_TYPE_NAMES[type] ?? `Section type 0x${type.toString(16).toUpperCase().padStart(2, "0")}`
+  );
+}
+
+export function isKnownSectionType(type: number): boolean {
+  // 0x1A is not a section type. The gap is the specification's, and a range
+  // that papered over it would wave through the one value in here that means
+  // something is wrong.
+  return (
+    (type >= 0x01 && type <= 0x03) ||
+    (type >= 0x10 && type <= 0x19) ||
+    type === 0x1b ||
+    type === 0x1c ||
+    type === 0x20 ||
+    type === 0xf0
+  );
+}
+
+/** A file's body, read as the run of sections it is. */
+export function walkSections(
+  parser: Parser,
+  body: ImageRange,
+  options: { readonly ffsVersion: number; readonly emptyByte: number; readonly depth: number }
+): UEFINode[] {
+  const { ffsVersion, emptyByte, depth } = options;
+  if (depth >= parser.limits.maxDepth) {
+    parser.note({ kind: "recursionLimit" }, body.start);
+    return [];
+  }
+  const nodes: UEFINode[] = [];
+  let offset = body.start;
+
+  while (offset < body.end) {
+    if (body.end - offset < Section.headerSize) {
+      nodes.push(...parser.padding(offset, body.end, emptyByte));
+      break;
+    }
+    const shortSize = parser.reader.uint24(offset);
+    const type = parser.reader.uint8(offset + 3);
+    if (shortSize === undefined || type === undefined) {
+      nodes.push(...parser.padding(offset, body.end, emptyByte));
+      break;
+    }
+
+    let headerSize: number = Section.headerSize;
+    let size = shortSize;
+    if (shortSize === Section.extendedSizeMarker && ffsVersion === 3) {
+      const extended = parser.reader.uint32(offset + 4);
+      if (extended === undefined) {
+        parser.note({ kind: "truncated", structure: "sectionHeader" }, offset);
+        break;
+      }
+      headerSize = Section.extendedHeaderSize;
+      size = extended;
+    }
+    if (size === 0) {
+      parser.note({ kind: "zeroSize", structure: "sectionHeader" }, offset);
+      break;
+    }
+    if (size < headerSize) {
+      parser.note(
+        { kind: "sizeMismatch", structure: "sectionHeader", stored: size, computed: headerSize },
+        offset
+      );
+      break;
+    }
+
+    let end = offset + size;
+    if (end > body.end) {
+      parser.note({ kind: "truncated", structure: "sectionBody" }, offset);
+      end = body.end;
+      if (end - offset <= headerSize) break;
+    }
+
+    nodes.push(
+      parseSection(parser, { offset, end, headerSize, type, ffsVersion, emptyByte, depth })
+    );
+
+    const up = alignUp(end - body.start, Section.alignment);
+    if (up === undefined) break;
+    const next = body.start + up;
+    if (next <= offset) break;
+    nodes.push(...parser.padding(end, Math.min(next, body.end), emptyByte));
+    offset = next;
+  }
+  return nodes;
+}
+
+function parseSection(
+  parser: Parser,
+  options: {
+    readonly offset: number;
+    readonly end: number;
+    readonly headerSize: number;
+    readonly type: number;
+    readonly ffsVersion: number;
+    readonly emptyByte: number;
+    readonly depth: number;
+  }
+): UEFINode {
+  const { offset, end, headerSize, type, ffsVersion, emptyByte, depth } = options;
+  let name = sectionTypeName(type);
+  let guid: EFIGUID | undefined;
+  let bodyStart = offset + headerSize;
+  let readsBodyAsSections = false;
+
+  switch (type) {
+    case Section.disposable:
+      readsBodyAsSections = true;
+      break;
+
+    case Section.compression: {
+      bodyStart = Math.min(offset + headerSize + Section.compressionHeaderSize, end);
+      const algorithm = parser.reader.uint8(offset + headerSize + 4);
+      if (algorithm !== undefined) {
+        readsBodyAsSections = algorithm === Section.notCompressed;
+        name = compressionName(algorithm);
+      }
+      break;
+    }
+
+    case Section.guidDefined: {
+      guid = parser.reader.guid(offset + headerSize);
+      // The body starts where the section says it does, not where the structure
+      // ends: vendors put certificates and their own headers in between, and
+      // `DataOffset` is the only thing that knows.
+      const dataOffset = parser.reader.uint16(offset + headerSize + 16);
+      if (
+        dataOffset !== undefined &&
+        dataOffset >= headerSize + Section.guidDefinedHeaderSize &&
+        offset + dataOffset <= end
+      ) {
+        bodyStart = offset + dataOffset;
+      } else {
+        bodyStart = Math.min(offset + headerSize + Section.guidDefinedHeaderSize, end);
+      }
+      const known = guid === undefined ? undefined : guidedSection(guid);
+      if (known !== undefined) {
+        name = `${known.name} section`;
+        readsBodyAsSections = !known.transformsBody;
+      }
+      break;
+    }
+
+    default:
+      if (!isKnownSectionType(type)) {
+        parser.note({ kind: "unknownType", structure: "sectionHeader", code: type }, offset + 3);
+      }
+  }
+
+  const body: ImageRange = { start: bodyStart, end };
+  let children: UEFINode[] = [];
+  if (body.end > body.start) {
+    if (readsBodyAsSections) {
+      children = walkSections(parser, body, { ffsVersion, emptyByte, depth: depth + 1 });
+    } else if (type === Section.firmwareVolumeImage) {
+      // A volume inside a section, and files inside that: the point at which
+      // this format starts over one level down.
+      const volume = parseVolume(parser, { offset: bodyStart, limit: end, depth: depth + 1 });
+      if (volume !== undefined) children = [volume];
+    } else if (type === Section.userInterface) {
+      const text = ucs2String(parser, body);
+      if (text !== undefined) name = text;
+    }
+  }
+
+  return makeNode({
+    kind: "section",
+    subtype: type,
+    name,
+    guid,
+    header: { start: offset, end: bodyStart },
+    body,
+    children,
+  });
+}
+
+function compressionName(algorithm: number): string {
+  switch (algorithm) {
+    case Section.notCompressed:
+      return "Uncompressed section";
+    case 0x01:
+      return "Tiano compressed section";
+    case 0x02:
+      return "Customized compressed section";
+    case 0x86:
+      return "LZMA with x86 filter section";
+    default:
+      return `Compressed section (type 0x${algorithm.toString(16).toUpperCase().padStart(2, "0")})`;
+  }
+}
+
+/**
+ * A user-interface section is a UCS-2 string with a terminating zero — the name
+ * a person gave the file, and the only readable name most files have.
+ */
+export function ucs2String(parser: Parser, range: ImageRange): string | undefined {
+  const bytes = parser.reader.bytes(range);
+  if (bytes === undefined || bytes.length < 2) return undefined;
+  const units: number[] = [];
+  for (let index = 0; index + 1 < bytes.length; index += 2) {
+    const unit = (bytes[index] ?? 0) | ((bytes[index + 1] ?? 0) << 8);
+    if (unit === 0) break;
+    units.push(unit);
+  }
+  const text = String.fromCharCode(...units);
+  return text.length === 0 ? undefined : text;
+}

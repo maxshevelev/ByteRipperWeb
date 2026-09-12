@@ -108,10 +108,48 @@
     {
       "swift": "Packages/UEFIImage",
       "web": [
-        "src/firmware/uefi"
+        "src/firmware/byteSource.ts",
+        "src/firmware/imageReader.ts",
+        "src/firmware/uefi",
+        "src/firmware/testing/testImage.ts"
       ],
-      "status": "planned",
-      "note": "The shared UEFI image parser. Ported wholesale; the lazy-tree contract is the part to preserve exactly."
+      "status": "in-progress",
+      "note": "Across at M8, except the NVRAM store recognisers and the descriptor detail (DescriptorInfo, JedecIDs), which land with the rest of M8. Swift's protocol extensions become free functions taking a Parser, which is the same layering with the syntax the language has. Two divergences worth knowing. Reads are synchronous here as they are there, which is why parsing belongs in a worker: a worker has FileReaderSync, so six thousand lines written against synchronous reads port as they stand. And words are assembled by multiplication rather than by shifting, because JavaScript's bitwise operators are 32-bit — a dword with its top bit set comes back negative from a shift. Eight-byte fields are exact to 2^53 (every real offset and size) with a bigint path where the bits matter. Upstream's tests came across with the fixtures they need (TestImage.swift), which is what a port of a parser is checked by.",
+      "files": {
+        "ByteSource.swift": [
+          "src/firmware/byteSource.ts",
+          "src/firmware/imageReader.ts"
+        ],
+        "WindowedByteSource.swift": "src/firmware/byteSource.ts",
+        "EFIGUID.swift": "src/firmware/uefi/efiGuid.ts",
+        "UEFITypes.swift": "src/firmware/uefi/uefiTypes.ts",
+        "UEFITypeNames.swift": [
+          "src/firmware/uefi/fileParser.ts",
+          "src/firmware/uefi/sectionParser.ts"
+        ],
+        "KnownGUIDs.swift": "src/firmware/uefi/knownGuids.ts",
+        "GuidsCatalogue.swift": "src/firmware/uefi/guidsCatalogue.ts",
+        "Checksums.swift": "src/firmware/uefi/checksums.ts",
+        "UEFINode.swift": "src/firmware/uefi/uefiNode.ts",
+        "UEFIItemClassification.swift": "src/firmware/uefi/itemClassification.ts",
+        "UEFIDiagnostic.swift": "src/firmware/uefi/diagnostic.ts",
+        "UEFIParser.swift": [
+          "src/firmware/uefi/parserState.ts",
+          "src/firmware/uefi/rawScan.ts",
+          "src/firmware/uefi/uefiImage.ts"
+        ],
+        "DescriptorParser.swift": "src/firmware/uefi/descriptorParser.ts",
+        "VolumeParser.swift": "src/firmware/uefi/volumeParser.ts",
+        "FileParser.swift": "src/firmware/uefi/fileParser.ts",
+        "SectionParser.swift": "src/firmware/uefi/sectionParser.ts",
+        "MicrocodeParser.swift": "src/firmware/uefi/microcodeParser.ts",
+        "CapsuleParser.swift": "src/firmware/uefi/capsuleParser.ts",
+        "SecondPass.swift": "src/firmware/uefi/secondPass.ts",
+        "TreeMaterialization.swift": "src/firmware/uefi/treeMaterialization.ts",
+        "UEFIImage.swift": "src/firmware/uefi/uefiImage.ts",
+        "NvramParser.swift": "src/firmware/uefi/nvramParser.ts",
+        "NvramGuids.swift": "src/firmware/uefi/nvramParser.ts"
+      }
     },
     {
       "swift": "Packages/MEFirmware",
