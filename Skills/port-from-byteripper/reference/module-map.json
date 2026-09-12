@@ -114,7 +114,7 @@
         "src/firmware/testing/testImage.ts"
       ],
       "status": "in-progress",
-      "note": "Across at M8, except the NVRAM store recognisers and the descriptor detail (DescriptorInfo, JedecIDs), which land with the rest of M8. Swift's protocol extensions become free functions taking a Parser, which is the same layering with the syntax the language has. Two divergences worth knowing. Reads are synchronous here as they are there, which is why parsing belongs in a worker: a worker has FileReaderSync, so six thousand lines written against synchronous reads port as they stand. And words are assembled by multiplication rather than by shifting, because JavaScript's bitwise operators are 32-bit — a dword with its top bit set comes back negative from a shift. Eight-byte fields are exact to 2^53 (every real offset and size) with a bigint path where the bits matter. Upstream's tests came across with the fixtures they need (TestImage.swift), which is what a port of a parser is checked by.",
+      "note": "Across at M8, except the descriptor detail (DescriptorInfo, JedecIDs). Swift's protocol extensions become free functions taking a Parser, which is the same layering with the syntax the language has. Two divergences worth knowing. Reads are synchronous here as they are there, which is why parsing belongs in a worker: a worker has FileReaderSync, so six thousand lines written against synchronous reads port as they stand. And words are assembled by multiplication rather than by shifting, because JavaScript's bitwise operators are 32-bit — a dword with its top bit set comes back negative from a shift. Eight-byte fields are exact to 2^53 (every real offset and size) with a bigint path where the bits matter. Upstream's tests came across with the fixtures they need (TestImage.swift), which is what a port of a parser is checked by.",
       "files": {
         "ByteSource.swift": [
           "src/firmware/byteSource.ts",
@@ -148,7 +148,7 @@
         "TreeMaterialization.swift": "src/firmware/uefi/treeMaterialization.ts",
         "UEFIImage.swift": "src/firmware/uefi/uefiImage.ts",
         "NvramParser.swift": "src/firmware/uefi/nvramParser.ts",
-        "NvramGuids.swift": "src/firmware/uefi/nvramParser.ts",
+        "NvramGuids.swift": "src/firmware/uefi/nvramGuids.ts",
         "ChecksumRepair.swift": "src/firmware/uefi/checksumRepair.ts"
       }
     },
