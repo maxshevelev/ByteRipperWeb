@@ -87,6 +87,13 @@ export interface HexPaneProps {
   readonly onDumpMenu?: ((event: React.MouseEvent, offset: number) => void) | undefined;
   /** A right-click on the pane's header: this pane's File menu. */
   readonly onHeaderMenu?: ((event: React.MouseEvent) => void) | undefined;
+  /** True while files are being dragged over the window (§22.4). */
+  readonly dragActive?: boolean | undefined;
+  /**
+   * A drop on one of this pane's bands: the file joins at that end rather than
+   * replacing what the pane holds.
+   */
+  readonly onJoinDrop?: ((event: React.DragEvent, where: "start" | "end") => void) | undefined;
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /** Asks the workspace to reveal a range — difference navigation uses it. */
@@ -145,6 +152,8 @@ export function HexPane({
   onGoToMatch,
   onDumpMenu,
   onHeaderMenu,
+  dragActive,
+  onJoinDrop,
   onSelectionChanged,
   revealRequest,
   typing,
@@ -170,6 +179,8 @@ export function HexPane({
   const dragAnchorRef = useRef<number | undefined>(undefined);
   /** The row a bookmark is being dragged from, while that drag is happening. */
   const markDragRef = useRef<number | undefined>(undefined);
+  /** Which join band a dragged file is currently over, if either (§22.4). */
+  const [overBand, setOverBand] = useState<"start" | "end" | undefined>(undefined);
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
@@ -946,6 +957,54 @@ export function HexPane({
       onPointerDownCapture={onActivate}
       onFocusCapture={onActivate}
     >
+      {/*
+        The two join bands (§22.4): a file dropped at the top goes in before
+        what the pane holds, one dropped at the bottom after it. Only while
+        something is actually being dragged, and only when the pane has content
+        for a join to be relative to.
+      */}
+      {dragActive === true && onJoinDrop !== undefined ? (
+        <>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: see above. */}
+          <div
+            className="join-band is-start"
+            data-over={overBand === "start" ? "" : undefined}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOverBand("start");
+            }}
+            onDragLeave={() => setOverBand(undefined)}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOverBand(undefined);
+              onJoinDrop(event, "start");
+            }}
+          >
+            Insert at the start
+          </div>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: see above. */}
+          <div
+            className="join-band is-end"
+            data-over={overBand === "end" ? "" : undefined}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOverBand("end");
+            }}
+            onDragLeave={() => setOverBand(undefined)}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOverBand(undefined);
+              onJoinDrop(event, "end");
+            }}
+          >
+            Append at the end
+          </div>
+        </>
+      ) : null}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu is
           not interactivity of its own — the keyboard reaches the same commands
           through the toolbar's menu, and the dump below answers Shift+F10. */}

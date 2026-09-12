@@ -309,10 +309,11 @@
     {
       "swift": "ByteRipperApp/DragDrop",
       "web": [
-        "src/platform/dragDrop"
+        "src/platform/files/dragDrop.ts",
+        "src/ui/pane/HexPane.tsx"
       ],
       "status": "in-progress",
-      "note": "File drops port; pane drags do not."
+      "note": "The open-on-drop path is across as of M2. The join bands at a pane's top and bottom are across as of M7 (§22.4): a file dropped on one joins at that end rather than replacing what the pane holds. Pane dragging does not port — one workspace per tab, no pane management (D11)."
     },
     {
       "swift": "ByteRipperApp/App",

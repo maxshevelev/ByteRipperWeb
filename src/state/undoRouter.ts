@@ -4,10 +4,10 @@ import {
   redoSegments,
   undoSegments,
 } from "@/state/segmentsStore";
-import { type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { type PaneId, syncJoinAttachment, workspaceStore } from "@/state/workspaceStore";
 
 /**
- * Which of a pane's two histories `Cmd/Ctrl+Z` should take back.
+ * Which of a pane's histories `Cmd/Ctrl+Z` should take back.
  *
  * A pane has two kinds of undoable act: edits to its bytes, kept by the
  * document's own history, and changes to its partition — a cut, a merge, a
@@ -18,6 +18,10 @@ import { type PaneId, workspaceStore } from "@/state/workspaceStore";
  * So there are two, and this decides between them. It keeps only the *order*
  * the acts happened in, and asks each history to do its own work.
  *
+ * **Some acts are both.** A join inserts bytes *and* cuts the seam, and it is
+ * one thing the user did, so it is one press to take back: {@link groupActs}
+ * folds everything recorded inside it into a single entry.
+ *
  * **The order can drift, and it is made to correct itself.** A fast repeat of
  * undo takes back a whole typing series as one batch, which is one press for
  * several recorded transactions — after that this stack holds document entries
@@ -26,7 +30,18 @@ import { type PaneId, workspaceStore } from "@/state/workspaceStore";
  * rather than leaving a press that does nothing.
  */
 
-type Act = { readonly kind: "document" | "segments"; readonly pane: PaneId };
+interface SimpleAct {
+  readonly kind: "document" | "segments";
+  readonly pane: PaneId;
+}
+
+interface GroupAct {
+  readonly kind: "group";
+  readonly pane: PaneId;
+  readonly parts: readonly Act[];
+}
+
+type Act = SimpleAct | GroupAct;
 
 const past: Act[] = [];
 const future: Act[] = [];
@@ -34,7 +49,14 @@ const future: Act[] = [];
 /** How far back this remembers. Beyond it the two histories answer for themselves. */
 const LIMIT = 256;
 
+/** The acts recorded inside an open group, or nothing when none is open. */
+let grouping: { pane: PaneId; parts: Act[] } | undefined;
+
 function push(act: Act): void {
+  if (grouping !== undefined && grouping.pane === act.pane) {
+    grouping.parts.push(act);
+    return;
+  }
   past.push(act);
   if (past.length > LIMIT) past.shift();
   // A new act is a new future: what was undone is no longer reachable.
@@ -49,6 +71,31 @@ export function noteSegmentAct(pane: PaneId): void {
   push({ kind: "segments", pane });
 }
 
+/**
+ * Runs `act` with everything it records folded into one undo entry.
+ *
+ * For a join, which is one gesture that touches both of a pane's histories: the
+ * bytes go in and the seam becomes a cut, and a press that took back only half
+ * of that would leave an image cut where nothing joins any more.
+ */
+export async function groupActs(pane: PaneId, act: () => Promise<void>): Promise<void> {
+  // Not re-entrant on purpose: a nested group would be a second meaning for
+  // one press, and nothing here needs one.
+  if (grouping !== undefined) {
+    await act();
+    return;
+  }
+  grouping = { pane, parts: [] };
+  try {
+    await act();
+  } finally {
+    const parts = grouping.parts;
+    grouping = undefined;
+    if (parts.length === 1 && parts[0] !== undefined) push(parts[0]);
+    else if (parts.length > 1) push({ kind: "group", pane, parts });
+  }
+}
+
 /** Forgets a pane's acts — it closed, or its content was replaced wholesale. */
 export function forgetActs(pane: PaneId): void {
   for (const stack of [past, future]) {
@@ -56,6 +103,50 @@ export function forgetActs(pane: PaneId): void {
       if (stack[index]?.pane === pane) stack.splice(index, 1);
     }
   }
+}
+
+/** Whether this act still has anything left to take back. */
+function canUndoAct(act: Act): boolean {
+  if (act.kind === "group") return act.parts.some(canUndoAct);
+  if (act.kind === "segments") return canUndoSegments(act.pane);
+  return workspaceStore.getSnapshot().panes[act.pane]?.document.canUndo === true;
+}
+
+function canRedoAct(act: Act): boolean {
+  if (act.kind === "group") return act.parts.some(canRedoAct);
+  if (act.kind === "segments") return canRedoSegments(act.pane);
+  return workspaceStore.getSnapshot().panes[act.pane]?.document.canRedo === true;
+}
+
+async function undoAct(act: Act, batch: boolean): Promise<void> {
+  if (act.kind === "group") {
+    // In reverse: the seam cut was made after the bytes went in, so it comes
+    // out first — and the cut's offsets only mean anything while they are in.
+    for (const part of [...act.parts].reverse()) await undoAct(part, false);
+    return;
+  }
+  if (act.kind === "segments") {
+    undoSegments(act.pane);
+    return;
+  }
+  const slot = workspaceStore.getSnapshot().panes[act.pane];
+  await slot?.typing.undo(batch);
+  // A join is one of those steps, and taking it back gives the pane its file
+  // and its name back with it (§22.2).
+  syncJoinAttachment(act.pane);
+}
+
+async function redoAct(act: Act): Promise<void> {
+  if (act.kind === "group") {
+    for (const part of act.parts) await redoAct(part);
+    return;
+  }
+  if (act.kind === "segments") {
+    redoSegments(act.pane);
+    return;
+  }
+  const slot = workspaceStore.getSnapshot().panes[act.pane];
+  await slot?.typing.redo();
 }
 
 /**
@@ -68,24 +159,13 @@ export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
   for (let index = past.length - 1; index >= 0; index--) {
     const act = past[index];
     if (act === undefined || act.pane !== pane) continue;
-    if (act.kind === "segments") {
-      if (!canUndoSegments(pane)) {
-        past.splice(index, 1);
-        continue;
-      }
-      past.splice(index, 1);
-      future.push(act);
-      undoSegments(pane);
-      return true;
-    }
-    const slot = workspaceStore.getSnapshot().panes[pane];
-    if (slot === undefined || !slot.document.canUndo) {
+    if (!canUndoAct(act)) {
       past.splice(index, 1);
       continue;
     }
     past.splice(index, 1);
     future.push(act);
-    await slot.typing.undo(batch);
+    await undoAct(act, batch);
     return true;
   }
   // Nothing recorded for this pane, which is the state after a reload of the
@@ -93,6 +173,7 @@ export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot?.document.canUndo === true) {
     await slot.typing.undo(batch);
+    syncJoinAttachment(pane);
     return true;
   }
   return false;
@@ -102,24 +183,13 @@ export async function redoLast(pane: PaneId): Promise<boolean> {
   for (let index = future.length - 1; index >= 0; index--) {
     const act = future[index];
     if (act === undefined || act.pane !== pane) continue;
-    if (act.kind === "segments") {
-      if (!canRedoSegments(pane)) {
-        future.splice(index, 1);
-        continue;
-      }
-      future.splice(index, 1);
-      past.push(act);
-      redoSegments(pane);
-      return true;
-    }
-    const slot = workspaceStore.getSnapshot().panes[pane];
-    if (slot === undefined || !slot.document.canRedo) {
+    if (!canRedoAct(act)) {
       future.splice(index, 1);
       continue;
     }
     future.splice(index, 1);
     past.push(act);
-    await slot.typing.redo();
+    await redoAct(act);
     return true;
   }
   const slot = workspaceStore.getSnapshot().panes[pane];

@@ -5,7 +5,26 @@ import {
   selectionIsEmpty,
 } from "@/core/document/selectionModel";
 import { invertOperation, UndoHistory, type UndoOperation } from "@/core/edit/undoHistory";
-import type { Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
+import type { ByteStorage, Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
+
+/** Which end of the document a join puts its bytes at (§22). */
+export type JoinPosition = "start" | "end";
+
+/** A file with no bytes in it has nothing to join, and saying so beats a no-op. */
+export class JoinEmpty extends Error {
+  constructor() {
+    super("That file has no bytes to join.");
+    this.name = "JoinEmpty";
+  }
+}
+
+/**
+ * How much of the source goes in per insert.
+ *
+ * The same megabyte the save path streams in: a join of a 32 MB donor is 32
+ * inserts through the piece table, not one array the size of the file.
+ */
+const JOIN_CHUNK_SIZE = 1024 * 1024;
 
 /**
  * One open binary file: its editable storage, its undo history, and its
@@ -199,6 +218,65 @@ export class BinaryDocument {
     }
     this.record(ops);
     this.clampSelection();
+  }
+
+  // MARK: - Joining another file in (§22)
+
+  /**
+   * Puts another stream of bytes at one end of this document.
+   *
+   * A *document-level act*, not an edit: it detaches the document from the file
+   * it came from, which is the pane's business rather than this one's — but the
+   * bytes go in as **one undoable insert**, so taking the join back is a single
+   * press and the attachment can come back with it. The serial returned is what
+   * lets the caller recognise that step later.
+   *
+   * The source's size is taken once, before anything is written. It has to be:
+   * a document can be joined to *itself*, and then the source is this
+   * document's own storage, growing with every chunk — a loop that reads until
+   * it reaches the end never reaches it, and the document grows until the
+   * browser stops it.
+   *
+   * The caret ends at the start of the added part, which is the seam, and that
+   * is what redo restores; undo returns it to where it was before.
+   */
+  async join(
+    source: ByteStorage,
+    position: JoinPosition,
+    options: { readonly chunkSize?: number } = {}
+  ): Promise<number | undefined> {
+    if (source.size === 0) throw new JoinEmpty();
+    const chunkSize = options.chunkSize ?? JOIN_CHUNK_SIZE;
+
+    const anchor = position === "start" ? 0 : this.storageValue.size;
+    const sourceSize = source.size;
+    // Inserting at the start moves the original bytes right by however much has
+    // gone in, so a self-join reading its own byte `k` has to look for it at
+    // `k + inserted`. Appending leaves the bytes before the anchor where they
+    // are, and a source that is a different storage never moves at all.
+    const readsShiftWithWrites = position === "start" && (source as unknown) === this.storageValue;
+
+    this.beginEditGroup(position === "start" ? "Insert File" : "Append File");
+    try {
+      let at = anchor;
+      let read = 0;
+      while (read < sourceSize) {
+        const from = readsShiftWithWrites ? read + (at - anchor) : read;
+        const chunk = await source.read(from, Math.min(chunkSize, sourceSize - read));
+        if (chunk.length === 0) break;
+        await this.insert(at, chunk);
+        at += chunk.length;
+        read += chunk.length;
+      }
+      this.endEditGroup();
+    } catch (error) {
+      await this.cancelEditGroup();
+      throw error;
+    }
+
+    this.setSelectionInternal(caretAt(anchor, this.storageValue.size));
+    this.noteSelectionAfterEdit();
+    return this.undoHistory.lastCommittedSerial;
   }
 
   // MARK: - Undo and redo

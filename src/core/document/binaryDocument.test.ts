@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BinaryDocument } from "@/core/document/binaryDocument";
+import { BinaryDocument, JoinEmpty } from "@/core/document/binaryDocument";
 import { caretAt, selection, selectionOfLength } from "@/core/document/selectionModel";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
@@ -530,5 +530,90 @@ describe("a half-typed byte", () => {
 
     expect(await content(doc)).toEqual([0x00, 0x11]);
     expect(doc.isDirty).toBe(false);
+  });
+});
+
+/**
+ * Joining another file in (§22), ported from upstream's join tests.
+ *
+ * A join is a document-level act — the pane's detachment from its file is the
+ * pane's business — but the bytes it moves are this file's, and the rules about
+ * them are here: one undo step, a caret at the seam, and a self-join that
+ * terminates.
+ */
+describe("joining another file in", () => {
+  const donor = (bytes: number[]) => storageOver(new Uint8Array(bytes));
+
+  it("appends the source at the end", async () => {
+    const doc = documentOf([1, 2, 3]);
+
+    await doc.join(donor([0xa, 0xb]), "end");
+
+    expect(await content(doc)).toEqual([1, 2, 3, 0xa, 0xb]);
+  });
+
+  it("inserts the source before everything", async () => {
+    const doc = documentOf([1, 2, 3]);
+
+    await doc.join(donor([0xa, 0xb]), "start");
+
+    expect(await content(doc)).toEqual([0xa, 0xb, 1, 2, 3]);
+  });
+
+  // However many chunks the bytes arrived in, the join is one thing the user
+  // did and one press takes it back.
+  it("is one undo step", async () => {
+    const doc = documentOf([1, 2, 3]);
+    await doc.join(donor([0xa, 0xb, 0xc]), "end");
+
+    expect(await doc.undo()).toBeDefined();
+
+    expect(await content(doc)).toEqual([1, 2, 3]);
+    expect(doc.canUndo).toBe(false);
+  });
+
+  // The seam: the boundary the join opened, which is where the reader wants to
+  // be looking afterwards.
+  it("leaves the caret at the start of what arrived", async () => {
+    const doc = documentOf([1, 2, 3]);
+
+    await doc.join(donor([0xa, 0xb]), "end");
+    expect(doc.caret).toBe(3);
+
+    const other = documentOf([1, 2, 3]);
+    await other.join(donor([0xa, 0xb]), "start");
+    expect(other.caret).toBe(0);
+  });
+
+  it("refuses a file with no bytes in it", async () => {
+    const doc = documentOf([1, 2, 3]);
+
+    await expect(doc.join(donor([]), "end")).rejects.toThrow(JoinEmpty);
+
+    expect(await content(doc)).toEqual([1, 2, 3]);
+    expect(doc.canUndo).toBe(false);
+  });
+
+  // A document can be joined to itself. The source's size is taken once, before
+  // anything is written — a loop that read until it reached the end would never
+  // reach it, and the document would grow until the browser stopped it.
+  it("terminates when a document is joined to itself", async () => {
+    const doc = documentOf([1, 2, 3, 4]);
+
+    // A chunk smaller than the content, so the loop actually goes round more
+    // than once — which is the only way the growing source can be got wrong.
+    await doc.join(doc.storage, "end", { chunkSize: 2 });
+
+    expect(await content(doc)).toEqual([1, 2, 3, 4, 1, 2, 3, 4]);
+  });
+
+  // The same case with the reads shifting under the writes: inserting at the
+  // start moves the original bytes right by however much has gone in.
+  it("copies the right bytes when a document is inserted before itself", async () => {
+    const doc = documentOf([1, 2, 3, 4]);
+
+    await doc.join(doc.storage, "start", { chunkSize: 2 });
+
+    expect(await content(doc)).toEqual([1, 2, 3, 4, 1, 2, 3, 4]);
   });
 });

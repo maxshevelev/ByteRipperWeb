@@ -1,5 +1,5 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
-import { BinaryDocument } from "@/core/document/binaryDocument";
+import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocument";
 import { TypingController } from "@/core/edit/typingController";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
@@ -17,9 +17,15 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import { noteDocumentChanged } from "@/state/editStore";
-import { clearSegments, resetSegments, swapSegments } from "@/state/segmentsStore";
+import {
+  applySegments,
+  clearSegments,
+  resetSegments,
+  segmentsFor,
+  swapSegments,
+} from "@/state/segmentsStore";
 import { createStore } from "@/state/store";
-import { noteDocumentAct } from "@/state/undoRouter";
+import { groupActs, noteDocumentAct } from "@/state/undoRouter";
 
 /**
  * The workspace: one per browser tab (D11), so this is a module-level store and
@@ -223,6 +229,7 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
       problem: undefined,
     }));
     // A file arrives as one piece covering it, whatever the pane held before.
+    forgetJoins(pane);
     resetSegments(pane, document.size);
   } catch (error) {
     workspaceStore.update((state) => ({
@@ -233,6 +240,7 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
 }
 
 export function closePane(pane: PaneId): void {
+  forgetJoins(pane);
   clearSegments(pane);
   workspaceStore.update((state) => ({
     ...state,
@@ -394,6 +402,7 @@ export async function duplicatePane(from: PaneId): Promise<void> {
   }));
   // The copy is a document of its own: it starts as one piece, and the
   // original's cuts stay with the original.
+  forgetJoins(into);
   resetSegments(into, document.size);
   noteDocumentChanged();
 }
@@ -419,6 +428,7 @@ export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
     activePane: pane,
     problem: undefined,
   }));
+  forgetJoins(pane);
   resetSegments(pane, 0);
 }
 
@@ -457,6 +467,220 @@ export async function revertPane(pane: PaneId): Promise<void> {
     };
   });
   // Reverting throws the edits away, and the cuts travelled with them.
+  forgetJoins(pane);
   resetSegments(pane, slot.document.size);
   noteDocumentChanged();
+}
+
+// MARK: - Joining another file in (§22)
+
+/**
+ * What a pane was attached to before a join, kept so undoing the join can put
+ * it back.
+ *
+ * Upstream keeps this inside the document, which owns its own URL and identity.
+ * Here the attachment *is* the pane — the file it was opened from, the copy of
+ * it that says which bytes are unsaved, and whether it can be written back — so
+ * the mark lives beside the pane and the document only reports the serial that
+ * identifies the step.
+ */
+interface JoinMark {
+  readonly serial: number;
+  readonly name: string;
+  readonly file: OpenedFile;
+  readonly saved: ByteStorage | undefined;
+  readonly writable: boolean;
+}
+
+const joinMarks: Record<PaneId, JoinMark[]> = { a: [], b: [] };
+
+/**
+ * `bios.bin` becomes `bios-2.bin`, stepping over the names already on screen.
+ *
+ * The result is not the file it came from, but it is that file with something
+ * added, so it wears that file's name with a series suffix — the same shape a
+ * copy takes, and for the same reason: the header has to say which dump is on
+ * screen, and Save All as Separate Files has to have a base name to build the
+ * piece names from.
+ */
+export function joinedName(name: string, taken: readonly string[]): string {
+  const dot = name.lastIndexOf(".");
+  const stem = dot <= 0 ? name : name.slice(0, dot);
+  const extension = dot <= 0 ? "" : name.slice(dot);
+  // A name that is already a series member continues it rather than nesting.
+  const base = /-\d+$/.test(stem) ? stem.replace(/-\d+$/, "") : stem;
+  for (let index = 2; ; index++) {
+    const candidate = `${base}-${index}${extension}`;
+    if (!taken.includes(candidate)) return candidate;
+  }
+}
+
+export interface JoinRequest {
+  readonly pane: PaneId;
+  readonly source: ByteStorage;
+  /** What the joined bytes came from, for the piece that holds them. */
+  readonly sourceName: string;
+  readonly position: JoinPosition;
+}
+
+/**
+ * Puts another file's bytes at one end of a pane's content (§22).
+ *
+ * The join **copies**: the source is left exactly as it was, which is what lets
+ * a pane be joined to itself and what stops a dropped file being consumed.
+ *
+ * Three things happen together, and each is the subject of its own rule:
+ * the bytes go in as one undoable insert; the seam becomes a cut, so the
+ * content the pane already held and the bytes that arrived are separate pieces
+ * under their own names (§22.3) — which is what makes a joined image split back
+ * at exactly the seam it was joined at; and the pane detaches from its file,
+ * because what is on screen is no longer that file (§22.2).
+ */
+export function joinIntoPane(request: JoinRequest): Promise<void> {
+  // One gesture, one press to take back: the bytes going in and the seam
+  // becoming a cut are the same act (§22.3).
+  return groupActs(request.pane, () => performJoin(request));
+}
+
+async function performJoin(request: JoinRequest): Promise<void> {
+  const { pane, source, sourceName, position } = request;
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  if (slot === undefined) return;
+
+  const sizeBefore = slot.document.size;
+  const sourceSize = source.size;
+  const before: Omit<JoinMark, "serial"> = {
+    name: slot.name,
+    file: slot.file,
+    saved: slot.saved,
+    writable: slot.writable,
+  };
+
+  const serial = await slot.document.join(source, position);
+
+  // The base every worker reads is the file the pane was opened from, and after
+  // a join it is not what the pane holds any more. A snapshot of the joined
+  // content replaces it; the old one is kept in the mark, so undoing the join
+  // puts the original file back rather than re-snapshotting a shrunken copy.
+  const name = joinedName(
+    before.name,
+    PANE_IDS.map((id) => workspaceStore.getSnapshot().panes[id]?.name ?? "")
+  );
+  const file = await snapshotOf(slot, name);
+
+  workspaceStore.update((state) => {
+    const current = state.panes[pane];
+    if (current === undefined) return state;
+    return {
+      ...state,
+      panes: {
+        ...state.panes,
+        // Never on disk, so nothing in it is an unsaved *edit*: the whole image
+        // is unsaved, and the readout says so.
+        [pane]: { ...current, name, file, saved: undefined, writable: false },
+      },
+      activePane: pane,
+    };
+  });
+  if (serial !== undefined) joinMarks[pane].push({ ...before, serial });
+
+  // One edit, not one per chunk: everything downstream cares only about which
+  // offsets stopped meaning what they meant.
+  const anchor = position === "start" ? 0 : sizeBefore;
+  editingHooks.onEdit?.(pane, { kind: "insert", at: anchor, length: sourceSize });
+  seamCut({ pane, position, sizeBefore, sourceSize, sourceName, originalName: before.name });
+  noteDocumentChanged();
+}
+
+/** The joined content as a file the workers can read, or the old one if it cannot be written. */
+async function snapshotOf(slot: PaneState, name: string): Promise<OpenedFile> {
+  if (!OpfsScratchStore.isAvailable()) return { ...slot.file, name };
+  const source = await (slot.document.storage as EditOverlayStorage).contentSnapshot(
+    new OpfsScratchStore()
+  );
+  return { name, size: source.size, lastModified: Date.now(), source };
+}
+
+/**
+ * The seam becomes a cut (§22.3).
+ *
+ * The insert has already moved the partition with the content, so what is left
+ * is to split the piece that now spans both halves and give each its name: the
+ * content the pane already held keeps the name of the file it was opened from,
+ * and the joined bytes take the source's.
+ */
+function seamCut(options: {
+  pane: PaneId;
+  position: JoinPosition;
+  sizeBefore: number;
+  sourceSize: number;
+  sourceName: string;
+  originalName: string;
+}): void {
+  const { pane, position, sizeBefore, sourceSize, sourceName } = options;
+  // A pane that was empty holds nothing but the source, so there is one piece
+  // and it is the source's — a cut at 0 or at the end would be refused anyway.
+  if (sizeBefore === 0) {
+    applySegments(pane, (partition) => partition.rename(0, sourceName));
+    return;
+  }
+  const seam = position === "start" ? sourceSize : sizeBefore;
+  // For an insert at the start the cut splits the piece that opens at 0: the
+  // earlier half (the new bytes) keeps that piece's name and the later half
+  // (the original content) is left unnamed. So the original name is taken from
+  // the piece before the cut, not from the pane, which has already been renamed.
+  const originalName =
+    position === "start" ? (segmentsFor(pane)?.segments[0]?.name ?? "") : options.originalName;
+
+  applySegments(pane, (partition) => {
+    const cut = partition.addCut(seam);
+    if (cut === undefined) return undefined;
+    return position === "start"
+      ? cut.rename(0, sourceName).rename(1, originalName)
+      : cut.rename(0, originalName).rename(1, sourceName);
+  });
+}
+
+/**
+ * Re-attaches a pane to the file a join detached it from, or detaches it again.
+ *
+ * Called after every undo and redo. A join's step is recognised by the serial
+ * the document reported when it committed: while that serial is still in the
+ * history the join is applied, and when it is not the document is back to what
+ * the file holds — so the name, the file and the saved copy come back with it.
+ */
+export function syncJoinAttachment(pane: PaneId): void {
+  const marks = joinMarks[pane];
+  if (marks.length === 0) return;
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  if (slot === undefined) return;
+
+  const applied = slot.document.undoHistory.lastCommittedSerial ?? 0;
+  const mark = marks[marks.length - 1];
+  if (mark === undefined || applied >= mark.serial) return;
+
+  marks.pop();
+  workspaceStore.update((state) => {
+    const current = state.panes[pane];
+    if (current === undefined) return state;
+    return {
+      ...state,
+      panes: {
+        ...state.panes,
+        [pane]: {
+          ...current,
+          name: mark.name,
+          file: mark.file,
+          saved: mark.saved,
+          writable: mark.writable,
+        },
+      },
+    };
+  });
+  noteDocumentChanged();
+}
+
+/** A pane's content was replaced: nothing it was joined from is reachable now. */
+function forgetJoins(pane: PaneId): void {
+  joinMarks[pane].length = 0;
 }

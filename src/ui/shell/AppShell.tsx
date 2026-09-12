@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
+import { JoinEmpty } from "@/core/document/binaryDocument";
 import { selection as makeSelection } from "@/core/document/selectionModel";
+import { ChunkCache } from "@/core/storage/chunkCache";
+import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
@@ -24,6 +27,7 @@ import {
   closePane,
   duplicatePane,
   editingHooks,
+  joinIntoPane,
   openEmptyInPane,
   openInPane,
   type PaneId,
@@ -434,6 +438,74 @@ export function AppShell() {
     setSegmentsPane(undefined);
   }, []);
 
+  /** Shows an offset in both panes, the way difference navigation does. */
+  const revealInBoth = useCallback((offset: number) => {
+    setReveal({
+      a: { offset, token: ++revealToken.current },
+      b: { offset, token: revealToken.current },
+    });
+  }, []);
+
+  /**
+   * Append File… / Insert File at Start… (§22).
+   *
+   * A join copies: the file that is picked is not consumed, and neither is the
+   * pane's own content — what changes is this pane, which stops being the file
+   * it was opened from and says so in its header.
+   */
+  const doJoin = useCallback(
+    async (pane: PaneId, position: "start" | "end") => {
+      try {
+        const [picked] = await openFiles({
+          multiple: false,
+          capabilities: workspaceStore.getSnapshot().capabilities,
+        });
+        if (picked === undefined) return;
+        await joinIntoPane({
+          pane,
+          source: new FileBackedStorage(picked.source, new ChunkCache()),
+          sourceName: picked.name,
+          position,
+        });
+        revealInBoth(position === "start" ? 0 : 0);
+      } catch (error) {
+        if (error instanceof JoinEmpty) {
+          reportProblem(`${error.message} Nothing was joined.`);
+          return;
+        }
+        reportProblem(error instanceof Error ? error.message : "That file could not be joined.");
+      }
+    },
+    [revealInBoth]
+  );
+
+  /** A file dropped on a pane's band joins there rather than replacing it. */
+  const doJoinDrop = useCallback(
+    async (event: React.DragEvent, pane: PaneId, where: "start" | "end") => {
+      setDragging(false);
+      if (event.dataTransfer === null) return;
+      try {
+        const files = await filesFromDrop(event.dataTransfer);
+        for (const picked of files) {
+          await joinIntoPane({
+            pane,
+            source: new FileBackedStorage(picked.source, new ChunkCache()),
+            sourceName: picked.name,
+            position: where,
+          });
+        }
+        revealInBoth(0);
+      } catch (error) {
+        if (error instanceof JoinEmpty) {
+          reportProblem(`${error.message} Nothing was joined.`);
+          return;
+        }
+        reportProblem(error instanceof Error ? error.message : "That file could not be joined.");
+      }
+    },
+    [revealInBoth]
+  );
+
   const doDeleteBytes = useCallback(() => {
     void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
   }, [activePane]);
@@ -498,21 +570,14 @@ export function AppShell() {
       // things about one of them.
       onEditBookmark: () => setGoTo("bookmarks"),
       onSplitHere: (pane, offset) => setCutAt({ pane, offset }),
+      onJoin: (pane, position) => void doJoin(pane, position),
       onSegments: (pane) => setSegmentsPane(pane),
       onProblem: reportProblem,
     }),
-    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes]
+    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin]
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
-
-  /** Shows an offset in both panes, the way difference navigation does. */
-  const revealInBoth = useCallback((offset: number) => {
-    setReveal({
-      a: { offset, token: ++revealToken.current },
-      b: { offset, token: revealToken.current },
-    });
-  }, []);
 
   return (
     <div className="app-shell" data-dragging={dragging ? "" : undefined}>
@@ -527,6 +592,7 @@ export function AppShell() {
         onDeleteBytes={doDeleteBytes}
         onGoTo={() => setGoTo("offset")}
         onBookmarks={() => setGoTo("bookmarks")}
+        onJoin={(position) => void doJoin(activePane, position)}
         onSegments={() => setSegmentsPane(activePane)}
         onSplitHere={() =>
           setCutAt({
@@ -595,6 +661,8 @@ export function AppShell() {
                 onDumpMenu={(event, offset) =>
                   openContextMenu(event, dumpMenu(state, id, offset, menuActions))
                 }
+                dragActive={dragging}
+                onJoinDrop={(event, where) => void doJoinDrop(event, id, where)}
               />
             );
           })

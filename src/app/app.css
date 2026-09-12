@@ -403,6 +403,8 @@ textarea,
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
   border-top: 2px solid transparent;
+  /* The join bands hang off this box. */
+  position: relative;
 }
 
 .hex-header {
@@ -604,6 +606,39 @@ textarea,
   border: 0;
   background: none;
   width: auto;
+}
+
+/* The join bands (§22.4): a file dropped at a pane's top goes in before what it
+   holds, one dropped at the bottom after it. */
+.join-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  height: 3.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 2px dashed var(--accent);
+  border-radius: 6px;
+  opacity: 0.75;
+  pointer-events: auto;
+}
+
+.join-band.is-start {
+  top: 0;
+}
+
+.join-band.is-end {
+  bottom: 0;
+}
+
+.join-band[data-over] {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
 }
 
 /* The segments table. */

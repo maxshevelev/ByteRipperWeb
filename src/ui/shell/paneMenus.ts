@@ -46,6 +46,8 @@ export interface PaneMenuActions {
   /** Opens the cut dialog, prefilled with this offset (§21.3). */
   readonly onSplitHere: (pane: PaneId, offset: number) => void;
   readonly onSegments: (pane: PaneId) => void;
+  /** Append File… / Insert File at Start… (§22). */
+  readonly onJoin: (pane: PaneId, position: "start" | "end") => void;
   readonly onProblem: (message: string | undefined) => void;
 }
 
@@ -72,6 +74,11 @@ export function paneFileMenu(
       onSelect: () => actions.onSaveAs(pane),
     },
     { label: "Revert to Saved", disabled: !dirty, onSelect: () => actions.onRevert(pane) },
+    { kind: "separator" },
+    // The join twins (§22.1). Insert is grouped with the edit commands above;
+    // Append sits with it, both acting on THIS pane rather than the active one.
+    { label: "Insert File at Start…", onSelect: () => actions.onJoin(pane, "start") },
+    { label: "Append File…", onSelect: () => actions.onJoin(pane, "end") },
     { kind: "separator" },
     { label: "Duplicate", onSelect: () => actions.onDuplicate(pane) },
     { kind: "separator" },

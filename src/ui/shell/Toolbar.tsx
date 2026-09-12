@@ -41,6 +41,7 @@ export function Toolbar({
   onGoTo,
   onBookmarks,
   onToggleBookmark,
+  onJoin,
   onSegments,
   onSplitHere,
   onSaveAllSegments,
@@ -59,6 +60,7 @@ export function Toolbar({
   readonly onGoTo: () => void;
   readonly onBookmarks: () => void;
   readonly onToggleBookmark: () => void;
+  readonly onJoin: (position: "start" | "end") => void;
   readonly onSegments: () => void;
   readonly onSplitHere: () => void;
   readonly onSaveAllSegments: () => void;
@@ -117,6 +119,11 @@ export function Toolbar({
     active === undefined
       ? undefined
       : { label: "Revert to Saved", disabled: !dirty, onSelect: onRevert },
+    { kind: "separator" },
+    active === undefined
+      ? undefined
+      : { label: "Insert File at Start…", onSelect: () => onJoin("start") },
+    active === undefined ? undefined : { label: "Append File…", onSelect: () => onJoin("end") },
     { kind: "separator" },
     active === undefined ? undefined : { label: "Duplicate", onSelect: onDuplicate },
     active === undefined ? undefined : { label: "Close", onSelect: onClose },
