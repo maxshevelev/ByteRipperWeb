@@ -9,6 +9,7 @@ import type {
   FirmwareWorkerResponse,
   FitEditRequest,
   FitEditResponse,
+  MeAnalyzeResponse,
   WireDiagnostic,
   WireNode,
 } from "@/workers/protocol";
@@ -122,6 +123,11 @@ function ensureWorker(pane: PaneId): PaneWorker {
         });
         return;
       }
+      case "meAnalyze": {
+        meWaiters.get(pane)?.(response);
+        meWaiters.delete(pane);
+        return;
+      }
       case "fitEdit": {
         fitEditWaiters.get(pane)?.(response);
         fitEditWaiters.delete(pane);
@@ -159,6 +165,8 @@ function ensureWorker(pane: PaneId): PaneWorker {
           landed: undefined,
         });
         fitEditWaiters.delete(pane);
+        meWaiters.get(pane)?.(undefined);
+        meWaiters.delete(pane);
         update(pane, { status: "failed", problem: response.problem });
         return;
     }
@@ -330,6 +338,29 @@ export async function editPaneFit(
     ? { problem: undefined, summary: planned.summary }
     : { problem, summary: undefined };
 }
+
+/**
+ * Analyses the pane's ME region, against the database when there is one.
+ *
+ * The database's text crosses to the worker rather than a parsed database:
+ * parsing it belongs with the parser, and this side has no business holding a
+ * few thousand lines it never reads.
+ */
+export function analyzePaneMe(
+  pane: PaneId,
+  databaseText: string | undefined
+): Promise<MeAnalyzeResponse | undefined> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
+  const job = workers[pane]?.job ?? 0;
+  return new Promise((resolve) => {
+    meWaiters.set(pane, resolve);
+    send(pane, { kind: "meAnalyze", id: job, databaseText });
+  });
+}
+
+/** Who is waiting for an ME analysis, by pane. */
+const meWaiters = new Map<PaneId, (response: MeAnalyzeResponse | undefined) => void>();
 
 /** Who is waiting for a planned FIT edit, by pane. */
 const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse) => void>();

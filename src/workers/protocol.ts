@@ -20,6 +20,7 @@
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 
 import type { FITReport } from "@/firmware/fit/fitTable";
+import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 
 /** A job number. Monotonic per worker client; never reused. */
 export type JobId = number;
@@ -296,6 +297,21 @@ export interface FitEditRequest {
     | { readonly kind: "remove"; readonly index: number };
 }
 
+/**
+ * Analysing the image's ME region.
+ *
+ * The database's *text* crosses rather than a parsed database: parsing it is
+ * the domain half's job and the worker is where the domain half runs, and the
+ * main thread has no business holding a few thousand lines it never reads.
+ * Absent is allowed — an analysis without one reports every structural fact and
+ * identifies nothing, which is exactly what an offline bench gets.
+ */
+export interface MeAnalyzeRequest {
+  readonly kind: "meAnalyze";
+  readonly id: JobId;
+  readonly databaseText: string | undefined;
+}
+
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | FirmwareDetailRequest
@@ -304,6 +320,7 @@ export type FirmwareWorkerRequest =
   | FirmwareRepairRequest
   | FitReadRequest
   | FitEditRequest
+  | MeAnalyzeRequest
   | CancelRequest;
 
 /**
@@ -439,7 +456,17 @@ export interface FitEditResponse {
   readonly landed: readonly [number, number] | undefined;
 }
 
+export interface MeAnalyzeResponse {
+  readonly kind: "meAnalyze";
+  readonly id: JobId;
+  /** Where in the image the region analysed begins. */
+  readonly regionOffset: number;
+  readonly analysis: FirmwareAnalysis | undefined;
+  readonly problem: string | undefined;
+}
+
 export type FirmwareWorkerResponse =
+  | MeAnalyzeResponse
   | FitEditResponse
   | FitReportResponse
   | FirmwareRootsResponse

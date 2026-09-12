@@ -56,7 +56,8 @@ export function analyzeMeRegion(options: {
   // MARK: The partition table and what sits around it
 
   const fpt = parseFirstFpt(bytes);
-  const regions = (fpt?.partitions ?? []).map((partition) => ({
+  const regions = (fpt?.partitions ?? []).map((partition, index) => ({
+    index,
     name: partition.name,
     offset: baseOffset + partition.offset,
     size: partition.size,

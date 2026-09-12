@@ -1681,3 +1681,150 @@ textarea,
 .fit-problem:hover {
   text-decoration: underline;
 }
+
+/* MARK: - The ME panel */
+
+.me-tool {
+  display: grid;
+  /* Everything the analysis found, and the database's own status line. */
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.me-body {
+  overflow: auto;
+  padding: 0.4rem 0.6rem;
+}
+
+.me-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  margin: 0;
+  font-size: 0.9em;
+}
+
+.me-facts dt {
+  color: var(--text-muted);
+}
+
+.me-facts dd {
+  margin: 0;
+}
+
+/* A value that reads as a problem, and one that reads as a confirmed check.
+   Both carry a mark as well as a colour, so neither depends on hue alone. */
+.me-facts dd[data-problem] {
+  color: var(--semantic-bad);
+  font-weight: 600;
+}
+
+.me-facts dd[data-problem]::after {
+  content: " ✗";
+}
+
+.me-facts dd[data-good] {
+  color: var(--semantic-good);
+}
+
+.me-facts dd[data-good]::after {
+  content: " ✓";
+}
+
+.me-section {
+  margin-top: 0.8rem;
+}
+
+.me-section h3 {
+  margin: 0 0 0.25rem;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.me-table {
+  width: 100%;
+  --panel-cell-padding: 0.12rem 0.5rem 0.12rem 0;
+  font-size: 0.9em;
+}
+
+.me-table tbody tr {
+  cursor: default;
+}
+
+.me-table tbody tr:hover {
+  background: var(--surface-raised);
+}
+
+.me-mono,
+.me-offset {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+
+/* A module the directory says is compressed — worth marking, since its size is
+   the uncompressed one and the bytes on disk are fewer. */
+.me-badge {
+  margin-left: 0.4rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-faint);
+  font-size: 0.8em;
+}
+
+.me-offset {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.me-offset:hover {
+  text-decoration: underline;
+}
+
+.me-issues {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85em;
+}
+
+.me-issues li {
+  padding: 0.1rem 0;
+}
+
+.me-issues li[data-severity="error"] {
+  color: var(--semantic-bad);
+}
+
+.me-issues li[data-severity="warning"] {
+  color: var(--semantic-caution);
+}
+
+.me-issues li[data-severity="note"] {
+  color: var(--text-muted);
+}
+
+.me-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.me-database-problem {
+  color: var(--semantic-caution);
+}
+
+.me-database-problem[data-kind="badResponse"] {
+  color: var(--semantic-bad);
+}

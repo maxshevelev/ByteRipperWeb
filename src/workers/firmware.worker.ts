@@ -3,6 +3,9 @@
 import { assembleWord, type ByteSource } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
+import { MEADatabase } from "@/firmware/me/data/meaDatabase";
+import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
+import { meRegion } from "@/firmware/me/layout/flashDescriptor";
 import {
   repairsForFile,
   repairsForMicrocode,
@@ -334,6 +337,56 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             "range" in result.outcome
               ? [result.outcome.range.start, result.outcome.range.end]
               : undefined,
+        });
+        return;
+      }
+
+      case "meAnalyze": {
+        if (reader === undefined) {
+          post({
+            kind: "meAnalyze",
+            id: request.id,
+            regionOffset: 0,
+            analysis: undefined,
+            problem: "No image is open.",
+          });
+          return;
+        }
+        // The ME analysis works over one region's bytes in memory, where the
+        // UEFI parser streams a whole image: it walks its structures in every
+        // direction and a region is megabytes, not gigabytes. Which region is
+        // the descriptor's business, and a bare region is its own.
+        const whole = reader.bytes(reader.all);
+        const found = whole === undefined ? undefined : meRegion(whole);
+        const regionOffset = found?.base ?? 0;
+        const bytes =
+          whole === undefined
+            ? undefined
+            : found === undefined
+              ? whole
+              : whole.subarray(found.base, found.base + found.size);
+        if (bytes === undefined) {
+          post({
+            kind: "meAnalyze",
+            id: request.id,
+            regionOffset: 0,
+            analysis: undefined,
+            problem: "That image could not be read.",
+          });
+          return;
+        }
+        post({
+          kind: "meAnalyze",
+          id: request.id,
+          regionOffset,
+          analysis: analyzeMeRegion({
+            bytes,
+            baseOffset: regionOffset,
+            ...(request.databaseText === undefined
+              ? {}
+              : { database: MEADatabase.parse(request.databaseText) }),
+          }),
+          problem: undefined,
         });
         return;
       }

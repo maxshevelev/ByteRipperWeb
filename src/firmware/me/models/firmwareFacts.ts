@@ -131,6 +131,14 @@ export type MFSState = "unconfigured" | "initialized" | "configured" | "error";
 
 /** One row of the Flash Partition Table, as the analysis reports it. */
 export interface FPTRegionRow {
+  /**
+   * Its place in the table.
+   *
+   * Two erased rows have the same name, the same offset and the same size, and
+   * the only thing that tells them apart is where in the table they sit — which
+   * is a fact about the row and not a detail of how it is displayed.
+   */
+  readonly index: number;
   readonly name: string;
   readonly offset: number;
   readonly size: number;
