@@ -55,10 +55,10 @@ textarea,
 
 .app-shell {
   display: grid;
-  /* The minimap is a column beside the panes, not a row under them: it is an
-     index of the file's height, so it has to share that height. Everything
-     else spans both columns. */
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* The minimap and the tool panel are columns beside the panes, not rows under
+     them: each is an index of the file's height, so each has to share that
+     height. Everything else spans every column. */
+  grid-template-columns: minmax(0, 1fr) auto auto;
   /* Toolbar, find bar, workspace, status bar. Every one is placed by hand
      below: auto-placement fills the first free track, so a find bar that is not
      up let the status bar slide into its row and sit under the toolbar. An
@@ -626,6 +626,158 @@ textarea,
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
 }
 
+/* ── The tool panel ───────────────────────────────────────────────────── */
+
+.tool-panel {
+  grid-row: 3;
+  grid-column: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  /* Wide enough for a tree row to say a name, a type, an offset and a size
+     without any of them becoming an ellipsis. */
+  width: clamp(22rem, 32vw, 40rem);
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tool-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.tool-picker,
+.tool-pane {
+  font: inherit;
+  max-width: 12rem;
+}
+
+.tool-panel-body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tool-empty {
+  display: grid;
+  gap: 0.5rem;
+  align-content: center;
+  justify-items: center;
+  height: 100%;
+  padding: 1rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.uefi-tool {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.uefi-tree {
+  overflow: auto;
+  contain: strict;
+}
+
+/* The rows are absolutely positioned inside a spacer of the full height: a
+   firmware image is routinely a few thousand nodes, and a row per node is a few
+   thousand elements the browser would lay out on every scroll. */
+.uefi-tree-spacer {
+  position: relative;
+}
+
+.uefi-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.uefi-row[data-selected] {
+  background: var(--selection);
+}
+
+.uefi-twist {
+  flex: none;
+  width: 1.1em;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.uefi-twist:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.uefi-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* The type yields before the name does: a row whose name is an ellipsis is a
+   row that says nothing, and the type is already a fixed vocabulary. */
+.uefi-type {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.uefi-name {
+  flex: 2 1 auto;
+}
+
+.uefi-offset,
+.uefi-size {
+  flex: none;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: var(--text-faint);
+}
+
+.uefi-size {
+  width: 5rem;
+  text-align: right;
+}
+
+.uefi-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.uefi-diagnostics {
+  color: var(--semantic-caution);
+}
+
 /* The join bands (§22.4): a file dropped at a pane's top goes in before what it
    holds, one dropped at the bottom after it. */
 .join-band {
@@ -1114,7 +1266,7 @@ textarea,
 
 .minimap {
   grid-row: 3;
-  grid-column: 2;
+  grid-column: 3;
   /* Two maps at a legible width, plus the seam between them. A map narrower
      than this cannot show 16 cells across without them blurring into one. */
   /* Two maps at a legible width, plus the insets and the gap between them. */

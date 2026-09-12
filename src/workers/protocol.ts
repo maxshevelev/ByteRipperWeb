@@ -204,3 +204,136 @@ export type MinimapWorkerResponse =
   | OverviewDone
   | DiffCancelledResponse
   | DiffFailed;
+
+// MARK: - The firmware worker
+
+/**
+ * Opening an image. The `Blob` carries the pane's current content — the file
+ * itself while it is clean, a snapshot of the document once it is not.
+ *
+ * Structured clone shares a blob's bytes rather than copying them, so this
+ * costs nothing however large the dump is.
+ */
+export interface FirmwareOpenRequest {
+  readonly kind: "openFirmware";
+  readonly id: JobId;
+  readonly content: Blob;
+}
+
+/** One collapsed node's children, computed when something asks to see them. */
+export interface FirmwareChildrenRequest {
+  readonly kind: "firmwareChildren";
+  readonly id: JobId;
+  readonly node: readonly number[];
+}
+
+/**
+ * Where the image lands in memory, which needs the Volume Top File and so runs
+ * only when something asks for an address.
+ */
+export interface FirmwareAddressesRequest {
+  readonly kind: "firmwareAddresses";
+  readonly id: JobId;
+}
+
+/**
+ * What has to be written to put one node's checksums back in order.
+ *
+ * The worker computes them because it has the image; nothing here writes
+ * anything. The main thread turns them into one undoable edit, which is what
+ * makes the repair a single step.
+ */
+export interface FirmwareRepairRequest {
+  readonly kind: "firmwareRepair";
+  readonly id: JobId;
+  readonly node: readonly number[];
+  /** The revision of the volume the node sits in, which the fixed sum follows. */
+  readonly volumeRevision: number;
+}
+
+export type FirmwareWorkerRequest =
+  | FirmwareOpenRequest
+  | FirmwareChildrenRequest
+  | FirmwareAddressesRequest
+  | FirmwareRepairRequest
+  | CancelRequest;
+
+/**
+ * A node as it crosses the wire.
+ *
+ * The tree is thousands of these, so they are the node's own fields with the
+ * children nested — structured clone handles that, and a flat table keyed by
+ * path would be the same bytes with an index to rebuild.
+ */
+export interface WireNode {
+  readonly id: readonly number[];
+  readonly kind: string;
+  readonly subtype?: number | undefined;
+  readonly name: string;
+  readonly guid?: string | undefined;
+  readonly header: readonly [number, number];
+  readonly body: readonly [number, number];
+  readonly tail: readonly [number, number];
+  readonly isFixed: boolean;
+  readonly isCompressed: boolean;
+  readonly isErased: boolean;
+  readonly isExpandable: boolean;
+  readonly childDepth: number;
+  readonly children: readonly WireNode[];
+}
+
+export interface WireDiagnostic {
+  readonly message: string;
+  readonly severity: "warning" | "error";
+  readonly offset: number;
+}
+
+export interface FirmwareRootsResponse {
+  readonly kind: "firmwareRoots";
+  readonly id: JobId;
+  readonly size: number;
+  readonly roots: readonly WireNode[];
+  readonly diagnostics: readonly WireDiagnostic[];
+}
+
+export interface FirmwareChildrenResponse {
+  readonly kind: "firmwareChildren";
+  readonly id: JobId;
+  readonly node: readonly number[];
+  readonly children: readonly WireNode[];
+  readonly diagnostics: readonly WireDiagnostic[];
+}
+
+export interface FirmwareAddressesResponse {
+  readonly kind: "firmwareAddresses";
+  readonly id: JobId;
+  readonly addressDiff: number | undefined;
+}
+
+export interface FirmwareProgress {
+  readonly kind: "firmwareProgress";
+  readonly id: JobId;
+  /** In `[0, 1]`. */
+  readonly fraction: number;
+}
+
+export interface FirmwareFailed {
+  readonly kind: "firmwareFailed";
+  readonly id: JobId;
+  readonly problem: string;
+}
+
+export interface FirmwareRepairResponse {
+  readonly kind: "firmwareRepair";
+  readonly id: JobId;
+  readonly node: readonly number[];
+  readonly writes: readonly { readonly offset: number; readonly bytes: Uint8Array }[];
+}
+
+export type FirmwareWorkerResponse =
+  | FirmwareRootsResponse
+  | FirmwareChildrenResponse
+  | FirmwareAddressesResponse
+  | FirmwareRepairResponse
+  | FirmwareProgress
+  | FirmwareFailed;

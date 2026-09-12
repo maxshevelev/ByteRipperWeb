@@ -56,6 +56,7 @@ import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { dumpMenu, type PaneMenuActions, paneFileMenu } from "@/ui/shell/paneMenus";
 import { StatusBar } from "@/ui/shell/StatusBar";
 import { Toolbar } from "@/ui/shell/Toolbar";
+import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
 
 /**
  * Header, workspace, status bar — the three bands the app never loses.
@@ -247,6 +248,8 @@ export function AppShell() {
   const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
   /** The pane whose segments form is open, or nothing. */
   const [segmentsPane, setSegmentsPane] = useState<PaneId | undefined>(undefined);
+  /** Whether the tool panel is on screen. One at a time, beside the dumps. */
+  const [toolsOpen, setToolsOpen] = useState(false);
   /**
    * The question Save All asks before it writes, and the answer it is waiting
    * for. A promise rather than a callback so the command reads as one sequence:
@@ -601,6 +604,8 @@ export function AppShell() {
           })
         }
         onSaveAllSegments={() => void doSaveAllSegments(activePane)}
+        toolsOpen={toolsOpen}
+        onToggleTools={() => setToolsOpen((was) => !was)}
         onToggleBookmark={() => {
           const slot = workspaceStore.getSnapshot().panes[activePane];
           if (slot !== undefined) toggleBookmark(slot.document.caret);
@@ -675,6 +680,19 @@ export function AppShell() {
           />
         ) : null}
       </main>
+      {toolsOpen ? (
+        <ToolPanel
+          onClose={() => setToolsOpen(false)}
+          onReveal={(pane, start, end) => {
+            const slot = workspaceStore.getSnapshot().panes[pane];
+            if (slot !== undefined) {
+              slot.document.setSelection(makeSelection(start, end, slot.document.size));
+            }
+            setActivePane(pane);
+            revealInBoth(start);
+          }}
+        />
+      ) : null}
       <MinimapPanel
         selections={selections}
         onActivate={setActivePane}

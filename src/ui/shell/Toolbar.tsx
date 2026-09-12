@@ -45,6 +45,8 @@ export function Toolbar({
   onSegments,
   onSplitHere,
   onSaveAllSegments,
+  toolsOpen,
+  onToggleTools,
   onDuplicate,
   onFind,
   onClose,
@@ -64,6 +66,8 @@ export function Toolbar({
   readonly onSegments: () => void;
   readonly onSplitHere: () => void;
   readonly onSaveAllSegments: () => void;
+  readonly toolsOpen: boolean;
+  readonly onToggleTools: () => void;
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
   readonly onClose: () => void;
@@ -189,6 +193,9 @@ export function Toolbar({
           shortcut: "⌘M",
           onSelect: toggleMinimap,
         }
+      : undefined,
+    anyOpen
+      ? { label: toolsOpen ? "Hide Tools" : "Show Tools", onSelect: onToggleTools }
       : undefined,
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen

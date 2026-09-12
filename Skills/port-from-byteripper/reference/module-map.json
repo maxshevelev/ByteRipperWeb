@@ -148,7 +148,8 @@
         "TreeMaterialization.swift": "src/firmware/uefi/treeMaterialization.ts",
         "UEFIImage.swift": "src/firmware/uefi/uefiImage.ts",
         "NvramParser.swift": "src/firmware/uefi/nvramParser.ts",
-        "NvramGuids.swift": "src/firmware/uefi/nvramParser.ts"
+        "NvramGuids.swift": "src/firmware/uefi/nvramParser.ts",
+        "ChecksumRepair.swift": "src/firmware/uefi/checksumRepair.ts"
       }
     },
     {
@@ -178,10 +179,16 @@
     {
       "swift": "Modules/UEFITool",
       "web": [
-        "src/tools/uefi"
+        "src/tools/uefi",
+        "src/ui/toolPanel",
+        "src/state/firmwareStore.ts",
+        "src/workers/firmware.worker.ts"
       ],
-      "status": "planned",
-      "note": "Pure target ports to the tool's model; the UI target is rewritten as React."
+      "status": "in-progress",
+      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, addresses and repairs; the store holds the tree React renders. The row menu is the one command upstream offers and only on a node whose checksum is wrong, and it goes through the document, so Cmd/Ctrl+Z takes it back like any other edit. The detail panel, the search and the zone publishing are still to come.",
+      "files": {
+        "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx"
+      }
     },
     {
       "swift": "Modules/FITTool",
