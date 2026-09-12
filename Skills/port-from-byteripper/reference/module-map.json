@@ -193,7 +193,7 @@
         "src/firmware/me"
       ],
       "status": "in-progress",
-      "note": "The compute-bound half first: CRC-32 in both of the spellings ME uses, the MFS 14-bit obfuscation transform, SHA-1/256/384 written out because the parser is synchronous and src/firmware has no crypto API, the RSA manifest check over the language's own bigint, and the CSE Huffman decoder. Layout, file systems, identification and the engine are still to come."
+      "note": "The compute-bound half and the layout spine: CRC-32 in both of the spellings ME uses, SHA-1/256/384 written out because the parser is synchronous and src/firmware has no crypto API, the RSA manifest check over the language's own bigint, the CSE Huffman decoder, and then the Flash Descriptor, the CSE Layout Table, the Boot Partition Descriptor Tables, $FPT, $CPD and the $MN2/$MAN manifest. File systems, identification and the engine are still to come."
     },
     {
       "swift": "Packages/UEFIContentSource",
