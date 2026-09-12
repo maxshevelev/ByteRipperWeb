@@ -34,10 +34,6 @@
       "why": "AppKit split view. The web uses CSS grid with a focusable separator — src/ui/shell/PaneDivider.tsx — which shares none of its code."
     },
     {
-      "prefix": "Packages/ToolModuleKit/",
-      "why": "AppKit-side tool-module contract; the web has its own."
-    },
-    {
       "prefix": "Design/AppIcon.swift",
       "why": "macOS app icon rendering."
     },
@@ -64,6 +60,42 @@
     {
       "prefix": "ByteRipperApp/Assets.xcassets",
       "why": "Asset catalog."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule",
+      "why": "The AppKit-side view-controller contract. The web's is src/tools/toolModule.ts and shares none of its code."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll",
+      "why": "AppKit scroll-view furniture; the web's detail is a scrolling div."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost",
+      "why": "AppKit host protocol; the web's seam is src/tools/toolModule.ts."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelFont",
+      "why": "AppKit font vending; the web uses CSS."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable",
+      "why": "An NSTableView subclass; the web draws a table element."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession",
+      "why": "AppKit session lifecycle; a React component's own lifetime is the web's."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolWrappingLabel",
+      "why": "An NSTextField subclass; the web wraps text by itself."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Tests/",
+      "why": "Ported alongside the sources they test — see the ToolTransaction entry."
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Package.swift",
+      "why": "SwiftPM manifest."
     }
   ],
   "modules": [
@@ -195,9 +227,12 @@
     {
       "swift": "Modules/FITTool",
       "web": [
-        "src/tools/fit"
+        "src/firmware/fit",
+        "src/tools/fit",
+        "src/firmware/testing/testFit.ts"
       ],
-      "status": "planned"
+      "status": "in-progress",
+      "note": "The reading half and the presentation are across: FITEntry, FITTable, FITValidator, FITProblem, FITDetail and FITDisplay, with the row menu the display decides. FITEditor and MicrocodeCatalogue are still to come, and the panel says so where it offers their commands."
     },
     {
       "swift": "Modules/MEATool",
@@ -449,6 +484,24 @@
       ],
       "status": "in-progress",
       "note": "Was listed as not applicable on the strength of its name, which hid real logic: the window and tab management in it genuinely does not port (D11), but the overview build — overviewRows and significantByteCount — is the minimap's density pass, and the minimap data feeding is what the stores do. Corrected at M6, because a file that is filtered out is a file whose changes are never reported."
+    },
+    {
+      "swift": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift",
+      "web": [
+        "src/tools/toolTransaction.ts",
+        "src/state/toolEdits.ts"
+      ],
+      "status": "ported",
+      "note": "The unit of undo a tool writes through, validated before anything is written. The web applies it through the document's edit group, so it is one step in the same history the user's own typing is in."
+    },
+    {
+      "swift": "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift",
+      "web": [
+        "src/tools/zone.ts",
+        "src/state/zoneStore.ts"
+      ],
+      "status": "ported",
+      "note": "The named ranges a tool asks the shell to draw. The web draws them in the minimap's gutter and offers them in the dump's right-click menu."
     }
   ]
 }

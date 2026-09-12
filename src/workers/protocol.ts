@@ -19,6 +19,8 @@
 
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 
+import type { FITReport } from "@/firmware/fit/fitTable";
+
 /** A job number. Monotonic per worker client; never reused. */
 export type JobId = number;
 
@@ -258,12 +260,26 @@ export interface FirmwareDetailRequest {
   readonly node: readonly number[];
 }
 
+/**
+ * The FIT table, read against the image the worker already has open.
+ *
+ * It is one request rather than a second worker because both halves want the
+ * same two things: a synchronous reader over the pane's bytes, and the tree —
+ * a FIT row is named by whatever node covers the address it points at, and that
+ * is something only the side holding the tree can say.
+ */
+export interface FitReadRequest {
+  readonly kind: "fitRead";
+  readonly id: JobId;
+}
+
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | FirmwareDetailRequest
   | FirmwareChildrenRequest
   | FirmwareAddressesRequest
   | FirmwareRepairRequest
+  | FitReadRequest
   | CancelRequest;
 
 /**
@@ -365,7 +381,22 @@ export interface FirmwareDetailResponse {
   readonly descriptor: WireDescriptor | undefined;
 }
 
+/**
+ * What one look at the image found, as the reader built it.
+ *
+ * The report crosses whole rather than pre-formatted: every field of it is a
+ * number or a string, so structured clone carries it as it stands, and the
+ * panel's own presentation stays on the main thread where it can be tested
+ * without a worker.
+ */
+export interface FitReportResponse {
+  readonly kind: "fitReport";
+  readonly id: JobId;
+  readonly report: FITReport;
+}
+
 export type FirmwareWorkerResponse =
+  | FitReportResponse
   | FirmwareRootsResponse
   | FirmwareChildrenResponse
   | FirmwareAddressesResponse

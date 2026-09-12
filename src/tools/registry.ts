@@ -1,3 +1,4 @@
+import { fitTool } from "@/tools/fit/fitTool";
 import type { ToolModule } from "@/tools/toolModule";
 import { uefiStructureTool } from "@/tools/uefi/uefiStructureTool";
 
@@ -9,7 +10,7 @@ import { uefiStructureTool } from "@/tools/uefi/uefiStructureTool";
  * imported, and the answer to "which tools are there" should be readable in one
  * place.
  */
-export const TOOLS: readonly ToolModule[] = [uefiStructureTool];
+export const TOOLS: readonly ToolModule[] = [uefiStructureTool, fitTool];
 
 export function toolById(id: string): ToolModule | undefined {
   return TOOLS.find((tool) => tool.id === id);

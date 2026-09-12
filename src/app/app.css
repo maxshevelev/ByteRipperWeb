@@ -1494,3 +1494,145 @@ textarea,
 .uefi-diagnostics {
   color: var(--semantic-caution);
 }
+
+/* MARK: - The FIT panel */
+
+.fit-tool {
+  display: grid;
+  /* The table, the detail of the row selected in it, and the problem list.
+     Both lower rows collapse to nothing when there is nothing to say. */
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  height: 100%;
+}
+
+.fit-summary {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.fit-rows {
+  overflow: auto;
+}
+
+.fit-table {
+  --panel-cell-padding: 0.15rem 0.6rem 0.15rem 0;
+  width: 100%;
+}
+
+/* The head stays put while the rows scroll under it. */
+.fit-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.fit-row {
+  cursor: default;
+}
+
+.fit-row:hover {
+  background: var(--surface-raised);
+}
+
+.fit-row[data-selected] {
+  background: var(--selection);
+}
+
+/* A row the validator complained about is marked where the eye lands on it,
+   not only in the list underneath — and by weight as well as by colour, so it
+   survives a theme switch and colour blindness. */
+.fit-row[data-problem] td {
+  color: var(--semantic-bad);
+  font-weight: 600;
+}
+
+.fit-number {
+  width: 2.5rem;
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.fit-mono,
+.fit-target {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.fit-target {
+  width: 99%;
+  color: var(--text-muted);
+}
+
+.fit-detail {
+  max-height: 40%;
+  overflow: auto;
+  padding: 0.4rem 0.6rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font-size: 0.9em;
+}
+
+.fit-detail h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95em;
+}
+
+.fit-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  margin: 0;
+}
+
+.fit-fields dt {
+  color: var(--text-muted);
+}
+
+.fit-fields dd {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* One value that reads as a problem — a checksum that does not check out — and
+   nothing else in the list changes. */
+.fit-fields dd[data-problem] {
+  color: var(--semantic-bad);
+}
+
+.fit-problems {
+  max-height: 8rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  font-size: 0.85em;
+}
+
+.fit-problems li[data-severity="error"] {
+  color: var(--semantic-bad);
+}
+
+.fit-problems li[data-severity="warning"] {
+  color: var(--semantic-caution);
+}
+
+/* The message is a button because it goes somewhere: every problem carries the
+   offset to look at. */
+.fit-problem {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fit-problem:hover {
+  text-decoration: underline;
+}

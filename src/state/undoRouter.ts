@@ -150,6 +150,57 @@ async function redoAct(act: Act): Promise<void> {
 }
 
 /**
+ * The act a press would take back, and what to call it.
+ *
+ * The menu asks, because an item that says only "Undo" leaves the user to
+ * guess which of the two histories the press is about — and a greyed one that
+ * would in fact work is worse than either. The name comes from the document
+ * where the step carries one: a tool's transaction names itself, so the menu
+ * reads `Undo Fix FIT Checksum` rather than `Undo`.
+ */
+export function nextUndo(pane: PaneId): { readonly label: string | undefined } | undefined {
+  return nextAct(past, pane, canUndoAct, (slot) => slot.document.canUndo, documentUndoLabel);
+}
+
+/** The same for the next redo. */
+export function nextRedo(pane: PaneId): { readonly label: string | undefined } | undefined {
+  return nextAct(future, pane, canRedoAct, (slot) => slot.document.canRedo, documentRedoLabel);
+}
+
+type Slot = NonNullable<ReturnType<typeof workspaceStore.getSnapshot>["panes"][PaneId]>;
+
+const documentUndoLabel = (slot: Slot) => slot.document.undoHistory.undoLabel;
+const documentRedoLabel = (slot: Slot) => slot.document.undoHistory.redoLabel;
+
+/**
+ * The newest act on `pane` that still has something left in it, or — where this
+ * remembers none — the document's own answer, which is the state after a reload
+ * of the page or past the limit above.
+ *
+ * It reads the stacks without changing them: asking what a press would do must
+ * not be the press. The drift the press corrects is left for the press.
+ */
+function nextAct(
+  stack: readonly Act[],
+  pane: PaneId,
+  usable: (act: Act) => boolean,
+  documentCan: (slot: Slot) => boolean,
+  documentLabel: (slot: Slot) => string | undefined
+): { readonly label: string | undefined } | undefined {
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  for (let index = stack.length - 1; index >= 0; index--) {
+    const act = stack[index];
+    if (act === undefined || act.pane !== pane) continue;
+    if (!usable(act)) continue;
+    // A segments act is a cut, which carries no name of its own: the label is
+    // the document's, and a cut changes no byte, so there is none to give.
+    return { label: act.kind === "segments" ? undefined : slot && documentLabel(slot) };
+  }
+  if (slot !== undefined && documentCan(slot)) return { label: documentLabel(slot) };
+  return undefined;
+}
+
+/**
  * Takes back the last act on `pane`, whichever history it belongs to.
  *
  * Returns false when neither history has anything left, so the caller can leave

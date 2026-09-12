@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { closeFirmware } from "@/state/firmwareStore";
+import { chooseTool, toolPanelStore } from "@/state/toolPanelStore";
 import { useStore } from "@/state/useStore";
 import { reportProblem, workspaceStore } from "@/state/workspaceStore";
 import { TOOLS, toolById } from "@/tools/registry";
@@ -22,7 +23,7 @@ export function ToolPanel({
   readonly onReveal: (pane: "a" | "b", start: number, end: number) => void;
 }) {
   const workspace = useStore(workspaceStore);
-  const [toolId, setToolId] = useState(TOOLS[0]?.id ?? "");
+  const { toolId } = useStore(toolPanelStore);
   const [pane, setPane] = useState<"a" | "b">(workspace.activePane);
   const tool = toolById(toolId);
 
@@ -40,7 +41,7 @@ export function ToolPanel({
         <select
           className="tool-picker"
           value={toolId}
-          onChange={(event) => setToolId(event.target.value)}
+          onChange={(event) => chooseTool(event.target.value)}
           aria-label="Tool"
         >
           {TOOLS.map((one) => (

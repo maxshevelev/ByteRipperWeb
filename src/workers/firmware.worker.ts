@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { assembleWord, type ByteSource } from "@/firmware/byteSource";
+import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
 import {
   repairsForFile,
@@ -14,6 +15,7 @@ import { guidText } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import { runSecondPass } from "@/firmware/uefi/secondPass";
 import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
+import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import type { UEFINode } from "@/firmware/uefi/uefiNode";
 import type {
   FirmwareWorkerRequest,
@@ -233,6 +235,24 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                   chips: info.chips.map((one) => ({ ...one })),
                 },
         });
+        return;
+      }
+
+      case "fitRead": {
+        if (reader === undefined) {
+          post({ kind: "firmwareFailed", id: request.id, problem: "No image is open." });
+          return;
+        }
+        // The tree as it stands, which is what names what a row points at. A
+        // branch nobody has opened names nothing, and the reader says so rather
+        // than guessing — see `targetOf` in fitTable.
+        const parser = new Parser(reader, DEFAULT_LIMITS);
+        const image = new UEFIImage({
+          size: reader.count,
+          roots,
+          addressDiff: runSecondPass(parser, roots).addressDiff,
+        });
+        post({ kind: "fitReport", id: request.id, report: readFitTable(reader, image) });
         return;
       }
 

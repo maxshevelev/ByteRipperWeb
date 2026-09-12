@@ -5,6 +5,8 @@ import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { segmentsStore } from "@/state/segmentsStore";
+import { chooseTool, toolPanelStore } from "@/state/toolPanelStore";
+import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import {
   GROUPING_GAP_CHOICES,
@@ -15,6 +17,7 @@ import {
   swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
+import { TOOLS } from "@/tools/registry";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
@@ -74,6 +77,7 @@ export function Toolbar({
 }) {
   const state = useStore(workspaceStore);
   const minimap = useStore(minimapStore);
+  const panel = useStore(toolPanelStore);
   const diff = useStore(diffStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
@@ -84,6 +88,10 @@ export function Toolbar({
   const pieceCount =
     useStore(segmentsStore).panes[state.activePane]?.partition.segments.length ?? 0;
   const active = state.panes[state.activePane];
+  // What ⌘Z would take back, asked rather than assumed: a cut is undoable too,
+  // and it is the router that knows which of the two histories a press means.
+  const undoable = nextUndo(state.activePane);
+  const redoable = nextRedo(state.activePane);
   // The verb follows the pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is.
   const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
@@ -134,6 +142,25 @@ export function Toolbar({
 
     { kind: "separator" },
     { kind: "heading", label: "Edit" },
+    // Named by what they take back, where the step carries a name: a tool's
+    // transaction names itself, so this reads `Undo Fix FIT Checksum` rather
+    // than leaving the user to remember what the last thing was. Absent rather
+    // than greyed when there is nothing to take back.
+    undoable === undefined
+      ? undefined
+      : {
+          label: undoable.label === undefined ? "Undo" : `Undo ${undoable.label}`,
+          shortcut: "⌘Z",
+          onSelect: () => void undoLast(state.activePane, false),
+        },
+    redoable === undefined
+      ? undefined
+      : {
+          label: redoable.label === undefined ? "Redo" : `Redo ${redoable.label}`,
+          shortcut: "⇧⌘Z",
+          onSelect: () => void redoLast(state.activePane),
+        },
+    undoable === undefined && redoable === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { label: "Fill Selection with…", onSelect: onFill },
     active === undefined ? undefined : { label: "Delete Bytes…", onSelect: onDeleteBytes },
     active === undefined ? undefined : { kind: "separator" },
@@ -197,6 +224,19 @@ export function Toolbar({
     anyOpen
       ? { label: toolsOpen ? "Hide Tools" : "Show Tools", onSelect: onToggleTools }
       : undefined,
+    // Every tool by name, so opening one is a single gesture rather than
+    // "show the panel, then find it in the picker".
+    ...(anyOpen
+      ? TOOLS.map((tool) => ({
+          label: tool.title,
+          checked: toolsOpen && panel.toolId === tool.id,
+          exclusive: true,
+          onSelect: () => {
+            chooseTool(tool.id);
+            if (!toolsOpen) onToggleTools();
+          },
+        }))
+      : []),
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen
       ? {

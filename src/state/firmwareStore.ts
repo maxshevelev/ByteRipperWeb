@@ -1,3 +1,5 @@
+import type { FITReport } from "@/firmware/fit/fitTable";
+import { editStore } from "@/state/editStore";
 import { createStore } from "@/state/store";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type {
@@ -117,6 +119,11 @@ function ensureWorker(pane: PaneId): PaneWorker {
         });
         return;
       }
+      case "fitReport": {
+        fitWaiters.get(pane)?.(response.report);
+        fitWaiters.delete(pane);
+        return;
+      }
       case "firmwareAddresses":
         update(pane, { addressDiff: response.addressDiff });
         return;
@@ -130,6 +137,10 @@ function ensureWorker(pane: PaneId): PaneWorker {
         return;
       }
       case "firmwareFailed":
+        // Whoever was waiting on this worker is told so rather than left
+        // holding a promise that will never settle.
+        fitWaiters.get(pane)?.(undefined);
+        fitWaiters.delete(pane);
         update(pane, { status: "failed", problem: response.problem });
         return;
     }
@@ -247,11 +258,63 @@ export async function fixFirmwareChecksum(
   return writes.length;
 }
 
+/**
+ * Reads the pane's FIT table, against the tree this worker already holds.
+ *
+ * One worker per pane serves both tools, because both want the same two things:
+ * a synchronous reader over the bytes, and the tree — a FIT row is named by
+ * whatever node covers the address it points at.
+ *
+ * Nothing when the image has not been parsed yet: the caller asks for the parse
+ * first, and a report read against no tree would name nothing.
+ */
+export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
+  const job = workers[pane]?.job ?? 0;
+  return new Promise((resolve) => {
+    fitWaiters.set(pane, resolve);
+    send(pane, { kind: "fitRead", id: job });
+  });
+}
+
+/** Who is waiting for a FIT report, by pane. One panel asks at a time. */
+const fitWaiters = new Map<PaneId, (report: FITReport | undefined) => void>();
+
 /** Who is waiting for a repair, by the node it is about. */
 const repairWaiters = new Map<
   string,
   (writes: readonly { offset: number; bytes: Uint8Array }[]) => void
 >();
+
+/**
+ * How long after the last keystroke the image is read again.
+ *
+ * A tool's claim is that what it shows is what is in the file, so an edit has
+ * to reach it — but not per byte: typing over a run of bytes is one edit to the
+ * reader and would be thirty parses to the worker. Long enough that a burst is
+ * one parse, short enough that a panel is never quietly stale.
+ */
+const RE_PARSE_AFTER = 300;
+
+let reParseTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Every pane a tool has open is read again when its bytes settle.
+ *
+ * The rule lives here rather than in each tool because it is one rule, and a
+ * tool that forgot it would show a table of what the file used to hold. A pane
+ * has a worker only while a tool has asked for one, so this parses exactly what
+ * something is looking at — and the undo of an edit is a change like any other,
+ * which is the case a tool re-parsing only after its own edits gets wrong.
+ */
+editStore.subscribe(() => {
+  if (reParseTimer !== undefined) clearTimeout(reParseTimer);
+  reParseTimer = setTimeout(() => {
+    reParseTimer = undefined;
+    for (const pane of Object.keys(workers) as PaneId[]) void parsePaneFirmware(pane);
+  }, RE_PARSE_AFTER);
+});
 
 export function closeFirmware(pane: PaneId): void {
   workers[pane]?.worker.terminate();
