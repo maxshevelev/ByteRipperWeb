@@ -8,6 +8,7 @@ import {
   fileSystemAccess,
   type SaveFilePickerOptions,
 } from "@/platform/files/capabilities";
+import { downloadBlob } from "@/platform/files/download";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 
 /**
@@ -173,21 +174,7 @@ async function writeThrough(handle: FileSystemFileHandle, request: SaveRequest):
 async function download(request: SaveRequest): Promise<SaveOutcome> {
   const chunks: Bytes[] = [];
   for await (const chunk of contentStream(request.storage)) chunks.push(chunk);
-
-  const url = URL.createObjectURL(new Blob(chunks, { type: "application/octet-stream" }));
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = request.name;
-    anchor.style.display = "none";
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-  } finally {
-    // Revoked on the next turn: revoking synchronously races the download the
-    // click just started, and the browser then has nothing to fetch.
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }
+  downloadBlob(new Blob(chunks, { type: "application/octet-stream" }), request.name);
   return { kind: "downloaded", name: request.name };
 }
 

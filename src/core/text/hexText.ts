@@ -53,3 +53,15 @@ export function parseHex(text: string): Uint8Array | undefined {
   }
   return bytes;
 }
+
+/**
+ * An address, as the offset column writes it.
+ *
+ * Eight upper-case digits, zero-padded, with no `0x` — upstream's
+ * `bareAddress`. One place decides it, so the column, the menus that name an
+ * offset, the bookmark list and the status bar all spell an address the same
+ * way, and a reader can compare two of them at a glance.
+ */
+export function hexAddress(offset: number): string {
+  return offset.toString(16).toUpperCase().padStart(8, "0");
+}

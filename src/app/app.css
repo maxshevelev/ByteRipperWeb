@@ -574,6 +574,36 @@ textarea,
   color: var(--text-muted);
 }
 
+/* A radio and its field on one line: the option and what it takes. */
+.dialog-field.is-radio {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dialog-field.is-radio input[type="text"],
+.dialog-field.is-radio > input:not([type]) {
+  flex: 1;
+}
+
+.dialog-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  /* A fixed column, so the fields line up under Start's. */
+  flex: none;
+  width: 5rem;
+}
+
+.dialog-radio input {
+  /* The monospace rule above is for the value fields, not for a radio. */
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  width: auto;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -663,6 +693,19 @@ textarea,
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-faint);
+}
+
+/* The right-click menu: the same popup, placed against the pointer rather than
+   hung under a button. */
+.context-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+/* A command that removes or overwrites says so before it is picked. */
+.menu-item.is-destructive .menu-label {
+  color: var(--semantic-bad);
 }
 
 .menu-separator {

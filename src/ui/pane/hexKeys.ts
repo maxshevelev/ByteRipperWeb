@@ -58,6 +58,8 @@ export type HexCommand =
   | { readonly kind: "goToPosition" }
   | { readonly kind: "find" }
   | { readonly kind: "toggleMinimap" }
+  /** Shift+F10 or the Menu key: the platform's ask for a context menu. */
+  | { readonly kind: "contextMenu" }
   | { readonly kind: "findNext" }
   | { readonly kind: "findPrevious" };
 
@@ -191,6 +193,14 @@ export function resolveHexKey(
       // Between the hex column and the decoded-text column. The browser's own
       // focus order is not useful inside a grid of bytes.
       return { kind: "switchColumn" };
+
+    // The two spellings of "show me the context menu" — Windows and Linux send
+    // ContextMenu, and Shift+F10 works everywhere. Without them the dump's
+    // right-click commands would be pointer-only.
+    case "ContextMenu":
+      return { kind: "contextMenu" };
+    case "F10":
+      return extend ? { kind: "contextMenu" } : undefined;
 
     default:
       // A key carrying the *other* platform's modifier is not typing. Ctrl+A on

@@ -5,7 +5,7 @@
     "`modules` is matched by longest path prefix; `notApplicable` is checked",
     "first and removes a path from the report entirely. `status` says how far",
     "the port has got: planned | in-progress | ported.",
-    "Keeping this file honest is the whole point of the skill \u2014 an unmapped",
+    "Keeping this file honest is the whole point of the skill — an unmapped",
     "path is reported as unmapped rather than silently ignored."
   ],
   "notApplicable": [
@@ -31,7 +31,7 @@
     },
     {
       "prefix": "Packages/ALSplitView/",
-      "why": "AppKit split view. The web uses CSS grid with a focusable separator \u2014 src/ui/shell/PaneDivider.tsx \u2014 which shares none of its code."
+      "why": "AppKit split view. The web uses CSS grid with a focusable separator — src/ui/shell/PaneDivider.tsx — which shares none of its code."
     },
     {
       "prefix": "Packages/ToolModuleKit/",
@@ -73,7 +73,7 @@
         "src/core"
       ],
       "status": "in-progress",
-      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M5: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, ClipboardCodec (as text/hexText.ts), and SearchEngine with SmartSearch and MatchSet \u2014 each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. SearchEngine diverges in one place worth knowing: Data.range(of:) has no JS counterpart, so the Boyer-Moore-Horspool skip loop is accelerated by native Uint8Array.indexOf on the pattern's last byte instead. Ported as of M7: SegmentWriter and SegmentReplacer, with their sizes helper (FilePaneView.friendlySize as text/byteSize.ts). SegmentWriter splits at the line D1 draws: the byte half (which range becomes which file, the chunked read, the all-or-nothing protocol) stays in core, and the filesystem half becomes a PartSink the platform layer supplies — a picked directory in Chromium, a ZIP download elsewhere. Upstream's temp-and-rename dance and its sandbox fallback have no counterpart: a browser has no rename, and createWritable() already publishes a file whole or not at all. Still planned: PatternLibrary (M11). ContentSnapshot and TemporaryFileStore are across as contentSnapshot() over an origin-private scratch store: a browser has neither a value-typed array nor clonefile(2), so the copy is written out once rather than shared.",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M5: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, ClipboardCodec (as text/hexText.ts), and SearchEngine with SmartSearch and MatchSet — each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. SearchEngine diverges in one place worth knowing: Data.range(of:) has no JS counterpart, so the Boyer-Moore-Horspool skip loop is accelerated by native Uint8Array.indexOf on the pattern's last byte instead. Ported as of M7: SegmentWriter and SegmentReplacer, with their sizes helper (FilePaneView.friendlySize as text/byteSize.ts). SegmentWriter splits at the line D1 draws: the byte half (which range becomes which file, the chunked read, the all-or-nothing protocol) stays in core, and the filesystem half becomes a PartSink the platform layer supplies — a picked directory in Chromium, a ZIP download elsewhere. Upstream's temp-and-rename dance and its sandbox fallback have no counterpart: a browser has no rename, and createWritable() already publishes a file whole or not at all. Still planned: PatternLibrary (M11). ContentSnapshot and TemporaryFileStore are across as contentSnapshot() over an origin-private scratch store: a browser has neither a value-typed array nor clonefile(2), so the copy is written out once rather than shared.",
       "files": {
         "ChunkCache.swift": "src/core/storage/chunkCache.ts",
         "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
@@ -165,7 +165,7 @@
         "src/tools/zoneSketch"
       ],
       "status": "planned",
-      "note": "User-drawn zones over a dump, as a tool module \u2014 not the minimap, which this entry used to point at. Checked at M6 and corrected: ZoneSketchModel is a list of named ranges with a focus, and the minimap's counterpart is ByteRipperApp/Minimap. No milestone claims it yet; it arrives with the tool panel's contract in M8."
+      "note": "User-drawn zones over a dump, as a tool module — not the minimap, which this entry used to point at. Checked at M6 and corrected: ZoneSketchModel is a list of named ranges with a focus, and the minimap's counterpart is ByteRipperApp/Minimap. No milestone claims it yet; it arrives with the tool panel's contract in M8."
     },
     {
       "swift": "ByteRipperApp/Hex",
@@ -174,7 +174,7 @@
         "src/ui/pane"
       ],
       "status": "in-progress",
-      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. Ported as of M2: HexLayout (whole, with its tests), WordSize, and the byte-significance and address-split rules out of HexTheme. HexView.contour is across as src/render/hexGrid/spanContour.ts \u2014 kept apart as the single source of contour geometry, since segments and zones want the same outline over their own spans (M7, M8). HexColumnHeaderView is across whole, drawn with fillText rather than through the glyph atlas \u2014 nineteen labels a redraw does not earn an atlas. HexView's 3.5k lines are split between src/render/hexGrid (drawing) and src/ui/pane (events); its editing, caret-nibble and difference paths wait on M3 and M4.",
+      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. Ported as of M2: HexLayout (whole, with its tests), WordSize, and the byte-significance and address-split rules out of HexTheme. HexView.contour is across as src/render/hexGrid/spanContour.ts — kept apart as the single source of contour geometry, since segments and zones want the same outline over their own spans (M7, M8). HexColumnHeaderView is across whole, drawn with fillText rather than through the glyph atlas — nineteen labels a redraw does not earn an atlas. HexView's 3.5k lines are split between src/render/hexGrid (drawing) and src/ui/pane (events); its editing, caret-nibble and difference paths wait on M3 and M4.",
       "files": {
         "HexLayout.swift": "src/render/hexGrid/hexLayout.ts",
         "WordSize.swift": "src/render/hexGrid/hexLayout.ts",
@@ -194,7 +194,7 @@
         "src/workers/minimap.worker.ts"
       ],
       "status": "in-progress",
-      "note": "Ported as of M6: OverviewBinning whole, the overview build out of MainViewController.overviewRows, and the geometry and drawing halves of MinimapView \u2014 detail and overview modes, the shared viewport band, click, drag and wheel. Three divergences. The build is split: the density picture crosses to a worker and is kept per file version, while the modified, difference and match masks are recomputed on the main thread from ranges it already holds, because the comparison index and the piece table live there. Each pane gets its own worker, unlike the diff and search workers \u2014 two maps are two independent questions, and sharing one made the second build cancel the first. The search overlay is across as upstream draws it: a match is a solid stroke with a minimum width (a row is kilobytes, so being seen matters more than being exact), the current match is the find indicator's yellow inside an ink frame, and the two are separate passes so a later row's stroke cannot land on the plate. And the bookmark marks, the segment strip and the zone brackets in MinimapView wait for M7 and M8.",
+      "note": "Ported as of M6: OverviewBinning whole, the overview build out of MainViewController.overviewRows, and the geometry and drawing halves of MinimapView — detail and overview modes, the shared viewport band, click, drag and wheel. Three divergences. The build is split: the density picture crosses to a worker and is kept per file version, while the modified, difference and match masks are recomputed on the main thread from ranges it already holds, because the comparison index and the piece table live there. Each pane gets its own worker, unlike the diff and search workers — two maps are two independent questions, and sharing one made the second build cancel the first. The search overlay is across as upstream draws it: a match is a solid stroke with a minimum width (a row is kilobytes, so being seen matters more than being exact), the current match is the find indicator's yellow inside an ink frame, and the two are separate passes so a later row's stroke cannot land on the plate. And the bookmark marks, the segment strip and the zone brackets in MinimapView wait for M7 and M8.",
       "files": {
         "OverviewBinning.swift": "src/render/minimap/overviewBinning.ts",
         "MinimapView.swift": "src/render/minimap/minimapRenderer.ts",
@@ -209,7 +209,7 @@
         "src/workers/search.worker.ts"
       ],
       "status": "in-progress",
-      "note": "The find bar, the results panel, and the store and worker behind them. Ported as of M5: FindBarView, FindCount, SearchEncodingNaming, SearchResultCellView and SearchResultsViewController, as React over a hand-written store \u2014 the results keep upstream's three columns (Offset, Excerpt Hex, Excerpt Text) and its row pitch of the font's line box plus a little, but the panel belongs to the pane whose file was searched rather than spanning the window, which is the one place two open dumps make the desktop's single panel ambiguous. The pattern library half \u2014 FavoritePatternStore, FavoritesFile, the sync folder and its sheets \u2014 waits for M11, and its folder sync has no browser counterpart at all: there is no folder to watch, so a library lives in origin-private storage and is exported by hand. Two things the desktop does not have to decide: a search runs in a worker against the *file*, but an edited document is scanned on the main thread against the document, and every edit re-runs the search.",
+      "note": "The find bar, the results panel, and the store and worker behind them. Ported as of M5: FindBarView, FindCount, SearchEncodingNaming, SearchResultCellView and SearchResultsViewController, as React over a hand-written store — the results keep upstream's three columns (Offset, Excerpt Hex, Excerpt Text) and its row pitch of the font's line box plus a little, but the panel belongs to the pane whose file was searched rather than spanning the window, which is the one place two open dumps make the desktop's single panel ambiguous. The pattern library half — FavoritePatternStore, FavoritesFile, the sync folder and its sheets — waits for M11, and its folder sync has no browser counterpart at all: there is no folder to watch, so a library lives in origin-private storage and is exported by hand. Two things the desktop does not have to decide: a search runs in a worker against the *file*, but an edited document is scanned on the main thread against the document, and every edit re-runs the search.",
       "files": {
         "FindBarView.swift": "src/ui/search/FindBar.tsx",
         "FindCount.swift": "src/ui/search/FindBar.tsx",
@@ -243,7 +243,14 @@
         "src/core/edit/typingController.ts"
       ],
       "status": "in-progress",
-      "note": "PaneViewModel's editing half is src/core/edit/typingController.ts \u2014 a state machine with a dozen rules, kept out of the component so it can be tested without a DOM. Its view half is src/ui/pane/HexPane.tsx. Segments, bookmarks and the tool panel wait for M7 and M8."
+      "note": "PaneViewModel's editing half is src/core/edit/typingController.ts — a state machine with a dozen rules, kept out of the component so it can be tested without a DOM. Its view half is src/ui/pane/HexPane.tsx. The two menus MainViewController builds for a pane — the header's File menu and the dump's offset menu — are src/ui/shell/paneMenus.ts, built by the shell for the same reason upstream builds them there: every item has to resolve the pane it was opened on, which may not be the active one. Segments, bookmarks and the tool panel wait for M7 and M8.",
+      "files": {
+        "PaneHeaderView.swift": "src/ui/pane/HexPane.tsx",
+        "FilePaneView.swift": [
+          "src/ui/pane/HexPane.tsx",
+          "src/core/text/byteSize.ts"
+        ]
+      }
     },
     {
       "swift": "ByteRipperApp/Tools",
@@ -264,10 +271,18 @@
       "swift": "ByteRipperApp/Documents",
       "web": [
         "src/core/document",
-        "src/platform/files"
+        "src/platform/files",
+        "src/ui/dialogs"
       ],
       "status": "in-progress",
-      "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles. src/platform/files carries the capability detection and the open and drop paths as of M2; the save path is M4."
+      "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles. src/platform/files carries the capability detection and the open and drop paths as of M2, the save path as of M4, and as of M7 the segment sinks: a picked directory (staged under temporary names and renamed into place, upstream's shape) or a ZIP built in the page, since only Chromium has a directory picker (D7). The ZIP writer is ours — the format's writing half is four records and a CRC, and the compression is the platform's own CompressionStream, so a library would be a dependency for the part already in the browser. SheetControllers' sheets are src/ui/dialogs over the browser's <dialog>: Select Block is across, with its inclusive End converted to the internal half-open range at the edge.",
+      "files": {
+        "SheetControllers.swift": [
+          "src/ui/dialogs/SelectBlockDialog.tsx",
+          "src/ui/dialogs/GoToDialog.tsx",
+          "src/ui/dialogs/FillDialog.tsx"
+        ]
+      }
     },
     {
       "swift": "ByteRipperApp/DragDrop",
@@ -285,7 +300,7 @@
         "src/ui/shell/MenuButton.tsx"
       ],
       "status": "in-progress",
-      "note": "MainMenu.swift is the one to watch: a web page has no menu bar, so its File, Edit and View submenus are one popup behind a button at the head of the toolbar, in the same sections and the same order \u2014 a command added upstream belongs there. What does not port: New Window and New Tab (a window manager this application does not have, D11) and Enter Full Screen (the browser's own key). Two commands also keep a toolbar button, as the minimap does upstream: Go To and the minimap toggle.",
+      "note": "MainMenu.swift is the one to watch: a web page has no menu bar, so its File, Edit and View submenus are one popup behind a button at the head of the toolbar, in the same sections and the same order — a command added upstream belongs there. What does not port: New Window and New Tab (a window manager this application does not have, D11) and Enter Full Screen (the browser's own key). Two commands also keep a toolbar button, as the minimap does upstream: Go To and the minimap toggle. The right-click menus are the same entries through the same renderer (src/ui/shell/menuModel.ts and MenuItems.tsx): one popup host, src/ui/shell/ContextMenu.tsx, opened with the entries a caller builds at the moment of the click. Upstream's popUpContextMenu blocks for the menu's lifetime and nothing in a browser does, so whatever it does around that call — placing the caret at the right-clicked byte — the caller does before opening.",
       "files": {
         "MainMenu.swift": "src/ui/shell/Toolbar.tsx"
       }
@@ -337,7 +352,7 @@
         "src/ui/shell/AppShell.tsx"
       ],
       "status": "ported",
-      "note": "The two-pane layout, side by side and stacked, the synchronised scroll, and the divider. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid with a focusable separator. The sync's clamp is only half the rule: it holds because HexView sizes each pane to the *comparison's* extent rather than its own file, so both reach the longer file's end and the shorter one shows its EOF area \u2014 ported as HexGridRenderer.setScrollExtent."
+      "note": "The two-pane layout, side by side and stacked, the synchronised scroll, and the divider. The AppKit split view does not port (see Packages/ALSplitView); the web uses CSS grid with a focusable separator. The sync's clamp is only half the rule: it holds because HexView sizes each pane to the *comparison's* extent rather than its own file, so both reach the longer file's end and the shorter one shows its EOF area — ported as HexGridRenderer.setScrollExtent."
     },
     {
       "swift": "ByteRipperApp/Window/EmptyStateView",
@@ -353,7 +368,7 @@
         "src/ui/shell/StatusBar.tsx"
       ],
       "status": "planned",
-      "note": "Transient notices \u2014 a wrapped search, a refused paste \u2014 land in the status bar here."
+      "note": "Transient notices — a wrapped search, a refused paste — land in the status bar here."
     },
     {
       "swift": "ByteRipperApp/Window/MainViewController",
@@ -363,7 +378,7 @@
         "src/render/minimap/overviewBuild.ts"
       ],
       "status": "in-progress",
-      "note": "Was listed as not applicable on the strength of its name, which hid real logic: the window and tab management in it genuinely does not port (D11), but the overview build \u2014 overviewRows and significantByteCount \u2014 is the minimap's density pass, and the minimap data feeding is what the stores do. Corrected at M6, because a file that is filtered out is a file whose changes are never reported."
+      "note": "Was listed as not applicable on the strength of its name, which hid real logic: the window and tab management in it genuinely does not port (D11), but the overview build — overviewRows and significantByteCount — is the minimap's density pass, and the minimap data feeding is what the stores do. Corrected at M6, because a file that is filtered out is a file whose changes are never reported."
     }
   ]
 }

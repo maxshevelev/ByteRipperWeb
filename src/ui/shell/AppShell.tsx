@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
+import { selection as makeSelection } from "@/core/document/selectionModel";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
@@ -36,11 +37,14 @@ import {
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
+import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
+import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { dumpMenu, type PaneMenuActions, paneFileMenu } from "@/ui/shell/paneMenus";
 import { StatusBar } from "@/ui/shell/StatusBar";
 import { Toolbar } from "@/ui/shell/Toolbar";
 
@@ -221,6 +225,10 @@ export function AppShell() {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [goToOpen, setGoToOpen] = useState(false);
+  /** The pane and address a Select Block was asked for from, or nothing. */
+  const [selectBlock, setSelectBlock] = useState<
+    { pane: PaneId; start: number | undefined } | undefined
+  >(undefined);
   const search = useStore(searchStore);
   const searchOpen = search.open;
 
@@ -395,6 +403,28 @@ export function AppShell() {
     []
   );
 
+  /**
+   * What every pane menu can do. Each takes the pane it acts on, because a
+   * right-click menu acts on the pane it was opened over — which the click has
+   * just made active, but the item says so rather than assuming it.
+   */
+  const menuActions = useMemo<PaneMenuActions>(
+    () => ({
+      onNew: () => openEmptyInPane(slotForNewFile()),
+      onOpen: (into) => void open(into),
+      onSave: () => void doSave(false),
+      onSaveAs: () => void doSave(true),
+      onRevert: doRevert,
+      onDuplicate: doDuplicate,
+      onClose: (pane) => closeWithWarning(pane),
+      onFill: () => setFillOpen(true),
+      onDeleteBytes: doDeleteBytes,
+      onSelectBlockFrom: (pane, offset) => setSelectBlock({ pane, start: offset }),
+      onProblem: reportProblem,
+    }),
+    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes]
+  );
+
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
 
   /** Shows an offset in both panes, the way difference navigation does. */
@@ -467,6 +497,12 @@ export function AppShell() {
                 matches={resultsFor(search, id).matches}
                 currentMatch={resultsFor(search, id).current}
                 onGoToMatch={revealInBoth}
+                onHeaderMenu={(event) =>
+                  openContextMenu(event, paneFileMenu(state, id, menuActions))
+                }
+                onDumpMenu={(event, offset) =>
+                  openContextMenu(event, dumpMenu(state, id, offset, menuActions))
+                }
               />
             );
           })
@@ -499,6 +535,19 @@ export function AppShell() {
         onFill={doFill}
         onClose={() => setFillOpen(false)}
       />
+      <SelectBlockDialog
+        open={selectBlock !== undefined}
+        fileSize={state.panes[selectBlock?.pane ?? activePane]?.document.size ?? 0}
+        presetStart={selectBlock?.start}
+        onSelect={(start, end) => {
+          const pane = selectBlock?.pane ?? activePane;
+          state.panes[pane]?.document.setSelection(
+            makeSelection(start, end, state.panes[pane]?.document.size ?? 0)
+          );
+          revealInBoth(start);
+        }}
+        onClose={() => setSelectBlock(undefined)}
+      />
       <ConfirmDialog
         open={shiftAsking}
         title="This edit shifts the file"
@@ -511,6 +560,7 @@ export function AppShell() {
         onConfirm={(remember) => answerShift(true, remember)}
         onCancel={() => answerShift(false)}
       />
+      <ContextMenuHost />
     </div>
   );
 }

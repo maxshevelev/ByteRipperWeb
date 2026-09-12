@@ -74,6 +74,14 @@ export interface HexPaneProps {
    * of two open dumps it meant.
    */
   readonly onGoToMatch?: ((offset: number) => void) | undefined;
+  /**
+   * A right-click on the dump, with the byte under the pointer. The caret has
+   * already been placed there — see {@link placeContextCaret} — so the menu's
+   * offset-scoped commands and the caret agree about what was aimed at.
+   */
+  readonly onDumpMenu?: ((event: React.MouseEvent, offset: number) => void) | undefined;
+  /** A right-click on the pane's header: this pane's File menu. */
+  readonly onHeaderMenu?: ((event: React.MouseEvent) => void) | undefined;
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /** Asks the workspace to reveal a range — difference navigation uses it. */
@@ -130,6 +138,8 @@ export function HexPane({
   companionSize,
   peerSelection,
   onGoToMatch,
+  onDumpMenu,
+  onHeaderMenu,
   onSelectionChanged,
   revealRequest,
   typing,
@@ -617,6 +627,26 @@ export function HexPane({
         case "saveAs":
           onSaveAs?.();
           break;
+        case "contextMenu": {
+          // Shift+F10 and the Menu key are the platform's own way of asking for
+          // a context menu, and the caret is what they aim at.
+          const host = scrollRef.current;
+          const layout = layoutRef.current;
+          if (host !== null && layout !== undefined && onDumpMenu !== undefined) {
+            const box = host.getBoundingClientRect();
+            const row = Math.floor(doc.caret / BYTES_PER_ROW);
+            const y = row * layout.rowHeight - host.scrollTop + layout.rowHeight;
+            onDumpMenu(
+              {
+                clientX: box.left + 80,
+                clientY: box.top + Math.min(Math.max(y, 0), box.height),
+                preventDefault: () => undefined,
+              } as unknown as React.MouseEvent,
+              doc.caret
+            );
+          }
+          break;
+        }
         case "copy":
         case "paste":
           // The clipboard needs the browser's own event to carry the data, so
@@ -626,7 +656,7 @@ export function HexPane({
       }
       event.preventDefault();
     },
-    [doc, moveCaret, region, onSave, onSaveAs, onGoTo, onFind, typing, refreshCaret]
+    [doc, moveCaret, region, onSave, onSaveAs, onGoTo, onFind, onDumpMenu, typing, refreshCaret]
   );
 
   /**
@@ -756,6 +786,38 @@ export function HexPane({
     [doc]
   );
 
+  /**
+   * A right-click on a byte or on its address.
+   *
+   * The caret moves to the byte the menu will act on, exactly as a left-click
+   * would place it — unless the click landed *inside* the selection, because
+   * placing the caret would clear it and the menu's selection-scoped commands
+   * (Copy, Fill Selection…, Delete Bytes…) are about that selection.
+   */
+  const onContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const layout = layoutRef.current;
+      const host = scrollRef.current;
+      if (layout === undefined || host === null || onDumpMenu === undefined) return;
+      const bounds = host.getBoundingClientRect();
+      const hit = layout.hitTest(
+        event.clientX - bounds.left + host.scrollLeft,
+        event.clientY - bounds.top + host.scrollTop,
+        layout.rowCount(doc.size)
+      );
+      if (hit === undefined) return;
+      const column = hit.column.kind === "offset" ? 0 : hit.column.column;
+      const offset = Math.min(layout.byteOffset(hit.row, column), doc.size);
+
+      const selection = doc.selection;
+      const inSelection =
+        selection.end > selection.start && offset >= selection.start && offset < selection.end;
+      if (!inSelection) doc.setSelection(caretAt(offset, doc.size));
+      onDumpMenu(event, offset);
+    },
+    [doc, onDumpMenu]
+  );
+
   const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     dragAnchorRef.current = undefined;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -773,7 +835,13 @@ export function HexPane({
       onPointerDownCapture={onActivate}
       onFocusCapture={onActivate}
     >
-      <header className="pane-header">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu is
+          not interactivity of its own — the keyboard reaches the same commands
+          through the toolbar's menu, and the dump below answers Shift+F10. */}
+      <header
+        className="pane-header"
+        onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
+      >
         <span className="pane-label">{label}</span>
         <span className="pane-name" title={name}>
           {name}
@@ -814,6 +882,7 @@ export function HexPane({
         onPointerCancel={endDrag}
         onCopy={onCopy}
         onPaste={onPaste}
+        onContextMenu={onContextMenu}
       >
         <canvas ref={canvasRef} className="hex-canvas" />
         <div

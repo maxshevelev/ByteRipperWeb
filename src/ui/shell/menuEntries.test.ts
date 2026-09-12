@@ -7,7 +7,7 @@
  */
 
 import { expect, it } from "vitest";
-import { compactEntries, type MenuEntry } from "@/ui/shell/MenuButton";
+import { compactEntries, type MenuEntry } from "@/ui/shell/menuModel";
 
 const action = (label: string): MenuEntry => ({ label, onSelect: () => undefined });
 const separator: MenuEntry = { kind: "separator" };

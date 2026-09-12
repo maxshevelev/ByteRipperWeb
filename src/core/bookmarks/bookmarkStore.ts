@@ -20,6 +20,7 @@
  */
 
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+import { hexAddress } from "@/core/text/hexText";
 
 export interface Bookmark {
   /** The row's start offset, always a multiple of {@link BYTES_PER_ROW}. */
@@ -40,11 +41,6 @@ export function rowContaining(offset: number): number {
  */
 export function normalizeBookmarkName(name: string): string {
   return name.trim();
-}
-
-/** An address, as the offset column writes it. */
-export function hexAddress(offset: number): string {
-  return offset.toString(16).toUpperCase().padStart(8, "0");
 }
 
 /**

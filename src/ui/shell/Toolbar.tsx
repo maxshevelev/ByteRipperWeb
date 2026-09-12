@@ -13,7 +13,8 @@ import {
   swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
-import { compactEntries, MenuButton } from "@/ui/shell/MenuButton";
+import { MenuButton } from "@/ui/shell/MenuButton";
+import { compactEntries } from "@/ui/shell/menuModel";
 
 /**
  * A web page has no menu bar (D12), so the commands live behind one button at
