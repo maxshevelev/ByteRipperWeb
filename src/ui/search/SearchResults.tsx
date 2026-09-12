@@ -118,7 +118,14 @@ export function SearchResults({ pane, matches, document: doc, current, onGo }: S
   // bottom, so its height is the distance from the pointer to that edge.
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // Capture keeps the drag steering after the pointer leaves the handle.
+    // Failing to get it is not a reason to refuse the drag — it just stops at
+    // the handle's edge.
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // No active pointer with that id; carry on without capture.
+    }
     event.preventDefault();
   }, []);
 
@@ -134,8 +141,12 @@ export function SearchResults({ pane, matches, document: doc, current, onGo }: S
 
   const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Nothing to release.
     }
   }, []);
 

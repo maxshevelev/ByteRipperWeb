@@ -171,6 +171,24 @@ export function HexPane({
     });
   }, []);
 
+  /**
+   * Paints now, not on the next frame.
+   *
+   * For a resize this is the difference between a repaint and a flicker.
+   * Resizing the backing store clears it, and a `ResizeObserver` runs after
+   * layout but *before* the frame is painted — so drawing here puts the new
+   * content up in the same frame the old was cleared from. Deferring it to
+   * `requestAnimationFrame` left one frame of empty canvas, which over a
+   * splitter drag is one per frame of the drag.
+   */
+  const drawNow = useCallback(() => {
+    if (frameRef.current !== undefined) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = undefined;
+    }
+    rendererRef.current?.draw();
+  }, []);
+
   // The renderer, made once per canvas.
   /**
    * The header is pinned outside the scroller, so it has to be told about a
@@ -308,14 +326,14 @@ export function HexPane({
         widthCss: host.clientWidth,
         heightCss: host.clientHeight,
       });
-      scheduleDraw();
+      drawNow();
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(host);
     return () => observer.disconnect();
-  }, [scheduleDraw]);
+  }, [drawNow]);
 
   // Selection changes from anywhere — a click, a key, an edit's clamp.
   useEffect(() => {
