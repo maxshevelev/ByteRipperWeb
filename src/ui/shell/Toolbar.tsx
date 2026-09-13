@@ -22,11 +22,17 @@ import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
 
+/** The picker's value for None: no tool, and no tool panel. */
+const NO_TOOL = "";
+
 /**
  * A web page has no menu bar (D12), so the commands live behind one button at
  * the head of the toolbar, in the sections the macOS app's menu bar uses.
  *
- * Two keep a permanent place beside it, and they are the two that are reached
+ * Three keep a permanent place beside it. The tool picker comes first, right
+ * after the title, because it names what the panel on the left is — upstream's
+ * toolbar carries the same pull-down for the same reason: the panel can be
+ * scrolled away while a tool is still bound to a pane. The other two are reached
  * constantly while reading a dump rather than occasionally while managing one:
  * Go To, which is how you get anywhere in a file too large to scroll, and the
  * minimap toggle, which is where you are in it. Upstream gives the minimap the
@@ -48,8 +54,6 @@ export function Toolbar({
   onSegments,
   onSplitHere,
   onSaveAllSegments,
-  toolsOpen,
-  onToggleTools,
   onDuplicate,
   onFind,
   onClose,
@@ -69,8 +73,6 @@ export function Toolbar({
   readonly onSegments: () => void;
   readonly onSplitHere: () => void;
   readonly onSaveAllSegments: () => void;
-  readonly toolsOpen: boolean;
-  readonly onToggleTools: () => void;
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
   readonly onClose: () => void;
@@ -221,20 +223,24 @@ export function Toolbar({
           onSelect: toggleMinimap,
         }
       : undefined,
+    // None, then every tool by name, as upstream's Tools menu has them: one tool
+    // at a time, so a choice rather than toggles, and None closes the panel.
+    anyOpen ? { kind: "separator" } : undefined,
+    anyOpen ? { kind: "heading", label: "Tools" } : undefined,
     anyOpen
-      ? { label: toolsOpen ? "Hide Tools" : "Show Tools", onSelect: onToggleTools }
+      ? {
+          label: "None",
+          checked: panel.toolId === undefined,
+          exclusive: true,
+          onSelect: () => chooseTool(undefined),
+        }
       : undefined,
-    // Every tool by name, so opening one is a single gesture rather than
-    // "show the panel, then find it in the picker".
     ...(anyOpen
       ? TOOLS.map((tool) => ({
           label: tool.title,
-          checked: toolsOpen && panel.toolId === tool.id,
+          checked: panel.toolId === tool.id,
           exclusive: true,
-          onSelect: () => {
-            chooseTool(tool.id);
-            if (!toolsOpen) onToggleTools();
-          },
+          onSelect: () => chooseTool(tool.id),
         }))
       : []),
     bothOpen ? { kind: "separator" } : undefined,
@@ -290,6 +296,26 @@ export function Toolbar({
     <header className="toolbar">
       <MenuButton label="☰" title="Commands" entries={entries} />
       <span className="toolbar-title">ByteRipper</span>
+
+      {/* Disabled with nothing open, as the minimap toggle is: the choice is
+          kept, and the panel comes back with the next file. */}
+      <select
+        className="toolbar-select"
+        value={panel.toolId ?? NO_TOOL}
+        onChange={(event) =>
+          chooseTool(event.target.value === NO_TOOL ? undefined : event.target.value)
+        }
+        disabled={!anyOpen}
+        aria-label="Tool"
+        title="The tool shown in the panel on the left"
+      >
+        <option value={NO_TOOL}>None</option>
+        {TOOLS.map((tool) => (
+          <option key={tool.id} value={tool.id} title={tool.summary}>
+            {tool.title}
+          </option>
+        ))}
+      </select>
 
       {active === undefined ? null : (
         <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">

@@ -55,10 +55,12 @@ textarea,
 
 .app-shell {
   display: grid;
-  /* The minimap and the tool panel are columns beside the panes, not rows under
-     them: each is an index of the file's height, so each has to share that
-     height. Everything else spans every column. */
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  /* The tool panel, the panes, the minimap. The two side panels are columns
+     beside the panes, not rows under them: each is an index of the file's
+     height, so each has to share that height. Each sizes itself through its own
+     splitter, and a column with no panel in it collapses to nothing. Everything
+     else spans every column. */
+  grid-template-columns: auto minmax(0, 1fr) auto;
   /* Toolbar, find bar, workspace, status bar. Every one is placed by hand
      below: auto-placement fills the first free track, so a find bar that is not
      up let the status bar slide into its row and sit under the toolbar. An
@@ -102,7 +104,7 @@ textarea,
 .app-workspace {
   display: grid;
   grid-row: 3;
-  grid-column: 1;
+  grid-column: 2;
   min-height: 0;
   overflow: hidden;
   background: var(--surface);
@@ -267,7 +269,8 @@ textarea,
   white-space: nowrap;
 }
 
-.toolbar-field select {
+.toolbar-field select,
+.toolbar-select {
   font: inherit;
   padding: 0.15rem 0.3rem;
   border: 1px solid var(--border-strong);
@@ -1124,6 +1127,10 @@ textarea,
 }
 
 .minimap {
+  /* The containing block for its splitter. Without it the handle, absolutely
+     placed at `left: 0`, was laid out against the viewport and sat on the
+     window's left edge — nowhere near the minimap it resizes. */
+  position: relative;
   grid-row: 3;
   grid-column: 3;
   /* Two maps at a legible width, plus the gutter between them. A map narrower
@@ -1140,20 +1147,31 @@ textarea,
 }
 
 /* The handle on the panel's leading edge, sitting over the border. */
-.minimap-splitter {
+/* The width handle on a side panel's inner edge: the minimap's left, the tool
+   panel's right. A hairline border is the look and a hopeless target, so the
+   handle straddles it by three pixels either way. */
+.edge-splitter {
   position: absolute;
-  left: 0;
   top: 0;
   bottom: 0;
   width: 7px;
-  margin-left: -3px;
   cursor: col-resize;
   z-index: 1;
   touch-action: none;
 }
 
-.minimap-splitter:hover,
-.minimap-splitter:focus-visible {
+.edge-splitter[data-edge="left"] {
+  left: 0;
+  margin-left: -3px;
+}
+
+.edge-splitter[data-edge="right"] {
+  right: 0;
+  margin-right: -3px;
+}
+
+.edge-splitter:hover,
+.edge-splitter:focus-visible {
   background: var(--accent);
   opacity: 0.35;
   outline: none;
@@ -1300,15 +1318,17 @@ textarea,
 /* ── The tool panel ───────────────────────────────────────────────────── */
 
 .tool-panel {
+  position: relative;
   grid-row: 3;
-  grid-column: 2;
+  grid-column: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  /* Wide enough for a tree row to say a name, a type, an offset and a size
-     without any of them becoming an ellipsis. */
-  width: clamp(22rem, 32vw, 40rem);
+  /* The width is the splitter's, set inline and bounded in the store. This cap
+     is only for a window narrower than the width once chosen: the dumps are
+     what the window is for, and they keep at least the rest. */
+  max-width: 60vw;
   min-width: 0;
-  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   background: var(--surface);
 }
 
@@ -1321,7 +1341,6 @@ textarea,
   background: var(--surface-raised);
 }
 
-.tool-picker,
 .tool-pane {
   font: inherit;
   max-width: 12rem;

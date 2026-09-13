@@ -21,6 +21,7 @@ import {
   setSearchPane,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
+import { toolPanelStore } from "@/state/toolPanelStore";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -248,8 +249,8 @@ export function AppShell() {
   const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
   /** The pane whose segments form is open, or nothing. */
   const [segmentsPane, setSegmentsPane] = useState<PaneId | undefined>(undefined);
-  /** Whether the tool panel is on screen. One at a time, beside the dumps. */
-  const [toolsOpen, setToolsOpen] = useState(false);
+  /** The tool on the left, or None. One at a time, beside the dumps. */
+  const toolId = useStore(toolPanelStore).toolId;
   /**
    * The question Save All asks before it writes, and the answer it is waiting
    * for. A promise rather than a callback so the command reads as one sequence:
@@ -610,8 +611,6 @@ export function AppShell() {
           })
         }
         onSaveAllSegments={() => void doSaveAllSegments(activePane)}
-        toolsOpen={toolsOpen}
-        onToggleTools={() => setToolsOpen((was) => !was)}
         onToggleBookmark={() => {
           const slot = workspaceStore.getSnapshot().panes[activePane];
           if (slot !== undefined) toggleBookmark(slot.document.caret);
@@ -621,6 +620,20 @@ export function AppShell() {
         onClose={() => closeWithWarning(activePane)}
       />
       {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
+      {/* Before the workspace in the document as well as on screen, so Tab
+          reaches the panel in the order it is read. */}
+      {toolId !== undefined && panes.length > 0 ? (
+        <ToolPanel
+          onReveal={(pane, start, end) => {
+            const slot = workspaceStore.getSnapshot().panes[pane];
+            if (slot !== undefined) {
+              slot.document.setSelection(makeSelection(start, end, slot.document.size));
+            }
+            setActivePane(pane);
+            revealInBoth(start);
+          }}
+        />
+      ) : null}
       <main
         className="app-workspace"
         data-layout={state.layout}
@@ -686,19 +699,6 @@ export function AppShell() {
           />
         ) : null}
       </main>
-      {toolsOpen ? (
-        <ToolPanel
-          onClose={() => setToolsOpen(false)}
-          onReveal={(pane, start, end) => {
-            const slot = workspaceStore.getSnapshot().panes[pane];
-            if (slot !== undefined) {
-              slot.document.setSelection(makeSelection(start, end, slot.document.size));
-            }
-            setActivePane(pane);
-            revealInBoth(start);
-          }}
-        />
-      ) : null}
       <MinimapPanel
         selections={selections}
         onActivate={setActivePane}
