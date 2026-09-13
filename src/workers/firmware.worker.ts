@@ -7,19 +7,18 @@ import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
 import { meRegion } from "@/firmware/me/layout/flashDescriptor";
 import {
+  type ChecksumRepair,
   repairsForFile,
   repairsForMicrocode,
   repairsForVolume,
 } from "@/firmware/uefi/checksumRepair";
-import { readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
-import { regionLabel } from "@/firmware/uefi/descriptorParser";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import { runSecondPass } from "@/firmware/uefi/secondPass";
 import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
-import type { UEFINode } from "@/firmware/uefi/uefiNode";
+import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import {
   addOrReplaceMicrocode,
   type FITEditOutcome,
@@ -28,6 +27,9 @@ import {
   removeMicrocodeAt,
   replaceMicrocodeAt,
 } from "@/tools/fit/fitEditor";
+import { EMPTY_DETAIL } from "@/tools/toolDetail";
+import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
+import { subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 import type {
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
@@ -127,6 +129,8 @@ const wireNode = (node: UEFINode): WireNode => ({
   isErased: node.isErased,
   isExpandable: node.isExpandable,
   childDepth: node.childDepth,
+  typeText: typeText(node),
+  subtypeText: subtypeText(node),
   children: node.children.map(wireNode),
 });
 
@@ -140,6 +144,43 @@ function nodeAt(path: readonly number[]): UEFINode | undefined {
     nodes = next.children;
   }
   return found;
+}
+
+/** Opens one collapsed node where it stands, keeping its children for later asks. */
+function open(node: UEFINode, into: UEFIDiagnostic[]): void {
+  if (reader === undefined || !node.isExpandable) return;
+  const result = childrenOf(node, reader, DEFAULT_LIMITS);
+  node.children = stampIds(result.nodes, node.id);
+  node.isExpandable = false;
+  into.push(...result.diagnostics);
+}
+
+/**
+ * The writes that would put a node's checksums right, which is what lets the
+ * detail say a checksum is wrong and what it should read. A file's fixed body
+ * sum follows the revision of the volume it sits in, found on the way down.
+ */
+function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
+  if (reader === undefined) return [];
+  switch (node.kind) {
+    case "volume":
+      return repairsForVolume(node, reader);
+    case "microcode":
+      return repairsForMicrocode(node, reader);
+    case "file": {
+      let nodes = roots;
+      let revision = 2;
+      for (const index of path) {
+        const next = nodes[index];
+        if (next === undefined) break;
+        if (next.kind === "volume" && next.subtype !== undefined) revision = next.subtype;
+        nodes = next.children;
+      }
+      return repairsForFile(node, revision, reader);
+    }
+    default:
+      return [];
+  }
 }
 
 scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
@@ -175,16 +216,43 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           });
           return;
         }
-        const result = childrenOf(node, reader, DEFAULT_LIMITS);
         // Kept, so a later request for a grandchild finds its parent here.
-        node.children = stampIds(result.nodes, node.id);
-        node.isExpandable = false;
+        const diagnostics: UEFIDiagnostic[] = [];
+        open(node, diagnostics);
         post({
           kind: "firmwareChildren",
           id: request.id,
           node: request.node,
           children: node.children.map(wireNode),
-          diagnostics: wireDiagnostics(result.diagnostics),
+          diagnostics: wireDiagnostics(diagnostics),
+        });
+        return;
+      }
+
+      case "firmwareNodeAtOffset": {
+        // Down through whatever covers the offset, opening each branch on the
+        // way: the node under the caret may sit in a volume nobody has read,
+        // and a tree that has not read it has nothing to show.
+        const diagnostics: UEFIDiagnostic[] = [];
+        let nodes = roots;
+        let path: number[] | undefined;
+        for (;;) {
+          const index = nodes.findIndex((one) => {
+            const range = nodeRange(one);
+            return request.offset >= range.start && request.offset < range.end;
+          });
+          const node = nodes[index];
+          if (node === undefined) break;
+          path = [...(path ?? []), index];
+          open(node, diagnostics);
+          nodes = node.children;
+        }
+        post({
+          kind: "firmwareNodeAtOffset",
+          id: request.id,
+          roots: roots.map(wireNode),
+          path,
+          diagnostics: wireDiagnostics(diagnostics),
         });
         return;
       }
@@ -228,44 +296,24 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             kind: "firmwareDetail",
             id: request.id,
             node: request.node,
-            address: undefined,
-            descriptor: undefined,
+            detail: EMPTY_DETAIL,
           });
           return;
         }
-        // The mapping is worked out here rather than asked for separately: a
-        // panel showing one node's address would otherwise need two round
-        // trips, and the anchor is already in hand once the tree is.
+        // The mapping is worked out here rather than asked for separately: the
+        // Address row wants it, and the anchor is already in hand once the tree
+        // is.
         const parser = new Parser(reader, DEFAULT_LIMITS);
-        const diff = runSecondPass(parser, roots).addressDiff;
-        const start = node.header.start;
-        const address = diff === undefined || start >= reader.count ? undefined : start + diff;
-
-        const info =
-          node.kind === "flashDescriptor"
-            ? readDescriptorInfo(node.header.start, reader)
-            : undefined;
+        const image = new UEFIImage({
+          size: reader.count,
+          roots,
+          addressDiff: runSecondPass(parser, roots).addressDiff,
+        });
         post({
           kind: "firmwareDetail",
           id: request.id,
           node: request.node,
-          address,
-          descriptor:
-            info === undefined
-              ? undefined
-              : {
-                  reservedVector: [...info.reservedVector]
-                    .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
-                    .join(" "),
-                  regionOffsets: info.regionOffsets.map((one) => ({
-                    name: regionLabel(one.type),
-                    offset: one.offset,
-                  })),
-                  masters: info.masters.map((one) => ({ ...one })),
-                  maskDigits: info.maskDigits,
-                  biosAccess: info.biosAccess.map((one) => ({ ...one })),
-                  chips: info.chips.map((one) => ({ ...one })),
-                },
+          detail: buildNodeDetail(node, image, reader, repairsFor(node, request.node)),
         });
         return;
       }

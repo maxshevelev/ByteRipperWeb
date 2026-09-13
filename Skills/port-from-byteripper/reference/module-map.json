@@ -214,15 +214,19 @@
     {
       "swift": "Modules/UEFITool",
       "web": [
+        "src/state/firmwareStore.ts",
+        "src/tools/toolDetail.ts",
         "src/tools/uefi",
         "src/ui/toolPanel",
-        "src/state/firmwareStore.ts",
         "src/workers/firmware.worker.ts"
       ],
       "status": "in-progress",
-      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, addresses and repairs; the store holds the tree React renders. The row menu is the one command upstream offers and only on a node whose checksum is wrong, and it goes through the document, so Cmd/Ctrl+Z takes it back like any other edit. The detail panel, the search and the zone publishing are still to come.",
+      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is. Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), the tree has no row marks or legend (ROW_MARKS.md is not ported), column widths are fixed rather than draggable, and open rows are the panel's own rather than remembered per file. The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
       "files": {
-        "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx"
+        "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx",
+        "UEFIToolModule.swift": "src/tools/uefi/uefiStructureTool.tsx",
+        "UEFITreeDisplay.swift": "src/tools/uefi/uefiTreeDisplay.ts",
+        "UEFINodeDetail.swift": "src/tools/uefi/uefiNodeDetail.ts"
       }
     },
     {
@@ -505,6 +509,15 @@
       ],
       "status": "ported",
       "note": "The named ranges a tool asks the shell to draw. The web draws them in the minimap's gutter and offers them in the dump's right-click menu."
+    },
+    {
+      "swift": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift",
+      "web": [
+        "src/ui/toolPanel/ToolDetail.tsx",
+        "src/tools/toolDetail.ts"
+      ],
+      "status": "ported",
+      "note": "A panel's scrolling detail: title, label/value rows with one label width, and the tables after them, on the panel's own ground, scrolled back to the top only when the subject changes. Its height is the splitter's, never the content's. The field and table model (UEFIDetailField, UEFIDetailTable, UEFINodeDetail's shape) lives in src/tools/toolDetail.ts so it can cross the worker boundary."
     }
   ]
 }

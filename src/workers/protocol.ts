@@ -21,6 +21,7 @@ import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
+import type { NodeDetail } from "@/tools/toolDetail";
 
 /** A job number. Monotonic per worker client; never reused. */
 export type JobId = number;
@@ -261,6 +262,13 @@ export interface FirmwareDetailRequest {
   readonly node: readonly number[];
 }
 
+/** The node the caret stands in, opening whatever branches lie on the way. */
+export interface FirmwareNodeAtOffsetRequest {
+  readonly kind: "firmwareNodeAtOffset";
+  readonly id: JobId;
+  readonly offset: number;
+}
+
 /**
  * The FIT table, read against the image the worker already has open.
  *
@@ -315,6 +323,7 @@ export interface MeAnalyzeRequest {
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | FirmwareDetailRequest
+  | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
   | FirmwareAddressesRequest
   | FirmwareRepairRequest
@@ -344,6 +353,13 @@ export interface WireNode {
   readonly isErased: boolean;
   readonly isExpandable: boolean;
   readonly childDepth: number;
+  /**
+   * The Type and Subtype columns, in UEFITool's words. Worked out where the
+   * parsed node is: a volume's subtype is its file system and a capsule's is
+   * its GUID, and neither survives the trip as a byte.
+   */
+  readonly typeText: string;
+  readonly subtypeText: string;
   readonly children: readonly WireNode[];
 }
 
@@ -395,31 +411,28 @@ export interface FirmwareRepairResponse {
   readonly writes: readonly { readonly offset: number; readonly bytes: Uint8Array }[];
 }
 
-/** A flash descriptor's own detail, flattened for the wire. */
-export interface WireDescriptor {
-  readonly reservedVector: string;
-  readonly regionOffsets: readonly { readonly name: string; readonly offset: number }[];
-  readonly masters: readonly {
-    readonly name: string;
-    readonly read: number;
-    readonly write: number;
-  }[];
-  readonly maskDigits: number;
-  readonly biosAccess: readonly {
-    readonly region: string;
-    readonly read: boolean;
-    readonly write: boolean;
-  }[];
-  readonly chips: readonly { readonly jedecId: number; readonly name: string | undefined }[];
-}
-
+/**
+ * What the detail panel says about one node, built where the bytes are. The
+ * rows are already text: every field is read off the node's header, and the
+ * reader is in the worker.
+ */
 export interface FirmwareDetailResponse {
   readonly kind: "firmwareDetail";
   readonly id: JobId;
   readonly node: readonly number[];
-  /** Where this node's first byte is mapped, when the image says. */
-  readonly address: number | undefined;
-  readonly descriptor: WireDescriptor | undefined;
+  readonly detail: NodeDetail;
+}
+
+/**
+ * The innermost node covering an offset, with every branch on the way to it
+ * opened — so the whole tree comes back, not only the path.
+ */
+export interface FirmwareNodeAtOffsetResponse {
+  readonly kind: "firmwareNodeAtOffset";
+  readonly id: JobId;
+  readonly roots: readonly WireNode[];
+  readonly path: readonly number[] | undefined;
+  readonly diagnostics: readonly WireDiagnostic[];
 }
 
 /**
@@ -473,6 +486,7 @@ export type FirmwareWorkerResponse =
   | FirmwareChildrenResponse
   | FirmwareAddressesResponse
   | FirmwareDetailResponse
+  | FirmwareNodeAtOffsetResponse
   | FirmwareRepairResponse
   | FirmwareProgress
   | FirmwareFailed;

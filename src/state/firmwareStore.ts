@@ -123,6 +123,18 @@ function ensureWorker(pane: PaneId): PaneWorker {
         });
         return;
       }
+      case "firmwareNodeAtOffset": {
+        const current = firmwareFor(pane) ?? empty;
+        // The worker's tree is the truth, and it has just opened branches of
+        // its own; taking it whole keeps the two from disagreeing.
+        update(pane, {
+          roots: response.roots,
+          diagnostics: [...current.diagnostics, ...response.diagnostics],
+        });
+        offsetWaiters.get(pane)?.(response.path);
+        offsetWaiters.delete(pane);
+        return;
+      }
       case "meAnalyze": {
         meWaiters.get(pane)?.(response);
         meWaiters.delete(pane);
@@ -241,6 +253,26 @@ export function resolveFirmwareAddresses(pane: PaneId): void {
     return;
   }
   send(pane, { kind: "firmwareAddresses", id: workers[pane]?.job ?? 0 });
+}
+
+const offsetWaiters = new Map<PaneId, (path: readonly number[] | undefined) => void>();
+
+/**
+ * The path of the innermost node covering `offset`, once every branch on the
+ * way to it is open — or nothing when no node covers it.
+ */
+export function findFirmwareNodeAt(
+  pane: PaneId,
+  offset: number
+): Promise<readonly number[] | undefined> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    // A second ask supersedes the first, which is then told nothing was found.
+    offsetWaiters.get(pane)?.(undefined);
+    offsetWaiters.set(pane, resolve);
+    send(pane, { kind: "firmwareNodeAtOffset", id: workers[pane]?.job ?? 0, offset });
+  });
 }
 
 /** Asks for everything the detail panel shows about one node. */

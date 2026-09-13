@@ -18,12 +18,21 @@ const clamp = (value: number) => Math.min(1 - MIN_FRACTION, Math.max(MIN_FRACTIO
 
 export interface PaneDividerProps {
   readonly layout: PaneLayout;
-  /** File A's share of the workspace, 0–1. */
+  /** The first item's share of the space, 0–1. */
   readonly fraction: number;
   readonly onChange: (fraction: number) => void;
+  /** Where a double-click, Home or Enter puts it back — even, unless told. */
+  readonly initial?: number;
+  readonly label?: string;
 }
 
-export function PaneDivider({ layout, fraction, onChange }: PaneDividerProps) {
+export function PaneDivider({
+  layout,
+  fraction,
+  onChange,
+  initial = 0.5,
+  label = "Resize the panes",
+}: PaneDividerProps) {
   const draggingRef = useRef(false);
 
   const fractionAt = useCallback(
@@ -79,11 +88,11 @@ export function PaneDivider({ layout, fraction, onChange }: PaneDividerProps) {
 
       if (event.key === back) onChange(clamp(fraction - step));
       else if (event.key === forward) onChange(clamp(fraction + step));
-      else if (event.key === "Home" || event.key === "Enter") onChange(0.5);
+      else if (event.key === "Home" || event.key === "Enter") onChange(initial);
       else return;
       event.preventDefault();
     },
-    [fraction, layout, onChange]
+    [fraction, layout, onChange, initial]
   );
 
   return (
@@ -96,7 +105,7 @@ export function PaneDivider({ layout, fraction, onChange }: PaneDividerProps) {
       data-layout={layout}
       role="separator"
       tabIndex={0}
-      aria-label="Resize the panes"
+      aria-label={label}
       aria-orientation={layout === "sideBySide" ? "vertical" : "horizontal"}
       aria-valuenow={Math.round(fraction * 100)}
       aria-valuemin={Math.round(MIN_FRACTION * 100)}
@@ -105,7 +114,7 @@ export function PaneDivider({ layout, fraction, onChange }: PaneDividerProps) {
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      onDoubleClick={() => onChange(0.5)}
+      onDoubleClick={() => onChange(initial)}
       onKeyDown={onKeyDown}
     />
   );

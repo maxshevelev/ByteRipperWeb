@@ -1363,22 +1363,146 @@ textarea,
   text-align: center;
 }
 
+/*
+ * The UEFI panel, laid out as upstream's: the title, the tree over the detail
+ * with a divider between them, and the notice line under both.
+ */
 .uefi-tool {
   display: grid;
-  /* The tree, the detail of what is selected in it, and the status line. The
-     detail row collapses to nothing when nothing is selected. */
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  box-sizing: border-box;
   height: 100%;
+  padding: 8px;
+}
+
+.uefi-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.uefi-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.uefi-title {
+  cursor: pointer;
+}
+
+/* The root the title stands for, when it is the focus: the colour its row would
+   have had. */
+.uefi-title[data-selected] {
+  color: var(--accent);
+}
+
+.uefi-reveal {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.uefi-reveal:hover {
+  color: var(--text);
+}
+
+.uefi-reveal svg,
+.tool-detail-glyph {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The rows are set inline from the divider's fraction. */
+.uefi-split {
+  display: grid;
+  grid-template-areas: "a" "divider" "b";
+  min-height: 0;
+}
+
+/* Between two framed boxes the divider is the gap itself, with the line drawn
+   only while it is being reached for. */
+.uefi-split > .pane-divider[data-layout="stacked"] {
+  height: 6px;
+  background: transparent;
+}
+
+.uefi-split > .pane-divider:hover,
+.uefi-split > .pane-divider:focus-visible {
+  background: linear-gradient(var(--accent), var(--accent)) center / 100% 1px no-repeat;
 }
 
 .uefi-tree {
+  grid-area: a;
+  position: relative;
   overflow: auto;
-  contain: strict;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  outline: none;
 }
 
-/* The rows are absolutely positioned inside a spacer of the full height: a
-   firmware image is routinely a few thousand nodes, and a row per node is a few
-   thousand elements the browser would lay out on every scroll. */
+.uefi-tree:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* Name takes the rest; Type and Subtype are as wide as the words they hold on
+   nearly every row. The two widths are mirrored in the tool's TYPE_WIDTH and
+   SUBTYPE_WIDTH. */
+.uefi-tree-head,
+.uefi-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 88px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.uefi-tree-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.uefi-tree-head > span {
+  overflow: hidden;
+  padding: 0 6px;
+  border-left: 1px solid var(--border);
+}
+
+.uefi-tree-head > span:first-child {
+  padding-left: 8px;
+  border-left: 0;
+}
+
 .uefi-tree-spacer {
   position: relative;
 }
@@ -1388,141 +1512,203 @@ textarea,
   left: 0;
   right: 0;
   height: 22px;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding-right: 0.5rem;
-  white-space: nowrap;
+  cursor: default;
+}
+
+.uefi-row[data-alt] {
+  background: var(--surface-raised);
 }
 
 .uefi-row[data-selected] {
   background: var(--selection);
 }
 
+.uefi-row > span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+}
+
+.uefi-name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.uefi-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .uefi-twist {
   flex: none;
-  width: 1.1em;
+  width: 16px;
+  padding: 0;
   border: 0;
   background: none;
-  padding: 0;
   color: var(--text-muted);
-  cursor: pointer;
   font-size: 0.8em;
+  cursor: pointer;
 }
 
 .uefi-twist:disabled {
   cursor: default;
-  opacity: 0;
 }
 
-.uefi-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--text);
-  cursor: pointer;
-}
-
-/* The type yields before the name does: a row whose name is an ellipsis is a
-   row that says nothing, and the type is already a fixed vocabulary. */
-.uefi-type {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-muted);
-  font-size: 0.85em;
-}
-
-.uefi-name {
-  flex: 2 1 auto;
-}
-
-.uefi-offset,
-.uefi-size {
+/* A checksum that does not check out: the octagon upstream gives an error, in
+   the colour and the shape, so it survives a theme and colour blindness. */
+.uefi-problem {
   flex: none;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.85em;
-  color: var(--text-faint);
-}
-
-.uefi-size {
-  width: 5rem;
-  text-align: right;
-}
-
-/* The detail of the selected node, under the tree. */
-.uefi-detail {
-  max-height: 40%;
-  overflow: auto;
-  padding: 0.4rem 0.6rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-sunken);
-  font-size: 0.9em;
-}
-
-.uefi-fields {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.1rem 0.6rem;
-  margin: 0;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  margin-right: 3px;
+  background: var(--semantic-bad);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
 }
 
-.uefi-fields dt {
+.uefi-loading {
   color: var(--text-muted);
 }
 
-.uefi-fields dd {
-  margin: 0;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.uefi-guid {
-  word-break: break-all;
-}
-
-.uefi-fields-head {
-  margin: 0.6rem 0 0.2rem;
-  color: var(--text-faint);
-  font-size: 0.85em;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.uefi-bytes,
-.uefi-chips {
-  margin: 0;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  word-break: break-all;
-}
-
-.uefi-chips {
-  padding-left: 1.1rem;
-}
-
-.uefi-table {
-  --panel-cell-padding: 0.05rem 0.6rem 0.05rem 0;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.uefi-status {
+.uefi-notice {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-raised);
+  gap: 8px;
+  min-height: 1.6em;
   color: var(--text-muted);
-  font-size: 0.85em;
 }
 
-.uefi-diagnostics {
-  color: var(--semantic-caution);
+.uefi-notice progress {
+  width: 150px;
+}
+
+/*
+ * A panel's detail (`ui/toolPanel/ToolDetail`): on the panel's ground, framed
+ * like the table above it, a column of label/value pairs that starts at the top
+ * and scrolls once it outgrows its box.
+ */
+.tool-detail {
+  /* The lower half of a panel's split; outside a split the area names nothing. */
+  grid-area: b;
+  position: relative;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  /* A bench copies an offset or a GUID out of here. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.tool-detail-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.tool-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+}
+
+.tool-detail-title {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tool-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+}
+
+/* Every label one width, so the rows read as a column of pairs, and a value too
+   long for its column wraps inside it rather than running off the side. */
+.tool-detail-row {
+  display: grid;
+  grid-template-columns: 9.5em minmax(0, 1fr);
+  column-gap: 6px;
+  align-items: baseline;
+}
+
+.tool-detail-row dt {
+  color: var(--text-muted);
+}
+
+.tool-detail-row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tool-detail-row dd[data-mono] {
+  font-variant-numeric: tabular-nums;
+}
+
+.tool-detail-row dd[data-problem] {
+  color: var(--semantic-bad);
+}
+
+.tool-detail-table {
+  margin-top: 12px;
+}
+
+.tool-detail-table-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 8px;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.tool-detail-table-title .tool-detail-glyph {
+  color: var(--text-muted);
+}
+
+.tool-detail-grid {
+  border-collapse: collapse;
+}
+
+/* Classes on the cells rather than element selectors, so these never compete
+   with the other panels' `th` and `td` rules above and below them. */
+.tool-detail-grid-head {
+  padding: 0 14px 2px 0;
+  color: var(--text-muted);
+  font-weight: inherit;
+  text-align: left;
+}
+
+.tool-detail-grid-cell {
+  padding: 1px 14px 1px 0;
+}
+
+/* A permission is read by its colour as much as by its word. */
+.tool-detail-grid-cell[data-tone="yes"] {
+  color: var(--semantic-good);
+  font-weight: 600;
+}
+
+.tool-detail-grid-cell[data-tone="no"] {
+  color: var(--semantic-bad);
+  font-weight: 600;
 }
 
 /* MARK: - The FIT panel */
