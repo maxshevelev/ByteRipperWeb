@@ -18,6 +18,12 @@
  *   into blank space below its own end.
  * - **An echo is not a scroll.** Setting the other pane's position makes the
  *   browser fire a scroll event there, and mirroring that back would be a loop.
+ *   The pane filters those itself (`PaneScroller`), because only it knows what
+ *   it last set — so a move made through `moveTo` is never reported back.
+ *
+ * Positions are in content pixels, not the elements' own offsets: a file taller
+ * than a browser lays out scrolls a scaled track, and two panes with different
+ * viewport heights would scale it differently.
  */
 
 export interface ScrollPosition {
@@ -53,11 +59,16 @@ export function mirroredScroll(
   };
 }
 
-/** A scrolling element the link can read and move. */
+/** A pane the link can read and move. */
 export interface LinkedScroller {
-  readonly element: HTMLElement;
   /** Read fresh each time: the layout changes with the font and the word size. */
-  rowHeight: () => number;
+  rowHeight(): number;
+  /** Where the pane is, in content pixels. */
+  position(): ScrollPosition;
+  /** How far it can scroll, and how much of it is on screen. */
+  extent(): { readonly maxTop: number; readonly maxLeft: number; readonly viewportHeight: number };
+  /** Moves it without reporting back: a move the link makes is not a scroll to mirror. */
+  moveTo(position: ScrollPosition): void;
 }
 
 /**
@@ -68,23 +79,12 @@ export interface LinkedScroller {
  */
 export class ScrollLink {
   private readonly panes = new Map<string, LinkedScroller>();
-  /**
-   * What this link last set each pane to.
-   *
-   * A browser fires the scroll event *after* the frame, so a synchronous flag
-   * cannot tell an echo from a real scroll. Remembering the resulting position
-   * can: a report matching it is the echo. Should the user happen to scroll to
-   * precisely that position themselves, mirroring it would have been a no-op
-   * anyway.
-   */
-  private readonly expected = new Map<string, ScrollPosition>();
 
   register(id: string, scroller: LinkedScroller): () => void {
     this.panes.set(id, scroller);
     this.announce();
     return () => {
       this.panes.delete(id);
-      this.expected.delete(id);
       this.announce();
     };
   }
@@ -122,9 +122,8 @@ export class ScrollLink {
     if (pane === undefined) return undefined;
     const rowHeight = pane.rowHeight();
     if (rowHeight <= 0) return undefined;
-    const element = pane.element;
-    const firstRow = Math.floor(element.scrollTop / rowHeight);
-    const rows = Math.ceil(element.clientHeight / rowHeight);
+    const firstRow = Math.floor(pane.position().top / rowHeight);
+    const rows = Math.ceil(pane.extent().viewportHeight / rowHeight);
     return { start: firstRow * bytesPerRow, end: (firstRow + rows) * bytesPerRow };
   }
 
@@ -149,10 +148,14 @@ export class ScrollLink {
     if (pane === undefined) return;
     const rowHeight = pane.rowHeight();
     if (rowHeight <= 0) return;
-    const element = pane.element;
+    const extent = pane.extent();
     const rowTop = Math.floor(offset / bytesPerRow) * rowHeight;
-    const target = options.centre === true ? rowTop - element.clientHeight / 2 + rowHeight : rowTop;
-    element.scrollTop = Math.max(0, Math.min(target, element.scrollHeight - element.clientHeight));
+    const target =
+      options.centre === true ? rowTop - extent.viewportHeight / 2 + rowHeight : rowTop;
+    pane.moveTo({
+      top: Math.max(0, Math.min(target, extent.maxTop)),
+      left: pane.position().left,
+    });
     this.report(id);
   }
 
@@ -162,45 +165,20 @@ export class ScrollLink {
     const source = this.panes.get(id);
     if (source === undefined || this.panes.size < 2) return;
 
-    const position: ScrollPosition = {
-      top: source.element.scrollTop,
-      left: source.element.scrollLeft,
-    };
-
-    const echo = this.expected.get(id);
-    if (echo !== undefined && echo.top === position.top && echo.left === position.left) {
-      this.expected.delete(id);
-      return;
-    }
-    this.expected.delete(id);
-
+    const position = source.position();
     const rowHeight = source.rowHeight();
     for (const [otherId, other] of this.panes) {
       if (otherId === id) continue;
+      const extent = other.extent();
       const target = mirroredScroll(
         position,
         { rowHeight },
-        {
-          rowHeight: other.rowHeight(),
-          maxTop: other.element.scrollHeight - other.element.clientHeight,
-          maxLeft: other.element.scrollWidth - other.element.clientWidth,
-        }
+        { rowHeight: other.rowHeight(), maxTop: extent.maxTop, maxLeft: extent.maxLeft }
       );
       if (target === undefined) continue;
-      if (other.element.scrollTop === target.top && other.element.scrollLeft === target.left) {
-        continue;
-      }
-      other.element.scrollTop = target.top;
-      other.element.scrollLeft = target.left;
-      // Read back rather than remembering what was asked for. A browser clamps
-      // and rounds an assigned offset — a pane already at its end reports a
-      // fractionally different number — and an expectation that did not match
-      // would be taken for a real scroll and mirrored back, dragging the longer
-      // pane up to the shorter one's last row.
-      this.expected.set(otherId, {
-        top: other.element.scrollTop,
-        left: other.element.scrollLeft,
-      });
+      const current = other.position();
+      if (current.top === target.top && current.left === target.left) continue;
+      other.moveTo(target);
     }
   }
 }

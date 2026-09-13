@@ -318,8 +318,9 @@ textarea,
 }
 
 .hex-spacer {
-  /* Pulls the document up under the sticky canvas so only the scrollbar shows. */
-  margin-top: -100%;
+  /* Its height and a negative top margin of exactly the viewport's height are
+     set by PaneScroller: pulled up under the sticky canvas so only the scrollbar
+     shows, and so the scroll range is the track's height and nothing else. */
   /* The width is set from the layout, so a narrow window scrolls sideways. */
   pointer-events: none;
 }

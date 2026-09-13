@@ -8,6 +8,7 @@ import type { MatchSet } from "@/core/search/matchSet";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
+import { elementHeightLimit } from "@/platform/layout/elementHeightLimit";
 import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
 import {
   type HexGridColors,
@@ -29,6 +30,7 @@ import {
   resolveHexKey,
   resolveTarget,
 } from "@/ui/pane/hexKeys";
+import { PaneScroller } from "@/ui/pane/paneScroller";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
 import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
@@ -168,6 +170,13 @@ export function HexPane({
   const readoutId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const spacerRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Where the pane is in its content. Every row, offset and pointer position is
+   * measured from this, never from the element's `scrollTop`, which a file
+   * taller than the browser lays out turns into a scaled thumb position.
+   */
+  const scrollerRef = useRef<PaneScroller | null>(null);
   const rendererRef = useRef<HexGridRenderer | null>(null);
   const frameRef = useRef<number | undefined>(undefined);
   const layoutRef = useRef<HexLayout | undefined>(undefined);
@@ -197,7 +206,6 @@ export function HexPane({
   const [mode, setMode] = useState<"INS" | "OVR">("OVR");
   const [region, setRegion] = useState<InputRegion>("hex");
   const [dirty, setDirty] = useState(false);
-  const [contentHeight, setContentHeight] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
 
   /** Paints on the next frame, coalescing however many reasons arrived. */
@@ -258,15 +266,51 @@ export function HexPane({
     });
   }, []);
 
+  /** Hands the renderer where the pane now is. */
+  const applyViewport = useCallback(() => {
+    const host = scrollRef.current;
+    const scroller = scrollerRef.current;
+    if (host === null || scroller === null) return;
+    rendererRef.current?.setViewport({
+      scrollTop: scroller.top,
+      scrollLeft: host.scrollLeft,
+      widthCss: host.clientWidth,
+      heightCss: host.clientHeight,
+    });
+  }, []);
+
+  /** What a change of position owes: the paint, the header, and the other pane. */
+  const scrolled = useCallback(() => {
+    applyViewport();
+    drawHeader();
+    scheduleDraw();
+    scrollLink.report(paneId);
+  }, [applyViewport, drawHeader, scheduleDraw, paneId]);
+
+  /** Scrolls to a content position: the one way this pane's own code moves it. */
+  const scrollPaneTo = useCallback(
+    (top: number, left?: number) => {
+      const scroller = scrollerRef.current;
+      if (scroller === null) return;
+      scroller.moveTo(top, left);
+      scrolled();
+    },
+    [scrolled]
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas === null) return;
+    const host = scrollRef.current;
+    const spacer = spacerRef.current;
+    if (canvas === null || host === null || spacer === null) return;
     const renderer = new HexGridRenderer(canvas);
     renderer.setBytesArrivedHandler(scheduleDraw);
     rendererRef.current = renderer;
+    scrollerRef.current = new PaneScroller(host, spacer, elementHeightLimit());
     return () => {
       renderer.setBytesArrivedHandler(undefined);
       rendererRef.current = null;
+      scrollerRef.current = null;
     };
   }, [scheduleDraw]);
 
@@ -281,12 +325,12 @@ export function HexPane({
       // The byte at the top of the viewport, captured before the metrics move.
       // Without this a font change scrolls the file out from under the reader,
       // further the further down they are.
-      const host = scrollRef.current;
+      const scroller = scrollerRef.current;
       const previous = layoutRef.current;
       const anchorRow =
-        host === null || previous === undefined
+        scroller === null || previous === undefined
           ? undefined
-          : Math.floor(host.scrollTop / previous.rowHeight);
+          : Math.floor(scroller.top / previous.rowHeight);
 
       const metrics = measureFont(HEX_FONT_SIZE_PX);
       const layout = new HexLayout({
@@ -319,9 +363,10 @@ export function HexPane({
       });
       renderer.setSource(doc);
       renderer.setScrollExtent(companionSize);
-      setContentHeight(renderer.contentHeight);
+      const moved = scroller?.setContentHeight(renderer.contentHeight) === true;
       setContentWidth(renderer.contentWidth);
-      if (host !== null && anchorRow !== undefined) host.scrollTop = anchorRow * layout.rowHeight;
+      if (anchorRow !== undefined) scrollPaneTo(anchorRow * layout.rowHeight);
+      else if (moved) scrolled();
       scheduleDraw();
       drawHeader();
     };
@@ -333,7 +378,7 @@ export function HexPane({
       stopWatchingColors();
       stopWatchingScale();
     };
-  }, [doc, wordSize, scheduleDraw, drawHeader, companionSize]);
+  }, [doc, wordSize, scheduleDraw, drawHeader, companionSize, scrollPaneTo, scrolled]);
 
   /**
    * The header is sized to its element, so it has to hear about a resize.
@@ -358,20 +403,19 @@ export function HexPane({
 
     const measure = () => {
       viewportHeightRef.current = host.clientHeight;
-      renderer.setViewport({
-        scrollTop: host.scrollTop,
-        scrollLeft: host.scrollLeft,
-        widthCss: host.clientWidth,
-        heightCss: host.clientHeight,
-      });
+      // The track's mapping depends on the viewport's height, so a resize can
+      // move the element's offset without moving the content.
+      const moved = scrollerRef.current?.fit() === true;
+      applyViewport();
       drawNow();
+      if (moved) scrollLink.report(paneId);
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(host);
     return () => observer.disconnect();
-  }, [drawNow]);
+  }, [drawNow, applyViewport, paneId]);
 
   // Selection changes from anywhere — a click, a key, an edit's clamp.
   useEffect(() => {
@@ -410,7 +454,8 @@ export function HexPane({
   useEffect(() => {
     const apply = () => {
       setDirty(doc.isDirty);
-      setContentHeight(rendererRef.current?.contentHeight ?? 0);
+      const height = rendererRef.current?.contentHeight ?? 0;
+      if (scrollerRef.current?.setContentHeight(height) === true) scrolled();
       scheduleDraw();
     };
     apply();
@@ -437,7 +482,7 @@ export function HexPane({
       stopContent();
       stopCommit();
     };
-  }, [doc, scheduleDraw]);
+  }, [doc, scheduleDraw, scrolled]);
 
   // The comparison, and the other pane's selection outlined here.
   useEffect(() => {
@@ -469,55 +514,91 @@ export function HexPane({
     if (revealRequest.moveCaret !== false) {
       doc.setSelection(caretAt(revealRequest.offset, doc.size));
     }
-    const host = scrollRef.current;
+    const scroller = scrollerRef.current;
     const layout = layoutRef.current;
-    if (host === null || layout === undefined) return;
+    if (scroller === null || layout === undefined) return;
 
     const rowTop = Math.floor(revealRequest.offset / BYTES_PER_ROW) * layout.rowHeight;
     // Centred, not merely brought inside the edge: a change the user asked to
     // be shown should have its surroundings visible too.
-    host.scrollTop = Math.max(0, rowTop - host.clientHeight / 2 + layout.rowHeight);
-  }, [revealRequest, doc]);
+    scrollPaneTo(Math.max(0, rowTop - scroller.viewportHeight / 2 + layout.rowHeight));
+  }, [revealRequest, doc, scrollPaneTo]);
 
   // Comparison locks the panes to the same offsets. With one file open the
   // link has nothing to mirror to and does nothing.
+  //
+  // A move the link makes is applied to the renderer here and now, not left to
+  // this pane's scroll event: that event arrives a frame later, and the pane
+  // being followed would visibly lead the one following it.
+  useEffect(() => {
+    return scrollLink.register(paneId, {
+      rowHeight: () => layoutRef.current?.rowHeight ?? 0,
+      position: () => ({
+        top: scrollerRef.current?.top ?? 0,
+        left: scrollerRef.current?.left ?? 0,
+      }),
+      extent: () => ({
+        maxTop: scrollerRef.current?.maxTop ?? 0,
+        maxLeft: scrollerRef.current?.maxLeft ?? 0,
+        viewportHeight: scrollerRef.current?.viewportHeight ?? 0,
+      }),
+      moveTo: (position) => {
+        scrollerRef.current?.moveTo(position.top, position.left);
+        applyViewport();
+        drawHeader();
+        scheduleDraw();
+      },
+    });
+  }, [paneId, applyViewport, drawHeader, scheduleDraw]);
+
+  const onScroll = useCallback(() => {
+    const scroller = scrollerRef.current;
+    // The echo of an offset this pane or the link set: already applied.
+    if (scroller === null || !scroller.noteScroll()) return;
+    // A tip is placed in the element's own coordinates, which on a scaled track
+    // no longer move with the row it names.
+    if (scroller.scaled) setMarkTip(undefined);
+    scrolled();
+  }, [scrolled]);
+
+  /**
+   * A wheel over a file taller than the browser lays out moves the content by
+   * exactly its distance rather than the scaled thumb (see `PaneScroller.wheel`).
+   * Registered by hand because React's wheel listener is passive, and a passive
+   * listener cannot keep the browser from scrolling as well.
+   */
   useEffect(() => {
     const host = scrollRef.current;
     if (host === null) return;
-    return scrollLink.register(paneId, {
-      element: host,
-      rowHeight: () => layoutRef.current?.rowHeight ?? 0,
-    });
-  }, [paneId]);
-
-  const onScroll = useCallback(() => {
-    drawHeader();
-    const host = scrollRef.current;
-    const renderer = rendererRef.current;
-    if (host === null || renderer === null) return;
-    renderer.setViewport({
-      scrollTop: host.scrollTop,
-      scrollLeft: host.scrollLeft,
-      widthCss: host.clientWidth,
-      heightCss: host.clientHeight,
-    });
-    scheduleDraw();
-    scrollLink.report(paneId);
-  }, [scheduleDraw, paneId, drawHeader]);
+    const onWheel = (event: WheelEvent) => {
+      const scroller = scrollerRef.current;
+      const layout = layoutRef.current;
+      if (scroller === null || layout === undefined) return;
+      if (!scroller.wheel(event, layout.rowHeight)) return;
+      event.preventDefault();
+      setMarkTip(undefined);
+      scrolled();
+    };
+    host.addEventListener("wheel", onWheel, { passive: false });
+    return () => host.removeEventListener("wheel", onWheel);
+  }, [scrolled]);
 
   /** Brings an offset into view with the least scrolling that will do it. */
-  const reveal = useCallback((offset: number) => {
-    const host = scrollRef.current;
-    const layout = layoutRef.current;
-    if (host === null || layout === undefined) return;
+  const reveal = useCallback(
+    (offset: number) => {
+      const scroller = scrollerRef.current;
+      const layout = layoutRef.current;
+      if (scroller === null || layout === undefined) return;
 
-    const rowTop = Math.floor(offset / BYTES_PER_ROW) * layout.rowHeight;
-    const rowBottom = rowTop + layout.rowHeight;
-    if (rowTop < host.scrollTop) host.scrollTop = rowTop;
-    else if (rowBottom > host.scrollTop + host.clientHeight) {
-      host.scrollTop = rowBottom - host.clientHeight;
-    }
-  }, []);
+      const rowTop = Math.floor(offset / BYTES_PER_ROW) * layout.rowHeight;
+      const rowBottom = rowTop + layout.rowHeight;
+      if (rowTop < scroller.top) scrollPaneTo(rowTop);
+      else if (rowBottom > scroller.top + scroller.viewportHeight) {
+        scrollPaneTo(rowBottom - scroller.viewportHeight);
+      }
+    },
+    [scrollPaneTo]
+  );
 
   const moveCaret = useCallback(
     (target: number, extend: boolean) => {
@@ -571,7 +652,7 @@ export function HexPane({
       const command = resolveHexKey(event as unknown as HexKeyEvent, platform, region);
       if (command === undefined) return;
 
-      const host = scrollRef.current;
+      const scroller = scrollerRef.current;
       const layout = layoutRef.current;
       const rowsPerPage = Math.max(
         1,
@@ -591,12 +672,14 @@ export function HexPane({
           );
           break;
         case "scrollByPage":
-          if (host !== null) {
-            host.scrollTop += (command.down ? 1 : -1) * rowsPerPage * (layout?.rowHeight ?? 17);
+          if (scroller !== null) {
+            scrollPaneTo(
+              scroller.top + (command.down ? 1 : -1) * rowsPerPage * (layout?.rowHeight ?? 17)
+            );
           }
           break;
         case "scrollTo":
-          if (host !== null) host.scrollTop = command.edge === "top" ? 0 : host.scrollHeight;
+          if (scroller !== null) scrollPaneTo(command.edge === "top" ? 0 : scroller.maxTop);
           break;
         case "selectAll":
           doc.setSelection(makeSelection(0, doc.size, doc.size));
@@ -668,7 +751,7 @@ export function HexPane({
           if (host !== null && layout !== undefined && onDumpMenu !== undefined) {
             const box = host.getBoundingClientRect();
             const row = Math.floor(doc.caret / BYTES_PER_ROW);
-            const y = row * layout.rowHeight - host.scrollTop + layout.rowHeight;
+            const y = row * layout.rowHeight - (scrollerRef.current?.top ?? 0) + layout.rowHeight;
             onDumpMenu(
               {
                 clientX: box.left + 80,
@@ -701,6 +784,7 @@ export function HexPane({
       paneId,
       typing,
       refreshCaret,
+      scrollPaneTo,
     ]
   );
 
@@ -804,7 +888,7 @@ export function HexPane({
     const bounds = host.getBoundingClientRect();
     return {
       x: event.clientX - bounds.left + host.scrollLeft,
-      y: event.clientY - bounds.top + host.scrollTop,
+      y: event.clientY - bounds.top + (scrollerRef.current?.top ?? 0),
     };
   }, []);
 
@@ -859,8 +943,9 @@ export function HexPane({
     const host = scrollRef.current;
     if (layout === undefined || host === null) return;
     const bounds = host.getBoundingClientRect();
+    const top = scrollerRef.current?.top ?? 0;
     const x = event.clientX - bounds.left + host.scrollLeft;
-    const y = event.clientY - bounds.top + host.scrollTop;
+    const y = event.clientY - bounds.top + top;
     // The offset column only: the tip is about the mark, not about the row.
     if (x > layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
       setMarkTip(undefined);
@@ -872,13 +957,14 @@ export function HexPane({
       setMarkTip(undefined);
       return;
     }
-    // In the scroller's own content coordinates, so it travels with the row it
-    // names rather than hanging at a fixed height while the dump scrolls. And
-    // beside the mark rather than over it: the address it names is the one
-    // thing the tip must not hide.
+    // In the scroller's own coordinates, so it travels with the row it names
+    // rather than hanging at a fixed height while the dump scrolls — which are
+    // the content's, less the difference a scaled track makes. And beside the
+    // mark rather than over it: the address it names is the one thing the tip
+    // must not hide.
     setMarkTip({
       name: mark.name,
-      top: (row / BYTES_PER_ROW) * layout.rowHeight,
+      top: (row / BYTES_PER_ROW) * layout.rowHeight - top + host.scrollTop,
       left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
     });
   }, []);
@@ -892,7 +978,7 @@ export function HexPane({
         const host = scrollRef.current;
         if (layout === undefined || host === null) return;
         const bounds = host.getBoundingClientRect();
-        const y = event.clientY - bounds.top + host.scrollTop;
+        const y = event.clientY - bounds.top + (scrollerRef.current?.top ?? 0);
         const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
         // The last row this pane draws is the limit, not a size held elsewhere:
         // a mark may not be dragged out of the file.
@@ -911,17 +997,20 @@ export function HexPane({
       // A drag past the viewport's edge keeps selecting: the pointer's y is
       // clamped into the content and the view follows it.
       const rawY = event.clientY - bounds.top;
-      if (rawY < 0) host.scrollTop += rawY;
-      else if (rawY > bounds.height) host.scrollTop += rawY - bounds.height;
+      const scroller = scrollerRef.current;
+      if (scroller !== null && rawY < 0) scrollPaneTo(scroller.top + rawY);
+      else if (scroller !== null && rawY > bounds.height) {
+        scrollPaneTo(scroller.top + rawY - bounds.height);
+      }
 
-      const y = Math.min(Math.max(rawY, 0), bounds.height - 1) + host.scrollTop;
+      const y = Math.min(Math.max(rawY, 0), bounds.height - 1) + (scroller?.top ?? 0);
       const x = event.clientX - bounds.left + host.scrollLeft;
       const end = layout.dragEndOffset(x, y, layout.rowCount(doc.size));
       if (end === undefined) return;
 
       doc.setSelection(makeSelection(anchor, Math.min(end, doc.size), doc.size));
     },
-    [doc, trackMarkTip]
+    [doc, trackMarkTip, scrollPaneTo]
   );
 
   /**
@@ -938,7 +1027,7 @@ export function HexPane({
       const bounds = host.getBoundingClientRect();
       const hit = layout.hitTest(
         event.clientX - bounds.left + host.scrollLeft,
-        event.clientY - bounds.top + host.scrollTop,
+        event.clientY - bounds.top + (scrollerRef.current?.top ?? 0),
         layout.rowCount(doc.size)
       );
       if (hit === undefined || hit.column.kind !== "offset") return;
@@ -964,7 +1053,7 @@ export function HexPane({
       const bounds = host.getBoundingClientRect();
       const hit = layout.hitTest(
         event.clientX - bounds.left + host.scrollLeft,
-        event.clientY - bounds.top + host.scrollTop,
+        event.clientY - bounds.top + (scrollerRef.current?.top ?? 0),
         layout.rowCount(doc.size)
       );
       if (hit === undefined) return;
@@ -1103,10 +1192,9 @@ export function HexPane({
             {markTip.name}
           </p>
         )}
-        <div
-          className="hex-spacer"
-          style={{ height: `${contentHeight}px`, width: `${contentWidth}px` }}
-        />
+        {/* Its height is PaneScroller's to set: the content's own when that
+            fits, the browser's layout limit when it does not. */}
+        <div ref={spacerRef} className="hex-spacer" style={{ width: `${contentWidth}px` }} />
       </div>
       {matches !== undefined && matches.total > 0 && onGoToMatch !== undefined ? (
         <SearchResults
