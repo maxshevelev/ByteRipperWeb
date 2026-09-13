@@ -213,6 +213,19 @@ export class HexGridRenderer {
   /** The scroll offset the canvas currently holds, for the blit. */
   private paintedScrollTop = 0;
   private paintedRows: { first: number; end: number } = { first: 0, end: 0 };
+  /**
+   * The content height the current paint measures its rows from.
+   *
+   * A row's absolute top is `row × rowHeight`, which at the end of a 16 MB file
+   * is some eighteen million pixels — and canvas implementations keep drawing
+   * coordinates in 32-bit floats, which cannot hold a whole number that large:
+   * above 2^24 the representable values are two apart. Rows drawn there came
+   * out one pixel up or down at random, stacked unevenly and overdrawing each
+   * other's glyphs. So everything is drawn relative to the first visible row,
+   * and the large scroll offset is subtracted in JavaScript's doubles instead,
+   * leaving the canvas a transform of a few rows at most.
+   */
+  private originY = 0;
 
   private prefetching: Promise<void> | undefined;
   private onBytesArrived: (() => void) | undefined;
@@ -469,6 +482,7 @@ export class HexGridRenderer {
     }
 
     const scale = config.devicePixelRatio;
+    this.originY = first * layout.rowHeight;
     this.context.save();
     this.context.setTransform(
       scale,
@@ -476,7 +490,7 @@ export class HexGridRenderer {
       0,
       scale,
       -this.viewport.scrollLeft * scale,
-      -this.viewport.scrollTop * scale
+      (this.originY - this.viewport.scrollTop) * scale
     );
 
     let missedBytes = false;
@@ -557,7 +571,7 @@ export class HexGridRenderer {
     if (config === undefined || atlas === undefined) return true;
 
     const { layout, colors } = config;
-    const y = row * layout.rowHeight;
+    const y = row * layout.rowHeight - this.originY;
     const rowStart = layout.byteOffset(row, 0);
     const available = Math.max(0, Math.min(BYTES_PER_ROW, size - rowStart));
 
@@ -639,7 +653,7 @@ export class HexGridRenderer {
     this.context.fillStyle = colors.background;
     this.context.fillRect(
       this.viewport.scrollLeft,
-      contentBottom,
+      contentBottom - this.originY,
       Math.max(layout.contentWidth, this.viewport.widthCss),
       viewportBottom - contentBottom
     );
@@ -668,7 +682,7 @@ export class HexGridRenderer {
     const row = Math.floor(caret.offset / BYTES_PER_ROW);
     if (row < firstRow || row >= endRow) return;
     const rowStart = row * BYTES_PER_ROW;
-    const y = row * layout.rowHeight;
+    const y = row * layout.rowHeight - this.originY;
     const column = caret.offset - rowStart;
 
     // The link to the same byte in the column the caret is not in.
@@ -938,8 +952,11 @@ export class HexGridRenderer {
     context.lineWidth = PEER_CONTOUR_LINE_WIDTH;
     context.lineJoin = "round";
     context.beginPath();
+    // The contour is geometry in content coordinates; drawn, it is moved to the
+    // paint's origin like everything else (see `originY`).
     for (const contour of this.peerContours()) {
-      traceContour(context, contour, PEER_CONTOUR_RADIUS);
+      const relative = contour.map((point) => ({ x: point.x, y: point.y - this.originY }));
+      traceContour(context, relative, PEER_CONTOUR_RADIUS);
     }
     context.stroke();
     context.restore();
