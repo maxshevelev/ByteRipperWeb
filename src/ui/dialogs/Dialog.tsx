@@ -16,9 +16,11 @@ export interface DialogProps {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: React.ReactNode;
+  /** A dialog that needs more room than a question does — a list to pick from. */
+  readonly className?: string | undefined;
 }
 
-export function Dialog({ open, title, onClose, children }: DialogProps) {
+export function Dialog({ open, title, onClose, children, className }: DialogProps) {
   const ref = useRef<HTMLDialogElement | null>(null);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export function Dialog({ open, title, onClose, children }: DialogProps) {
   return (
     <dialog
       ref={ref}
-      className="dialog"
+      className={className === undefined ? "dialog" : `dialog ${className}`}
       // Escape and the backdrop both close it, and both arrive as `cancel` or
       // `close` rather than as a click this component can see.
       onCancel={onClose}

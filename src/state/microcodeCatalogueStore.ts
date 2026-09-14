@@ -146,3 +146,30 @@ export function forgetMicrocodeCatalogue(): void {
     failure: undefined,
   }));
 }
+
+/**
+ * One microcode's bytes, from the collection the list came from — fetched only
+ * once one is picked, so the form costs a single request for the listing and
+ * one for the file.
+ */
+export function downloadMicrocode(
+  entry: MicrocodeCatalogueEntry,
+  signal?: AbortSignal,
+  source: MicrocodeSource = liveMicrocodeSource
+): Promise<Uint8Array<ArrayBuffer>> {
+  return source.download(entry, signal);
+}
+
+/**
+ * What a failed download says, in the words the listing's own failures use —
+ * a fetch that never reached github.com is being offline, whatever the browser
+ * called it.
+ */
+export function microcodeDownloadMessage(error: unknown): string {
+  return remoteFailureMessage(
+    remoteFailureOf(error) ?? {
+      kind: "offline",
+      detail: error instanceof Error ? error.message : "that microcode could not be fetched",
+    }
+  );
+}
