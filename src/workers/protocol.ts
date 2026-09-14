@@ -318,10 +318,22 @@ export interface MeAnalyzeRequest {
   readonly kind: "meAnalyze";
   readonly id: JobId;
   readonly databaseText: string | undefined;
+  /**
+   * `Huffman.dat`, likewise as text, for the checks that decompress a module. The
+   * panel fetches it only for an analysis that says it wants one.
+   */
+  readonly huffmanText: string | undefined;
+}
+
+/** The ME region's digests — three passes over it, so only when somebody asks. */
+export interface MeChecksumsRequest {
+  readonly kind: "meChecksums";
+  readonly id: JobId;
 }
 
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
+  | MeChecksumsRequest
   | FirmwareDetailRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
@@ -478,8 +490,18 @@ export interface MeAnalyzeResponse {
   readonly problem: string | undefined;
 }
 
+/** The digests of the same bytes the analysis read, uppercase hex; nothing where none could be read. */
+export interface MeChecksumsResponse {
+  readonly kind: "meChecksums";
+  readonly id: JobId;
+  readonly sha256: string | undefined;
+  readonly sha384: string | undefined;
+  readonly crc32: number | undefined;
+}
+
 export type FirmwareWorkerResponse =
   | MeAnalyzeResponse
+  | MeChecksumsResponse
   | FitEditResponse
   | FitReportResponse
   | FirmwareRootsResponse

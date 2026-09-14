@@ -193,7 +193,28 @@
         "src/firmware/me"
       ],
       "status": "in-progress",
-      "note": "The compute-bound half, the layout spine, the CSE extension chain and an analysis end to end: an engine region reports its family, version, release, type, partitions, boot descriptor tables, extension blocks, health facts and signature verdict. Still to come: the MFS/EFS file systems, the SKU and OEM derivations, the pre-CSE module directory, and the firmware-end size."
+      "note": "The compute-bound half, the layout spine, the CSE extension chain and an analysis end to end, now with upstream's whole model bar the LZMA module check: the SKU (SKU.swift, pre-CSE $SKU), IUP descriptor facts and platform names, firmware end (FirmwareEnd.swift), FWUpdate support, OEM configuration, the pre-CSE $MME directory, production-ready bit and ME 7 blacklist, the independent firmware analysed in its own right, the MFS volume with its legacy configuration, home tree, reserved integrity tables and PCH-init tables, the MFS backup, EFS and FITC, the File System State, GSC INFO, OROM images, the pm/rbe metadata table, .met module chains, and the Huffman module check. Huffman.dat is fetched (D10, like MEA.dat) only for an analysis that says it wants it — the web's form of upstream fetching it mid-analysis. Module offsets in CodePartition are absolute, where upstream's count from the $CPD. The LZMA module check (LZMAModule.swift) runs over the shared LZMA decoder in src/firmware/compression. Not yet: FileTable.dat naming, which upstream has not ported either.",
+      "files": {
+        "Layout/FirmwareEnd.swift": "src/firmware/me/layout/firmwareEnd.ts",
+        "Identify/SKU.swift": "src/firmware/me/identify/sku.ts",
+        "Identify/PreCSEME.swift": "src/firmware/me/identify/preCseMe.ts",
+        "Identify/PreCSEModule.swift": "src/firmware/me/identify/preCseModule.ts",
+        "IUP/IUP.swift": "src/firmware/me/iup/iupDescriptor.ts",
+        "IUP/GSCInfo.swift": "src/firmware/me/iup/gscInfo.ts",
+        "IUP/OROM.swift": "src/firmware/me/iup/orom.ts",
+        "Engine/FWUpdateSupport.swift": "src/firmware/me/engine/fwUpdateSupport.ts",
+        "Engine/OEMDetector.swift": "src/firmware/me/engine/oemDetector.ts",
+        "FileSystem/MFS.swift": "src/firmware/me/fileSystem/mfs.ts",
+        "FileSystem/MFSBackup.swift": "src/firmware/me/fileSystem/mfsBackup.ts",
+        "FileSystem/EFS.swift": "src/firmware/me/fileSystem/efs.ts",
+        "FileSystem/PCHInit.swift": "src/firmware/me/fileSystem/pchInit.ts",
+        "Partition/RBEPM.swift": "src/firmware/me/partition/rbePm.ts",
+        "Data/MEAGitHubDataRepository.swift": [
+          "src/state/meDatabaseStore.ts",
+          "src/state/huffmanDictionaryStore.ts"
+        ],
+        "Decompress/LZMAModule.swift": "src/firmware/me/decompress/lzmaModule.ts"
+      }
     },
     {
       "swift": "Packages/UEFIContentSource",
@@ -226,27 +247,50 @@
         "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "UEFIToolModule.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "UEFITreeDisplay.swift": "src/tools/uefi/uefiTreeDisplay.ts",
-        "UEFINodeDetail.swift": "src/tools/uefi/uefiNodeDetail.ts"
+        "UEFINodeDetail.swift": "src/tools/uefi/uefiNodeDetail.ts",
+        "UEFIPresenter.swift": "src/tools/uefi/uefiPresenter.ts"
       }
     },
     {
       "swift": "Modules/FITTool",
       "web": [
         "src/firmware/fit",
-        "src/tools/fit",
         "src/firmware/testing/testFit.ts",
+        "src/state/microcodeCatalogueSource.ts",
         "src/state/microcodeCatalogueStore.ts",
-        "src/state/microcodeCatalogueSource.ts"
+        "src/tools/fit",
+        "src/ui/toolPanel/ToolDetail.tsx"
       ],
       "status": "ported",
-      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel is src/tools/fit/fitTool.tsx; FITToolViewController and FITAddMicrocodeViewController are AppKit and have no counterpart."
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict and the problem mark sit ahead of the type, and a double-click goes where the row points. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after.",
+      "files": {
+        "FITToolViewController.swift": "src/tools/fit/fitTool.tsx",
+        "FITAddMicrocodeViewController.swift": [
+          "src/tools/fit/MicrocodeForm.tsx",
+          "src/tools/fit/microcodeFormModel.ts"
+        ]
+      }
     },
     {
       "swift": "Modules/MEATool",
       "web": [
-        "src/tools/mea"
+        "src/tools/me",
+        "src/ui/toolPanel/ToolDetail.tsx",
+        "src/platform/clipboard/richClipboard.ts"
       ],
-      "status": "planned"
+      "status": "in-progress",
+      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone, the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin.",
+      "files": {
+        "MEANode.swift": "src/tools/me/meaTree.ts",
+        "MEACurator.swift": "src/tools/me/meaTree.ts",
+        "MEAValueText.swift": "src/tools/me/meaTree.ts",
+        "MEAZones.swift": "src/tools/me/meaTree.ts",
+        "MEASummary.swift": "src/tools/me/meaSummary.ts",
+        "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
+        "MEAToolUI/MEAToolModule.swift": "src/tools/me/meTool.tsx",
+        "MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
+        "MEAToolTests/MEACuratorTests.swift": "src/tools/me/meaTree.test.ts"
+      }
     },
     {
       "swift": "Modules/ZoneSketch",
@@ -263,7 +307,7 @@
         "src/ui/pane"
       ],
       "status": "in-progress",
-      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. Ported as of M2: HexLayout (whole, with its tests), WordSize, and the byte-significance and address-split rules out of HexTheme. HexView.contour is across as src/render/hexGrid/spanContour.ts — kept apart as the single source of contour geometry, since segments and zones want the same outline over their own spans (M7, M8). HexColumnHeaderView is across whole, drawn with fillText rather than through the glyph atlas — nineteen labels a redraw does not earn an atlas. HexView's 3.5k lines are split between src/render/hexGrid (drawing) and src/ui/pane (events); its editing, caret-nibble and difference paths wait on M3 and M4.",
+      "note": "Behaviour ports, drawing does not: AppKit drawRect becomes a canvas renderer with a glyph atlas. HexLayout is across whole with its tests. HexView.contour is src/render/hexGrid/spanContour.ts, the single source of contour geometry: the mirrored selection and the published zones both go through it and through one stroke path in the renderer (drawContours / drawZoneContours / drawZoneFills), with upstream's constants — zones stroked at 0.9, the focused one teal and washed at 0.1, the rest khaki, outlines over the glyphs and the wash under them. Glyphs sit on AppearanceSettings.centeredBaseline's rule, the ink of \"0A\" centred in the row. One deliberate divergence, asked for: the selection fill's vertical edges fall in the middle of the space between two bytes (HexLayout.hexRunStart / hexRunEnd) rather than against the glyphs. HexColumnHeaderView is drawn with fillText rather than through the atlas.",
       "files": {
         "HexLayout.swift": "src/render/hexGrid/hexLayout.ts",
         "WordSize.swift": "src/render/hexGrid/hexLayout.ts",
@@ -350,15 +394,18 @@
     {
       "swift": "ByteRipperApp/Pane",
       "web": [
+        "src/core/edit/typingController.ts",
         "src/ui/pane",
-        "src/core/edit/typingController.ts"
+        "src/ui/pane/DocumentIcon.tsx",
+        "src/ui/shell/CloseButton.tsx"
       ],
       "status": "in-progress",
-      "note": "PaneViewModel's editing half is src/core/edit/typingController.ts — a state machine with a dozen rules, kept out of the component so it can be tested without a DOM. Its view half is src/ui/pane/HexPane.tsx. The two menus MainViewController builds for a pane — the header's File menu and the dump's offset menu — are src/ui/shell/paneMenus.ts, built by the shell for the same reason upstream builds them there: every item has to resolve the pane it was opened on, which may not be the active one. Segments, bookmarks and the tool panel wait for M7 and M8.",
+      "note": "PaneViewModel's editing half is src/core/edit/typingController.ts; its view half is src/ui/pane/HexPane.tsx. The header follows FilePaneView: the document glyph in place of the slot's name — outline when clean, filled when modified, a plus badge for a document never saved (DocumentIcon) — the file name, and an xmark close button (CloseButton, also the find bar's). The two menus MainViewController builds for a pane are src/ui/shell/paneMenus.ts. The header's read-only lock and the parent link have no counterpart yet.",
       "files": {
         "PaneHeaderView.swift": "src/ui/pane/HexPane.tsx",
         "FilePaneView.swift": [
           "src/ui/pane/HexPane.tsx",
+          "src/ui/pane/DocumentIcon.tsx",
           "src/core/text/byteSize.ts"
         ]
       }
@@ -518,6 +565,20 @@
       ],
       "status": "ported",
       "note": "A panel's scrolling detail: title, label/value rows with one label width, and the tables after them, on the panel's own ground, scrolled back to the top only when the subject changes. Its height is the splitter's, never the content's. The field and table model (UEFIDetailField, UEFIDetailTable, UEFINodeDetail's shape) lives in src/tools/toolDetail.ts so it can cross the worker boundary."
+    },
+    {
+      "swift": "Packages/FirmwareCompression",
+      "web": [
+        "src/firmware/compression"
+      ],
+      "status": "in-progress",
+      "note": "The LZMA half: LzmaDec.c ported path for path (the range coder, the dummy look-ahead, the temporary buffer and the strict finish) and Bra86.c's x86 branch converter, behind FirmwareDecompression's lzma / lzmaX86 with its header rules, the Intel legacy prefix, the allocation limit and the truncated / corrupt / tooLarge failures. The tests' streams were encoded once with Python's lzma module into src/firmware/compression/testing/lzmaFixtures.ts, so no encoder is part of the project. Not yet: the Tiano / EFI 1.1 decoder and the compressors (FirmwareCompression.swift, CLZMAEncoder, CTianoEncoder).",
+      "files": {
+        "CLZMA/SDK/LzmaDec.c": "src/firmware/compression/lzmaDecoder.ts",
+        "CLZMA/SDK/Bra86.c": "src/firmware/compression/x86BranchConverter.ts",
+        "FirmwareCompression/FirmwareDecompression.swift": "src/firmware/compression/firmwareDecompression.ts",
+        "FirmwareCompressionTests/LZMATests.swift": "src/firmware/compression/firmwareDecompression.test.ts"
+      }
     }
   ]
 }

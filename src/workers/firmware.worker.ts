@@ -3,7 +3,13 @@
 import { assembleWord, type ByteSource } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
+import { crc32 } from "@/firmware/me/crypto/checksum";
+import { sha256, sha384 } from "@/firmware/me/crypto/digest";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
+import {
+  type HuffmanDictionaries,
+  parseHuffmanDictionaries,
+} from "@/firmware/me/decompress/huffman";
 import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
 import { meRegion } from "@/firmware/me/layout/flashDescriptor";
 import {
@@ -182,6 +188,42 @@ function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
       return [];
   }
 }
+
+/**
+ * The bytes the ME analysis works over, and where they begin in the image.
+ *
+ * One region's bytes in memory, where the UEFI parser streams a whole image: the
+ * analysis walks its structures in every direction and a region is megabytes,
+ * not gigabytes. Which region is the descriptor's business, and a bare region is
+ * its own. The checksums read the same bytes, so the digests describe the buffer
+ * the analysis was made from.
+ */
+function meRegionBytes():
+  | { readonly bytes: Uint8Array; readonly regionOffset: number }
+  | undefined {
+  if (reader === undefined) return undefined;
+  const whole = reader.bytes(reader.all);
+  if (whole === undefined) return undefined;
+  const found = meRegion(whole);
+  return found === undefined
+    ? { bytes: whole, regionOffset: 0 }
+    : { bytes: whole.subarray(found.base, found.base + found.size), regionOffset: found.base };
+}
+
+/**
+ * `Huffman.dat` as dictionaries. One that does not parse is no dictionaries: the
+ * checks that need them are skipped, and the analysis is not failed for it.
+ */
+function parsedDictionaries(text: string): HuffmanDictionaries | undefined {
+  try {
+    return parseHuffmanDictionaries(text);
+  } catch {
+    return undefined;
+  }
+}
+
+const hexDigest = (digest: Uint8Array) =>
+  [...digest].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join("");
 
 scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
   const request = event.data;
@@ -389,6 +431,19 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      case "meChecksums": {
+        const region = meRegionBytes();
+        const readable = region !== undefined && region.bytes.length > 0;
+        post({
+          kind: "meChecksums",
+          id: request.id,
+          sha256: readable ? hexDigest(sha256(region.bytes)) : undefined,
+          sha384: readable ? hexDigest(sha384(region.bytes)) : undefined,
+          crc32: readable ? crc32(region.bytes) : undefined,
+        });
+        return;
+      }
+
       case "meAnalyze": {
         if (reader === undefined) {
           post({
@@ -400,19 +455,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           });
           return;
         }
-        // The ME analysis works over one region's bytes in memory, where the
-        // UEFI parser streams a whole image: it walks its structures in every
-        // direction and a region is megabytes, not gigabytes. Which region is
-        // the descriptor's business, and a bare region is its own.
-        const whole = reader.bytes(reader.all);
-        const found = whole === undefined ? undefined : meRegion(whole);
-        const regionOffset = found?.base ?? 0;
-        const bytes =
-          whole === undefined
-            ? undefined
-            : found === undefined
-              ? whole
-              : whole.subarray(found.base, found.base + found.size);
+        const region = meRegionBytes();
+        const regionOffset = region?.regionOffset ?? 0;
+        const bytes = region?.bytes;
         if (bytes === undefined) {
           post({
             kind: "meAnalyze",
@@ -423,6 +468,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           });
           return;
         }
+        const dictionaries =
+          request.huffmanText === undefined ? undefined : parsedDictionaries(request.huffmanText);
         post({
           kind: "meAnalyze",
           id: request.id,
@@ -433,6 +480,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             ...(request.databaseText === undefined
               ? {}
               : { database: MEADatabase.parse(request.databaseText) }),
+            ...(dictionaries === undefined ? {} : { huffmanDictionaries: dictionaries }),
           }),
           problem: undefined,
         });

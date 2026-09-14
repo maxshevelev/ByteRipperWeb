@@ -10,6 +10,7 @@ import type {
   FitEditRequest,
   FitEditResponse,
   MeAnalyzeResponse,
+  MeChecksumsResponse,
   WireDiagnostic,
   WireNode,
 } from "@/workers/protocol";
@@ -140,6 +141,11 @@ function ensureWorker(pane: PaneId): PaneWorker {
         meWaiters.delete(pane);
         return;
       }
+      case "meChecksums": {
+        checksumWaiters.get(pane)?.(response);
+        checksumWaiters.delete(pane);
+        return;
+      }
       case "fitEdit": {
         fitEditWaiters.get(pane)?.(response);
         fitEditWaiters.delete(pane);
@@ -179,6 +185,8 @@ function ensureWorker(pane: PaneId): PaneWorker {
         fitEditWaiters.delete(pane);
         meWaiters.get(pane)?.(undefined);
         meWaiters.delete(pane);
+        checksumWaiters.get(pane)?.(undefined);
+        checksumWaiters.delete(pane);
         update(pane, { status: "failed", problem: response.problem });
         return;
     }
@@ -372,27 +380,47 @@ export async function editPaneFit(
 }
 
 /**
- * Analyses the pane's ME region, against the database when there is one.
+ * Analyses the pane's ME region, against the database and the Huffman
+ * dictionaries when there are some.
  *
- * The database's text crosses to the worker rather than a parsed database:
- * parsing it belongs with the parser, and this side has no business holding a
- * few thousand lines it never reads.
+ * Both files cross to the worker as text rather than parsed: parsing belongs
+ * with the parser, and this side has no business holding a few thousand lines it
+ * never reads.
  */
 export function analyzePaneMe(
   pane: PaneId,
-  databaseText: string | undefined
+  databaseText: string | undefined,
+  huffmanText: string | undefined
 ): Promise<MeAnalyzeResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
   const job = workers[pane]?.job ?? 0;
   return new Promise((resolve) => {
     meWaiters.set(pane, resolve);
-    send(pane, { kind: "meAnalyze", id: job, databaseText });
+    send(pane, { kind: "meAnalyze", id: job, databaseText, huffmanText });
   });
 }
 
 /** Who is waiting for an ME analysis, by pane. */
 const meWaiters = new Map<PaneId, (response: MeAnalyzeResponse | undefined) => void>();
+
+/**
+ * The ME region's digests — asked for only when somebody looks at them, since
+ * they are three passes over the region.
+ */
+export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | undefined> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
+  const job = workers[pane]?.job ?? 0;
+  return new Promise((resolve) => {
+    checksumWaiters.get(pane)?.(undefined);
+    checksumWaiters.set(pane, resolve);
+    send(pane, { kind: "meChecksums", id: job });
+  });
+}
+
+/** Who is waiting for the ME region's digests, by pane. */
+const checksumWaiters = new Map<PaneId, (response: MeChecksumsResponse | undefined) => void>();
 
 /** Who is waiting for a planned FIT edit, by pane. */
 const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse) => void>();

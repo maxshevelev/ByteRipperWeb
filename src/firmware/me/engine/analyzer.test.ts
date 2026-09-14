@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { fixtureBytes, LZMA_MODULE_BODY_STREAM } from "@/firmware/compression/testing/lzmaFixtures";
+import { hex, sha384 } from "@/firmware/me/crypto/digest";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
 import { CSME12_KEY, CSME12_PROTECTED, CSME12_SIG } from "@/firmware/me/testing/realManifests";
@@ -9,6 +11,13 @@ import {
   UNKNOWN_SIGNATURE_HASH,
   unrelatedDatabaseText,
 } from "@/firmware/me/testing/testDatabase";
+import {
+  extBlock,
+  extConcat,
+  extFeaturePermissions,
+  extModuleAttributes,
+  extSystemInfo,
+} from "@/firmware/me/testing/testExtensions";
 import {
   cpdDirectory,
   fptRegion,
@@ -206,5 +215,313 @@ describe("analyzeMeRegion", () => {
     const broken = analyzeMeRegion({ bytes: tampered });
     expect(broken.rsaSignatureValid).toBe(false);
     expect(broken.issues.map((one) => one.id)).toContain(9);
+  });
+});
+
+// MARK: - Upstream's AnalyzerTests
+
+function concat(parts: readonly Uint8Array[]): Uint8Array {
+  const bytes = new Uint8Array(parts.reduce((sum, one) => sum + one.length, 0));
+  let at = 0;
+  for (const one of parts) {
+    bytes.set(one, at);
+    at += one.length;
+  }
+  return bytes;
+}
+
+const ascii = (text: string, width = text.length) => {
+  const bytes = new Uint8Array(width);
+  bytes.set(Uint8Array.from(text.slice(0, width), (one) => one.charCodeAt(0)));
+  return bytes;
+};
+
+/** An `$FPT` listing an FTPR at 0x1000, and a manifest there with `after` behind it. */
+function ftprRegion(manifestOptions: TestManifest, after: readonly Uint8Array[] = []): Uint8Array {
+  const table = fptRegion({
+    entries: [{ name: "FTPR", offset: 0x1000, size: 0x4000 }],
+    size: 0x1000,
+  });
+  return concat([table, manifest(manifestOptions), ...after]);
+}
+
+describe("the operational manifest's facts", () => {
+  it("falls back to a pre-CSE manifest's own VCN, with no production bit to read", () => {
+    const result = analyzeMeRegion({ bytes: ftprRegion({ format: "r0" }) });
+
+    expect(result.manifest?.format).toBe("r0");
+    expect(result.manifest?.vcn).toBe(2);
+    expect(result.manifest?.productionReady).toBeUndefined();
+    expect(result.vcn).toBe(2);
+    expect(result.arbSvn).toBeUndefined();
+    expect(result.codePartition).toBeUndefined();
+  });
+
+  it("reads Production Ready from an R1 manifest's flags", () => {
+    expect(analyzeMeRegion({ bytes: ftprRegion({ flags: 0x1 }) }).manifest?.productionReady).toBe(
+      true
+    );
+    expect(analyzeMeRegion({ bytes: ftprRegion({ flags: 0x2 }) }).manifest?.productionReady).toBe(
+      false
+    );
+  });
+
+  it("decodes a .met companion's body as a chain", () => {
+    const manChain = extConcat([extSystemInfo(true), extFeaturePermissions(4, 2)]);
+    const one = manifest();
+    const manifestBase = 0x10 + 2 * 0x18;
+    const manSpan = one.length + manChain.length;
+    const metBody = extConcat([extModuleAttributes(true), extBlock(0x09, 0x0c, 0x18)]);
+    const metBase = manifestBase + manSpan;
+    const directory = cpdDirectory({
+      name: "FTPR",
+      modules: [
+        { name: "$MN2", offset: manifestBase, size: manSpan },
+        { name: "kernel.met", offset: metBase, size: metBody.length },
+      ],
+    });
+
+    const result = analyzeMeRegion({
+      bytes: concat([directory, one, manChain, metBody]),
+      baseOffset: 0x1000,
+    });
+
+    const modules = result.codePartition?.modules ?? [];
+    expect(modules).toHaveLength(2);
+    expect(modules[0]?.extensions).toEqual(result.codePartition?.extensions);
+    expect(modules[0]?.extensions?.map((block) => block.tag)).toEqual([0x00, 0x02]);
+
+    const met = modules[1];
+    expect(met?.name).toBe("kernel.met");
+    const blocks = met?.extensions ?? [];
+    expect(blocks.map((block) => block.tag)).toEqual([0x0a, 0x09]);
+    expect(blocks[0]?.offset).toBe(0x1000 + metBase);
+    expect(blocks[0]?.moduleAttributes?.moduleHash).toHaveLength(96);
+    expect(blocks[1]?.moduleAttributes).toBeUndefined();
+    expect(blocks[1]?.specialFiles?.rows).toHaveLength(1);
+    expect(result.codePartition?.checksumValid).toBe(true);
+  });
+});
+
+// MARK: - The LZMA module check (issue 19)
+
+/**
+ * A `$CPD` with a `kernel` module stored as `stream` and a `kernel.met` that
+ * advertises LZMA, no encryption and `hash`. Upstream has no analyzer test of
+ * this; the check itself follows `lzmaValidationIssues`.
+ */
+function lzmaModuleRegion(options: {
+  readonly stream: Uint8Array;
+  readonly hash: Uint8Array;
+  readonly compressedSize?: number;
+}): Uint8Array {
+  const one = manifest();
+  const manifestBase = 0x10 + 3 * 0x18;
+  const moduleBase = manifestBase + one.length;
+  const metBase = moduleBase + options.stream.length;
+  // The revised block, with its 48-byte hash: an unidentified family's chain is
+  // read that way.
+  const met = extModuleAttributes(true);
+  met[0x08] = 2; // compression: LZMA
+  putU32(met, 0x0c, 3000);
+  putU32(met, 0x10, options.compressedSize ?? options.stream.length);
+  met.set(options.hash, 0x18);
+  const directory = cpdDirectory({
+    name: "FTPR",
+    modules: [
+      { name: "$MN2", offset: manifestBase, size: one.length },
+      { name: "kernel", offset: moduleBase, size: 3000 },
+      { name: "kernel.met", offset: metBase, size: met.length },
+    ],
+  });
+  return concat([directory, one, options.stream, met]);
+}
+
+/** The digest in the order a `.met` stores it: read backwards from the printed form. */
+const storedHash = (bytes: Uint8Array) => sha384(bytes).reverse();
+
+const lzmaIssues = (bytes: Uint8Array) =>
+  analyzeMeRegion({ bytes })
+    .issues.filter((one) => one.id === 19)
+    .map((one) => one.message);
+
+describe("the LZMA module check", () => {
+  const stream = fixtureBytes(LZMA_MODULE_BODY_STREAM);
+
+  it("passes a module that decompresses and matches its hash", () => {
+    const hash = storedHash(stream);
+    expect(hex(hash)).not.toBe(hex(sha384(stream)));
+    const bytes = lzmaModuleRegion({ stream, hash });
+    // The check has something to look at: the `.met` decoded as LZMA.
+    const met = analyzeMeRegion({ bytes }).codePartition?.modules.find(
+      (one) => one.name === "kernel.met"
+    );
+    expect(met?.extensions?.[0]?.moduleAttributes?.compression).toBe(2);
+    expect(lzmaIssues(bytes)).toEqual([]);
+  });
+
+  it("flags a module whose hash does not match", () => {
+    const hash = storedHash(stream);
+    hash[0] = (hash[0] ?? 0) ^ 0x01;
+    expect(lzmaIssues(lzmaModuleRegion({ stream, hash }))).toEqual([
+      'Hash of LZMA module "kernel" is invalid.',
+    ]);
+  });
+
+  it("flags a module that does not decompress", () => {
+    const broken = new Uint8Array(stream.length).fill(0xa5);
+    expect(lzmaIssues(lzmaModuleRegion({ stream: broken, hash: storedHash(broken) }))).toEqual([
+      'LZMA module "kernel" does not decompress.',
+    ]);
+  });
+
+  it("flags a module that runs past the end of the region", () => {
+    expect(
+      lzmaIssues(lzmaModuleRegion({ stream, hash: storedHash(stream), compressedSize: 0x10_0000 }))
+    ).toEqual(['LZMA module "kernel" extends past the end of the region; cannot verify it.']);
+  });
+});
+
+// MARK: - Upstream's PreCSEAnalyzerTests and PreCSEModuleAnalyzerTests
+
+/** The real T450 `$SKU` attributes. */
+const T450_SKU = concat([
+  ascii("$SKU"),
+  Uint8Array.of(4, 0, 0, 0, 0xcf, 0xfa, 0xff, 0xff, 0x0a, 0x43, 0, 0),
+]);
+
+const databaseNaming = (family: string) =>
+  MEADatabase.parse(`*** ME Analyzer Engine Firmware Repository Database ***
+*** Revision r378 (2026-09-06 , 14:48) ***
+
+*** RSA Public Keys ***
+RSAPKEY_${family}_${FIXTURE_KEY_HASH}`);
+
+const ME10: TestManifest = { format: "r0", major: 10, minor: 0, vcn: 2 };
+
+function mmeRow(name: string, sizeUncompressed: number): Uint8Array {
+  const row = new Uint8Array(0x60);
+  row.set(ascii("$MME"));
+  row.set(ascii(name, 16), 0x04);
+  putU32(row, 0x3c, sizeUncompressed);
+  return row;
+}
+
+function mcpHeader(codeSize: number, offsetPartFPT: number): Uint8Array {
+  const header = new Uint8Array(0x44);
+  header.set(ascii("$MCP"));
+  putU32(header, 0x08, codeSize);
+  putU32(header, 0x10, offsetPartFPT);
+  return header;
+}
+
+describe("a classic ME image", () => {
+  it("fills the SKU, the platform and the manifest's VCN", () => {
+    const result = analyzeMeRegion({
+      bytes: ftprRegion(ME10, [T450_SKU]),
+      database: databaseNaming("ME"),
+    });
+
+    expect(result.family).toBe("me");
+    expect(result.sku).toBe("5MB");
+    expect(result.platform).toBe("WPT-LP");
+    expect(result.manifest?.vcn).toBe(2);
+    expect(result.manifest?.major).toBe(10);
+    expect(result.codePartition).toBeUndefined();
+  });
+
+  it("leaves the pre-CSE decode alone when the family is not ME", () => {
+    const result = analyzeMeRegion({
+      bytes: ftprRegion(ME10, [T450_SKU]),
+      database: databaseNaming("CSME"),
+    });
+
+    expect(result.family).toBe("csme");
+    expect(result.sku).toBeUndefined();
+    expect(result.manifest?.vcn).toBe(2);
+  });
+
+  it("surfaces the $MME directory and its $MCP", () => {
+    const result = analyzeMeRegion({
+      bytes: ftprRegion({ ...ME10, numModules: 3 }, [
+        new Uint8Array(0xc),
+        mmeRow("UPDATE", 0x1000),
+        mmeRow("BUP", 0x1d000),
+        mmeRow("KERNEL", 0x56000),
+        new Uint8Array(0x60),
+        mcpHeader(0xaf6f4, 0x160000),
+        T450_SKU,
+      ]),
+      database: databaseNaming("ME"),
+    });
+
+    expect(result.sku).toBe("5MB");
+    expect(result.platform).toBe("WPT-LP");
+    const directory = result.mmeDirectory;
+    expect(directory?.offset).toBe(0x1000 + 0x284 + 0xc);
+    expect(directory?.manifestTag).toBe("$MN2");
+    expect(directory?.declaredModules).toBe(3);
+    expect(directory?.modules.map((one) => one.name)).toEqual(["UPDATE", "BUP", "KERNEL"]);
+    expect(directory?.modules[1]?.sizeUncompressed).toBe(0x1d000);
+    expect(directory?.mcp?.codeSize).toBe(0xaf6f4);
+    expect(directory?.mcp?.offsetPartFPT).toBe(0x160000);
+    expect(result.issues.some((one) => one.id === 11)).toBe(false);
+  });
+
+  it("notes a directory that declares more rows than it has", () => {
+    const result = analyzeMeRegion({
+      bytes: ftprRegion({ ...ME10, numModules: 4 }, [
+        new Uint8Array(0xc),
+        mmeRow("A", 1),
+        mmeRow("B", 1),
+        T450_SKU,
+      ]),
+      database: databaseNaming("ME"),
+    });
+
+    expect(result.mmeDirectory?.declaredModules).toBe(4);
+    expect(result.mmeDirectory?.modules).toHaveLength(2);
+    expect(result.issues.some((one) => one.id === 11 && one.severity === "note")).toBe(true);
+  });
+
+  it("reads no $MME directory for a CSME", () => {
+    const result = analyzeMeRegion({
+      bytes: ftprRegion({ ...ME10, numModules: 1 }, [
+        new Uint8Array(0xc),
+        mmeRow("KERNEL", 0x56000),
+        T450_SKU,
+      ]),
+      database: databaseNaming("CSME"),
+    });
+
+    expect(result.family).toBe("csme");
+    expect(result.mmeDirectory).toBeUndefined();
+  });
+});
+
+describe("independent firmware", () => {
+  it("analyses each independent partition over its own bytes, once", () => {
+    const table = fptRegion({
+      entries: [
+        { name: "FTPR", offset: 0x1000, size: 0x400 },
+        { name: "PMCP", offset: 0x2000, size: 0x400 },
+      ],
+      size: 0x1000,
+    });
+    const bytes = concat([
+      table,
+      manifest({ region: 0x1000 }),
+      manifest({ major: 150, minor: 2, hotfix: 10, build: 1015, region: 0x400 }),
+    ]);
+
+    const result = analyzeMeRegion({ bytes, baseOffset: 0x8000 });
+
+    expect(result.manifest?.offset).toBe(0x8000 + 0x1000);
+    expect(result.independentFirmware).toHaveLength(1);
+    const pmc = result.independentFirmware?.[0];
+    expect(pmc?.manifest?.offset).toBe(0x8000 + 0x2000);
+    expect(pmc?.manifest?.major).toBe(150);
+    expect(pmc?.sizeBytes).toBe(0x400);
+    expect(pmc?.independentFirmware).toBeUndefined();
   });
 });

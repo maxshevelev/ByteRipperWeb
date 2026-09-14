@@ -1,10 +1,49 @@
 import { hex, sha256 } from "@/firmware/me/crypto/digest";
 import { validateSignature } from "@/firmware/me/crypto/rsa";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
+import {
+  decompressHuffman,
+  dictionaryFor,
+  type HuffmanDictionaries,
+} from "@/firmware/me/decompress/huffman";
+import { decompressLzmaModule, lzmaHashMatches } from "@/firmware/me/decompress/lzmaModule";
 import { classifyFirmwareType, fptHeaderFIT } from "@/firmware/me/engine/firmwareTypeClassifier";
+import {
+  fwUpdateSupport,
+  iupPresence,
+  PCHC_PARTITION_NAMES,
+  PHY_PARTITION_NAMES,
+  PMC_PARTITION_NAMES,
+} from "@/firmware/me/engine/fwUpdateSupport";
+import { hasHuffmanModuleToValidate, metAttributes } from "@/firmware/me/engine/huffmanNeed";
 import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelection";
+import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
+import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
+import {
+  homeDirectory,
+  type MFSVolumeInfo,
+  mfsState,
+  parseMfs,
+  reservedIntegrity,
+  vfsStartsAtZero,
+} from "@/firmware/me/fileSystem/mfs";
+import { parseMfsBackup } from "@/firmware/me/fileSystem/mfsBackup";
+import { decodePchInit } from "@/firmware/me/fileSystem/pchInit";
+import { type ChipsetInitTable, csePlatformName } from "@/firmware/me/identify/csePlatform";
 import { identify } from "@/firmware/me/identify/identifier";
-import { parseFirstFpt } from "@/firmware/me/layout/fpt";
+import {
+  downgradeBlacklist,
+  preCseProductionReady,
+  preCseSummary,
+} from "@/firmware/me/identify/preCseMe";
+import { decodeMmeDirectory } from "@/firmware/me/identify/preCseModule";
+import { csmeSku } from "@/firmware/me/identify/sku";
+import { decodeGscInfo } from "@/firmware/me/iup/gscInfo";
+import { iupFacts } from "@/firmware/me/iup/iupDescriptor";
+import { decodeOromImages } from "@/firmware/me/iup/orom";
+import { firmwareEndLayout } from "@/firmware/me/layout/firmwareEnd";
+import { meRegion } from "@/firmware/me/layout/flashDescriptor";
+import { type FPTResult, parseFirstFpt } from "@/firmware/me/layout/fpt";
 import { bpdtTable, findBpdt } from "@/firmware/me/layout/ifwi";
 import {
   type Manifest,
@@ -12,12 +51,22 @@ import {
   parseManifestCandidates,
 } from "@/firmware/me/layout/manifest";
 import type {
+  EFSVolume,
+  MFSBackup,
+  MFSVolume,
+  OEMConfiguration,
+} from "@/firmware/me/models/fileSystemFacts";
+import type {
   BootPartition,
   CodePartition,
+  DowngradeBlacklist,
   FirmwareAnalysis,
   Issue,
   ManifestSummary,
+  MMEModuleDirectory,
 } from "@/firmware/me/models/firmwareAnalysis";
+import type { FPTRegionRow } from "@/firmware/me/models/firmwareFacts";
+import type { GSCInfo, RBEPMMetadata } from "@/firmware/me/models/independentFacts";
 import {
   cpdChecksumValid,
   cpdEntries,
@@ -26,11 +75,14 @@ import {
   trailingEmptyCpdEntries,
 } from "@/firmware/me/partition/cpd";
 import {
+  type ClientSystemInfoExtension,
   type CPDExtension,
   decodeExtensionChain,
+  decodeMetadataChain,
   extensionFacts,
   extensionFamily,
 } from "@/firmware/me/partition/extensions";
+import { decodeRbePmMetadata } from "@/firmware/me/partition/rbePm";
 
 /**
  * Analyses one engine region.
@@ -53,10 +105,33 @@ export function analyzeMeRegion(options: {
   readonly baseOffset?: number;
   /** Absent means the analysis runs without one, and identifies nothing. */
   readonly database?: MEADatabase;
+  /**
+   * `Huffman.dat`, for the checks that decompress a module. Absent, those checks
+   * are skipped rather than failed — see `huffmanDictionariesWanted`.
+   */
+  readonly huffmanDictionaries?: HuffmanDictionaries;
 }): FirmwareAnalysis {
-  const bytes = options.bytes;
-  const baseOffset = options.baseOffset ?? 0;
-  const database = options.database ?? MEADatabase.empty;
+  return analyze(
+    options.bytes,
+    options.baseOffset ?? 0,
+    options.database ?? MEADatabase.empty,
+    options.huffmanDictionaries,
+    true
+  );
+}
+
+/**
+ * The analysis proper. `findsIndependentFirmware` is false for the nested runs
+ * over the independent partitions this one finds, so an image cannot send the
+ * analyzer looking inside its own sub-firmware for ever.
+ */
+function analyze(
+  bytes: Uint8Array,
+  baseOffset: number,
+  database: MEADatabase,
+  dictionaries: HuffmanDictionaries | undefined,
+  findsIndependentFirmware: boolean
+): FirmwareAnalysis {
   const issues: Issue[] = [];
 
   // MARK: The partition table and what sits around it
@@ -86,8 +161,9 @@ export function analyzeMeRegion(options: {
             empty: slot.empty,
           })),
         };
+  const cseLayoutIssues: Issue[] = [];
   if (layout?.version === 0x17 && layout.checksumValid === false) {
-    issues.push({
+    cseLayoutIssues.push({
       id: 10,
       severity: "warning",
       message:
@@ -130,18 +206,42 @@ export function analyzeMeRegion(options: {
       })),
     });
   }
-  const isIFWI = bootPartitions.length > 0;
+  const boots = layout === undefined ? undefined : bootPartitions;
+
+  // MARK: The file systems
+
+  const fileSystems = decodeFileSystems(bytes, baseOffset, regions);
+
+  // A GSC image's INFO partition. Only GSC images name a partition INFO, so the
+  // name gates the decode.
+  let gscInfo: GSCInfo | undefined;
+  const gscInfoIssues: Issue[] = [];
+  const infoRegion = regions.find((one) => one.name === "INFO");
+  if (infoRegion !== undefined) {
+    gscInfo = decodeGscInfo(bytes, infoRegion.offset - baseOffset, infoRegion.size, baseOffset);
+    if (gscInfo !== undefined && !gscInfo.revisionValid) {
+      gscInfoIssues.push({
+        id: 12,
+        severity: "warning",
+        message:
+          `Unknown GSC Information Partition revision ${gscInfo.revision} at ` +
+          `0x${lowerHex(infoRegion.offset)}; expected 1.`,
+      });
+    }
+  }
 
   // MARK: The operational manifest
 
   const candidates = parseManifestCandidates(bytes);
   const manifest = selectOperationalManifest({ candidates, fpt, bytes });
-  const manifestSummary = manifest === undefined ? undefined : summarize(manifest, baseOffset);
+  const manifestSummary =
+    manifest === undefined ? undefined : summarize(manifest, bytes, baseOffset);
 
   // MARK: The directory that owns it
 
   let codePartition: CodePartition | undefined;
   let extensions: CPDExtension[] = [];
+  const cpdIssues: Issue[] = [];
   if (manifest !== undefined) {
     const owner = findPrecedingCpd(bytes, manifest.base);
     if (owner !== undefined) {
@@ -149,7 +249,7 @@ export function analyzeMeRegion(options: {
       const entries = cpdEntries(bytes, header);
       const checksumValid = cpdChecksumValid(bytes, header);
       if (checksumValid === false) {
-        issues.push({
+        cpdIssues.push({
           id: 4,
           severity: "warning",
           message: `Checksum of $CPD partition "${header.partitionName}" is INVALID.`,
@@ -157,7 +257,7 @@ export function analyzeMeRegion(options: {
       }
       const trailing = trailingEmptyCpdEntries(bytes, header);
       if (trailing > 0) {
-        issues.push({
+        cpdIssues.push({
           id: 5,
           severity: "note",
           message:
@@ -168,7 +268,7 @@ export function analyzeMeRegion(options: {
       }
       const contentEnd = cpdModuleContentEnd(header, entries);
       if (contentEnd > bytes.length) {
-        issues.push({
+        cpdIssues.push({
           id: 6,
           severity: "warning",
           message:
@@ -208,15 +308,35 @@ export function analyzeMeRegion(options: {
         name: header.partitionName,
         offset: baseOffset + header.base,
         headerVersion: header.headerVersion,
+        headerLength: header.headerLength,
         numModules: header.numModules,
         checksumValid,
         extensions,
-        modules: entries.map((entry) => ({
-          name: entry.name,
-          offset: baseOffset + header.base + entry.offset,
-          size: entry.size,
-          isHuffman: entry.isHuffman,
-        })),
+        modules: entries.map((entry) => {
+          const row = {
+            name: entry.name,
+            offset: baseOffset + header.base + entry.offset,
+            size: entry.size,
+            isHuffman: entry.isHuffman,
+          };
+          if (entry.isHuffman || entry.size <= 0) return row;
+          // A `.met` companion — always uncompressed — has a body that is a chain
+          // from its content base; the manifest module's row carries the
+          // partition's own chain, so every carrier shows its blocks.
+          if (entry.name.endsWith(".met")) {
+            return {
+              ...row,
+              extensions: decodeMetadataChain({
+                bytes,
+                contentBase: header.base + entry.offset,
+                bodySize: entry.size,
+                family,
+                baseOffset,
+              }),
+            };
+          }
+          return header.base + entry.offset === manifest.base ? { ...row, extensions } : row;
+        }),
       };
     }
   }
@@ -232,6 +352,15 @@ export function analyzeMeRegion(options: {
       message: "No $FPT partition table found in the region.",
     });
   }
+  // Upstream's order: the directory, the file systems, the layout table.
+  issues.push(
+    ...cpdIssues,
+    ...fileSystems.mfsIssues,
+    ...fileSystems.mfsBackupIssues,
+    ...fileSystems.fsIssues,
+    ...gscInfoIssues,
+    ...cseLayoutIssues
+  );
   if (rsaSignatureValid === false) {
     issues.push({
       id: 9,
@@ -248,7 +377,7 @@ export function analyzeMeRegion(options: {
     manifest: manifestSummary,
     codePartition,
     cseLayoutTable,
-    bootPartitions: bootPartitions.length > 0 ? bootPartitions : undefined,
+    bootPartitions: boots,
   };
 
   // Nothing to identify, and nothing to identify it against: the structural
@@ -280,6 +409,22 @@ export function analyzeMeRegion(options: {
       vcn: undefined,
       nvmCompatibility: undefined,
       workstationSupport: undefined,
+      sku: undefined,
+      firmwareSizeBytes: undefined,
+      mmeDirectory: undefined,
+      patsburgSupport: undefined,
+      downgradeBlacklist: undefined,
+      oemCustomized: undefined,
+      fwUpdateSupport: undefined,
+      independentFirmware: undefined,
+      mfsVolume: fileSystems.mfsVolume,
+      mfsBackup: fileSystems.mfsBackup,
+      efsVolume: fileSystems.efsVolume,
+      oemConfiguration: fileSystems.oemConfiguration,
+      mfsState: undefined,
+      gscInfo,
+      oromImages: undefined,
+      rbePmMetadata: undefined,
       issues,
       ...structural,
     };
@@ -312,7 +457,89 @@ export function analyzeMeRegion(options: {
   } else if (identity.databaseName === undefined) {
     issues.push({ id: 3, severity: "note", message: "This firmware is not in the database." });
   }
+  // Every declared-Huffman module whose `.met` advertises Huffman and no
+  // encryption must decompress to its declared size, against the dictionary for
+  // this identity. Without the dictionary the check is skipped, never failed.
+  if (
+    identity.identified &&
+    codePartition !== undefined &&
+    hasHuffmanModuleToValidate(codePartition)
+  ) {
+    issues.push(
+      ...huffmanValidationIssues(codePartition, bytes, baseOffset, identity, dictionaries)
+    );
+  }
 
+  // The LZMA half: every module whose `.met` advertises LZMA and no encryption
+  // must decompress and match its stored hash. It needs no dictionary and no
+  // database, so it runs for a firmware that was not identified too.
+  if (codePartition !== undefined) {
+    issues.push(...lzmaValidationIssues(codePartition, bytes, baseOffset));
+  }
+
+  // CSME 11+ SKU from the operational chain's 0x0C / 0x0F facts and the row.
+  const skuText = csmeSkuText(identity, codePartition, manifest);
+
+  // The independent families name their own chipset straight from the identity.
+  const iup = iupFacts({
+    family: identity.family,
+    variant: identity.variant,
+    major: identity.major,
+    minor: identity.minor,
+    hotfix: identity.hotfix,
+  });
+
+  // A classic ME's `$SKU`: no database needed once the family is named.
+  const preCSE =
+    identity.family === "me"
+      ? preCseSummary({
+          bytes,
+          manifestBase: manifest.base,
+          major: identity.major,
+          minor: identity.minor,
+          hotfix: identity.hotfix,
+          build: identity.build,
+        })
+      : undefined;
+
+  // A classic ME R0 manifest's `$MME` directory. One whose declared directory
+  // under-decodes is noted, never repaired.
+  let mmeDirectory: MMEModuleDirectory | undefined;
+  if (identity.family === "me" && manifest.format === "r0") {
+    mmeDirectory = decodeMmeDirectory({
+      bytes,
+      manifestBase: manifest.base,
+      headerLengthBytes: manifest.headerLengthBytes,
+      manifestTag: manifest.tag,
+      declaredModules: manifest.numModules ?? 0,
+      baseOffset,
+    });
+    if (mmeDirectory !== undefined && mmeDirectory.modules.length < mmeDirectory.declaredModules) {
+      issues.push({
+        id: 11,
+        severity: "note",
+        message:
+          `Pre-CSE ${manifest.tag} module directory declares ` +
+          `${mmeDirectory.declaredModules} modules but only ` +
+          `${mmeDirectory.modules.length} \`$MME\` rows decoded.`,
+      });
+    }
+  }
+
+  // An OROM image's option ROMs.
+  const oromImages = identity.family === "orom" ? decodeOromImages(bytes, baseOffset) : undefined;
+
+  // The operational partition's `pm` / `rbe` metadata table: read straight from
+  // an uncompressed body, or through the dictionary from a Huffman one.
+  const rbePmMetadata =
+    codePartition === undefined
+      ? undefined
+      : rbePmMetadataOf(codePartition, bytes, baseOffset, identity, dictionaries);
+
+  // Upstream's `ifwi_exist`: a non-empty Boot slot in the Layout Table, whether
+  // or not its descriptor table decoded.
+  const isIFWI =
+    fpt?.cseLayout?.slots.some((slot) => slot.name.startsWith("Boot") && !slot.empty) === true;
   const type = classifyFirmwareType({
     family: identity.family,
     major: identity.major,
@@ -320,6 +547,111 @@ export function analyzeMeRegion(options: {
     fpt,
     bytes,
   });
+
+  const oem = oemCustomized({
+    fpt,
+    bootPartitions: boots,
+    codePartition,
+    bytes,
+    baseOffset,
+  });
+
+  // Row 18: how far the firmware reaches from its `$FPT`. The same walk answers
+  // what FWUpdate Support needs to know about the image's tail.
+  const endLayout =
+    fpt === undefined
+      ? undefined
+      : firmwareEndLayout({
+          bytes,
+          partitions: fpt.partitions,
+          fptStart: fpt.fptStart,
+          cseLayout: fpt.cseLayout,
+          hasFlashDescriptor: meRegion(bytes) !== undefined,
+          ignores4KAlignment: identity.family === "csme" && identity.major >= 16,
+        });
+
+  const sku = preCSE?.sku ?? iup?.sku ?? skuText;
+  const fwUpdate =
+    endLayout === undefined
+      ? undefined
+      : fwUpdateSupport({
+          family: identity.family,
+          major: identity.major,
+          minor: identity.minor,
+          type,
+          sku: sku ?? "",
+          iup: iupPresence(fpt?.partitions ?? []),
+          layout: endLayout,
+          fptStart: fpt?.fptStart ?? 0,
+        });
+
+  // The legacy volume's home tree and reserved tables, and file 6's chipset
+  // initialisation tables: both are laid out by the identity's variant and
+  // version, so they wait for it. The home tree only on a volume whose files do
+  // not start at 0; the tables on any legacy volume.
+  const mfsInfo = fileSystems.mfsInfo;
+  let mfsVolume = fileSystems.mfsVolume;
+  if (mfsVolume !== undefined && mfsInfo !== undefined && !mfsVolume.usesFTBL) {
+    const { variant, major, minor } = identity;
+    if (!vfsStartsAtZero(variant, major, minor)) {
+      const layoutOf = {
+        files: mfsInfo.files,
+        variant,
+        major,
+        minor,
+        platform: mfsInfo.ftblPlatform,
+      };
+      mfsVolume = {
+        ...mfsVolume,
+        homeDirectory: homeDirectory(layoutOf),
+        reservedIntegrity: reservedIntegrity({ ...layoutOf, isAFS: false }),
+      };
+    }
+    mfsVolume = {
+      ...mfsVolume,
+      pchInit: decodePchInit(mfsInfo.files, mfsInfo.configurations, {
+        variant,
+        major,
+        minor,
+        build: identity.build,
+        year: manifest.year,
+        month: manifest.month,
+        day: manifest.day,
+      }),
+    };
+  }
+
+  // The four things that raise the File System State to Configured: the Flash
+  // Image Tool's own configuration module, and the three configuration
+  // partitions.
+  const configurationPresent =
+    fitConfiguration(codePartition, bytes, baseOffset) ||
+    (fpt?.partitions.some((part) => ["FITC", "CDMD", "MFSB"].includes(part.name) && !part.empty) ??
+      false);
+  const fileSystemState = mfsState({
+    usesFTBL: mfsInfo?.usesFTBL ?? false,
+    presentFileIndices: (mfsInfo?.files ?? [])
+      .filter((one) => one.content.length > 0)
+      .map((one) => one.index),
+    hasConfiguration: configurationPresent,
+  });
+
+  // The independent firmware stitched into this image, each analysed by this
+  // same pipeline over its own bytes. A partition that does not decode is left
+  // out rather than reported as an empty table.
+  const independent: FirmwareAnalysis[] = [];
+  if (findsIndependentFirmware) {
+    for (const [start, end] of independentSlots(fpt, boots, baseOffset, bytes.length)) {
+      const one = analyze(
+        bytes.subarray(start, end),
+        baseOffset + start,
+        database,
+        dictionaries,
+        false
+      );
+      if (one.manifest !== undefined) independent.push(one);
+    }
+  }
 
   return {
     family: identity.family,
@@ -337,8 +669,20 @@ export function analyzeMeRegion(options: {
     securityVersion: identity.securityVersion,
     release: identity.release,
     type,
-    chipsetStepping: identity.chipsetStepping,
-    platform: undefined,
+    // An IUP image's own derived letter, else what the database records.
+    chipsetStepping: iup?.chipsetStepping ?? identity.chipsetStepping,
+    // A pre-CSE family and an IUP image name their own platform; a CSE one is
+    // named from its version, only where no chipset initialisation table
+    // already says which chipset it initialises.
+    platform:
+      preCSE?.platform ??
+      iup?.platform ??
+      csePlatformName({
+        family: identity.family,
+        major: identity.major,
+        minor: identity.minor,
+        chipsetInitTable: chipsetInitTable(mfsVolume),
+      }),
     databaseName: identity.databaseName,
     arbSvn: facts.arbSvn,
     // The partition's own number where the chain gives one, then the signed
@@ -355,12 +699,32 @@ export function analyzeMeRegion(options: {
       isIFWI,
     }),
     powerDownMitigation: identity.powerDownMitigation,
+    sku,
+    firmwareSizeBytes: endLayout?.firmwareSize,
+    mmeDirectory,
+    patsburgSupport: preCSE?.patsburgSupport,
+    // ME 7 alone carries the two blacklist lines, at fixed offsets in its manifest.
+    downgradeBlacklist:
+      identity.family === "me" && identity.major === 7
+        ? blacklist(bytes, manifest.base)
+        : undefined,
+    oemCustomized: oem,
+    fwUpdateSupport: fwUpdate,
+    independentFirmware: independent.length === 0 ? undefined : independent,
+    mfsVolume,
+    mfsBackup: fileSystems.mfsBackup,
+    efsVolume: fileSystems.efsVolume,
+    oemConfiguration: fileSystems.oemConfiguration,
+    mfsState: fileSystemState,
+    gscInfo,
+    oromImages,
+    rbePmMetadata,
     issues,
     ...structural,
   };
 }
 
-function summarize(manifest: Manifest, baseOffset: number): ManifestSummary {
+function summarize(manifest: Manifest, bytes: Uint8Array, baseOffset: number): ManifestSummary {
   return {
     offset: baseOffset + manifest.base,
     tag: manifest.tag,
@@ -379,7 +743,564 @@ function summarize(manifest: Manifest, baseOffset: number): ManifestSummary {
     signatureHash:
       manifest.rsaSignature === undefined ? undefined : hex(sha256(manifest.rsaSignature)),
     vcn: manifest.vcn,
+    // A pre-CSE ME 8–10 or TXE keeps this bit in a `$DAT` marker past the
+    // manifest, and an ME 2–7 has none at all; a CSE manifest carries it in its
+    // own flags.
+    productionReady:
+      manifest.format === "r0" ? preCseProductionReady(bytes, manifest.base) : manifest.pvBit,
   };
+}
+
+/**
+ * The CSME 11+ SKU from the decoded 0x0C / 0x0F facts of the operational chain
+ * and the matched database row. The walker keeps one payload per block, and
+ * upstream keeps the last of each seen.
+ */
+function csmeSkuText(
+  identity: ReturnType<typeof identify>,
+  codePartition: CodePartition | undefined,
+  manifest: Manifest
+): string | undefined {
+  if (!identity.identified || identity.family !== "csme" || identity.major < 11) return undefined;
+  if (codePartition === undefined) return undefined;
+  let clientSystemInfo: ClientSystemInfoExtension | undefined;
+  let fwSku: number | undefined;
+  for (const extension of codePartition.extensions) {
+    if (extension.clientSystemInfo !== undefined) clientSystemInfo = extension.clientSystemInfo;
+    if (extension.signedPackage?.fwSku !== undefined) fwSku = extension.signedPackage.fwSku;
+  }
+  return csmeSku({
+    variant: identity.variant,
+    major: identity.major,
+    minor: identity.minor,
+    hotfix: identity.hotfix,
+    build: identity.build,
+    year: manifest.year,
+    month: manifest.month,
+    skuType: clientSystemInfo?.skuType,
+    skuCaps: clientSystemInfo?.skuCaps,
+    skuPlatform: clientSystemInfo?.skuPlatform,
+    fwSku,
+    databaseRow: identity.databaseName,
+  });
+}
+
+/**
+ * What is known about the image's chipset initialisation table.
+ *
+ * The decoded tables when there are some, "absent" when the volume was read and
+ * holds none — and "unknown" for a file-table volume with files in it, whose
+ * configuration needs `FileTable.dat` to read and may well carry one.
+ */
+function chipsetInitTable(volume: MFSVolume | undefined): ChipsetInitTable {
+  if ((volume?.pchInit?.chipsets.length ?? 0) > 0) return "present";
+  if (volume?.usesFTBL === true && volume.presentFileCount > 0) return "unknown";
+  return "absent";
+}
+
+// MARK: - The file systems
+
+interface FileSystems {
+  readonly mfsInfo: MFSVolumeInfo | undefined;
+  readonly mfsVolume: MFSVolume | undefined;
+  readonly mfsBackup: MFSBackup | undefined;
+  readonly efsVolume: EFSVolume | undefined;
+  readonly oemConfiguration: OEMConfiguration | undefined;
+  readonly mfsIssues: readonly Issue[];
+  readonly mfsBackupIssues: readonly Issue[];
+  readonly fsIssues: readonly Issue[];
+}
+
+const lowerHex = (value: number) => value.toString(16);
+const word = (value: number) => `0x${value.toString(16).toUpperCase().padStart(8, "0")}`;
+
+/**
+ * The MFS volume and its backup, the EFS volume and the FITC partition, each from
+ * the `$FPT` partition that names it, with the warnings upstream raises while
+ * still decoding them folded into one per structure.
+ */
+function decodeFileSystems(
+  bytes: Uint8Array,
+  baseOffset: number,
+  regions: readonly FPTRegionRow[]
+): FileSystems {
+  const mfsIssues: Issue[] = [];
+  const mfsBackupIssues: Issue[] = [];
+  const fsIssues: Issue[] = [];
+  let mfsInfo: MFSVolumeInfo | undefined;
+  let mfsVolume: MFSVolume | undefined;
+  let mfsBackup: MFSBackup | undefined;
+
+  const mfsRegion = regions.find((one) => one.name === "MFS");
+  if (mfsRegion !== undefined) {
+    const volumeOffset = mfsRegion.offset - baseOffset;
+    const info = parseMfs(bytes, volumeOffset, mfsRegion.size);
+    if (info !== undefined) {
+      mfsInfo = info;
+      // The present files are the used records whose chain assembled content.
+      const present = info.files.filter((one) => one.content.length > 0);
+      mfsVolume = {
+        offset: mfsRegion.offset,
+        pageSize: info.pageSize,
+        pageCount: info.systemPageCount + info.dataPageCount,
+        systemPageCount: info.systemPageCount,
+        dataPageCount: info.dataPageCount,
+        signatureValid: info.volumeSignatureValid,
+        volumeSize: info.volumeSize,
+        computedVolumeSize: info.computedVolumeSize,
+        fileRecordCount: info.fileRecordCount,
+        usedFileCount: info.usedFileCount,
+        ftblDictionary: info.ftblDictionary,
+        ftblPlatform: info.ftblPlatform,
+        ftblReserved: info.ftblReserved,
+        usesFTBL: info.usesFTBL,
+        presentFileCount: present.length,
+        fileBytes: present.reduce((sum, one) => sum + one.content.length, 0),
+        files: present.map((one) => ({ index: one.index, size: one.content.length })),
+        configurations: info.configurations.map((config) => ({
+          owningFile: config.owningFile,
+          records: config.records.map((record) => ({
+            name: record.name,
+            isFolder: record.isFolder,
+            size: record.size,
+            offset: record.offset,
+            unixRights: record.unixRights,
+            integrityProtection: record.integrity,
+            encryptionProtection: record.encryption,
+            antiReplayProtection: record.antiReplay,
+            oemConfigurable: record.oemConfigurable,
+            mcaConfigurable: record.mcaConfigurable,
+            reserved: record.reserved,
+            ownerUserID: record.ownerUserID,
+            ownerGroupID: record.ownerGroupID,
+          })),
+        })),
+        homeDirectory: undefined,
+        reservedIntegrity: [],
+        pchInit: undefined,
+      };
+      if (!info.volumeSignatureValid) {
+        mfsIssues.push({
+          id: 8,
+          severity: "warning",
+          message:
+            `MFS volume at 0x${lowerHex(mfsRegion.offset)} is present but its assembled System ` +
+            "volume header is missing or its signature is invalid.",
+        });
+      } else if (!info.fileChainsIntact) {
+        mfsIssues.push({
+          id: 13,
+          severity: "warning",
+          message:
+            `MFS volume at 0x${lowerHex(mfsRegion.offset)} has a low-level file whose FAT chunk ` +
+            "chain is corrupt (ends early or cycles).",
+        });
+      }
+    } else {
+      // A main MFS region with no pages may be in backup state instead.
+      mfsBackup = parseMfsBackup(bytes, volumeOffset, mfsRegion.size, mfsRegion.offset);
+      if (mfsBackup === undefined) {
+        mfsIssues.push({
+          id: 8,
+          severity: "warning",
+          message:
+            `Skipped MFS partition at 0x${lowerHex(mfsRegion.offset)}: ` +
+            "unrecognizable format (no MFS pages found).",
+        });
+      }
+    }
+  }
+
+  // A dedicated backup partition is decoded as one outright.
+  const mfsbRegion = regions.find((one) => one.name === "MFSB");
+  if (mfsBackup === undefined && mfsbRegion !== undefined) {
+    mfsBackup = parseMfsBackup(
+      bytes,
+      mfsbRegion.offset - baseOffset,
+      mfsbRegion.size,
+      mfsbRegion.offset
+    );
+    if (mfsBackup === undefined) {
+      mfsBackupIssues.push({
+        id: 8,
+        severity: "warning",
+        message: `Skipped MFS Backup partition at 0x${lowerHex(mfsbRegion.offset)}: unrecognizable format.`,
+      });
+    }
+  }
+
+  // Upstream's errors for a decoded backup, as two warnings: the header, and the
+  // body or its entries.
+  if (mfsBackup !== undefined) {
+    const at = `MFS Backup at 0x${lowerHex(mfsBackup.offset)}`;
+    if (mfsBackup.format === "r0") {
+      if (!mfsBackup.headerCRCValid) {
+        mfsBackupIssues.push({
+          id: 17,
+          severity: "warning",
+          message: `${at} (R0) Header CRC-32 ${word(mfsBackup.headerCRCStored)} is INVALID.`,
+        });
+      }
+      if (mfsBackup.reconstructedVolumeParses === false) {
+        mfsBackupIssues.push({
+          id: 18,
+          severity: "warning",
+          message: `${at} (R0) body does not reconstruct into a valid MFS volume.`,
+        });
+      }
+    } else {
+      const headerDefects: string[] = [];
+      if (mfsBackup.headerRevisionValid === false) {
+        headerDefects.push(`Revision ${mfsBackup.headerRevision ?? 0}, expected 1`);
+      }
+      if (!mfsBackup.headerCRCValid) {
+        headerDefects.push(`Header CRC-32 ${word(mfsBackup.headerCRCStored)} is INVALID`);
+      }
+      if (headerDefects.length > 0) {
+        mfsBackupIssues.push({
+          id: 17,
+          severity: "warning",
+          message: `${at} (R1): ${headerDefects.join("; ")}.`,
+        });
+      }
+      const entryDefects: string[] = [];
+      for (const entry of mfsBackup.entries) {
+        const defects: string[] = [];
+        if (!entry.revisionValid) defects.push(`Revision ${entry.revision}, expected 1`);
+        if (!entry.headerCRCValid) {
+          defects.push(`Entry Header CRC-32 ${word(entry.headerCRCStored)} is INVALID`);
+        }
+        if (!entry.dataCRCValid) {
+          defects.push(`Entry Data CRC-32 ${word(entry.dataCRCStored)} is INVALID`);
+        }
+        if (defects.length > 0) entryDefects.push(`entry ${entry.fileIndex} ${defects.join(", ")}`);
+      }
+      if (entryDefects.length > 0) {
+        mfsBackupIssues.push({
+          id: 18,
+          severity: "warning",
+          message: `${at} (R1): ${entryDefects.join("; ")}.`,
+        });
+      }
+    }
+  }
+
+  let efsVolume: EFSVolume | undefined;
+  const efsRegion = regions.find((one) => one.name === "EFS");
+  if (efsRegion !== undefined) {
+    efsVolume = parseEfs(
+      bytes,
+      efsRegion.offset - baseOffset,
+      efsRegion.size,
+      efsRegion.offset,
+      mfsInfo?.ftblDictionary
+    );
+    if (efsVolume === undefined) {
+      fsIssues.push({
+        id: 14,
+        severity: "warning",
+        message:
+          `Skipped EFS partition at 0x${lowerHex(efsRegion.offset)}: ` +
+          "unrecognizable format (no leading System page).",
+      });
+    } else {
+      const efs = efsVolume;
+      const defects: string[] = [];
+      if (efs.systemPageCount !== 1) {
+        defects.push(`detected ${efs.systemPageCount} System page(s), expected 1`);
+      }
+      if (!efs.scratchPagesEmpty) defects.push("data in Empty/Scratch page(s)");
+      if (efs.revision !== 1 || efs.unknown1 !== 2) {
+        defects.push(
+          `Revision,Unknown1 = 0x${efs.revision.toString(16).toUpperCase()},` +
+            `0x${efs.unknown1.toString(16).toUpperCase()}, expected 0x1,0x2`
+        );
+      }
+      if (!efs.systemHeaderCRCValid) defects.push("System Page Header CRC-32 is INVALID");
+      if (!efs.firstIndexPaddingEmpty) defects.push("data in System Page 1st Index Area Padding");
+      if (!efs.indexesCRCValid) defects.push("System Page Indexes CRC-32 is INVALID");
+      if (!efs.dataPageCountMatchesSystem) {
+        defects.push(
+          `detected ${efs.dataPageCount} Data Page(s), ` +
+            `expected ${efs.dataPagesCommitted + efs.dataPagesReserved}`
+        );
+      }
+      if (!efs.dataPageHeaderCRCsValid) defects.push("a Data Page Header CRC-32 is INVALID");
+      if (!efs.dataPageFooterCRCsValid) defects.push("a Data Page Footer CRC-32 is INVALID");
+      if (defects.length > 0) {
+        fsIssues.push({
+          id: 15,
+          severity: "warning",
+          message: `EFS partition at 0x${lowerHex(efsRegion.offset)}: ${defects.join("; ")}.`,
+        });
+      }
+    }
+  }
+
+  let oemConfiguration: OEMConfiguration | undefined;
+  const fitcRegion = regions.find((one) => one.name === "FITC");
+  if (fitcRegion !== undefined) {
+    oemConfiguration = parseFitc(
+      bytes,
+      fitcRegion.offset - baseOffset,
+      fitcRegion.size,
+      fitcRegion.offset
+    );
+    if (oemConfiguration !== undefined) {
+      const defects: string[] = [];
+      if (oemConfiguration.headerCRCValid === false) defects.push("Header CRC-32 is INVALID");
+      if (oemConfiguration.dataCRCValid === false) defects.push("Data CRC-32 is INVALID");
+      if (oemConfiguration.paddingAllFF === false) {
+        defects.push("data in padding, possibly unknown Header revision");
+      }
+      if (defects.length > 0) {
+        fsIssues.push({
+          id: 16,
+          severity: "warning",
+          message: `FITC partition at 0x${lowerHex(fitcRegion.offset)}: ${defects.join("; ")}.`,
+        });
+      }
+    }
+  }
+
+  return {
+    mfsInfo,
+    mfsVolume,
+    mfsBackup,
+    efsVolume,
+    oemConfiguration,
+    mfsIssues,
+    mfsBackupIssues,
+    fsIssues,
+  };
+}
+
+// MARK: - The checks that decompress a module
+
+interface IdentityFacts {
+  readonly variant: string;
+  readonly major: number;
+  readonly minor: number;
+}
+
+/** The dictionary for this identity, when there is one to use. */
+function usableDictionary(identity: IdentityFacts, dictionaries: HuffmanDictionaries | undefined) {
+  if (dictionaries === undefined || identity.major === 0 || identity.variant === "")
+    return undefined;
+  return dictionaryFor(dictionaries, identity.variant, identity.major, identity.minor);
+}
+
+/**
+ * Upstream's Huffman module check: a module whose `.met` advertises Huffman and
+ * no encryption is decompressed — sliced by the `.met`'s compressed size, chunk
+ * directory included — and its length compared with the declared uncompressed
+ * size.
+ */
+function huffmanValidationIssues(
+  codePartition: CodePartition,
+  bytes: Uint8Array,
+  baseOffset: number,
+  identity: IdentityFacts,
+  dictionaries: HuffmanDictionaries | undefined
+): Issue[] {
+  const dictionary = usableDictionary(identity, dictionaries);
+  if (dictionary === undefined) return [];
+  const issues: Issue[] = [];
+  for (const module of codePartition.modules) {
+    if (!module.isHuffman || module.size <= 0) continue;
+    const attributes = metAttributes(codePartition, module.name);
+    if (
+      attributes === undefined ||
+      attributes.compression !== 1 ||
+      attributes.encryption !== 0 ||
+      attributes.compressedSize <= 0 ||
+      attributes.uncompressedSize <= 0
+    ) {
+      continue;
+    }
+    // Module offsets are absolute here, where upstream's count from the `$CPD`.
+    const moduleBase = module.offset - baseOffset;
+    if (moduleBase + attributes.compressedSize > bytes.length) {
+      issues.push({
+        id: 7,
+        severity: "warning",
+        message:
+          `Huffman module "${module.name}" extends past the end of the region; ` +
+          "cannot verify its decompression.",
+      });
+      continue;
+    }
+    const result = decompressHuffman({
+      module: bytes.subarray(moduleBase, moduleBase + attributes.compressedSize),
+      compressedSize: attributes.compressedSize,
+      decompressedSize: attributes.uncompressedSize,
+      dictionary,
+    });
+    if (result.output.length !== attributes.uncompressedSize) {
+      issues.push({
+        id: 7,
+        severity: "warning",
+        message:
+          `Huffman module "${module.name}" did not decompress to its .met-declared size ` +
+          `(got 0x${lowerHex(result.output.length)} bytes, expected ` +
+          `0x${lowerHex(attributes.uncompressedSize)}).`,
+      });
+    } else if (!result.clean) {
+      issues.push({
+        id: 7,
+        severity: "warning",
+        message:
+          `Huffman module "${module.name}" decompressed to the right size but hit ` +
+          "unknown codewords / an early stream end.",
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * The `pm` / `rbe` module's metadata table. Best effort: an unreadable or short
+ * body, or a Huffman one with no dictionary to read it with, is nothing.
+ */
+function rbePmMetadataOf(
+  codePartition: CodePartition,
+  bytes: Uint8Array,
+  baseOffset: number,
+  identity: IdentityFacts,
+  dictionaries: HuffmanDictionaries | undefined
+): RBEPMMetadata[] | undefined {
+  const module = codePartition.modules.find((one) => one.name === "pm" || one.name === "rbe");
+  if (module === undefined || module.size <= 0) return undefined;
+  const moduleBase = module.offset - baseOffset;
+  if (moduleBase < 0) return undefined;
+  if (!module.isHuffman) {
+    if (moduleBase + module.size > bytes.length) return undefined;
+    return decodeRbePmMetadata(bytes.subarray(moduleBase, moduleBase + module.size));
+  }
+  const dictionary = usableDictionary(identity, dictionaries);
+  const attributes = metAttributes(codePartition, module.name);
+  if (
+    dictionary === undefined ||
+    attributes === undefined ||
+    attributes.compression !== 1 ||
+    attributes.encryption !== 0 ||
+    attributes.compressedSize <= 0 ||
+    attributes.uncompressedSize <= 0 ||
+    moduleBase + attributes.compressedSize > bytes.length
+  ) {
+    return undefined;
+  }
+  const result = decompressHuffman({
+    module: bytes.subarray(moduleBase, moduleBase + attributes.compressedSize),
+    compressedSize: attributes.compressedSize,
+    decompressedSize: attributes.uncompressedSize,
+    dictionary,
+  });
+  if (result.output.length !== attributes.uncompressedSize || !result.clean) return undefined;
+  return decodeRbePmMetadata(result.output);
+}
+
+/**
+ * Upstream's LZMA module check: a module whose `.met` advertises LZMA and no
+ * encryption is sliced by that `.met`'s compressed size — the `$CPD` row's size is
+ * the uncompressed one — decompressed, and checked against the stored hash.
+ */
+function lzmaValidationIssues(
+  codePartition: CodePartition,
+  bytes: Uint8Array,
+  baseOffset: number
+): Issue[] {
+  const issues: Issue[] = [];
+  for (const module of codePartition.modules) {
+    if (module.name.endsWith(".met") || module.name.endsWith(".man")) continue;
+    const attributes = metAttributes(codePartition, module.name);
+    if (
+      attributes === undefined ||
+      attributes.compression !== 2 ||
+      attributes.encryption !== 0 ||
+      attributes.compressedSize <= 0
+    ) {
+      continue;
+    }
+    const moduleBase = module.offset - baseOffset;
+    if (moduleBase < 0 || moduleBase + attributes.compressedSize > bytes.length) {
+      issues.push({
+        id: 19,
+        severity: "warning",
+        message: `LZMA module "${module.name}" extends past the end of the region; cannot verify it.`,
+      });
+      continue;
+    }
+    const stored = bytes.subarray(moduleBase, moduleBase + attributes.compressedSize);
+    const decompressed = decompressLzmaModule(stored, attributes.uncompressedSize);
+    if (decompressed === undefined) {
+      issues.push({
+        id: 19,
+        severity: "warning",
+        message: `LZMA module "${module.name}" does not decompress.`,
+      });
+      continue;
+    }
+    if (
+      attributes.moduleHash.length > 0 &&
+      !lzmaHashMatches(attributes.moduleHash, stored, decompressed)
+    ) {
+      issues.push({
+        id: 19,
+        severity: "warning",
+        message: `Hash of LZMA module "${module.name}" is invalid.`,
+      });
+    }
+  }
+  return issues;
+}
+
+/** ME 7's blacklist, or nothing when neither line blacklists anything. */
+function blacklist(bytes: Uint8Array, manifestBase: number): DowngradeBlacklist | undefined {
+  const entries = downgradeBlacklist(bytes, manifestBase);
+  if (entries.sevenZero === undefined && entries.sevenOne === undefined) return undefined;
+  return entries;
+}
+
+/**
+ * Where the independent firmware of an image sits, in the order the console
+ * prints their tables: every PMC, then every PCHC, then every PHY. Both
+ * inventories are searched, as upstream searches both — the region's own `$FPT`
+ * and each boot partition's table — since a stitched PMC lives in one or the
+ * other depending on how the image was built. Region-relative, clamped to what
+ * was handed over.
+ */
+function independentSlots(
+  fpt: FPTResult | undefined,
+  bootPartitions: readonly BootPartition[] | undefined,
+  baseOffset: number,
+  regionCount: number
+): (readonly [number, number])[] {
+  const candidates: { readonly name: string; readonly offset: number; readonly size: number }[] =
+    [];
+  for (const part of fpt?.partitions ?? []) {
+    if (!part.empty) candidates.push(part);
+  }
+  for (const boot of bootPartitions ?? []) {
+    for (const entry of boot.entries) {
+      // Boot table offsets are absolute in the analysed image.
+      if (!entry.empty) candidates.push({ ...entry, offset: entry.offset - baseOffset });
+    }
+  }
+
+  const slots: (readonly [number, number])[] = [];
+  for (const names of [PMC_PARTITION_NAMES, PCHC_PARTITION_NAMES, PHY_PARTITION_NAMES]) {
+    for (const candidate of candidates) {
+      if (!names.includes(candidate.name)) continue;
+      const start = candidate.offset;
+      if (start < 0 || candidate.size <= 0 || start >= regionCount) continue;
+      const end = Math.min(candidate.offset + candidate.size, regionCount);
+      // The same partition can be listed twice; one table per firmware.
+      if (slots.some(([one, two]) => one === start && two === end)) continue;
+      slots.push([start, end]);
+    }
+  }
+  return slots;
 }
 
 /**

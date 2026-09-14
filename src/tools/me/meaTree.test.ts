@@ -1,0 +1,347 @@
+import { describe, expect, it } from "vitest";
+import {
+  analysisWith,
+  bootFixture,
+  codePartitionFixture,
+  manifestFixture,
+  mfsBackupFixture,
+  mfsVolumeFixture,
+  versionWith,
+} from "@/tools/me/meaTesting";
+import {
+  CHECKSUMS_TITLE,
+  checksumsPath,
+  type MEANode,
+  meaZones,
+  PENDING_VALUE,
+  presentMEA,
+} from "@/tools/me/meaTree";
+
+/** Ported from upstream's `MEACuratorTests` — the curated tree and its one zone. */
+
+const field = (label: string, node: MEANode | undefined) =>
+  node?.fields.find((one) => one.label === label)?.value;
+const find = (title: string, nodes: readonly MEANode[] | undefined) =>
+  nodes?.find((one) => one.title === title);
+const region = (name: string, offset: number, size: number) => ({
+  index: 0,
+  name,
+  offset,
+  size,
+  flags: 0x8000,
+});
+const titles = (nodes: readonly MEANode[]) => nodes.map((one) => one.title);
+
+describe("group presence and order", () => {
+  it("skips absent groups and orders the rest", () => {
+    const roots = presentMEA(
+      analysisWith({ regions: [region("FTPR", 0x1000, 0x12_5000)] }),
+      undefined
+    );
+    // Checksums is the exception: it is the row selected to ask for the digests.
+    expect(titles(roots)).toEqual(["Firmware", "Regions (FPT)", "Checksums"]);
+  });
+
+  it("puts the structural groups in a fixed order", () => {
+    const roots = presentMEA(
+      analysisWith({
+        regions: [region("rbe", 0x100, 0x1000)],
+        cseLayoutTable: {
+          offset: 0,
+          version: 0x17,
+          redundancy: true,
+          checksumValid: true,
+          partitions: [{ name: "Data", offset: 0, size: 0x400, empty: false }],
+        },
+        bootPartitions: [bootFixture(true)],
+      }),
+      undefined
+    );
+    expect(titles(roots)).toEqual([
+      "Firmware",
+      "Regions (FPT)",
+      "CSE Layout Table",
+      "Boot Partitions (BPDT)",
+      "Checksums",
+    ]);
+  });
+
+  it("puts the code partition and manifest, then the MFS, before the fact groups", () => {
+    const roots = presentMEA(
+      analysisWith({
+        codePartition: codePartitionFixture(),
+        manifest: manifestFixture(),
+        mfsVolume: mfsVolumeFixture(),
+        issues: [{ id: 1, severity: "warning", message: "odd" }],
+      }),
+      { sha256: "ABCDEF", sha384: undefined, crc32: undefined }
+    );
+    expect(titles(roots)).toEqual([
+      "Firmware",
+      "Code Partition ($CPD)",
+      "Manifest",
+      "File System (MFS)",
+      "Checksums",
+      "Issues",
+    ]);
+  });
+
+  it("keeps paths stable per root and child", () => {
+    const roots = presentMEA(
+      analysisWith({ regions: [region("FTPR", 0x1000, 0x1000), region("FTUE", 0x2000, 0x800)] }),
+      undefined
+    );
+    expect(roots[0]?.path).toEqual([0]);
+    expect(roots[1]?.path).toEqual([1]);
+    expect(roots[1]?.children[0]?.path).toEqual([1, 0]);
+    expect(roots[1]?.children[1]?.path).toEqual([1, 1]);
+  });
+});
+
+describe("the identity", () => {
+  it("says what the firmware is, and leaves out what is empty", () => {
+    const firmware = presentMEA(
+      analysisWith({
+        securityVersion: "3",
+        platform: "CNL",
+        version: versionWith(15, 40, 37, 3121, [15, 40, 37, 3121]),
+      }),
+      undefined
+    )[0];
+    expect(firmware?.title).toBe("Firmware");
+    expect(firmware?.subtitle).toBe("CSME · 15.40.37.3121");
+    expect(field("Family", firmware)).toBe("CSME");
+    expect(field("Version", firmware)).toBe("15.40.37.3121");
+    expect(field("MEU Version", firmware)).toBe("15.40.37.3121");
+    expect(field("Release", firmware)).toBe("Production");
+    expect(field("Size", firmware)).toBe("0x200000 (2097152 bytes)");
+    expect(field("SKU", firmware)).toBeUndefined();
+    expect(field("RSA Signature Valid", firmware)).toBeUndefined();
+  });
+});
+
+describe("the layout", () => {
+  it("gives a region its range, second line and detail", () => {
+    const regions = presentMEA(
+      analysisWith({ regions: [region("FTPR", 0x1000, 0x12_5000)] }),
+      undefined
+    )[1];
+    expect(regions?.subtitle).toBe("1 region");
+    const ftpr = find("FTPR", regions?.children);
+    expect(ftpr?.subtitle).toBe("0x1000 · 0x125000");
+    expect(ftpr?.range).toEqual({ start: 0x1000, end: 0x12_6000 });
+    expect(field("Offset", ftpr)).toBe("0x1000");
+    expect(field("Size", ftpr)).toBe("0x125000 (1200128 bytes)");
+    expect(field("Flags", ftpr)).toBe("0x00008000");
+  });
+
+  it("says Empty for a section that holds nothing, and marks it", () => {
+    const roots = presentMEA(
+      analysisWith({
+        regions: [region("FTPR", 0x1000, 0x12_5000), region("FTUP", 0x5000, 0)],
+        cseLayoutTable: {
+          offset: 0,
+          version: 0x17,
+          redundancy: false,
+          checksumValid: true,
+          partitions: [{ name: "Boot 2", offset: 0x1000, size: 0x400, empty: true }],
+        },
+      }),
+      undefined
+    );
+    const regions = find("Regions (FPT)", roots);
+    const empty = find("FTUP", regions?.children);
+    expect(empty?.subtitle).toBe("0x5000 · Empty");
+    expect(field("Size", empty)).toBe("Empty");
+    expect(empty?.isEmptySection).toBe(true);
+    expect(empty?.range).toBeUndefined();
+    const real = find("FTPR", regions?.children);
+    expect(real?.subtitle).toBe("0x1000 · 0x125000");
+    expect(real?.isEmptySection).toBe(false);
+
+    const slot = find("Boot 2", find("CSE Layout Table", roots)?.children);
+    expect(slot?.isEmptySection).toBe(true);
+    expect(field("Size", slot)).toBe("0x400 (1024 bytes)");
+  });
+
+  it("nests boot partitions under their tables", () => {
+    const roots = presentMEA(
+      analysisWith({
+        cseLayoutTable: {
+          offset: 0,
+          version: 0x17,
+          redundancy: true,
+          checksumValid: true,
+          partitions: [{ name: "Data", offset: 0x1000, size: 0x400, empty: false }],
+        },
+        bootPartitions: [bootFixture(true)],
+      }),
+      undefined
+    );
+    const cse = roots[1];
+    expect(field("Checksum Valid", cse)).toBe("Yes");
+    const data = find("Data", cse?.children);
+    expect(data?.range).toEqual({ start: 0x1000, end: 0x1400 });
+    expect(field("Empty", data)).toBe("No");
+
+    const bp1 = find("Boot 1", find("Boot Partitions (BPDT)", roots)?.children);
+    expect(field("Version", bp1)).toBe("IFWI 1.7");
+    const ftpr = find("FTPR", bp1?.children);
+    expect(field("Type", ftpr)).toBe("0x0002");
+    expect(ftpr?.range).toEqual({ start: 0x5_9000, end: 0x17_e000 });
+  });
+});
+
+describe("the code partition and manifest", () => {
+  it("lists modules and extensions at their absolute bytes", () => {
+    const cpd = presentMEA(analysisWith({ codePartition: codePartitionFixture() }), undefined)[1];
+    expect(cpd?.subtitle).toBe("FTPR · R1");
+    expect(field("Header", cpd)).toBe("R1");
+    expect(field("Header Length", cpd)).toBe("0x10");
+    const modules = find("Modules", cpd?.children);
+    expect(modules?.subtitle).toBe("1 module");
+    const man = find("$MN2", modules?.children);
+    expect(man?.subtitle).toBe("0x1010 · 0x284");
+    expect(man?.range).toEqual({ start: 0x1010, end: 0x1294 });
+    const init = find("Init Script", find("Extensions", cpd?.children)?.children);
+    expect(field("Tag", init)).toBe("0x01");
+    expect(init?.range).toEqual({ start: 0x1040, end: 0x1048 });
+  });
+
+  it("dumps an extension's payload field by field", () => {
+    const cpd = presentMEA(
+      analysisWith({
+        codePartition: codePartitionFixture([
+          {
+            tag: 0x0f,
+            size: 0x34,
+            offset: 0x1048,
+            signedPackage: {
+              partitionName: "NVM0",
+              vcn: 3,
+              usageBitmap: "",
+              arbSvn: 6,
+              fwType: undefined,
+              fwSku: undefined,
+              nvmCompatibility: undefined,
+            },
+          },
+        ]),
+      }),
+      undefined
+    )[1];
+    const signed = find("Signed Package", find("Extensions", cpd?.children)?.children);
+    expect(field("Tag", signed)).toBe("0x0F");
+    expect(field("partitionName", signed)).toBe("NVM0");
+    expect(field("arbSvn", signed)).toBe("6");
+  });
+
+  it("gives a Huffman module no range", () => {
+    const fixture = codePartitionFixture();
+    const cpd = presentMEA(
+      analysisWith({
+        codePartition: {
+          ...fixture,
+          modules: fixture.modules.map((one) => ({ ...one, isHuffman: true })),
+        },
+      }),
+      undefined
+    )[1];
+    const man = find("$MN2", find("Modules", cpd?.children)?.children);
+    expect(man?.range).toBeUndefined();
+    expect(man?.subtitle).toBe("0x284 (644 bytes)");
+  });
+
+  it("says what the manifest carries", () => {
+    const m = presentMEA(analysisWith({ manifest: manifestFixture() }), undefined)[1];
+    expect(m?.title).toBe("Manifest");
+    expect(m?.subtitle).toBe("$MN2 · R1");
+    expect(field("Format", m)).toBe("R1");
+    expect(field("Version", m)).toBe("15.40.37.3121");
+    expect(field("Date", m)).toBe("2021-03-24");
+    expect(field("Production Ready", m)).toBe("Yes");
+    expect(m?.range).toBeUndefined();
+  });
+});
+
+describe("the MFS volume", () => {
+  it("lists its files without a range", () => {
+    const mfs = presentMEA(analysisWith({ mfsVolume: mfsVolumeFixture() }), undefined)[1];
+    expect(mfs?.title).toBe("File System (MFS)");
+    expect(field("Page Size", mfs)).toBe("0x1000 (4096 bytes)");
+    expect(field("Signature Valid", mfs)).toBe("Yes");
+    const files = find("Files", mfs?.children);
+    const f0 = find("File 0", files?.children);
+    expect(field("Index", f0)).toBe("0");
+    expect(f0?.range).toBeUndefined();
+    expect(find("File 2", files?.children)).toBeUndefined();
+  });
+});
+
+describe("the checksums group", () => {
+  it("waits with placeholders until it is asked for", () => {
+    const roots = presentMEA(analysisWith(), undefined);
+    const group = find(CHECKSUMS_TITLE, roots);
+    expect(group?.fields.map((one) => one.label)).toEqual(["SHA-256", "SHA-384", "CRC-32"]);
+    expect(new Set(group?.fields.map((one) => one.value))).toEqual(new Set([PENDING_VALUE]));
+    expect(checksumsPath(roots)).toEqual(group?.path);
+  });
+
+  it("shows the numbers once they arrive", () => {
+    const group = find(
+      CHECKSUMS_TITLE,
+      presentMEA(analysisWith(), { sha256: "AA", sha384: "BB", crc32: 0x1234_5678 })
+    );
+    expect(group?.fields).toEqual([
+      { label: "SHA-256", value: "AA" },
+      { label: "SHA-384", value: "BB" },
+      { label: "CRC-32", value: "0x12345678" },
+    ]);
+  });
+
+  it("goes when it was asked for and nothing came back", () => {
+    const roots = presentMEA(analysisWith(), {
+      sha256: undefined,
+      sha384: undefined,
+      crc32: undefined,
+    });
+    expect(find(CHECKSUMS_TITLE, roots)).toBeUndefined();
+    expect(checksumsPath(roots)).toBeUndefined();
+  });
+});
+
+describe("the fact groups", () => {
+  it("show issues and an MFS backup when present", () => {
+    const roots = presentMEA(
+      analysisWith({
+        issues: [{ id: 1, severity: "error", message: "checksum mismatch" }],
+        mfsBackup: mfsBackupFixture(),
+      }),
+      undefined
+    );
+    expect(titles(roots)).toEqual(["Firmware", "MFS Backup", "Checksums", "Issues"]);
+
+    const issue = find("Issues", roots)?.children[0];
+    expect(issue?.title).toBe("Error");
+    expect(issue?.subtitle).toBe("checksum mismatch");
+
+    const backup = find("MFS Backup", roots);
+    expect(backup?.subtitle).toBe("R1");
+    expect(field("File", find("Entry 6", backup?.children))).toBe("Intel Configuration");
+  });
+});
+
+describe("the zone a row publishes", () => {
+  it("is one focused zone for a row's bytes, and nothing otherwise", () => {
+    const roots = presentMEA(
+      analysisWith({ regions: [region("FTPR", 0x1000, 0x1000)] }),
+      undefined
+    );
+    const map = meaZones(roots[1]?.children[0]);
+    expect(map.zones).toHaveLength(1);
+    expect(map.focus).toBe("1/0");
+    expect(map.zones[0]).toEqual({ id: "1/0", name: "FTPR", start: 0x1000, end: 0x2000 });
+    expect(meaZones(undefined).zones).toEqual([]);
+    expect(meaZones(roots[0]).zones).toEqual([]);
+  });
+});
