@@ -363,10 +363,64 @@ textarea,
   min-width: 0;
 }
 
-.pane-label {
-  font-weight: 600;
+/* The pane's document glyph (`ui/pane/DocumentIcon`): outline for a file as it
+   is on disk, filled once it carries unsaved changes, and a plus badge for one
+   never saved. */
+.pane-document {
+  flex: none;
+  width: 15px;
+  height: 15px;
   color: var(--text-muted);
-  white-space: nowrap;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.pane-document[data-dirty] .pane-document-page {
+  fill: currentColor;
+}
+
+.pane-document-badge circle {
+  fill: var(--surface-raised);
+}
+
+.pane-document[data-dirty] .pane-document-badge circle {
+  fill: currentColor;
+  stroke: var(--surface-raised);
+}
+
+.pane-document[data-dirty] .pane-document-badge path {
+  stroke: var(--surface-raised);
+}
+
+/* A cross that closes something (`ui/shell/CloseButton`). */
+.close-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.close-button:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.close-button svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
 }
 
 .pane-name {
@@ -375,22 +429,7 @@ textarea,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.pane-close {
-  font: inherit;
-  padding: 0.1rem 0.45rem;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.pane-close:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
+  font-weight: 600;
 }
 
 /*
@@ -424,7 +463,7 @@ textarea,
   border-top-color: var(--accent);
 }
 
-.hex-pane[data-active] .pane-label {
+.hex-pane[data-active] .pane-document {
   color: var(--accent);
 }
 
@@ -1438,7 +1477,7 @@ button.uefi-title {
 }
 
 /* The rows are set inline from the divider's fraction. */
-.uefi-split {
+.tool-split {
   display: grid;
   grid-template-areas: "a" "divider" "b";
   min-height: 0;
@@ -1446,13 +1485,13 @@ button.uefi-title {
 
 /* Between two framed boxes the divider is the gap itself, with the line drawn
    only while it is being reached for. */
-.uefi-split > .pane-divider[data-layout="stacked"] {
+.tool-split > .pane-divider[data-layout="stacked"] {
   height: 6px;
   background: transparent;
 }
 
-.uefi-split > .pane-divider:hover,
-.uefi-split > .pane-divider:focus-visible {
+.tool-split > .pane-divider:hover,
+.tool-split > .pane-divider:focus-visible {
   background: linear-gradient(var(--accent), var(--accent)) center / 100% 1px no-repeat;
 }
 
@@ -1559,7 +1598,7 @@ button.uefi-title {
 
 /* A checksum that does not check out: the octagon upstream gives an error, in
    the colour and the shape, so it survives a theme and colour blindness. */
-.uefi-problem {
+.tool-problem {
   flex: none;
   display: grid;
   place-items: center;
@@ -1577,7 +1616,7 @@ button.uefi-title {
   color: var(--text-muted);
 }
 
-.uefi-notice {
+.tool-notice {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1585,7 +1624,7 @@ button.uefi-title {
   color: var(--text-muted);
 }
 
-.uefi-notice progress {
+.tool-notice progress {
   width: 150px;
 }
 
@@ -1715,43 +1754,85 @@ button.uefi-title {
 
 .fit-tool {
   display: grid;
-  /* The table, the detail of the row selected in it, the catalogue's status
-     line, and the problem list. The detail and the problems collapse to
-     nothing when there is nothing to say. */
+  /* The table's name, the entries over the detail, the findings, the button
+     and the notice line. The findings collapse to nothing when there are none. */
   grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  gap: 6px;
   height: 100%;
+  padding: 8px;
 }
 
 .fit-summary {
+  justify-self: start;
+  max-width: 100%;
   margin: 0;
-  padding: 0.35rem 0.6rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-size: 0.9em;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.fit-rows {
+.fit-summary[data-selected] {
+  color: var(--accent);
+}
+
+.fit-entries {
+  grid-area: a;
   overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  outline: none;
 }
 
+.fit-entries:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* Fixed widths, and the table scrolls sideways when they do not fit. */
 .fit-table {
-  --panel-cell-padding: 0.15rem 0.6rem 0.15rem 0;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }
 
-/* The head stays put while the rows scroll under it. */
-.fit-table thead th {
+.fit-head {
   position: sticky;
   top: 0;
+  z-index: 1;
+  height: 22px;
+  padding: 0 6px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
   background: var(--surface);
+  color: var(--text-muted);
+  font-weight: inherit;
+  text-align: left;
+  white-space: nowrap;
 }
 
-.fit-row {
-  cursor: default;
+.fit-head + .fit-head {
+  border-left: 1px solid var(--border);
 }
 
-.fit-row:hover {
+.fit-row > td {
+  height: 22px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-row:nth-child(even) {
   background: var(--surface-raised);
 }
 
@@ -1759,119 +1840,61 @@ button.uefi-title {
   background: var(--selection);
 }
 
-/* A row the validator complained about is marked where the eye lands on it,
-   not only in the list underneath — and by weight as well as by colour, so it
-   survives a theme switch and colour blindness. */
-.fit-row[data-problem] td {
-  color: var(--semantic-bad);
-  font-weight: 600;
-}
-
 .fit-number {
-  width: 2.5rem;
-  color: var(--text-faint);
-  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.fit-mono,
-.fit-target {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.9em;
-}
-
-.fit-target {
-  width: 99%;
-  color: var(--text-muted);
-}
-
-.fit-detail {
-  max-height: 40%;
-  overflow: auto;
-  padding: 0.4rem 0.6rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-sunken);
-  font-size: 0.9em;
-}
-
-.fit-detail h3 {
-  margin: 0 0 0.3rem;
-  font-size: 0.95em;
-}
-
-.fit-fields {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.1rem 0.6rem;
-  margin: 0;
-}
-
-.fit-fields dt {
-  color: var(--text-muted);
-}
-
-.fit-fields dd {
-  margin: 0;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-/* One value that reads as a problem — a checksum that does not check out — and
-   nothing else in the list changes. */
-.fit-fields dd[data-problem] {
-  color: var(--semantic-bad);
-}
-
-.fit-status {
+.fit-type {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-size: 0.85em;
+  gap: 4px;
+  min-width: 0;
 }
 
-/* Named rather than coloured alone: the three failures have three answers, and
-   the word is what says which. */
-.fit-catalogue-problem {
-  color: var(--semantic-caution);
+.fit-type-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.fit-catalogue-problem[data-kind="badResponse"] {
-  color: var(--semantic-bad);
-}
-
-/* How a row's microcode stands against the catalogue: a glyph and a colour, so
-   the state survives a theme switch, colour blindness and print. */
+/* How a row's microcode stands against the catalogue: a glyph and a colour. */
 .fit-latest {
-  display: inline-block;
-  width: 1.1em;
-  margin-right: 0.15rem;
-  font-size: 0.9em;
-  text-align: center;
-  cursor: help;
+  flex: none;
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .fit-latest[data-state="latest"] {
   color: var(--semantic-good);
 }
 
-.fit-latest[data-state="outdated"] {
+.fit-latest[data-state="outdated"],
+.fit-latest[data-state="undecided"] {
   color: var(--semantic-caution);
 }
 
-.fit-latest[data-state="undecided"] {
-  color: var(--text-faint);
+/* Plain lines under the table, flush with the panel's edges: without a frame
+   there is nothing for an inset to hold away from. */
+.fit-problems {
+  margin: 0 -8px;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
 }
 
-.fit-problems {
-  max-height: 8rem;
-  overflow: auto;
-  margin: 0;
-  padding: 0.3rem 0.6rem;
-  border-top: 1px solid var(--border);
-  list-style: none;
-  font-size: 0.85em;
+.fit-problems li {
+  height: 22px;
+  padding: 0 8px;
+  overflow: hidden;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
 }
 
 .fit-problems li[data-severity="error"] {
@@ -1879,168 +1902,447 @@ button.uefi-title {
 }
 
 .fit-problems li[data-severity="warning"] {
-  color: var(--semantic-caution);
-}
-
-/* The message is a button because it goes somewhere: every problem carries the
-   offset to look at. */
-.fit-problem {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.fit-problem:hover {
-  text-decoration: underline;
-}
-
-/* MARK: - The ME panel */
-
-.me-tool {
-  display: grid;
-  /* Everything the analysis found, and the database's own status line. */
-  grid-template-rows: minmax(0, 1fr) auto;
-  height: 100%;
-}
-
-.me-body {
-  overflow: auto;
-  padding: 0.4rem 0.6rem;
-}
-
-.me-facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.1rem 0.6rem;
-  margin: 0;
-  font-size: 0.9em;
-}
-
-.me-facts dt {
   color: var(--text-muted);
 }
 
-.me-facts dd {
-  margin: 0;
+.fit-buttons {
+  display: flex;
+  gap: 6px;
 }
 
-/* A value that reads as a problem, and one that reads as a confirmed check.
-   Both carry a mark as well as a colour, so neither depends on hue alone. */
-.me-facts dd[data-problem] {
+/* Named rather than coloured alone: the three failures have three answers. */
+.fit-catalogue-problem {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--semantic-caution);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-catalogue-problem[data-kind="badResponse"] {
   color: var(--semantic-bad);
+}
+
+/* MARK: - The ME panel (`tools/me/meTool`) */
+
+/*
+ * Laid out as upstream's: the tabs with the summary's copy buttons beside them,
+ * one content area that is the summary or the tree over the detail, and the
+ * notice line under both.
+ */
+.me-tool {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 8px;
+}
+
+/* The tabs centred, as a segmented control is; the buttons at the end. */
+.me-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+}
+
+.me-tabs {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  outline: none;
+}
+
+.me-tab {
+  padding: 1px 14px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.me-tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.me-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.me-actions {
+  position: absolute;
+  right: 0;
+  display: flex;
+  gap: 2px;
+}
+
+.me-action {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.me-action:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.me-action svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.me-content {
+  display: grid;
+  min-height: 0;
+}
+
+/* The waiting, empty and failed states: a symbol, a title, a line under it. */
+.me-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px;
+  text-align: center;
+}
+
+.me-placeholder svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.me-placeholder .me-placeholder-dot {
+  fill: var(--text-faint);
+  stroke: none;
+}
+
+/* The failed state's octagon is filled, in the error colour, with its mark in
+   the ground's colour — the shape says it as well as the hue. */
+.me-placeholder .me-placeholder-fill {
+  fill: var(--semantic-bad);
+  stroke: none;
+}
+
+.me-placeholder .me-placeholder-mark {
+  stroke: #fff;
+  stroke-width: 2.6;
+}
+
+.me-placeholder .me-placeholder-mark-dot {
+  fill: #fff;
+  stroke: none;
+}
+
+.me-placeholder-title {
+  margin: 0;
+  color: var(--text);
   font-weight: 600;
 }
 
-.me-facts dd[data-problem]::after {
-  content: " ✗";
+.me-placeholder-detail {
+  margin: 0;
+  color: var(--text-muted);
 }
 
-.me-facts dd[data-good] {
+.me-summary {
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+/* One grid for every block, so the values line up from the table to the
+   messages. */
+.me-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(8em, max-content) minmax(0, 1fr);
+  gap: 3px 16px;
+  align-items: baseline;
+}
+
+.me-summary-title {
+  grid-column: 1 / -1;
+  margin: 10px 0 2px;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.me-summary-label {
+  color: var(--text-muted);
+}
+
+.me-summary-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* A row the engine does not decode yet: a promise, and drawn as one. */
+.me-summary-value[data-soon] {
+  color: var(--text-faint);
+}
+
+.me-summary-value[data-tone="good"] {
   color: var(--semantic-good);
 }
 
-.me-facts dd[data-good]::after {
-  content: " ✓";
+.me-summary-value[data-tone="caution"] {
+  color: var(--semantic-caution);
 }
 
-.me-section {
-  margin-top: 0.8rem;
+.me-summary-value[data-tone="bad"] {
+  color: var(--semantic-bad);
 }
 
-.me-section h3 {
-  margin: 0 0 0.25rem;
-  color: var(--text-faint);
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.me-tree {
+  grid-area: a;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  outline: none;
 }
 
-.me-table {
-  width: 100%;
-  --panel-cell-padding: 0.12rem 0.5rem 0.12rem 0;
-  font-size: 0.9em;
+.me-tree:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
-.me-table tbody tr {
+/* Name takes the rest; the second column holds `offset · size` on most rows. */
+.me-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 150px);
+  align-items: center;
+  height: 22px;
+  white-space: nowrap;
   cursor: default;
 }
 
-.me-table tbody tr:hover {
+.me-row[data-alt] {
   background: var(--surface-raised);
 }
 
-.me-mono,
-.me-offset {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.95em;
+.me-row[data-selected] {
+  background: var(--selection);
 }
 
-/* A module the directory says is compressed — worth marking, since its size is
-   the uncompressed one and the bytes on disk are fewer. */
-.me-badge {
-  margin-left: 0.4rem;
-  padding: 0 0.25rem;
-  border: 1px solid var(--border);
-  border-radius: 3px;
+.me-row > span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+}
+
+/* A place in the layout that holds nothing. */
+.me-row[data-empty] {
   color: var(--text-faint);
-  font-size: 0.8em;
 }
 
-.me-offset {
+.me-name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.me-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.me-subtitle {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.me-row[data-empty] .me-subtitle {
+  color: inherit;
+}
+
+.me-twist {
+  flex: none;
+  width: 16px;
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--text-muted);
+  font-size: 0.8em;
   cursor: pointer;
 }
 
-.me-offset:hover {
-  text-decoration: underline;
+.me-twist:disabled {
+  cursor: default;
 }
 
-.me-issues {
-  margin: 0.8rem 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.85em;
-}
-
-.me-issues li {
-  padding: 0.1rem 0;
-}
-
-.me-issues li[data-severity="error"] {
+.me-notice-problem {
+  min-width: 0;
+  overflow: hidden;
   color: var(--semantic-bad);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.me-issues li[data-severity="warning"] {
+.me-notice-problem[data-kind="rateLimited"],
+.me-notice-problem[data-kind="offline"] {
   color: var(--semantic-caution);
 }
 
-.me-issues li[data-severity="note"] {
-  color: var(--text-muted);
+/* MARK: - The microcode form (`tools/fit/MicrocodeForm`) */
+
+.microcode-dialog {
+  width: min(40rem, 94vw);
+  max-width: min(40rem, 94vw);
 }
 
-.me-status {
+.microcode-filters {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-size: 0.85em;
+  gap: 8px;
 }
 
-.me-database-problem {
+.microcode-search {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* At least as tall as upstream's 260 points, and the sheet does not grow. */
+.microcode-list {
+  height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  outline: none;
+}
+
+.microcode-list:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.microcode-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.microcode-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 20px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.microcode-row > td {
+  height: 20px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.microcode-row[data-alt] {
+  background: var(--surface-raised);
+}
+
+.microcode-row[data-selected] {
+  background: var(--selection);
+}
+
+/* A pre-release is worth telling apart before it goes into a board. */
+.microcode-row[data-prerelease] .microcode-release {
   color: var(--semantic-caution);
 }
 
-.me-database-problem[data-kind="badResponse"] {
+/* The status takes whatever width the buttons leave, and wraps there. */
+.microcode-buttons {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.microcode-status {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.microcode-status[data-problem] {
   color: var(--semantic-bad);
+}
+
+.microcode-spinner {
+  flex: none;
+  align-self: center;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--text-muted);
+  border-radius: 50%;
+  animation: microcode-spin 0.8s linear infinite;
+}
+
+@keyframes microcode-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.microcode-buttons .is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.microcode-buttons .is-primary:disabled {
+  opacity: 0.5;
 }

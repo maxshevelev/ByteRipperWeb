@@ -385,6 +385,22 @@ export function AppShell() {
     return () => window.removeEventListener("mousedown", onMouseDown);
   }, []);
 
+  /**
+   * No browser context menu anywhere in the application.
+   *
+   * Back, Reload and Inspect over a dump are commands about the web page, not
+   * about the file — and one slip of Back throws the unsaved edits away. The
+   * only menus here are the ones this application builds (`openContextMenu`),
+   * and those are opened by their own handlers, which this does not stop: it
+   * only cancels the default, so a right-click with no menu of ours — or one
+   * whose menu turned out to have nothing to offer — shows nothing at all.
+   */
+  useEffect(() => {
+    const onContextMenu = (event: MouseEvent) => event.preventDefault();
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   const openFind = useCallback(() => {
     openSearch();
     focusFindInput();

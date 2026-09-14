@@ -93,10 +93,12 @@ export class HexHeaderRenderer {
     context.translate(-options.scrollLeft, 0);
 
     context.font = `${options.fontPx}px ${options.fontFamily}`;
-    context.textBaseline = "middle";
+    context.textBaseline = "alphabetic";
     context.fillStyle = colors.ink;
 
-    const middle = height / 2;
+    // The labels' ink centred in the strip, as the rows' glyphs are.
+    const ink = context.measureText("0A");
+    const middle = height / 2 + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2;
     context.fillText(OFFSET_TITLE, layout.offsetColumnFrame(0).x, middle);
     for (let column = 0; column < BYTES_PER_ROW; column++) {
       context.fillText(columnIndex(column), layout.hexByteX(column), middle);

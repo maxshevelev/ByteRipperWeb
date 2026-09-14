@@ -24,6 +24,8 @@ import { segmentsStore } from "@/state/segmentsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import { activeDecoder, HEX_FONT_SIZE_PX, type PaneId } from "@/state/workspaceStore";
+import { zoneStore } from "@/state/zoneStore";
+import { DocumentIcon } from "@/ui/pane/DocumentIcon";
 import {
   detectKeyboardPlatform,
   type HexKeyEvent,
@@ -33,6 +35,7 @@ import {
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
+import { CloseButton } from "@/ui/shell/CloseButton";
 import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 
 /**
@@ -852,6 +855,17 @@ export function HexPane({
    * thousands of rows, and the renderer refuses an identical set, so this
    * repaints exactly when a mark actually moved.
    */
+  /**
+   * The zones the open tool publishes for this pane, outlined over the bytes as
+   * upstream draws them — the focused one washed. The shell never sees a node;
+   * the ranges and the focus are the whole of what a tool asks to have drawn.
+   */
+  const zones = useStore(zoneStore).panes[paneId];
+  useEffect(() => {
+    rendererRef.current?.setZones(zones.zones, zones.focus);
+    scheduleDraw();
+  }, [zones, scheduleDraw]);
+
   const marks = useStore(bookmarksStore).bookmarks;
   useEffect(() => {
     rendererRef.current?.setBookmarks(new Set(marks.map((mark) => mark.row)));
@@ -1142,13 +1156,11 @@ export function HexPane({
         className="pane-header"
         onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
       >
-        <span className="pane-label">{label}</span>
+        <DocumentIcon slot={label} dirty={dirty} untitled={saved === undefined} />
         <span className="pane-name" title={name}>
           {name}
         </span>
-        <button type="button" className="pane-close" onClick={onClose} title={`Close ${label}`}>
-          Close
-        </button>
+        <CloseButton label={`Close ${label}`} onClick={onClose} />
       </header>
       {/*
         The scroller is a real scrolling element with a spacer inside it, so the

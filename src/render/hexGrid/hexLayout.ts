@@ -182,6 +182,26 @@ export class HexLayout {
     return this.leftPadding + this.offsetColumnWidth + this.gapAfterOffset + hexX;
   }
 
+  /**
+   * Where a run of filled hex cells begins: the middle of the space between
+   * `column` and the byte before it, so the fill's edge falls between two
+   * characters rather than against the first one. Inside a word the cells touch
+   * and the middle is their shared edge; before the row's first byte, half a
+   * character.
+   */
+  hexRunStart(column: number): number {
+    const x = this.hexByteX(column);
+    if (column <= 0) return x - this.charWidth / 2;
+    return (this.hexByteX(column - 1) + this.hexByteWidth + x) / 2;
+  }
+
+  /** Where a run of filled hex cells ends: the middle of the space after `column`. */
+  hexRunEnd(column: number): number {
+    const right = this.hexByteX(column) + this.hexByteWidth;
+    if (column >= BYTES_PER_ROW - 1) return right + this.charWidth / 2;
+    return (right + this.hexByteX(column + 1)) / 2;
+  }
+
   hexByteFrame(row: number, column: number): Rect {
     return {
       x: this.hexByteX(column),

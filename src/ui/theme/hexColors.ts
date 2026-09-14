@@ -27,6 +27,8 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   matchFill: "--match-fill",
   currentMatchFill: "--current-match-fill",
   bookmark: "--bookmark",
+  zoneFocused: "--zone-focused",
+  zoneOther: "--zone-other",
 };
 
 /** Reads the palette as it currently resolves on `element`. */

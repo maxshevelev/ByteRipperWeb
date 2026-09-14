@@ -16,6 +16,7 @@ import { workspaceStore } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { uefiZones } from "@/tools/uefi/uefiPresenter";
 import { nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
@@ -213,17 +214,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       const key = pathKey(node.id);
       setSelected(key);
       askFirmwareDetail(context.pane, node.id);
-      // The extent of what is selected, and of what is directly inside it — so
-      // the minimap's gutter shows where this thing is and how it is made up.
-      publishZones(context.pane, {
-        zones: [node, ...node.children].map((one) => ({
-          id: pathKey(one.id),
-          name: one.name,
-          start: one.header[0],
-          end: Math.max(one.body[1], one.tail[1]),
-        })),
-        focus: key,
-      });
+      // The node and its body, the body in focus — upstream's two zones, drawn
+      // over the dump and in the minimap's gutter. Never the children: a store's
+      // two hundred variables outlined at once is a dump nobody can read.
+      publishZones(context.pane, uefiZones(node));
       // The whole node, header through tail — what clicking a row means.
       context.reveal(node.header[0], Math.max(node.body[1], node.tail[1]));
     },
@@ -414,7 +408,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       </div>
 
       <div
-        className="uefi-split"
+        className="tool-split"
         style={{ gridTemplateRows: `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)` }}
       >
         <div
@@ -496,7 +490,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         />
       </div>
 
-      <footer className="uefi-notice">
+      <footer className="tool-notice">
         {finding ? (
           <>
             <span>Opening the branches to the caret…</span>
@@ -594,7 +588,7 @@ function TreeRow({
           {hasChildren ? (isOpen ? "▾" : "▸") : ""}
         </button>
         {problem === undefined ? null : (
-          <span className="uefi-problem" role="img" aria-label="Invalid" title={problem}>
+          <span className="tool-problem" role="img" aria-label="Invalid" title={problem}>
             !
           </span>
         )}

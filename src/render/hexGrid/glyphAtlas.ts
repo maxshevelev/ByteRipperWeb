@@ -67,6 +67,8 @@ export class GlyphAtlas {
   /** Tile index → position. Roles are contiguous blocks; see the offsets. */
   private readonly cellWidth: number;
   private readonly cellHeight: number;
+  /** Where a glyph's baseline sits inside its cell, in device pixels. */
+  private readonly baseline: number;
   /** The first tile index of each role's block. */
   private readonly roleBase = new Map<InkRole, number>();
 
@@ -74,12 +76,14 @@ export class GlyphAtlas {
     key: GlyphAtlasKey,
     canvas: AtlasCanvas,
     cellWidth: number,
-    cellHeight: number
+    cellHeight: number,
+    baseline: number
   ) {
     this.key = key;
     this.canvas = canvas;
     this.cellWidth = cellWidth;
     this.cellHeight = cellHeight;
+    this.baseline = baseline;
   }
 
   /** The image to blit from. */
@@ -111,11 +115,20 @@ export class GlyphAtlas {
       | null;
     if (context === null) throw new Error("a 2D context is required to build the glyph atlas");
 
-    const atlas = new GlyphAtlas(key, canvas, cellWidth, cellHeight);
-
-    context.textBaseline = "middle";
+    context.textBaseline = "alphabetic";
     context.textAlign = "left";
     context.font = `${key.fontSizePx * scale}px ${key.fontFamily}`;
+
+    // The ink of "0A" centred in the row, as upstream's `centeredBaseline` puts
+    // it. A `middle` baseline centres the em box instead, and the digits — which
+    // stand on the baseline and reach only the cap height — came out above the
+    // row's middle, so the selection and the caret bar under them looked as if
+    // they had slid down.
+    const ink = context.measureText("0A");
+    const baseline = Math.round(
+      cellHeight / 2 + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2
+    );
+    const atlas = new GlyphAtlas(key, canvas, cellWidth, cellHeight, baseline);
 
     let tile = 0;
     for (const role of INK_ROLES) {
@@ -180,7 +193,7 @@ export class GlyphAtlas {
   ): void {
     const column = tile % TILES_PER_ROW;
     const row = Math.floor(tile / TILES_PER_ROW);
-    context.fillText(text, column * this.cellWidth, row * this.cellHeight + this.cellHeight / 2);
+    context.fillText(text, column * this.cellWidth, row * this.cellHeight + this.baseline);
   }
 
   /**

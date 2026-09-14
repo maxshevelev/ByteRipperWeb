@@ -103,6 +103,24 @@ const PEER_CONTOUR_PADDING = 2;
 const PEER_CONTOUR_RADIUS = 3;
 const PEER_CONTOUR_LINE_WIDTH = 1.5;
 
+/**
+ * A published zone, drawn as upstream draws one: the mirror's own contour —
+ * same padding, same rounding — stroked at a steady strength, teal for the
+ * focused zone and khaki for the rest, and only the focused one washed. What is
+ * being worked on is told from what is merely in the map by hue and by the
+ * wash, never by how faintly the others are drawn.
+ */
+const ZONE_LINE_WIDTH = 2;
+const ZONE_ALPHA = 0.9;
+const ZONE_FILL_ALPHA = 0.1;
+
+/** A zone as the renderer holds it. */
+interface DrawnZone {
+  readonly start: number;
+  readonly end: number;
+  readonly focused: boolean;
+}
+
 export interface HexGridColors extends Record<InkRole, string> {
   readonly background: string;
   readonly selection: string;
@@ -121,6 +139,10 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly insertCaret: string;
   /** The bookmark's own colour, for the mark in the offset column (§20.4). */
   readonly bookmark: string;
+  /** The zone a tool has in focus: its outline and its wash. */
+  readonly zoneFocused: string;
+  /** Every other zone a tool has published. */
+  readonly zoneOther: string;
 }
 
 /** One piece's extent and the colour its rows are printed on. */
@@ -208,6 +230,13 @@ export class HexGridRenderer {
   private bookmarkRows: ReadonlySet<number> = new Set();
   /** The pieces and the paper each is printed on, in file order (§21.3). */
   private segments: readonly SegmentBand[] = [];
+  /**
+   * The zones the open tool has published, the focused one last — zones nest,
+   * the inner one is usually the focus, and its outline must not be crossed by
+   * a neighbour's.
+   */
+  private zones: readonly DrawnZone[] = [];
+  private readonly zoneContourCache = new Map<string, ContourPoint[][]>();
 
   private readonly dirty = new DirtyRows();
   /** The scroll offset the canvas currently holds, for the blit. */
@@ -393,6 +422,27 @@ export class HexGridRenderer {
     if (sameRows(this.bookmarkRows, rows)) return;
     this.bookmarkRows = rows;
     this.invalidateAll();
+  }
+
+  /**
+   * The zones a tool wants drawn over the bytes, and which of them is in focus.
+   *
+   * Repaints the rows the old and the new outlines reach and nothing else: a
+   * selection in a tool's tree moves one outline, not the whole dump.
+   */
+  setZones(
+    zones: readonly { readonly id: string; readonly start: number; readonly end: number }[],
+    focus: string | undefined
+  ): void {
+    const next = zones
+      .map((zone) => ({ start: zone.start, end: zone.end, focused: zone.id === focus }))
+      .sort((left, right) => Number(left.focused) - Number(right.focused));
+    if (sameZones(this.zones, next)) return;
+    for (const zone of [...this.zones, ...next]) {
+      const rows = contourRowSpan(zone.start, zone.end);
+      this.dirty.invalidate(rows.first, rows.end);
+    }
+    this.zones = next;
   }
 
   /** The segment tints. Empty for a file that has not been cut. */
@@ -596,11 +646,15 @@ export class HexGridRenderer {
     this.paintMatches(rowStart, y);
     this.paintDifferences(rowStart, y);
     this.paintSelection(rowStart, y);
-    this.paintPeerSelection(rowStart, y);
+    // The focused zone's wash over every background and under the bytes: over
+    // them it would dull the one thing the window is for, under an opaque
+    // segment tint it would vanish.
+    this.paintZoneFills(rowStart, y);
     this.paintAddress(rowStart, y);
 
     if (available === 0) {
       this.paintEofHatch(0, BYTES_PER_ROW, y);
+      this.paintOutlines(rowStart, y);
       return true;
     }
 
@@ -615,6 +669,7 @@ export class HexGridRenderer {
       // scroll reads as "still loading" and not as "this file is empty here".
       this.paintEofHatch(0, available, y, 0.4);
       if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
+      this.paintOutlines(rowStart, y);
       return false;
     }
 
@@ -631,6 +686,7 @@ export class HexGridRenderer {
       this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
     }
     if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
+    this.paintOutlines(rowStart, y);
     return !savedPending;
   }
 
@@ -931,35 +987,140 @@ export class HexGridRenderer {
     const row = rowStart / BYTES_PER_ROW;
     if (row < rows.first || row >= rows.end) return;
 
-    const { layout, colors } = config;
+    this.strokeContours(
+      y,
+      this.peerContours(),
+      config.colors.peerSelection,
+      PEER_CONTOUR_LINE_WIDTH,
+      1
+    );
+  }
+
+  /**
+   * Everything that is drawn over the bytes rather than under them, in
+   * upstream's order: the zones' outlines, then the other pane's selection.
+   */
+  private paintOutlines(rowStart: number, y: number): void {
+    this.paintZoneOutlines(rowStart, y);
+    this.paintPeerSelection(rowStart, y);
+  }
+
+  /** The zones whose outline reaches this row, each with its contour. */
+  private zonesAt(rowStart: number): { zone: DrawnZone; contours: ContourPoint[][] }[] {
+    const config = this.config;
+    if (config === undefined || this.zones.length === 0) return [];
+    const size = this.source?.size ?? 0;
+    const row = rowStart / BYTES_PER_ROW;
+    const found: { zone: DrawnZone; contours: ContourPoint[][] }[] = [];
+    for (const zone of this.zones) {
+      const end = Math.min(zone.end, size);
+      if (end <= zone.start) continue;
+      const rows = contourRowSpan(zone.start, end);
+      if (row < rows.first || row >= rows.end) continue;
+      const { layout } = config;
+      const key = `${zone.start}:${end}:${layout.wordSize}:${layout.charWidth}:${layout.rowHeight}`;
+      let contours = this.zoneContourCache.get(key);
+      if (contours === undefined) {
+        contours = selectionContours(zone.start, end, layout, PEER_CONTOUR_PADDING);
+        // Bounded: a tree selection publishes a new set every click.
+        if (this.zoneContourCache.size > 512) this.zoneContourCache.clear();
+        this.zoneContourCache.set(key, contours);
+      }
+      found.push({ zone, contours });
+    }
+    return found;
+  }
+
+  private paintZoneFills(rowStart: number, y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    for (const { zone, contours } of this.zonesAt(rowStart)) {
+      if (zone.focused) this.fillContours(y, contours, config.colors.zoneFocused, ZONE_FILL_ALPHA);
+    }
+  }
+
+  private paintZoneOutlines(rowStart: number, y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    for (const { zone, contours } of this.zonesAt(rowStart)) {
+      const colour = zone.focused ? config.colors.zoneFocused : config.colors.zoneOther;
+      this.strokeContours(y, contours, colour, ZONE_LINE_WIDTH, ZONE_ALPHA);
+    }
+  }
+
+  /**
+   * Strokes closed contours inside this row's band — the one outline code the
+   * mirrored selection and every zone go through.
+   *
+   * Clipped to the row, and the *whole* contour stroked inside it. The renderer
+   * repaints dirty rows, not regions, so a contour drawn once would be erased the
+   * next time any row it crosses is repainted. Each row stroking its own slice
+   * of the same path puts them back together — and because the path has no
+   * interior edges, no line appears between rows.
+   */
+  private strokeContours(
+    y: number,
+    contours: readonly (readonly ContourPoint[])[],
+    style: string,
+    lineWidth: number,
+    alpha: number
+  ): void {
+    if (contours.length === 0) return;
     const context = this.context;
     context.save();
-    // Clipped to this row's band, and the *whole* contour stroked inside it.
-    // The renderer repaints dirty rows, not regions, so a contour drawn once
-    // would be erased the next time any row it crosses is repainted. Each row
-    // stroking its own slice of the same path puts them back together — and
-    // because the path has no interior edges, no line appears between rows.
-    context.beginPath();
-    context.rect(
+    this.clipToRow(y);
+    context.globalAlpha = alpha;
+    context.strokeStyle = style;
+    context.lineWidth = lineWidth;
+    context.lineJoin = "round";
+    this.traceRelative(contours);
+    context.stroke();
+    context.restore();
+  }
+
+  /** Fills closed contours inside this row's band; see {@link strokeContours}. */
+  private fillContours(
+    y: number,
+    contours: readonly (readonly ContourPoint[])[],
+    style: string,
+    alpha: number
+  ): void {
+    if (contours.length === 0) return;
+    const context = this.context;
+    context.save();
+    this.clipToRow(y);
+    context.globalAlpha = alpha;
+    context.fillStyle = style;
+    this.traceRelative(contours);
+    context.fill();
+    context.restore();
+  }
+
+  private clipToRow(y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    const { layout } = config;
+    this.context.beginPath();
+    this.context.rect(
       this.viewport.scrollLeft,
       y,
       Math.max(layout.contentWidth, this.viewport.widthCss),
       layout.rowHeight
     );
-    context.clip();
+    this.context.clip();
+  }
 
-    context.strokeStyle = colors.peerSelection;
-    context.lineWidth = PEER_CONTOUR_LINE_WIDTH;
-    context.lineJoin = "round";
-    context.beginPath();
-    // The contour is geometry in content coordinates; drawn, it is moved to the
-    // paint's origin like everything else (see `originY`).
-    for (const contour of this.peerContours()) {
+  /**
+   * Traces contours as one path. They are geometry in content coordinates;
+   * drawn, they are moved to the paint's origin like everything else (see
+   * `originY`).
+   */
+  private traceRelative(contours: readonly (readonly ContourPoint[])[]): void {
+    this.context.beginPath();
+    for (const contour of contours) {
       const relative = contour.map((point) => ({ x: point.x, y: point.y - this.originY }));
-      traceContour(context, relative, PEER_CONTOUR_RADIUS);
+      traceContour(this.context, relative, PEER_CONTOUR_RADIUS);
     }
-    context.stroke();
-    context.restore();
   }
 
   /**
@@ -1000,13 +1161,11 @@ export class HexGridRenderer {
 
     const { layout, colors } = config;
     this.context.fillStyle = colors.selection;
-    // The hex cells, and the decoded characters beside them.
-    this.context.fillRect(
-      layout.hexByteX(from),
-      y,
-      layout.hexByteX(to - 1) + layout.hexByteWidth - layout.hexByteX(from),
-      layout.rowHeight
-    );
+    // The hex cells, their vertical edges in the middle of the space between
+    // two characters rather than against the first and last glyph — and the
+    // decoded characters beside them, whose cells already touch.
+    const left = layout.hexRunStart(from);
+    this.context.fillRect(left, y, layout.hexRunEnd(to - 1) - left, layout.rowHeight);
     this.context.fillRect(layout.textX(from), y, (to - from) * layout.charWidth, layout.rowHeight);
   }
 
@@ -1112,6 +1271,21 @@ function sameRows(left: ReadonlySet<number>, right: ReadonlySet<number>): boolea
   if (left.size !== right.size) return false;
   for (const row of left) if (!right.has(row)) return false;
   return true;
+}
+
+function sameZones(left: readonly DrawnZone[], right: readonly DrawnZone[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((zone, index) => {
+      const other = right[index];
+      return (
+        other !== undefined &&
+        zone.start === other.start &&
+        zone.end === other.end &&
+        zone.focused === other.focused
+      );
+    })
+  );
 }
 
 function sameBands(left: readonly SegmentBand[], right: readonly SegmentBand[]): boolean {

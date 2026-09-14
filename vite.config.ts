@@ -4,6 +4,12 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    // The dev server answers only the hosts it knows by name, which is Vite's
+    // guard against DNS rebinding. The bench machines on the local network reach
+    // it by these.
+    allowedHosts: ["admins-imac", "admins-imac.local"],
+  },
   build: {
     // `benchmarks/paint/` is a page Vite serves in development and Playwright
     // will drive in M12. It is not part of the app and does not ship.

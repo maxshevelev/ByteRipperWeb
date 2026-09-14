@@ -9,6 +9,7 @@ import {
   stepSearch,
 } from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
+import { CloseButton } from "@/ui/shell/CloseButton";
 
 /**
  * The find bar.
@@ -173,14 +174,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
 
         <span className="find-status">{statusText(state)}</span>
         <span className="toolbar-spacer" />
-        <button
-          type="button"
-          className="toolbar-button"
-          onClick={closeSearch}
-          title="Close (Escape)"
-        >
-          Close
-        </button>
+        <CloseButton label="Close (Escape)" onClick={closeSearch} />
       </form>
     </search>
   );
