@@ -29,6 +29,16 @@ export function ToolPanel({
   const workspace = useStore(workspaceStore);
   const { toolId, width } = useStore(toolPanelStore);
   const [pane, setPane] = useState<"a" | "b">(workspace.activePane);
+  // The pane the panel was about has closed: it moves to the one still open,
+  // which closing made the active one. Adjusted during render rather than in an
+  // effect, so the empty state never flashes between the two.
+  if (
+    workspace.panes[pane] === undefined &&
+    workspace.panes[workspace.activePane] !== undefined &&
+    pane !== workspace.activePane
+  ) {
+    setPane(workspace.activePane);
+  }
   const tool = toolId === undefined ? undefined : toolById(toolId);
 
   const reveal = useCallback(
