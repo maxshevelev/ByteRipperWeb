@@ -160,9 +160,10 @@ export function resolveHexKey(
         // The other spelling of Find Next, and Shift for the other direction.
         return extend ? { kind: "findPrevious" } : { kind: "findNext" };
       case "z":
-        return { kind: "undo", batch: false };
       case "Z":
-        // Shift+Cmd/Ctrl+Z is Redo everywhere this app runs.
+        // Shift+Cmd/Ctrl+Z is Redo everywhere this app runs. Shift is read from
+        // the modifier, not from the letter's case: with Cmd held, a Mac's
+        // browser reports the key as "z" whether Shift is down or not.
         return extend ? { kind: "redo" } : { kind: "undo", batch: false };
       case "y":
       case "Y":

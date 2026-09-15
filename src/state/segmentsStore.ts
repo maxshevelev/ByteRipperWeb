@@ -159,6 +159,25 @@ export function redoSegments(pane: PaneId): boolean {
   return true;
 }
 
+/**
+ * Puts a partition back exactly as it was, history untouched.
+ *
+ * For undo and redo of an edit. Moving the cuts through the edit's inverse is
+ * lossy — a delete that swallowed a cut cannot give it back — so the router
+ * restores the partition it saw on either side of the act instead, the way
+ * upstream restores a snapshot per transaction.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.restore
+ * @upstream-differs the snapshot is the partition alone; the store's own history stays where it is
+ */
+export function restorePartition(pane: PaneId, partition: Segmentation): void {
+  const current = segmentsStore.getSnapshot().panes[pane];
+  if (current === undefined || current.partition === partition) return;
+  segmentsStore.update((state) => ({
+    panes: { ...state.panes, [pane]: { ...current, partition } },
+  }));
+}
+
 export function canUndoSegments(pane: PaneId): boolean {
   return (segmentsStore.getSnapshot().panes[pane]?.past.length ?? 0) > 0;
 }

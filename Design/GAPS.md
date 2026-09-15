@@ -161,6 +161,7 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| Redo of a join, and ⇧⌘Z: redo restores the partition as the join left it — the seam cut and both names — and detaches the pane from its file again; ⇧⌘Z is Redo where a Mac's browser reports the key as a lower-case `z`; undo and redo keep the dump mounted and focused, and take ⌘Z / ⇧⌘Z / Ctrl+Y for the active pane wherever the keyboard is | 2026-09-16 |
 | A join shows its seam: after Append File or Insert File at Start, from the menu or a drop band, the caret stays at the start of the added part and the pane that took the file centres it, where the view used to jump to the top and take both carets there | 2026-09-15 |
 | G22 — Fill Selection starts from the last pattern used, `FF` until one has been, kept in `localStorage` | 2026-09-15 |
 | G18 — A click on the minimap near a bookmark's mark goes to its row, and a click on the segment strip to the byte under it or to the nearest cut in reach; the gutter between side-by-side maps is upstream's 5 % of the panel, and the edge snap its 4 px | 2026-09-15 |

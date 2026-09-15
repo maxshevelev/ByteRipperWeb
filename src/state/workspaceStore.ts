@@ -130,7 +130,11 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   document.onTransactionCommitted(noteDocumentChanged);
   // The order the two histories are undone in — an edit and a cut are both
   // undoable and Cmd/Ctrl+Z has to take back whichever came last.
-  document.onTransactionCommitted(() => noteDocumentAct(pane));
+  document.onTransactionCommitted(() => {
+    noteDocumentAct(pane);
+    // A new step is a new future: an undone join can no longer be redone.
+    undoneJoins[pane].length = 0;
+  });
   return { document, typing };
 }
 
@@ -696,9 +700,13 @@ interface JoinMark {
   readonly file: OpenedFile;
   readonly saved: ByteStorage | undefined;
   readonly writable: boolean;
+  /** What the join made of the pane, so a redo can detach it again. */
+  readonly joined: { readonly name: string; readonly file: OpenedFile };
 }
 
 const joinMarks: Record<PaneId, JoinMark[]> = { a: [], b: [] };
+/** Joins undone and not yet redone, newest last. */
+const undoneJoins: Record<PaneId, JoinMark[]> = { a: [], b: [] };
 
 /**
  * `bios.bin` becomes `bios-2.bin`, stepping over the names already on screen.
@@ -756,7 +764,7 @@ async function performJoin(request: JoinRequest): Promise<void> {
 
   const sizeBefore = slot.document.size;
   const sourceSize = source.size;
-  const before: Omit<JoinMark, "serial"> = {
+  const before: Omit<JoinMark, "serial" | "joined"> = {
     name: slot.name,
     file: slot.file,
     saved: slot.saved,
@@ -789,7 +797,7 @@ async function performJoin(request: JoinRequest): Promise<void> {
       activePane: pane,
     };
   });
-  if (serial !== undefined) joinMarks[pane].push({ ...before, serial });
+  if (serial !== undefined) joinMarks[pane].push({ ...before, serial, joined: { name, file } });
 
   // One edit, not one per chunk: everything downstream cares only about which
   // offsets stopped meaning what they meant.
@@ -857,32 +865,41 @@ function seamCut(options: {
  * the file holds — so the name, the file and the saved copy come back with it.
  */
 export function syncJoinAttachment(pane: PaneId): void {
-  const marks = joinMarks[pane];
-  if (marks.length === 0) return;
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
-
+  const marks = joinMarks[pane];
+  const undone = undoneJoins[pane];
   const applied = slot.document.undoHistory.lastCommittedSerial ?? 0;
-  const mark = marks[marks.length - 1];
-  if (mark === undefined || applied >= mark.serial) return;
 
-  marks.pop();
+  let attachment: Pick<PaneState, "name" | "file" | "saved" | "writable"> | undefined;
+  // Undone: the join's step has left the history, so the file comes back.
+  for (let mark = marks.at(-1); mark !== undefined && applied < mark.serial; mark = marks.at(-1)) {
+    marks.pop();
+    undone.push(mark);
+    attachment = { name: mark.name, file: mark.file, saved: mark.saved, writable: mark.writable };
+  }
+  // Redone: the step is back, and the pane is the joined image again.
+  for (
+    let mark = undone.at(-1);
+    mark !== undefined && applied >= mark.serial;
+    mark = undone.at(-1)
+  ) {
+    undone.pop();
+    marks.push(mark);
+    attachment = {
+      name: mark.joined.name,
+      file: mark.joined.file,
+      saved: undefined,
+      writable: false,
+    };
+  }
+  if (attachment === undefined) return;
+
+  const next = attachment;
   workspaceStore.update((state) => {
     const current = state.panes[pane];
     if (current === undefined) return state;
-    return {
-      ...state,
-      panes: {
-        ...state.panes,
-        [pane]: {
-          ...current,
-          name: mark.name,
-          file: mark.file,
-          saved: mark.saved,
-          writable: mark.writable,
-        },
-      },
-    };
+    return { ...state, panes: { ...state.panes, [pane]: { ...current, ...next } } };
   });
   noteDocumentChanged();
 }
@@ -890,4 +907,5 @@ export function syncJoinAttachment(pane: PaneId): void {
 /** A pane's content was replaced: nothing it was joined from is reachable now. */
 function forgetJoins(pane: PaneId): void {
   joinMarks[pane].length = 0;
+  undoneJoins[pane].length = 0;
 }

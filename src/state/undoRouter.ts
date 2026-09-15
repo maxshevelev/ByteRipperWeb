@@ -1,7 +1,10 @@
+import type { Segmentation } from "@/core/segments/segmentation";
 import {
   canRedoSegments,
   canUndoSegments,
   redoSegments,
+  restorePartition,
+  segmentsFor,
   undoSegments,
 } from "@/state/segmentsStore";
 import { type PaneId, syncJoinAttachment, workspaceStore } from "@/state/workspaceStore";
@@ -28,17 +31,31 @@ import { type PaneId, syncJoinAttachment, workspaceStore } from "@/state/workspa
  * the document no longer has. So an entry whose history has nothing left to
  * undo is dropped and the next one tried, which brings the two back into step
  * rather than leaving a press that does nothing.
+ *
+ * **The partition comes back by snapshot, not by inverse edit.** An edit moves
+ * the cuts, and so does its undo — but a delete that swallowed a cut cannot give
+ * it back, and the partitions waiting in the segments' own redo history went
+ * through that delete too. So each act remembers the partition it left, taken
+ * the moment it is undone, and a redo ends on exactly that; a group remembers
+ * the one it started from, and an undo of it ends there. Upstream keeps a
+ * snapshot per transaction beside the document's history for the same reason.
  */
 
+/** @upstream-differs upstream's segmentUndoStack and segmentRedoStack become a partition on each act */
 interface SimpleAct {
   readonly kind: "document" | "segments";
   readonly pane: PaneId;
+  /** The partition this act left, taken when it was undone. */
+  after?: Segmentation | undefined;
 }
 
 interface GroupAct {
   readonly kind: "group";
   readonly pane: PaneId;
   readonly parts: readonly Act[];
+  /** The partition from before the group's first part. */
+  readonly before: Segmentation | undefined;
+  after?: Segmentation | undefined;
 }
 
 type Act = SimpleAct | GroupAct;
@@ -86,13 +103,14 @@ export async function groupActs(pane: PaneId, act: () => Promise<void>): Promise
     return;
   }
   grouping = { pane, parts: [] };
+  const before = segmentsFor(pane);
   try {
     await act();
   } finally {
     const parts = grouping.parts;
     grouping = undefined;
     if (parts.length === 1 && parts[0] !== undefined) push(parts[0]);
-    else if (parts.length > 1) push({ kind: "group", pane, parts });
+    else if (parts.length > 1) push({ kind: "group", pane, parts, before });
   }
 }
 
@@ -147,6 +165,8 @@ async function redoAct(act: Act): Promise<void> {
   }
   const slot = workspaceStore.getSnapshot().panes[act.pane];
   await slot?.typing.redo();
+  // Redoing a join detaches the pane from its file again (§22.2).
+  syncJoinAttachment(act.pane);
 }
 
 /**
@@ -222,7 +242,10 @@ export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
     }
     past.splice(index, 1);
     future.push(act);
+    // Every later act is already undone, so this is exactly what the act left.
+    act.after = segmentsFor(pane);
     await undoAct(act, batch);
+    if (act.kind === "group" && act.before !== undefined) restorePartition(pane, act.before);
     return true;
   }
   // Nothing recorded for this pane, which is the state after a reload of the
@@ -248,11 +271,13 @@ export async function redoLast(pane: PaneId): Promise<boolean> {
     future.splice(index, 1);
     past.push(act);
     await redoAct(act);
+    if (act.after !== undefined) restorePartition(pane, act.after);
     return true;
   }
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot?.document.canRedo === true) {
     await slot.typing.redo();
+    syncJoinAttachment(pane);
     return true;
   }
   return false;

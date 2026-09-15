@@ -24,6 +24,7 @@ import {
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { paneClosed, toolController } from "@/state/toolController";
+import { redoLast, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -52,6 +53,7 @@ import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
+import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { addCut, saveAllPieces } from "@/ui/segments/segmentCommands";
@@ -74,6 +76,23 @@ import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
  * onto an empty app has no pane to aim at, and aiming is not what dropping a
  * file should require. A drop with both slots full replaces the active one.
  */
+
+/** A stable name for each open document, so a pane remounts for a new one and only then. */
+const documentKeys = new WeakMap<object, number>();
+let nextDocumentKey = 0;
+function documentKey(document: object): number {
+  let key = documentKeys.get(document);
+  if (key === undefined) {
+    key = ++nextDocumentKey;
+    documentKeys.set(document, key);
+  }
+  return key;
+}
+
+/** Whether typing here edits text of its own, which keeps its own undo. */
+function isTextEntry(element: HTMLElement): boolean {
+  return element.isContentEditable || element.closest("input, textarea, select") !== null;
+}
 
 export interface RevealRequest {
   /** Where the caret goes. Navigation moves the caret; it does not select. */
@@ -430,6 +449,25 @@ export function AppShell() {
           // ⇧⌘D edits the caret row's mark; ⌘D marks and names it, or unmarks it.
           if (event.shiftKey) editBookmarkInPane(active, slot.document.selection.start);
           else toggleBookmarkInPane(active, slot.document.selection.start);
+          return;
+        }
+        case "z":
+        case "Z":
+        case "y":
+        case "Y": {
+          // Undo and Redo belong to the Edit menu and act on the active pane
+          // wherever the keyboard is — after a click on the toolbar, say. A text
+          // field keeps its own: undoing a typed character is not undoing a cut.
+          if (target instanceof HTMLElement && isTextEntry(target)) return;
+          const redo =
+            event.key === "y" || event.key === "Y"
+              ? detectKeyboardPlatform() === "other"
+              : event.shiftKey;
+          if ((event.key === "y" || event.key === "Y") && !redo) return;
+          event.preventDefault();
+          const active = workspaceStore.getSnapshot().activePane;
+          if (redo) void redoLast(active);
+          else void undoLast(active, false);
           return;
         }
         default:
@@ -875,7 +913,10 @@ export function AppShell() {
             const other = id === "a" ? "b" : "a";
             return (
               <HexPane
-                key={`${id}:${pane.file.name}:${pane.file.lastModified}`}
+                // The document, not the file: a join's undo and redo put a
+                // different file under the same document, and remounting the
+                // dump for it lost the keyboard and the scroll with it.
+                key={`${id}:${documentKey(pane.document)}`}
                 paneId={id}
                 label={id === "a" ? "File A" : "File B"}
                 name={pane.name}

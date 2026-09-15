@@ -276,6 +276,13 @@ describe("the editing commands", () => {
     expect(resolveHexKey(key({ key: "Z", metaKey: true, shiftKey: true }), "apple")).toEqual({
       kind: "redo",
     });
+    // What Chrome on a Mac actually sends for ⇧⌘Z: the letter stays lower case.
+    expect(resolveHexKey(key({ key: "z", metaKey: true, shiftKey: true }), "apple")).toEqual({
+      kind: "redo",
+    });
+    expect(resolveHexKey(key({ key: "z", ctrlKey: true, shiftKey: true }), "other")).toEqual({
+      kind: "redo",
+    });
     // Ctrl+Y is Redo on Windows and Linux, and nothing on a Mac.
     expect(resolveHexKey(key({ key: "y", ctrlKey: true }), "other")).toEqual({ kind: "redo" });
     expect(resolveHexKey(key({ key: "y", metaKey: true }), "apple")).toBeUndefined();
