@@ -34,6 +34,15 @@
 export const CONTENT_PADDING = 10;
 
 /**
+ * The gutter between two side-by-side maps, as a fraction of the panel's whole
+ * width — so the minimap's split echoes the gap between the two panes and scales
+ * with the panel. It is the CSS gap between the two canvases, set from here.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.sideBySideGutterFraction
+ */
+export const SIDE_BY_SIDE_GUTTER_FRACTION = 0.05;
+
+/**
  * The colour strip's width — the legend beside a map that paints the partition
  * at a glance. Six points: wide enough to read as a swatch, narrow enough to
  * stay a margin and not a second map.

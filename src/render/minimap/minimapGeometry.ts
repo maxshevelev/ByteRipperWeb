@@ -46,7 +46,7 @@ export const DETAIL_PREFERRED_MAX_SIZE = 4 * 1024;
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.fileEdgeSnapDistance
  */
-export const FILE_EDGE_SNAP_DISTANCE = 3;
+export const FILE_EDGE_SNAP_DISTANCE = 4;
 
 /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.RenderMode */
 export type MinimapMode = "detail" | "overview";

@@ -598,6 +598,25 @@ export function AppShell() {
   }, []);
 
   /**
+   * Centres a join's seam in the pane that took the file.
+   *
+   * The document has already put the caret at the start of the added part —
+   * `0` for an insert, the old end for an append — so the reveal leaves it
+   * there and only scrolls. The other pane is not asked: the link follows the
+   * scroll, and its caret is not the join's business.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateJoinedPane
+   * @upstream-differs upstream's join notifies the view to centre its caret; here the shell asks the pane
+   */
+  const revealSeam = useCallback((pane: PaneId) => {
+    const document = workspaceStore.getSnapshot().panes[pane]?.document;
+    if (document === undefined) return;
+    setReveal({
+      [pane]: { offset: document.selection.start, token: ++revealToken.current, moveCaret: false },
+    });
+  }, []);
+
+  /**
    * Append File… / Insert File at Start… (§22).
    *
    * A join copies: the file that is picked is not consumed, and neither is the
@@ -626,7 +645,7 @@ export function AppShell() {
           sourceName: picked.name,
           position,
         });
-        revealInBoth(position === "start" ? 0 : 0);
+        revealSeam(pane);
       } catch (error) {
         if (error instanceof JoinEmpty) {
           reportProblem(`${error.message} Nothing was joined.`);
@@ -635,7 +654,7 @@ export function AppShell() {
         reportProblem(error instanceof Error ? error.message : "That file could not be joined.");
       }
     },
-    [revealInBoth]
+    [revealSeam]
   );
 
   /**
@@ -659,8 +678,9 @@ export function AppShell() {
             sourceName: picked.name,
             position: where,
           });
+          // The same seam the menu's join centres (§22.5): a drop is the same act.
+          revealSeam(pane);
         }
-        revealInBoth(0);
       } catch (error) {
         if (error instanceof JoinEmpty) {
           reportProblem(`${error.message} Nothing was joined.`);
@@ -669,7 +689,7 @@ export function AppShell() {
         reportProblem(error instanceof Error ? error.message : "That file could not be joined.");
       }
     },
-    [revealInBoth]
+    [revealSeam]
   );
 
   /**

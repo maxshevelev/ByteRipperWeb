@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatHex, parseHex } from "@/core/text/hexText";
+import { lastFillPattern, saveFillPattern } from "@/state/fillPatternStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
 /**
@@ -19,10 +20,12 @@ export interface FillDialogProps {
 
 /** @upstream ByteRipperApp/Documents/SheetControllers.swift#FillSheetController */
 export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps) {
-  const [text, setText] = useState("00");
+  const [text, setText] = useState(lastFillPattern);
 
+  // Every opening starts from the last pattern used, so a second fill with the
+  // same bytes is Return.
   useEffect(() => {
-    if (open) setText("00");
+    if (open) setText(lastFillPattern());
   }, [open]);
 
   /** @upstream ByteRipperApp/Documents/SheetControllers.swift#FillSheetController.validate */
@@ -38,6 +41,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (pattern === undefined) return;
+    saveFillPattern(text);
     onFill(pattern);
     onClose();
   };
@@ -51,7 +55,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
             autoFocus
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder="00"
+            placeholder="FF"
             spellCheck={false}
             aria-describedby="fill-help"
           />

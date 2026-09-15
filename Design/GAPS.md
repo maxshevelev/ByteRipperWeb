@@ -31,7 +31,7 @@ the anchor check does not ask for a `private` helper to be anchored, because a
 port folds most of them into the code it does anchor. Behaviour that lives only
 in a private function can therefore be missed without the check saying so — the
 hex field formatting (`FindBarView.normalizeHexText`) was. Rows found that way
-(G32 and G33, now closed, and part of G18) name the private functions in
+(G32, G33 and part of G18, all now closed) name the private functions in
 *Upstream* and have no map entries. The audit that finds them:
 
 ```bash
@@ -73,7 +73,7 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 | ID | Gap | Upstream | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|---|
 | G10 | **Row marks:** tints, rails, badges and the legend in the UEFI, ME and FIT panels. Only the problem mark (and FIT's latest mark) exist. | `ToolRowMarks.swift`, `ToolRowMarkStyle.swift`, `ToolRowMarksLegend.swift`, `MEATreeMarks.swift`, `UEFITreeMarks.swift`, `FITRowMarks.swift` | ~20 | — | P2 | open |
-| G11 | **Zones both ways:** a zone picked in the dump handed back to its tool, zone kinds, Save Zone as…, a click on the minimap's strip selecting the piece and on a bracket focusing the zone. | `ToolController.swift`, `ToolSession.swift`, `Zone.swift`, `UEFIPresenter.swift`, `MainViewController.saveZone`, `MinimapView.swift` | ~15 | — | P2 | open |
+| G11 | **Zones both ways:** a zone picked in the dump handed back to its tool, zone kinds, Save Zone as…, a click near a bracket's end on the minimap going to that end. | `ToolController.swift`, `ToolSession.swift`, `Zone.swift`, `UEFIPresenter.swift`, `MainViewController.saveZone`, `MinimapView.swift` | ~15 | — | P2 | open |
 | G12 | **Parked tool state** across switching tools (only the ME panel keeps its own). | `ToolSession.swift`, `ToolController.swift`, `FITToolModule.swift`, `UEFIToolModule.swift` | ~13 | — | P3 | open |
 | G13 | **Content changes delivered to a tool** as a change rather than a re-parse, with a stale-session guard and a scroll to a newly focused zone. | `ToolController.swift`, `ToolSession.swift` | ~5 | — | P3 | open |
 | G14 | **Drops on the tool panel** (a file replacing the bound pane's). | `ToolPanelView.swift` | 5 | — | P3 | open |
@@ -85,11 +85,10 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 | ID | Gap | Upstream | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|---|
 | G17 | **Minimap tooltips** over its marks, strip and brackets. | `MinimapView.swift` | 6 | — | P3 (postponed) | open |
-| G18 | **Minimap click details:** a click near a bookmark snaps to its row, and a click near a cut on the strip to the cut; a gutter between side-by-side maps proportional to the panel. | `MinimapView.swift` (`nearestBookmarkMark`, `nearestCut`) | 3 | — | P3 | open |
 | G19 | **While a context menu is open:** the byte or address it is about is framed, a marked row becomes the dashed ring; a right-click places the caret on the byte's high nibble. | `HexView.swift` | ~6 | — | P3 | open |
 | G20 | **Drawing details:** the zeros of a marked address muted, a hovered segment band saturated, the dim `_` in a half-typed insert byte's low nibble, hysteresis when a bookmark is dragged across a row boundary. | `HexView.swift`, `PaneViewModel.swift` | ~5 | — | P3 | open |
 | G21 | **The status line names the piece under the caret.** | `PaneViewModel.swift` | 1 | — | P3 | open |
-| G22 | **Fill Selection starts from the last pattern used.** | `SheetControllers.swift` | 1 | — | P3 | open |
+| G35 | **Undo and redo bring the caret back into view.** Today the caret moves back and the view stays where it was, so redoing a join leaves its seam off screen rather than centred again. | `PaneViewModel.swift` (`SelectionReveal`), `HexView.swift` | 1 | — | P2 | open |
 
 ### 1.5 Accessibility
 
@@ -162,6 +161,9 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| A join shows its seam: after Append File or Insert File at Start, from the menu or a drop band, the caret stays at the start of the added part and the pane that took the file centres it, where the view used to jump to the top and take both carets there | 2026-09-15 |
+| G22 — Fill Selection starts from the last pattern used, `FF` until one has been, kept in `localStorage` | 2026-09-15 |
+| G18 — A click on the minimap near a bookmark's mark goes to its row, and a click on the segment strip to the byte under it or to the nearest cut in reach; the gutter between side-by-side maps is upstream's 5 % of the panel, and the edge snap its 4 px | 2026-09-15 |
 | G7 — The pattern library: favourites in the Find bar's menu and in Settings, Export and Import, the shared library folder with one file per machine, a three-way merge per peer and the resolver (Chromium), a read-only fetch from a folder (Firefox, Safari), and This Was Me for a browser whose data was lost | 2026-09-15 |
 | The toolbar's Tools button is a pull-down: the wrench with a chevron, as upstream's `NSPopUpButton` with `pullsDown` | 2026-09-15 |
 | G33 — A font or row-height change keeps the middle of the view in place: the row at the centre stays centred, in both panes, as upstream's `applyAppearance` does | 2026-09-15 |

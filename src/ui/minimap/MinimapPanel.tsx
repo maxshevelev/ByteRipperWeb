@@ -2,6 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { selection as makeSelection } from "@/core/document/selectionModel";
 import type { Segment } from "@/core/segments/segmentation";
 import {
+  type MapMark,
+  nearestBookmarkMark,
+  segmentStripClick,
+} from "@/render/minimap/minimapClick";
+import {
   BYTES_PER_ROW,
   derivedTopRow,
   type MinimapMode,
@@ -13,7 +18,12 @@ import {
   wheelScrollTarget,
   yOfOffset,
 } from "@/render/minimap/minimapGeometry";
-import { type MapPlacement, MinimapLayout, ZONE_MAX_LANES } from "@/render/minimap/minimapLayout";
+import {
+  type MapPlacement,
+  MinimapLayout,
+  SIDE_BY_SIDE_GUTTER_FRACTION,
+  ZONE_MAX_LANES,
+} from "@/render/minimap/minimapLayout";
 import {
   type CellState,
   type MinimapColors,
@@ -79,7 +89,14 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
       className={`minimap${stacked ? " is-stacked" : ""}`}
       aria-label="Minimap"
       ref={panelRef}
-      style={{ width: state.width }}
+      style={
+        {
+          width: state.width,
+          // The gutter between side-by-side maps is a gap in the stylesheet;
+          // its fraction is upstream's constant, set from the one place it lives.
+          "--minimap-gutter": SIDE_BY_SIDE_GUTTER_FRACTION,
+        } as React.CSSProperties
+      }
     >
       <EdgeSplitter
         edge="left"
@@ -547,16 +564,20 @@ function MinimapCanvas({
    * than clamped: a mark pinned to the top edge would claim a position the file
    * does not have there.
    */
-  const markYs = (() => {
-    if (marks.length === 0) return undefined;
+  const markPoints = (() => {
+    if (marks.length === 0 || slot === undefined) return undefined;
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
-    const ys: number[] = [];
+    const points: MapMark[] = [];
     for (const mark of marks) {
+      // Past this map's own file there is no row to mark — a comparison's
+      // shorter file — and so nothing for a click to snap to either.
+      if (mark.row >= slot.document.size) continue;
       const y = yOfOffset({ ...shared, offset: mark.row });
-      if (y >= 0 && y <= size.height) ys.push(y);
+      if (y >= 0 && y <= size.height) points.push({ offset: mark.row, y });
     }
-    return ys;
+    return points;
   })();
+  const markYs = markPoints?.map((point) => point.y);
 
   /**
    * The pieces, as bands down the strip beside the map.
@@ -582,6 +603,17 @@ function MinimapCanvas({
       };
     });
   })();
+  /** The boundaries between the pieces, where a click on the strip snaps to. */
+  const cuts: MapMark[] = pieces.slice(1).map((piece) => ({
+    offset: piece.start,
+    y: yOfOffset({
+      mode,
+      areaHeight: size.height,
+      topRow,
+      extent: state.extent,
+      offset: piece.start,
+    }),
+  }));
 
   /**
    * The open tool's zones, as brackets down the gutter.
@@ -736,7 +768,30 @@ function MinimapCanvas({
       }
       onActivate(pane);
 
-      const y = event.clientY - canvas.getBoundingClientRect().top;
+      const box = canvas.getBoundingClientRect();
+      const x = event.clientX - box.left;
+      const y = event.clientY - box.top;
+      // The segment strip positions like the map does: the pane goes to the
+      // byte the click's height stands for, or to the nearest cut's exact
+      // offset when one is in reach. Checked before the band, which runs edge
+      // to edge and would otherwise take the strip's clicks as a drag.
+      const onStrip = segmentStripClick({
+        strip: layout.segmentStripRect,
+        cuts,
+        x,
+        y,
+        mode,
+        areaHeight: box.height,
+        topRow,
+        extent: state.extent,
+        overviewRows: state.pictures[pane]?.rowCount ?? 0,
+        fileSize: slot?.document.size ?? 0,
+      });
+      if (onStrip !== undefined) {
+        scrollLink.scrollToOffset(pane, onStrip, BYTES_PER_ROW, { centre: true });
+        return;
+      }
+
       if (band !== undefined && y >= band.top && y <= band.top + band.height) {
         // On the band: this press is the start of a scroll, so it must not also
         // be read as a "take me here" jump.
@@ -744,17 +799,31 @@ function MinimapCanvas({
         return;
       }
 
-      // Off the band: the click means the byte drawn under it, so the pane
-      // centres on it — and the drag then continues from the band's middle, so
-      // the press can still turn into a scroll.
-      const offset = offsetFromEvent(event);
+      // Off the band: the click means the row of a bookmark whose mark it
+      // landed near, or else the byte drawn under it, so the pane centres on it
+      // — and the drag then continues from the band's middle, so the press can
+      // still turn into a scroll.
+      const offset = nearestBookmarkMark(layout, markPoints ?? [], x, y) ?? offsetFromEvent(event);
       if (offset !== undefined) {
         scrollLink.scrollToOffset(pane, offset, BYTES_PER_ROW, { centre: true });
       }
       const height = band?.height ?? MIN_BAND_HEIGHT;
       grab.current = { offset: height / 2, height };
     },
-    [band, offsetFromEvent, onActivate, pane]
+    [
+      band,
+      offsetFromEvent,
+      onActivate,
+      pane,
+      layout,
+      cuts,
+      markPoints,
+      mode,
+      topRow,
+      state.extent,
+      state.pictures,
+      slot,
+    ]
   );
 
   /**
