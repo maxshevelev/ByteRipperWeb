@@ -35,6 +35,7 @@ import {
 } from "@/tools/me/meaTree";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 
@@ -333,17 +334,32 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     }
   }, []);
 
-  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.copySummary */
-  const copySummary = useCallback(() => {
-    void writeRichText(summaryHtml(blocks), summaryPlain(blocks)).then((done) => {
-      setNotice(
-        done ? "Summary copied." : "The browser would not put the summary on the clipboard."
-      );
-    });
-  }, [blocks]);
+  const { showNotice } = context;
 
-  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.copyScreenshot */
+  /**
+   * The summary as text on the clipboard, confirmed over the window with the
+   * button's own sign — and only once the clipboard took it: the plate says the
+   * summary is there, and a copy that failed is not something to say happened.
+   * A refusal is said in the panel's own line instead, which is where it can be
+   * acted on.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.copySummary
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onSummaryCopied
+   */
+  const copySummary = useCallback(() => {
+    if (blocks.length === 0) return;
+    void writeRichText(summaryHtml(blocks), summaryPlain(blocks)).then((done) => {
+      if (done) showNotice("copySummary", ["Summary Copied"]);
+      else setNotice("The browser would not put the summary on the clipboard.");
+    });
+  }, [blocks, showNotice]);
+
+  /**
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.copyScreenshot
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onScreenshotCopied
+   */
   const copyScreenshot = useCallback(() => {
+    if (blocks.length === 0) return;
     const element = summaryRef.current;
     const canvas = element === null ? undefined : summaryPicture(blocks, element);
     if (canvas === undefined) return;
@@ -351,7 +367,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       if (blob === null) return;
       void writeImage(blob).then((done) => {
         if (done) {
-          setNotice("Screenshot copied.");
+          showNotice("copyScreenshot", ["Screenshot Copied"]);
           return;
         }
         // Plain HTTP and a few browsers have no clipboard for pictures; the
@@ -360,7 +376,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         setNotice("The browser would not take a picture, so it was saved as a file.");
       });
     }, "image/png");
-  }, [blocks]);
+  }, [blocks, showNotice]);
 
   const hasContent = analysis !== undefined;
   const databaseProblem = meDatabaseMessage(database);
@@ -393,8 +409,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               onClick={copySummary}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
-                <rect x="5.5" y="5.5" width="8" height="9" rx="1.5" />
-                <path d="M3.5 10.5h-.5a1.5 1.5 0 0 1-1.5-1.5V3a1.5 1.5 0 0 1 1.5-1.5h5A1.5 1.5 0 0 1 9.5 3v.5" />
+                <CopyDocumentShapes />
               </svg>
             </button>
             <button
@@ -405,8 +420,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               onClick={copyScreenshot}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M1.5 5.5A1.5 1.5 0 0 1 3 4h1.8l1.2-1.8h4l1.2 1.8H13a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12z" />
-                <circle cx="8" cy="8.5" r="2.6" />
+                <CameraShapes />
               </svg>
             </button>
           </div>

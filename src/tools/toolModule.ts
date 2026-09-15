@@ -1,3 +1,4 @@
+import type { NoticeGlyph } from "@/state/noticeStore";
 import type { PaneId } from "@/state/workspaceStore";
 
 /**
@@ -21,7 +22,7 @@ import type { PaneId } from "@/state/workspaceStore";
 
 /**
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost
- * @upstream-differs the context a tool is handed is its pane, reveal and report; the rest it reads from the stores it subscribes to
+ * @upstream-differs the context a tool is handed is its pane, reveal, report and notices; the rest it reads from the stores it subscribes to
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.pane
  */
@@ -39,6 +40,20 @@ export interface ToolContext {
   readonly reveal: (start: number, end: number) => void;
   /** Something the user needs told, in the shell's own status line. */
   readonly report: (problem: string | undefined) => void;
+  /**
+   * Shows a short-lived plate over the window — the one a search result is
+   * reported in — about something the panel *did* rather than something it
+   * found in the bytes: a copy that went to the clipboard.
+   *
+   * The panel names the glyph and writes the lines, because the panel is what
+   * knows what happened; where the plate appears, how long it holds and that a
+   * new one replaces the last are the window's, asked for here rather than
+   * re-decided by every tool. A panel drawing its own plate would be a second
+   * convention, and the user would see two.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.showNotice
+   */
+  readonly showNotice: (glyph: NoticeGlyph, lines: readonly string[]) => void;
 }
 
 /**

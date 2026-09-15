@@ -408,6 +408,13 @@ textarea,
   gap: 4px;
 }
 
+/* The pull-down's chevron: small and a shade quieter than the glyph it follows,
+   so it reads as "this opens a list" rather than as a second icon. */
+.menu-chevron {
+  flex: none;
+  opacity: 0.75;
+}
+
 .toolbar-button,
 .empty-state-button {
   font: inherit;
@@ -470,6 +477,10 @@ textarea,
   /* Scrolling past an edge stays in this pane: no rubber-banding the page, and
      no swipe out of an unsaved edit. */
   overscroll-behavior: contain;
+  /* The position is the pane's to set. Scroll anchoring would move it when the
+     spacer or the viewport changes size under a re-layout, and that move would
+     read as the user's scroll and be handed to the other pane. */
+  overflow-anchor: none;
 }
 
 .hex-scroller:focus-visible {

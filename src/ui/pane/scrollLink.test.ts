@@ -2,9 +2,49 @@ import { describe, expect, it } from "vitest";
 import {
   type LinkedScroller,
   mirroredScroll,
+  remeasuredTop,
   ScrollLink,
   type ScrollPosition,
 } from "@/ui/pane/scrollLink";
+
+// Upstream's HexViewAppearanceTests: the row at the viewport's centre stays
+// centred across a row-height or font-size change.
+describe("a change of measure", () => {
+  const centreRow = (top: number, rowHeight: number, viewport: number) =>
+    Math.floor((top + viewport / 2) / rowHeight);
+
+  it("keeps the visible centre when rows grow taller", () => {
+    const before = centreRow(1_000, 17, 600);
+    const top = remeasuredTop({ top: 1_000, rowHeight: 17 }, 24, 600);
+    expect(before).toBeGreaterThan(0);
+    expect(centreRow(top, 24, 600)).toBe(before);
+  });
+
+  it("keeps the visible centre when rows grow shorter", () => {
+    const before = centreRow(52_345, 22, 480);
+    const top = remeasuredTop({ top: 52_345, rowHeight: 22 }, 15, 480);
+    expect(centreRow(top, 15, 480)).toBe(before);
+  });
+
+  it("finds the middle in the viewport the position was taken in", () => {
+    // A bigger font makes the column header taller, so the viewport is shorter
+    // after the change than it was before it.
+    const before = centreRow(48_008, 16, 664);
+    const top = remeasuredTop({ top: 48_008, rowHeight: 16, viewportHeight: 664 }, 21, 650);
+    expect(centreRow(top, 21, 650)).toBe(before);
+    // Measured in the new viewport instead, the middle would be another row.
+    expect(centreRow(48_008, 16, 650)).not.toBe(before);
+  });
+
+  it("leaves the pixels alone when the measure did not change", () => {
+    expect(remeasuredTop({ top: 1_234.5, rowHeight: 17 }, 17, 600)).toBe(1_234.5);
+  });
+
+  it("never goes above the top", () => {
+    // Row 10 in the middle at 30 pixels would sit above the top at 15.
+    expect(remeasuredTop({ top: 0, rowHeight: 30 }, 15, 600)).toBe(0);
+  });
+});
 
 function fakePane(maxTop: number, rowHeight = 17) {
   const state = { position: { top: 0, left: 0 } as ScrollPosition, moves: 0, maxTop, rowHeight };
@@ -172,24 +212,26 @@ describe("panes that never drift apart", () => {
     expect(long.state.position.top).toBe(500);
   });
 
-  it("stay on the same row through a font change, one pane at a time", () => {
+  it("keep the middle row in the middle through a font change, one pane at a time", () => {
     const link = new ScrollLink();
     const a = fakePane(100_000);
     const b = fakePane(100_000);
     link.register("a", a.scroller);
     link.register("b", b.scroller);
+    // Row 110 sits at the middle of a 340-pixel view: (1700 + 170) / 17.
     a.state.position = { top: 1_700, left: 0 };
     link.report("a");
 
     a.state.rowHeight = 20;
     link.settle("a");
-    expect(a.state.position.top).toBe(2_000);
+    // Row 110 centred at the new pitch: 110 × 20 + 10 − 170.
+    expect(a.state.position.top).toBe(2_040);
     // The other pane has not re-laid out yet, and is not moved in pixels that
     // mean different bytes to it.
     expect(b.state.position.top).toBe(1_700);
     b.state.rowHeight = 20;
     link.settle("b");
-    expect(b.state.position.top).toBe(2_000);
+    expect(b.state.position.top).toBe(2_040);
   });
 
   it("have nothing to settle to before anything has scrolled", () => {

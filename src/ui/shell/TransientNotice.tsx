@@ -1,5 +1,6 @@
 import { type Notice, type NoticeGlyph, noticeStore } from "@/state/noticeStore";
 import { useStore } from "@/state/useStore";
+import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 
 /**
  * The glyph on a plate with lines beside it.
@@ -22,6 +23,8 @@ const GLYPH_LABEL: Record<NoticeGlyph, string> = {
   wrapBackward: "The search came round the start of the file",
   smartSearch: "Smart search",
   addedToFavorites: "Added to Favorites",
+  copySummary: "Summary copied",
+  copyScreenshot: "Screenshot copied",
 };
 
 /**
@@ -90,26 +93,33 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
  * A wrap is an arrow round a capsule whose head says which end the search came
  * round — top right for one that ran off the end, bottom left for one that ran
  * off the start. A Smart Search that found nothing is a wand, and a pattern just
- * kept is a star.
+ * kept is a star. A copy wears the sign of the button that made it, drawn from
+ * the same shapes the button is, in their own 16-unit box.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.symbolName
  * @upstream-differs inline SVG in place of named system symbols, so there is no fallback to choose
  */
 function Glyph({ glyph, size }: { readonly glyph: NoticeGlyph; readonly size: number }) {
+  const copy = glyph === "copySummary" || glyph === "copyScreenshot";
   return (
     <svg
       className="transient-notice-glyph"
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox={copy ? "0 0 16 16" : "0 0 24 24"}
       aria-hidden="true"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.6}
+      // The same line at the plate's size, whichever box the shapes are in.
+      strokeWidth={copy ? 1.1 : 1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {glyph === "addedToFavorites" ? (
+      {glyph === "copySummary" ? (
+        <CopyDocumentShapes />
+      ) : glyph === "copyScreenshot" ? (
+        <CameraShapes />
+      ) : glyph === "addedToFavorites" ? (
         <path
           d="M12 3.2l2.7 5.5 6 .9-4.35 4.25 1.03 6-5.38-2.83-5.38 2.83 1.03-6L3.3 9.6l6-.9z"
           fill="currentColor"

@@ -22,6 +22,7 @@ export function MenuButton({
   ariaLabel,
   disabled,
   className,
+  pullDown,
 }: {
   readonly label: React.ReactNode;
   readonly title: string;
@@ -30,6 +31,14 @@ export function MenuButton({
   readonly ariaLabel?: string | undefined;
   readonly disabled?: boolean | undefined;
   readonly className?: string | undefined;
+  /**
+   * Draws the chevron that says the button drops a list to choose from, as a
+   * pull-down does, rather than acting at once like the icons beside it.
+   *
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeToolsItem
+   * @upstream-differs a chevron drawn after the label, where AppKit's pull-down draws its own
+   */
+  readonly pullDown?: boolean | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -84,6 +93,18 @@ export function MenuButton({
         }}
       >
         {label}
+        {pullDown === true ? (
+          <svg className="menu-chevron" width="8" height="5" viewBox="0 0 8 5" aria-hidden="true">
+            <path
+              d="M1 1l3 3 3-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : null}
       </button>
 
       {open ? (

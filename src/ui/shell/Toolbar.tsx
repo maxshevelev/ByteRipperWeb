@@ -407,10 +407,12 @@ export function Toolbar({
         return <span key={key} className="toolbar-spacer" />;
       case "tools":
         // The wrench, and the name of the tool-module in force — nothing at
-        // rest, so the toolbar fits the window it opens in.
+        // rest, so the toolbar fits the window it opens in. A pull-down, with
+        // its chevron: it opens a list to choose from rather than acting at once.
         return (
           <MenuButton
             key={key}
+            pullDown
             className="toolbar-tools"
             ariaLabel="Tools"
             title="The tool-module this tab is working with"

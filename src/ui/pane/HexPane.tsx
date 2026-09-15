@@ -37,6 +37,12 @@ import { zoneStore } from "@/state/zoneStore";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
 import { DocumentIcon } from "@/ui/pane/DocumentIcon";
 import {
+  AUTOSCROLL_INTERVAL_MS,
+  canAutoscrollToward,
+  dragAutoscrollStep,
+  isBeyondVisibleEdge,
+} from "@/ui/pane/dragAutoscroll";
+import {
   detectKeyboardPlatform,
   type HexKeyEvent,
   isContextClick,
@@ -46,7 +52,7 @@ import {
 import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
-import { scrollLink } from "@/ui/pane/scrollLink";
+import { remeasuredTop, scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
@@ -438,15 +444,19 @@ export function HexPane({
     if (renderer === null) return;
 
     const configure = () => {
-      // The byte at the top of the viewport, captured before the metrics move.
-      // Without this a font change scrolls the file out from under the reader,
+      // Where the pane is, captured at the old measure before the metrics move.
+      // Without it a font change scrolls the file out from under the reader,
       // further the further down they are.
       const scroller = scrollerRef.current;
       const previous = layoutRef.current;
-      const anchorRow =
+      const anchor =
         scroller === null || previous === undefined
           ? undefined
-          : Math.floor(scroller.top / previous.rowHeight);
+          : {
+              top: scroller.top,
+              rowHeight: previous.rowHeight,
+              viewportHeight: scroller.viewportHeight,
+            };
 
       const metrics = measureFont(fontSize, fontFamily, rowHeightScale);
       const layout = new HexLayout({
@@ -481,13 +491,21 @@ export function HexPane({
       renderer.setScrollExtent(companionSize);
       const moved = scroller?.setContentHeight(renderer.contentHeight) === true;
       setContentWidth(renderer.contentWidth);
+      // The width now, not on the next render: a wider or narrower row brings the
+      // sideways scroll bar in or takes it away, which changes the viewport's
+      // height — and the settle below reads that height to find the middle.
+      if (spacerRef.current !== null) {
+        spacerRef.current.style.width = `${renderer.contentWidth}px`;
+      }
       // A re-layout is the pane fitting itself, not a scroll: it settles under
       // the position the panes share — the same rows at the new measure, as far
       // as this file reaches — and the other pane is not moved. Only a pane with
-      // nothing to settle to keeps its own top row.
+      // nothing to settle to keeps its own place — the middle of its view, across
+      // a change of measure.
       if (scrollLink.settle(paneId)) applyViewport();
-      else if (anchorRow !== undefined) scrollPaneTo(anchorRow * layout.rowHeight);
-      else if (moved) scrolled();
+      else if (anchor !== undefined && scroller !== null) {
+        scrollPaneTo(remeasuredTop(anchor, layout.rowHeight, scroller.viewportHeight));
+      } else if (moved) scrolled();
       scheduleDraw();
       drawHeader();
     };
@@ -680,6 +698,21 @@ export function HexPane({
   // A move the link makes is applied to the renderer here and now, not left to
   // this pane's scroll event: that event arrives a frame later, and the pane
   // being followed would visibly lead the one following it.
+  //
+  // What a move made by the link owes this pane lives in a ref, kept current,
+  // so the registration is made once per pane rather than again whenever one of
+  // these is re-created. A font change re-creates the header's — and for the
+  // commit in which the pane was out of the link, it re-laid itself out alone,
+  // off the shared position, which is how the middle of the view went astray.
+  const linkMovedRef = useRef<() => void>(() => undefined);
+  useLayoutEffect(() => {
+    linkMovedRef.current = () => {
+      applyViewport();
+      drawHeader();
+      scheduleDraw();
+    };
+  }, [applyViewport, drawHeader, scheduleDraw]);
+
   useEffect(() => {
     return scrollLink.register(paneId, {
       rowHeight: () => layoutRef.current?.rowHeight ?? 0,
@@ -694,12 +727,10 @@ export function HexPane({
       }),
       moveTo: (position) => {
         scrollerRef.current?.moveTo(position.top, position.left);
-        applyViewport();
-        drawHeader();
-        scheduleDraw();
+        linkMovedRef.current();
       },
     });
-  }, [paneId, applyViewport, drawHeader, scheduleDraw]);
+  }, [paneId]);
 
   const onScroll = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -1220,53 +1251,97 @@ export function HexPane({
     });
   }, []);
 
+  /** The held pointer's place on screen, which the autoscroll steps read. */
+  const dragPointerRef = useRef<{ readonly x: number; readonly y: number } | undefined>(undefined);
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.autoscrollTimer */
+  const autoscrollRef = useRef<number | undefined>(undefined);
+
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.stopDragAutoscroll */
+  const stopAutoscroll = useCallback(() => {
+    if (autoscrollRef.current !== undefined) window.clearInterval(autoscrollRef.current);
+    autoscrollRef.current = undefined;
+  }, []);
+
+  // A pane that goes away mid-drag takes its timer with it.
+  useEffect(() => stopAutoscroll, [stopAutoscroll]);
+
   /**
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDragged
+   * One step of a drag at a pointer on screen: the pane scrolls toward a pointer
+   * past its edge, and the selection — or the mark being moved — goes on at the
+   * visible edge. Returns whether the pane can keep scrolling toward it, asked of
+   * where the pane is *after* the step: the pointer stays put on screen while the
+   * content scrolls past it, so the overshoot holds.
+   *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.performDragAutoscrollTick
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onBookmarkDrag
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.extendDragSelection
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.moveDraggedBookmark
    */
-  const onPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      trackMarkTip(event);
+  const dragTo = useCallback(
+    (clientX: number, clientY: number): boolean => {
+      const layout = layoutRef.current;
+      const host = scrollRef.current;
+      const scroller = scrollerRef.current;
       const dragging = markDragRef.current;
+      const anchor = dragAnchorRef.current;
+      if (layout === undefined || host === null || scroller === null) return false;
+      if (dragging === undefined && anchor === undefined) return false;
+
+      const bounds = host.getBoundingClientRect();
+      const pointerY = clientY - bounds.top;
+      const before = {
+        top: scroller.top,
+        viewportHeight: scroller.viewportHeight,
+        maxTop: scroller.maxTop,
+      };
+      const step = dragAutoscrollStep(pointerY, before);
+      if (step.top !== scroller.top) scrollPaneTo(step.top);
+      const y = step.pointerY + scroller.top;
+
       if (dragging !== undefined) {
-        const layout = layoutRef.current;
-        const host = scrollRef.current;
-        if (layout === undefined || host === null) return;
-        const bounds = host.getBoundingClientRect();
-        const y = event.clientY - bounds.top + (scrollerRef.current?.top ?? 0);
         const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
         // The last row this pane draws is the limit, not a size held elsewhere:
         // a mark may not be dragged out of the file.
         const lastRow = rowContaining(Math.max(0, doc.size - 1));
         const landed = moveBookmark(dragging, Math.min(row, lastRow), lastRow);
         if (landed !== undefined) markDragRef.current = landed;
+      } else if (anchor !== undefined) {
+        const x = clientX - bounds.left + host.scrollLeft;
+        const end = layout.dragEndOffset(x, y, layout.rowCount(doc.size));
+        if (end !== undefined) {
+          doc.setSelection(makeSelection(anchor, Math.min(end, doc.size), doc.size));
+        }
+      }
+
+      const after = { ...before, top: scroller.top };
+      return isBeyondVisibleEdge(pointerY, after) && canAutoscrollToward(pointerY, after);
+    },
+    [doc, scrollPaneTo]
+  );
+
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDragged
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onBookmarkDrag
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.lastDragPoint
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.updateDragAutoscrollTimer
+   */
+  const onPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      trackMarkTip(event);
+      if (markDragRef.current === undefined && dragAnchorRef.current === undefined) return;
+      dragPointerRef.current = { x: event.clientX, y: event.clientY };
+      if (!dragTo(event.clientX, event.clientY)) {
+        stopAutoscroll();
         return;
       }
-
-      const anchor = dragAnchorRef.current;
-      const layout = layoutRef.current;
-      const host = scrollRef.current;
-      if (anchor === undefined || layout === undefined || host === null) return;
-
-      const bounds = host.getBoundingClientRect();
-      // A drag past the viewport's edge keeps selecting: the pointer's y is
-      // clamped into the content and the view follows it.
-      const rawY = event.clientY - bounds.top;
-      const scroller = scrollerRef.current;
-      if (scroller !== null && rawY < 0) scrollPaneTo(scroller.top + rawY);
-      else if (scroller !== null && rawY > bounds.height) {
-        scrollPaneTo(scroller.top + rawY - bounds.height);
-      }
-
-      const y = Math.min(Math.max(rawY, 0), bounds.height - 1) + (scroller?.top ?? 0);
-      const x = event.clientX - bounds.left + host.scrollLeft;
-      const end = layout.dragEndOffset(x, y, layout.rowCount(doc.size));
-      if (end === undefined) return;
-
-      doc.setSelection(makeSelection(anchor, Math.min(end, doc.size), doc.size));
+      // Past the edge with room to go: the steps go on while the pointer is held
+      // still, which is when no further move event will come to drive them.
+      if (autoscrollRef.current !== undefined) return;
+      autoscrollRef.current = window.setInterval(() => {
+        const pointer = dragPointerRef.current;
+        if (pointer === undefined || !dragTo(pointer.x, pointer.y)) stopAutoscroll();
+      }, AUTOSCROLL_INTERVAL_MS);
     },
-    [doc, trackMarkTip, scrollPaneTo]
+    [trackMarkTip, dragTo, stopAutoscroll]
   );
 
   /**
@@ -1340,13 +1415,18 @@ export function HexPane({
   );
 
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseUp */
-  const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    dragAnchorRef.current = undefined;
-    markDragRef.current = undefined;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }, []);
+  const endDrag = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      dragAnchorRef.current = undefined;
+      markDragRef.current = undefined;
+      dragPointerRef.current = undefined;
+      stopAutoscroll();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [stopAutoscroll]
+  );
 
   return (
     // Clicking anywhere in a pane makes it the active one — that is the whole

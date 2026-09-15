@@ -28,11 +28,24 @@ import { createStore } from "@/state/store";
  *
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolView
  */
-export type NoticeGlyph = "wrapForward" | "wrapBackward" | "smartSearch" | "addedToFavorites";
+export type NoticeGlyph =
+  | "wrapForward"
+  | "wrapBackward"
+  | "smartSearch"
+  | "addedToFavorites"
+  /** A panel's summary went to the clipboard as text: the Copy Summary button's sign. */
+  | "copySummary"
+  /** And as a picture: the Copy Screenshot button's. */
+  | "copyScreenshot";
 
 export interface Notice {
   /** New for every plate, so a replacement is a new element rather than a changed one. */
   readonly id: number;
+  /**
+   * The sign it wears — for a plate about a control, the one on that control.
+   *
+   * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolName
+   */
   readonly glyph: NoticeGlyph;
   /**
    * The first names the operation, the rest are its findings. None for a plate

@@ -31,8 +31,8 @@ the anchor check does not ask for a `private` helper to be anchored, because a
 port folds most of them into the code it does anchor. Behaviour that lives only
 in a private function can therefore be missed without the check saying so — the
 hex field formatting (`FindBarView.normalizeHexText`) was. Rows found that way
-(G32, G33, part of G18) name the private functions in *Upstream* and have no map
-entries. The audit that finds them:
+(G32 and G33, now closed, and part of G18) name the private functions in
+*Upstream* and have no map entries. The audit that finds them:
 
 ```bash
 python3 Skills/port-from-byteripper/scripts/private_audit.py
@@ -92,8 +92,6 @@ Columns:
 | G20 | **Drawing details:** the zeros of a marked address muted, a hovered segment band saturated, the dim `_` in a half-typed insert byte's low nibble, hysteresis when a bookmark is dragged across a row boundary. | `HexView.swift`, `PaneViewModel.swift` | ~5 | — | P3 | open |
 | G21 | **The status line names the piece under the caret.** | `PaneViewModel.swift` | 1 | — | P3 | open |
 | G22 | **Fill Selection starts from the last pattern used.** | `SheetControllers.swift` | 1 | — | P3 | open |
-| G32 | **A drag selection keeps scrolling while the pointer is held past the dump's edge.** Today the view follows only while the pointer moves; upstream runs a repeating step until the pointer comes back or the file's end is reached. | `HexView.swift` (`updateDragAutoscrollTimer`, `dragAutoscrollStep`, `canAutoscrollToward`, `isBeyondVisibleEdge`, `stopDragAutoscroll`) | 5 | — | P2 | open |
-| G33 | **A font or row-height change keeps the middle of the view in place.** Today the top row is kept, so what was in the middle drifts down or up. | `HexView.swift` (`visibleCenterOffset`) | 1 | — | P3 | open |
 
 ### 1.5 Accessibility
 
@@ -110,6 +108,7 @@ Columns:
 | G26 | **Cross-browser pass and error states end to end:** Chromium, Firefox, Safari; offline with no cached database, a stale `File`, a file changed on disk, a declined permission — every capability difference announced by the app. | — | — | P1 | open |
 | G28 | **The benchmark table on a low-end machine** as well as a fast one. | — | — | P2 | open |
 | G29 | **Session restore:** a reload offers yesterday's pair back from handles kept in IndexedDB, with one permission click. An open question in both plans. | — | Whether to do it | P2 | decision |
+| G34 | **The version line and the newer-build notice.** Upstream signs the landing screen with the app's name and version and says there when a newer build is out, from a check of the GitHub releases (`EmptyStateView.appNameAndVersion`, `showAvailableRelease`; `MainViewController.releaseCheckTask`, `releases`; `Updates/AppVersion.swift`, `Updates/GitHubReleases.swift`). Postponed by the owner: the web edition will do it its own way, not as a port. | 5 + 2 files | The web edition's own design | P3 | decision |
 
 ---
 
@@ -164,6 +163,9 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| The toolbar's Tools button is a pull-down: the wrench with a chevron, as upstream's `NSPopUpButton` with `pullsDown` | 2026-09-15 |
+| G33 — A font or row-height change keeps the middle of the view in place: the row at the centre stays centred, in both panes, as upstream's `applyAppearance` does | 2026-09-15 |
+| G32 — A drag selection, or a mark's drag, keeps scrolling while the pointer is held past the dump's edge, by the overshoot, 30 steps a second, until the pointer returns or the file ends | 2026-09-15 |
 | G9 — The find indicator: the current match on a yellow plate with an outline and black bytes, over the mirrored selection's contour. No lift, bounce or shadow (see 2.2) | 2026-09-15 |
 | G8 — Search remembered between visits: the recent searches with their encoding and case rule, Case Sensitive, and the bar opening on the last search; a recent search restores its encoding and case rule | 2026-09-15 |
 | G27 — Deploy to GitHub Pages from CI: `.github/workflows/deploy-pages.yml` publishes `main` as the live site and `v*` tags as point releases, and the bundle has its base path | 2026-09-15 |

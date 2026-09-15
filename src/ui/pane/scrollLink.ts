@@ -63,6 +63,41 @@ export function mirroredScroll(
   };
 }
 
+/**
+ * Where a pane measured at `rowHeight` goes to show what `from` showed at the
+ * row height it was taken at.
+ *
+ * The same pitch is the same pixels. A different one — a font size or row
+ * height changed — keeps the **middle** of what was visible in the middle: the
+ * row at the viewport's centre before the change is centred after it (§3.2).
+ * Keeping the top row instead, every row below it slides with the new pitch, so
+ * what was being read in the middle of the pane drifts toward an edge.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.applyAppearance
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.visibleCenterOffset
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.centerRow
+ */
+export function remeasuredTop(
+  from: {
+    readonly top: number;
+    readonly rowHeight: number;
+    /**
+     * The viewport the position was taken in. The middle is where it was *then*:
+     * the column header is one row tall, so the change that alters the pitch
+     * alters the viewport too, and a middle measured in the new one is off by
+     * half of what the header gained or gave up.
+     */
+    readonly viewportHeight?: number | undefined;
+  },
+  rowHeight: number,
+  viewportHeight: number
+): number {
+  if (from.rowHeight === rowHeight || from.rowHeight <= 0 || rowHeight <= 0) return from.top;
+  const middle = from.top + (from.viewportHeight ?? viewportHeight) / 2;
+  const centreRow = Math.max(0, Math.floor(middle / from.rowHeight));
+  return Math.max(0, centreRow * rowHeight + rowHeight / 2 - viewportHeight / 2);
+}
+
 /** A pane the link can read and move. */
 export interface LinkedScroller {
   /** Read fresh each time: the layout changes with the font and the word size. */
@@ -102,7 +137,13 @@ export class ScrollLink {
    * is closed on purpose.
    */
   private shared:
-    | { readonly top: number; readonly left: number; readonly rowHeight: number }
+    | {
+        readonly top: number;
+        readonly left: number;
+        readonly rowHeight: number;
+        /** The viewport it was taken in, where a change of measure finds the middle. */
+        readonly viewportHeight: number;
+      }
     | undefined;
 
   /**
@@ -153,10 +194,11 @@ export class ScrollLink {
     if (shared === undefined || rowHeight <= 0) return;
     // The same rows, whatever each pane is measured at now: a font change
     // re-lays the panes out one at a time, and pixels only stand for content at
-    // the row height they were taken at.
-    const top =
-      shared.rowHeight === rowHeight ? shared.top : (shared.top / shared.rowHeight) * rowHeight;
+    // the row height they were taken at. Across such a change the middle of the
+    // view is what stays, and each pane works it out from the same position, so
+    // the two land level.
     const extent = pane.extent();
+    const top = remeasuredTop(shared, rowHeight, extent.viewportHeight);
     const target = mirroredScroll(
       { top, left: shared.left },
       { rowHeight },
@@ -256,7 +298,12 @@ export class ScrollLink {
     const rowHeight = source?.rowHeight() ?? 0;
     if (source !== undefined && rowHeight > 0) {
       const position = source.position();
-      this.shared = { top: position.top, left: position.left, rowHeight };
+      this.shared = {
+        top: position.top,
+        left: position.left,
+        rowHeight,
+        viewportHeight: source.extent().viewportHeight,
+      };
       for (const [otherId, other] of this.panes) {
         if (otherId !== id) this.align(other);
       }

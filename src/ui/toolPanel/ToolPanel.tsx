@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { showNotice } from "@/state/noticeStore";
 import {
   activate,
   activeModule,
@@ -45,7 +46,15 @@ export function ToolPanel({
   );
 
   if (tool === undefined || boundPane === undefined || slot === undefined) return null;
-  const context: ToolContext = { pane: boundPane, reveal, report: reportProblem };
+  const context: ToolContext = {
+    pane: boundPane,
+    reveal,
+    report: reportProblem,
+    // The window's own plate, through the presenter every other notice goes
+    // through, so a tool's confirmation cannot come to look like another app's.
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice
+    showNotice,
+  };
 
   return (
     <aside className="tool-panel" aria-label="Tools" style={{ width }}>

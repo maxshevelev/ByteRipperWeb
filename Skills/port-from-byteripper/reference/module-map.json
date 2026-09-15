@@ -4385,7 +4385,12 @@
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.bookmarkHeadingForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingBookmarksForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.bookmarkAddressColorForTesting": "n/a — a test seam",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneOperation": "n/a — one workspace per browser tab (D11): no tabs, windows or pane dragging"
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneOperation": "n/a — one workspace per browser tab (D11): no tabs, windows or pane dragging",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.appNameAndVersion": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.showAvailableRelease": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Updates/AppVersion.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Updates/GitHubReleases.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
@@ -4640,7 +4645,9 @@
         "ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.init": "n/a — one workspace per browser tab (D11): no tabs, windows or pane dragging",
         "ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.detachPane": "n/a — one workspace per browser tab (D11): no tabs, windows or pane dragging",
         "ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.adopt": "n/a — one workspace per browser tab (D11): no tabs, windows or pane dragging",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkEditPresenter": "n/a — a test seam"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkEditPresenter": "n/a — a test seam",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releases": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
