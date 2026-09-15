@@ -37,6 +37,9 @@ const SLICES: Uint32Array = (() => {
  * 0xFFFFFFFF — bit for bit what Python's `zlib.crc32` gives, and what upstream
  * MEA.py's `crccheck.crc.Crc32` gives. The `$CPD` directory CRC and a module
  * body's CRC are this one.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Checksum.swift#CRC32
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Checksum.swift#CRC32.crc32
  */
 export function crc32(bytes: Uint8Array): number {
   return (register(bytes, 0xffff_ffff) ^ 0xffff_ffff) >>> 0;
@@ -52,6 +55,8 @@ export function crc32(bytes: Uint8Array): number {
  * EFS System Page header, its index area and a Data Page's header and footer
  * all compare their stored value against *this* one, and the standard spelling
  * above does not match them.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Checksum.swift#CRC32.crc32IV0Raw
  */
 export function crc32FromZero(bytes: Uint8Array): number {
   return register(bytes, 0);
@@ -129,6 +134,9 @@ const CCITT: Uint16Array = (() => {
  * claim that 0 and 1 are never produced. They are: eight inputs give each. The
  * mechanism below is what matters and is what the format's own vector
  * (`transform(0) == 0x0B5B`) pins down.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Checksum.swift#CRC16_14
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Checksum.swift#CRC16_14.transform
  */
 export function crc16_14(value: number): number {
   let crc = 0x3fff;

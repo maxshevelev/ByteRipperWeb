@@ -81,6 +81,7 @@ const parse = (region: Uint8Array, absoluteOffset = 0, mfsDictionary?: number) =
   parseEfs(region, 0, region.length, absoluteOffset, mfsDictionary);
 
 describe("the EFS volume", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testParsesSystemVolumeFacts
   it("reads the System page's facts", () => {
     expect(parse(makeVolume(), 0x1000, 0x0a)).toEqual({
       offset: 0x1000,
@@ -106,11 +107,14 @@ describe("the EFS volume", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testMatchesMFSDictionaryNilWhenNoMFS
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testMatchesMFSDictionaryFalseOnMismatch
   it("compares its dictionary with the MFS volume's only when there is one", () => {
     expect(parse(makeVolume())?.matchesMFSDictionary).toBeUndefined();
     expect(parse(makeVolume(), 0, 0x0b)?.matchesMFSDictionary).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testScratchPagesMustBeAllFF
   it("requires scratch pages to be erased", () => {
     const scratch = new Uint8Array(PAGE_SIZE).fill(0xff);
     scratch[0x123] = 0xab;
@@ -119,6 +123,7 @@ describe("the EFS volume", () => {
     expect(volume?.scratchPagesEmpty).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testDataPageReservedSkipsFooterCheck
   it("skips a reserved data page's footer", () => {
     const volume = parse(
       concat(systemPage({ order: [0, 1] }), dataPage(0x10), dataPage(0x00, true))
@@ -127,6 +132,7 @@ describe("the EFS volume", () => {
     expect(volume?.dataPageFooterCRCsValid).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testCorruptedHeaderCRCReportedNotThrown
   it("reports a corrupted System header CRC", () => {
     const region = makeVolume();
     region[0x0c] = (region[0x0c] ?? 0) ^ 0xff;
@@ -135,18 +141,22 @@ describe("the EFS volume", () => {
     expect(volume?.indexesCRCValid).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testCorruptedDataPageHeaderCRCReported
   it("reports a corrupted data page header CRC", () => {
     const region = makeVolume();
     region[PAGE_SIZE + 0x0c] = (region[PAGE_SIZE + 0x0c] ?? 0) ^ 0xff;
     expect(parse(region)?.dataPageHeaderCRCsValid).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testDirtyFirstIndexPaddingReported
   it("reports dirty first index padding", () => {
     const region = makeVolume();
     region[PAGE_HEADER_SIZE + 2] = 0x01;
     expect(parse(region)?.firstIndexPaddingEmpty).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testNonSystemLeadingPageReturnsNil
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testScratchLeadingPageReturnsNil
   it("is nothing without a leading System page", () => {
     expect(parse(dataPage(0x00))).toBeUndefined();
     expect(parse(new Uint8Array(PAGE_SIZE).fill(0xff))).toBeUndefined();
@@ -165,6 +175,7 @@ function makeFitc(mangle = false): Uint8Array {
 }
 
 describe("the FITC partition", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testParsesFITCRevision1
   it("reads a revision 1 header", () => {
     const region = makeFitc();
     expect(parseFitc(region, 0, region.length, 0x1000)).toEqual({
@@ -180,6 +191,7 @@ describe("the FITC partition", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testCorruptedFITCHeaderCRCReported
   it("reports a corrupted header CRC and keeps the data facts", () => {
     const region = makeFitc(true);
     expect(parseFitc(region, 0, region.length, 0)).toMatchObject({
@@ -190,6 +202,8 @@ describe("the FITC partition", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testNonRevision1FITCAlphaLayout
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testNonRevision1DirtyPaddingReported
   it("reads the alpha layout's length and padding", () => {
     const config = Uint8Array.from({ length: 0x20 }, (_, i) => i);
     const region = new Uint8Array(0x200).fill(0xff);
@@ -207,6 +221,7 @@ describe("the FITC partition", () => {
     expect(parseFitc(region, 0, region.length, 0)?.paddingAllFF).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testRegionTooSmallForFITCReturnsNil
   it("is nothing too small for a header", () => {
     expect(parseFitc(new Uint8Array(0x0f), 0, 0x0f, 0)).toBeUndefined();
   });

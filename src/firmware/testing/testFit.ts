@@ -14,7 +14,11 @@ import { sum8, sum32Of } from "@/firmware/uefi/checksums";
  * parameter here, and no real dump goes into this repository.
  */
 
-/** A row of the table, said in terms of what it is meant to point at. */
+/**
+ * A row of the table, said in terms of what it is meant to point at.
+ *
+ * @upstream Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.Row
+ */
 export interface TestRow {
   readonly type: number;
   /** An offset in the image; turned into an address by the builder. */
@@ -28,7 +32,11 @@ export interface TestRow {
   readonly checksum?: number;
 }
 
-/** What the reader assumes when no volume top file says otherwise. */
+/**
+ * What the reader assumes when no volume top file says otherwise.
+ *
+ * @upstream Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.addressDiff
+ */
 export const assumedAddressDiff = (size: number): number => 0x1_0000_0000 - size;
 
 function entryBytes(options: {
@@ -53,7 +61,12 @@ function entryBytes(options: {
   return writer.bytes;
 }
 
-/** An image the size of a small flash chip, erased, with a table in it. */
+/**
+ * An image the size of a small flash chip, erased, with a table in it.
+ *
+ * @upstream Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT
+ * @upstream Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.image
+ */
 export function fitImage(options: {
   readonly size?: number;
   readonly tableOffset?: number;
@@ -111,7 +124,11 @@ export function fitImage(options: {
   return image;
 }
 
-/** An Intel microcode image, its dword checksum correct. */
+/**
+ * An Intel microcode image, its dword checksum correct.
+ *
+ * @upstream Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.microcode
+ */
 export function fitMicrocode(
   options: {
     readonly signature?: number;

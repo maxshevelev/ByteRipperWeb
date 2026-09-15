@@ -72,6 +72,14 @@ Relationship to ByteRipper:
 - The clone is found at `../ByteRipper` or via `$BYTERIPPER_REPO`.
 - Keep the module map current as part of doing the work. A stale map makes every
   future run lie.
+- ByteRipper is the master: port its behaviour and its code structure, so the
+  two stay comparable symbol by symbol. Every ported declaration carries an
+  anchor naming the upstream one — `@upstream <path>#<Type.member>` — and
+  anything that deliberately does not follow upstream says so with
+  `@upstream-differs <why>` or `@web-only <why>`. Upstream declarations left out
+  on purpose are `unported` entries in the module map, with the reason.
+  `python3 Skills/port-from-byteripper/scripts/check_anchors.py` checks all of
+  it; run it after porting.
 
 Third-party data:
 - The GUID catalogue, the ME databases and the microcode catalogue are fetched

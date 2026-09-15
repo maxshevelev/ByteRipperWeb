@@ -17,9 +17,12 @@ import type { MicrocodeHeader } from "@/firmware/uefi/microcodeParser";
  * is ever offered. The other three are read all the same, because the listing
  * is of the whole repository and telling them apart is what keeps AMD's names
  * from being read as Intel's.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeVendor.directory
  */
 export const MICROCODE_VENDORS = ["Intel", "AMD", "VIA", "Freescale"] as const;
 
+/** @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeVendor */
 export type MicrocodeVendor = (typeof MICROCODE_VENDORS)[number];
 
 /**
@@ -40,41 +43,72 @@ export type MicrocodeVendor = (typeof MICROCODE_VENDORS)[number];
  * The four disagree about almost everything: only Intel has a platform id, and
  * Freescale has no CPUID and no hexadecimal revision at all. So the fields not
  * everyone has are optional, and the text ones are what the panel shows.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry
  */
 export interface MicrocodeCatalogueEntry {
+  /** @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.vendor */
   readonly vendor: MicrocodeVendor;
-  /** The path in the repository, which is also its identity. */
+  /**
+   * The path in the repository, which is also its identity.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.path
+   */
   readonly path: string;
   /**
    * The processor it is for, where that is a number. Nothing for Freescale,
    * whose files name a system-on-chip instead.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.cpuid
    */
   readonly cpuid: number | undefined;
   /**
    * What identifies the processor, as the file name writes it: `906EB` for
    * Intel and AMD, `8360` for a Freescale SoC.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.cpuidText
    */
   readonly cpuidText: string;
-  /** The platform ids this update is for, as a bit mask. Intel only. */
+  /**
+   * The platform ids this update is for, as a bit mask. Intel only.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.platformID
+   */
   readonly platformID: number | undefined;
-  /** The revision, as written: `7C`, or `2.1` for Freescale. */
+  /**
+   * The revision, as written: `7C`, or `2.1` for Freescale.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.revisionText
+   */
   readonly revisionText: string;
-  /** `2017-12-03`, as written. Empty where the name carries no date. */
+  /**
+   * `2017-12-03`, as written. Empty where the name carries no date.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.date
+   */
   readonly date: string;
-  /** `PRD` rather than `PRE`: released rather than pre-release. */
+  /**
+   * `PRD` rather than `PRE`: released rather than pre-release.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.isProduction
+   */
   readonly isProduction: boolean;
+  /** @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.size */
   readonly size: number;
 }
 
 /**
  * Two hex digits at least, the way the file name writes it: `plat02`, not
  * `plat2`.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.platformText
  */
 export function platformText(entry: MicrocodeCatalogueEntry): string {
   if (entry.platformID === undefined) return "";
   return entry.platformID.toString(16).toUpperCase().padStart(2, "0");
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.fileName */
 export function entryFileName(entry: MicrocodeCatalogueEntry): string {
   return entry.path.split("/").at(-1) ?? entry.path;
 }
@@ -83,6 +117,8 @@ export function entryFileName(entry: MicrocodeCatalogueEntry): string {
  * The revision as a number, where the file name writes one: `7C` reads as
  * 0x7C. Nothing for Freescale, whose `2.1` is no hexadecimal — one more way in
  * which it is not like the other three.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.revision
  */
 export function entryRevision(entry: MicrocodeCatalogueEntry): number | undefined {
   return parseHex(entry.revisionText);
@@ -96,6 +132,8 @@ export function entryRevision(entry: MicrocodeCatalogueEntry): number | undefine
  * is decided here and unit tested. The panel turns it into a mark in the Type
  * column — one where the row is newest, another where the catalogue has newer —
  * and nothing where there is no basis for a verdict.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeLatest
  */
 export type MicrocodeLatest =
   /**
@@ -128,6 +166,9 @@ export const NOT_RATED: MicrocodeLatest = { kind: "notRated" };
 /**
  * Parses GitHub's recursive tree listing — one request for the whole
  * repository, where the contents API would need a page per directory.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.entries
  */
 export function entriesFromTree(json: string): MicrocodeCatalogueEntry[] {
   const parsed: unknown = JSON.parse(json);
@@ -156,6 +197,8 @@ const compare = (left: string, right: string) => (left < right ? -1 : left > rig
 /**
  * Reads one file name. Nothing for anything that is not a microcode file —
  * every directory holds a licence too.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.entry
  */
 export function entryAt(path: string, size: number): MicrocodeCatalogueEntry | undefined {
   const vendor = MICROCODE_VENDORS.find((one) => path.startsWith(`${one}/`));
@@ -207,6 +250,8 @@ export function entryAt(path: string, size: number): MicrocodeCatalogueEntry | u
  * `cpuidsInTheImage` is the narrowing a bench asks for by hand: a dump is for
  * one board, and what is worth adding to it is usually a newer revision of a
  * CPUID its table already names.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.filter
  */
 export function filterCatalogue(
   entries: readonly MicrocodeCatalogueEntry[],
@@ -233,6 +278,8 @@ export function filterCatalogue(
 /**
  * How many there are of each, for the picker — a vendor the collection has
  * nothing for is worth showing as empty rather than hiding.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.counts
  */
 export function catalogueCounts(
   entries: readonly MicrocodeCatalogueEntry[]
@@ -277,6 +324,8 @@ export function catalogueCounts(
  * A revision newer than anything the catalogue lists is not "latest": the
  * collection is behind the board, and a behind catalogue cannot confirm what it
  * does not know.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.latest
  */
 export function latestOf(
   header: MicrocodeHeader,

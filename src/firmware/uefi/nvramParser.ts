@@ -24,94 +24,180 @@ export { isStoreVolume };
  * recognisers in a fixed order — first match wins — and calls everything in
  * between padding. The order matters: VSS before VSS2, because a GUID whose
  * first dword happens to read `$VSS` would otherwise misroute.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM
  */
 export const NVRAM = {
   // VSS store signatures.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssSignature
   vssSignature: 0x5353_5624, // $VSS
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.appleSvsSignature */
   appleSvsSignature: 0x5356_5324, // $SVS
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.appleNssSignature */
   appleNssSignature: 0x5353_4e24, // $NSS
-  /** The only store format the parser reads. */
+  /**
+   * The only store format the parser reads.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssFormatted
+   */
   vssFormatted: 0x5a,
-  /** The store header, signature through reserved1. */
+  /**
+   * The store header, signature through reserved1.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssStoreHeaderSize
+   */
   vssStoreHeaderSize: 16,
-  /** A variable opens with the two-byte marker 0x55AA. */
+  /**
+   * A variable opens with the two-byte marker 0x55AA.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.variableMarkerFirst
+   */
   variableMarkerFirst: 0xaa,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.variableMarkerLast */
   variableMarkerLast: 0x55,
   // Variable header sizes.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssStandardHeaderSize
   vssStandardHeaderSize: 32,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssAppleHeaderSize */
   vssAppleHeaderSize: 36,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssAuthHeaderSize */
   vssAuthHeaderSize: 60,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssIntelLegacyHeaderSize */
   vssIntelLegacyHeaderSize: 28,
   // Variable states.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssVariableValid
   vssVariableValid: 0x7f,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssVariableAdded */
   vssVariableAdded: 0x3f,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssVariableIntelValid */
   vssVariableIntelValid: 0xfc,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssVariableIntelInvalid */
   vssVariableIntelInvalid: 0xf8,
   // Attribute bits that decide which header a variable carries.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssAttributeAuthWrite
   vssAttributeAuthWrite: 0x0000_0010,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssAttributeTimeBasedAuth */
   vssAttributeTimeBasedAuth: 0x0000_0020,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssAttributeAppendWrite */
   vssAttributeAppendWrite: 0x0000_0040,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vssAttributeAppleDataChecksum */
   vssAttributeAppleDataChecksum: 0x8000_0000,
-  /** Signature (16) + size + format + state + reserved + reserved1. */
+  /**
+   * Signature (16) + size + format + state + reserved + reserved1.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.vss2StoreHeaderSize
+   */
   vss2StoreHeaderSize: 28,
   // FTW working block headers, 32-bit and 64-bit write queue forms.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.ftwStoreHeaderSize32
   ftwStoreHeaderSize32: 28,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.ftwStoreHeaderSize64 */
   ftwStoreHeaderSize64: 32,
   /**
    * An Insyde FDC store opens `_FDC`, a size, a volume header and two block map
    * entries before the store itself: 4 + 4 + 0x38 + 2 * 8.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.insydeFdcSignature
    */
   insydeFdcSignature: 0x4344_465f, // _FDC
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.fdcStoreHeaderSize */
   fdcStoreHeaderSize: 0x50,
   // Apple SysF / Diag store.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.appleSysfSignature
   appleSysfSignature: 0x7379_7346, // Fsys
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.appleDiagSignature */
   appleDiagSignature: 0x6469_6147, // Gaid
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.sysfStoreHeaderSize */
   sysfStoreHeaderSize: 11,
-  /** The last four bytes of a SysF store are its CRC32, not store. */
+  /**
+   * The last four bytes of a SysF store are its CRC32, not store.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.sysfStoreCrcSize
+   */
   sysfStoreCrcSize: 4,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.sysfInvalidFlag */
   sysfInvalidFlag: 0x80,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.sysfNameLengthMask */
   sysfNameLengthMask: 0x7f,
   // Phoenix SCT flash map.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.phoenixFlashMapHeaderSize
   phoenixFlashMapHeaderSize: 16,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.phoenixFlashMapEntrySize */
   phoenixFlashMapEntrySize: 36,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.phoenixFlashMapMaxEntries */
   phoenixFlashMapMaxEntries: 113,
   // Phoenix EVSA.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaSignature
   evsaSignature: 0x4156_5345, // EVSA
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaStoreHeaderSize */
   evsaStoreHeaderSize: 20,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeStore */
   evsaEntryTypeStore: 0xec,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeGuid1 */
   evsaEntryTypeGuid1: 0xed,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeGuid2 */
   evsaEntryTypeGuid2: 0xe1,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeName1 */
   evsaEntryTypeName1: 0xee,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeName2 */
   evsaEntryTypeName2: 0xe2,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeData1 */
   evsaEntryTypeData1: 0xef,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeData2 */
   evsaEntryTypeData2: 0xe3,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeDataInvalid */
   evsaEntryTypeDataInvalid: 0x83,
   /**
    * A data entry whose attributes set the extended-header bit carries a
    * data-size word before its data.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaExtendedHeaderBit
    */
   evsaExtendedHeaderBit: 0x1000_0000,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaDataEntryHeaderSize */
   evsaDataEntryHeaderSize: 12,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaExtendedDataEntryHeaderSize */
   evsaExtendedDataEntryHeaderSize: 16,
   // Phoenix CMDB, a store long past use.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.cmdbSignature
   cmdbSignature: 0x4244_4d43, // CMDB
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.cmdbStoreSize */
   cmdbStoreSize: 0x100,
   // Microsoft SLIC pubkey and marker.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicPubkeySize
   slicPubkeySize: 0x9c,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicPubkeyType */
   slicPubkeyType: 0,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicPubkeyMagic */
   slicPubkeyMagic: 0x3141_5352, // RSA1
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicMarkerSize */
   slicMarkerSize: 0xb6,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicMarkerType */
   slicMarkerType: 1,
-  /** The WindowsFlag field, the eight bytes "WINDOWS " read little-endian. */
+  /**
+   * The WindowsFlag field, the eight bytes "WINDOWS " read little-endian.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicMarkerWindowsFlag
+   */
   slicMarkerWindowsFlag: 0x2053_574f_444e_4957n,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.slicMarkerReservedByte */
   slicMarkerReservedByte: 0,
 } as const;
 
-/** `_FLASH_MAP`, the ten bytes a Phoenix SCT map opens with. */
+/**
+ * `_FLASH_MAP`, the ten bytes a Phoenix SCT map opens with.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.phoenixFlashMapSignature
+ */
 const FLASH_MAP_SIGNATURE = Uint8Array.from("_FLASH_MAP", (one) => one.charCodeAt(0));
-/** The name of the chunk that ends a SysF store, with no data after it. */
+/**
+ * The name of the chunk that ends a SysF store, with no data after it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.sysfEofName
+ */
 const SYSF_EOF_NAME = Uint8Array.from("EOF", (one) => one.charCodeAt(0));
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.isEvsaEntryType */
 function isEvsaEntryType(type: number): boolean {
   return (
     type === NVRAM.evsaEntryTypeGuid1 ||
@@ -130,6 +216,8 @@ function isEvsaEntryType(type: number): boolean {
  * The recursion budget is the parser's own: an FDC store wraps another volume
  * body, which can wrap another. The bound is inclusive because the volume
  * parser already spends the level below `maxDepth` on this body.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.walkNvramVolumeBody
  */
 export function walkNvramVolumeBody(
   parser: Parser,
@@ -229,6 +317,8 @@ function nvramPadding(parser: Parser, start: number, end: number, emptyByte: num
  * padding, not a defect. Inside an Insyde FDC body a plain `$VSS` store may
  * carry the "no size" marker instead of its size; the FDC parse passes its
  * body's length down so such a store still spans it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseVssStore
  */
 export function parseVssStore(
   parser: Parser,
@@ -447,6 +537,8 @@ function vssVariable(parser: Parser, offset: number, storeEnd: number): UEFINode
  * A VSS2 store is led by a 16-byte store GUID (not a four-byte signature) and
  * is 28 bytes of header; its variables are 4-byte aligned, so the padding after
  * each one is a node of its own.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseVss2Store
  */
 export function parseVss2Store(
   parser: Parser,
@@ -616,6 +708,8 @@ function vss2Variable(parser: Parser, offset: number, storeEnd: number): UEFINod
  * An FTW block is led by a 16-byte signature GUID and carries a header CRC32
  * over itself with the CRC and state fields blanked to the erase value. The
  * write queue after the header is opaque: the reference parser keeps it whole.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseFtwStore
  */
 export function parseFtwStore(
   parser: Parser,
@@ -691,6 +785,8 @@ export function parseFtwStore(
  * reads what follows as an NVRAM volume body of its own, handing it the FDC
  * body's length so a `$VSS` store inside that says "no size" is understood to
  * span the whole body.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseFdcStore
  */
 export function parseFdcStore(
   parser: Parser,
@@ -730,6 +826,8 @@ export function parseFdcStore(
  * then a run of variables — each a length byte, an ASCII name, and a data
  * length and data — that ends with a chunk named `EOF`. The last four bytes are
  * the store's CRC32, which is how the store knows its own extent.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseSysFStore
  */
 export function parseSysFStore(
   parser: Parser,
@@ -857,6 +955,8 @@ function asciiName(bytes: Uint8Array): string {
  * reserved dword, then one fixed 36-byte entry per region of the SCT: a GUID
  * that names the region, its data and entry types, its physical address, size
  * and offset.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parsePhoenixFlashMapStore
  */
 export function parsePhoenixFlashMapStore(
   parser: Parser,
@@ -923,6 +1023,8 @@ export function parsePhoenixFlashMapStore(
  * GUID a numeric GuidId, name entries give a variable a name and a numeric
  * VarId, and data entries hold a value referenced by the two ids. An entry type
  * the parser does not know ends the store.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parsePhoenixEvsaStore
  */
 export function parsePhoenixEvsaStore(
   parser: Parser,
@@ -1069,6 +1171,8 @@ export function parsePhoenixEvsaStore(
  *
  * CMDB is a store long past use: the parser reads its signature, sizes its
  * header from the store's own total size, and keeps the rest whole.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parsePhoenixCmdbStore
  */
 export function parsePhoenixCmdbStore(
   parser: Parser,
@@ -1100,6 +1204,8 @@ export function parsePhoenixCmdbStore(
  *
  * A pubkey is a fixed 0x9C bytes: type and size, key material, and the `RSA1`
  * magic. The whole record is the store's header.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseSlicPublicKey
  */
 export function parseSlicPublicKey(
   parser: Parser,
@@ -1127,6 +1233,8 @@ export function parseSlicPublicKey(
  *
  * A marker is a fixed 0xB6 bytes: type and size, a version, the OEM's id and
  * table id, the eight-byte `WINDOWS ` flag, and sixteen reserved zero bytes.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.parseSlicMarker
  */
 export function parseSlicMarker(
   parser: Parser,

@@ -39,22 +39,35 @@ import type { ScratchStore } from "@/core/storage/scratchStore";
  * read speed and nothing else. See M4.
  */
 
-/** When the piece table gives way to a fresh base. All three are amortised. */
+/**
+ * When the piece table gives way to a fresh base. All three are amortised.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.Budgets
+ */
 export interface OverlayBudgets {
   /**
    * An insert larger than this is materialised rather than held in the add
    * buffer, so a large Paste Insert does not sit in memory.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.Budgets.maxInlineInsert
    */
   readonly maxInlineInsert: number;
-  /** Total size of the add buffer before it is folded into a new base. */
+  /**
+   * Total size of the add buffer before it is folded into a new base.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.Budgets.maxAddedBytes
+   */
   readonly maxAddedBytes: number;
   /**
    * Piece count before the list is collapsed: reads binary-search it, and a
    * pathological edit pattern should not make them crawl.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.Budgets.maxPieces
    */
   readonly maxPieces: number;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.Budgets.init */
 export const DEFAULT_OVERLAY_BUDGETS: OverlayBudgets = {
   maxInlineInsert: 8 << 20,
   maxAddedBytes: 64 << 20,
@@ -70,6 +83,7 @@ export interface EditOverlayOptions {
 /** How many bytes are written into a materialised base at a time. */
 const MATERIALISE_CHUNK = 1024 * 1024;
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage */
 export class EditOverlayStorage implements EditableByteStorage {
   private base: ByteStorage;
   private table: PieceTable;
@@ -103,6 +117,7 @@ export class EditOverlayStorage implements EditableByteStorage {
   private readonly scratch: ScratchStore | undefined;
   private readonly budgets: OverlayBudgets;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.init */
   constructor(base: ByteStorage, options: EditOverlayOptions = {}) {
     this.base = base;
     this.table = new PieceTable(base.size);
@@ -113,10 +128,12 @@ export class EditOverlayStorage implements EditableByteStorage {
 
   // MARK: - ByteStorage
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.size */
   get size(): number {
     return this.table.size;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.read */
   async read(at: number, length: number): Promise<Bytes> {
     const plan = this.plan(at, length);
     if (plan === undefined) return new Uint8Array(0);
@@ -188,6 +205,7 @@ export class EditOverlayStorage implements EditableByteStorage {
 
   // MARK: - EditableByteStorage
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.overwrite */
   async overwrite(at: number, bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return;
     // A write starting past EOF leaves a gap, and that gap has always read as
@@ -203,6 +221,7 @@ export class EditOverlayStorage implements EditableByteStorage {
     await this.materialiseIfNeeded(bytes.length);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.insert */
   async insert(at: number, bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return;
     const offset = Math.min(Math.max(at, 0), this.table.size);
@@ -215,6 +234,7 @@ export class EditOverlayStorage implements EditableByteStorage {
     await this.materialiseIfNeeded(bytes.length);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.delete */
   async delete(start: number, end: number): Promise<void> {
     const from = Math.min(Math.max(start, 0), this.table.size);
     const to = Math.min(Math.max(end, 0), this.table.size);
@@ -226,6 +246,7 @@ export class EditOverlayStorage implements EditableByteStorage {
     await this.materialiseIfNeeded(0);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.append */
   async append(bytes: Uint8Array): Promise<void> {
     await this.overwrite(this.table.size, bytes);
   }
@@ -235,12 +256,18 @@ export class EditOverlayStorage implements EditableByteStorage {
   /**
    * True when the storage holds only overwrites, so saving can patch the
    * original file in place rather than rewriting it.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.canPatchInPlace
    */
   get canPatchInPlace(): boolean {
     return !this.lengthChanged;
   }
 
-  /** True when the storage holds any unsaved edit. */
+  /**
+   * True when the storage holds any unsaved edit.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.isDirty
+   */
   get isDirty(): boolean {
     return (
       this.lengthChanged ||
@@ -256,6 +283,8 @@ export class EditOverlayStorage implements EditableByteStorage {
    * that has shrunk since it was opened cannot be read any more, and a read
    * pads the missing bytes with zeros to keep the offsets after them in place —
    * so a save would write those zeros into the user's file and report success.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.baseSize
    */
   get baseSize(): number {
     return this.base.size;
@@ -270,6 +299,8 @@ export class EditOverlayStorage implements EditableByteStorage {
    * offset on holds different content than the file did there, so the tail is
    * part of the answer. The save path does not use this in that state (it
    * rewrites), but the minimap does, to know where a modified byte can be.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.changedRanges
    */
   get changedRanges(): OffsetRange[] {
     const ranges = [...this.retainedChangedRanges, ...this.table.addedRanges];
@@ -279,7 +310,11 @@ export class EditOverlayStorage implements EditableByteStorage {
     return mergeRanges(ranges);
   }
 
-  /** How many pieces the content is described by — for tests and diagnostics. */
+  /**
+   * How many pieces the content is described by — for tests and diagnostics.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.pieceCount
+   */
   get pieceCount(): number {
     return this.table.pieceCount;
   }
@@ -292,6 +327,9 @@ export class EditOverlayStorage implements EditableByteStorage {
    * base piece, the add buffer empties, and nothing is a change any more. Until
    * this happens, `changedRanges` still names every edit and a second save
    * would write them all again over bytes that already hold them.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.rebaseOriginalURL
+   * @upstream-differs takes the new base storage, since a browser save leaves a new File rather than the same URL
    */
   rebase(base: ByteStorage): void {
     this.base = base;
@@ -318,6 +356,10 @@ export class EditOverlayStorage implements EditableByteStorage {
    * reads that. It costs the document's size in origin storage and a pass over
    * its bytes, paid once at the moment of copying rather than risked forever
    * afterwards.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.contentSnapshot
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot
+   * @upstream-differs the content is written once to a scratch file and read back, rather than sharing the piece list and a clonefile(2) copy of the base
    */
   async contentSnapshot(scratch: ScratchStore): Promise<ByteSource> {
     return await scratch.write(this.contentStream());

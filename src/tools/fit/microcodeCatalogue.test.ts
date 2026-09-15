@@ -61,6 +61,7 @@ function header(signature: number, revision: number, platformIDs: number): Micro
 }
 
 describe("reading a file name", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAnIntelNameIsReadFieldByField
   it("reads an Intel name field by field", () => {
     // Everything shown in the form comes out of the name, which is what makes
     // thousands of files searchable without downloading one of them.
@@ -78,6 +79,7 @@ describe("reading a file name", () => {
     expect(entryFileName(one)).toBe("cpu906EB_plat02_ver0000007C_2017-12-03_PRD_5046D998.bin");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAnAmdNameHasNoPlatform
   it("gives an AMD name no platform", () => {
     // Only Intel has one, and its absence is not a defect in the other three.
     const one = entry("AMD/");
@@ -90,6 +92,7 @@ describe("reading a file name", () => {
     expect(one.date).toBe("2017-07-14");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAViaNameIsReadPastItsSignatureField
   it("reads a VIA name past its signature field", () => {
     // VIA puts a signature in the middle of the name, which is neither a date
     // nor a version and must not be read as either.
@@ -101,6 +104,7 @@ describe("reading a file name", () => {
     expect(one.date).toBe("2017-01-09");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAFreescaleNameHasNoCpuidAndNoHexRevision
   it("gives a Freescale name no CPUID and no hex revision", () => {
     // It names a system-on-chip where the others name a CPUID, and its revision
     // is `2.1` rather than a hexadecimal number. Neither fits the fields the
@@ -114,12 +118,14 @@ describe("reading a file name", () => {
     expect(one.date).toBe("");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAPreReleaseIsMarked
   it("marks a pre-release", () => {
     // Worth telling apart from a production one before it goes into a board.
     expect(entry("PRE").isProduction).toBe(false);
     expect(entry("906EB_plat02").isProduction).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testWhatIsNotAMicrocodeFileIsSkipped
   it("skips what is not a microcode file", () => {
     expect(entries().some((one) => one.path.endsWith("LICENSE"))).toBe(false);
     expect(entries().some((one) => one.path === "README.md")).toBe(false);
@@ -133,6 +139,7 @@ describe("reading a file name", () => {
     expect(entryAt("cpu906EB_plat02_ver0000007C_2017-12-03_PRD_5046D998.bin", 10)).toBeUndefined();
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testTheListIsOrderedByCpuidThenRevision
   it("orders the list by CPUID and then revision", () => {
     // Shortest first, so a five-digit Intel CPUID does not sort in among AMD's
     // longer ones, and the revisions of one processor stay together — an order
@@ -155,6 +162,7 @@ describe("reading a file name", () => {
 });
 
 describe("narrowing it down", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testTheVendorDecidesWhatIsListed
   it("lists by vendor", () => {
     // Only Intel is ever offered — a FIT names no other kind — but all four are
     // read, because telling them apart is what keeps AMD's names from being
@@ -175,12 +183,14 @@ describe("narrowing it down", () => {
     ]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testSearchingMatchesTheCpuidAsItIsWritten
   it("matches the CPUID as it is written", () => {
     expect(filterCatalogue(entries(), { vendor: "Intel", search: "906" })).toHaveLength(2);
     expect(filterCatalogue(entries(), { vendor: "Intel", search: "  906eb " })).toHaveLength(2);
     expect(filterCatalogue(entries(), { vendor: "Intel", search: "zzz" })).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testSearchingIsByTheCpuidOnly
   it("searches by the CPUID only", () => {
     // The revision and the file name are the catalogue's, and a bench does not
     // type them, so neither matches.
@@ -188,6 +198,7 @@ describe("narrowing it down", () => {
     expect(filterCatalogue(entries(), { vendor: "Intel", search: "1996" })).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testFilteringToTheCpuidsAlreadyInTheImage
   it("filters to the CPUIDs already in the image", () => {
     // The narrowing a bench asks for by hand: a dump is for one board.
     const found = filterCatalogue(entries(), {
@@ -205,6 +216,7 @@ describe("narrowing it down", () => {
     ).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testTheFiltersCombine
   it("combines the filters", () => {
     const found = filterCatalogue(entries(), {
       vendor: "Intel",
@@ -221,6 +233,7 @@ describe("whether it is the latest", () => {
   // r.F0. `plat22` is bits 1 and 5, `plat02` is bit 1 — so the `plat22` update
   // serves every platform the `plat02` one does.
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAnUpdateCoveringThisPlatformSetOutdatesIt
   it("outdates a platform set an update covers", () => {
     expect(latestOf(header(0x906eb, 0x7c, 0x02), entries())).toEqual({
       kind: "outdated",
@@ -228,10 +241,12 @@ describe("whether it is the latest", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAHeaderMatchingTheNewestThatServesItIsLatest
   it("calls the newest that serves this board latest", () => {
     expect(latestOf(header(0x906eb, 0xf0, 0x02), entries())).toEqual({ kind: "latest" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAHeaderBehindTheCataloguesNewestIsOutdated
   it("names the revision an older header is behind", () => {
     expect(latestOf(header(0x906eb, 0x50, 0x02), entries())).toEqual({
       kind: "outdated",
@@ -239,6 +254,7 @@ describe("whether it is the latest", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testOverlappingPlatformSetsLeaveTheVerdictUndecided
   it("leaves overlapping platform sets undecided", () => {
     // The installed update serves platforms 1 and 3; the catalogue's newer r.F0
     // serves 1 and 5. If this board is platform 1 that update is newer for it,
@@ -250,11 +266,13 @@ describe("whether it is the latest", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAnOverlapThatIsNotNewerIsNotADoubt
   it("does not call an overlap that is not newer a doubt", () => {
     // Whether it serves this board changes nothing either way.
     expect(latestOf(header(0x906eb, 0x100, 0x0a), entries())).toEqual({ kind: "notRated" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAnAllPlatformsUpdateServesEveryBoard
   it("lets an all-platforms update serve every board", () => {
     // An all-zero mask is Intel's "every platform" (SDM §9.11, and the kernel's
     // `if (!pf2) return true`).
@@ -270,11 +288,13 @@ describe("whether it is the latest", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testACpuidTheCatalogueDoesNotListIsNotRated
   it("does not rate a CPUID the catalogue does not list", () => {
     // The collection cannot speak to a processor it does not name.
     expect(latestOf(header(0x000a_0000, 0xf0, 0x02), entries())).toEqual({ kind: "notRated" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAPlatformTheCatalogueDoesNotListIsNotRated
   it("does not rate a platform the catalogue does not list", () => {
     // The CPUID matches, but every update the catalogue holds for it is for
     // other boards. 0x55 is bits 0, 2, 4 and 6; the fixture's are bits 1 and 5.

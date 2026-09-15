@@ -45,6 +45,7 @@ function result(
 }
 
 describe("fwUpdateSupport", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testOnlyCSME12AndNewerGetAnAnswer
   it("answers CSME 12 and newer, and no one else", () => {
     expect(result(11, 8)).toBeUndefined();
     expect(result(12, 0, { family: "cssps" })).toBeUndefined();
@@ -52,12 +53,14 @@ describe("fwUpdateSupport", () => {
     expect(result(12, 0)).toBeDefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testCSME12NeedsThePMCOnly
   it("asks CSME 12 for the PMC alone", () => {
     expect(result(12, 0, { pmc: true })).toBe("yes");
     expect(result(12, 0)).toBe("no");
     expect(result(12, 0, { pmc: true, pchc: true, phy: true })).toBe("yes");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testThePerPlatformRequirements
   it("follows the per-platform requirements", () => {
     for (const [major, minor] of [
       [13, 0],
@@ -82,12 +85,14 @@ describe("fwUpdateSupport", () => {
     expect(result(16, 1, { pmc: true, pchc: true, phy: true })).toBe("yes");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testTheTigerPointSplitOnTheSKU
   it("splits Tiger Point on the SKU", () => {
     expect(result(15, 0, { sku: "Consumer LP", pmc: true, pchc: true })).toBe("yes");
     expect(result(15, 0, { sku: "Consumer H", pmc: true, pchc: true })).toBe("no");
     expect(result(15, 0, { sku: "Consumer H", pmc: true, pchc: true, phy: true })).toBe("yes");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testImpossibleForACorporateExtractedImageWithNothingUncharted
   it("calls a Corporate extracted image with nothing uncharted impossible", () => {
     expect(
       result(12, 0, { sku: "Corporate H", pmc: true, layout: layout({ uncharted: false }) })
@@ -112,6 +117,7 @@ describe("fwUpdateSupport", () => {
     ).toBe("yes");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testImpossibleForAPaddedCSME16AtOffsetZero
   it("calls a padded CSME 16 at offset zero impossible", () => {
     expect(
       result(16, 0, { pmc: true, pchc: true, layout: layout({ alignment: 0x800 }), fptStart: 0 })
@@ -139,6 +145,7 @@ describe("iupPresence", () => {
     empty,
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FWUpdateSupportTests.swift#FWUpdateSupportTests.testThePresenceFlagsReadTheFPTInventory
   it("reads every name each kind goes by, and never an empty one", () => {
     expect(iupPresence([part("FTPR"), part("PCOD"), part("PCHC"), part("SPHY")])).toEqual({
       pmc: true,

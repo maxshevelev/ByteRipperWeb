@@ -1,4 +1,6 @@
+import type { MatchSet } from "@/core/search/matchSet";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
+import { currentMatchMarks, matchOverlayMarks } from "@/render/minimap/matchOverlay";
 import {
   DETAIL_PREFERRED_MAX_SIZE,
   type MinimapMode,
@@ -6,7 +8,7 @@ import {
   preferredMode,
 } from "@/render/minimap/minimapGeometry";
 import type { OverviewPicture } from "@/render/minimap/minimapRenderer";
-import { MINIMAP_COLUMNS, OverviewBinning } from "@/render/minimap/overviewBinning";
+import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overviewBuild";
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
@@ -46,12 +48,20 @@ export type MinimapStatus = "idle" | "building" | "ready" | "failed";
  * band fits again. It matters beyond the width: the gutter between two maps is
  * a fraction of the panel, so a panel kept artificially wide held them
  * artificially far apart.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMinPanelWidth
  */
 export const MIN_MINIMAP_WIDTH = 120;
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMaxPanelWidth */
 export const MAX_MINIMAP_WIDTH = 240;
-/** Upstream opens at the minimum when the user has never chosen a width. */
+/**
+ * Upstream opens at the minimum when the user has never chosen a width.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPreferredPanelWidth
+ */
 export const DEFAULT_MINIMAP_WIDTH = MIN_MINIMAP_WIDTH;
 
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapWidthDefaultsKey */
 const WIDTH_STORAGE_KEY = "byteripper.minimapWidth";
 
 export const clampMinimapWidth = (width: number): number =>
@@ -79,6 +89,7 @@ export interface MinimapState {
   readonly visible: boolean;
   /** The panel's width in CSS pixels, within the band above. */
   readonly width: number;
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.renderMode */
   readonly mode: MinimapMode;
   /** True once the user has chosen a mode, which then survives opening a file. */
   readonly modeChosen: boolean;
@@ -86,13 +97,32 @@ export interface MinimapState {
   readonly rowCount: number;
   /** The longest open file — the axis both maps share. */
   readonly extent: number;
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewSummaries
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.matchOverlays
+   */
   readonly pictures: Readonly<Record<PaneId, OverviewPicture | undefined>>;
   readonly status: MinimapStatus;
-  /** In `[0, 1]` while a picture is being built. */
+  /**
+   * In `[0, 1]` while a picture is being built.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.progressBar
+   * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.progressLabel
+   * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.setRebuildProgress
+   * @upstream-differs a <progress> element under the switch
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.OverviewProgressSink
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginOverviewProgress
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reportOverviewProgress
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.hideOverviewProgress
+   */
   readonly progress: number;
   readonly problem: string | undefined;
 }
 
+/**
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary.empty
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MatchOverlay.empty
+ */
 const IDLE: MinimapState = {
   visible: false,
   width: storedWidth(),
@@ -186,12 +216,23 @@ function anyBuilding(): boolean {
 
 const send = (pane: PaneId, request: MinimapWorkerRequest) => workerFor(pane).postMessage(request);
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setMinimapPanelVisible
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPanelVisible
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPanelVisibilityChanged
+ */
 export function setMinimapVisible(visible: boolean): void {
   minimapStore.update((state) => (state.visible === visible ? state : { ...state, visible }));
   if (visible) void refreshMinimap();
 }
 
-/** Resizes the panel, clamped and remembered. */
+/**
+ * Resizes the panel, clamped and remembered.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setMinimapPanelWidth
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.persistMinimapPanelWidth
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.currentMinimapWidth
+ */
 export function setMinimapWidth(width: number): void {
   const next = clampMinimapWidth(width);
   if (minimapStore.getSnapshot().width === next) return;
@@ -203,10 +244,21 @@ export function setMinimapWidth(width: number): void {
   }
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimap
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimapPanel
+ */
 export function toggleMinimap(): void {
   setMinimapVisible(!minimapStore.getSnapshot().visible);
 }
 
+/**
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setRenderMode
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.onModeChange
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setMinimapRenderMode
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimapOverview
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyPreferredMinimapMode
+ */
 export function setMinimapMode(mode: MinimapMode): void {
   minimapStore.update((state) =>
     state.mode === mode && state.modeChosen ? state : { ...state, mode, modeChosen: true }
@@ -221,6 +273,10 @@ export function setMinimapMode(mode: MinimapMode): void {
  * so a rebuild is the honest answer. The component debounces the call; drawing
  * the old picture stretched to the new height in the meantime is what "rescale
  * in hand" means.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.onOverviewRowCountChanged
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewBinsAreStale
+ * @upstream-differs the old picture is stretched by CSS until the new one lands
  */
 export function setMinimapRows(rowCount: number): void {
   if (minimapStore.getSnapshot().rowCount === rowCount) return;
@@ -241,6 +297,14 @@ function fingerprint(pane: PaneId, extent: number, rowCount: number): string | u
  * Only the density picture can be missing: everything else is derived here and
  * recomputed unconditionally, because it is cheap enough that deciding whether
  * to would cost more than doing it.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setOverviewSummaries
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.rebuildOverview
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scheduleOverviewRebuild
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewSummary
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.refreshMinimapMaps
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewSources
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewFollowIndexChange
  */
 export async function refreshMinimap(): Promise<void> {
   const state = minimapStore.getSnapshot();
@@ -341,8 +405,38 @@ async function buildHere(pane: PaneId, extent: number, rowCount: number): Promis
  * file: the modified mask reads only the rows an edit can have reached, the
  * difference mask is arithmetic over the comparison's blocks, and the match
  * mask is arithmetic over the match set.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setMatchOverlays
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncMinimapMatchOverlays
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scheduleMinimapMatchSync
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncedMatchPicture
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.MatchPicture
  */
-export async function refreshMasks(): Promise<void> {
+export function refreshMasks(): Promise<void> {
+  // One refresh at a time, and any number of requests during it make one more:
+  // a search publishes every hundred milliseconds, and each publish starting its
+  // own pass over the file stacked them up behind each other.
+  if (masksRunning !== undefined) {
+    masksAgain = true;
+    return masksRunning;
+  }
+  masksRunning = (async () => {
+    try {
+      do {
+        masksAgain = false;
+        await refreshMasksOnce();
+      } while (masksAgain);
+    } finally {
+      masksRunning = undefined;
+    }
+  })();
+  return masksRunning;
+}
+
+let masksRunning: Promise<void> | undefined;
+let masksAgain = false;
+
+async function refreshMasksOnce(): Promise<void> {
   const state = minimapStore.getSnapshot();
   if (!state.visible || state.rowCount <= 0 || state.extent <= 0) return;
 
@@ -398,6 +492,9 @@ export async function refreshMasks(): Promise<void> {
  * overview is kilobytes, so its cells are slices of that span — right for a
  * density picture, and meaningless for a mark the eye is meant to line up with
  * the dump beside it.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.matchRanges
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.currentMatchRange
  */
 function matchMasks(
   pane: PaneId,
@@ -407,32 +504,50 @@ function matchMasks(
 ): { matched?: Uint16Array; current?: Uint16Array } {
   const results = resultsFor(search, pane);
   if (results.status !== "found") return {};
-  const binning = new OverviewBinning(extent, rowCount);
-  const rows = { from: 0, to: rowCount };
-  const result: { matched?: Uint16Array; current?: Uint16Array } = {};
-
-  const matches = results.matches;
-  if (matches?.isHighlightable === true) {
-    const matched = new Uint16Array(rowCount);
-    for (const range of matches.matchesIntersecting(0, extent)) {
-      binning.markHexColumns(range.start, range.end, rows, matched);
-    }
-    result.matched = matched;
-  }
-
-  if (results.current !== undefined) {
-    const current = new Uint16Array(rowCount);
-    binning.markHexColumns(results.current.start, results.current.end, rows, current);
-    result.current = current;
-  }
-  return result;
+  const matched = matchOverlayMarks(results.matches, extent, rowCount);
+  const current = currentMatchMarks(results.current, extent, rowCount);
+  return {
+    ...(matched === undefined ? {} : { matched }),
+    ...(current === undefined ? {} : { current }),
+  };
 }
+
+/**
+ * Whether the search changed anything the map draws. The store also changes as
+ * the query is typed and the options are set, none of which moves a mark.
+ */
+function matchesMoved(search: ReturnType<typeof searchStore.getSnapshot>): boolean {
+  let moved = false;
+  for (const pane of PANE_IDS) {
+    const results = resultsFor(search, pane);
+    const drawn = results.status === "found" ? results : undefined;
+    const last = drawnMatches[pane];
+    if (last.matches !== drawn?.matches || last.current !== drawn?.current) moved = true;
+    drawnMatches[pane] = { matches: drawn?.matches, current: drawn?.current };
+  }
+  return moved;
+}
+
+const drawnMatches: Record<
+  PaneId,
+  { matches: MatchSet | undefined; current: { start: number; end: number } | undefined }
+> = {
+  a: { matches: undefined, current: undefined },
+  b: { matches: undefined, current: undefined },
+};
 
 function devicePixelRatio(): number {
   return typeof window === "undefined" ? 1 : window.devicePixelRatio;
 }
 
-/** How informative the overview would be — the switch is disabled where it is not. */
+/**
+ * How informative the overview would be — the switch is disabled where it is not.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.onOverviewUsefulnessChanged
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.setOverviewAvailable
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateOverviewAvailability
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.preferredMinimapMode
+ */
 export function overviewWorthShowing(): boolean {
   const state = minimapStore.getSnapshot();
   const panes = workspaceStore.getSnapshot().panes;
@@ -452,7 +567,9 @@ export function watchForMinimap(): () => void {
   const unsubscribes = [
     workspaceStore.subscribe(() => void refreshMinimap()),
     diffStore.subscribe(() => void refreshMasks()),
-    searchStore.subscribe(() => void refreshMasks()),
+    searchStore.subscribe(() => {
+      if (matchesMoved(searchStore.getSnapshot())) void refreshMasks();
+    }),
   ];
   return () => {
     for (const unsubscribe of unsubscribes) unsubscribe();
@@ -462,6 +579,11 @@ export function watchForMinimap(): () => void {
 /** Notes an edit, so the picture catches up without a full rebuild. */
 let editTimer: ReturnType<typeof setTimeout> | undefined;
 
+/**
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateOverviewRows
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.invalidateBytes
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.patchOverviewRows
+ */
 export function noteMinimapEdit(pane: PaneId): void {
   if (!minimapStore.getSnapshot().visible) return;
   if (editTimer !== undefined) clearTimeout(editTimer);

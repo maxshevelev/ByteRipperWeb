@@ -2,6 +2,7 @@ import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { addressString } from "@/core/text/offsetParser";
 import { addressSignificantFrom, byteInk, type InkRole } from "@/render/hexGrid/byteStyle";
+import { snapToDevicePixels } from "@/render/hexGrid/devicePixels";
 import { DirtyRows } from "@/render/hexGrid/dirtyRows";
 import { GlyphAtlas, type GlyphAtlasKey } from "@/render/hexGrid/glyphAtlas";
 import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
@@ -39,8 +40,20 @@ export interface MatchLookup {
   matchesIntersecting(start: number, end: number): { start: number; end: number }[];
 }
 
-/** What the grid draws from. `BinaryDocument` satisfies this as it stands. */
+/**
+ * What the grid draws from. `BinaryDocument` satisfies this as it stands.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource
+ * @upstream-differs the renderer is handed each piece of state through a setter, rather than pulling it from a data source during draw
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexByteState
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexByteState.byte
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexByteState.isModified
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexByteState.isDifferent
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexByteState.isEOF
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexByteStates
+ */
 export interface HexGridSource {
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.fileSize */
   readonly size: number;
   peek(at: number, length: number): Uint8Array | undefined;
   prefetch(at: number, length: number): Promise<void>;
@@ -84,6 +97,8 @@ const CARET_BAR_OVERHANG = 2;
  * Derived from the bar's own geometry rather than written out as `row + 2`, so
  * a taller bar cannot quietly outgrow what gets repainted — which shows up as a
  * stub of a rule under every row the caret has ever been in.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTipReach
  */
 export function caretRowReach(
   offset: number,
@@ -94,13 +109,24 @@ export function caretRowReach(
   return { first: row, end: row + 1 + below };
 }
 
-/** The mark's body reaches this far past the offset column, as the ring does. */
+/**
+ * The mark's body reaches this far past the offset column, as the ring does.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkBody
+ */
 const BOOKMARK_PADDING = 2;
-/** The apex angle of the mark's tip, held at every font size. */
+/**
+ * The apex angle of the mark's tip, held at every font size.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTipAngle
+ */
 const BOOKMARK_TIP_ANGLE = Math.PI / 2;
 
+/** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourPadding */
 const PEER_CONTOUR_PADDING = 2;
+/** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourRadius */
 const PEER_CONTOUR_RADIUS = 3;
+/** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourLineWidth */
 const PEER_CONTOUR_LINE_WIDTH = 1.5;
 
 /**
@@ -111,13 +137,21 @@ const PEER_CONTOUR_LINE_WIDTH = 1.5;
  * wash, never by how faintly the others are drawn.
  */
 const ZONE_LINE_WIDTH = 2;
+/** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFocusedAlpha */
 const ZONE_ALPHA = 0.9;
+/** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFillAlpha */
 const ZONE_FILL_ALPHA = 0.1;
 
-/** A zone as the renderer holds it. */
+/**
+ * A zone as the renderer holds it.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan
+ */
 interface DrawnZone {
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan.range */
   readonly start: number;
   readonly end: number;
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan.isFocused */
   readonly focused: boolean;
 }
 
@@ -127,7 +161,11 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly eofHatch: string;
   /** The orange wash over a byte that differs from the other pane's. */
   readonly difference: string;
-  /** The outline showing where the other pane's selection falls here. */
+  /**
+   * The outline showing where the other pane's selection falls here.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourAlpha
+   */
   readonly peerSelection: string;
   /** Every occurrence of the search pattern. */
   readonly matchFill: string;
@@ -145,17 +183,28 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly zoneOther: string;
 }
 
-/** One piece's extent and the colour its rows are printed on. */
+/**
+ * One piece's extent and the colour its rows are printed on.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexSegmentSpan
+ */
 export interface SegmentBand {
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexSegmentSpan.range */
   readonly start: number;
   readonly end: number;
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexSegmentSpan.colorIndex
+   * @upstream-differs the band carries its resolved tint
+   */
   readonly tint: string;
 }
 
 export interface HexGridConfig {
   readonly layout: HexLayout;
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.textDecoder */
   readonly decoder: ByteDecoder;
   readonly colors: HexGridColors;
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.hexFont */
   readonly fontFamily: string;
   readonly fontSizePx: number;
   readonly devicePixelRatio: number;
@@ -187,6 +236,10 @@ export interface HexGridSelection {
  */
 const READ_AHEAD_SCREENS = 1;
 
+/**
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView
+ * @upstream-differs the drawing half; the event half is HexPane
+ */
 export class HexGridRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
@@ -259,6 +312,7 @@ export class HexGridRenderer {
   private prefetching: Promise<void> | undefined;
   private onBytesArrived: (() => void) | undefined;
 
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.init */
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const context = canvas.getContext("2d", { alpha: false });
@@ -306,6 +360,8 @@ export class HexGridRenderer {
    * while the other keeps going, and the pair, which exists to show the same
    * offsets side by side, stops doing that. The rows past this pane's own EOF
    * are simply empty.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.scrollExtent
    */
   setScrollExtent(extent: number | undefined): void {
     if (this.scrollExtent === extent) return;
@@ -325,7 +381,12 @@ export class HexGridRenderer {
     // The blit only ever moves rows vertically, so a sideways scroll has to be
     // repainted rather than shifted.
     const scrolledSideways = viewport.scrollLeft !== this.viewport.scrollLeft;
-    this.viewport = viewport;
+    // On a whole device pixel, so the blit's copy and the paint of the band it
+    // exposes put rows in the same place (see snapToDevicePixels).
+    this.viewport = {
+      ...viewport,
+      scrollTop: snapToDevicePixels(viewport.scrollTop, config.devicePixelRatio),
+    };
 
     if (sizeChanged) {
       const scale = config.devicePixelRatio;
@@ -341,6 +402,11 @@ export class HexGridRenderer {
     }
   }
 
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexSelection
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.reloadSelection
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.changedSelectionRects
+   */
   setSelection(selection: HexGridSelection): void {
     const previous = this.selection;
     this.selection = selection;
@@ -358,6 +424,12 @@ export class HexGridRenderer {
   /**
    * Where the caret is. Dirties the row it left and the row it arrived at, so a
    * caret walking down a column repaints two rows rather than a screen.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexCaretRevealOffset
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexCaretNibble
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexInputRegion
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexCaretVisible
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexInsertMode
    */
   setCaret(caret: HexGridCaret | undefined): void {
     const previous = this.caret;
@@ -379,6 +451,10 @@ export class HexGridRenderer {
    * A lookup rather than a list: the renderer asks only for the row it is
    * painting, so a pattern occurring four million times costs a row's worth of
    * work per row rather than a flattening of the whole set.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexMatchRanges
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexCurrentMatch
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.reloadMatches
    */
   setMatches(matches: MatchLookup | undefined, current: HexGridSelection | undefined): void {
     this.matches = matches;
@@ -386,7 +462,11 @@ export class HexGridRenderer {
     this.invalidateAll();
   }
 
-  /** Whether this is the pane the keyboard is talking to. */
+  /**
+   * Whether this is the pane the keyboard is talking to.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.isActive
+   */
   setActive(active: boolean): void {
     if (this.active === active) return;
     this.active = active;
@@ -399,6 +479,8 @@ export class HexGridRenderer {
   /**
    * The comparison to paint. Passing `undefined` clears it — which is what
    * closing the other pane does, and the difference wash has to go with it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexByteStates
    */
   setDifferences(index: DiffBlockIndex | undefined): void {
     this.differences = index;
@@ -415,6 +497,8 @@ export class HexGridRenderer {
    * A set rather than a list because the question asked per row is only
    * "is this one marked", and a row is drawn thousands of times more often
    * than a bookmark is set.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmarkedRows
    */
   setBookmarks(rows: ReadonlySet<number>): void {
     // Compared rather than replaced blindly: this is handed the whole set on
@@ -429,6 +513,8 @@ export class HexGridRenderer {
    *
    * Repaints the rows the old and the new outlines reach and nothing else: a
    * selection in a tool's tree moves one outline, not the whole dump.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexZoneSpans
    */
   setZones(
     zones: readonly { readonly id: string; readonly start: number; readonly end: number }[],
@@ -445,13 +531,18 @@ export class HexGridRenderer {
     this.zones = next;
   }
 
-  /** The segment tints. Empty for a file that has not been cut. */
+  /**
+   * The segment tints. Empty for a file that has not been cut.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexSegmentSpans
+   */
   setSegments(bands: readonly SegmentBand[]): void {
     if (sameBands(this.segments, bands)) return;
     this.segments = bands;
     this.invalidateAll();
   }
 
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexMirroredSelection */
   setPeerSelection(selection: HexGridSelection | undefined): void {
     const previous = this.peerSelection;
     this.peerSelection = selection;
@@ -471,7 +562,14 @@ export class HexGridRenderer {
     this.invalidateAll();
   }
 
-  /** Marks the rows covering `[start, end)` for repaint. */
+  /**
+   * Marks the rows covering `[start, end)` for repaint.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewChange
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.reloadContent
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contentChangeRects
+   * @upstream-differs a decoder change reconfigures the atlas rather than arriving as a change
+   */
   invalidateBytes(start: number, end: number): void {
     this.dirty.invalidate(
       Math.floor(start / BYTES_PER_ROW),
@@ -479,13 +577,18 @@ export class HexGridRenderer {
     );
   }
 
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.reloadData */
   invalidateAll(): void {
     this.dirty.clear();
     this.dirty.invalidate(0, Number.MAX_SAFE_INTEGER);
     this.paintedRows = { first: 0, end: 0 };
   }
 
-  /** Total content height, for the scrollbar the pane puts beside this. */
+  /**
+   * Total content height, for the scrollbar the pane puts beside this.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.hexContentHeight
+   */
   get contentHeight(): number {
     const config = this.config;
     if (config === undefined) return 0;
@@ -493,6 +596,7 @@ export class HexGridRenderer {
     return config.layout.totalHeight(Math.max(own, this.scrollExtent ?? 0));
   }
 
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.hexContentWidth */
   get contentWidth(): number {
     return this.config?.layout.contentWidth ?? 0;
   }
@@ -500,6 +604,8 @@ export class HexGridRenderer {
   /**
    * Paints whatever is dirty and visible. Cheap to call every frame: with
    * nothing dirty and no scroll it does nothing at all.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.draw
    */
   draw(): void {
     const config = this.config;
@@ -614,6 +720,8 @@ export class HexGridRenderer {
   /**
    * Paints one row. Returns false when its bytes were not resident, which
    * leaves the row dirty for the frame after they arrive.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.RowPass
    */
   private paintRow(row: number, size: number): boolean {
     const config = this.config;
@@ -728,7 +836,12 @@ export class HexGridRenderer {
    * With no selection the caret also outlines its byte in the *other* column,
    * linking the hex and the decoded views of the same byte.
    */
-  /** Draws the caret, if it is in the rows `[firstRow, endRow)` being painted. */
+  /**
+   * Draws the caret, if it is in the rows `[firstRow, endRow)` being painted.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.caretRect
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.crossLinkContour
+   */
   private paintCaret(firstRow: number, endRow: number): void {
     const config = this.config;
     const caret = this.caret;
@@ -789,7 +902,11 @@ export class HexGridRenderer {
     );
   }
 
-  /** The address, with its leading zeros muted — or standing on its mark. */
+  /**
+   * The address, with its leading zeros muted — or standing on its mark.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetAddress
+   */
   private paintAddress(rowStart: number, y: number): void {
     const config = this.config;
     const atlas = this.atlas;
@@ -865,6 +982,9 @@ export class HexGridRenderer {
    * tip growing out of its right edge, at a fixed apex angle so the shape holds
    * at every font size. The tip is clamped to the gap before the hex column,
    * because a mark that touched the bytes would read as a highlight on them.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkPath
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkRect
    */
   private paintBookmarkMark(y: number): void {
     const config = this.config;
@@ -1128,6 +1248,8 @@ export class HexGridRenderer {
    *
    * Every row it crosses strokes it, so this would otherwise be recomputed a
    * dozen times a frame for an answer that did not change.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContours
    */
   private peerContours(): ContourPoint[][] {
     const config = this.config;

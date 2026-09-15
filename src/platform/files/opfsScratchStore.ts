@@ -17,8 +17,12 @@ import type { ScratchStore } from "@/core/storage/scratchStore";
  *
  * `src/core` may not reach any of this, which is why it names
  * {@link ScratchStore} and this implements it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore
+ * @upstream-differs origin-private storage rather than a temporary directory
  */
 export class OpfsScratchStore implements ScratchStore {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore.directory */
   private readonly prefix: string;
   private readonly written: string[] = [];
   private counter = 0;
@@ -26,6 +30,8 @@ export class OpfsScratchStore implements ScratchStore {
   /**
    * @param prefix Distinguishes one store's files from another's. Each document
    * gets its own store, so its scratch goes when it does.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore.init
    */
   constructor(
     prefix = `scratch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -38,6 +44,11 @@ export class OpfsScratchStore implements ScratchStore {
     return typeof navigator !== "undefined" && navigator.storage?.getDirectory !== undefined;
   }
 
+  /**
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore.createTempURL
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore.reserveTempURL
+   * @upstream-differs writes the content and hands back a source: there is no path to give a caller
+   */
   async write(content: AsyncIterable<Bytes>): Promise<ByteSource> {
     const root = await navigator.storage.getDirectory();
     const name = `${this.prefix}-${this.counter++}.bin`;
@@ -64,13 +75,19 @@ export class OpfsScratchStore implements ScratchStore {
    *
    * The overlay reads through its previous base until the moment it swaps, so
    * this is called after the swap and never before.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore.removeAll
    */
   async releaseAllButLatest(): Promise<void> {
     const doomed = this.written.splice(0, Math.max(0, this.written.length - 1));
     await this.remove(doomed);
   }
 
-  /** Drops everything. Called when the document that owns this store closes. */
+  /**
+   * Drops everything. Called when the document that owns this store closes.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore.removeAll
+   */
   async releaseAll(): Promise<void> {
     const doomed = this.written.splice(0);
     await this.remove(doomed);

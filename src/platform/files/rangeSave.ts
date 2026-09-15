@@ -13,6 +13,11 @@ import { downloadBlob } from "@/platform/files/download";
 
 export type RangeSaveOutcome = "saved" | "downloaded" | "cancelled";
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveRange
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePaneSelectionAs
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.exportName
+ */
 export async function saveRange(
   storage: ByteStorage,
   start: number,

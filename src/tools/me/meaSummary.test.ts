@@ -33,6 +33,7 @@ const manifestOn = (year: number, month: number, day: number, productionReady?: 
 });
 
 describe("the primary table, filled in", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAnIdentifiedImageReadsInLedgerOrder
   it("reads an identified image in ledger order", () => {
     const rows = tableRows(
       identified({
@@ -91,6 +92,7 @@ describe("the primary table, filled in", () => {
     expect(value("Chipset Stepping", rows)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTypeRowReflectsClassifierAxis
   it("shows the classifier's word on its axis, and a promise off it", () => {
     const typeRow = (type: FirmwareAnalysis["type"]) =>
       value("Type", tableRows(identified({ type })));
@@ -102,6 +104,7 @@ describe("the primary table, filled in", () => {
     expect(value("Type", tableRows(analysisWith({ type: "extracted" })))).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testOEMConfigurationRowSaysYesOrNo
   it("says Yes or No for OEM Configuration, only for the OEM families", () => {
     expect(value("OEM Configuration", tableRows(identified({ oemCustomized: true })))).toEqual(
       shown("Yes")
@@ -118,12 +121,14 @@ describe("the primary table, filled in", () => {
     ).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFlashImageToolRowShowsNAWithoutARealFIT
   it("reads the Flash Image Tool as N/A on a boot table with no real FIT", () => {
     expect(
       value("Flash Image Tool", tableRows(identified({ bootPartitions: [bootFixture(false)] })))
     ).toEqual(shown("N/A"));
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFlashImageToolRowReadsNonIFWIFPTHeaderFIT
   it("reads a non-IFWI image's $FPT header FIT", () => {
     expect(
       value(
@@ -133,10 +138,12 @@ describe("the primary table, filled in", () => {
     ).toEqual(shown("11.0.10.1002"));
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFlashImageToolRowAbsentOnNonIFWIWithoutFIT
   it("has no Flash Image Tool row on a non-IFWI image without a FIT", () => {
     expect(value("Flash Image Tool", tableRows(identified()))).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFileSystemStateCarriesItsStatusTone
   it("colours the File System State by its status", () => {
     const state = (mfsState: FirmwareAnalysis["mfsState"]) => tableRows(identified({ mfsState }));
     expect(value("File System State", state("unconfigured"))).toEqual(shown("Unconfigured"));
@@ -150,6 +157,7 @@ describe("the primary table, filled in", () => {
     expect(tone("Family", state("configured"))).toBe("standard");
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testChipsetRowsWhenThereAreLettersOrNot
   it("chooses the chipset row upstream's way", () => {
     const bare = identified({ mfsVolume: mfsVolumeFixture({ name: "CNP/CMP-H", steppings: "" }) });
     expect(value("Chipset", tableRows(bare))).toEqual(shown("CNP/CMP-H"));
@@ -177,6 +185,7 @@ describe("the primary table, filled in", () => {
     expect(value("Chipset Stepping", pchc)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testSizeRowPrefersTheFirmwaresOwnEnd
   it("prefers the firmware's own end for the Size", () => {
     expect(value("Size", tableRows(identified({ firmwareSizeBytes: 0x27_c000 })))).toEqual(
       shown("0x27C000 (2605056 bytes)")
@@ -184,6 +193,7 @@ describe("the primary table, filled in", () => {
     expect(value("Size", tableRows(identified()))).toEqual(shown("0x200000 (2097152 bytes)"));
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testNVMCompatibilityRowOnlyWhenAMediumIsNamed
   it("names the storage medium only when there is one", () => {
     const nvm = (raw: number | undefined) =>
       value("NVM Compatibility", tableRows(identified({ nvmCompatibility: raw })));
@@ -194,6 +204,7 @@ describe("the primary table, filled in", () => {
     expect(nvm(undefined)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testManifestExtensionUtilityRowOnlyForARealMEUStamp
   it("shows the MEU stamp only for a manifest MEU actually built", () => {
     const meu = (major: number | undefined) =>
       value(
@@ -216,6 +227,7 @@ describe("the primary table, filled in", () => {
     expect(meu(undefined)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheME7RowsAreME7s
   it("gives ME 7 its own rows", () => {
     const me7 = { family: "me", variant: "ME", version: versionWith(7, 1, 40, 1214) } as const;
     const seven = tableRows(
@@ -248,6 +260,7 @@ describe("the primary table, filled in", () => {
     expect(value("Downgrade Blacklist 7.0", eight)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testChipsetSupportRowNamesThePlatformWhenThereIsOne
   it("closes the table with the platform, when the engine named one", () => {
     const rows = tableRows(identified({ platform: "ADP/RPP" }));
     expect(value("Chipset Support", rows)).toEqual(shown("ADP/RPP"));
@@ -255,6 +268,7 @@ describe("the primary table, filled in", () => {
     expect(value("Chipset Support", tableRows(identified()))).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheSecurityRowsFollowTheFamilyAndMajor
   it("follows the family and major for the security rows", () => {
     const labels = (family: FirmwareAnalysis["family"], major: number) =>
       tableRows(
@@ -295,6 +309,7 @@ describe("the primary table, filled in", () => {
     expect(eleven).not.toContain("ARB Security Version Number");
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheCSME11RowsAreCSME11sAlone
   it("gives CSME 11 alone its power-down and workstation rows", () => {
     const eleven = versionWith(11, 8, 92, 4222);
     const rows = tableRows(
@@ -322,6 +337,7 @@ describe("the primary table, filled in", () => {
     expect(value("Workstation Support", twelve)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testEngineeringSuffixOnRelease
   it("says Engineering on the Release row for an engineering build", () => {
     expect(
       value("Release", tableRows(analysisWith({ version: versionWith(12, 0, 3, 7000) })))
@@ -330,6 +346,7 @@ describe("the primary table, filled in", () => {
 });
 
 describe("what is promised and what is kept off the table", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testIdentifiedWithoutFactsPromisesEveryPendingRow
   it("promises every pending row on an identified image with few facts", () => {
     const rows = tableRows(
       identified({ manifest: { ...manifestFixture(), productionReady: undefined } })
@@ -366,12 +383,14 @@ describe("what is promised and what is kept off the table", () => {
     expect(value("Size", rows)).toEqual(shown("0x200000 (2097152 bytes)"));
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testUnidentifiedImageShowsOnlyRealRows
   it("shows an unidentified file only what the engine could honestly say", () => {
     const rows = tableRows(analysisWith());
     expect(rows.map((row) => row.label)).toEqual(["Family", "Version", "Release", "Size"]);
     expect(rows.every((row) => row.value.kind === "value")).toBe(true);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFWUpdateSupportRowReadsAllThreeAnswers
   it("reads all three FWUpdate answers", () => {
     const row = (support: FirmwareAnalysis["fwUpdateSupport"], major = 12) =>
       value(
@@ -390,6 +409,7 @@ describe("the independent firmware's own tables", () => {
   const host = (independentFirmware: readonly FirmwareAnalysis[], major = 12) =>
     identified({ version: versionWith(major, 0, 3, 1091), independentFirmware });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testThePMCBlockReadsAsTheConsolePrintsIt
   it("reads the CSME 12 dump's PMC as the console prints it", () => {
     const pmc = analysisWith({
       family: "pmc",
@@ -442,6 +462,7 @@ describe("the independent firmware's own tables", () => {
     );
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testThePCHCAndPHYBlocksKeepTheirOwnRowSets
   it("keeps the PCHC's and the PHY's own row sets", () => {
     const firmware = (
       family: FirmwareAnalysis["family"],
@@ -497,6 +518,7 @@ describe("the independent firmware's own tables", () => {
     expect(value("Manifest Extension Utility", phy)).toBeUndefined();
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheChipsetRowsOfAPMCFollowItsPlatform
   it("follows a PMC's platform for its chipset rows", () => {
     const rows = (platform: string, stepping: string | undefined, hostMajor = 12) =>
       buildSummary(
@@ -532,6 +554,7 @@ describe("the independent firmware's own tables", () => {
 });
 
 describe("the messages block", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testIssuesBecomeAMessagesBlockAfterTheTable
   it("follows the tables", () => {
     const blocks = buildSummary(
       analysisWith({
@@ -551,7 +574,40 @@ describe("the messages block", () => {
     ]);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testNoIssuesNoMessagesBlock
   it("is no block at all when there are no issues", () => {
     expect(buildSummary(analysisWith())).toHaveLength(1);
+  });
+});
+
+describe("an independent firmware stored twice", () => {
+  const pmc = (redundantCopies: readonly string[] | undefined) =>
+    analysisWith({
+      family: "pmc",
+      variant: "PMCTGP",
+      version: versionWith(150, 1, 10, 1048),
+      release: "production",
+      sku: "LP",
+      platform: "TGP",
+      chipsetStepping: "B",
+      manifest: manifestOn(2020, 6, 1, true),
+      sizeBytes: 0x4_0000,
+      redundantCopies,
+    });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testARedundantCopyIsARowNotASecondTable
+  it("says where its copy is in a row, not a second table", () => {
+    const twice = buildSummary(
+      identified({ version: versionWith(15, 0, 30, 1659), independentFirmware: [pmc(["Boot 2"])] })
+    );
+    expect(twice).toHaveLength(2);
+    const rows = twice[1]?.rows ?? [];
+    expect(rows.at(-1)?.label).toBe("Redundant Copy");
+    expect(JSON.stringify(value("Redundant Copy", rows))).toContain("Boot 2");
+
+    const once = buildSummary(
+      identified({ version: versionWith(15, 0, 30, 1659), independentFirmware: [pmc(undefined)] })
+    );
+    expect(value("Redundant Copy", once[1]?.rows ?? [])).toBeUndefined();
   });
 });

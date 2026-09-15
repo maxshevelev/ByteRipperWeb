@@ -17,83 +17,135 @@ import { jedecName } from "@/firmware/uefi/jedecIds";
  * the reading itself is testable without a window.
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Master */
 export interface DescriptorMaster {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Master.name */
   readonly name: string;
-  /** Each bit stands for a region — which regions a master may touch. */
+  /**
+   * Each bit stands for a region — which regions a master may touch.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Master.read
+   */
   readonly read: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Master.write */
   readonly write: number;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Access */
 export interface DescriptorAccess {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Access.region */
   readonly region: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Access.read */
   readonly read: boolean;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Access.write */
   readonly write: boolean;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip */
 export interface DescriptorChip {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.jedecID */
   readonly jedecId: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.name */
   readonly name: string | undefined;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo */
 export interface DescriptorInfo {
   /**
    * The sixteen bytes before the signature. Reserved, and reliably not zero: on
    * many boards they are the first instruction the chip ever executes.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.reservedVector
    */
   readonly reservedVector: Uint8Array;
   /**
    * Where each region the descriptor declares begins, in the file's own
    * offsets, in the format's region order.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.regionOffsets
    */
   readonly regionOffsets: readonly { readonly type: FlashRegionType; readonly offset: number }[];
-  /** BIOS, ME, GbE — and EC where the descriptor is new enough to have one. */
+  /**
+   * BIOS, ME, GbE — and EC where the descriptor is new enough to have one.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.masters
+   */
   readonly masters: readonly DescriptorMaster[];
   /**
    * How wide a mask is written: two hex digits on a version 1 descriptor, where
    * a mask is a byte, and three on a version 2, where it is twelve bits.
    * UEFITool writes them the same way, and the width is the only sign on screen
    * of which kind of descriptor this is.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.maskDigits
    */
   readonly maskDigits: number;
   /**
    * What the BIOS master may do to each region — the question behind "why can't
    * my programmer write this area from inside the OS".
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.biosAccess
    */
   readonly biosAccess: readonly DescriptorAccess[];
-  /** The chips in the VSCC table. */
+  /**
+   * The chips in the VSCC table.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.chips
+   */
   readonly chips: readonly DescriptorChip[];
 }
 
-/** The region bits a master's access mask carries. */
+/**
+ * The region bits a master's access mask carries.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess
+ */
 const RegionAccess = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess.descriptor */
   descriptor: 0x01,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess.bios */
   bios: 0x02,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess.me */
   me: 0x04,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess.gbe */
   gbe: 0x08,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess.pdr */
   pdr: 0x10,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.RegionAccess.ec */
   ec: 0x20,
 } as const;
 
 /**
  * The upper map, at a fixed offset near the end of the descriptor, which says
  * where the VSCC table is and how long it is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.UpperMap
  */
 const UpperMap = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.UpperMap.offset */
   offset: 0x0efc,
   /**
    * A VSCC entry is two dwords: the id and its register value. The map's size
    * field counts dwords, so the entry count is half of it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.UpperMap.entrySize
    */
   entrySize: 8,
 } as const;
 
-/** Its second word, which carries the master section's base. */
+/**
+ * Its second word, which carries the master section's base.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.map1Offset
+ */
 const MAP1_OFFSET = 0x18;
 
 /**
  * Reads the descriptor at `base`. Nothing when there is no readable map there —
  * the caller has a node that says it is a descriptor, and this says whether its
  * own header can be believed.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.read
  */
 export function readDescriptorInfo(base: number, reader: ImageReader): DescriptorInfo | undefined {
   const map = reader.uint32(base + Descriptor.mapOffset);

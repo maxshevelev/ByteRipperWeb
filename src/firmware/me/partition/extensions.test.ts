@@ -35,6 +35,7 @@ const chainOf = (blocks: readonly Uint8Array[], family: ExtensionFamily): CPDExt
 };
 
 describe("extensionFamily", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testFamilyFromManifestFacts
   it("chooses the revision from the manifest alone", () => {
     const family = (options: Parameters<typeof extensionFamily>[0]) => extensionFamily(options);
 
@@ -85,6 +86,7 @@ describe("extensionFamily", () => {
 });
 
 describe("isRevisedHeader", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testHeaderRevTagPerFamily
   it("revises the right tags for each family", () => {
     for (const tag of [0x00, 0x03, 0x0a, 0x0f, 0x16]) {
       expect(isRevisedHeader(tag, "csme15"), `${tag} on csme15`).toBe(true);
@@ -102,6 +104,7 @@ describe("isRevisedHeader", () => {
 });
 
 describe("decodeExtensionChain", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testCsme15ChainDecodesHeaders
   it("decodes the revised headers of the newest family", () => {
     const chain = chainOf(
       [
@@ -148,6 +151,7 @@ describe("decodeExtensionChain", () => {
     expect(chain[4]?.featurePermissions?.moduleCount).toBe(9);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testBaseFamilyUsesR1Layouts
   it("decodes the original headers of the oldest family", () => {
     const chain = chainOf([extSystemInfo(false), extSignedPackage(false)], "base");
 
@@ -158,6 +162,7 @@ describe("decodeExtensionChain", () => {
     expect(chain[1]?.signedPackage?.arbSvn).toBe(5);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testCsme12RevisesOnly0F
   it("revises only the signed package on the middle family", () => {
     const chain = chainOf([extSystemInfo(false), extSignedPackage(true)], "csme12");
 
@@ -165,6 +170,9 @@ describe("decodeExtensionChain", () => {
     expect(chain[1]?.signedPackage?.nvmCompatibility).toBe(1);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testProcessAttributesDecodesHeaderAndGroupRows
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testThreadDeviceMmioLockedBlocksDecodeRows
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testSpecialFilesDecodesHeaderAndNamedRows
   it("decodes the row-bearing blocks", () => {
     const threads = extRows(0x06, 0x08, 0x10, 2, (bytes, row, index) => {
       putU32(bytes, row, 0x1000 * (index + 1));
@@ -193,6 +201,7 @@ describe("decodeExtensionChain", () => {
     expect(chain[3]?.lockedRanges).toEqual([{ rangeBase: 0x2000, rangeSize: 0x400 }]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testUserInfoRowsUseFamilyRevision
   it("gives user-information rows the layout its family writes", () => {
     // The newer families write a shorter row with no working directory in it,
     // so reading the older layout would take four rows for two.
@@ -210,6 +219,7 @@ describe("decodeExtensionChain", () => {
     expect(chainOf([block], "base")[0]?.userInfoRows).toHaveLength(0);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testInitScriptAndUnknownTagsAreOpaque
   it("leaves a tag it does not know as an envelope", () => {
     // An init script, and something nobody has documented: both are still part
     // of the chain, and a panel that hid them would say the chain was shorter
@@ -225,6 +235,7 @@ describe("decodeExtensionChain", () => {
     expect(chain[2]?.systemInfo).toBeDefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testNullSizeStopsWalk
   it("stops at a block that claims no size", () => {
     // Zero is a false positive rather than a block: continuing would step
     // nowhere, forever.
@@ -253,6 +264,7 @@ describe("decodeExtensionChain", () => {
     ).toEqual([]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testOverflowingBlockIsEnvelopeOnlyAndStops
   it("keeps a block that overruns its module as an envelope", () => {
     // It cannot be trusted to hold a header, but the fact that it is there and
     // how big it claims to be is exactly what a reader needs to see.
@@ -270,6 +282,7 @@ describe("decodeExtensionChain", () => {
     expect(chain[0]?.systemInfo).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testDecodeBoundsByModuleNotRegionTail
   it("is bounded by the module and not by the region", () => {
     // What follows the module is the next partition, and walking into it would
     // read its bytes as blocks.
@@ -293,7 +306,27 @@ describe("decodeExtensionChain", () => {
   });
 });
 
+describe("a header-only block", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testSharedLibraryHeaderOnlyDecodes
+  it("decodes a shared library's header with no rows behind it", () => {
+    const block = extBlock(0x04, 0x1c);
+    putU32(block, 0x08, 0x268); // ContextSize
+    putU32(block, 0x0c, 0x3_0000); // TotAlocVirtSpc
+    putU32(block, 0x18, 0xffff_ffff); // Reserved
+
+    const chain = chainOf([block], "csme12");
+
+    expect(chain[0]?.sharedLibrary).toMatchObject({
+      contextSize: 0x268,
+      totalAllocatedVirtSpace: 0x3_0000,
+      reserved: 0xffff_ffff,
+    });
+    expect(chain[0]?.userInfoRows).toBeUndefined();
+  });
+});
+
 describe("decodeMetadataChain", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testDecodeMetBodyWalksFromBodyBase
   it("walks from the body's own base", () => {
     // A metadata body *is* a chain, where a manifest module's chain starts a
     // header's length into it.
@@ -316,6 +349,7 @@ describe("decodeMetadataChain", () => {
     expect(found[0]?.moduleAttributes?.moduleHash.length).toBe(96);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testModuleAttributesDecodePerRevision
   it("reads the shorter hash on the older families", () => {
     const body = extModuleAttributes(false);
     const found = decodeMetadataChain({
@@ -328,6 +362,7 @@ describe("decodeMetadataChain", () => {
     expect(found[0]?.moduleAttributes?.moduleHash.length).toBe(64);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionWalkerTests.testDecodeMetBodyEmptyOrTruncatedYieldsNoBlocks
   it("gives nothing for an empty or truncated body", () => {
     const empty = {
       bytes: new Uint8Array(0),
@@ -343,6 +378,7 @@ describe("decodeMetadataChain", () => {
 });
 
 describe("extensionFacts", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionHoistTests.testHoistReadsArbSvnFrom0FAndVcnFrom03
   it("reads the security version and the version control number", () => {
     const chain = chainOf(
       [extPartitionInfo(0x03, true, { vcn: 11 }), extSignedPackage(true)],
@@ -357,6 +393,18 @@ describe("extensionFacts", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionHoistTests.testHoistFallsBackTo0FVcnWithout03
+  it("reads the signed package's VCN when there is no partition information", () => {
+    const facts = extensionFacts(
+      chainOf([extSignedPackage(true, { arbSvn: 9, vcn: 11 })], "csme15")
+    );
+
+    expect(facts.arbSvn).toBe(9);
+    expect(facts.vcnFromPartitionInfo).toBeUndefined();
+    expect(facts.vcnFromSignedPackage).toBe(11);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionHoistTests.testHoistKeepsLastOfEachTag
   it("keeps the last of each kind", () => {
     const chain = chainOf(
       [
@@ -369,6 +417,7 @@ describe("extensionFacts", () => {
     expect(extensionFacts(chain)).toMatchObject({ arbSvn: 9, vcnFromSignedPackage: 9 });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionHoistTests.testHoistKeepsTheLastNVMAnR2BlockNamed
   it("keeps an NVM compatibility a revised block found", () => {
     // Only a revised header has the field, and it is written from inside that
     // branch alone — so an unrevised block later in the chain must not clear it.
@@ -384,12 +433,14 @@ describe("extensionFacts", () => {
     expect(extensionFacts(chainOf([extClientSystemInfo()], "csme15")).workstation).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionHoistTests.testHoistIgnores016AndEnvelopeOnlyBlocks
   it("ignores the second partition-information tag, which carries no VCN", () => {
     expect(
       extensionFacts(chainOf([extPartitionInfo(0x16, true)], "csme15")).vcnFromPartitionInfo
     ).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtensionHoistTests.testHoistEmptyChainIsAllNil
   it("finds nothing in an empty chain", () => {
     expect(extensionFacts([])).toEqual({
       arbSvn: undefined,

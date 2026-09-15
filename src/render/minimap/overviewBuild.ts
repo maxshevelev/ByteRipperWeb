@@ -25,7 +25,11 @@ export interface ByteRange {
   readonly end: number;
 }
 
-/** What the picture is built from. */
+/**
+ * What the picture is built from.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewSource
+ */
 export interface OverviewSource {
   /** This file's own length, which is not the extent when two are open. */
   readonly size: number;
@@ -72,6 +76,10 @@ export class OverviewCancelled extends Error {
 /** How many rows a pass finishes between progress reports. */
 const ROWS_PER_REPORT = 64;
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRows
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fillByteFlags
+ */
 export async function buildOverviewRows(
   source: OverviewSource,
   extent: number,
@@ -266,6 +274,8 @@ export async function buildOverviewRows(
  * trick. The same trick in JS would need a DataView read per word and lose to
  * the plain loop, which the engine's own bounds-check elision already makes
  * fast — so this is the naive version on purpose.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.significantByteCount
  */
 export function significantByteCount(bytes: Uint8Array, from: number, to: number): number {
   let count = 0;

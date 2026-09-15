@@ -18,7 +18,12 @@ import type {
  * Ported from `Packages/MEFirmware/FileSystem/PCHInit.swift`.
  */
 
-/** `pch_dict`: chipset id → platform. */
+/**
+ * `pch_dict`: chipset id → platform.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.platformLabels
+ */
 const PLATFORM_LABELS: Readonly<Record<number, string>> = {
   0: "LBG-H",
   3: "ICP-LP",
@@ -51,7 +56,11 @@ export interface PCHIdentity {
   readonly day: number;
 }
 
-/** The tables of file 6, or nothing when its configuration lists none. */
+/**
+ * The tables of file 6, or nothing when its configuration lists none.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.decode
+ */
 export function decodePchInit(
   files: readonly MFSLowLevelFile[],
   configurations: readonly MFSConfigDecode[],
@@ -81,7 +90,11 @@ export function decodePchInit(
   return records.length === 0 ? undefined : { records, chipsets: aggregatePchInit(records) };
 }
 
-/** One table: its chipset, its stepping letters and its revision. */
+/**
+ * One table: its chipset, its stepping letters and its revision.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.decodeTable
+ */
 export function decodePchTable(
   data: Uint8Array,
   identity: PCHIdentity
@@ -138,6 +151,8 @@ export function decodePchTable(
  * Each chipset in first-appearance order, with the union of its tables' letters
  * sorted highest first. Nothing when the first table decoded no stepping — the
  * early return upstream makes.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.aggregate
  */
 export function aggregatePchInit(records: readonly MFSPCHInitRecord[]): MFSPCHInitChipset[] {
   const first = records[0];

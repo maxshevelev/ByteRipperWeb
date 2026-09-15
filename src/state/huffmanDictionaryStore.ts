@@ -35,10 +35,13 @@ export const huffmanDictionaryStore = createStore<HuffmanDictionaryState>({
 export const HUFFMAN_DAT_URL =
   "https://raw.githubusercontent.com/platomav/MEAnalyzer/master/Huffman.dat";
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource */
 export interface HuffmanDictionarySource {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.huffmanDictionaries */
   load(signal?: AbortSignal): Promise<{ readonly text: string; readonly fetchedAt: number }>;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository */
 export const liveHuffmanDictionarySource: HuffmanDictionarySource = {
   async load(signal) {
     const body = await remoteSource(HUFFMAN_DAT_URL).body(signal === undefined ? {} : { signal });
@@ -57,7 +60,11 @@ export function huffmanDictionaryMessage(state: HuffmanDictionaryState): string 
 
 let controller: AbortController | undefined;
 
-/** Starts a download, unless one is running or one has landed. */
+/**
+ * Starts a download, unless one is running or one has landed.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.huffmanDictionaries
+ */
 export function loadHuffmanDictionaries(
   source: HuffmanDictionarySource = liveHuffmanDictionarySource
 ): void {

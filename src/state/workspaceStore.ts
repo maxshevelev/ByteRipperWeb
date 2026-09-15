@@ -1,11 +1,13 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocument";
+import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
+import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { makeByteDecoder } from "@/core/text/byteDecoderRegistry";
 import { detectFileCapabilities, type FileCapabilities } from "@/platform/files/capabilities";
 import {
@@ -17,6 +19,7 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import { noteDocumentChanged } from "@/state/editStore";
+import { sanitizedPaneName } from "@/state/paneName";
 import {
   applySegments,
   clearSegments,
@@ -24,6 +27,20 @@ import {
   segmentsFor,
   swapSegments,
 } from "@/state/segmentsStore";
+import {
+  DEFAULT_GROUPING_GAP,
+  DEFAULT_TEXT_DECODING,
+  forgetGroupingGap,
+  forgetWarnsBeforeShiftingEdits,
+  GROUPING_GAP_CHOICES,
+  loadSettings,
+  rememberGroupingGap,
+  rememberLayoutIsVertical,
+  rememberWarnsBeforeShiftingEdits,
+  rememberWordSize,
+  settingsStore,
+  type TextDecodingSettings,
+} from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { groupActs, noteDocumentAct } from "@/state/undoRouter";
 
@@ -41,10 +58,20 @@ export type PaneId = "a" | "b";
 
 export const PANE_IDS: readonly PaneId[] = ["a", "b"];
 
+/**
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel
+ * @upstream-differs a pane is its slot in the workspace: the document, its typing controller and its file
+ */
 export interface PaneState {
   readonly name: string;
   /** Kept so the comparison worker can be handed the file itself. */
   readonly file: OpenedFile;
+  /**
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.document
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.isOpen
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.byteStorage
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.fileSize
+   */
   readonly document: BinaryDocument;
   /**
    * The editing state machine for this document. It lives here rather than in
@@ -114,49 +141,59 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
  */
 export type PaneLayout = "sideBySide" | "stacked";
 
-/**
- * How far apart differing bytes may sit and still count as one change. One,
- * two, four and sixteen hex rows, as upstream offers.
- */
-export const GROUPING_GAP_CHOICES: readonly number[] = [16, 32, 64, 256];
-
-/**
- * Four rows: close enough that a press moves to a change you were not already
- * looking at, without folding neighbouring changes into one.
- */
-export const DEFAULT_GROUPING_GAP = 64;
-
-/**
- * The hex font's size, fixed.
- *
- * There is no zoom of our own any more. The browser's page zoom is the one the
- * user already has, it is on the keys their fingers already know, and it scales
- * the whole interface rather than only the bytes — a second zoom beside it made
- * two ways to make things bigger that did not agree about what "bigger" meant.
- * The canvas re-measures on a zoom, so the dump stays crisp at any of them.
- */
-export const HEX_FONT_SIZE_PX = 13;
+export { DEFAULT_GROUPING_GAP, GROUPING_GAP_CHOICES };
 
 export interface WorkspaceState {
+  /**
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.pane1
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.pane2
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.openPaneCount
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.hasOpenFile
+   */
   readonly panes: Readonly<Record<PaneId, PaneState | undefined>>;
+  /**
+   * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
+   * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
+   */
   readonly layout: PaneLayout;
   /** File A's share of the workspace, 0–1. The divider moves it. */
   readonly splitFraction: number;
-  /** Which pane the keyboard and the commands act on. */
+  /**
+   * Which pane the keyboard and the commands act on.
+   *
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.activePaneIndex
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.activePane
+   */
   readonly activePane: PaneId;
   readonly capabilities: FileCapabilities;
+  /**
+   * @upstream-differs held in the workspace, and remembered through settingsStore
+   */
   readonly wordSize: WordSize;
-  readonly decoderIdentifier: string;
+  /**
+   * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.groupingGap
+   * @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettings
+   * @upstream-differs held in the workspace, and remembered through settingsStore
+   */
   readonly groupingGap: number;
   /**
    * Whether to ask before an edit that shifts every offset after it. Turned off
    * from the warning's own "don't ask again".
+   *
+   * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings
+   * @upstream-differs held in the workspace, and remembered through settingsStore
    */
   readonly confirmShiftingEdits: boolean;
   /** Something the user needs told — a file that would not open. */
   readonly problem: string | undefined;
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.windowModel
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.mode
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.refreshMode
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel
+ */
 export const workspaceStore = createStore<WorkspaceState>({
   panes: { a: undefined, b: undefined },
   layout: "sideBySide",
@@ -164,23 +201,31 @@ export const workspaceStore = createStore<WorkspaceState>({
   activePane: "a",
   capabilities: detectFileCapabilities(),
   wordSize: 1,
-  decoderIdentifier: "cp1252",
   groupingGap: DEFAULT_GROUPING_GAP,
   confirmShiftingEdits: true,
   problem: undefined,
 });
 
 /** The decoder the panes draw with, rebuilt only when the setting changes. */
-let cachedDecoder = makeByteDecoder(workspaceStore.getSnapshot().decoderIdentifier);
-let cachedDecoderIdentifier = workspaceStore.getSnapshot().decoderIdentifier;
+let cachedDecoder = makeByteDecoder(
+  DEFAULT_TEXT_DECODING.identifier,
+  DEFAULT_TEXT_DECODING.placeholder
+);
 
-export function activeDecoder() {
-  const { decoderIdentifier } = workspaceStore.getSnapshot();
-  if (decoderIdentifier !== cachedDecoderIdentifier) {
-    cachedDecoder = makeByteDecoder(decoderIdentifier);
-    cachedDecoderIdentifier = decoderIdentifier;
+/** The decoder for `settings`: the one already built, when nothing changed. */
+export function decoderFor(settings: TextDecodingSettings): ByteDecoder {
+  if (
+    cachedDecoder.identifier !== settings.identifier ||
+    cachedDecoder.placeholder !== settings.placeholder
+  ) {
+    cachedDecoder = makeByteDecoder(settings.identifier, settings.placeholder);
   }
   return cachedDecoder;
+}
+
+/** @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.textDecoder */
+export function activeDecoder(): ByteDecoder {
+  return decoderFor(settingsStore.getSnapshot().textDecoding);
 }
 
 /**
@@ -190,6 +235,12 @@ export function activeDecoder() {
  * Replacing the active pane is the only answer that is not arbitrary. Always
  * replacing A means a drop can silently throw away the file the user was
  * looking at while they were looking at it.
+ *
+ * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement
+ * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.plan
+ * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result
+ * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.firstFilePane
+ * @upstream-differs picks the slot for one file; a drop of several fills the empty slots in order
  */
 export function slotForNewFile(): PaneId {
   const { panes, activePane } = workspaceStore.getSnapshot();
@@ -204,6 +255,11 @@ export function slotForNewFile(): PaneId {
  * The chunk cache is created here and belongs to this file alone: a cache is
  * keyed by chunk index, so one shared between two files would serve one file's
  * bytes at the other's offsets.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openIntoPane
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openInPane
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.open
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openBytes
  */
 export function openInPane(pane: PaneId, file: OpenedFile): void {
   try {
@@ -211,7 +267,17 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
     // The materialisation valve, now that there is somewhere private to write:
     // an edit session pathological enough to grow the piece list past its
     // budget folds it into a scratch file rather than letting reads crawl.
+    const previous = workspaceStore.getSnapshot().panes[pane]?.document;
     const { document, typing } = makeDocument(new EditOverlayStorage(base, scratchOptions()), pane);
+    // Where the reader is, in offsets. Loading another dump into a pane is
+    // usually a way of looking at the same offsets in a different file, so the
+    // caret comes over, clamped to what the new file has — and the viewport is
+    // left where it is (the scroll link keeps it across the pane's remount).
+    if (previous !== undefined) {
+      document.setSelection(
+        caretAt(Math.min(previous.selection.start, document.size), document.size)
+      );
+    }
     workspaceStore.update((state) => ({
       ...state,
       panes: {
@@ -239,6 +305,10 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
   }
 }
 
+/**
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.closePane
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.close
+ */
 export function closePane(pane: PaneId): void {
   forgetJoins(pane);
   clearSegments(pane);
@@ -256,6 +326,9 @@ export function closePane(pane: PaneId): void {
  * The comparison itself is symmetric — a byte differs or it does not — but
  * which file is on the left is how a person keeps "the one that works" apart
  * from "the one that does not".
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.swapPanes
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.swapPanes
  */
 export function swapPanes(): void {
   swapSegments();
@@ -268,34 +341,133 @@ export function swapPanes(): void {
   }));
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activatePane
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activePane
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activeFilePane
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.setActivePane
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.setActive
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.onPaneActivated
+ */
 export function setActivePane(pane: PaneId): void {
   workspaceStore.update((state) =>
     state.activePane === pane ? state : { ...state, activePane: pane }
   );
 }
 
+/**
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.currentFraction
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.onFractionChanged
+ */
 export function setSplitFraction(splitFraction: number): void {
   workspaceStore.update((state) => ({ ...state, splitFraction }));
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.togglePaneLayout
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.setLayout
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.toggleLayout
+ * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.set
+ */
 export function setLayout(layout: PaneLayout): void {
+  rememberLayoutIsVertical(layout === "sideBySide");
   workspaceStore.update((state) => ({ ...state, layout }));
 }
 
+/**
+ * @upstream ByteRipperApp/Hex/WordSize.swift#WordSize.set
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setWordSize
+ */
 export function setWordSize(wordSize: WordSize): void {
+  rememberWordSize(wordSize);
   workspaceStore.update((state) => ({ ...state, wordSize }));
 }
 
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.set */
 export function setConfirmShiftingEdits(confirmShiftingEdits: boolean): void {
+  rememberWarnsBeforeShiftingEdits(confirmShiftingEdits);
   workspaceStore.update((state) => ({ ...state, confirmShiftingEdits }));
 }
 
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.resetToDefaults */
+export function resetEditingSettings(): void {
+  forgetWarnsBeforeShiftingEdits();
+  workspaceStore.update((state) => ({ ...state, confirmShiftingEdits: true }));
+}
+
+/** @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettings.set */
 export function setGroupingGap(groupingGap: number): void {
+  rememberGroupingGap(groupingGap);
   workspaceStore.update((state) => ({ ...state, groupingGap }));
 }
 
+/** @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettings.resetToDefaults */
+export function resetComparisonSettings(): void {
+  forgetGroupingGap();
+  workspaceStore.update((state) => ({ ...state, groupingGap: DEFAULT_GROUPING_GAP }));
+}
+
+/**
+ * Reads the remembered preferences — the page's into the settings store, the
+ * workspace's here — before the first frame, so nothing is drawn at a default
+ * and then drawn again at the choice.
+ */
+export async function restoreSettings(): Promise<void> {
+  const stored = await loadSettings();
+  workspaceStore.update((state) => ({
+    ...state,
+    wordSize: stored.wordSize,
+    layout: stored.layoutIsVertical ? "sideBySide" : "stacked",
+    groupingGap: stored.groupingGap,
+    confirmShiftingEdits: stored.warnsBeforeShiftingEdits,
+  }));
+}
+
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentError
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentFileError
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentAlert
+ */
 export function reportProblem(problem: string | undefined): void {
   workspaceStore.update((state) => ({ ...state, problem }));
+}
+
+/**
+ * Whether a pane's name can be changed by hand (§23): only a document with no
+ * file behind it. Its name is a label — the header's, Save As's starting point,
+ * and the base every piece's file name is built from — and a label costs
+ * nothing to change. A saved document's name is its file's, and moving a file
+ * is Save As's business.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.canRename
+ */
+export function canRenamePane(pane: PaneId): boolean {
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  return slot !== undefined && slot.saved === undefined;
+}
+
+/**
+ * Renames an unsaved document, saying whether the name was taken. Nothing is
+ * written: this sets the label, which is the whole of an unsaved document's
+ * name. Refused for a name that survives sanitising as nothing, or as the name
+ * it already has.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.rename
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.untitledName
+ * @upstream-differs the pane's own name field, which every document here already has
+ */
+export function renamePane(pane: PaneId, raw: string): boolean {
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  if (slot === undefined || slot.saved !== undefined) return false;
+  const name = sanitizedPaneName(raw);
+  if (name === undefined || name === slot.name) return false;
+  workspaceStore.update((state) =>
+    state.panes[pane] === slot
+      ? { ...state, panes: { ...state.panes, [pane]: { ...slot, name } } }
+      : state
+  );
+  return true;
 }
 
 /**
@@ -306,6 +478,10 @@ export function reportProblem(problem: string | undefined): void {
  * a second save writes nothing. A download changes no file, so the document
  * stays exactly as dirty as it was — the copy is a copy, not a save, and
  * pretending otherwise would let a close discard real work.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.save
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.saveAs
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneSaveError
  */
 export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   const state = workspaceStore.getSnapshot();
@@ -362,6 +538,10 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
  * Refused where there is no origin-private filesystem to write the snapshot
  * into. Sharing the source's base instead would leave the copy reading a file
  * the next save replaces.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.duplicate
+ * @upstream-differs a workspace operation: the copy becomes another pane's document
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openDuplicate
  */
 export async function duplicatePane(from: PaneId): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[from];
@@ -407,13 +587,27 @@ export async function duplicatePane(from: PaneId): Promise<void> {
   noteDocumentChanged();
 }
 
-/** `bios.bin` becomes `bios copy.bin`, which is what a file manager would say. */
+/**
+ * `bios.bin` becomes `bios copy.bin`, which is what a file manager would say.
+ *
+ * @upstream ByteRipperApp/Documents/DuplicateName.swift#DuplicateName
+ * @upstream ByteRipperApp/Documents/DuplicateName.swift#DuplicateName.next
+ * @upstream-differs always "name copy.ext", without numbering a second copy
+ */
 function copyName(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot <= 0 ? `${name} copy` : `${name.slice(0, dot)} copy${name.slice(dot)}`;
 }
 
-/** Opens an empty document in a slot — File ▸ New. */
+/**
+ * Opens an empty document in a slot — File ▸ New.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.newDocument
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.newUntitledDocument
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.newUntitledIntoPane
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.newDocumentInPane
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openUntitled
+ */
 export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
   const { document, typing } = makeDocument(
     new EditOverlayStorage(new MemoryBackedStorage()),
@@ -432,7 +626,12 @@ export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
   resetSegments(pane, 0);
 }
 
-/** The placeholder a never-saved document points at until it is given a home. */
+/**
+ * The placeholder a never-saved document points at until it is given a home.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.placeholderURL
+ * @upstream-differs an empty Blob named like the file, since a never-saved document has no URL
+ */
 function emptyFile(name: string): OpenedFile {
   const blob = new Blob([], { type: "application/octet-stream" });
   return { name, size: 0, lastModified: Date.now(), source: blob };
@@ -443,6 +642,8 @@ function emptyFile(name: string): OpenedFile {
  *
  * The file is re-read rather than the overlay merely reset: it may have changed
  * since it was opened, and "revert to saved" means the bytes that are saved.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.revert
  */
 export async function revertPane(pane: PaneId): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[pane];
@@ -450,9 +651,14 @@ export async function revertPane(pane: PaneId): Promise<void> {
 
   const handle = slot.file.handle;
   const source = handle === undefined ? slot.file.source : await handle.getFile();
+  const caret = slot.document.selection.start;
   slot.document.revert(
     new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), scratchOptions())
   );
+  // A reload is not a navigation: the reader asked for the bytes back, not to be
+  // taken somewhere, so the caret stays where it was as far as the file now
+  // reaches — and nothing scrolls.
+  slot.document.setSelection(caretAt(Math.min(caret, slot.document.size), slot.document.size));
   // The file may have changed since it was opened, so the saved view is
   // rebuilt from what was just read rather than kept from before.
   workspaceStore.update((state) => {
@@ -542,6 +748,7 @@ export function joinIntoPane(request: JoinRequest): Promise<void> {
   return groupActs(request.pane, () => performJoin(request));
 }
 
+/** @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.join */
 async function performJoin(request: JoinRequest): Promise<void> {
   const { pane, source, sourceName, position } = request;
   const slot = workspaceStore.getSnapshot().panes[pane];

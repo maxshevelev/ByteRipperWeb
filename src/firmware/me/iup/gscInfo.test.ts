@@ -4,6 +4,7 @@ import { gscVersionText } from "@/firmware/me/models/independentFacts";
 
 /** The GSC INFO partition. Ported from upstream's `GSCInfoDecodeTests`. */
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoFixture.Params */
 interface Params {
   revision: number;
   project: string;
@@ -40,7 +41,12 @@ const DEFAULTS: Params = {
   iupNames: ["BP1", "BP2"],
 };
 
-/** A revision word, the image header, then one row per name. */
+/**
+ * A revision word, the image header, then one row per name.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoFixture.payload
+ */
 function gscInfoPayload(overrides: Partial<Params> = {}): Uint8Array {
   const p = { ...DEFAULTS, ...overrides };
   const bytes = new Uint8Array(4 + 0x20 + p.iupNames.length * 0x10);
@@ -78,6 +84,7 @@ function gscInfoPayload(overrides: Partial<Params> = {}): Uint8Array {
 }
 
 describe("decodeGscInfo", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoDecodeTests.testDecodesImageHeaderAndIUPRows
   it("decodes the image header and the IUP rows", () => {
     const payload = gscInfoPayload();
     const info = decodeGscInfo(payload, 0, payload.length);
@@ -106,12 +113,14 @@ describe("decodeGscInfo", () => {
     ]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoDecodeTests.testVersionTextNAWhenGSCMajorZero
   it("says N/A for a GSC major of zero", () => {
     const payload = gscInfoPayload({ gscMajor: 0 });
     const info = decodeGscInfo(payload, 0, payload.length);
     expect(info === undefined ? undefined : gscVersionText(info.image)).toBe("N/A");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoDecodeTests.testNonOneRevisionFlaggedButStillDecoded
   it("flags a revision other than 1, and decodes anyway", () => {
     const payload = gscInfoPayload({ revision: 2 });
     const info = decodeGscInfo(payload, 0, payload.length);
@@ -120,11 +129,13 @@ describe("decodeGscInfo", () => {
     expect(info?.iupPartitions).toHaveLength(2);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoDecodeTests.testBaseOffsetShiftsReportedAnchor
   it("reports its base at the caller's offset", () => {
     const payload = gscInfoPayload();
     expect(decodeGscInfo(payload, 0, payload.length, 0x1000)?.offset).toBe(0x1000);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoDecodeTests.testDecodeWithinLargerRegionAtOffset
   it("decodes inside a larger region", () => {
     const payload = gscInfoPayload();
     const region = new Uint8Array(0x40 + payload.length).fill(0xaa);
@@ -135,6 +146,7 @@ describe("decodeGscInfo", () => {
     expect(info?.iupPartitions).toHaveLength(2);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoDecodeTests.testTooShortOrOutOfBoundsYieldsNil
   it("is nothing too short or out of bounds", () => {
     expect(decodeGscInfo(new Uint8Array(4 + 0x10), 0, 4 + 0x10)).toBeUndefined();
     expect(decodeGscInfo(new Uint8Array(0x200), 0x200, 0x200)).toBeUndefined();

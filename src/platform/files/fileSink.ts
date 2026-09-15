@@ -63,7 +63,13 @@ export interface SaveRequest {
   readonly capabilities?: FileCapabilities;
 }
 
-/** Saves to the file the document came from, or downloads a copy. */
+/**
+ * Saves to the file the document came from, or downloads a copy.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver.save
+ * @upstream-differs writes through a File System Access handle, whose writable publishes the file whole, instead of patching in place or renaming a sibling temporary
+ */
 export async function save(request: SaveRequest): Promise<SaveOutcome> {
   const capabilities = request.capabilities ?? detectFileCapabilities();
   const handle = request.handle;

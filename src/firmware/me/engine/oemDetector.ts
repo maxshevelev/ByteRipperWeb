@@ -30,6 +30,10 @@ import type {
  * Ported from `Packages/MEFirmware/Engine/OEMDetector.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/OEMDetector.swift#OEMDetector
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/OEMDetector.swift#OEMDetector.oemCustomized
+ */
 export function oemCustomized(options: {
   readonly fpt: FPTResult | undefined;
   readonly bootPartitions: readonly BootPartition[] | undefined;
@@ -47,6 +51,8 @@ export function oemCustomized(options: {
  * The operational `$CPD` carries a non-empty `fitc.cfg` — the configuration the
  * Flash Image Tool writes. Not part of row 14's answer: it is one of the four
  * things that raise the File System State to Configured.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/OEMDetector.swift#OEMDetector.fitConfiguration
  */
 export function fitConfiguration(
   codePartition: CodePartition | undefined,

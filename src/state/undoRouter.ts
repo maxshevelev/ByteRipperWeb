@@ -169,6 +169,10 @@ export function nextRedo(pane: PaneId): { readonly label: string | undefined } |
 
 type Slot = NonNullable<ReturnType<typeof workspaceStore.getSnapshot>["panes"][PaneId]>;
 
+/**
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undoLabel
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redoLabel
+ */
 const documentUndoLabel = (slot: Slot) => slot.document.undoHistory.undoLabel;
 const documentRedoLabel = (slot: Slot) => slot.document.undoHistory.redoLabel;
 
@@ -205,6 +209,8 @@ function nextAct(
  *
  * Returns false when neither history has anything left, so the caller can leave
  * the key to whatever else wants it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undoEdit
  */
 export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
   for (let index = past.length - 1; index >= 0; index--) {
@@ -230,6 +236,7 @@ export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
   return false;
 }
 
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.redoEdit */
 export async function redoLast(pane: PaneId): Promise<boolean> {
   for (let index = future.length - 1; index >= 0; index--) {
     const act = future[index];

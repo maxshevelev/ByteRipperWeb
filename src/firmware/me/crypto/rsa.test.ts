@@ -42,6 +42,9 @@ function checked(one: (typeof MANIFESTS)[number], data = one.protected): RSAOutc
 
 describe("validateSignature", () => {
   for (const manifest of MANIFESTS) {
+    // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testCSME12ManifestSignatureValid
+    // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testCSME15ManifestSignatureValid
+    // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testCSME16ManifestSignatureValid
     it(`validates the real ${manifest.name} manifest`, () => {
       // CSME 12 is 2048-bit PKCS #1 v1.5 over SHA-256; the other two are
       // 3072-bit SSA-PSS over SHA-384, which has to go through parse, unmask,
@@ -53,6 +56,7 @@ describe("validateSignature", () => {
       expect(outcome.embeddedHash).toBe(outcome.dataHash);
     });
 
+    // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testTamperedProtectedDataInvalidatesBothPaths
     it(`rejects ${manifest.name} when one byte of the protected window changes`, () => {
       const tampered = Uint8Array.from(manifest.protected);
       tampered[tampered.length - 1] = (tampered[tampered.length - 1] ?? 0) ^ 0x01;
@@ -61,6 +65,7 @@ describe("validateSignature", () => {
     });
   }
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testEmptyRSABlockIsValid
   it("calls an empty RSA block valid", () => {
     // A manifest with no signature in it is not a manifest with a bad one.
     const zero = new Uint8Array(0x100);
@@ -75,6 +80,7 @@ describe("validateSignature", () => {
     ).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testEvenModulusIsNotCheckable
   it("says an even modulus is not checkable rather than invalid", () => {
     // It cannot be exponentiated into at all. Upstream would crash here; this
     // reports "no answer", which is a different thing from "wrong".
@@ -92,6 +98,7 @@ describe("validateSignature", () => {
     ).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testMissingKeyMaterialIsNotCheckable
   it("says missing key material is not checkable", () => {
     expect(
       validateSignature({
@@ -106,6 +113,7 @@ describe("validateSignature", () => {
 });
 
 describe("powerMod", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testPowerModMatchesReference
   it("matches an independent reference on the real moduli", () => {
     // `pow(2, 65537, n)` for two of the real keys, computed with a bignum
     // independent of the implementation under test.
@@ -144,6 +152,7 @@ describe("powerMod", () => {
     }
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testPowerModHandlesTheExponentsEdges
   it("handles the exponent's edges", () => {
     expect(powerMod(7n, 0n, 17n)).toBe(1n); // anything to the zero
     expect(powerMod(20n, 1n, 17n)).toBe(3n); // and reduced on the way
@@ -153,6 +162,7 @@ describe("powerMod", () => {
     expect(powerMod(2n, 0x8000_0000n, 17n)).toBe(1n);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RSATests.swift#RSATests.testPowerModSmallNumbers
   it("agrees with hand-computed small cases", () => {
     expect(powerMod(3n, 4n, 17n)).toBe(13n); // 81 mod 17
     expect(powerMod(2n, 10n, 999n)).toBe(25n);

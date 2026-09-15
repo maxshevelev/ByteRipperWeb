@@ -16,6 +16,12 @@
  * out of a specification has to match a GUID read out of an image.
  */
 
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.low
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.high
+ * @upstream-differs four fields as the structure lays them out, not two 64-bit halves: a bigint per GUID would cost more than it saves
+ */
 export interface EFIGUID {
   /** Bytes 0..4, little-endian. */
   readonly a: number;
@@ -27,7 +33,11 @@ export interface EFIGUID {
   readonly d: number;
 }
 
-/** All sixteen bytes `0x00`, which is how an absent GUID is written. */
+/**
+ * All sixteen bytes `0x00`, which is how an absent GUID is written.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.zero
+ */
 export const GUID_ZERO: EFIGUID = { a: 0, b: 0, c: 0, d: 0 };
 
 export function guidEquals(left: EFIGUID, right: EFIGUID): boolean {
@@ -41,7 +51,11 @@ const word = (bytes: Uint8Array, at: number): number =>
     ((bytes[at + 3] ?? 0) << 24)) >>>
   0;
 
-/** Sixteen bytes as they lie in the image, starting at `at`. */
+/**
+ * Sixteen bytes as they lie in the image, starting at `at`.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.init
+ */
 export function guidFromBytes(bytes: Uint8Array, at = 0): EFIGUID {
   return {
     a: word(bytes, at),
@@ -51,7 +65,11 @@ export function guidFromBytes(bytes: Uint8Array, at = 0): EFIGUID {
   };
 }
 
-/** The sixteen bytes, in image order. */
+/**
+ * The sixteen bytes, in image order.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.bytes
+ */
 export function guidBytes(guid: EFIGUID): Uint8Array {
   const bytes = new Uint8Array(16);
   const view = new DataView(bytes.buffer);
@@ -68,7 +86,11 @@ const hex = (bytes: Uint8Array, from: number, to: number, reversed = false): str
   return slice.map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join("");
 };
 
-/** `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`, upper case and unbraced. */
+/**
+ * `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`, upper case and unbraced.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.description
+ */
 export function guidText(guid: EFIGUID): string {
   const bytes = guidBytes(guid);
   return [
@@ -84,6 +106,8 @@ export function guidText(guid: EFIGUID): string {
  * Reads the form above, with or without braces, in any case — specifications
  * and vendors disagree about case, and a table typed from one has to match an
  * image written by the other.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/EFIGUID.swift#EFIGUID.init
  */
 export function guidFromText(text: string): EFIGUID | undefined {
   let digits = text.trim();
@@ -124,7 +148,11 @@ export function guidKey(guid: EFIGUID): string {
   return guidText(guid);
 }
 
-/** A GUID written into source, for the tables. Throws on a typo, at load. */
+/**
+ * A GUID written into source, for the tables. Throws on a typo, at load.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.guid
+ */
 export function guid(text: string): EFIGUID {
   const parsed = guidFromText(text);
   if (parsed === undefined) throw new Error(`"${text}" is not a GUID`);

@@ -16,25 +16,35 @@ import { assembleWord, type ByteSource } from "@/firmware/byteSource";
  * Ported from `Packages/UEFIImage/OverlayByteSource.swift`.
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.Patch */
 export interface OverlayPatch {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.Patch.offset */
   readonly offset: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.Patch.bytes */
   readonly bytes: Uint8Array;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource */
 export class OverlayByteSource implements ByteSource {
   private readonly base: ByteSource;
   private readonly patches: readonly OverlayPatch[];
 
-  /** Later patches win, so they are applied in the order they were given. */
+  /**
+   * Later patches win, so they are applied in the order they were given.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.init
+   */
   constructor(base: ByteSource, patches: readonly OverlayPatch[]) {
     this.base = base;
     this.patches = patches;
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.byteCount */
   get byteCount(): number {
     return this.base.byteCount;
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.bytes */
   bytes(start: number, end: number): Uint8Array {
     const read = Uint8Array.from(this.base.bytes(start, end));
     for (const patch of this.patches) {

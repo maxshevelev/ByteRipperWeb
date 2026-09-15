@@ -7,8 +7,8 @@ import {
 } from "@/firmware/fit/fitEntry";
 import { effectiveSize, type FITRow } from "@/firmware/fit/fitTable";
 import { checksumText } from "@/firmware/uefi/checksums";
-import { microcodeDate } from "@/firmware/uefi/microcodeParser";
-import { cpuidText, fitHex as hex } from "@/tools/fit/fitText";
+import { microcodeFields } from "@/firmware/uefi/microcodeParser";
+import { fitHex as hex } from "@/tools/fit/fitText";
 
 /**
  * What the panel says about the selected row: the row's own sixteen bytes, and
@@ -20,23 +20,35 @@ import { cpuidText, fitHex as hex } from "@/tools/fit/fitText";
  * Ported from `Modules/FITTool/FITDetail.swift`.
  */
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetailField */
 export interface FITDetailField {
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetailField.label */
   readonly label: string;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetailField.value */
   readonly value: string;
   /**
    * A value that reads as a problem — a checksum that does not check out. The
    * panel colours just this row's value; everything else stays as it is, the
    * same way the UEFI detail marks its own.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetailField.isProblem
    */
   readonly isProblem: boolean;
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITRowDetail */
 export interface FITRowDetail {
-  /** The row's place and type, named the way the zones name it. */
+  /**
+   * The row's place and type, named the way the zones name it.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITRowDetail.title
+   */
   readonly title: string;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITRowDetail.fields */
   readonly fields: readonly FITDetailField[];
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITRowDetail.empty */
 export const EMPTY_DETAIL: FITRowDetail = { title: "", fields: [] };
 
 /**
@@ -52,13 +64,20 @@ export const EMPTY_DETAIL: FITRowDetail = { title: "", fields: [] };
  * the header's Checksum field is coloured by and quotes when it reads wrong.
  * Nothing when the checksum checks out, or is not checked: the byte is valid
  * then, not a problem.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetail
+ * @upstream Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetail.build
  */
-export function buildDetail(row: FITRow, checksumShouldBe?: number | undefined): FITRowDetail {
+export function buildDetail(
+  row: FITRow,
+  checksumShouldBe?: number | undefined,
+  inBackup = false
+): FITRowDetail {
   return {
     // The number the panel shows for the row, counting from one the way the
     // table and the zones do — not the header's zero, which is its place, not
     // its number.
-    title: `#${row.entry.index + 1} ${fitTypeName(row.entry.type)}`,
+    title: `${inBackup ? "Backup " : ""}#${row.entry.index + 1} ${fitTypeName(row.entry.type)}`,
     fields: [...entryFields(row.entry, checksumShouldBe), ...targetFields(row)],
   };
 }
@@ -150,35 +169,14 @@ function targetFields(row: FITRow): FITDetailField[] {
     }
     case "outsideTheImage":
       return [{ label: "Points at", value: "outside this image", isProblem: false }];
-    case "microcode": {
-      const header = target.header;
-      return [
-        { label: "CPUID", value: cpuidText(header.processorSignature), isProblem: false },
-        // The microcode's own update revision — "Update revision" so it does
-        // not read as the same thing as the entry's Revision above.
-        { label: "Update revision", value: hex(header.updateRevision), isProblem: false },
-        { label: "Date", value: microcodeDate(header), isProblem: false },
-        { label: "Data size", value: size(header.dataSize), isProblem: false },
-        { label: "Total size", value: size(header.totalSize), isProblem: false },
-        { label: "Platform IDs", value: hex(header.platformIDs), isProblem: false },
-        // The image's own dword checksum, distinct from the header's checksum
-        // byte. Shown with whether the image sums to zero, the shared spelling,
-        // so it reads the same wherever a checksum carries a validity — and a
-        // wrong one says what it should be. A header whose image cannot be read
-        // whole has no sum, so there is no answer to give, only that it does
-        // not count.
-        {
-          label: "Image checksum",
-          value: checksumText({
-            value: header.checksum,
-            valid: header.checksumIsCorrect,
-            expected: header.computedChecksum,
-            digits: 4,
-          }),
-          isProblem: !header.checksumIsCorrect,
-        },
-      ];
-    }
+    case "microcode":
+      // The same reading the UEFI panel gives a microcode node
+      // (`microcodeFields`), so the two say it in the same words.
+      return microcodeFields(target.header).map(({ label, value, isProblem }) => ({
+        label,
+        value,
+        isProblem,
+      }));
     case "emptyMicrocodeSlot":
       return [
         { label: "Points at", value: "empty slot (FF FF FF FF)", isProblem: false },

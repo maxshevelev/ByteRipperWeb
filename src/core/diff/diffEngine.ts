@@ -24,7 +24,11 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
  * two-second rescan of the file's tail.
  */
 
-/** A single edit to one side of a comparison, for updating an index. */
+/**
+ * A single edit to one side of a comparison, for updating an index.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEdit
+ */
 export type DiffEdit =
   /** `[start, end)` now holds new bytes. Offsets do not move. */
   | { readonly kind: "overwrite"; readonly start: number; readonly end: number }
@@ -33,12 +37,20 @@ export type DiffEdit =
   /** `[start, end)` was removed. Everything after it moved. */
   | { readonly kind: "delete"; readonly start: number; readonly end: number };
 
-/** The offset from which the comparison is no longer trustworthy. */
+/**
+ * The offset from which the comparison is no longer trustworthy.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEdit.earliestAffectedOffset
+ */
 export function earliestAffectedOffset(edit: DiffEdit): number {
   return edit.kind === "insert" ? edit.at : edit.start;
 }
 
-/** Whether the edit moves the offsets after it. */
+/**
+ * Whether the edit moves the offsets after it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEdit.shiftsOffsets
+ */
 export function shiftsOffsets(edit: DiffEdit): boolean {
   return edit.kind !== "overwrite";
 }
@@ -53,6 +65,8 @@ export function shiftsOffsets(edit: DiffEdit): boolean {
  * tail ten times where one pass would do. Overwrites before the shift point
  * survive, because nothing else rescans their offsets, and are merged where
  * they touch, which is what a run of typing produces.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEdit.collapse
  */
 export function collapseEdits(edits: readonly DiffEdit[]): DiffEdit[] {
   if (edits.length <= 1) return [...edits];
@@ -103,6 +117,8 @@ export function collapseEdits(edits: readonly DiffEdit[]): DiffEdit[] {
  * The bounds must be pre-shift: an overwrite rewrites bytes in place, so a
  * later insert landing after the overwritten range does not move them, and
  * shifting the window would put it past the bytes that actually changed.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEdit.netDiffEdit
  */
 export function netDiffEdit(ops: readonly UndoOperation[]): DiffEdit | undefined {
   if (ops.length === 0) return undefined;
@@ -149,6 +165,7 @@ export interface ScanOptions {
   readonly onProgress?: (fraction: number) => void;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEngine.defaultChunkSize */
 export const DEFAULT_DIFF_CHUNK_SIZE = 1024 * 1024;
 
 /**
@@ -158,6 +175,8 @@ export const DEFAULT_DIFF_CHUNK_SIZE = 1024 * 1024;
  * on purpose: {@link scanDiff}'s word stepping is checked against it, so the
  * two must not share the code being checked. Also the convenient form for
  * small inputs.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEngine.blocks
  */
 export function diffBytes(left: Uint8Array, right: Uint8Array): DiffBlockIndex {
   const builder = new DiffBlockBuilder();
@@ -190,6 +209,10 @@ export function diffBytes(left: Uint8Array, right: Uint8Array): DiffBlockIndex {
  * absolute offsets.
  *
  * @throws {DiffCancelled} when `shouldCancel` says so between chunks.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEngine.scan
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEngine.scanAsync
+ * @upstream-differs one asynchronous scan; a browser has no synchronous read of a File
  */
 export async function scanDiff(
   left: ByteStorage,
@@ -208,6 +231,8 @@ export async function scanDiff(
  * bytes on either side. An insert or a delete drops everything from the
  * earliest affected offset and rescans to the new EOF, because every offset
  * after it now means something different.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEngine.apply
  */
 export async function applyEdit(
   edit: DiffEdit,

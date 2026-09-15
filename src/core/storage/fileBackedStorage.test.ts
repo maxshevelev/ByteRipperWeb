@@ -8,6 +8,7 @@ import { asArray, countingBytes, storageOver } from "@/core/testing/support";
 
 /** Ported from `FileBackedStorageTests.swift`. */
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift#FileBackedStorageTests.testReadsAreClampedToEOF
 describe("reads are clamped to EOF", () => {
   const cases: {
     name: string;
@@ -47,6 +48,7 @@ describe("reads are clamped to EOF", () => {
 });
 
 describe("FileBackedStorage", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift#FileBackedStorageTests.testReadAcrossChunkBoundaries
   it("reads across chunk boundaries", async () => {
     const data = countingBytes(50);
     const storage = storageOver(data, { chunkSize: 4, byteBudget: 1024 });
@@ -57,6 +59,7 @@ describe("FileBackedStorage", () => {
     expect(asArray(await storage.read(15, 1))).toEqual([15]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift#FileBackedStorageTests.testReadsPreserveContentAcrossRepeatedAccess
   it("preserves content across repeated overlapping reads", async () => {
     const data = countingBytes(1000);
     // A budget of two chunks against a file of sixteen: every window evicts
@@ -69,6 +72,7 @@ describe("FileBackedStorage", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift#FileBackedStorageTests.testLargeSparseFileReadsChunksWithBoundedMemory
   it("reads a 1 GB file at arbitrary offsets with a bounded working set", async () => {
     // Upstream makes a sparse file; a browser has no such thing, so the source
     // here answers slices of a gigabyte it never materialises. What is being
@@ -115,6 +119,8 @@ describe("FileBackedStorage", () => {
     expect(slices).toBe(1);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift#FileBackedStorageTests.testOpenErrors
+  // @upstream-differs the one open failure a browser has: a File gone stale
   it("turns a stale file into the error the interface can explain", async () => {
     // A `File` goes stale when the file changes underneath it, and the browser
     // says so with NotReadableError. Reporting that as a generic failure is how

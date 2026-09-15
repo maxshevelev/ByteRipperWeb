@@ -11,24 +11,47 @@ import type { FirmwareFamily, ReleaseType } from "@/firmware/me/models/firmwareF
  * Ported from `Packages/MEFirmware/Identify/Identifier.swift`.
  */
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity */
 export interface Identity {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.family */
   readonly family: FirmwareFamily;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.variant */
   readonly variant: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.release */
   readonly release: ReleaseType;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.major */
   readonly major: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.minor */
   readonly minor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.hotfix */
   readonly hotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.build */
   readonly build: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.meMajor */
   readonly meMajor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.meMinor */
   readonly meMinor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.meHotfix */
   readonly meHotfix: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.meBuild */
   readonly meBuild: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.securityVersion */
   readonly securityVersion: string | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.databaseName */
   readonly databaseName: string | undefined;
-  /** The stepping the database records, where no chipset table names one. */
+  /**
+   * The stepping the database records, where no chipset table names one.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.chipsetStepping
+   */
   readonly chipsetStepping: string | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.powerDownMitigation */
   readonly powerDownMitigation: string | undefined;
-  /** False when no real engine family could be determined at all. */
+  /**
+   * False when no real engine family could be determined at all.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.Identity.identified
+   */
   readonly identified: boolean;
 }
 
@@ -38,6 +61,8 @@ export interface Identity {
  * The database classifies it as undecided, and the firmware's own major splits
  * it: one key, two families, and the version is the only thing that tells them
  * apart.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.sharedMEKeyHash
  */
 export const SHARED_ME_KEY_HASH =
   "86C0E5EF0CFEFF6D810D68D83D8C6ECB68306A644C03C0446B646A3971D37894";
@@ -45,6 +70,8 @@ export const SHARED_ME_KEY_HASH =
 /**
  * The shared pre-key split, exposed on its own so it can be tested without
  * fabricating a key whose digest equals that constant.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.preKeyOverride
  */
 export function preKeyOverride(keyHash: string | undefined, major: number): string | undefined {
   if (keyHash !== SHARED_ME_KEY_HASH) return undefined;
@@ -54,7 +81,11 @@ export function preKeyOverride(keyHash: string | undefined, major: number): stri
   return undefined;
 }
 
-/** A raw variant token as a family. */
+/**
+ * A raw variant token as a family.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.family
+ */
 export function familyForVariant(token: string): FirmwareFamily {
   switch (token) {
     case "ME":
@@ -86,6 +117,9 @@ export function familyForVariant(token: string): FirmwareFamily {
  *
  * `moduleNames` are the modules of the manifest's own directory, in order —
  * what names the firmware when no database key claims it.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/Identifier.swift#Identifier.identify
  */
 export function identify(options: {
   readonly manifest: Manifest;

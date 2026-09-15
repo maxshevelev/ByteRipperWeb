@@ -7,11 +7,11 @@ import {
 } from "@/ui/pane/scrollLink";
 
 function fakePane(maxTop: number, rowHeight = 17) {
-  const state = { position: { top: 0, left: 0 } as ScrollPosition, moves: 0 };
+  const state = { position: { top: 0, left: 0 } as ScrollPosition, moves: 0, maxTop, rowHeight };
   const scroller: LinkedScroller = {
-    rowHeight: () => rowHeight,
+    rowHeight: () => state.rowHeight,
     position: () => state.position,
-    extent: () => ({ maxTop, maxLeft: 0, viewportHeight: 340 }),
+    extent: () => ({ maxTop: state.maxTop, maxLeft: 0, viewportHeight: 340 }),
     moveTo: (position) => {
       state.position = position;
       state.moves += 1;
@@ -56,6 +56,149 @@ describe("the link between two panes", () => {
     expect(b.state.position.top).toBe(17_000);
   });
 
+  it("brings a pane that joins to where the open one already is", () => {
+    // Compare with…: the second file opens at the offsets the first is showing,
+    // not at the top of the file.
+    const link = new ScrollLink();
+    const a = fakePane(40_000);
+    const b = fakePane(40_000);
+    link.register("a", a.scroller);
+    a.state.position = { top: 17_000, left: 0 };
+    link.report("a");
+
+    link.register("b", b.scroller);
+    expect(b.state.position.top).toBe(17_000);
+    // The pane already open is the one followed, never dragged back.
+    expect(a.state.position.top).toBe(17_000);
+  });
+
+  it("clamps a joining pane to its own extent", () => {
+    const link = new ScrollLink();
+    const a = fakePane(40_000);
+    const b = fakePane(1_000);
+    link.register("a", a.scroller);
+    a.state.position = { top: 17_000, left: 0 };
+    link.report("a");
+    link.register("b", b.scroller);
+    expect(b.state.position.top).toBe(1_000);
+  });
+
+  it("puts a pane whose file was replaced back where it was", () => {
+    // Opening another file into the same pane remounts it; the viewport stays.
+    const link = new ScrollLink();
+    const first = fakePane(40_000);
+    const stop = link.register("a", first.scroller);
+    first.state.position = { top: 8_500, left: 0 };
+    link.report("a");
+    stop();
+
+    const second = fakePane(40_000);
+    link.register("a", second.scroller);
+    expect(second.state.position.top).toBe(8_500);
+  });
+
+  it("starts a pane at the top once it has been closed on purpose", () => {
+    const link = new ScrollLink();
+    const first = fakePane(40_000);
+    const stop = link.register("a", first.scroller);
+    first.state.position = { top: 8_500, left: 0 };
+    link.report("a");
+    stop();
+    link.forget("a");
+
+    const second = fakePane(40_000);
+    link.register("a", second.scroller);
+    expect(second.state.moves).toBe(0);
+  });
+
+  it("follows the open pane rather than its own old place", () => {
+    const link = new ScrollLink();
+    const a = fakePane(40_000);
+    const b = fakePane(40_000);
+    link.register("a", a.scroller);
+    const stopB = link.register("b", b.scroller);
+    b.state.position = { top: 3_400, left: 0 };
+    link.report("b");
+    stopB();
+
+    a.state.position = { top: 6_800, left: 0 };
+    link.report("a");
+    const again = fakePane(40_000);
+    link.register("b", again.scroller);
+    expect(again.state.position.top).toBe(6_800);
+  });
+});
+
+describe("panes that never drift apart", () => {
+  /** A long file scrolled far past the end of a short one. */
+  function pastTheShortEnd() {
+    const link = new ScrollLink();
+    const long = fakePane(100_000);
+    const short = fakePane(1_000);
+    link.register("a", long.scroller);
+    link.register("b", short.scroller);
+    long.state.position = { top: 50_000, left: 0 };
+    link.report("a");
+    return { link, long, short };
+  }
+
+  it("differ only past the end of the shorter file", () => {
+    const { long, short } = pastTheShortEnd();
+    expect(long.state.position.top).toBe(50_000);
+    expect(short.state.position.top).toBe(1_000);
+  });
+
+  it("do not drag the long pane back when the short one re-lays out", () => {
+    // A resize or an edit clamps the short pane at its own end; that clamp is
+    // not a scroll, and the long pane stays where the reader put it.
+    const { link, long, short } = pastTheShortEnd();
+    short.state.maxTop = 900;
+    link.settle("b");
+    expect(short.state.position.top).toBe(900);
+    expect(long.state.position.top).toBe(50_000);
+  });
+
+  it("come level again once the short file reaches the position", () => {
+    const { link, short } = pastTheShortEnd();
+    short.state.maxTop = 80_000;
+    link.settle("b");
+    expect(short.state.position.top).toBe(50_000);
+  });
+
+  it("bring the long pane back when the short one is scrolled", () => {
+    const { link, long, short } = pastTheShortEnd();
+    short.state.position = { top: 500, left: 0 };
+    link.report("b");
+    expect(long.state.position.top).toBe(500);
+  });
+
+  it("stay on the same row through a font change, one pane at a time", () => {
+    const link = new ScrollLink();
+    const a = fakePane(100_000);
+    const b = fakePane(100_000);
+    link.register("a", a.scroller);
+    link.register("b", b.scroller);
+    a.state.position = { top: 1_700, left: 0 };
+    link.report("a");
+
+    a.state.rowHeight = 20;
+    link.settle("a");
+    expect(a.state.position.top).toBe(2_000);
+    // The other pane has not re-laid out yet, and is not moved in pixels that
+    // mean different bytes to it.
+    expect(b.state.position.top).toBe(1_700);
+    b.state.rowHeight = 20;
+    link.settle("b");
+    expect(b.state.position.top).toBe(2_000);
+  });
+
+  it("have nothing to settle to before anything has scrolled", () => {
+    const link = new ScrollLink();
+    const a = fakePane(100_000);
+    link.register("a", a.scroller);
+    expect(link.settle("a")).toBe(false);
+  });
+
   it("says what a pane shows from where it is in the content", () => {
     const link = new ScrollLink();
     const a = fakePane(40_000_000);
@@ -72,6 +215,7 @@ const metrics = (rowHeight: number, maxTop: number, maxLeft = 0) => ({
   maxLeft,
 });
 
+// @upstream ByteRipperTests/ViewportAnchorTests.swift#ViewportAnchorTests.testAScrollStillMovesTheOtherPane
 describe("mirroring a scroll to the other pane", () => {
   it("copies the position, because the panes show the same offsets", () => {
     expect(mirroredScroll({ top: 340, left: 0 }, { rowHeight: 17 }, metrics(17, 10_000))).toEqual({
@@ -80,6 +224,7 @@ describe("mirroring a scroll to the other pane", () => {
     });
   });
 
+  // @upstream ByteRipperTests/ScrollPreservationTests.swift#ScrollPreservationTests.testLoadingAShorterFileClampsTheScrollToItsEnd
   it("clamps to the other pane's extent, so a shorter file shows its end", () => {
     // Without this, scrolling the longer file drags the shorter one into blank
     // space below its own last row.

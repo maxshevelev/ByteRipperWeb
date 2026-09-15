@@ -8,6 +8,9 @@ import { checksumIsCorrect, type FITRow, type FITTable } from "@/firmware/fit/fi
  * They are worth having as a list rather than as scattered conditions, because
  * the list *is* the deliverable: a bench opens this panel to be told what a
  * hand edit broke, and "types out of order at entry 5" is the whole answer.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITValidator.swift#FITValidator
+ * @upstream Modules/FITTool/Sources/FITTool/FITValidator.swift#FITValidator.problems
  */
 export function problemsIn(table: FITTable): FITProblem[] {
   const problems: FITProblem[] = [];

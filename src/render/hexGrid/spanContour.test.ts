@@ -69,6 +69,7 @@ describe("a span with a partial first and last row", () => {
   });
 });
 
+// @upstream ByteRipperTests/ActivePaneTests.swift#ActivePaneTests.testMirrorSplitsASpanWhoseRowsShareNoColumn
 describe("two rows whose parts share no column", () => {
   it("is two rectangles rather than a loop that crosses back", () => {
     // Row 0 columns 12–15, row 1 columns 0–3. There is no staircase here, and

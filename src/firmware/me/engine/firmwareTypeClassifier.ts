@@ -15,6 +15,10 @@ import type { FITVersion, FirmwareFamily, FirmwareType } from "@/firmware/me/mod
 
 const KRND = tagBytes("KRND\0");
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FirmwareTypeClassifier.swift#FirmwareTypeClassifier
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FirmwareTypeClassifier.swift#FirmwareTypeClassifier.classify
+ */
 export function classifyFirmwareType(options: {
   readonly family: FirmwareFamily;
   readonly major: number;
@@ -46,6 +50,8 @@ export function classifyFirmwareType(options: {
  * It is also the only set whose real-FIT branch records a Flash Image Tool
  * version, so the type and that version share one predicate — which is why it
  * is a function rather than a condition written twice.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FirmwareTypeClassifier.swift#FirmwareTypeClassifier.isCSMELike
  */
 export function isCSMELike(family: FirmwareFamily, major: number): boolean {
   return (
@@ -66,6 +72,8 @@ export function isCSMELike(family: FirmwareFamily, major: number): boolean {
  * is never surfaced because the update check wins before the FIT is read, and
  * the extracted-by-placeholder paths reach this branch on a header that carries
  * no FIT at all. An IFWI image's version comes from its boot descriptor instead.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FirmwareTypeClassifier.swift#FirmwareTypeClassifier.fptHeaderFIT
  */
 export function fptHeaderFIT(options: {
   readonly family: FirmwareFamily;

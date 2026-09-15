@@ -15,6 +15,7 @@ const rowDatabase = (row: string) =>
   );
 
 describe("MEADatabase.parse", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#MEADatabaseTests.testParsesRevisionMarker
   it("reads the revision and the corpus", () => {
     const database = MEADatabase.parse(csmeDatabaseText());
 
@@ -23,6 +24,11 @@ describe("MEADatabase.parse", () => {
     // Blank lines are not part of the corpus, which is what keeps the line
     // index a line index rather than a line-or-gap index.
     expect(database.lines.every((line) => line.length > 0)).toBe(true);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#MEADatabaseTests.testNoRevisionYieldsNil
+  it("reads no revision from text without the marker", () => {
+    expect(MEADatabase.parse("just some firmware lines").revision).toBeUndefined();
   });
 
   it("finds a variant by its key line", () => {
@@ -53,6 +59,7 @@ describe("MEADatabase.parse", () => {
   });
 });
 
+// @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testDatabaseCellsPerFamily
 describe("the manual cells of a firmware row", () => {
   // Which cell holds the stepping and the power-down token depends on the
   // family, and a placeholder means "not recorded".

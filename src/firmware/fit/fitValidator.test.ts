@@ -26,12 +26,14 @@ const problems = (
 };
 
 describe("the invariants", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAGoodTableHasNothingWrongWithIt
   it("find nothing wrong with a good table", () => {
     expect(problems([goodRow])).toEqual([]);
   });
 
   // A FIT handler is allowed to stop looking at the first type past the one it
   // wants, so order is a rule and not a preference.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testTypesThatDecreaseAreReported
   it("report types that decrease", () => {
     const found = problems([{ type: FIT.startupACMType, target: 0x3000 }, goodRow]);
 
@@ -41,6 +43,7 @@ describe("the invariants", () => {
     expect(found[0]?.entryIndex).toBe(2);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testASecondHeaderIsReported
   it("report a second header", () => {
     const found = problems([goodRow, { type: FIT.headerType, address: 0 }]);
     expect(found.some((one) => one.detail.kind === "secondHeader" && one.entryIndex === 2)).toBe(
@@ -48,6 +51,7 @@ describe("the invariants", () => {
     );
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAFirstEntryThatIsNotTheHeaderIsReported
   it("report a first entry that is not the header", () => {
     const found = problems([goodRow], { headerType: FIT.microcodeType });
     expect(
@@ -59,11 +63,13 @@ describe("the invariants", () => {
   });
 
   // A table without microcode will not boot the machine it came out of.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testATableWithNoMicrocodeIsReported
   it("report a table with no microcode", () => {
     const found = problems([{ type: FIT.startupACMType, target: 0x3000 }]);
     expect(found.some((one) => one.detail.kind === "noMicrocodeEntry")).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAnAddressThatIsNotAlignedIsReported
   it("report an address that is not aligned", () => {
     const found = problems([{ type: FIT.microcodeType, target: MICROCODE_AT + 4 }]);
     expect(
@@ -73,6 +79,7 @@ describe("the invariants", () => {
     ).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAnAddressOutsideTheImageIsReported
   it("report an address outside the image", () => {
     const found = problems([goodRow, { type: FIT.startupACMType, address: 0x40 }]);
     expect(
@@ -85,6 +92,7 @@ describe("the invariants", () => {
 
 describe("the table checksum", () => {
   // The checksum left over from the edit before.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAStaleChecksumIsReported
   it("is reported when it is stale", () => {
     const found = problems([goodRow], { checksum: 0xcc });
 
@@ -96,6 +104,7 @@ describe("the table checksum", () => {
 
   // The header's own bit decides whether anyone checks the sum, so a table that
   // never claimed a checksum is not wrong for having none.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAChecksumIsNotCheckedWhenTheHeaderSaysItDoesNotCount
   it("is not checked when the header says it does not count", () => {
     expect(problems([goodRow], { checksum: 0xcc, checksumValid: false })).toEqual([]);
   });
@@ -116,6 +125,7 @@ describe("the reserved byte", () => {
       )
     ).problems;
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testAReservedByteInUseIsAWarningExceptWhereItIsASubtype
   it("is a warning where it is reserved", () => {
     const found = allProblems([goodRow, { type: FIT.startupACMType, target: 0x3000, reserved: 3 }]);
     expect(
@@ -138,6 +148,7 @@ describe("the reserved byte", () => {
 });
 
 describe("every problem", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testEveryProblemPointsSomewhere
   it("points somewhere, and says something", () => {
     const found = problems([{ type: FIT.startupACMType, address: 0x40 }, goodRow], {
       checksum: 0xcc,

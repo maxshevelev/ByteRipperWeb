@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
@@ -28,6 +28,7 @@ import {
   offsetToGoTo,
   ratingLatest,
   rowCommands,
+  rowKey,
   TABLE_ZONE_ID,
 } from "@/tools/fit/fitDisplay";
 import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeForm";
@@ -91,6 +92,12 @@ function storedTableShare(): number {
   }
 }
 
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.loadView
+ * @upstream-differs a React component: its render and effects are the session and its view controller
+ */
 function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
@@ -178,6 +185,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * with the image's own CPUIDs one checkbox away. A catalogue that failed to
    * arrive is asked for again: the form is on screen, and the list is what it
    * is for.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.addMicrocode
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onAddMicrocode
    */
   const openAdd = useCallback(() => {
     setFormStatus(undefined);
@@ -189,10 +199,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * The row's "Replace Microcode": the same form, named for replacing, its
    * narrowing the row's own CPUID. The replacement need not be that CPUID — the
    * row, not the processor, is what changes — so it opens on the whole list.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.replaceMicrocode
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onReplaceMicrocode
    */
   const openReplace = useCallback(
     (index: number) => {
-      const row = display.rows.find((one) => one.index === index);
+      const row = display.rows.find((one) => one.index === index && !one.isBackup);
       const target = row?.model.target;
       setFormStatus(undefined);
       setForm({
@@ -206,6 +219,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     [display.rows]
   );
 
+  /** @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.onCancel */
   const closeForm = useCallback(() => {
     download.current?.abort();
     download.current = undefined;
@@ -217,6 +231,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * A microcode picked in the form: fetched — the form says so while it is —
    * then the form closes and the change is planned and written as one step. A
    * fetch that fails says why in the form, which stays up.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.replaceMicrocode
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.onAdd
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.onReplace
    */
   const pickFromCatalogue = useCallback(
     (entry: MicrocodeCatalogueEntry) => {
@@ -244,6 +262,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   /**
    * The way in without a network, and for a microcode the collection does not
    * have. When the form opened to replace a row, the file goes to that row.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.onChooseFile
    */
   const chooseFileForForm = useCallback(() => {
     const mode = form;
@@ -255,6 +275,18 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     });
   }, [form, closeForm, runEdit]);
 
+  /**
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.goToOffset
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.copyCPUID
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.removeMicrocode
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.fixChecksum
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onGoToTarget
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onCopyCPUID
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onRemoveMicrocode
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onGoToProblem
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onFixChecksum
+   * @upstream-differs one dispatcher over the row's commands, rather than a method per command
+   */
   const run = useCallback(
     (command: FITRowCommand) => {
       switch (command.kind) {
@@ -263,9 +295,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           const range = row?.targetRange;
           context.reveal(command.offset, range?.end ?? command.offset + 16);
           if (row !== undefined) {
-            setFocus(row.index);
+            setFocus(rowKey(row));
             setTableFocused(false);
-            publishZones(context.pane, focusingTarget(display, row.index).zones);
+            publishZones(context.pane, focusingTarget(display, rowKey(row)).zones);
           }
           return;
         }
@@ -279,7 +311,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           const fix = display.checksumFix;
           if (fix === undefined) return;
           void applyTransaction(pane, fix).then((problem) => {
-            if (problem !== undefined) context.report(problem);
+            context.report(
+              problem ??
+                (fix.writes.length > 1
+                  ? "Checksum written, in the Top Swap backup's table too. Undo takes it back."
+                  : "Checksum written. Undo takes it back.")
+            );
           });
           return;
         }
@@ -296,9 +333,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     [display, context, pane, runEdit, openReplace]
   );
 
+  /**
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onSelect
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewSelectionDidChange
+   */
   const choose = useCallback(
     (row: FITDisplayRow) => {
-      setFocus(row.index);
+      setFocus(rowKey(row));
       setTableFocused(false);
       // The row's own sixteen bytes: selecting a row is about the row, and
       // going to what it points at is the double-click and the menu's command.
@@ -307,7 +348,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     [context]
   );
 
-  /** The table's name: the dump goes to the whole table, and no row is in focus. */
+  /**
+   * The table's name: the dump goes to the whole table, and no row is in focus.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.showTable
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onSelectTable
+   */
   const chooseTable = useCallback(() => {
     const table = display.zones.zones.find((zone) => zone.id === TABLE_ZONE_ID);
     if (table === undefined) return;
@@ -318,7 +364,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      const at = display.rows.findIndex((row) => row.index === focus);
+      const at = display.rows.findIndex((row) => rowKey(row) === focus);
       const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
       if (step !== 0) {
         const next =
@@ -409,54 +455,65 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
               </tr>
             </thead>
             <tbody>
-              {display.rows.map((row) => (
-                <tr
-                  key={row.index}
-                  className="fit-row"
-                  data-selected={!tableFocused && focus === row.index ? "" : undefined}
-                  onClick={() => choose(row)}
-                  onDoubleClick={() => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
-                  onContextMenu={(event) => {
-                    choose(row);
-                    openContextMenu(
-                      event,
-                      rowCommands(row).map((command) => ({
-                        label: fitCommandTitle(command),
-                        // A command that changes the table stands down while
-                        // an edit is being planned — greyed, not gone.
-                        disabled:
-                          busy &&
-                          (command.kind === "replaceMicrocode" ||
-                            command.kind === "removeMicrocode" ||
-                            command.kind === "fixChecksum"),
-                        onSelect: () => run(command),
-                      }))
-                    );
-                  }}
-                >
-                  <td className="fit-number">{displayNumber(row)}</td>
-                  <td title={`Version ${row.versionText}`}>
-                    <span className="fit-type">
-                      <LatestMark state={row.latestState} />
-                      {row.hasProblem ? (
-                        <span
-                          className="tool-problem"
-                          role="img"
-                          aria-label="Invalid"
-                          title={problemText(display, row.index)}
-                        >
-                          !
-                        </span>
-                      ) : null}
-                      <span className="fit-type-text">{row.typeText}</span>
-                    </span>
-                  </td>
-                  <td className="fit-number">{row.addressText}</td>
-                  <td className="fit-number">{row.sizeText}</td>
-                  <td title={row.targetText.length === 0 ? undefined : row.targetText}>
-                    {row.targetText}
-                  </td>
-                </tr>
+              {display.rows.map((row, position) => (
+                <Fragment key={rowKey(row)}>
+                  {position === display.backupStart ? (
+                    // The Top Swap backup's copy of the table follows under a
+                    // heading of its own, which cannot be selected.
+                    <tr className="fit-backup-heading">
+                      <th colSpan={COLUMNS.length} scope="colgroup">
+                        {display.backupHeading}
+                      </th>
+                    </tr>
+                  ) : null}
+                  <tr
+                    className="fit-row"
+                    data-backup={row.isBackup ? "" : undefined}
+                    data-selected={!tableFocused && focus === rowKey(row) ? "" : undefined}
+                    onClick={() => choose(row)}
+                    onDoubleClick={() => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
+                    onContextMenu={(event) => {
+                      choose(row);
+                      openContextMenu(
+                        event,
+                        rowCommands(row).map((command) => ({
+                          label: fitCommandTitle(command),
+                          // A command that changes the table stands down while
+                          // an edit is being planned — greyed, not gone.
+                          disabled:
+                            busy &&
+                            (command.kind === "replaceMicrocode" ||
+                              command.kind === "removeMicrocode" ||
+                              command.kind === "fixChecksum"),
+                          onSelect: () => run(command),
+                        }))
+                      );
+                    }}
+                  >
+                    <td className="fit-number">{displayNumber(row)}</td>
+                    <td title={`Version ${row.versionText}`}>
+                      <span className="fit-type">
+                        <LatestMark state={row.latestState} />
+                        {row.hasProblem ? (
+                          <span
+                            className="tool-problem"
+                            role="img"
+                            aria-label="Invalid"
+                            title={problemText(display, row)}
+                          >
+                            !
+                          </span>
+                        ) : null}
+                        <span className="fit-type-text">{row.typeText}</span>
+                      </span>
+                    </td>
+                    <td className="fit-number">{row.addressText}</td>
+                    <td className="fit-number">{row.sizeText}</td>
+                    <td title={row.targetText.length === 0 ? undefined : row.targetText}>
+                      {row.targetText}
+                    </td>
+                  </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -477,16 +534,16 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         />
       </div>
 
-      {/* The findings as plain lines under the table, as tall as they are up to
-          eight of them, and absent when the table checks out. A double-click
-          takes the dump to what a line is about. */}
+      {/* The findings as plain lines under the table, each wrapped onto as many
+          lines as it takes, as tall as they are up to eight lines' worth, and
+          absent when the table checks out. A double-click takes the dump to
+          what a line is about. */}
       {display.problems.length === 0 ? null : (
         <ul className="fit-problems" style={{ maxHeight: `${MAX_PROBLEM_ROWS * 22}px` }}>
           {display.problems.map((problem) => (
             <li
-              key={problemKey(problem)}
+              key={`${problem.inBackup === true ? "backup:" : ""}${problemKey(problem)}`}
               data-severity={fitSeverity(problem.detail)}
-              title={fitProblemMessage(problem)}
               onDoubleClick={() => {
                 if (problem.offset === undefined) return;
                 context.reveal(problem.offset, problem.offset + 1);
@@ -532,11 +589,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           // waited out, being offline means yesterday's copy is the best there
           // is, and a 404 means no amount of waiting helps.
           <>
-            <span
-              className="fit-catalogue-problem"
-              data-kind={catalogue.failure?.kind}
-              title={message}
-            >
+            <span className="fit-catalogue-problem" data-kind={catalogue.failure?.kind}>
               {message}
             </span>
             <button
@@ -575,6 +628,11 @@ function editFor(mode: MicrocodeFormMode, component: Uint8Array): FitEdit {
  * How a row's microcode stands against the catalogue, ahead of its type:
  * upstream's green seal, orange triangle or orange question mark — a glyph *and*
  * a colour — and nothing where there is no basis for a verdict.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks
+ * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.marks
+ * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.verdict
+ * @upstream-differs a row carries the latest verdict and the validator's problem; the Boot Guard tints and badges are not ported
  */
 function LatestMark({ state }: { readonly state: MicrocodeLatest }) {
   if (state.kind === "notRated") return null;
@@ -598,10 +656,17 @@ function LatestMark({ state }: { readonly state: MicrocodeLatest }) {
   );
 }
 
-/** What the list below says about one row, for the mark where the row sits. */
-function problemText(display: FITDisplay, index: number): string | undefined {
+/**
+ * What the list below says about one row, for the mark where the row sits.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.marks
+ */
+function problemText(display: FITDisplay, row: FITDisplayRow): string | undefined {
+  // A row wears its own copy's problems: the backup's rows the backup's.
   const messages = display.problems
-    .filter((problem) => problem.entryIndex === index)
+    .filter(
+      (problem) => problem.entryIndex === row.index && (problem.inBackup === true) === row.isBackup
+    )
     .map(fitProblemMessage);
   return messages.length === 0 ? undefined : messages.join("\n");
 }
@@ -610,8 +675,13 @@ function problemText(display: FITDisplay, index: number): string | undefined {
 const problemKey = (problem: FITProblem): string =>
   `${problem.detail.kind}:${problem.entryIndex ?? -1}:${problem.offset ?? -1}`;
 
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.identifier
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.title
+ */
 export const fitTool: ToolModule = {
-  id: "fit-table",
+  id: "dev.maxik.tool.fit",
   title: "FIT Table",
   summary: "The Firmware Interface Table: what it names, and whether it adds up.",
   View: FitToolView,

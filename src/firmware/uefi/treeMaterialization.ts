@@ -25,8 +25,14 @@ import { readVolumeHeader, volumeChildren } from "@/firmware/uefi/volumeParser";
  * a boundary.
  */
 
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.Result
+ */
 export interface Materialized {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.Result.nodes */
   readonly nodes: UEFINode[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.Result.diagnostics */
   readonly diagnostics: UEFIDiagnostic[];
 }
 
@@ -39,6 +45,8 @@ export interface Materialized {
  * file: nothing announces the structures in a plain chip dump but the
  * signatures inside it, so they have to be looked for before there is anything
  * to show. It is why a caller builds this off the main thread.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.roots
  */
 export function rootsOf(
   reader: ImageReader,
@@ -54,6 +62,8 @@ export function rootsOf(
  * One collapsed node's children, parsed at the depth the node itself recorded
  * when it was left closed — so a node expanded now lands exactly where an
  * all-at-once parse would have put it, recursion limit included.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.children
  */
 export function childrenOf(
   node: UEFINode,
@@ -93,6 +103,8 @@ export function childrenOf(
  * The node keeps its `isExpandable` only while its children are still unknown,
  * so a node that turned out to hold nothing does not go on offering a
  * disclosure triangle for the rest of the session.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.expand
  */
 export function expand(
   node: UEFINode,
@@ -112,6 +124,8 @@ export function expand(
  * Opens every collapsed node there is, depth first — the whole tree, as the
  * parser would have built it in one pass if it opened everything on the way
  * down.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.materializeAll
  */
 export function materializeAll(
   nodes: UEFINode[],
@@ -135,6 +149,8 @@ export function materializeAll(
  * a node's place in the tree is not known until its parent has decided to keep
  * it, and a parser carrying counters is a parser that gets them wrong on the
  * paths where it gives up early.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.stampIDs
  */
 export function stampIds(nodes: UEFINode[], parent: NodeID): UEFINode[] {
   for (let index = 0; index < nodes.length; index++) {

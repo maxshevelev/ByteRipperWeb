@@ -55,12 +55,23 @@ import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 
 type Tab = "summary" | "tree";
 
+/**
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState
+ * @upstream-differs it keeps the open rows too
+ */
 interface Parked {
+  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.tabIndex */
   readonly tab: Tab;
   readonly open: ReadonlySet<string>;
+  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.focusPath */
   readonly focus: string | undefined;
 }
 
+/**
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.parkedState
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.restore
+ * @upstream-differs kept per pane in a module map rather than handed to the host
+ */
 const parked = new Map<PaneId, Parked>();
 
 type Result =
@@ -94,6 +105,7 @@ function storedTreeShare(): number {
   }
 }
 
+/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.show */
 function rowsOf(
   nodes: readonly MEANode[],
   open: ReadonlySet<string>,
@@ -116,11 +128,21 @@ function detailOf(node: MEANode | undefined): NodeDetail {
   }
   return {
     title: node.title,
-    fields: node.fields.map((one) => field(one.label, one.value)),
+    fields: node.fields.map((one) =>
+      one.tone === "good"
+        ? { ...field(one.label, one.value), isDone: true }
+        : field(one.label, one.value)
+    ),
     tables: [],
   };
 }
 
+/**
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.loadView
+ * @upstream-differs a React component: its render and effects are the session and its view controller
+ */
 function MeToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
@@ -155,6 +177,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
 
   const databaseText = database.text;
   const huffmanText = huffman.text;
+  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onRetry */
   const analyze = useCallback(() => {
     const job = ++request.current;
     setBusy(true);
@@ -219,6 +242,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     publishZones(pane, zones);
   }, [pane, zones]);
 
+  /**
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onSelect
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.outlineViewSelectionDidChange
+   */
   const choose = useCallback(
     (node: MEANode) => {
       setFocus(keyOf(node.path));
@@ -306,6 +333,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     }
   }, []);
 
+  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.copySummary */
   const copySummary = useCallback(() => {
     void writeRichText(summaryHtml(blocks), summaryPlain(blocks)).then((done) => {
       setNotice(
@@ -314,6 +342,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     });
   }, [blocks]);
 
+  /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.copyScreenshot */
   const copyScreenshot = useCallback(() => {
     const element = summaryRef.current;
     const canvas = element === null ? undefined : summaryPicture(blocks, element);
@@ -517,6 +546,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   );
 }
 
+/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onTabChanged */
 function TabButton({
   tab,
   current,
@@ -543,6 +573,14 @@ function TabButton({
   );
 }
 
+/**
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.Placeholder
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.Placeholder.symbol
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.Placeholder.title
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.Placeholder.caption
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.setPlaceholder
+ * @upstream-differs a component taking the symbol, title and caption (detail) as props
+ */
 function Placeholder({
   symbol,
   title,
@@ -594,6 +632,7 @@ function uniqueKeys(texts: readonly string[]): string[] {
   });
 }
 
+/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showSummary */
 function SummaryView({
   blocks,
   scrollRef,
@@ -631,6 +670,7 @@ function SummaryView({
   );
 }
 
+/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.outlineView */
 function MeTreeRow({
   row,
   alternate,
@@ -698,7 +738,11 @@ function MeTreeRow({
 const escapeHtml = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
-/** The summary as lines a plain field can take: a tab between label and value. */
+/**
+ * The summary as lines a plain field can take: a tab between label and value.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
+ */
 export function summaryPlain(blocks: readonly MEASummaryBlock[]): string {
   return blocks
     .map((block) => {
@@ -708,7 +752,11 @@ export function summaryPlain(blocks: readonly MEASummaryBlock[]): string {
     .join("\n\n");
 }
 
-/** The summary as a two-column table, for a note or a report. */
+/**
+ * The summary as a two-column table, for a note or a report.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
+ */
 export function summaryHtml(blocks: readonly MEASummaryBlock[]): string {
   const body = blocks
     .map((block) => {
@@ -731,6 +779,8 @@ export function summaryHtml(blocks: readonly MEASummaryBlock[]): string {
 /**
  * The summary drawn as a picture: the rows as they read on screen, in the
  * panel's own face and colours, with a margin round them.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryPicture
  */
 function summaryPicture(
   blocks: readonly MEASummaryBlock[],
@@ -812,8 +862,13 @@ function summaryPicture(
   return canvas;
 }
 
+/**
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.identifier
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.title
+ */
 export const meTool: ToolModule = {
-  id: "me-analyzer",
+  id: "dev.maxik.tool.me-analyzer",
   title: "ME Analyzer",
   summary: "The Intel Management Engine firmware: its summary and every structure in it.",
   View: MeToolView,

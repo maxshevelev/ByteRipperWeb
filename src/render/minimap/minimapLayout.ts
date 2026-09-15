@@ -28,6 +28,8 @@
  *
  * Horizontal only: the rows run edge to edge top and bottom, because a top inset
  * would put every offset a few rows out from the bytes it stands for.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.contentPadding
  */
 export const CONTENT_PADDING = 10;
 
@@ -35,12 +37,16 @@ export const CONTENT_PADDING = 10;
  * The colour strip's width — the legend beside a map that paints the partition
  * at a glance. Six points: wide enough to read as a swatch, narrow enough to
  * stay a margin and not a second map.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripWidth
  */
 export const SEGMENT_STRIP_WIDTH = 6;
 
 /**
  * The paper between the strip and the content, so the legend does not crowd the
  * dump it names.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripGap
  */
 export const SEGMENT_STRIP_GAP = 2;
 
@@ -52,10 +58,16 @@ export const SEGMENT_STRIP_GAP = 2;
  * Deliberately smaller than the arm, so a parent's arm reaches across its
  * children's lanes. That is what a nest of brackets looks like on paper, and it
  * costs nothing: the arms are at the zones' ends and the stems are between them.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneLaneStep
  */
 export const ZONE_LANE_STEP = 4;
 
-/** The paper between the gutter and the content — the strip's gap, mirrored. */
+/**
+ * The paper between the gutter and the content — the strip's gap, mirrored.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneGutterGap
+ */
 export const ZONE_GUTTER_GAP = 2;
 
 /**
@@ -64,25 +76,41 @@ export const ZONE_GUTTER_GAP = 2;
  * A UEFI parse is a tree a dozen levels deep and drawing all of it would leave
  * no map: the panel says where the published zones are, and the panel beside it
  * holds the tree.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneMaxLanes
  */
 export const ZONE_MAX_LANES = 3;
 
 /**
  * How far a bracket's arms reach toward the map from its stem — what makes the
  * shape a bracket and not a rule.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketArm
  */
 export const ZONE_BRACKET_ARM = 5;
 
-/** The smallest a bracket may be drawn, so a few bytes are still findable. */
+/**
+ * The smallest a bracket may be drawn, so a few bytes are still findable.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketMinHeight
+ */
 export const ZONE_BRACKET_MIN_HEIGHT = 4;
 
-/** The bookmark mark's height, and so the base of the triangle. */
+/**
+ * The bookmark mark's height, and so the base of the triangle.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.bookmarkMarkSide
+ */
 export const BOOKMARK_MARK_SIDE = 7;
 
 /** How far a margin marker's apex stops short of the margin's own edge. */
 export const MARGIN_MARKER_INSET = 2;
 
-/** Which map this is, and what the pair looks like. */
+/**
+ * Which map this is, and what the pair looks like.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MapLayout
+ */
 export type MapPlacement =
   /** The only map, or one of two stacked — padded on both sides. */
   | "single"
@@ -110,12 +138,16 @@ export interface MinimapLayoutOptions {
    * partitioned. A single piece has nothing to separate, so the legend is
    * absent — the same rule the dump's row tint follows, and the reason the map
    * does not give up width for a legend that would say nothing.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripVisible
    */
   readonly segmentStripVisible: boolean;
   /**
    * How many lanes the zone gutter is wide — one per level of nesting the
    * published zones reach, capped. Zero when no tool has published any, so a
    * file nobody is parsing loses no width to a gutter.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneGutterLaneCount
    */
   readonly zoneLaneCount: number;
 }
@@ -126,6 +158,9 @@ export interface MinimapLayoutOptions {
  * Built once per paint and handed to every layer, so the strip, the gutter, the
  * marks and the dump cannot disagree about where the margins are — which is
  * exactly what happened when each derived its own.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.layout
+ * @upstream-differs one layout object both the painter and the hit-tests read
  */
 export class MinimapLayout {
   readonly width: number;
@@ -150,7 +185,11 @@ export class MinimapLayout {
     return this.segmentStripVisible ? SEGMENT_STRIP_GAP + SEGMENT_STRIP_WIDTH : 0;
   }
 
-  /** The gutter's own width: one indent per level past the first, plus the arm. */
+  /**
+   * The gutter's own width: one indent per level past the first, plus the arm.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneGutterVisible
+   */
   get zoneGutterWidth(): number {
     if (this.zoneLaneCount <= 0) return 0;
     return (this.zoneLaneCount - 1) * ZONE_LANE_STEP + ZONE_BRACKET_ARM;
@@ -169,6 +208,8 @@ export class MinimapLayout {
    * between the two maps is exactly the panel's own gutter rather than the
    * gutter plus two fixed pads — and it scales with the panel where a fixed pad
    * would not.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.contentAreaForTesting
    */
   get contentArea(): Rect {
     const leftPad = this.placement === "right" ? 0 : CONTENT_PADDING;
@@ -192,6 +233,8 @@ export class MinimapLayout {
    * It sits on the *outer* side of its own map — the left map's against the
    * gutter, every other map's in its own right margin — so a pair of them is
    * never tucked together against the separator.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripRect
    */
   get segmentStripRect(): Rect | undefined {
     if (!this.segmentStripVisible) return undefined;
@@ -208,6 +251,8 @@ export class MinimapLayout {
    * Immediately left of the content, which has already retreated past it — so a
    * bracket never covers a byte — and on the side the strip does not use, so the
    * two legends never share a column whatever the layout.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneGutterRect
    */
   get zoneGutterRect(): Rect | undefined {
     const width = this.zoneGutterWidth;
@@ -216,7 +261,11 @@ export class MinimapLayout {
     return x < 0 ? undefined : { x, width };
   }
 
-  /** The x a lane's stem sits at: lane 0 is furthest from the map. */
+  /**
+   * The x a lane's stem sits at: lane 0 is furthest from the map.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketBounds
+   */
   zoneLaneX(lane: number): number {
     const gutter = this.zoneGutterRect;
     if (gutter === undefined) return 0;
@@ -236,6 +285,9 @@ export class MinimapLayout {
    * Side by side that comes out as the *outer* margin of each map — the left
    * map's marks on the panel's far left and the right map's on its far right —
    * since the inner edges have no padding at all to draw in.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.marginMarkerBox
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.marginMarkerReach
    */
   get bookmarkMargin(): BookmarkMargin | undefined {
     const content = this.contentArea;

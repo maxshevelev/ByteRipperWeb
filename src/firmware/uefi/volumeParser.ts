@@ -13,24 +13,49 @@ export { FV };
 /**
  * A volume header that passed every test — which is what separates a volume
  * from four bytes of compressed data that happen to read `_FVH`.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader
  */
 export interface VolumeHeader {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.offset */
   readonly offset: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.fileSystem */
   readonly fileSystem: EFIGUID;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.fvLength */
   readonly fvLength: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.attributes */
   readonly attributes: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.headerLength */
   readonly headerLength: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.checksum */
   readonly checksum: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.revision */
   readonly revision: number;
-  /** Header through extended header, aligned — where the body starts. */
+  /**
+   * Header through extended header, aligned — where the body starts.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.headerSize
+   */
   readonly headerSize: number;
-  /** Σ NumBlocks · Length, the volume's size as the block map tells it. */
+  /**
+   * Σ NumBlocks · Length, the volume's size as the block map tells it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.blockMapSize
+   */
   readonly blockMapSize: number | undefined;
-  /** The extended header the volume points at runs off the end of the image. */
+  /**
+   * The extended header the volume points at runs off the end of the image.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.extendedHeaderMissing
+   */
   readonly extendedHeaderMissing: boolean;
 }
 
-/** What an unwritten byte in this volume reads as, inherited by everything in it. */
+/**
+ * What an unwritten byte in this volume reads as, inherited by everything in it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#VolumeHeader.emptyByte
+ */
 export function volumeEmptyByte(header: VolumeHeader): number {
   return (header.attributes & FV.erasePolarity) !== 0 ? 0xff : 0x00;
 }
@@ -41,6 +66,8 @@ export function volumeEmptyByte(header: VolumeHeader): number {
  * Pure: a candidate that fails leaves no diagnostic, because a false `_FVH`
  * inside compressed data is not a defect in the image — and an image with a
  * hundred of them would otherwise arrive with a hundred complaints.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.readVolumeHeader
  */
 export function readVolumeHeader(parser: Parser, offset: number): VolumeHeader | undefined {
   const reader = parser.reader;
@@ -126,6 +153,8 @@ function blockMapSize(parser: Parser, offset: number): number | undefined {
 /**
  * A volume and everything in it. Nothing when the header does not check out,
  * which is the scanner's cue to keep looking.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.parseVolume
  */
 export function parseVolume(
   parser: Parser,
@@ -204,6 +233,8 @@ function verifyVolumeChecksum(parser: Parser, header: VolumeHeader): void {
 /**
  * A volume's children, derived when something expands it — scoped to that one
  * node rather than restarting the parse from the image root.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.volumeChildren
  */
 export function volumeChildren(
   parser: Parser,
@@ -242,6 +273,8 @@ export function volumeChildren(
 /**
  * The file walk: files back to back, each one aligned up to eight, until an
  * all-empty header says the rest is free space.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.walkVolumeBody
  */
 export function walkVolumeBody(
   parser: Parser,
@@ -335,6 +368,8 @@ function freeSpace(
  * Bytes inside a volume that are not files. Searched all the same: vendors put
  * whole volumes and runs of microcode in the space after a volume's files, and
  * leaving it as one opaque block would hide them.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.nonUEFIData
  */
 export function nonUEFIData(
   parser: Parser,

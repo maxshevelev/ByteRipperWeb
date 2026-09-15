@@ -2,6 +2,7 @@ import type { MFSHomeRecord } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
+import type { MEASummaryTone } from "@/tools/me/meaSummary";
 import {
   countText,
   dateText,
@@ -34,22 +35,57 @@ import type { ZoneMap } from "@/tools/zone";
  * by row are dumped field by field.
  */
 
+/** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField */
 export interface MEAField {
+  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.label */
   readonly label: string;
+  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.value */
   readonly value: string;
+  /**
+   * What the value says, when it is a verdict: `good` draws it with the green
+   * done mark — a check that found nothing wrong.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.tone
+   * @upstream-differs absent reads as standard
+   */
+  readonly tone?: MEASummaryTone;
 }
 
+/** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode */
 export interface MEANode {
-  /** An index per level; `[0]` is the first root. Stable across re-reads of the same file. */
+  /**
+   * An index per level; `[0]` is the first root. Stable across re-reads of the same file.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.path
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.id
+   * @upstream-differs the node's path is its identity
+   */
   readonly path: readonly number[];
+  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.title */
   readonly title: string;
-  /** The row's second column — usually `offset · size`. */
+  /**
+   * The row's second column — usually `offset · size`.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.subtitle
+   */
   readonly subtitle: string;
-  /** The file bytes the row stands for, when the model gives a reliable range. */
+  /**
+   * The file bytes the row stands for, when the model gives a reliable range.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.range
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.hasBytes
+   * @upstream-differs a node has bytes when its range is defined
+   */
   readonly range: { readonly start: number; readonly end: number } | undefined;
+  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.fields */
   readonly fields: readonly MEAField[];
+  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.children */
   readonly children: readonly MEANode[];
-  /** A place in the layout that holds nothing: drawn grey. */
+  /**
+   * A place in the layout that holds nothing: drawn grey.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isEmptySection
+   */
   readonly isEmptySection: boolean;
 }
 
@@ -60,8 +96,13 @@ export interface MEAChecksums {
   readonly crc32: number | undefined;
 }
 
-/** What the checksums group is called, and what its rows say before they are computed. */
+/**
+ * What the checksums group is called, and what its rows say before they are computed.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.checksumsTitle
+ */
 export const CHECKSUMS_TITLE = "Checksums";
+/** @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.pendingValue */
 export const PENDING_VALUE = "Loading…";
 
 /** A node before its place in the tree is known. */
@@ -74,7 +115,9 @@ interface Draft {
   readonly isEmptySection?: boolean;
 }
 
-const field = (label: string, value: string): MEAField => ({ label, value });
+/** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.init */
+const field = (label: string, value: string, tone: MEASummaryTone = "standard"): MEAField =>
+  tone === "standard" ? { label, value } : { label, value, tone };
 
 /** Label/value rows, leaving out a value that is absent — or empty, where that is asked. */
 class Fields {
@@ -88,7 +131,12 @@ class Fields {
   }
 }
 
-/** The tree's roots, in reading order. */
+/**
+ * The tree's roots, in reading order.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.present
+ */
 export function presentMEA(
   analysis: FirmwareAnalysis,
   checksums: MEAChecksums | undefined
@@ -127,7 +175,12 @@ function finish(draft: Draft, path: readonly number[]): MEANode {
   };
 }
 
-/** The node at `path`, or nothing when the tree no longer reaches that far. */
+/**
+ * The node at `path`, or nothing when the tree no longer reaches that far.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEATree
+ * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEATree.node
+ */
 export function meaNodeAt(roots: readonly MEANode[], path: readonly number[]): MEANode | undefined {
   let nodes = roots;
   let found: MEANode | undefined;
@@ -139,7 +192,11 @@ export function meaNodeAt(roots: readonly MEANode[], path: readonly number[]): M
   return found;
 }
 
-/** The checksums group's path, when the tree has one. */
+/**
+ * The checksums group's path, when the tree has one.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.checksumsPath
+ */
 export function checksumsPath(roots: readonly MEANode[]): readonly number[] | undefined {
   return roots.find((root) => root.title === CHECKSUMS_TITLE)?.path;
 }
@@ -147,6 +204,11 @@ export function checksumsPath(roots: readonly MEANode[]): readonly number[] | un
 /**
  * The zone a selected row publishes: one, focused, for its bytes — and nothing
  * for a row that stands for none (a group, the manifest).
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEAZones.swift#MEAZones
+ * @upstream Modules/MEATool/Sources/MEATool/MEAZones.swift#MEAZones.build
+ * @upstream Modules/MEATool/Sources/MEATool/MEAZones.swift#MEAZones.id
+ * @upstream-differs the zone id is the path joined inline
  */
 export function meaZones(focus: MEANode | undefined): ZoneMap {
   if (focus?.range === undefined) return { zones: [], focus: undefined };
@@ -166,6 +228,10 @@ export function meaZones(focus: MEANode | undefined): ZoneMap {
 
 // MARK: - Identity
 
+/**
+ * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.firmwareImageTool
+ * @upstream-differs the Flash Image Tool cell is read inline with the identity rows
+ */
 function firmware(a: FirmwareAnalysis): Draft {
   const version = versionText(a.version);
   const fields = new Fields()
@@ -204,7 +270,11 @@ function firmware(a: FirmwareAnalysis): Draft {
   };
 }
 
-/** The whole MEU block, when all four fields are there. */
+/**
+ * The whole MEU block, when all four fields are there.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#Version.meText
+ */
 function meuVersion(a: FirmwareAnalysis): string | undefined {
   const { meMajor, meMinor, meHotfix, meBuild } = a.version;
   if (meMajor === undefined || meMinor === undefined || meHotfix === undefined) return undefined;
@@ -212,7 +282,12 @@ function meuVersion(a: FirmwareAnalysis): string | undefined {
   return plainVersion(meMajor, meMinor, meHotfix, meBuild);
 }
 
-/** The date the operational manifest was built — what MEA prints as the firmware's. */
+/**
+ * The date the operational manifest was built — what MEA prints as the firmware's.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.manufactureDate
+ * @upstream-differs derived from the manifest's day, month and year where it is shown, not stored on the analysis
+ */
 export function manufactureDate(a: FirmwareAnalysis): string | undefined {
   const m = a.manifest;
   return m === undefined ? undefined : dateText(m.year, m.month, m.day);
@@ -660,15 +735,48 @@ function oromGroup(a: FirmwareAnalysis): Draft | undefined {
 function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
   const rows = a.rbePmMetadata;
   if (rows === undefined || rows.length === 0) return undefined;
+  const children = rows.map(
+    (row, index): Draft => ({
+      title: `${row.variant.toUpperCase()} #${index}`,
+      fields: valueFields(row),
+    })
+  );
+  // Upstream's leftover report: what the rbe / pm tables list that no module of
+  // the image hashes to.
+  const fields: MEAField[] = [];
+  const nodes = [...children];
+  const unmatched = a.unmatchedMetadataHashes;
+  if (unmatched !== undefined) {
+    // Every hash accounted for is a check that passed: the done mark.
+    fields.push(
+      unmatched.length === 0
+        ? field("Unmatched Hashes", "None", "good")
+        : field("Unmatched Hashes", String(unmatched.length))
+    );
+    if (unmatched.length > 0) {
+      nodes.push({
+        title: "Unmatched Hashes",
+        subtitle: String(unmatched.length),
+        fields: [
+          field(
+            "Meaning",
+            "Listed by the rbe or pm metadata table, and hashed to by no module of the image — " +
+              "most often an encrypted module (NFTP pavp, PCOD), which cannot be hashed as it is loaded"
+          ),
+        ],
+        children: unmatched.map((hash, index) => ({
+          title: `Hash ${index + 1}`,
+          subtitle: `${hash.slice(0, 16)}…`,
+          fields: [field("Hash", hash)],
+        })),
+      });
+    }
+  }
   return {
     title: "RBE/PM Metadata",
     subtitle: countText(rows.length, "row"),
-    children: rows.map(
-      (row, index): Draft => ({
-        title: `${row.variant.toUpperCase()} #${index}`,
-        fields: valueFields(row),
-      })
-    ),
+    fields,
+    children: nodes,
   };
 }
 
@@ -716,6 +824,9 @@ function issuesGroup(a: FirmwareAnalysis): Draft | undefined {
  * nested objects flatten to `label.path`, a table of rows stops at its count,
  * and an absent or empty value is left out. Offsets, addresses, CRCs, tags,
  * masks, flags and types read as hex; every other number in decimal.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAValueText
+ * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAValueText.fields
  */
 export function valueFields(value: unknown): MEAField[] {
   const out: MEAField[] = [];

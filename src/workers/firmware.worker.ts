@@ -3,14 +3,12 @@
 import { assembleWord, type ByteSource } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
-import { crc32 } from "@/firmware/me/crypto/checksum";
-import { sha256, sha384 } from "@/firmware/me/crypto/digest";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
   type HuffmanDictionaries,
   parseHuffmanDictionaries,
 } from "@/firmware/me/decompress/huffman";
-import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
+import { analyzeMeRegion, checksums } from "@/firmware/me/engine/analyzer";
 import { meRegion } from "@/firmware/me/layout/flashDescriptor";
 import {
   type ChecksumRepair,
@@ -57,7 +55,17 @@ import type {
  * from reading every file body in it.
  */
 
-/** A `Blob`, read synchronously, which is a thing only a worker can do. */
+/**
+ * A `Blob`, read synchronously, which is a thing only a worker can do.
+ *
+ * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource
+ * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.byteCount
+ * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.bytes
+ * @upstream-differs reads the pane's Blob in the worker, not a live reader over the document
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#LiveDocumentByteSource
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#LiveDocumentByteSource.byteCount
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#LiveDocumentByteSource.bytes
+ */
 class BlobByteSource implements ByteSource {
   private readonly blob: Blob;
   private readonly reader = new FileReaderSync();
@@ -94,13 +102,20 @@ const NO_EDIT = {
 /** What the edit came to, in the sentence the panel says afterwards. */
 function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
   const moved = outcome.moved === 0 ? "" : `, and ${outcome.moved} behind it moved up to suit`;
+  // That the Top Swap backup of the boot block got the same change is said,
+  // because it is a second place in the file the edit wrote to.
+  const backup = outcome.topSwapBackup;
+  const topSwap =
+    backup === undefined
+      ? ""
+      : ` The Top Swap backup at 0x${backup.start.toString(16).toUpperCase()} got the same change.`;
   if (!("range" in outcome)) {
-    return `The microcode is out of the table${moved}.`;
+    return `The microcode is out of the table${moved}.${topSwap}`;
   }
   const where = `0x${outcome.range.start.toString(16).toUpperCase()}`;
   return outcome.kind === "added"
-    ? `The microcode went in at ${where}${moved}.`
-    : `The microcode at ${where} was replaced${moved}.`;
+    ? `The microcode went in at ${where}${moved}.${topSwap}`
+    : `The microcode at ${where} was replaced${moved}.${topSwap}`;
 }
 
 /** The image currently open. One per worker, as one worker serves one pane. */
@@ -165,6 +180,8 @@ function open(node: UEFINode, into: UEFIDiagnostic[]): void {
  * The writes that would put a node's checksums right, which is what lets the
  * detail say a checksum is wrong and what it should read. A file's fixed body
  * sum follows the revision of the volume it sits in, found on the way down.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.repairs
  */
 function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
   if (reader === undefined) return [];
@@ -221,9 +238,6 @@ function parsedDictionaries(text: string): HuffmanDictionaries | undefined {
     return undefined;
   }
 }
-
-const hexDigest = (digest: Uint8Array) =>
-  [...digest].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join("");
 
 scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
   const request = event.data;
@@ -437,9 +451,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         post({
           kind: "meChecksums",
           id: request.id,
-          sha256: readable ? hexDigest(sha256(region.bytes)) : undefined,
-          sha384: readable ? hexDigest(sha384(region.bytes)) : undefined,
-          crc32: readable ? crc32(region.bytes) : undefined,
+          ...(readable
+            ? checksums(region.bytes)
+            : { sha256: undefined, sha384: undefined, crc32: undefined }),
         });
         return;
       }

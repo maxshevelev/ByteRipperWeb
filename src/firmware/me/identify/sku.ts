@@ -22,6 +22,7 @@
  * Ported from `Packages/MEFirmware/Identify/SKU.swift`.
  */
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Label */
 interface Label {
   readonly display: string;
   readonly code: string;
@@ -53,28 +54,64 @@ const EXT15: Readonly<Record<number, Label>> = {
 const NONE = label("", "");
 const UNKNOWN = label("Unknown", "UNK");
 
-/** The decoded facts the composition needs. */
+/**
+ * The decoded facts the composition needs.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts
+ */
 export interface SKUFacts {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.variant */
   readonly variant: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.major */
   readonly major: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.minor */
   readonly minor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.hotfix */
   readonly hotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.build */
   readonly build: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.year */
   readonly year: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.month */
   readonly month: number;
-  /** `CSE_Ext_0C` SKU Type; nothing when the chain carries no 0x0C. */
+  /**
+   * `CSE_Ext_0C` SKU Type; nothing when the chain carries no 0x0C.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.skuType
+   */
   readonly skuType: number | undefined;
-  /** `CSE_Ext_0C` capabilities, raw. */
+  /**
+   * `CSE_Ext_0C` capabilities, raw.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.skuCaps
+   */
   readonly skuCaps: number | undefined;
-  /** `CSE_Ext_0C` SKU Platform; only meaningful for CSME 11 and the 12.0.0 alpha. */
+  /**
+   * `CSE_Ext_0C` SKU Platform; only meaningful for CSME 11 and the 12.0.0 alpha.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.skuPlatform
+   */
   readonly skuPlatform: number | undefined;
-  /** `CSE_Ext_0F_R2` Firmware SKU; nothing when 0x0F is absent or unrevised. */
+  /**
+   * `CSE_Ext_0F_R2` Firmware SKU; nothing when 0x0F is absent or unrevised.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.fwSku
+   */
   readonly fwSku: number | undefined;
-  /** The matched MEA.dat firmware row. */
+  /**
+   * The matched MEA.dat firmware row.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.Facts.databaseRow
+   */
   readonly databaseRow: string | undefined;
 }
 
-/** The CSME `SKU` text, or nothing when there is no determinate value. */
+/**
+ * The CSME `SKU` text, or nothing when there is no determinate value.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/SKU.swift#SKU.csme
+ */
 export function csmeSku(facts: SKUFacts): string | undefined {
   if (facts.variant !== "CSME" || facts.major < 11) return undefined;
 

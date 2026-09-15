@@ -8,7 +8,8 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
-import { noteVisited, restoreBookmarks, toggleBookmark } from "@/state/bookmarksStore";
+import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
+import { bookmarksStore, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
@@ -21,7 +22,7 @@ import {
   setSearchPane,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import { toolPanelStore } from "@/state/toolPanelStore";
+import { paneClosed, toolController } from "@/state/toolController";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -32,6 +33,7 @@ import {
   openEmptyInPane,
   openInPane,
   type PaneId,
+  renamePane,
   reportProblem,
   revertPane,
   savePane,
@@ -49,14 +51,19 @@ import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
+import { scrollLink } from "@/ui/pane/scrollLink";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { addCut, saveAllPieces } from "@/ui/segments/segmentCommands";
+import { SettingsDialog } from "@/ui/settings/SettingsDialog";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
+import { windowTitle } from "@/ui/shell/emptyWindow";
+import { ignoredFilesMessage } from "@/ui/shell/ignoredFiles";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { dumpMenu, type PaneMenuActions, paneFileMenu } from "@/ui/shell/paneMenus";
 import { StatusBar } from "@/ui/shell/StatusBar";
 import { Toolbar } from "@/ui/shell/Toolbar";
+import { TransientNotice } from "@/ui/shell/TransientNotice";
 import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
 
 /**
@@ -79,6 +86,19 @@ export interface RevealRequest {
   readonly moveCaret?: boolean;
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.loadView
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.viewDidLoad
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.paneViews
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonView
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.contentContainer
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.contentHost
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.coordinator
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.paneView1
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.paneView2
+ * @upstream-differs the shell is a React component over the stores
+ */
 export function AppShell() {
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
@@ -106,6 +126,7 @@ export function AppShell() {
   const shiftAnswer = useRef<((allowed: boolean) => void) | undefined>(undefined);
   const [shiftAsking, setShiftAsking] = useState(false);
 
+  /** @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmInsertModeWarning */
   const confirmInsertShift = useCallback(() => {
     if (!workspaceStore.getSnapshot().confirmShiftingEdits) return true;
     setShiftAsking(true);
@@ -152,16 +173,32 @@ export function AppShell() {
     };
   }, [confirmInsertShift]);
 
+  /**
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onDropFiles
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFiles
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openableFiles
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.isOpenableFile
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openFiles
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.application
+   */
   const accept = useCallback((files: OpenedFile[], into?: PaneId) => {
     // Two files chosen at once fill both slots, which is how a comparison is
     // opened in one gesture. A single one goes where slotForNewFile says.
+    // Only two files can be compared, so a third is not opened over the first —
+    // and the ones left over are said, rather than silently dropped.
+    const taken = files.slice(0, into === undefined ? 2 : 1);
     let slot = into ?? slotForNewFile();
-    for (const file of files) {
+    for (const file of taken) {
       openInPane(slot, file);
       slot = slot === "a" ? "b" : "a";
     }
+    if (files.length > taken.length) {
+      reportProblem(ignoredFilesMessage(files.length - taken.length, "open"));
+    }
   }, []);
 
+  /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentOpenPanel */
   const open = useCallback(
     async (into?: PaneId) => {
       try {
@@ -187,6 +224,14 @@ export function AppShell() {
       if (event.relatedTarget !== null) return;
       setDragging(false);
     };
+    /**
+     * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.prepareForDragOperation
+     * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.performDragOperation
+     * @upstream-differs the window takes the drop, and a pane's bands take joins
+     * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleEmptyDrop
+     * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleSingleFileDrop
+     * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonDrop
+     */
     const onDrop = (event: DragEvent) => {
       if (event.dataTransfer === null) return;
       event.preventDefault();
@@ -213,6 +258,15 @@ export function AppShell() {
    */
   const activePane = state.activePane;
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePaneDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveDocumentOfPane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveDocumentAs
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePaneDocumentAs
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSaveAs
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePane
+   */
   const doSave = useCallback(
     async (as: boolean) => {
       try {
@@ -229,6 +283,11 @@ export function AppShell() {
     [activePane]
   );
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertPaneDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertDocumentOfPane
+   */
   const doRevert = useCallback(() => {
     const pane = workspaceStore.getSnapshot().panes[activePane];
     if (pane === undefined || !pane.document.isDirty) return;
@@ -239,6 +298,18 @@ export function AppShell() {
   }, [activePane]);
 
   const [fillOpen, setFillOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  /** The pane whose header name is a field right now (§23). */
+  const [renamingPane, setRenamingPane] = useState<PaneId | undefined>(undefined);
+
+  // What the browser's tab is called: the files the workspace holds, or how
+  // many marks an empty one is keeping.
+  const bookmarkCount = useStore(bookmarksStore).bookmarks.length;
+  const nameA = state.panes.a?.name;
+  const nameB = state.panes.b?.name;
+  useEffect(() => {
+    document.title = windowTitle({ a: nameA, b: nameB }, bookmarkCount);
+  }, [nameA, nameB, bookmarkCount]);
   /** Go To, and which half of it the keyboard starts in. */
   const [goTo, setGoTo] = useState<"offset" | "bookmarks" | undefined>(undefined);
   /** The pane and address a Select Block was asked for from, or nothing. */
@@ -250,7 +321,7 @@ export function AppShell() {
   /** The pane whose segments form is open, or nothing. */
   const [segmentsPane, setSegmentsPane] = useState<PaneId | undefined>(undefined);
   /** The tool on the left, or None. One at a time, beside the dumps. */
-  const toolId = useStore(toolPanelStore).toolId;
+  const toolId = useStore(toolController).activeIdentifier;
   /**
    * The question Save All asks before it writes, and the answer it is waiting
    * for. A promise rather than a callback so the command reads as one sequence:
@@ -343,8 +414,12 @@ export function AppShell() {
           // The pane's own handler has this too, but only while the dump has
           // the keyboard — and marking a row is a workspace command.
           event.preventDefault();
-          const slot = workspaceStore.getSnapshot().panes[workspaceStore.getSnapshot().activePane];
-          if (slot !== undefined) toggleBookmark(slot.document.caret);
+          const active = workspaceStore.getSnapshot().activePane;
+          const slot = workspaceStore.getSnapshot().panes[active];
+          if (slot === undefined) return;
+          // ⇧⌘D edits the caret row's mark; ⌘D marks and names it, or unmarks it.
+          if (event.shiftKey) editBookmarkInPane(active, slot.document.selection.start);
+          else toggleBookmarkInPane(active, slot.document.selection.start);
           return;
         }
         default:
@@ -401,18 +476,36 @@ export function AppShell() {
     return () => window.removeEventListener("contextmenu", onContextMenu);
   }, []);
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.findPattern
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleFindBar
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showFindBar
+   */
   const openFind = useCallback(() => {
     openSearch();
     focusFindInput();
   }, []);
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fillSelectionWithBytes
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fillPaneSelection
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentFillSheet
+   */
   const doFill = useCallback((pattern: Uint8Array) => {
     void workspaceStore
       .getSnapshot()
       .panes[workspaceStore.getSnapshot().activePane]?.typing.fillSelection(pattern);
   }, []);
 
-  /** Moves the caret, and shows it: a Go To that did not scroll would be a lie. */
+  /**
+   * Moves the caret, and shows it: a Go To that did not scroll would be a lie.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.goToPosition
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openGoToForm
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentGoToForm
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.goTo
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.goToFormPresenter
+   */
   const doGoTo = useCallback(
     (offset: number) => {
       setReveal({
@@ -429,15 +522,34 @@ export function AppShell() {
   /**
    * Closing a pane throws away whatever is unsaved in it, so it asks first —
    * and names the file, because with two open the wrong one is easy to close.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closePane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performClosePane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closePaneDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
    */
   const closeWithWarning = useCallback((pane: PaneId) => {
     const slot = workspaceStore.getSnapshot().panes[pane];
     if (slot?.document.isDirty) {
       if (!window.confirm(`${slot.name} has unsaved edits. Close it and lose them?`)) return;
     }
+    // Before the workspace forgets which file this was: a session bound to it
+    // has nothing left to read.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performClosePane
+    paneClosed(pane);
+    // Closed on purpose, not remounted: the next file in an empty workspace
+    // opens at its top rather than at where this one was.
+    scrollLink.forget(pane);
     closePane(pane);
   }, []);
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicateDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicatePaneDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicate
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canDuplicate
+   */
   const doDuplicate = useCallback(() => {
     void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
       reportProblem(error instanceof Error ? error.message : "That copy could not be made.")
@@ -448,6 +560,11 @@ export function AppShell() {
    * Save All as Separate Files: the command asks its question through the
    * shell's own confirmation rather than `window.confirm`, which cannot show a
    * preview of several lines.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveAllPieces
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSegmentWrite
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.runSegmentWrite
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentWriteRunner
    */
   const doSaveAllSegments = useCallback(async (pane: PaneId) => {
     await saveAllPieces(
@@ -458,7 +575,11 @@ export function AppShell() {
     setSegmentsPane(undefined);
   }, []);
 
-  /** Shows an offset in both panes, the way difference navigation does. */
+  /**
+   * Shows an offset in both panes, the way difference navigation does.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scrollPanesToOffset
+   */
   const revealInBoth = useCallback((offset: number) => {
     setReveal({
       a: { offset, token: ++revealToken.current },
@@ -472,6 +593,14 @@ export function AppShell() {
    * A join copies: the file that is picked is not consumed, and neither is the
    * pane's own content — what changes is this pane, which stops being the file
    * it was opened from and says so in its header.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.appendFile
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.insertFileAtStart
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.appendFileInPane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.insertFileAtStartInPane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.joinFile
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.join
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateJoinedPane
    */
   const doJoin = useCallback(
     async (pane: PaneId, position: "start" | "end") => {
@@ -499,14 +628,21 @@ export function AppShell() {
     [revealInBoth]
   );
 
-  /** A file dropped on a pane's band joins there rather than replacing it. */
+  /**
+   * A file dropped on a pane's band joins there rather than replacing it.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonBandDrop
+   */
   const doJoinDrop = useCallback(
     async (event: React.DragEvent, pane: PaneId, where: "start" | "end") => {
       setDragging(false);
       if (event.dataTransfer === null) return;
       try {
-        const files = await filesFromDrop(event.dataTransfer);
-        for (const picked of files) {
+        const [picked, ...extra] = await filesFromDrop(event.dataTransfer);
+        // A join takes one file: the rest are not joined, and saying so is the
+        // whole of what happens to them.
+        if (extra.length > 0) reportProblem(ignoredFilesMessage(extra.length, "join"));
+        if (picked !== undefined) {
           await joinIntoPane({
             pane,
             source: new FileBackedStorage(picked.source, new ChunkCache()),
@@ -526,10 +662,23 @@ export function AppShell() {
     [revealInBoth]
   );
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.deleteBytes
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.deletePaneSelection
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.deleteSelectionOrCaret
+   */
   const doDeleteBytes = useCallback(() => {
     void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
   }, [activePane]);
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.nextDifference
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.previousDifference
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.nextSameBlock
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.previousSameBlock
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.navigateBlock
+   * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.findBlock
+   */
   const navigate = useCallback(
     (what: "difference" | "same", direction: 1 | -1) => {
       const hunks = diff.hunks;
@@ -572,6 +721,8 @@ export function AppShell() {
    * What every pane menu can do. Each takes the pane it acts on, because a
    * right-click menu acts on the pane it was opened over — which the click has
    * just made active, but the item says so rather than assuming it.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.offsetContextTarget
    */
   const menuActions = useMemo<PaneMenuActions>(
     () => ({
@@ -579,16 +730,13 @@ export function AppShell() {
       onOpen: (into) => void open(into),
       onSave: () => void doSave(false),
       onSaveAs: () => void doSave(true),
+      onRename: (pane) => setRenamingPane(pane),
       onRevert: doRevert,
       onDuplicate: doDuplicate,
       onClose: (pane) => closeWithWarning(pane),
       onFill: () => setFillOpen(true),
       onDeleteBytes: doDeleteBytes,
       onSelectBlockFrom: (pane, offset) => setSelectBlock({ pane, start: offset }),
-      // Editing a mark is picking it out of the list that already renames,
-      // moves and removes marks — rather than a second dialog saying the same
-      // things about one of them.
-      onEditBookmark: () => setGoTo("bookmarks"),
       onSplitHere: (pane, offset) => setCutAt({ pane, offset }),
       onSelectZone: (pane, zone) => {
         const slot = workspaceStore.getSnapshot().panes[pane];
@@ -604,6 +752,17 @@ export function AppShell() {
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
+
+  // Whether each difference arrow has somewhere to go from the active caret —
+  // the rule the navigation itself uses, so a lit arrow always moves.
+  const caretForNavigation = selections[activePane].start;
+  const navigation =
+    diff.status === "ready" && diff.hunks !== undefined
+      ? {
+          previousDifference: diff.hunks.previousDifference(caretForNavigation) !== undefined,
+          nextDifference: diff.hunks.nextDifference(caretForNavigation) !== undefined,
+        }
+      : { previousDifference: false, nextDifference: false };
 
   return (
     <div className="app-shell" data-dragging={dragging ? "" : undefined}>
@@ -629,11 +788,13 @@ export function AppShell() {
         onSaveAllSegments={() => void doSaveAllSegments(activePane)}
         onToggleBookmark={() => {
           const slot = workspaceStore.getSnapshot().panes[activePane];
-          if (slot !== undefined) toggleBookmark(slot.document.caret);
+          if (slot !== undefined) toggleBookmarkInPane(activePane, slot.document.selection.start);
         }}
         onDuplicate={doDuplicate}
         onFind={openFind}
         onClose={() => closeWithWarning(activePane)}
+        onSettings={() => setSettingsOpen(true)}
+        navigation={navigation}
       />
       {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
       {/* Before the workspace in the document as well as on screen, so Tab
@@ -672,7 +833,7 @@ export function AppShell() {
             const other = id === "a" ? "b" : "a";
             return (
               <HexPane
-                key={`${id}:${pane.name}:${pane.file.lastModified}`}
+                key={`${id}:${pane.file.name}:${pane.file.lastModified}`}
                 paneId={id}
                 label={id === "a" ? "File A" : "File B"}
                 name={pane.name}
@@ -694,10 +855,17 @@ export function AppShell() {
                 onFind={openFind}
                 matches={resultsFor(search, id).matches}
                 currentMatch={resultsFor(search, id).current}
+                resultsShown={resultsFor(search, id).resultsShown}
+                searchStatus={resultsFor(search, id).status}
                 onGoToMatch={revealInBoth}
                 onHeaderMenu={(event) =>
                   openContextMenu(event, paneFileMenu(state, id, menuActions))
                 }
+                renaming={renamingPane === id}
+                onRenameEnd={(typed, commit) => {
+                  setRenamingPane(undefined);
+                  if (commit) renamePane(id, typed);
+                }}
                 onDumpMenu={(event, offset) =>
                   openContextMenu(event, dumpMenu(state, id, offset, menuActions))
                 }
@@ -750,6 +918,8 @@ export function AppShell() {
         }}
         onClose={() => setSelectBlock(undefined)}
       />
+      <TransientNotice />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ConfirmDialog
         open={shiftAsking}
         title="This edit shifts the file"

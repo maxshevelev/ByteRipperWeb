@@ -9,6 +9,9 @@
  * underneath it, and the next read fails with `NotReadableError` — see
  * `ANALYSIS.md` § File access. That is {@link StorageErrorCode.fileChanged},
  * and it is the one the interface has to name rather than showing an empty row.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageError.swift#StorageError
+ * @upstream-differs the cases a browser can tell apart: no directory or device, and a File gone stale under a changed file
  */
 export type StorageErrorCode =
   /** The handle no longer resolves to a file. */
@@ -27,7 +30,11 @@ export type StorageErrorCode =
   /** An offset that could not be one — see `src/core/limits.ts` (D3). */
   | "invalidOffset";
 
-/** An error from the storage layer, carrying the case the UI switches on. */
+/**
+ * An error from the storage layer, carrying the case the UI switches on.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageError.swift#StorageError
+ */
 export class StorageError extends Error {
   readonly code: StorageErrorCode;
   override readonly cause?: unknown;
@@ -45,6 +52,9 @@ export class StorageError extends Error {
    * `NotReadableError` is the one that matters: it is how a changed file
    * announces itself, and mistaking it for a generic failure is how a user ends
    * up staring at empty rows.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageError.swift#StorageError.fromOpenError
+   * @upstream-differs classifies what a Blob read threw, not an open(2) errno
    */
   static fromReadFailure(cause: unknown): StorageError {
     const name = typeof cause === "object" && cause !== null ? (cause as Error).name : "";

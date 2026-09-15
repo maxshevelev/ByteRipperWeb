@@ -9,7 +9,11 @@
  * somebody else's tool.
  */
 
-/** Bytes as uppercase pairs separated by spaces, wrapped every 16. */
+/**
+ * Bytes as uppercase pairs separated by spaces, wrapped every 16.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ClipboardCodec.swift#ClipboardCodec.hexText
+ */
 export function formatHex(bytes: Uint8Array, perLine = 16): string {
   const lines: string[] = [];
   for (let at = 0; at < bytes.length; at += perLine) {
@@ -32,6 +36,10 @@ export function formatHex(bytes: Uint8Array, perLine = 16): string {
  * tokens; each token must be hex digits through and through, after an optional
  * `0x`. An odd number of digits is refused rather than guessed at —
  * a missing nibble means the paste was truncated.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ClipboardCodec.swift#ClipboardCodec.bytes
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ClipboardCodec.swift#ClipboardCodec.CodecError
+ * @upstream-differs answers undefined for text that is not hex, rather than throwing invalidHexText
  */
 export function parseHex(text: string): Uint8Array | undefined {
   let digits = "";
@@ -61,6 +69,9 @@ export function parseHex(text: string): Uint8Array | undefined {
  * `bareAddress`. One place decides it, so the column, the menus that name an
  * offset, the bookmark list and the status bar all spell an address the same
  * way, and a reader can compare two of them at a glance.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#UInt64.bareAddress
+ * @upstream ByteRipperApp/Hex/HexView.swift#UInt64.hexAddress
  */
 export function hexAddress(offset: number): string {
   return offset.toString(16).toUpperCase().padStart(8, "0");

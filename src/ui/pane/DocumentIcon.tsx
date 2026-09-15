@@ -9,6 +9,8 @@
  *
  * Form as well as colour: filled against hollow survives a theme switch and
  * colour blindness, which a tint alone would not.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.documentSymbolName
  */
 export function DocumentIcon({
   slot,

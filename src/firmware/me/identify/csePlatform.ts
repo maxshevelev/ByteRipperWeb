@@ -26,10 +26,17 @@ import type { FirmwareFamily } from "@/firmware/me/models/firmwareFacts";
  * full decode of its configuration would find any initialisation table in it,
  * and until that is ported this engine cannot say the table is *absent*. Naming
  * a platform on a "maybe" would print a row upstream leaves off.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/CSEPlatform.swift#CSEPlatformNames.ChipsetInitTable
  */
 export type ChipsetInitTable = "present" | "absent" | "unknown";
 
-/** The platform name, or nothing when this family and version name none. */
+/**
+ * The platform name, or nothing when this family and version name none.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/CSEPlatform.swift#CSEPlatformNames
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/CSEPlatform.swift#CSEPlatformNames.name
+ */
 export function csePlatformName(options: {
   readonly family: FirmwareFamily;
   readonly major: number;

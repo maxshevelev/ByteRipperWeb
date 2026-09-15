@@ -18,12 +18,22 @@
  * the callers that want them, which is tests and nothing on a hot path.
  */
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlock.Kind */
 export type DiffKind = "same" | "different";
 
-/** A maximal contiguous run of offsets where two files have the same state. */
+/**
+ * A maximal contiguous run of offsets where two files have the same state.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlock
+ */
 export interface DiffBlock {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlock.kind */
   readonly kind: DiffKind;
-  /** Half-open `[start, end)`, in absolute offsets (D13). */
+  /**
+   * Half-open `[start, end)`, in absolute offsets (D13).
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlock.range
+   */
   readonly start: number;
   readonly end: number;
 }
@@ -37,6 +47,9 @@ const DIFFERENT = 1;
  *
  * Ported from upstream's `BlockBuilder`. Plain number arrays while building —
  * V8 stores those unboxed — and typed arrays once the length is known.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.coalesced
+ * @upstream-differs adjacent runs merge as they are appended, instead of over a finished list
  */
 export class DiffBlockBuilder {
   private readonly starts: number[] = [];
@@ -78,15 +91,22 @@ export class DiffBlockBuilder {
 const kindCode = (kind: DiffKind): number => (kind === "same" ? SAME : DIFFERENT);
 const kindOf = (code: number): DiffKind => (code === SAME ? "same" : "different");
 
-/** An immutable snapshot of the comparison between two byte streams. */
+/**
+ * An immutable snapshot of the comparison between two byte streams.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex
+ */
 export class DiffBlockIndex {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.leftSize */
   readonly leftSize: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.rightSize */
   readonly rightSize: number;
 
   private readonly starts: Float64Array;
   private readonly ends: Float64Array;
   private readonly kinds: Uint8Array;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.init */
   private constructor(
     leftSize: number,
     rightSize: number,
@@ -124,11 +144,16 @@ export class DiffBlockIndex {
     return DiffBlockIndex.of(leftSize, rightSize, []);
   }
 
-  /** The longer file's length — the extent of the comparison. */
+  /**
+   * The longer file's length — the extent of the comparison.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.maxSize
+   */
   get maxSize(): number {
     return Math.max(this.leftSize, this.rightSize);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.isEmpty */
   get isEmpty(): boolean {
     return this.kinds.length === 0;
   }
@@ -141,6 +166,8 @@ export class DiffBlockIndex {
    * True when there is at least one different block. O(1): coalesced blocks
    * alternate kinds, so two or more blocks guarantee a difference, and a single
    * block is one only if it is different.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.hasDifferences
    */
   get hasDifferences(): boolean {
     if (this.kinds.length === 0) return false;
@@ -169,7 +196,11 @@ export class DiffBlockIndex {
     };
   }
 
-  /** Every block as an object. For tests and diagnostics, never a hot path. */
+  /**
+   * Every block as an object. For tests and diagnostics, never a hot path.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.blocks
+   */
   get blocks(): DiffBlock[] {
     const result: DiffBlock[] = [];
     for (let i = 0; i < this.kinds.length; i++) {
@@ -179,7 +210,11 @@ export class DiffBlockIndex {
     return result;
   }
 
-  /** The state at an offset, or `undefined` at or past the longer file's EOF. */
+  /**
+   * The state at an offset, or `undefined` at or past the longer file's EOF.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.state
+   */
   stateAt(offset: number): DiffKind | undefined {
     let low = 0;
     let high = this.kinds.length - 1;
@@ -199,6 +234,8 @@ export class DiffBlockIndex {
    * the minimap computing a few rows — must not flatten the whole index to get
    * at it. Upstream measured building the full difference list on every
    * keystroke at a third of the main thread on a 16 MB comparison.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.blocks
    */
   blocksIn(start: number, end: number): DiffBlock[] {
     if (this.kinds.length === 0 || start >= end) return [];
@@ -224,30 +261,42 @@ export class DiffBlockIndex {
 
   // MARK: - Navigation
 
-  /** The first block starting strictly after `offset`. */
+  /**
+   * The first block starting strictly after `offset`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.firstBlock
+   */
   firstBlockAfter(offset: number): DiffBlock | undefined {
     const index = this.firstBlockStartAfter(offset);
     return index === undefined ? undefined : this.block(index);
   }
 
-  /** The last block ending at or before `offset`. */
+  /**
+   * The last block ending at or before `offset`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.firstBlock
+   */
   lastBlockAtOrBefore(offset: number): DiffBlock | undefined {
     const index = this.lastBlockEndAtOrBefore(offset);
     return index === undefined ? undefined : this.block(index);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.nextDifference */
   nextDifference(offset: number): DiffBlock | undefined {
     return this.nextOfKind(offset, DIFFERENT);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.previousDifference */
   previousDifference(offset: number): DiffBlock | undefined {
     return this.previousOfKind(offset, DIFFERENT);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.nextSame */
   nextSame(offset: number): DiffBlock | undefined {
     return this.nextOfKind(offset, SAME);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.previousSame */
   previousSame(offset: number): DiffBlock | undefined {
     return this.previousOfKind(offset, SAME);
   }

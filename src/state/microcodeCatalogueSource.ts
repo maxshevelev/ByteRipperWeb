@@ -7,6 +7,8 @@ import { entriesFromTree, type MicrocodeCatalogueEntry } from "@/tools/fit/micro
  * reaches GitHub is a suite that fails on a train. It lives here rather than
  * beside the parsing because it names browser types — `src/tools/fit` is
  * compiled against the pure half and only ever consumes a finished list.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource
  */
 export interface MicrocodeSource {
   /** Every microcode in the collection, read from the file names. */
@@ -21,10 +23,13 @@ export interface MicrocodeSource {
 /**
  * The tree of the default branch, in one request — where the contents API would
  * need a page per directory.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.treeURL
  */
 export const MICROCODE_TREE_URL =
   "https://api.github.com/repos/platomav/CPUMicrocodes/git/trees/master?recursive=1";
 
+/** @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.downloadBase */
 export const MICROCODE_DOWNLOAD_BASE =
   "https://raw.githubusercontent.com/platomav/CPUMicrocodes/master/";
 

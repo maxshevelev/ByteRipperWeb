@@ -23,6 +23,10 @@ export interface MERegion {
   readonly size: number;
 }
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#FlashDescriptor
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#FlashDescriptor.meRegion
+ */
 export function meRegion(bytes: Uint8Array): MERegion | undefined {
   if (bytes.length < 0x1000) return undefined;
   if (!SIGNATURE.every((byte, index) => bytes[0x10 + index] === byte)) return undefined;

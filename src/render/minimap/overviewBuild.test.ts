@@ -34,6 +34,7 @@ const inkedColumns = (density: Uint8Array, row: number): number[] => {
 };
 
 describe("a file smaller than the panel has rows", () => {
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testATinyFilesOverviewFillsTheRowWidth
   test("a tiny file's overview fills the row width", async () => {
     // 399 bytes over 1560 rows: every row covers a *fraction* of a byte. Sliced
     // per cell that left the whole file as a stripe down the right edge.
@@ -54,6 +55,7 @@ describe("a file smaller than the panel has rows", () => {
     expect(new Set(inkPerColumn).size).toBe(1);
   });
 
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testATinyFileKeepsFillAndContentApart
   test("a tiny file keeps fill and content apart", async () => {
     // The stretch must not simply paint everything: the erased half stays pale.
     const bytes = new Uint8Array(399);
@@ -76,6 +78,7 @@ describe("a file smaller than the panel has rows", () => {
     expect(marked).toEqual([0xffff]);
   });
 
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testARowThinnerThanItsCellsDividesItsWidth
   test("a row thinner than its cells divides its width", async () => {
     // 15 bytes per row, only the first of each significant.
     const rowCount = 20;
@@ -90,6 +93,7 @@ describe("a file smaller than the panel has rows", () => {
 });
 
 describe("a file larger than the panel has rows", () => {
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testOverviewShadesPaddingAndContentDifferently
   test("padding and content shade differently", async () => {
     const half = 128 * 1024;
     const bytes = new Uint8Array(half * 2);

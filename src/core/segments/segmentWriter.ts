@@ -26,14 +26,25 @@ import type { ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import { CONTENT_CHUNK_SIZE, rangeStream } from "@/core/storage/contentStream";
 import { friendlySize } from "@/core/text/byteSize";
 
-/** One part to write: the source range, half-open, and the file it becomes. */
+/**
+ * One part to write: the source range, half-open, and the file it becomes.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriter.Part
+ */
 export interface Part {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriter.Part.range */
   readonly start: number;
   readonly end: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriter.Part.name */
   readonly name: string;
 }
 
-/** Thrown out of {@link writeParts} when `shouldCancel` said so. */
+/**
+ * Thrown out of {@link writeParts} when `shouldCancel` said so.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriteError
+ * @upstream-differs a cancellation is its own error; a failed write surfaces as the sink's own
+ */
 export class SegmentWriteCancelled extends Error {
   constructor() {
     super("The segment write was cancelled.");
@@ -64,6 +75,7 @@ export interface PartStream {
 }
 
 export interface SegmentWriteOptions {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriter.chunkSize */
   readonly chunkSize?: number;
   /** Polled at each part boundary and between chunks. */
   readonly shouldCancel?: () => boolean;
@@ -132,6 +144,9 @@ export function writeTitle(count: number): string {
  * staged the commit runs to the end: upstream measured what the alternative
  * costs — cancelling during the renames published a *prefix* of the set and
  * reported a cancelled write.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriter.write
+ * @upstream-differs two-phase through a PartSink the platform supplies, instead of temporaries renamed into place
  */
 export async function writeParts(
   parts: readonly Part[],

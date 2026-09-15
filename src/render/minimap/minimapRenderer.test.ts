@@ -49,6 +49,7 @@ describe("the tone an overview cell is drawn at", () => {
   });
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testOverviewMatchMarksFollowTheSetAndThenThePlate
 describe("a match's mark on the overview", () => {
   // Ported from `MinimapView.overviewMatchBars`. A row there is kilobytes, so
   // precision is not the point — being *visible* is. A match whose bytes fall

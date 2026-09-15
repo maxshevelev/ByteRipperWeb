@@ -17,3 +17,6 @@ benchmarks/fixtures/*.rom
 
 # Vite's production output and the TypeScript build info.
 *.tsbuildinfo
+
+# Python's bytecode cache, left by the skills' scripts.
+__pycache__/

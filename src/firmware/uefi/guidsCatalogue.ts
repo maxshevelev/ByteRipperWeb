@@ -8,11 +8,18 @@ import { type EFIGUID, guidFromText, guidKey } from "@/firmware/uefi/efiGuid";
  * thing in every image. This is the big, living catalogue UEFITool keeps on
  * GitHub — hundreds of names the hard-coded table only sketches — and the
  * structure tree names a node by it when it can.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/GuidsCatalogue.swift#GuidsCatalogue
  */
 export class GuidsCatalogue {
-  /** Keyed by the GUID's text form; a GUID with no name is simply absent. */
+  /**
+   * Keyed by the GUID's text form; a GUID with no name is simply absent.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/GuidsCatalogue.swift#GuidsCatalogue.names
+   */
   readonly names: ReadonlyMap<string, string>;
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/GuidsCatalogue.swift#GuidsCatalogue.init */
   constructor(names: ReadonlyMap<string, string>) {
     this.names = names;
   }
@@ -21,12 +28,16 @@ export class GuidsCatalogue {
    * The empty catalogue: what the tree shows before a download has landed. A
    * node with a GUID then shows the GUID itself, and the names fill in once a
    * fresh `common/guids.csv` arrives.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/GuidsCatalogue.swift#GuidsCatalogue.empty
    */
   static readonly empty = new GuidsCatalogue(new Map());
 
   /**
    * The name a GUID has here, or nothing when the catalogue has none for it —
    * the caller then shows the GUID itself.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/GuidsCatalogue.swift#GuidsCatalogue.name
    */
   nameOf(candidate: EFIGUID): string | undefined {
     return this.names.get(guidKey(candidate));
@@ -39,6 +50,8 @@ export class GuidsCatalogue {
    * A line that is not a GUID and a name is skipped, not an error — a trailing
    * blank line is not worth failing a catalogue over. The name is everything
    * after the first comma, so a name that itself contains a comma survives.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/GuidsCatalogue.swift#GuidsCatalogue.parse
    */
   static parse(text: string): GuidsCatalogue {
     const names = new Map<string, string>();

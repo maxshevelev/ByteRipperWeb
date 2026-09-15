@@ -7,12 +7,14 @@ import { ByteDecoder, type ByteDecoderDescriptor } from "@/core/text/byteDecoder
  * it is what the strings inside a firmware image are usually written in.
  */
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoderRegistry.swift#TextDecoderRegistry.all */
 export const BYTE_DECODERS: readonly ByteDecoderDescriptor[] = [
   { identifier: "cp1252", displayName: "Windows-1252" },
   { identifier: "isoLatin1", displayName: "ISO-8859-1" },
   { identifier: "strictASCII", displayName: "Strict ASCII" },
 ];
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoderRegistry.swift#TextDecoderRegistry.defaultIdentifier */
 export const DEFAULT_DECODER_IDENTIFIER = "cp1252";
 
 /** A 256-entry table with printable ASCII filled in and everything else empty. */
@@ -81,6 +83,8 @@ const STRICT_ASCII = asciiTable();
  * A decoder by identifier. An identifier that is not one of the built-ins falls
  * back to Windows-1252, as upstream's does — a persisted setting from a newer
  * version should leave the column readable rather than empty.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoderRegistry.swift#TextDecoderRegistry.make
  */
 export function makeByteDecoder(identifier: string, placeholder?: string): ByteDecoder {
   switch (identifier) {

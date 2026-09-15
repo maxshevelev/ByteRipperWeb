@@ -29,10 +29,12 @@ function table16(): Uint8Array {
 }
 
 describe("detectLayoutTable", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDetectsIFWI16Table
   it("detects a 1.6 table", () => {
     expect(detectLayoutTable(table16(), 0)).toBe(0x16);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDetectsIFWI17Table
   it("detects a 1.7 table", () => {
     const bytes = table16();
     bytes[0x10] = 0x40; // a 1.7 size field, not a 1.6 DataOffset
@@ -44,12 +46,14 @@ describe("detectLayoutTable", () => {
     expect(detectLayoutTable(bytes, 0)).toBe(0x17);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testNoTableWhenPaddingNotErased
   it("finds no table when the padding is not erased", () => {
     const bytes = table16();
     bytes[0x48] = 0x00; // a real byte in what should be erased padding
     expect(detectLayoutTable(bytes, 0)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testBPDTHeaderIsNotATable
   it("does not take a Boot Partition Descriptor header for a table", () => {
     const bytes = new Uint8Array(0x1000).fill(0xff);
     bytes.set(BPDT_SIG, 0);
@@ -58,6 +62,7 @@ describe("detectLayoutTable", () => {
 });
 
 describe("meRegion", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testMEBaseFromFlashDescriptor
   it("reads the Engine region out of a Flash Descriptor", () => {
     const bytes = new Uint8Array(0x10_0000).fill(0x00);
     bytes.set([0x5a, 0xa5, 0xf0, 0x0f], 0x10);
@@ -69,6 +74,7 @@ describe("meRegion", () => {
     expect(meRegion(bytes)).toEqual({ base: 0x1_0000, size: 0x3000 });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testNoMEBaseWithoutDescriptor
   it("reads none from something that is not a descriptor", () => {
     expect(meRegion(new Uint8Array(0x1000).fill(0xff))).toBeUndefined();
   });
@@ -91,6 +97,7 @@ describe("layoutTable", () => {
     return bytes;
   }
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDecodesIFWI16Inventory
   it("decodes a 1.6 inventory", () => {
     const layout = layoutTable(inventory16(), 0);
 
@@ -119,6 +126,7 @@ describe("layoutTable", () => {
     expect(layout?.slots.slice(2).every((one) => one.empty)).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDecodesIFWI16PartitionOnRegionOffset
   it("measures a table that is not at the region's start from its own base", () => {
     const bytes = new Uint8Array(0x4000).fill(0xff);
     bytes.set(inventory16(), 0x1000);
@@ -128,6 +136,7 @@ describe("layoutTable", () => {
     expect(layout?.slots[0]).toMatchObject({ offset: 0x2000, empty: false });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testNoLayoutTableWhenNonePresent
   it("finds no table where there is none", () => {
     expect(layoutTable(new Uint8Array(0x2000).fill(0xff), 0)).toBeUndefined();
     expect(layoutTable(new Uint8Array(0x2000).fill(0x00), 0)).toBeUndefined();
@@ -158,6 +167,7 @@ describe("layoutTable", () => {
     return bytes;
   }
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDecodesIFWI17InventoryWithChecksum
   it("decodes a 1.7 inventory with its checksum", () => {
     const layout = layoutTable(inventory17(), 0);
 
@@ -180,6 +190,7 @@ describe("layoutTable", () => {
     expect(layout?.slots[7]?.empty).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testReportsInvalidIFWI17Checksum
   it("reports a 1.7 checksum that does not check out", () => {
     const layout = layoutTable(inventory17(true), 0);
 
@@ -244,6 +255,7 @@ describe("the Boot Partition Descriptor Tables", () => {
     return bytes;
   }
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testFirstBpdtFindsHeader
   it("finds a header in a window", () => {
     const bytes = new Uint8Array(0x4000).fill(0xff);
     bytes.set(bpdt17().subarray(0, 0x3c), 0x500);
@@ -252,6 +264,7 @@ describe("the Boot Partition Descriptor Tables", () => {
     expect(findBpdt(new Uint8Array(0x1000).fill(0xff), 0, 0x1000)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDecodesIFWI17BPDT
   it("decodes a 1.7 table", () => {
     const info = bpdtTable(bpdt17(), 0, "Boot 1");
 
@@ -270,10 +283,12 @@ describe("the Boot Partition Descriptor Tables", () => {
     expect(info?.slots[2]?.empty).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testReportsInvalidIFWI17BPDTChecksum
   it("reports a 1.7 checksum that does not check out", () => {
     expect(bpdtTable(bpdt17(true), 0, "Boot 1")?.checksumValid).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testDecodesIFWI16BPDT
   it("decodes a 1.6 table", () => {
     const info = bpdtTable(bpdt16(), 0, "Boot 1");
 
@@ -289,6 +304,7 @@ describe("the Boot Partition Descriptor Tables", () => {
     expect(info?.slots[1]?.empty).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testNoFITWhenHeaderFITErased
   it("reads erased FIT words as no FIT at all", () => {
     // The whole quartet goes absent rather than reading back a bogus 65535.
     const bytes = bpdt16();
@@ -302,6 +318,7 @@ describe("the Boot Partition Descriptor Tables", () => {
     expect(info?.version).toBe(1); // and the rest still decodes
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IFWITests.swift#IFWITests.testNoBPDTOnErasedOrTruncated
   it("decodes none from erased bytes or a count that overruns", () => {
     expect(bpdtTable(new Uint8Array(0x4000).fill(0xff), 0, "Boot 1")).toBeUndefined();
 

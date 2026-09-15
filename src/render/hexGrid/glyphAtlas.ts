@@ -67,7 +67,11 @@ export class GlyphAtlas {
   /** Tile index → position. Roles are contiguous blocks; see the offsets. */
   private readonly cellWidth: number;
   private readonly cellHeight: number;
-  /** Where a glyph's baseline sits inside its cell, in device pixels. */
+  /**
+   * Where a glyph's baseline sits inside its cell, in device pixels.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.hexBaseline
+   */
   private readonly baseline: number;
   /** The first tile index of each role's block. */
   private readonly roleBase = new Map<InkRole, number>();
@@ -158,7 +162,12 @@ export class GlyphAtlas {
     return this.tileAt((this.roleBase.get(role) ?? 0) + (value & 0xf), this.key.charWidth);
   }
 
-  /** The tile for a byte's two hex digits. */
+  /**
+   * The tile for a byte's two hex digits.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.hexColumnAttributedString
+   * @upstream-differs glyphs are blitted from an atlas, not laid out as attributed strings
+   */
   hexPair(byte: number, role: InkRole): GlyphTile {
     return this.tileAt((this.roleBase.get(role) ?? 0) + 16 + (byte & 0xff), 2 * this.key.charWidth);
   }

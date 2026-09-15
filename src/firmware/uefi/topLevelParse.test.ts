@@ -34,6 +34,7 @@ const region = (type: FlashRegionType, start: number, end: number) => ({ type, s
 describe("an Intel image", () => {
   // The whole image is one node whose body is the file; the descriptor, regions
   // and the padding between them sit under it.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAnIntelImageIsOneNodeOverTheWholeDump
   it("is one node over the whole dump", () => {
     const parsed = parse(
       Test.intelImage({
@@ -68,6 +69,7 @@ describe("an Intel image", () => {
 
   // A BIOS region is volumes and padding; an ME region is a format of its own
   // and is kept whole.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testOnlySomeRegionsAreReadFurther
   it("reads only some regions further", () => {
     const parsed = parse(
       Test.intelImage({
@@ -94,6 +96,7 @@ describe("an Intel image", () => {
 
   // A version 1 descriptor describes five regions, and the bytes of a sixth
   // pair are something else entirely.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAVersionOneDescriptorReadsFiveRegions
   it("reads five regions from a version one descriptor", () => {
     const parsed = parse(
       Test.intelImage({
@@ -112,6 +115,7 @@ describe("an Intel image", () => {
     expect(children.find((one) => one.name === "Microcode region")).toBeUndefined();
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testOverlappingRegionsAreReported
   it("reports overlapping regions", () => {
     const parsed = parse(
       Test.intelImage({
@@ -134,6 +138,7 @@ describe("an Intel image", () => {
 
   // A dump that stops short of what the descriptor describes — half of a chip
   // read over a bad connection is exactly this.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testARegionRunningPastTheEndIsCutAndReported
   it("cuts a region running past the end, and reports it", () => {
     const image = Test.intelImage({
       size: 0x8000,
@@ -153,6 +158,7 @@ describe("an Intel image", () => {
 
   // A descriptor whose own map is out of range is still a descriptor, and still
   // an Intel image. The rest of the image gets searched rather than given up on.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testABrokenRegionMapFallsBackToASearch
   it("falls back to a search when the region map is broken", () => {
     const image = Test.intelImage({
       size: 0x8000,
@@ -175,6 +181,7 @@ describe("an Intel image", () => {
 describe("a capsule", () => {
   // The envelope a vendor shipped the image in: the image starts where
   // `HeaderSize` says, and reading from byte zero finds nothing.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testACapsuleIsUnwrappedAndItsImageParsed
   it("is unwrapped and its image parsed", () => {
     const parsed = parse(Test.capsule({ body: volume }));
 
@@ -190,6 +197,7 @@ describe("a capsule", () => {
 
   // A capsule claiming less than the file holds has something after it, and
   // dropping it silently would lose bytes.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testWhatFollowsACapsuleIsKept
   it("keeps what follows it", () => {
     const parsed = parse(Test.capsule({ body: volume, trailing: 0x100 }));
 
@@ -204,6 +212,7 @@ describe("a capsule", () => {
 
   // Aptio signed capsules put a certificate between the header and the image,
   // and only `RomImageOffset` knows how long it is.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAnAptioCapsuleTakesItsBodyOffsetFromRomImageOffset
   it("takes an Aptio body offset from RomImageOffset", () => {
     const parsed = parse(
       Test.capsule({
@@ -224,6 +233,7 @@ describe("a capsule", () => {
     expect(kinds(capsule?.children ?? [])).toEqual(["volume"]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAGuidThatIsNotACapsuleIsJustBytes
   it("is not made out of any GUID that happens to be there", () => {
     const image = new Uint8Array(0x200).fill(0xff);
     image.set(guidBytes(Test.DRIVER_GUID), 0);
@@ -235,6 +245,7 @@ describe("a capsule", () => {
 describe("microcode", () => {
   // What a FIT table mostly points at, so the tree has to know one when it sees
   // one.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testMicrocodeIsFoundInARawArea
   it("is found in a raw area", () => {
     const parsed = parse(Test.image({ before: 0x100, volume: Test.microcode(), after: 0x100 }));
     // Padding, microcode, padding — several things at the top, so they sit
@@ -242,7 +253,7 @@ describe("microcode", () => {
     const microcode = parsed.roots[0]?.children[1];
 
     expect(microcode?.kind).toBe("microcode");
-    expect(microcode?.name).toBe("Microcode 000306A9, revision 0000001F");
+    expect(microcode?.name).toBe("Microcode 306A9, revision 1F");
     expect(microcode?.header).toEqual({ start: 0x100, end: 0x130 });
     expect(microcode?.body).toEqual({ start: 0x130, end: 0x170 });
     expect(microcode?.isFixed).toBe(true);
@@ -251,6 +262,7 @@ describe("microcode", () => {
 
   // The header read back as values, which is what a FIT entry pointing here has
   // to be shown as.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAMicrocodeHeaderReadsBackAsValues
   it("reads back as values", () => {
     const image = Test.microcode({ signature: 0x000a_0655, revision: 0x1c });
     const header = readMicrocodeHeader(0, new ImageReader(sourceOver(image)));
@@ -267,6 +279,7 @@ describe("microcode", () => {
 
   // The header carries whether the image's dwords sum to zero, so a panel can
   // say the checksum counts without re-reading the image.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testTheHeaderSaysWhetherItsImageSumsToZero
   it("says whether its image sums to zero", () => {
     const good = readMicrocodeHeader(0, new ImageReader(sourceOver(Test.microcode())));
     expect(good?.checksumIsCorrect).toBe(true);
@@ -280,6 +293,7 @@ describe("microcode", () => {
 
   // The header also says what the field would have to be for the sum to come
   // out zero — the value a fix writes.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testTheHeaderSaysWhatTheChecksumShouldBe
   it("says what the checksum should be", () => {
     const good = readMicrocodeHeader(0, new ImageReader(sourceOver(Test.microcode())));
     const bad = readMicrocodeHeader(
@@ -299,6 +313,7 @@ describe("microcode", () => {
     expect(ragged?.computedChecksum).toBeUndefined();
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testBytesThatAreNotMicrocodeReadBackAsNothing
   it("is nothing when the bytes are not microcode", () => {
     expect(
       readMicrocodeHeader(0, new ImageReader(sourceOver(new Uint8Array(0x100).fill(0xff))))
@@ -308,6 +323,7 @@ describe("microcode", () => {
 
   // The dword `0x00000001` is everywhere. Only the whole header — the loader
   // revision, the sizes and the BCD date — decides.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testADwordOfOneIsNotMicrocode
   it("is not made out of a dword of one", () => {
     const image = new Uint8Array(0x200);
     image[0x40] = 0x01;
@@ -318,11 +334,13 @@ describe("microcode", () => {
     expect(parsed.diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAnImpossibleDateIsNotMicrocode
   it("is not made out of an impossible date", () => {
     const image = Test.microcode({ year: 0x2019, month: 0x13, day: 0x15 });
     expect(kinds(parse(image).roots)).toEqual(["padding"]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testMicrocodeWithABrokenChecksumIsReported
   it("reports a broken checksum", () => {
     const parsed = parse(Test.microcode({ checksum: 0x1234 }));
 
@@ -337,6 +355,7 @@ describe("microcode", () => {
 
   // An empty microcode slot is `FF FF FF FF` and is perfectly legal — the FIT
   // specification allows entries pointing at one.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAnEmptySlotStaysPadding
   it("leaves an empty slot as padding", () => {
     const parsed = parse(new Uint8Array(0x200).fill(0xff));
 
@@ -344,6 +363,7 @@ describe("microcode", () => {
     expect(parsed.roots[0]?.isErased).toBe(true);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAMicrocodeRegionIsReadAsMicrocode
   it("reads a microcode region as a run of microcode", () => {
     const both = new Uint8Array(0x70 * 2);
     both.set(Test.microcode(), 0);
@@ -365,6 +385,7 @@ describe("microcode", () => {
 describe("the root of the tree", () => {
   // A lone volume off a chip already is that root — it is not wrapped in an
   // invented image it is not.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testALoneVolumeIsItsOwnRoot
   it("is a lone volume itself", () => {
     const parsed = parse(volume);
 
@@ -379,6 +400,7 @@ describe("the root of the tree", () => {
 
   // Several things at the top are a file that is more than one image, and are
   // grouped under the UEFI image node UEFITool always shows as its root.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testSeveralThingsAtTheTopAreGroupedUnderAUefiImage
   it("groups several things under a UEFI image", () => {
     const parsed = parse(Test.image({ before: 0x100, volume: Test.microcode(), after: 0x100 }));
 
@@ -397,6 +419,7 @@ describe("the root of the tree", () => {
 
   // The wrapper is not invented a second time around a file that is already an
   // Intel image.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAnIntelImageIsNotWrappedInAUefiImage
   it("does not wrap an Intel image in a UEFI image", () => {
     const parsed = parse(
       Test.intelImage({

@@ -20,6 +20,11 @@ export interface ConfirmDialogProps {
   readonly onCancel: () => void;
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmAlert
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentModal
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.modalResponder
+ */
 export function ConfirmDialog({
   open,
   title,

@@ -31,6 +31,8 @@ describe("reading a field", () => {
     sourceOver(bytes(0x78, 0x56, 0x34, 0x12, 0xef, 0xcd, 0xab, 0x89, 0xff, 0xff))
   );
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testNumbersAreReadLittleEndian
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/WindowedByteSourceTests.swift#WindowedByteSourceTests.testAWordIsTheBytesLittleEndian
   it("is little-endian, whatever its width", () => {
     expect(reader.uint8(0)).toBe(0x78);
     expect(reader.uint16(0)).toBe(0x5678);
@@ -46,6 +48,8 @@ describe("reading a field", () => {
     expect(top.uint32(0)).toBe(0x80000000);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testAReadThatRunsOffTheEndIsNil
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/WindowedByteSourceTests.swift#WindowedByteSourceTests.testAFieldPastTheEndIsNil
   it("is nothing when it runs off the end", () => {
     expect(reader.uint32(8)).toBeUndefined();
     expect(reader.uint64(3)).toBeUndefined();
@@ -57,6 +61,7 @@ describe("reading a field", () => {
   // The addition that overflows is not hypothetical: both terms come out of a
   // corrupt image, and unchecked it wraps into a range that passes every later
   // test. Here "overflow" is a number that has stopped being an integer.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testARangeThatOverflowsIsNil
   it("is nothing when the range would not be a range", () => {
     expect(reader.range(Number.MAX_SAFE_INTEGER - 2, 10)).toBeUndefined();
     expect(reader.range(4, Number.MAX_SAFE_INTEGER)).toBeUndefined();
@@ -64,6 +69,7 @@ describe("reading a field", () => {
     expect(reader.range(2 ** 53, 1)).toBeUndefined();
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testARangeInsideTheImageIsGiven
   it("gives a range inside the image", () => {
     expect(reader.range(2, 4)).toEqual({ start: 2, end: 6 });
     expect(reader.range(10, 0)).toEqual({ start: 10, end: 10 });
@@ -77,6 +83,7 @@ describe("a run of one byte", () => {
     sourceOver(bytes(0x78, 0x56, 0x34, 0x12, 0xef, 0xcd, 0xab, 0x89, 0xff, 0xff))
   );
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testFilledIsFalseForOneByteOutOfPlace
   it("is not filled when one byte is out of place", () => {
     expect(reader.isFilled({ start: 8, end: 10 }, 0xff)).toBe(true);
     expect(reader.isFilled({ start: 7, end: 10 }, 0xff)).toBe(false);
@@ -84,6 +91,7 @@ describe("a run of one byte", () => {
 
   // Out of bounds is "no", not "vacuously yes" — free space is decided with
   // this, and a range past the end must never read as empty space.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testFilledIsFalseOutsideTheImage
   it("is not filled outside the image", () => {
     expect(reader.isFilled({ start: 8, end: 12 }, 0xff)).toBe(false);
   });
@@ -99,6 +107,7 @@ describe("walking a range in chunks", () => {
     sourceOver(bytes(0x78, 0x56, 0x34, 0x12, 0xef, 0xcd, 0xab, 0x89, 0xff, 0xff))
   );
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testChunksCoverTheRangeInOrder
   it("covers it in order", () => {
     const seen: number[] = [];
     reader.forEachChunk(
@@ -115,6 +124,7 @@ describe("walking a range in chunks", () => {
 
   // Free space is routinely megabytes and the answer is usually decided by the
   // first chunk, so stopping early has to actually stop.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testChunksStopWhenAskedTo
   it("stops when asked to", () => {
     let chunks = 0;
     reader.forEachChunk(
@@ -129,6 +139,7 @@ describe("walking a range in chunks", () => {
     expect(chunks).toBe(1);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testChunksOutsideTheImageAreNone
   it("is no chunks at all outside the image", () => {
     let chunks = 0;
     reader.forEachChunk(
@@ -147,6 +158,7 @@ describe("walking a range in chunks", () => {
 describe("the read window", () => {
   const image = new Uint8Array(4 * 1024).map((_, index) => index & 0xff);
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/WindowedByteSourceTests.swift#WindowedByteSourceTests.testTheWindowAnswersWhatTheSourceWould
   it("answers what the source would", () => {
     const source = counting(image);
     const windowed = new WindowedByteSource(source, 256);
@@ -162,6 +174,7 @@ describe("the read window", () => {
 
   // The point of it: a run of small forward reads costs one read per window,
   // not one per field.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/WindowedByteSourceTests.swift#WindowedByteSourceTests.testSmallForwardReadsCostOneReadPerWindow
   it("costs one read per window, not one per field", () => {
     const source = counting(image);
     const windowed = new WindowedByteSource(source, 256);
@@ -173,6 +186,7 @@ describe("the read window", () => {
 
   // A caller already reading in bulk — a scan taking its next megabyte, a
   // free-space check walking a volume — would only evict the window.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/WindowedByteSourceTests.swift#WindowedByteSourceTests.testABulkReadIsNotWindowed
   it("lets a bulk read straight through", () => {
     const source = counting(image);
     const windowed = new WindowedByteSource(source, 256);
@@ -189,6 +203,7 @@ describe("the read window", () => {
 
   // A read the window cannot cover — one that would run past the end of the
   // source — falls through rather than answering short.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/WindowedByteSourceTests.swift#WindowedByteSourceTests.testAReadPastTheEndFallsThrough
   it("falls through for a read past the end", () => {
     const source = counting(image);
     const windowed = new WindowedByteSource(source, 256);

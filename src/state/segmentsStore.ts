@@ -23,7 +23,14 @@ import type { PaneId } from "@/state/workspaceStore";
  * before it — which cannot go wrong halfway.
  */
 
+/** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.Snapshot */
 export interface PaneSegments {
+  /**
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.current
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.contentSize
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.cuts
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.segments
+   */
   readonly partition: Segmentation;
   /** Partitions before the current one, oldest first. */
   readonly past: readonly Segmentation[];
@@ -41,6 +48,10 @@ const empty = (contentSize: number): PaneSegments => ({
   future: [],
 });
 
+/**
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore
+ * @upstream-differs one store over every pane's partition, with its own undo
+ */
 export const segmentsStore = createStore<SegmentsState>({
   panes: { a: undefined, b: undefined },
 });
@@ -48,6 +59,7 @@ export const segmentsStore = createStore<SegmentsState>({
 /** How deep the partition's own undo goes. Cuts are few; this is generous. */
 const HISTORY_LIMIT = 64;
 
+/** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.segment */
 export function segmentsFor(pane: PaneId): Segmentation | undefined {
   return segmentsStore.getSnapshot().panes[pane]?.partition;
 }
@@ -56,7 +68,12 @@ export function segmentsIn(pane: PaneId): Segment[] {
   return segmentsFor(pane)?.segments ?? [];
 }
 
-/** A pane opened a file: it starts as one piece covering it. */
+/**
+ * A pane opened a file: it starts as one piece covering it.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.init
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.reset
+ */
 export function resetSegments(pane: PaneId, contentSize: number): void {
   // A new file in the slot: nothing that came before it is undoable any more.
   forgetActs(pane);
@@ -80,6 +97,8 @@ export function swapSegments(): void {
  *
  * Returns whether anything changed: the commands are offered whether or not
  * they can act, and a refused cut must not push an entry nothing would undo.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.snapshot
  */
 export function applySegments(
   pane: PaneId,
@@ -105,6 +124,7 @@ export function applySegments(
   return true;
 }
 
+/** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.restore */
 export function undoSegments(pane: PaneId): boolean {
   const current = segmentsStore.getSnapshot().panes[pane];
   const previous = current?.past[current.past.length - 1];
@@ -154,6 +174,9 @@ export function canRedoSegments(pane: PaneId): boolean {
  * brings the cuts back with it. So the partition is replaced in place, history
  * untouched, and the past entries are shifted too so an undo of an older cut
  * still lands on offsets that mean something.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.apply
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.rebase
  */
 export function noteSegmentEdit(pane: PaneId, edit: DiffEdit, newSize: number): void {
   const current = segmentsStore.getSnapshot().panes[pane];

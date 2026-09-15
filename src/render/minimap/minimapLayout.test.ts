@@ -87,6 +87,7 @@ describe("the content area", () => {
 });
 
 describe("the segment strip", () => {
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testSideBySideStripsSitOnTheOuterSideOfEachMap
   it("sits on the outer side of each map of a pair", () => {
     // Never tucked together against the separator: each strip is on the far
     // side of its own map, so the two never share the gutter.

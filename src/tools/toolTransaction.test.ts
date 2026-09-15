@@ -28,12 +28,14 @@ function checked(one: ToolTransaction): ToolTransaction {
 }
 
 describe("validateTransaction", () => {
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testWritesComeBackInOffsetOrder
   it("brings the writes back in offset order", () => {
     const result = checked(transaction([write(0x200, 4), write(0x10, 4), write(0x100, 4)]));
 
     expect(result.writes.map((one) => one.offset)).toEqual([0x10, 0x100, 0x200]);
   });
 
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testWritesThatTouchBecomeOne
   it("makes one write of two that touch", () => {
     // So the document patches one range instead of three.
     const result = checked(transaction([write(0x10, 4, 0x01), write(0x14, 4, 0x02)]));
@@ -43,6 +45,7 @@ describe("validateTransaction", () => {
     expect([...(result.writes[0]?.bytes ?? [])]).toEqual([1, 1, 1, 1, 2, 2, 2, 2]);
   });
 
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testWritesWithGapsBetweenThemStaySeparate
   it("leaves writes with gaps between them separate", () => {
     // A FIT entry is four writes that are nowhere near each other: the
     // component, the row, the header's count, its checksum. They stay four.
@@ -60,6 +63,7 @@ describe("validateTransaction", () => {
     ]);
   });
 
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testTwoWritesOverTheSameByteAreRefused
   it("refuses two writes over the same byte", () => {
     // It means an offset was computed wrong, and no ordering rule should
     // decide that quietly.
@@ -69,6 +73,7 @@ describe("validateTransaction", () => {
     });
   });
 
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testAWriteOfNoBytesIsRefused
   it("refuses a write of no bytes", () => {
     expect(validateTransaction(transaction([{ offset: 0x40, bytes: new Uint8Array(0) }]))).toEqual({
       ok: false,
@@ -76,6 +81,7 @@ describe("validateTransaction", () => {
     });
   });
 
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testATransactionWithNoWritesIsRefused
   it("refuses a transaction with no writes", () => {
     expect(validateTransaction(transaction([]))).toEqual({
       ok: false,
@@ -83,6 +89,7 @@ describe("validateTransaction", () => {
     });
   });
 
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testATransactionWithoutANameIsRefused
   it("refuses a transaction without a name", () => {
     // The name becomes `Undo <name>`, so a blank one is not a name.
     expect(validateTransaction({ name: "  \n", writes: [write(0x10, 4)] })).toEqual({
@@ -93,6 +100,7 @@ describe("validateTransaction", () => {
 });
 
 describe("transactionSpan", () => {
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift#ToolTransactionTests.testTheSpanReachesFromTheFirstByteWrittenToTheLast
   it("reaches from the first byte written to the last", () => {
     expect(transactionSpan(transaction([write(0xe00140, 16), write(0xb8fc60, 0x30)]))).toEqual({
       start: 0xb8fc60,

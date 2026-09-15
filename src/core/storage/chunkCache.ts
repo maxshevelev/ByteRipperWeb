@@ -20,25 +20,38 @@
  * {@link ChunkCache.forSameBudget} exists so that stays easy.
  */
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.Config */
 export interface ChunkCacheConfig {
-  /** Bytes per chunk. Upstream's default, and what the benchmarks measure. */
+  /**
+   * Bytes per chunk. Upstream's default, and what the benchmarks measure.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.Config.chunkSize
+   */
   readonly chunkSize: number;
-  /** How much the cache may hold before it starts evicting. */
+  /**
+   * How much the cache may hold before it starts evicting.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.Config.byteBudget
+   */
   readonly byteBudget: number;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.Config.init */
 export const DEFAULT_CHUNK_CACHE_CONFIG: ChunkCacheConfig = {
   chunkSize: 64 * 1024,
   byteBudget: 32 * 1024 * 1024,
 };
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache */
 export class ChunkCache {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.config */
   readonly config: ChunkCacheConfig;
 
   /** Insertion order is recency order: the first key is the least recent. */
   private readonly entries = new Map<number, Uint8Array>();
   private bytes = 0;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.init */
   constructor(config: Partial<ChunkCacheConfig> = {}) {
     this.config = { ...DEFAULT_CHUNK_CACHE_CONFIG, ...config };
   }
@@ -48,7 +61,11 @@ export class ChunkCache {
     return new ChunkCache(this.config);
   }
 
-  /** The chunk at `index`, or `undefined`. A hit becomes the most recent. */
+  /**
+   * The chunk at `index`, or `undefined`. A hit becomes the most recent.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.chunk
+   */
   get(index: number): Uint8Array | undefined {
     const found = this.entries.get(index);
     if (found === undefined) return undefined;
@@ -62,7 +79,11 @@ export class ChunkCache {
     return this.entries.has(index);
   }
 
-  /** Inserts or replaces a chunk, then evicts until back inside the budget. */
+  /**
+   * Inserts or replaces a chunk, then evicts until back inside the budget.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.setChunk
+   */
   set(index: number, chunk: Uint8Array): void {
     const existing = this.entries.get(index);
     if (existing !== undefined) {
@@ -74,6 +95,7 @@ export class ChunkCache {
     this.evictWhileOverBudget();
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.remove */
   remove(index: number): void {
     const found = this.entries.get(index);
     if (found === undefined) return;
@@ -81,17 +103,26 @@ export class ChunkCache {
     this.bytes -= found.length;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.removeAll */
   removeAll(): void {
     this.entries.clear();
     this.bytes = 0;
   }
 
-  /** How many chunks are held. */
+  /**
+   * How many chunks are held.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.count
+   */
   get count(): number {
     return this.entries.size;
   }
 
-  /** How many bytes are held — what the budget is measured against. */
+  /**
+   * How many bytes are held — what the budget is measured against.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.cachedByteCount
+   */
   get cachedByteCount(): number {
     return this.bytes;
   }

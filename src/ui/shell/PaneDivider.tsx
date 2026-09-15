@@ -26,6 +26,10 @@ export interface PaneDividerProps {
   readonly label?: string;
 }
 
+/**
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.splitView
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.dividerThicknessValue
+ */
 export function PaneDivider({
   layout,
   fraction,

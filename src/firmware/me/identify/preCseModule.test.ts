@@ -13,16 +13,23 @@ const ascii = (text: string, width: number) => {
   return bytes;
 };
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.u32 */
 function putU32(bytes: Uint8Array, at: number, value: number) {
   new DataView(bytes.buffer).setUint32(at, value, true);
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.u16 */
 function putU16(bytes: Uint8Array, at: number, value: number) {
   new DataView(bytes.buffer).setUint16(at, value, true);
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.fixed */
 const filled = (value: number, count: number) => new Uint8Array(count).fill(value);
 
+/**
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.newRow
+ */
 function newRow(options: {
   name: string;
   hash: Uint8Array;
@@ -50,6 +57,7 @@ function newRow(options: {
   return row;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.oldRow */
 function oldRow(options: {
   name: string;
   guid: Uint8Array;
@@ -69,6 +77,7 @@ function oldRow(options: {
   return row;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.mcp */
 function mcp(codeSize: number, offCodeMN2: number, offPartFPT: number, hash: Uint8Array) {
   const header = new Uint8Array(0x44);
   header.set(ascii("$MCP", 4));
@@ -84,6 +93,8 @@ function mcp(codeSize: number, offCodeMN2: number, offPartFPT: number, hash: Uin
  * The directory at the canonical head 0x290 — an R0 manifest at base 0 fills
  * 0x284, then the 0xC gap. `declared` strides are filled; a `$MCP` follows one
  * more stride of padding.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#MMEFixture.directoryRegion
  */
 function directoryRegion(
   declared: number,
@@ -114,6 +125,7 @@ const decode = (bytes: Uint8Array, declared: number, manifestTag = "$MN2", baseO
   });
 
 describe("decodeMmeDirectory", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleDecodeTests.testDecodesNewHeaderDirectoryWithMCP
   it("decodes a new-header directory and its $MCP", () => {
     const hash = filled(0xab, 32);
     const rows = [
@@ -178,6 +190,7 @@ describe("decodeMmeDirectory", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleDecodeTests.testBaseOffsetAdjustsReportedAnchors
   it("reports its anchors at the caller's offsets", () => {
     const bytes = directoryRegion(
       1,
@@ -198,6 +211,7 @@ describe("decodeMmeDirectory", () => {
     expect(directory?.mcp).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleDecodeTests.testDecodesOldHeaderDirectoryWithoutMCP
   it("decodes an old-header directory and never looks for a $MCP", () => {
     const hash = filled(0x22, 20);
     const rows = [
@@ -238,6 +252,7 @@ describe("decodeMmeDirectory", () => {
     expect(romp?.sizeCompressed).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleDecodeTests.testStopsAtDeclaredCountBeyondActualRows
   it("stops at the first row that is not $MME", () => {
     const rows = [
       newRow({
@@ -262,6 +277,7 @@ describe("decodeMmeDirectory", () => {
     expect(directory?.modules).toHaveLength(2);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleDecodeTests.testReturnsNilWhenNoPlausibleDirectory
   it("finds nothing where there is no plausible directory", () => {
     const bogus = new Uint8Array(0x290 + 0x60);
     bogus.fill(0xff, 0x290);

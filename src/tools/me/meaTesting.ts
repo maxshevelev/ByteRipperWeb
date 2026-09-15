@@ -60,6 +60,8 @@ export function analysisWith(overrides: Partial<FirmwareAnalysis> = {}): Firmwar
     gscInfo: undefined,
     oromImages: undefined,
     rbePmMetadata: undefined,
+    unmatchedMetadataHashes: undefined,
+    redundantCopies: undefined,
     issues: [],
     ...overrides,
   };

@@ -24,9 +24,12 @@ import { hex } from "@/firmware/me/crypto/digest";
  * Chosen from the manifest alone, with no database: the same tag has a longer
  * header and a longer hash on the newer families, and reading one as the other
  * puts a hash's first bytes where a size should be.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Family
  */
 export type ExtensionFamily = "base" | "csme12" | "csme15";
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.family */
 export function extensionFamily(options: {
   readonly major: number;
   readonly minor: number;
@@ -45,7 +48,12 @@ export function extensionFamily(options: {
   return "base";
 }
 
-/** Whether a tag's header is the revised one for this family. */
+/**
+ * Whether a tag's header is the revised one for this family.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.headerRevTag
+ * @upstream-differs answers whether the tag's revised header applies, rather than naming the revision
+ */
 export function isRevisedHeader(tag: number, family: ExtensionFamily): boolean {
   if (family === "csme15") return [0x00, 0x03, 0x0a, 0x0f, 0x16].includes(tag);
   if (family === "csme12") return tag === 0x0f;
@@ -54,160 +62,321 @@ export function isRevisedHeader(tag: number, family: ExtensionFamily): boolean {
 
 // MARK: - What each block says
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SystemInfoExtension */
 export interface SystemInfoExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SystemInfoExtension.minUMASize */
   readonly minUMASize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SystemInfoExtension.chipsetVersion */
   readonly chipsetVersion: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SystemInfoExtension.pageableUMASize */
   readonly pageableUMASize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SystemInfoExtension.imageHash */
   readonly imageHash: string;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FeaturePermissionsExtension */
 export interface FeaturePermissionsExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FeaturePermissionsExtension.moduleCount */
   readonly moduleCount: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension */
 export interface PartitionInfoExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.partitionName */
   readonly partitionName: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.partitionSize */
   readonly partitionSize: number;
-  /** Only the first of the two partition-information tags carries one. */
+  /**
+   * Only the first of the two partition-information tags carries one.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.vcn
+   */
   readonly vcn: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.versionMajor */
   readonly versionMajor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.versionMinor */
   readonly versionMinor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.dataFormatMajor */
   readonly dataFormatMajor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.dataFormatMinor */
   readonly dataFormatMinor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.instanceID */
   readonly instanceID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.flags */
   readonly flags: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PartitionInfoExtension.hash */
   readonly hash: string;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension */
 export interface ClientSystemInfoExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.skuCaps */
   readonly skuCaps: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.cseSize */
   readonly cseSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.skuType */
   readonly skuType: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.workstation */
   readonly workstation: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.m3 */
   readonly m3: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.m0 */
   readonly m0: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.skuPlatform */
   readonly skuPlatform: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ClientSystemInfoExtension.siClass */
   readonly siClass: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension */
 export interface SignedPackageExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.partitionName */
   readonly partitionName: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.vcn */
   readonly vcn: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.usageBitmap */
   readonly usageBitmap: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.arbSvn */
   readonly arbSvn: number;
-  /** The revised header's three extra fields; absent on the original. */
+  /**
+   * The revised header's three extra fields; absent on the original.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.fwType
+   */
   readonly fwType: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.fwSku */
   readonly fwSku: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SignedPackageExtension.nvmCompatibility */
   readonly nvmCompatibility: number | undefined;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension */
 export interface ModuleAttributesExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.compression */
   readonly compression: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.encryption */
   readonly encryption: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.uncompressedSize */
   readonly uncompressedSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.compressedSize */
   readonly compressedSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.deviceID */
   readonly deviceID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.vendorID */
   readonly vendorID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ModuleAttributesExtension.moduleHash */
   readonly moduleHash: string;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SharedLibraryExtension */
 export interface SharedLibraryExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SharedLibraryExtension.contextSize */
   readonly contextSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SharedLibraryExtension.totalAllocatedVirtSpace */
   readonly totalAllocatedVirtSpace: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SharedLibraryExtension.codeBaseAddress */
   readonly codeBaseAddress: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SharedLibraryExtension.tlsSize */
   readonly tlsSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SharedLibraryExtension.reserved */
   readonly reserved: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension */
 export interface ProcessAttributesExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.faultTolerant */
   readonly faultTolerant: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.permanentProcess */
   readonly permanentProcess: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.singleInstance */
   readonly singleInstance: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.trustedSendReceiveSender */
   readonly trustedSendReceiveSender: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.trustedNotifySender */
   readonly trustedNotifySender: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.publicSendReceiveReceiver */
   readonly publicSendReceiveReceiver: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.publicNotifyReceiver */
   readonly publicNotifyReceiver: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.flagsReserved */
   readonly flagsReserved: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.mainThreadID */
   readonly mainThreadID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.codeBaseAddress */
   readonly codeBaseAddress: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.codeSizeUncompressed */
   readonly codeSizeUncompressed: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.cm0HeapSize */
   readonly cm0HeapSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.bssSize */
   readonly bssSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.defaultHeapSize */
   readonly defaultHeapSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.mainThreadEntry */
   readonly mainThreadEntry: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.allowedSysCalls */
   readonly allowedSysCalls: readonly number[];
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.userID */
   readonly userID: number;
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessAttributesExtension.rows
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessGroupIDRow
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ProcessGroupIDRow.groupID
+   * @upstream-differs the group IDs as a plain list, not rows
+   */
   readonly groupIDs: readonly number[];
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadRow */
 export interface ThreadRow {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadRow.stackSize */
   readonly stackSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadRow.flags */
   readonly flags: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadRow.schedulingPolicy */
   readonly schedulingPolicy: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadRow.reserved */
   readonly reserved: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#DeviceRow */
 export interface DeviceRow {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#DeviceRow.deviceID */
   readonly deviceID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#DeviceRow.reserved */
   readonly reserved: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MmioRangeRow */
 export interface MmioRangeRow {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MmioRangeRow.baseAddress */
   readonly baseAddress: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MmioRangeRow.sizeLimit */
   readonly sizeLimit: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MmioRangeRow.flags */
   readonly flags: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow */
 export interface SpecialFileRow {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.accessMode */
   readonly accessMode: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.userID */
   readonly userID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.groupID */
   readonly groupID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.minorNumber */
   readonly minorNumber: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.reserved0 */
   readonly reserved0: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFileRow.reserved1 */
   readonly reserved1: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFilesExtension */
 export interface SpecialFilesExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFilesExtension.majorNumber */
   readonly majorNumber: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFilesExtension.flags */
   readonly flags: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#SpecialFilesExtension.rows */
   readonly rows: readonly SpecialFileRow[];
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#LockedRangeRow */
 export interface LockedRangeRow {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#LockedRangeRow.rangeBase */
   readonly rangeBase: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#LockedRangeRow.rangeSize */
   readonly rangeSize: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow */
 export interface UserInfoRow {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow.userID */
   readonly userID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow.reserved */
   readonly reserved: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow.nvStorageQuota */
   readonly nvStorageQuota: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow.ramStorageQuota */
   readonly ramStorageQuota: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow.wopQuota */
   readonly wopQuota: number;
-  /** Only the older row layout carries one. */
+  /**
+   * Only the older row layout carries one.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoRow.workingDirectory
+   */
   readonly workingDirectory: string | undefined;
 }
 
-/** One block of the chain: its envelope, and whatever of it was understood. */
+/**
+ * One block of the chain: its envelope, and whatever of it was understood.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension
+ */
 export interface CPDExtension {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.tag */
   readonly tag: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.size */
   readonly size: number;
-  /** Absolute, so it matches every other offset the analysis reports. */
+  /**
+   * Absolute, so it matches every other offset the analysis reports.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.offset
+   */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.systemInfo */
   readonly systemInfo?: SystemInfoExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.featurePermissions */
   readonly featurePermissions?: FeaturePermissionsExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.partitionInfo */
   readonly partitionInfo?: PartitionInfoExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.clientSystemInfo */
   readonly clientSystemInfo?: ClientSystemInfoExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.signedPackage */
   readonly signedPackage?: SignedPackageExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.moduleAttributes */
   readonly moduleAttributes?: ModuleAttributesExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.sharedLibrary */
   readonly sharedLibrary?: SharedLibraryExtension;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.processAttributes */
   readonly processAttributes?: ProcessAttributesExtension;
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.threadAttributes
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadAttributesExtension
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ThreadAttributesExtension.rows
+   * @upstream-differs the rows sit on the extension directly, without a wrapper per block type
+   */
   readonly threadRows?: readonly ThreadRow[];
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.deviceTypes
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#DeviceTypesExtension
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#DeviceTypesExtension.rows
+   */
   readonly deviceRows?: readonly DeviceRow[];
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.mmioRanges
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MmioRangesExtension
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MmioRangesExtension.rows
+   */
   readonly mmioRows?: readonly MmioRangeRow[];
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.specialFiles */
   readonly specialFiles?: SpecialFilesExtension;
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.lockedRanges
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#LockedRangesExtension
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#LockedRangesExtension.rows
+   */
   readonly lockedRanges?: readonly LockedRangeRow[];
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CPDExtension.userInfo
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoExtension
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UserInfoExtension.rows
+   */
   readonly userInfoRows?: readonly UserInfoRow[];
 }
 
@@ -216,6 +385,9 @@ export interface CPDExtension {
 /**
  * The chain of a manifest module: the manifest struct is skipped, since the
  * chain begins where it ends.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.decode
  */
 export function decodeExtensionChain(options: {
   readonly bytes: Uint8Array;
@@ -241,6 +413,8 @@ export function decodeExtensionChain(options: {
  * Unlike a manifest module — which begins with the manifest struct, so its chain
  * starts a header's length in — this one starts at the body's own base. Its
  * first block is almost always the one describing the module it belongs to.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.decodeMetBody
  */
 export function decodeMetadataChain(options: {
   readonly bytes: Uint8Array;
@@ -554,16 +728,27 @@ const hexAt = (bytes: Uint8Array, at: number, length: number): string => {
 /**
  * The facts the health rows read, taken from the last block of each kind that
  * carries one — the same last-wins walk upstream's own does.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Hoist
  */
 export interface ExtensionFacts {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Hoist.arbSvn */
   readonly arbSvn: number | undefined;
-  /** The first partition-information tag's version control number. */
+  /**
+   * The first partition-information tag's version control number.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Hoist.vcn03
+   */
   readonly vcnFromPartitionInfo: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Hoist.vcn0F */
   readonly vcnFromSignedPackage: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Hoist.nvm */
   readonly nvmCompatibility: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.Hoist.workstation */
   readonly workstation: boolean | undefined;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/Extensions.swift#CPDExtensionParser.hoist */
 export function extensionFacts(extensions: readonly CPDExtension[]): ExtensionFacts {
   let arbSvn: number | undefined;
   let vcnFromPartitionInfo: number | undefined;

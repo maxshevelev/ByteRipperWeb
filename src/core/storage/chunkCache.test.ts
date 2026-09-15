@@ -6,6 +6,7 @@ import { asArray } from "@/core/testing/support";
 
 const filled = (value: number, count = 16) => new Uint8Array(count).fill(value);
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ChunkCacheTests.swift#ChunkCacheTests.testMapOperations
 describe("ChunkCache as a map", () => {
   // Every case here runs under a budget far larger than it stores, so nothing
   // is evicted and only the map behaviour shows. Eviction has its own tests.
@@ -90,6 +91,7 @@ describe("ChunkCache as a map", () => {
 });
 
 describe("ChunkCache eviction", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ChunkCacheTests.swift#ChunkCacheTests.testEvictsLeastRecentlyUsed
   it("evicts the least recently used", () => {
     const cache = new ChunkCache({ chunkSize: 16, byteBudget: 64 }); // exactly 4
     for (let i = 0; i < 4; i++) cache.set(i, filled(0));
@@ -100,6 +102,7 @@ describe("ChunkCache eviction", () => {
     expect(cache.get(4)).toBeDefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ChunkCacheTests.swift#ChunkCacheTests.testAccessUpdatesRecency
   it("counts a read as use", () => {
     const cache = new ChunkCache({ chunkSize: 16, byteBudget: 64 });
     for (let i = 0; i < 4; i++) cache.set(i, filled(0));
@@ -110,6 +113,7 @@ describe("ChunkCache eviction", () => {
     expect(cache.get(1)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ChunkCacheTests.swift#ChunkCacheTests.testCachedByteCountTracksBudget
   it("evicts down to the budget and no further", () => {
     const cache = new ChunkCache({ chunkSize: 16, byteBudget: 48 });
     for (let i = 0; i < 5; i++) cache.set(i, filled(0));

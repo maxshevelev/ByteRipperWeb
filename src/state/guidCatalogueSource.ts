@@ -8,6 +8,8 @@ import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
  * than beside the parser because it names a browser type: `src/firmware` is
  * compiled without the DOM, and the parser only ever consumes a finished
  * catalogue.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#GuidsSource
  */
 export interface CatalogueSource {
   /** The catalogue, and when its bytes were fetched. */
@@ -17,6 +19,8 @@ export interface CatalogueSource {
 /**
  * `common/guids.csv` from UEFITool, which is the living version of the
  * hard-coded table this parser carries.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.guidsURL
  */
 export const GUIDS_CSV_URL =
   "https://raw.githubusercontent.com/LongSoft/UEFITool/new_engine/common/guids.csv";

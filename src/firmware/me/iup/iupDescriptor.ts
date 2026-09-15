@@ -14,9 +14,13 @@ import type { FirmwareFamily } from "@/firmware/me/models/firmwareFacts";
  * `pchc_anl` and `phy_anl`).
  */
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/IUP.swift#IUPDescriptor.Facts */
 export interface IUPFacts {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/IUP.swift#IUPDescriptor.Facts.platform */
   readonly platform: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/IUP.swift#IUPDescriptor.Facts.sku */
   readonly sku: string | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/IUP.swift#IUPDescriptor.Facts.chipsetStepping */
   readonly chipsetStepping: string | undefined;
 }
 
@@ -28,7 +32,12 @@ const steppingLetter = (index: number): string => STEPPING_LETTERS[Math.min(inde
 /** The general-branch Chipset SKU by the manifest's minor. */
 const SKU_BY_MINOR = ["SoC", "LP", "H", "N", "M"] as const;
 
-/** The facts of an identified IUP family; nothing for any other family. */
+/**
+ * The facts of an identified IUP family; nothing for any other family.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/IUP.swift#IUPDescriptor
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/IUP.swift#IUPDescriptor.facts
+ */
 export function iupFacts(options: {
   readonly family: FirmwareFamily;
   readonly variant: string;

@@ -4,7 +4,8 @@ import { formatHex, hexAddress } from "@/core/text/hexText";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
-import { bookmarkAt, toggleBookmark } from "@/state/bookmarksStore";
+import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
+import { bookmarkAt } from "@/state/bookmarksStore";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
   type PaneId,
@@ -37,14 +38,14 @@ export interface PaneMenuActions {
   readonly onOpen: (into?: PaneId) => void;
   readonly onSave: (pane: PaneId) => void;
   readonly onSaveAs: (pane: PaneId) => void;
+  /** Turns the header's name into a field (§23). */
+  readonly onRename: (pane: PaneId) => void;
   readonly onRevert: (pane: PaneId) => void;
   readonly onDuplicate: (pane: PaneId) => void;
   readonly onClose: (pane: PaneId) => void;
   readonly onFill: (pane: PaneId) => void;
   readonly onDeleteBytes: (pane: PaneId) => void;
   readonly onSelectBlockFrom: (pane: PaneId, offset: number) => void;
-  /** Opens the bookmark list on the mark at this row, for renaming or moving. */
-  readonly onEditBookmark: (offset: number) => void;
   /** Opens the cut dialog, prefilled with this offset (§21.3). */
   readonly onSplitHere: (pane: PaneId, offset: number) => void;
   /** Selects a zone the open tool published, and shows it. */
@@ -55,6 +56,7 @@ export interface PaneMenuActions {
   readonly onProblem: (message: string | undefined) => void;
 }
 
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makePaneMenu */
 export function paneFileMenu(
   state: WorkspaceState,
   pane: PaneId,
@@ -76,6 +78,14 @@ export function paneFileMenu(
     {
       label: verb === "Save" ? "Save As…" : "Download As…",
       onSelect: () => actions.onSaveAs(pane),
+    },
+    // With the Saves: the third thing that decides what this document is
+    // called, and the only one that writes nothing. A file's name is its file's.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.renamePaneDocument
+    {
+      label: "Rename",
+      disabled: slot.saved !== undefined,
+      onSelect: () => actions.onRename(pane),
     },
     { label: "Revert to Saved", disabled: !dirty, onSelect: () => actions.onRevert(pane) },
     { kind: "separator" },
@@ -102,6 +112,9 @@ export function paneFileMenu(
  * the selection, which is the rule that makes both readings of a right-click
  * work: on the selection it is about the selection, anywhere else it is about
  * the byte under the pointer.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makeOffsetMenu
+ * @upstream ByteRipperApp/Window/MainViewController.swift#OffsetContextTarget
  */
 export function dumpMenu(
   state: WorkspaceState,
@@ -136,7 +149,7 @@ export function dumpMenu(
     { kind: "separator" },
     ...segmentItems(pane, offset, actions),
     { kind: "separator" },
-    ...bookmarkItems(offset, actions),
+    ...bookmarkItems(pane, offset),
   ];
 }
 
@@ -146,6 +159,11 @@ export function dumpMenu(
  * Zones nest, so a byte is often inside several: the FIT table, the row in it,
  * the microcode a row points at. All of them are offered, innermost first,
  * because the smallest zone under the pointer is the one being aimed at.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addZoneMenuItems
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectZone
+ * @upstream ByteRipperApp/Window/MainViewController.swift#ZoneContextTarget
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectZone
  */
 function zoneItems(
   pane: PaneId,
@@ -163,7 +181,14 @@ function zoneItems(
   ];
 }
 
-/** The segment block (§21.3): cut here, or merge the piece this byte is in. */
+/**
+ * The segment block (§21.3): cut here, or merge the piece this byte is in.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addSegmentMenuItems
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuEditSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuRemoveSegment
+ */
 function segmentItems(
   pane: PaneId,
   offset: number,
@@ -195,17 +220,27 @@ function segmentItems(
  * learn — and a marked row is offered Edit Bookmark besides. The address is the
  * **row's**, not the clicked byte's: a right-click on a byte marks its row, and
  * the title is what says so.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addBookmarkMenuItems
  */
-function bookmarkItems(offset: number, actions: PaneMenuActions): (MenuEntry | undefined)[] {
+function bookmarkItems(pane: PaneId, offset: number): (MenuEntry | undefined)[] {
   const row = rowContaining(offset);
   return [
-    { label: `Toggle Bookmark at ${hexAddress(row)}`, onSelect: () => void toggleBookmark(offset) },
+    {
+      label: `Toggle Bookmark at ${hexAddress(row)}`,
+      onSelect: () => toggleBookmarkInPane(pane, offset),
+    },
     bookmarkAt(offset) === undefined
       ? undefined
-      : { label: "Edit Bookmark…", onSelect: () => actions.onEditBookmark(offset) },
+      : { label: "Edit Bookmark…", onSelect: () => editBookmarkInPane(pane, offset) },
   ];
 }
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addSelectionMenuItems
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectBlockFromHere
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectBlock
+ */
 function selectionItems(
   slot: PaneState,
   pane: PaneId,
@@ -253,6 +288,11 @@ export function selectionFileName(base: string, start: number, end: number): str
  */
 const COPY_LIMIT = 1024 * 1024;
 
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copySelection
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copyPaneSelection
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copySelectionBytes
+ */
 async function copySelection(
   slot: PaneState,
   onProblem: (message: string | undefined) => void

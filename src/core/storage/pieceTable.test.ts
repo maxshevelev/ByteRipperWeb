@@ -25,6 +25,7 @@ const ranges = (table: PieceTable) =>
   table.addedRanges.map((range) => `${range.start}-${range.end}`);
 
 describe("a fresh table", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testAFreshTableIsOnePieceOfBase
   it("is one piece of base", () => {
     const table = new PieceTable(100);
     expect(table.size).toBe(100);
@@ -33,6 +34,7 @@ describe("a fresh table", () => {
     expect(table.addedRanges).toEqual([]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testAnEmptyBaseHasNoPieces
   it("has no pieces over an empty base", () => {
     const table = new PieceTable(0);
     expect(table.size).toBe(0);
@@ -65,6 +67,7 @@ function check(cases: Case[]): void {
   }
 }
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testInsertPositions
 describe("insert", () => {
   check([
     {
@@ -105,6 +108,7 @@ describe("insert", () => {
     },
   ]);
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testATypedRunStaysOnePiece
   it("keeps a typed run to one piece", () => {
     // A typed run must not cost one piece per keystroke: successive inserts of
     // consecutive added bytes at the growing offset extend one piece.
@@ -117,6 +121,7 @@ describe("insert", () => {
     expect(ranges(table)).toEqual(["100-600"]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testARunBrokenByAJumpStartsANewPiece
   it("starts a new piece when the run is broken by a jump", () => {
     const table = new PieceTable(100);
     table.insert(10, 0, 1);
@@ -129,6 +134,7 @@ describe("insert", () => {
   });
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testDeletesOnAPlainBase
 describe("delete on a plain base", () => {
   check([
     {
@@ -169,6 +175,7 @@ describe("delete on a plain base", () => {
     },
   ]);
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testDeleteSpanningSeveralPieces
   it("spans several pieces", () => {
     const table = new PieceTable(100);
     table.insert(50, 0, 10); // b0-50 a0-10 b50-100
@@ -179,6 +186,7 @@ describe("delete on a plain base", () => {
     expect(table.addedRanges).toEqual([]); // the added piece was consumed whole
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testDeleteTrimsPartialPiecesAtBothEnds
   it("trims partial pieces at both ends", () => {
     const table = new PieceTable(100);
     table.insert(50, 0, 10); // b0-50 a0-10 b50-100
@@ -190,6 +198,7 @@ describe("delete on a plain base", () => {
 });
 
 describe("replace, which is an overwrite", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testReplaceKeepsTheSizeWhenLengthsMatch
   it("keeps the size when the lengths match", () => {
     const table = new PieceTable(100);
     table.replace(10, 12, 0, 2);
@@ -199,6 +208,7 @@ describe("replace, which is an overwrite", () => {
     expect(ranges(table)).toEqual(["10-12"]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testReplacePastTheEndGrowsTheTable
   it("grows the table when it runs past the end", () => {
     const table = new PieceTable(10);
     table.replace(8, 12, 0, 4);
@@ -207,6 +217,7 @@ describe("replace, which is an overwrite", () => {
     expect(layout(table)).toBe("b0-8 a0-4");
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testRepeatedOverwriteOfTheSameByteDoesNotPileUpPieces
   it("does not pile up pieces when the same byte is overwritten repeatedly", () => {
     const table = new PieceTable(100);
     table.replace(10, 11, 0, 1);
@@ -221,6 +232,7 @@ describe("replace, which is an overwrite", () => {
 });
 
 describe("windows", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testSegmentsCoverOnlyTheRequestedWindow
   it("covers only what was asked for", () => {
     const table = new PieceTable(100);
     table.insert(50, 0, 10); // b0-50 a0-10 b50-100
@@ -233,6 +245,7 @@ describe("windows", () => {
     expect(table.segments(10, 10)).toEqual([]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift#PieceTableTests.testByteWiseAndWholeWindowReadsAgree
   it("reads the same byte by byte as it does in one window", () => {
     const table = new PieceTable(40);
     table.insert(10, 0, 5);

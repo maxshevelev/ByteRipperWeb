@@ -15,6 +15,7 @@ import { ItemType, regionName, Sub, subtypeName, typeName } from "@/firmware/uef
  */
 
 describe("the type tables", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testTypeNameReadsTheItemTypesTable
   it("read the item types", () => {
     expect(typeName(60)).toBe("Root");
     expect(typeName(61)).toBe("Capsule");
@@ -25,11 +26,14 @@ describe("the type tables", () => {
 
   // A code the table does not know keeps its number — the honest answer for a
   // vendor type nobody has named.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testAnUnknownTypeNameKeepsItsNumber
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testAnUnknownRegionNameKeepsItsNumber
   it("keep an unknown type's number", () => {
     expect(typeName(59)).toBe("Unknown 3Bh");
     expect(regionName(99)).toBe("Unknown 63h");
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testRegionNameReadsTheFlashDescriptorTable
   it("read the flash-descriptor regions", () => {
     expect(regionName(0)).toBe("Descriptor");
     expect(regionName(1)).toBe("BIOS");
@@ -37,6 +41,7 @@ describe("the type tables", () => {
     expect(regionName(18)).toBe("PSP file");
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testSubtypeNameAnswersPerType
   it("answer a subtype per type", () => {
     expect(subtypeName(61, 100)).toBe("Aptio signed");
     expect(subtypeName(61, 102)).toBe("UEFI 2.0");
@@ -49,6 +54,7 @@ describe("the type tables", () => {
 
   // A region's subtype is answered by the region table, folded in under the
   // Region item type — the same delegation the C++ makes.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testARegionSubtypeReadsTheRegionTable
   it("answer a region subtype from the region table", () => {
     expect(subtypeName(63, 1)).toBe("BIOS");
     expect(subtypeName(63, 7)).toBe("Microcode");
@@ -56,6 +62,8 @@ describe("the type tables", () => {
 
   // File and Section delegate to the FFS and section type tables, which live in
   // other files and are named at run time.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testFileAndSectionSubtypesHaveNoGeneratedAnswer
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFITypesLookupsTests.testAnUnknownTypeHasNoSubtype
   it("have no generated answer for a file or a section", () => {
     expect(subtypeName(66, 7)).toBeUndefined();
     expect(subtypeName(67, 0x19)).toBeUndefined();
@@ -80,6 +88,7 @@ describe("classifying a node", () => {
       ...extra,
     });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testEachKindReadsAsItsItemTypesCode
   it("reads each kind as its ItemTypes code", () => {
     expect(itemType(node("capsule"))).toBe(ItemType.capsule);
     // The whole of an Intel flash image is an Image, the same as a capsule —
@@ -111,6 +120,7 @@ describe("classifying a node", () => {
     expect(itemType(node("nonUEFIData"))).toBe(ItemType.file);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testACapsuleIsNamedByItsGuid
   it("names a capsule by its GUID", () => {
     const withGuid = (text: string) => node("capsule", { guid: guid(text) });
     expect(itemSubtype(withGuid("4A3CA68B-7723-48FB-803D-578CC1FEC44D"))).toBe(
@@ -126,17 +136,21 @@ describe("classifying a node", () => {
     expect(itemSubtype(node("capsule"))).toBeUndefined();
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testARegionKeepsTheDescriptorRegionType
   it("keeps a region's descriptor type", () => {
     expect(itemSubtype(node("region", { subtype: 7 }))).toBe(7);
     expect(itemSubtype(node("flashDescriptor"))).toBe(Sub.descriptorRegion);
   });
 
   // The two image roots are the same type, told apart by subtype.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAnIntelImageReadsAsImageIntel
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAUefiImageReadsAsImageUefi
   it("tells the two image roots apart by subtype", () => {
     expect(itemSubtype(node("intelImage"))).toBe(Sub.intelImage);
     expect(itemSubtype(node("uefiImage"))).toBe(Sub.uefiImage);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAVolumeIsNamedByItsFileSystemGuid
   it("names a volume by its file-system GUID", () => {
     expect(itemSubtype(node("volume", { guid: FFS_V2 }))).toBe(Sub.ffs2Volume);
     expect(itemSubtype(node("volume", { guid: FFS_V3 }))).toBe(Sub.ffs3Volume);
@@ -154,12 +168,16 @@ describe("classifying a node", () => {
     expect(itemSubtype(node("volume"))).toBe(Sub.unknownVolume);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAFileAndSectionKeepTheirTypeByte
   it("keeps a file's and a section's type byte", () => {
     expect(itemSubtype(node("file", { subtype: 7 }))).toBe(7);
     expect(itemSubtype(node("section", { subtype: 0x19 }))).toBe(0x19);
   });
 
   // A store is one kind and no more: the entry subtypes live on the children.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAMicrocodeHasNoSubtype
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAnNvramStoreHasNoSubtype
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testFreeSpaceAndUnclaimedDataHaveNoSubtype
   it("gives a store and the microcode no subtype", () => {
     const stores: UEFINodeKind[] = [
       "vssStore",
@@ -179,6 +197,7 @@ describe("classifying a node", () => {
 
   // An entry and a SLIC blob carry the subtype the parser derived, not a byte
   // read off the node.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testAnNvramEntryKeepsItsDerivedSubtype
   it("keeps an entry's derived subtype", () => {
     expect(itemSubtype(node("vssEntry", { subtype: Sub.standardVssEntry }))).toBe(
       Sub.standardVssEntry
@@ -193,6 +212,7 @@ describe("classifying a node", () => {
     expect(itemSubtype(node("slicData", { subtype: Sub.pubkeySlicData }))).toBe(Sub.pubkeySlicData);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#UEFIItemClassificationTests.testPaddingIsNamedByWhetherItIsErased
   it("names padding by whether it is erased", () => {
     expect(itemSubtype(node("padding", { isErased: true }))).toBe(Sub.onePadding);
     expect(itemSubtype(node("padding", { isErased: false }))).toBe(Sub.dataPadding);
@@ -203,6 +223,7 @@ describe("classifying a node", () => {
 describe("the GUID catalogue", () => {
   const ffsV2 = "8C8CE578-8A3D-4F1C-9935-896185C32DD3";
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#GuidsCatalogueTests.testItParsesUuidNameLines
   it("parses UUID,Name lines", () => {
     const catalogue = GuidsCatalogue.parse(
       `${ffsV2},FFSv2\n5473C07A-3DCB-4DCA-BD6F-1E9689E7349A,FFSv3\n`
@@ -214,25 +235,35 @@ describe("the GUID catalogue", () => {
 
   // A blank line and a line with no name are skipped, not an error — a trailing
   // blank line is not worth failing a catalogue over.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#GuidsCatalogueTests.testBlankAndNamelessLinesAreSkipped
   it("skips blank and nameless lines", () => {
     const catalogue = GuidsCatalogue.parse(`${ffsV2},FFSv2\n\n${ffsV2},\nnot-a-guid,Name\n`);
     expect(catalogue.names.size).toBe(1);
     expect(catalogue.nameOf(guid(ffsV2))).toBe("FFSv2");
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#GuidsCatalogueTests.testAGuidWithNoNameHasNoAnswer
+  it("has no answer for a GUID it does not name", () => {
+    const catalogue = GuidsCatalogue.parse(`${ffsV2},FFSv2\n`);
+    expect(catalogue.nameOf(guid("11111111-2222-3333-4444-555555555555"))).toBeUndefined();
+  });
+
   // The name is everything after the first comma, so a name that itself
   // contains a comma survives.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#GuidsCatalogueTests.testANameWithACommaSurvives
   it("keeps a name with a comma in it", () => {
     expect(GuidsCatalogue.parse(`${ffsV2},FFS, v2\n`).nameOf(guid(ffsV2))).toBe("FFS, v2");
   });
 
   // The file is CRLF on Windows, where much of it is edited.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#GuidsCatalogueTests.testCrlfLineEndingsAreAccepted
   it("accepts CRLF line endings", () => {
     expect(GuidsCatalogue.parse(`${ffsV2},FFSv2\r\n`).nameOf(guid(ffsV2))).toBe("FFSv2");
   });
 
   // The tree starts with this: no names, so a GUID node shows the GUID itself
   // until a download fills the catalogue in.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFITypesTests.swift#GuidsCatalogueTests.testTheEmptyCatalogueHasNoNames
   it("starts empty", () => {
     expect(GuidsCatalogue.empty.names.size).toBe(0);
     expect(GuidsCatalogue.empty.nameOf(guid(ffsV2))).toBeUndefined();

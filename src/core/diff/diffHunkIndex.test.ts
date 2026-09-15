@@ -31,6 +31,7 @@ const one = (hunk: HunkRange | undefined) =>
   hunk === undefined ? undefined : `${hunk.start}-${hunk.end}`;
 
 describe("grouping", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testDifferencesCloserThanTheGapBecomeOneHunk
   it("makes one hunk of differences closer than the gap", () => {
     // The hunk runs from its first differing byte to its last — never rounded
     // out to a row, never including the matching run that follows.
@@ -38,6 +39,7 @@ describe("grouping", () => {
     expect(shape(hunksOf(...pair(512, [0x23, 0x2f]), 256).hunks)).toEqual(["35-48"]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testDifferencesFartherApartThanTheGapStaySeparateHunks
   it("keeps differences farther apart than the gap separate", () => {
     expect(shape(hunksOf(...pair(2048, [0x100, 0x400]), 256).hunks)).toEqual([
       "256-257",
@@ -45,12 +47,14 @@ describe("grouping", () => {
     ]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testTheGapBoundaryIsTheMatchingRunLength
   it("puts the boundary exactly at the matching run's length", () => {
     // A run of gap - 1 bytes is swallowed; a run of gap bytes separates.
     expect(shape(hunksOf(...pair(256, [0, 16]), 16).hunks)).toEqual(["0-17"]);
     expect(shape(hunksOf(...pair(256, [0, 17]), 16).hunks)).toEqual(["0-1", "17-18"]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testGroupingDoesNotDependOnRowAlignment
   it("does not depend on where the bytes fall inside a row", () => {
     // The reason grouping is by distance and not by the 16-byte row: row
     // grouping would merge or split the same spacing depending on its phase.
@@ -61,6 +65,7 @@ describe("grouping", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testAByteAlternatingRegionCollapsesToOneHunk
   it("collapses a byte-alternating region to one target", () => {
     // The case that made the command useless: differing bytes alternating with
     // matching ones, a block per byte.
@@ -73,6 +78,7 @@ describe("grouping", () => {
     expect(shape(DiffHunkIndex.from(blocks, 16).hunks)).toEqual(["0-4095"]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testAGapOfOneReproducesTheByteExactBlocks
   it("merges nothing at a gap of one", () => {
     // Blocks are separated by at least one matching byte, so navigation falls
     // back to the byte-exact blocks.
@@ -86,6 +92,7 @@ describe("grouping", () => {
     );
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testTheEOFOnlyTailGroupsWithANearbyDifference
   it("groups the EOF-only tail with a nearby difference", () => {
     const left = new Uint8Array(300).fill(0xaa);
     const right = new Uint8Array(256).fill(0xaa);
@@ -100,6 +107,7 @@ describe("grouping", () => {
 describe("navigation", () => {
   const threeDifferences = () => hunksOf(...pair(2048, [0x10, 0x40, 0x400]), 256);
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testNextDifferenceFromInsideAHunkFindsTheNextHunk
   it("finds the next hunk from inside the current one", () => {
     const hunks = threeDifferences();
     expect(shape(hunks.hunks)).toEqual(["16-65", "1024-1025"]);
@@ -112,6 +120,7 @@ describe("navigation", () => {
     expect(hunks.nextDifference(0x400)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testPreviousDifferenceSkipsTheHunkTheCaretIsIn
   it("skips the hunk the caret is in, going backwards", () => {
     const hunks = threeDifferences();
     expect(one(hunks.previousDifference(2048))).toBe("1024-1025");
@@ -120,6 +129,7 @@ describe("navigation", () => {
     expect(hunks.previousDifference(0x10)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testSameNavigationSkipsTheRunsAHunkSwallowed
   it("skips the matching runs a hunk swallowed", () => {
     // Otherwise Next Same Block would land in the middle of what Next
     // Difference treats as one change.
@@ -136,6 +146,7 @@ describe("navigation", () => {
     expect(hunks.previousSame(0)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testTheFileEdgeRunsAreTargetsEvenWhenShorterThanTheGap
   it("keeps the file's edge runs as targets even when shorter than the gap", () => {
     // Nothing was merged across them; they are simply what is left at the edge.
     const hunks = hunksOf(...pair(32, [4, 27]), 256);
@@ -147,6 +158,7 @@ describe("navigation", () => {
 });
 
 describe("the degenerate shapes", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testIdenticalFilesHaveNoHunks
   it("gives identical files one matching run and no differences", () => {
     const left = new Uint8Array(128).fill(0xaa);
     const hunks = DiffHunkIndex.from(diffBytes(left, left), 256);
@@ -159,6 +171,7 @@ describe("the degenerate shapes", () => {
     expect(one(hunks.previousSame(128))).toBe("0-128");
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testEmptyFilesHaveNoTargets
   it("gives empty files no targets at all", () => {
     const hunks = DiffHunkIndex.from(diffBytes(new Uint8Array(0), new Uint8Array(0)), 256);
     expect(hunks.isEmpty).toBe(true);
@@ -167,6 +180,7 @@ describe("the degenerate shapes", () => {
     expect(hunks.previousSame(0)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffHunkIndexTests.swift#DiffHunkIndexTests.testHunksTouchingBothFileEdgesLeaveNoMatchingRuns
   it("reports no matching runs when a hunk touches both file edges", () => {
     const left = new Uint8Array(64).fill(0xaa);
     const right = new Uint8Array(64).fill(0x55);

@@ -23,6 +23,10 @@ import type {
  * Ported from `Packages/MEFirmware/Identify/PreCSEModule.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEModule.swift#PreCSEModule
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEModule.swift#PreCSEModule.decode
+ */
 export function decodeMmeDirectory(options: {
   readonly bytes: Uint8Array;
   readonly manifestBase: number;

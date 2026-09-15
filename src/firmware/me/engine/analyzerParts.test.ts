@@ -44,6 +44,7 @@ const infoRegion = (payload: Uint8Array) =>
   );
 
 describe("a GSC INFO partition", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoAnalyzerTests.testAnalyzeSurfacesGSCInfoFromINFORegion
   it("is surfaced with no manifest and no database", () => {
     const result = analyzeMeRegion({ bytes: infoRegion(infoPayload()) });
     expect(result.regions.map((one) => one.name)).toEqual(["INFO"]);
@@ -54,6 +55,7 @@ describe("a GSC INFO partition", () => {
     expect(result.issues).toEqual([]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoAnalyzerTests.testAnalyzeWarnsOnUnknownRevision
   it("warns about an unknown revision", () => {
     const result = analyzeMeRegion({ bytes: infoRegion(infoPayload(7)) });
     expect(result.gscInfo?.revisionValid).toBe(false);
@@ -64,6 +66,7 @@ describe("a GSC INFO partition", () => {
     ).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/GSCInfoTests.swift#GSCInfoAnalyzerTests.testAnalyzeLeavesGSCInfoNilWithoutINFORegion
   it("is absent without an INFO partition", () => {
     const bytes = concat(
       fptRegion({ entries: [{ name: "FTPR", offset: 0x1000, size: 0x100 }], size: 0x1000 }),
@@ -88,6 +91,7 @@ function r1Table(): Uint8Array {
 }
 
 describe("the pm / rbe metadata table", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMAnalyzerTests.testAnalyzeDecodesUncompressedPMR1Metadata
   it("is read from an uncompressed pm module", () => {
     const body = r1Table();
     const one = manifest();
@@ -112,6 +116,7 @@ describe("the pm / rbe metadata table", () => {
     expect(entries[2]?.hash).toHaveLength(64);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMAnalyzerTests.testAnalyzeLeavesRBE_PMNilWithoutPMOrRBEModule
   it("is absent without a pm or rbe module", () => {
     const one = manifest();
     const directory = cpdDirectory({ name: "FTPR", modules: [{ name: "$MN2" }] });

@@ -1,12 +1,18 @@
-import { hex, sha256 } from "@/firmware/me/crypto/digest";
+import { crc32 } from "@/firmware/me/crypto/checksum";
+import { hex, sha256, sha384 } from "@/firmware/me/crypto/digest";
 import { validateSignature } from "@/firmware/me/crypto/rsa";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
   decompressHuffman,
   dictionaryFor,
   type HuffmanDictionaries,
+  type HuffmanDictionary,
 } from "@/firmware/me/decompress/huffman";
-import { decompressLzmaModule, lzmaHashMatches } from "@/firmware/me/decompress/lzmaModule";
+import {
+  decompressLzmaModule,
+  lzmaHashMatches,
+  STRAY_ZEROS_SIGNATURE,
+} from "@/firmware/me/decompress/lzmaModule";
 import { classifyFirmwareType, fptHeaderFIT } from "@/firmware/me/engine/firmwareTypeClassifier";
 import {
   fwUpdateSupport,
@@ -15,7 +21,7 @@ import {
   PHY_PARTITION_NAMES,
   PMC_PARTITION_NAMES,
 } from "@/firmware/me/engine/fwUpdateSupport";
-import { hasHuffmanModuleToValidate, metAttributes } from "@/firmware/me/engine/huffmanNeed";
+import { metAttributes } from "@/firmware/me/engine/huffmanNeed";
 import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelection";
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
 import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
@@ -58,7 +64,9 @@ import type {
 } from "@/firmware/me/models/fileSystemFacts";
 import type {
   BootPartition,
+  Checksums,
   CodePartition,
+  CPDModuleRow,
   DowngradeBlacklist,
   FirmwareAnalysis,
   Issue,
@@ -71,6 +79,7 @@ import {
   cpdChecksumValid,
   cpdEntries,
   cpdModuleContentEnd,
+  decodeCpdHeader,
   findPrecedingCpd,
   trailingEmptyCpdEntries,
 } from "@/firmware/me/partition/cpd";
@@ -79,6 +88,7 @@ import {
   type CPDExtension,
   decodeExtensionChain,
   decodeMetadataChain,
+  type ExtensionFamily,
   extensionFacts,
   extensionFamily,
 } from "@/firmware/me/partition/extensions";
@@ -99,6 +109,11 @@ import { decodeRbePmMetadata } from "@/firmware/me/partition/rbePm";
  * Ported from `Packages/MEFirmware/Engine/MEFirmwareAnalyzer.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.analyze
+ * @upstream-differs a function over the region's bytes; the database and dictionaries are passed in rather than fetched by an actor
+ */
 export function analyzeMeRegion(options: {
   readonly bytes: Uint8Array;
   /** Where the region sits inside the caller's own file. */
@@ -425,6 +440,8 @@ function analyze(
       gscInfo,
       oromImages: undefined,
       rbePmMetadata: undefined,
+      unmatchedMetadataHashes: undefined,
+      redundantCopies: undefined,
       issues,
       ...structural,
     };
@@ -457,19 +474,6 @@ function analyze(
   } else if (identity.databaseName === undefined) {
     issues.push({ id: 3, severity: "note", message: "This firmware is not in the database." });
   }
-  // Every declared-Huffman module whose `.met` advertises Huffman and no
-  // encryption must decompress to its declared size, against the dictionary for
-  // this identity. Without the dictionary the check is skipped, never failed.
-  if (
-    identity.identified &&
-    codePartition !== undefined &&
-    hasHuffmanModuleToValidate(codePartition)
-  ) {
-    issues.push(
-      ...huffmanValidationIssues(codePartition, bytes, baseOffset, identity, dictionaries)
-    );
-  }
-
   // The LZMA half: every module whose `.met` advertises LZMA and no encryption
   // must decompress and match its stored hash. It needs no dictionary and no
   // database, so it runs for a firmware that was not identified too.
@@ -535,6 +539,65 @@ function analyze(
     codePartition === undefined
       ? undefined
       : rbePmMetadataOf(codePartition, bytes, baseOffset, identity, dictionaries);
+
+  // The Huffman half of the module checks — after the metadata table, whose
+  // hashes are what a module without a `.met` is checked against. Every Huffman
+  // module the directory can place is decompressed against the dictionary for
+  // this identity: one with a `.met` must come out at its declared size, one
+  // without must hash to a row of the table. Without the dictionary the check is
+  // skipped, never failed, and an image the engine could not name has no
+  // dictionary to pick.
+  let unmatchedHashes: string[] | undefined;
+  if (
+    identity.identified &&
+    codePartition !== undefined &&
+    huffmanSlices(codePartition, bytes, baseOffset).length > 0
+  ) {
+    const family = extensionFamily({
+      major: manifest.major,
+      minor: manifest.minor,
+      hotfix: manifest.hotfix,
+      build: manifest.build,
+      year: manifest.year,
+      month: manifest.month,
+      keyLength: manifest.rsaPublicKey?.length,
+    });
+    // The FTPR `pm` table's hashes, and those of every RBEP `rbe` table.
+    const operational = codePartition.offset - baseOffset;
+    const rbeHashes = rbeMetadataHashes(
+      rbepOffsets(fpt, boots, baseOffset).filter((offset) => offset !== operational),
+      bytes,
+      baseOffset,
+      family,
+      identity,
+      dictionaries
+    );
+    const tables = [...(rbePmMetadata ?? []).map((row) => row.hash), ...rbeHashes];
+    issues.push(
+      ...huffmanValidationIssues(codePartition, bytes, baseOffset, identity, dictionaries, tables)
+    );
+
+    // What the tables list that no module accounts for, over every `$CPD`
+    // partition the image lists — the operational one first, each partition
+    // name once (Boot 2's backup of Boot 1 adds nothing).
+    if (tables.length > 0) {
+      const partitions = [codePartition];
+      const names = new Set([codePartition.name]);
+      for (const offset of partitionOffsets(fpt, boots, baseOffset)) {
+        const partition = codePartitionAtCpd(offset, bytes, baseOffset, family);
+        if (partition === undefined || names.has(partition.name)) continue;
+        names.add(partition.name);
+        partitions.push(partition);
+      }
+      unmatchedHashes = unmatchedMetadataHashes(
+        tables,
+        partitions,
+        bytes,
+        baseOffset,
+        usableDictionary(identity, dictionaries)
+      );
+    }
+  }
 
   // Upstream's `ifwi_exist`: a non-empty Boot slot in the Layout Table, whether
   // or not its descriptor table decoded.
@@ -641,15 +704,29 @@ function analyze(
   // out rather than reported as an empty table.
   const independent: FirmwareAnalysis[] = [];
   if (findsIndependentFirmware) {
-    for (const [start, end] of independentSlots(fpt, boots, baseOffset, bytes.length)) {
+    const merged = mergingRedundantCopies(
+      independentSlots(fpt, boots, baseOffset, bytes.length),
+      bytes
+    );
+    for (const { slot, copies } of merged.unique) {
       const one = analyze(
-        bytes.subarray(start, end),
-        baseOffset + start,
+        bytes.subarray(slot.start, slot.end),
+        baseOffset + slot.start,
         database,
         dictionaries,
         false
       );
-      if (one.manifest !== undefined) independent.push(one);
+      if (one.manifest === undefined) continue;
+      independent.push(copies.length > 0 ? { ...one, redundantCopies: copies } : one);
+    }
+    for (const differing of merged.differing) {
+      issues.push({
+        id: 20,
+        severity: "warning",
+        message:
+          `Partition ${differing.name} differs between ${differing.places.join(" and ")}: ` +
+          "the copies are not the same firmware.",
+      });
     }
   }
 
@@ -719,6 +796,8 @@ function analyze(
     gscInfo,
     oromImages,
     rbePmMetadata,
+    unmatchedMetadataHashes: unmatchedHashes,
+    redundantCopies: undefined,
     issues,
     ...structural,
   };
@@ -1077,7 +1156,7 @@ function decodeFileSystems(
 
 // MARK: - The checks that decompress a module
 
-interface IdentityFacts {
+export interface IdentityFacts {
   readonly variant: string;
   readonly major: number;
   readonly minor: number;
@@ -1091,71 +1170,481 @@ function usableDictionary(identity: IdentityFacts, dictionaries: HuffmanDictiona
 }
 
 /**
- * Upstream's Huffman module check: a module whose `.met` advertises Huffman and
- * no encryption is decompressed — sliced by the `.met`'s compressed size, chunk
- * directory included — and its length compared with the declared uncompressed
- * size.
+ * Where a Huffman module's compressed stream is and how long it is on both
+ * sides — what decompressing it needs.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice
  */
-function huffmanValidationIssues(
+export interface HuffmanSlice {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.module */
+  readonly module: CPDModuleRow;
+  /**
+   * Region-relative start of the stream.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.offset
+   */
+  readonly offset: number;
+  /**
+   * The stream's length, chunk directory included.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.compressedSize
+   */
+  readonly compressedSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.uncompressedSize */
+  readonly uncompressedSize: number;
+  /**
+   * The `.met`'s stored hash; undefined for a module with no metadata.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.hash
+   */
+  readonly hash: string | undefined;
+  /**
+   * The sizes come from a `.met`, rather than from the `$CPD` directory.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.fromMetadata
+   */
+  readonly fromMetadata: boolean;
+}
+
+/**
+ * Every Huffman module that can be decompressed, with its sizes.
+ *
+ * A module with a `.met` takes both sizes from its Module Attributes block (only
+ * when it advertises Huffman and no encryption). A module with none — every
+ * Huffman module of a CSME 15 FTPR — has only its uncompressed size in the
+ * directory, and its compressed size is worked out the way upstream does (MEA.py
+ * `ext_anl` Stage 3, 6655–6680): up to where the next entry starts, the last one
+ * up to the partition's end (Partition Info 0x03/0x16) or else up to the first
+ * `FF FF` (no Huffman codeword is 0xFFFF); an answer past the uncompressed size,
+ * or below zero, is not believed; and a FIT- or OEM-customized partition, whose
+ * directory sizes are accurate, is not adjusted. An empty module (erased, or past
+ * the region) is left out.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.huffmanSlices
+ */
+export function huffmanSlices(
+  codePartition: CodePartition,
+  bytes: Uint8Array,
+  baseOffset: number
+): HuffmanSlice[] {
+  // Module offsets are absolute here, where upstream's count from the `$CPD`.
+  const at = (module: CPDModuleRow) => module.offset - baseOffset;
+  const slice = (start: number, count: number): Uint8Array =>
+    start < 0 || start >= bytes.length || count <= 0
+      ? new Uint8Array(0)
+      : bytes.subarray(start, Math.min(bytes.length, start + count));
+  // Upstream's entry_empty: nothing there, or exactly `size` bytes of 0xFF.
+  const isEmpty = (module: CPDModuleRow) => {
+    const data = slice(at(module), module.size);
+    return (
+      data.length === 0 || (data.length === module.size && data.every((byte) => byte === 0xff))
+    );
+  };
+  // A real OEM key, as opposed to Intel's 0xBCCB placeholder.
+  // Upstream's bccb_pat: CB BC, nine bytes, 00, "$MN2".
+  const isPlaceholderKey = (data: Uint8Array) => {
+    const head = data.subarray(0, 0x50);
+    for (let index = 0; index + 16 <= head.length; index++) {
+      if (head[index] !== 0xcb || head[index + 1] !== 0xbc || head[index + 11] !== 0) continue;
+      if (
+        head[index + 12] === 0x24 &&
+        head[index + 13] === 0x4d &&
+        head[index + 14] === 0x4e &&
+        head[index + 15] === 0x32
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const customized = codePartition.modules.some((module) => {
+    if (module.name === "fitc.cfg") return !isEmpty(module);
+    if (module.name === "oem.key" && !isEmpty(module)) {
+      return !isPlaceholderKey(slice(at(module), module.size));
+    }
+    return false;
+  });
+  const partitionSize = codePartition.extensions.find((one) => one.partitionInfo !== undefined)
+    ?.partitionInfo?.partitionSize;
+
+  // Stage 3, over every entry in offset order.
+  const ordered = codePartition.modules
+    .map((module, id) => ({ module, id }))
+    .sort((left, right) => left.module.offset - right.module.offset || left.id - right.id);
+  const calculated = new Map<number, number>();
+  if (!customized) {
+    ordered.forEach(({ module, id }, index) => {
+      if (isEmpty(module)) return;
+      let size: number | undefined;
+      const next = ordered[index + 1];
+      if (next !== undefined) {
+        size = next.module.offset - module.offset;
+      } else if (partitionSize !== undefined) {
+        size = partitionSize - (module.offset - codePartition.offset);
+      } else {
+        const rest = slice(at(module), bytes.length);
+        for (let offset = 0; offset + 1 < rest.length; offset++) {
+          if (rest[offset] === 0xff && rest[offset + 1] === 0xff) {
+            size = offset;
+            break;
+          }
+        }
+      }
+      if (size !== undefined && size >= 0 && size <= module.size) calculated.set(id, size);
+    });
+  }
+
+  const slices: HuffmanSlice[] = [];
+  codePartition.modules.forEach((module, id) => {
+    if (!module.isHuffman || module.size <= 0 || isEmpty(module)) return;
+    const met = codePartition.modules.find((one) => one.name === `${module.name}.met`);
+    if (met !== undefined) {
+      const attributes = met.extensions?.find(
+        (one) => one.moduleAttributes !== undefined
+      )?.moduleAttributes;
+      if (
+        attributes === undefined ||
+        attributes.compression !== 1 ||
+        attributes.encryption !== 0 ||
+        attributes.compressedSize <= 0 ||
+        attributes.uncompressedSize <= 0
+      ) {
+        return;
+      }
+      slices.push({
+        module,
+        offset: at(module),
+        compressedSize: attributes.compressedSize,
+        uncompressedSize: attributes.uncompressedSize,
+        hash: attributes.moduleHash,
+        fromMetadata: true,
+      });
+    } else {
+      slices.push({
+        module,
+        offset: at(module),
+        compressedSize: calculated.get(id) ?? module.size,
+        uncompressedSize: module.size,
+        hash: undefined,
+        fromMetadata: false,
+      });
+    }
+  });
+  return slices;
+}
+
+/** A digest as the metadata tables list it: SHA-384 for a 96-digit hash, else SHA-256. */
+function digestOf(data: Uint8Array, length: number): string {
+  return hex(length === 96 ? sha384(data) : sha256(data));
+}
+
+/**
+ * Phase 8 cross-check (`mod_anl`'s Huffman branch, MEA.py 7178–7230): every
+ * Huffman module `huffmanSlices` can place is decompressed against the dictionary
+ * for this identity.
+ *
+ * - A module with a `.met` must come out at the `.met`'s uncompressed size and
+ *   without unknown codewords.
+ * - A module without one is checked the way upstream checks it: its decompressed
+ *   bytes must hash to one of the hashes the `pm` / `rbe` metadata table lists
+ *   (`rbePmHashes`). With no such table there is only the size and the codewords
+ *   to go on.
+ *
+ * Never throws; no dictionary skips everything.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.huffmanValidationIssues
+ */
+export function huffmanValidationIssues(
   codePartition: CodePartition,
   bytes: Uint8Array,
   baseOffset: number,
   identity: IdentityFacts,
-  dictionaries: HuffmanDictionaries | undefined
+  dictionaries: HuffmanDictionaries | undefined,
+  rbePmHashes: readonly string[] = []
 ): Issue[] {
   const dictionary = usableDictionary(identity, dictionaries);
   if (dictionary === undefined) return [];
+  const listed = new Set(rbePmHashes);
+  const first = rbePmHashes[0];
   const issues: Issue[] = [];
-  for (const module of codePartition.modules) {
-    if (!module.isHuffman || module.size <= 0) continue;
-    const attributes = metAttributes(codePartition, module.name);
-    if (
-      attributes === undefined ||
-      attributes.compression !== 1 ||
-      attributes.encryption !== 0 ||
-      attributes.compressedSize <= 0 ||
-      attributes.uncompressedSize <= 0
-    ) {
-      continue;
-    }
-    // Module offsets are absolute here, where upstream's count from the `$CPD`.
-    const moduleBase = module.offset - baseOffset;
-    if (moduleBase + attributes.compressedSize > bytes.length) {
+  for (const slice of huffmanSlices(codePartition, bytes, baseOffset)) {
+    const name = slice.module.name;
+    if (slice.offset < 0 || slice.offset + slice.compressedSize > bytes.length) {
       issues.push({
         id: 7,
         severity: "warning",
         message:
-          `Huffman module "${module.name}" extends past the end of the region; ` +
+          `Huffman module "${name}" extends past the end of the region; ` +
           "cannot verify its decompression.",
+        module: name,
       });
       continue;
     }
     const result = decompressHuffman({
-      module: bytes.subarray(moduleBase, moduleBase + attributes.compressedSize),
-      compressedSize: attributes.compressedSize,
-      decompressedSize: attributes.uncompressedSize,
+      module: bytes.subarray(slice.offset, slice.offset + slice.compressedSize),
+      compressedSize: slice.compressedSize,
+      decompressedSize: slice.uncompressedSize,
       dictionary,
     });
-    if (result.output.length !== attributes.uncompressedSize) {
+    if (result.output.length !== slice.uncompressedSize) {
+      const source = slice.fromMetadata ? ".met-declared" : "$CPD";
       issues.push({
         id: 7,
         severity: "warning",
         message:
-          `Huffman module "${module.name}" did not decompress to its .met-declared size ` +
+          `Huffman module "${name}" did not decompress to its ${source} size ` +
           `(got 0x${lowerHex(result.output.length)} bytes, expected ` +
-          `0x${lowerHex(attributes.uncompressedSize)}).`,
+          `0x${lowerHex(slice.uncompressedSize)}).`,
+        module: name,
       });
+    } else if (!slice.fromMetadata && first !== undefined) {
+      if (!listed.has(digestOf(result.output, first.length))) {
+        issues.push({
+          id: 7,
+          severity: "warning",
+          message: `Hash of Huffman module "${name}" is invalid.`,
+          module: name,
+        });
+      }
     } else if (!result.clean) {
       issues.push({
         id: 7,
         severity: "warning",
         message:
-          `Huffman module "${module.name}" decompressed to the right size but hit ` +
+          `Huffman module "${name}" decompressed to the right size but hit ` +
           "unknown codewords / an early stream end.",
+        module: name,
       });
     }
   }
   return issues;
+}
+
+/**
+ * The `$CPD` at `offset` (region-relative) as a code partition: its directory,
+ * with every `.met` body read as the operational partition's are. Undefined where
+ * no `$CPD` header is.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.codePartition
+ */
+export function codePartitionAtCpd(
+  offset: number,
+  bytes: Uint8Array,
+  baseOffset: number,
+  family: ExtensionFamily
+): CodePartition | undefined {
+  const header = decodeCpdHeader(bytes, offset);
+  if (header === undefined) return undefined;
+  return {
+    name: header.partitionName,
+    offset: baseOffset + header.base,
+    headerVersion: header.headerVersion,
+    headerLength: header.headerLength,
+    numModules: header.numModules,
+    checksumValid: undefined,
+    extensions: [],
+    modules: cpdEntries(bytes, header).map((entry) => {
+      const row = {
+        name: entry.name,
+        offset: baseOffset + header.base + entry.offset,
+        size: entry.size,
+        isHuffman: entry.isHuffman,
+      };
+      if (!entry.name.endsWith(".met") || entry.isHuffman || entry.size <= 0) return row;
+      return {
+        ...row,
+        extensions: decodeMetadataChain({
+          bytes,
+          contentBase: header.base + entry.offset,
+          bodySize: entry.size,
+          family,
+          baseOffset,
+        }),
+      };
+    }),
+  };
+}
+
+/**
+ * Region-relative offsets of every non-empty partition the `$FPT` and the boot
+ * BPDTs list, in that order, each once — the places a `$CPD` can be.
+ */
+function partitionOffsets(
+  fpt: FPTResult | undefined,
+  boots: readonly BootPartition[] | undefined,
+  baseOffset: number
+): number[] {
+  const offsets: number[] = [];
+  for (const part of fpt?.partitions ?? []) if (!part.empty) offsets.push(part.offset);
+  for (const boot of boots ?? []) {
+    for (const entry of boot.entries) if (!entry.empty) offsets.push(entry.offset - baseOffset);
+  }
+  return [...new Set(offsets)];
+}
+
+/** Region-relative `$CPD` offsets of the image's RBEP partitions, each listed once. */
+function rbepOffsets(
+  fpt: FPTResult | undefined,
+  boots: readonly BootPartition[] | undefined,
+  baseOffset: number
+): number[] {
+  const offsets: number[] = [];
+  for (const part of fpt?.partitions ?? []) {
+    if (part.name === "RBEP" && !part.empty) offsets.push(part.offset);
+  }
+  for (const boot of boots ?? []) {
+    for (const entry of boot.entries) {
+      if (entry.name === "RBEP" && !entry.empty) offsets.push(entry.offset - baseOffset);
+    }
+  }
+  return [...new Set(offsets)];
+}
+
+/**
+ * The hashes the `pm` / `rbe` metadata tables list that no module of the image
+ * hashes to — upstream's leftover report (MEA.py 5814–5817, printed under
+ * `-bypass`), which says what those tables name that the image does not account
+ * for: most often a module that is encrypted (NFTP `pavp`, PCOD), which cannot be
+ * hashed as it is loaded.
+ *
+ * Every module without metadata in `partitions` is hashed the way `mod_anl`
+ * hashes it against the tables: a Huffman one decompressed; an uncompressed one
+ * as stored; an LZMA one (its stream header says so) as stored, and else
+ * decompressed (MEA.py 7120–7140, 7300–7330). `pavp` is skipped, as upstream
+ * skips it. A module with a `.met` is checked against its own hash instead and
+ * matches no table row. In table order, each once.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.unmatchedMetadataHashes
+ */
+export function unmatchedMetadataHashes(
+  tables: readonly string[],
+  partitions: readonly CodePartition[],
+  bytes: Uint8Array,
+  baseOffset: number,
+  dictionary: HuffmanDictionary | undefined
+): string[] {
+  const length = tables[0]?.length;
+  if (length === undefined) return [];
+  const listed = new Set(tables);
+  const matched = new Set<string>();
+  for (const partition of partitions) {
+    if (dictionary !== undefined) {
+      for (const slice of huffmanSlices(partition, bytes, baseOffset)) {
+        if (slice.fromMetadata) continue;
+        if (slice.offset < 0 || slice.offset + slice.compressedSize > bytes.length) continue;
+        const result = decompressHuffman({
+          module: bytes.subarray(slice.offset, slice.offset + slice.compressedSize),
+          compressedSize: slice.compressedSize,
+          decompressedSize: slice.uncompressedSize,
+          dictionary,
+        });
+        const hash = digestOf(result.output, length);
+        if (listed.has(hash)) matched.add(hash);
+      }
+    }
+    for (const module of partition.modules) {
+      if (module.isHuffman || module.size <= 0) continue;
+      const name = module.name;
+      if (
+        name.endsWith(".met") ||
+        name.endsWith(".man") ||
+        name === "pavp" ||
+        partition.modules.some((one) => one.name === `${name}.met`)
+      ) {
+        continue;
+      }
+      const start = module.offset - baseOffset;
+      if (start < 0 || start + module.size > bytes.length) continue;
+      const stored = bytes.subarray(start, start + module.size);
+      const hash = digestOf(stored, length);
+      if (listed.has(hash)) {
+        matched.add(hash);
+        continue;
+      }
+      const size = lzmaUncompressedSize(stored);
+      const decompressed = size === undefined ? undefined : decompressLzmaModule(stored, size);
+      if (decompressed === undefined) continue;
+      const unpacked = digestOf(decompressed, length);
+      if (listed.has(unpacked)) matched.add(unpacked);
+    }
+  }
+  const seen = new Set<string>();
+  return tables.filter((hash) => {
+    if (matched.has(hash) || seen.has(hash)) return false;
+    seen.add(hash);
+    return true;
+  });
+}
+
+/**
+ * The uncompressed size an LZMA module's stream header gives, when the bytes
+ * open with the header upstream recognises one by (`36 00 40 00 00`, and zeros
+ * at 0xE–0x10); undefined for anything else.
+ */
+function lzmaUncompressedSize(data: Uint8Array): number | undefined {
+  if (data.length < 0x11) return undefined;
+  if (STRAY_ZEROS_SIGNATURE.some((byte, index) => data[index] !== byte)) return undefined;
+  if (data[0xe] !== 0 || data[0xf] !== 0 || data[0x10] !== 0) return undefined;
+  let size = 0;
+  for (let index = 0; index < 8; index++) size += (data[5 + index] ?? 0) * 2 ** (8 * index);
+  return size > 0 && size < 0x7fff_ffff ? size : undefined;
+}
+
+/**
+ * The hashes the `rbe` module's metadata table lists, in every RBEP partition at
+ * `offsets` (region-relative `$CPD` bases). The operational partition is FTPR,
+ * whose `pm` table lists only the modules `pm` loads; the ones the ROM boot
+ * extensions load — kernel, syslib, bup and the rest — are listed by `rbe`, and
+ * upstream checks a module without metadata against both (MEA.py 5623–5633). A
+ * Huffman `rbe` is sliced and decompressed like any other module; one that does
+ * not come out whole lists nothing.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.rbeMetadataHashes
+ */
+export function rbeMetadataHashes(
+  offsets: readonly number[],
+  bytes: Uint8Array,
+  baseOffset: number,
+  family: ExtensionFamily,
+  identity: IdentityFacts,
+  dictionaries: HuffmanDictionaries | undefined
+): string[] {
+  const hashes: string[] = [];
+  for (const offset of offsets) {
+    // `rbe` has a `rbe.met` of its own, whose Module Attributes give its sizes.
+    const partition = codePartitionAtCpd(offset, bytes, baseOffset, family);
+    const module = partition?.modules.find((one) => one.name === "rbe");
+    if (partition === undefined || module === undefined || module.size <= 0) continue;
+    let body: Uint8Array;
+    if (module.isHuffman) {
+      const dictionary = usableDictionary(identity, dictionaries);
+      const slice = huffmanSlices(partition, bytes, baseOffset).find(
+        (one) => one.module === module
+      );
+      if (
+        dictionary === undefined ||
+        slice === undefined ||
+        slice.offset < 0 ||
+        slice.offset + slice.compressedSize > bytes.length
+      ) {
+        continue;
+      }
+      const result = decompressHuffman({
+        module: bytes.subarray(slice.offset, slice.offset + slice.compressedSize),
+        compressedSize: slice.compressedSize,
+        decompressedSize: slice.uncompressedSize,
+        dictionary,
+      });
+      if (result.output.length !== slice.uncompressedSize || !result.clean) continue;
+      body = result.output;
+    } else {
+      const start = module.offset - baseOffset;
+      if (start < 0 || start + module.size > bytes.length) continue;
+      body = bytes.subarray(start, start + module.size);
+    }
+    hashes.push(...(decodeRbePmMetadata(body) ?? []).map((row) => row.hash));
+  }
+  return hashes;
 }
 
 /**
@@ -1204,8 +1693,10 @@ function rbePmMetadataOf(
  * Upstream's LZMA module check: a module whose `.met` advertises LZMA and no
  * encryption is sliced by that `.met`'s compressed size — the `$CPD` row's size is
  * the uncompressed one — decompressed, and checked against the stored hash.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.lzmaValidationIssues
  */
-function lzmaValidationIssues(
+export function lzmaValidationIssues(
   codePartition: CodePartition,
   bytes: Uint8Array,
   baseOffset: number
@@ -1225,6 +1716,7 @@ function lzmaValidationIssues(
     const moduleBase = module.offset - baseOffset;
     if (moduleBase < 0 || moduleBase + attributes.compressedSize > bytes.length) {
       issues.push({
+        module: module.name,
         id: 19,
         severity: "warning",
         message: `LZMA module "${module.name}" extends past the end of the region; cannot verify it.`,
@@ -1235,6 +1727,7 @@ function lzmaValidationIssues(
     const decompressed = decompressLzmaModule(stored, attributes.uncompressedSize);
     if (decompressed === undefined) {
       issues.push({
+        module: module.name,
         id: 19,
         severity: "warning",
         message: `LZMA module "${module.name}" does not decompress.`,
@@ -1246,6 +1739,7 @@ function lzmaValidationIssues(
       !lzmaHashMatches(attributes.moduleHash, stored, decompressed)
     ) {
       issues.push({
+        module: module.name,
         id: 19,
         severity: "warning",
         message: `Hash of LZMA module "${module.name}" is invalid.`,
@@ -1269,38 +1763,127 @@ function blacklist(bytes: Uint8Array, manifestBase: number): DowngradeBlacklist 
  * and each boot partition's table — since a stitched PMC lives in one or the
  * other depending on how the image was built. Region-relative, clamped to what
  * was handed over.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.IndependentSlot
  */
 function independentSlots(
   fpt: FPTResult | undefined,
   bootPartitions: readonly BootPartition[] | undefined,
   baseOffset: number,
   regionCount: number
-): (readonly [number, number])[] {
-  const candidates: { readonly name: string; readonly offset: number; readonly size: number }[] =
-    [];
+): IndependentSlot[] {
+  const candidates: {
+    readonly name: string;
+    readonly offset: number;
+    readonly size: number;
+    readonly place: string;
+  }[] = [];
   for (const part of fpt?.partitions ?? []) {
-    if (!part.empty) candidates.push(part);
+    if (!part.empty) candidates.push({ ...part, place: "$FPT" });
   }
   for (const boot of bootPartitions ?? []) {
     for (const entry of boot.entries) {
       // Boot table offsets are absolute in the analysed image.
-      if (!entry.empty) candidates.push({ ...entry, offset: entry.offset - baseOffset });
+      if (!entry.empty) {
+        candidates.push({ ...entry, offset: entry.offset - baseOffset, place: boot.partitionName });
+      }
     }
   }
 
-  const slots: (readonly [number, number])[] = [];
+  const slots: IndependentSlot[] = [];
   for (const names of [PMC_PARTITION_NAMES, PCHC_PARTITION_NAMES, PHY_PARTITION_NAMES]) {
     for (const candidate of candidates) {
       if (!names.includes(candidate.name)) continue;
       const start = candidate.offset;
       if (start < 0 || candidate.size <= 0 || start >= regionCount) continue;
       const end = Math.min(candidate.offset + candidate.size, regionCount);
-      // The same partition can be listed twice; one table per firmware.
-      if (slots.some(([one, two]) => one === start && two === end)) continue;
-      slots.push([start, end]);
+      // The same partition can be listed twice (a $FPT entry that also appears
+      // in a boot table); one table per firmware.
+      if (slots.some((one) => one.start === start && one.end === end)) continue;
+      slots.push({ name: candidate.name, start, end, place: candidate.place });
     }
   }
   return slots;
+}
+
+/**
+ * One partition of an independent firmware: its name, its region-relative bytes,
+ * and the inventory that lists it — "$FPT", or the boot partition whose table
+ * does ("Boot 1").
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.IndependentSlot
+ */
+export interface IndependentSlot {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.IndependentSlot.name */
+  readonly name: string;
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.IndependentSlot.range
+   * @upstream-differs a half-open start and end
+   */
+  readonly start: number;
+  readonly end: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.IndependentSlot.place */
+  readonly place: string;
+}
+
+/**
+ * The slots with every byte-identical copy folded into the first one that holds
+ * those bytes, and the partitions listed in more than one place whose copies are
+ * not the same bytes.
+ *
+ * CSE Redundancy keeps a backup of Boot 1 in Boot 2, so every independent
+ * firmware of Boot 1 is there twice. Upstream prints a table for each (MEA.py
+ * 11850–12070 walks every boot BPDT and never deduplicates); the two tables say
+ * nothing the one does not, so the copy goes into the first's `copies`. Copies
+ * that differ are two firmwares and stay two.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.mergingRedundantCopies
+ */
+export function mergingRedundantCopies(
+  slots: readonly IndependentSlot[],
+  bytes: Uint8Array
+): {
+  readonly unique: { readonly slot: IndependentSlot; readonly copies: string[] }[];
+  readonly differing: { readonly name: string; readonly places: string[] }[];
+} {
+  const content = (slot: IndependentSlot) => bytes.subarray(slot.start, slot.end);
+  const same = (left: Uint8Array, right: Uint8Array) =>
+    left.length === right.length && left.every((byte, index) => byte === right[index]);
+  const unique: { readonly slot: IndependentSlot; readonly copies: string[] }[] = [];
+  const differing: { readonly name: string; readonly places: string[] }[] = [];
+  for (const slot of slots) {
+    const bytesOf = content(slot);
+    const copy = unique.find(
+      (one) => one.slot.name === slot.name && same(content(one.slot), bytesOf)
+    );
+    if (copy !== undefined) {
+      copy.copies.push(slot.place);
+      continue;
+    }
+    const other = unique.find((one) => one.slot.name === slot.name);
+    if (other !== undefined) {
+      const known = differing.find((one) => one.name === slot.name);
+      if (known !== undefined) known.places.push(slot.place);
+      else differing.push({ name: slot.name, places: [other.slot.place, slot.place] });
+    }
+    unique.push({ slot, copies: [] });
+  }
+  return { unique, differing };
+}
+
+/**
+ * The region's own SHA-256, SHA-384 and CRC-32 — what `analyze` deliberately
+ * leaves out. Each is an independent pass over the whole buffer, and together
+ * they were about two thirds of the work of a parse while answering only three
+ * detail rows, so they are the caller's to ask for when something is going to
+ * read them. An empty region has nothing to measure.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.checksums
+ * @upstream-differs synchronous; the worker it runs in keeps it off the page
+ */
+export function checksums(bytes: Uint8Array): Checksums {
+  if (bytes.length === 0) return { sha256: undefined, sha384: undefined, crc32: undefined };
+  return { sha256: hex(sha256(bytes)), sha384: hex(sha384(bytes)), crc32: crc32(bytes) };
 }
 
 /**

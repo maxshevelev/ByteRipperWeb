@@ -26,7 +26,9 @@ function record(
   history.recordAtCaret(ops, caretBefore, caretAfter, FILE_SIZE, rest);
 }
 
+// @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testUndoRedo
 describe("the undo and redo cycle", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testUndoRedoCycle
   it("goes all the way down and all the way back", () => {
     const history = new UndoHistory();
     record(history, [op(0)]);
@@ -44,6 +46,7 @@ describe("the undo and redo cycle", () => {
     expect(history.canUndo).toBe(true);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testGroupedTransactionsUndoAsUnit
   it("undoes a grouped transaction as one unit", () => {
     const history = new UndoHistory();
     record(history, [op(0), op(1), op(2)]); // one transaction, three ops
@@ -52,6 +55,7 @@ describe("the undo and redo cycle", () => {
     expect(history.canUndo).toBe(false);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testNewEditClearsRedoStack
   it("discards the redo stack when the state diverges", () => {
     const history = new UndoHistory();
     record(history, [op(0)]);
@@ -66,6 +70,7 @@ describe("the undo and redo cycle", () => {
     expect(history.undo()).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testRecordEmptyTransactionIsNoop
   it("does nothing for an empty transaction", () => {
     const history = new UndoHistory();
     record(history, []);
@@ -74,6 +79,7 @@ describe("the undo and redo cycle", () => {
     expect(history.isDirty).toBe(false);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testResetClearsEverything
   it("clears everything on reset", () => {
     const history = new UndoHistory();
     record(history, [op(0)]);
@@ -90,6 +96,7 @@ describe("the undo and redo cycle", () => {
 });
 
 describe("dirty is a state, not a depth", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testDirtyCheckpointLifecycle
   it("follows the saved checkpoint through a whole cycle", () => {
     const history = new UndoHistory();
     expect(history.isDirty).toBe(false);
@@ -110,6 +117,7 @@ describe("dirty is a state, not a depth", () => {
     expect(history.isDirty).toBe(true);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testADifferentEditAtTheSameDepthIsNotTheSavedState
   it("does not mistake a different edit at the same depth for the saved state", () => {
     // Counting edits reported clean here, and closing the file would have
     // discarded the change with no prompt.
@@ -129,6 +137,7 @@ describe("dirty is a state, not a depth", () => {
     expect(history.isDirty).toBe(true); // and the state it replaced is gone for good
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testABatchAndFreshBytesOfTheSameCountAreDifferentStates
   it("tells a restored batch from fresh bytes of the same count", () => {
     // The serials come back with the transactions, so a redo that lands on the
     // saved state is clean again.
@@ -149,6 +158,7 @@ describe("dirty is a state, not a depth", () => {
     expect(history.isDirty).toBe(true); // three other bytes are not the three saved ones
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testDirtyControlAcrossABatch
   it("counts transactions rather than steps across a batch", () => {
     const history = new UndoHistory();
     for (let i = 0; i < 3; i++) record(history, [op(i)], { seriesId: 1 });
@@ -169,6 +179,7 @@ describe("dirty is a state, not a depth", () => {
 });
 
 describe("what a transaction carries", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTransactionCarriesCaretPositions
   it("brackets the edit with carets, in both directions", () => {
     const history = new UndoHistory();
     record(history, [op(0)], { caretBefore: 5, caretAfter: 6 });
@@ -207,6 +218,7 @@ describe("what a transaction carries", () => {
 });
 
 describe("a typing series, and the coalescing window", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testFastSecondUndoRemovesTheRestOfTheSeries
   it("takes back the rest of the series on a fast second press", () => {
     const history = new UndoHistory();
     for (let i = 0; i < 3; i++) record(history, [op(i)], { seriesId: 1 });
@@ -217,6 +229,8 @@ describe("a typing series, and the coalescing window", () => {
     expect(history.canUndo).toBe(false);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testUndoAfterAPauseRemovesOneByteAgain
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testUndoAfterAPauseRemovesOneByteAgain
   it("removes one byte again after a pause", () => {
     const history = new UndoHistory();
     for (let i = 0; i < 3; i++) record(history, [op(i)], { seriesId: 1 });
@@ -268,6 +282,7 @@ describe("a typing series, and the coalescing window", () => {
   ];
 
   for (const testCase of refusals) {
+    // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testBatchIsRefusedOutsideOneTypingRun
     it(testCase.name, () => {
       const history = new UndoHistory();
       for (const [offset, series] of testCase.records) {
@@ -281,6 +296,7 @@ describe("a typing series, and the coalescing window", () => {
     });
   }
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testRedoOfABatchRestoresByteByByteStructure
   it("restores the byte-by-byte structure when a batch is redone", () => {
     const history = new UndoHistory();
     for (let i = 0; i < 3; i++) record(history, [op(i)], { seriesId: 1 });
@@ -300,18 +316,21 @@ describe("a typing series, and the coalescing window", () => {
 });
 
 describe("naming a step, so the menu can say what it takes back", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoStepLabelTests.testAnUnnamedStepHasNoLabel
   it("leaves ordinary editing unnamed", () => {
     const history = new UndoHistory();
     record(history, [op(0)], { caretBefore: 0, caretAfter: 1 });
     expect(history.undoLabel).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoStepLabelTests.testTheLabelIsWhatTheStepWasRecordedUnder
   it("offers the name it was recorded under", () => {
     const history = new UndoHistory();
     record(history, [op(0)], { caretBefore: 0, caretAfter: 1, label: "Add Microcode" });
     expect(history.undoLabel).toBe("Add Microcode");
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoStepLabelTests.testTheLabelCrossesToRedoAndBack
   it("carries the name across to redo and back", () => {
     // A step undone is still the same act by the same name.
     const history = new UndoHistory();
@@ -326,6 +345,7 @@ describe("naming a step, so the menu can say what it takes back", () => {
     expect(history.redoLabel).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoStepLabelTests.testAnUnnamedStepAfterANamedOneIsStillUnnamed
   it("does not leak the name onto the next step", () => {
     const history = new UndoHistory();
     record(history, [op(0)], { caretBefore: 0, caretAfter: 1, label: "Add Microcode" });

@@ -20,25 +20,38 @@ import {
  * not the application's business: the shell never sees one, because a tree of
  * thousands of nodes is the tool's model and the handful of ranges worth
  * drawing is all that crosses the seam.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage
  */
 export class UEFIImage {
   /**
    * The size the image had when it was parsed. An edit that changes the file's
    * size makes the whole tree stale — which is why a tool re-parses on a
    * content change rather than shifting what it has.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.size
    */
   readonly size: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.roots */
   readonly roots: UEFINode[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.diagnostics */
   readonly diagnostics: readonly UEFIDiagnostic[];
   /**
    * `address = offset + addressDiff`, worked out from the Volume Top File.
    * Absent means the VTF was missing or compressed, and then every address in
    * the image is unknowable — not zero, not a guess.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.addressDiff
    */
   readonly addressDiff: number | undefined;
-  /** The image's own statement of where it is loaded, when the pass got that far. */
+  /**
+   * The image's own statement of where it is loaded, when the pass got that far.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.resetVector
+   */
   readonly resetVector: ResetVector | undefined;
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.init */
   constructor(options: {
     readonly size: number;
     readonly roots: UEFINode[];
@@ -57,11 +70,16 @@ export class UEFIImage {
     this.resetVector = options.resetVector;
   }
 
-  /** Every node, outermost first. */
+  /**
+   * Every node, outermost first.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.allNodes
+   */
   get allNodes(): UEFINode[] {
     return this.roots.flatMap((root) => flattened(root));
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.node */
   node(id: NodeID): UEFINode | undefined {
     let nodes = this.roots;
     let found: UEFINode | undefined;
@@ -79,6 +97,8 @@ export class UEFIImage {
    * file in it, then the section in that. Empty when the offset falls in a gap
    * nothing claimed, which after a full parse should not happen: everything
    * unparsed is still padding.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.nodes
    */
   nodesContaining(offset: number): UEFINode[] {
     const chain: UEFINode[] = [];
@@ -95,7 +115,11 @@ export class UEFIImage {
     return chain;
   }
 
-  /** The innermost node covering `offset` — what a click in the dump means. */
+  /**
+   * The innermost node covering `offset` — what a click in the dump means.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.innermostNode
+   */
   innermostNodeContaining(offset: number): UEFINode | undefined {
     return this.nodesContaining(offset).at(-1);
   }
@@ -104,6 +128,8 @@ export class UEFIImage {
    * The physical address this offset is mapped at, or nothing if the image
    * never told us. Compressed nodes have no meaningful address at all, so
    * callers holding a node should check `isCompressed` before asking.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.address
    */
   addressForOffset(offset: number): number | undefined {
     if (this.addressDiff === undefined || offset >= this.size) return undefined;
@@ -115,6 +141,8 @@ export class UEFIImage {
    * Where a physical address — a FIT entry's, a reset vector's — lands in the
    * file. Nothing when addresses are unknown or when the address is outside
    * this image.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.offset
    */
   offsetForAddress(address: number): number | undefined {
     if (this.addressDiff === undefined || address < this.addressDiff) return undefined;
@@ -135,6 +163,9 @@ export class UEFIImage {
  * reads every file body in it, which is exactly the wait the lazy tree exists
  * to remove. What wants a finished tree in one value — this module's own tests,
  * an oracle comparison against UEFITool's output — asks here.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.parse
  */
 export function parseUefiImage(
   source: ByteSource,

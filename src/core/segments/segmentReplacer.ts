@@ -21,7 +21,11 @@ import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { CONTENT_CHUNK_SIZE, rangeStream } from "@/core/storage/contentStream";
 
-/** The one refusal the swap makes. Both sizes, so the caller can say both. */
+/**
+ * The one refusal the swap makes. Both sizes, so the caller can say both.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentReplacer.swift#SegmentReplaceError
+ */
 export class SegmentLengthMismatch extends Error {
   readonly pieceLength: number;
   readonly donorLength: number;
@@ -45,9 +49,11 @@ export interface SegmentReplaceRequest {
   readonly donor: ByteStorage;
   /** Names the undo step — "Undo Replace S1". */
   readonly label?: string;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentReplacer.swift#SegmentReplacer.chunkSize */
   readonly chunkSize?: number;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentReplacer.swift#SegmentReplacer.replace */
 export async function replaceSegment(request: SegmentReplaceRequest): Promise<void> {
   const { document, donor } = request;
   // The piece as the document actually holds it: a range past the end would

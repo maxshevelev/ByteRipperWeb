@@ -62,14 +62,18 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 
 const {
   closeSearch,
+  editQuery,
+  hideSearchResults,
   noteSearchEdit,
   openSearch,
   resultsFor,
   searchStore,
   selectMatch,
+  setSearchEncoding,
   setSearchPane,
   setSmartSearch,
   startSearch,
+  toggleSearchResults,
 } = await import("@/state/searchStore");
 
 /** The pane under test; every assertion here is about pane A's results. */
@@ -166,7 +170,10 @@ test("an edited document is searched as it reads, not as the file does", async (
   expect(results.current).toEqual({ start: 8, end: 12 });
 });
 
-test("an edit re-runs the search, so the matches follow the bytes", async () => {
+// Every offset in the set is a guess once the bytes move: the matches go, and
+// nothing is searched again until the user asks.
+// @upstream ByteRipperTests/FindFlowTests.swift#FindFlowTests.testAnEditEndsTheSession
+test("an edit ends the search rather than running it again", async () => {
   vi.useFakeTimers();
   try {
     const slot = workspaceStore.getSnapshot().panes.a;
@@ -177,13 +184,13 @@ test("an edit re-runs the search, so the matches follow the bytes", async () => 
     await vi.advanceTimersByTimeAsync(50);
     expect(paneResults().current).toEqual({ start: 8, end: 12 });
 
-    // The match is typed over. Without the re-run the store would still be
-    // pointing at bytes that are no longer there.
     await slot.document.overwrite(10, new Uint8Array([0x00, 0x00]));
     noteSearchEdit("a", { kind: "overwrite", start: 10, end: 12 });
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(paneResults().status).toBe("notFound");
+    expect(paneResults().status).toBe("idle");
+    expect(paneResults().current).toBeUndefined();
+    expect(paneResults().matches).toBeUndefined();
   } finally {
     vi.useRealTimers();
   }
@@ -321,5 +328,88 @@ test("with Smart Search off the encoding is an instruction, not a guess", async 
   // And nothing rewrites what the user chose.
   expect(searchStore.getSnapshot().encoding).toBe("ascii");
   expect(paneResults().status).toBe("notFound");
+  setSmartSearch(true);
+});
+
+/** Pane A holding DEADBEEF at 8, unsaved, so the scan runs here against it. */
+async function deadBeefAtEight(): Promise<void> {
+  closeSearch();
+  setSearchPane("a");
+  const slot = workspaceStore.getSnapshot().panes.a;
+  if (slot === undefined) throw new Error("the pane did not open");
+  await slot.document.overwrite(8, new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
+  setSearchEncoding("hex");
+}
+
+test("a search does not open the results panel on its own", async () => {
+  await deadBeefAtEight();
+  startSearch({ query: "DEADBEEF", from: 0 });
+  await settle();
+  expect(paneResults().status).toBe("found");
+  expect(paneResults().resultsShown).toBe(false);
+});
+
+test("the results button searches a pattern nothing has looked for, and leaves the caret", async () => {
+  await deadBeefAtEight();
+  toggleSearchResults("DEADBEEF");
+  expect(paneResults().resultsShown).toBe(true);
+  await settle();
+
+  const results = paneResults();
+  expect(results.status).toBe("found");
+  // Not a Find Next: nothing became the current match, so nothing moved.
+  expect(results.current).toBeUndefined();
+  expect(results.matches?.rangeAt(0)).toEqual({ start: 8, end: 12 });
+});
+
+test("with the search in hand the button only opens the panel", async () => {
+  await deadBeefAtEight();
+  startSearch({ query: "DEADBEEF", from: 0 });
+  await settle();
+  const before = paneResults();
+
+  toggleSearchResults("DEADBEEF");
+  const after = paneResults();
+  expect(after.resultsShown).toBe(true);
+  expect(after.current).toEqual(before.current);
+  expect(after.matches).toBe(before.matches);
+});
+
+test("pressing it again, or the ×, puts the panel away and keeps the search", async () => {
+  await deadBeefAtEight();
+  toggleSearchResults("DEADBEEF");
+  await settle();
+  toggleSearchResults("DEADBEEF");
+  expect(paneResults().resultsShown).toBe(false);
+  expect(paneResults().matches).toBeDefined();
+
+  toggleSearchResults("DEADBEEF");
+  expect(paneResults().resultsShown).toBe(true);
+  hideSearchResults("a");
+  expect(paneResults().resultsShown).toBe(false);
+  expect(paneResults().status).toBe("found");
+});
+
+test("the panel goes with the set: a new pattern typed, or an edit", async () => {
+  await deadBeefAtEight();
+  toggleSearchResults("DEADBEEF");
+  await settle();
+  editQuery("DEADBEE");
+  expect(paneResults().resultsShown).toBe(false);
+
+  toggleSearchResults("DEADBEEF");
+  await settle();
+  expect(paneResults().resultsShown).toBe(true);
+  noteSearchEdit("a", { kind: "overwrite", start: 8, end: 9 });
+  expect(paneResults().resultsShown).toBe(false);
+});
+
+test("a search that finds nothing still opens the panel the button asked for", async () => {
+  await deadBeefAtEight();
+  setSmartSearch(false);
+  toggleSearchResults("CAFEBABE");
+  await settle();
+  expect(paneResults().status).toBe("notFound");
+  expect(paneResults().resultsShown).toBe(true);
   setSmartSearch(true);
 });

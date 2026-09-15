@@ -26,6 +26,7 @@ const range = (node: UEFINode | undefined) => (node === undefined ? undefined : 
 describe("an Apple SysF store", () => {
   // A SysF store is led by an `Fsys`/`Gaid` signature and a 16-bit size, and
   // its variables are an ASCII name, a data length and the data.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testASysfStoreExpandsToItsVariablesAndFreeSpace
   it("expands to its variables and free space", () => {
     const store = N.sysfStore({
       variables: [N.sysfVariable({ name: "BootOrder", data: bytes(0x01, 0x02) })],
@@ -56,6 +57,7 @@ describe("an Apple SysF store", () => {
     expect(range(sysf.children[2])).toEqual({ start: 0x65, end: 0x79 });
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testADiagStoreAndAnInvalidVariableAreRead
   it("reads a Diag store, and an invalid variable in it", () => {
     const store = N.sysfStore({
       variables: [N.sysfVariable({ name: "BootOrder", invalid: true })],
@@ -70,6 +72,7 @@ describe("an Apple SysF store", () => {
 
   // Refused, not cut: the reference parser reads the store's fixed-size body
   // whole.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testASysfStoreThatOverrunsItsBodyIsRefused
   it("is refused when it overruns its body", () => {
     const store = N.sysfStore({
       variables: [N.sysfVariable({ name: "BootOrder" })],
@@ -84,6 +87,7 @@ describe("a Phoenix SCT flash map", () => {
   const guidB = guid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
   const guidC = guid("FEDCBA98-7654-3210-AAAA-BBBBBBBBBBBB");
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAPhoenixFlashMapStoreExpandsToItsEntries
   it("expands to its entries", () => {
     const store = N.flashMapStore({
       entries: [
@@ -118,6 +122,7 @@ describe("a Phoenix SCT flash map", () => {
     expect(map.children[0]?.body).toEqual({ start: 0x7c, end: 0x7c });
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAPhoenixFlashMapStoreThatOverrunsItsBodyIsRefused
   it("is refused when its entry count reaches past the body", () => {
     const store = N.flashMapStore({
       entries: [N.flashMapEntry({ guid: guidA, dataType: 0 })],
@@ -132,6 +137,7 @@ describe("a Phoenix EVSA store", () => {
 
   // An EVSA store pairs variable ids with names and GUIDs through separate
   // entries, and a data entry that resolves both ids is named by the name entry.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAnEvsaStoreResolvesItsVariableNames
   it("resolves its variable names", () => {
     const store = N.evsaStore({
       entries: [
@@ -174,6 +180,7 @@ describe("a Phoenix EVSA store", () => {
     expect(variable.guid).toBeUndefined();
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAnEvsaStoreMarksUnresolvedDataVariablesInvalid
   it("marks unresolved data variables invalid", () => {
     const store = N.evsaStore({
       entries: [
@@ -198,6 +205,7 @@ describe("a Phoenix EVSA store", () => {
     expect(variables[3]?.name).toBe("Invalid");
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAnEvsaStoresFreeSpaceAfterItsEntriesIsErased
   it("leaves the space after its entries erased", () => {
     const store = N.evsaStore({ entries: [N.evsaGuidEntry({ guid: g1, id: 1 })] });
     const children = rootOf([store]).children[0]?.children ?? [];
@@ -207,12 +215,14 @@ describe("a Phoenix EVSA store", () => {
     expect(children[1]?.isErased).toBe(true);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAnEvsaStoreThatOverrunsItsBodyIsRefused
   it("is refused when its declared size overruns the body", () => {
     expect(kinds(rootOf([N.evsaStore({ size: 0x400 })]).children)).toEqual(["padding"]);
   });
 });
 
 describe("the leaf stores", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testACmdbStoreIsKeptWhole
   it("keeps a CMDB store whole", () => {
     const volume = rootOf([N.cmdbStore()]);
 
@@ -224,6 +234,7 @@ describe("the leaf stores", () => {
     expect(cmdb.children).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testASlicPublicKeyIsKeptWhole
   it("keeps a SLIC public key whole", () => {
     const volume = rootOf([N.slicPubkey()]);
 
@@ -235,6 +246,7 @@ describe("the leaf stores", () => {
     expect(pubkey.body).toEqual({ start: 0xe4, end: 0xe4 });
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testASlicMarkerIsKeptWhole
   it("keeps a SLIC marker whole", () => {
     const volume = rootOf([N.slicMarker()]);
 

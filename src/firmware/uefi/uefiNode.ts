@@ -18,7 +18,11 @@ import type { EFIGUID } from "@/firmware/uefi/efiGuid";
  * `FFS_ATTRIB_TAIL_PRESENT` and is empty everywhere else.
  */
 
-/** What an element *is*. */
+/**
+ * What an element *is*.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINodeKind
+ */
 export type UEFINodeKind =
   | "capsule"
   /**
@@ -70,49 +74,80 @@ export type UEFINodeKind =
  * Not an offset: two parses of the same image give the same paths, a path
  * survives being written down in a zone id, and it reads back as a route —
  * which is what a diagnostic about a node three levels down needs to say.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.path
  */
 export type NodeID = readonly number[];
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.root */
 export const ROOT_ID: NodeID = [];
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.child */
 export const childId = (parent: NodeID, index: number): NodeID => [...parent, index];
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.description */
 export const nodeIdText = (id: NodeID): string => (id.length === 0 ? "root" : id.join("."));
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode */
 export interface UEFINode {
-  /** Stamped once the tree is built, so the parser carries no counter around. */
+  /**
+   * Stamped once the tree is built, so the parser carries no counter around.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.id
+   */
   id: NodeID;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.kind */
   kind: UEFINodeKind;
   /**
    * The format's own type byte, read according to `kind`: an FFS file type for
    * a file, a section type for a section. Untyped on purpose — these are
    * one-byte codes with vendor ranges and unknown values, and turning an
    * unknown code into a case would lose the number worth showing.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.subtype
    */
   subtype?: number | undefined;
   /**
    * What to call it on screen. The parser fills in the best it has: a
    * user-interface section's string, a known GUID's name, or the type.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.name
    */
   name: string;
-  /** A volume's file system, a file's name, a section's definition GUID. */
+  /**
+   * A volume's file system, a file's name, a section's definition GUID.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.guid
+   */
   guid?: EFIGUID | undefined;
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.header */
   header: ImageRange;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.body */
   body: ImageRange;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.tail */
   tail: ImageRange;
 
   /**
    * Cannot be moved when the image is rebuilt: the VTF, whatever FIT points at,
    * anything a Boot Guard range covers, a file marked `FFS_ATTRIB_FIXED`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isFixed
    */
   isFixed: boolean;
   /**
    * Lies inside a compressed container, so its absolute address means nothing —
    * the decompressor puts it wherever it likes. Every address check skips these.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isCompressed
    */
   isCompressed: boolean;
-  /** Nothing but the erase byte: free space, or padding that was never used. */
+  /**
+   * Nothing but the erase byte: free space, or padding that was never used.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isErased
+   */
   isErased: boolean;
   /**
    * True when this container's children have not been computed yet but *could
@@ -120,6 +155,8 @@ export interface UEFINode {
    * raw-area region nobody has scanned. It is what draws the disclosure
    * triangle, and it goes false the moment the children are materialized,
    * whether or not any turned up.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isExpandable
    */
   isExpandable: boolean;
   /**
@@ -127,9 +164,12 @@ export interface UEFINode {
    * the node was left closed so that expanding it later lands at the same depth
    * an all-at-once parse would have reached. Meaningless on a node that is not
    * `isExpandable`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.childDepth
    */
   childDepth: number;
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.children */
   children: UEFINode[];
 }
 
@@ -150,6 +190,7 @@ export interface NodeOptions {
   readonly children?: UEFINode[];
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.init */
 export function makeNode(options: NodeOptions): UEFINode {
   return {
     id: options.id ?? ROOT_ID,
@@ -185,7 +226,11 @@ export function makeSpan(options: {
   });
 }
 
-/** Everything the node covers, header through tail. */
+/**
+ * Everything the node covers, header through tail.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.range
+ */
 export function nodeRange(node: UEFINode): ImageRange {
   const end = Math.max(node.header.end, node.body.end, node.tail.end);
   return { start: node.header.start, end: Math.max(node.header.start, end) };
@@ -194,6 +239,8 @@ export function nodeRange(node: UEFINode): ImageRange {
 /**
  * This node and all of its descendants, outermost first — the order a reader
  * meets them in.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.flattened
  */
 export function flattened(node: UEFINode): UEFINode[] {
   const all: UEFINode[] = [node];

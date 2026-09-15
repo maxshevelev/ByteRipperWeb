@@ -1,5 +1,6 @@
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 
+/** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.bytesPerRow */
 export { BYTES_PER_ROW };
 /**
  * Pure geometry for the hex grid.
@@ -19,14 +20,23 @@ export { BYTES_PER_ROW };
  * Y grows downward: row 0 is at y = 0, which is how a canvas is drawn.
  */
 
+/** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.groupSize */
 export const GROUP_SIZE = 8;
 
-/** The word sizes the view offers. Anything else falls back to one byte. */
+/**
+ * The word sizes the view offers. Anything else falls back to one byte.
+ *
+ * @upstream ByteRipperApp/Hex/WordSize.swift#WordSize
+ */
 export type WordSize = 1 | 2 | 4 | 8;
 
 export const WORD_SIZES: readonly WordSize[] = [1, 2, 4, 8];
 
-/** How a word size is named in the menu: "1 Byte", "2 Bytes". */
+/**
+ * How a word size is named in the menu: "1 Byte", "2 Bytes".
+ *
+ * @upstream ByteRipperApp/Hex/WordSize.swift#WordSize.title
+ */
 export const wordSizeTitle = (size: WordSize): string => `${size} ${size === 1 ? "Byte" : "Bytes"}`;
 
 export interface HexLayoutOptions {
@@ -41,14 +51,21 @@ export interface HexLayoutOptions {
   readonly wordSize?: number;
 }
 
-/** Where in a row a point landed. */
+/**
+ * Where in a row a point landed.
+ *
+ * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.ColumnKind
+ */
 export type HexColumn =
   | { readonly kind: "offset" }
   | { readonly kind: "hex"; readonly column: number }
   | { readonly kind: "text"; readonly column: number };
 
+/** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.Hit */
 export interface HexHit {
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.Hit.row */
   readonly row: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.Hit.column */
   readonly column: HexColumn;
 }
 
@@ -59,33 +76,77 @@ export interface Rect {
   readonly height: number;
 }
 
+/** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout */
 export class HexLayout {
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.charWidth */
   readonly charWidth: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.rowHeight */
   readonly rowHeight: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.leftPadding */
   readonly leftPadding: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.rightPadding */
   readonly rightPadding: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.wordSize */
   readonly wordSize: WordSize;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.offsetColumnChars */
   readonly offsetColumnChars: number;
 
-  /** Width of one byte's two hex digits. */
+  /**
+   * Width of one byte's two hex digits.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.hexByteWidth
+   */
   readonly hexByteWidth: number;
-  /** Gap between adjacent words within a group — one character. */
+  /**
+   * Gap between adjacent words within a group — one character.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.hexByteGap
+   */
   readonly hexByteGap: number;
-  /** Width of one word: its bytes are packed with no gap between them. */
+  /**
+   * Width of one word: its bytes are packed with no gap between them.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.wordWidth
+   */
   readonly wordWidth: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.wordsPerGroup */
   readonly wordsPerGroup: number;
-  /** Width of one 8-byte group, word gaps included. */
+  /**
+   * Width of one 8-byte group, word gaps included.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.groupWidth
+   */
   readonly groupWidth: number;
-  /** Gap between the two 8-byte groups — two characters. */
+  /**
+   * Gap between the two 8-byte groups — two characters.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.betweenGroupsGap
+   */
   readonly betweenGroupsGap: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.offsetColumnWidth */
   readonly offsetColumnWidth: number;
-  /** Width of the 16-character decoded text column. */
+  /**
+   * Width of the 16-character decoded text column.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.asciiColumnWidth
+   * @upstream-differs the column decodes through a table that reaches past ASCII, so it is the text column
+   */
   readonly textColumnWidth: number;
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.gapAfterOffset */
   readonly gapAfterOffset: number;
+  /**
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.gapBeforeAscii
+   * @upstream-differs the column decodes through a table that reaches past ASCII, so it is the text column
+   */
   readonly gapBeforeText: number;
-  /** Full width of one row. */
+  /**
+   * Full width of one row.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.contentWidth
+   */
   readonly contentWidth: number;
 
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.init */
   constructor(options: HexLayoutOptions) {
     this.charWidth = options.charWidth;
     this.rowHeight = options.rowHeight;
@@ -126,6 +187,8 @@ export class HexLayout {
    * An empty file still shows one row of placeholders, and a file whose length
    * is a multiple of 16 gets a trailing placeholder row — otherwise the caret
    * position at EOF would be off the grid entirely.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.rowCount
    */
   rowCount(fileSize: number): number {
     const dataRows = Math.ceil(fileSize / BYTES_PER_ROW);
@@ -133,17 +196,29 @@ export class HexLayout {
     return dataRows + caretRow;
   }
 
-  /** The absolute offset of a row's column. May exceed the file size. */
+  /**
+   * The absolute offset of a row's column. May exceed the file size.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.byteOffset
+   */
   byteOffset(row: number, column: number): number {
     return row * BYTES_PER_ROW + column;
   }
 
-  /** Row and column of an absolute offset. */
+  /**
+   * Row and column of an absolute offset.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.rowColumn
+   */
   rowColumn(offset: number): { row: number; column: number } {
     return { row: Math.floor(offset / BYTES_PER_ROW), column: offset % BYTES_PER_ROW };
   }
 
-  /** Total content height for a file of `fileSize` bytes. */
+  /**
+   * Total content height for a file of `fileSize` bytes.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.totalHeight
+   */
   totalHeight(fileSize: number): number {
     return this.rowCount(fileSize) * this.rowHeight;
   }
@@ -153,6 +228,8 @@ export class HexLayout {
   /**
    * The rows intersecting a viewport, bottom-exclusive — what a virtualised
    * draw iterates. Empty when the viewport has no height.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.visibleRowRange
    */
   visibleRowRange(top: number, height: number): { first: number; end: number } {
     if (height <= 0 || this.rowHeight <= 0) return { first: 0, end: 0 };
@@ -162,6 +239,7 @@ export class HexLayout {
     };
   }
 
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.rowFrame */
   rowFrame(row: number): Rect {
     return { x: 0, y: row * this.rowHeight, width: this.contentWidth, height: this.rowHeight };
   }
@@ -169,6 +247,8 @@ export class HexLayout {
   /**
    * The x of a byte's hex cell within the row. Bytes inside a word are packed
    * together; words are separated by a gap, and the two groups by a wider one.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.hexByteX
    */
   hexByteX(column: number): number {
     const group = Math.floor(column / GROUP_SIZE);
@@ -202,6 +282,10 @@ export class HexLayout {
     return (right + this.hexByteX(column + 1)) / 2;
   }
 
+  /**
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.hexByteFrame
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.byteCellRect
+   */
   hexByteFrame(row: number, column: number): Rect {
     return {
       x: this.hexByteX(column),
@@ -211,6 +295,7 @@ export class HexLayout {
     };
   }
 
+  /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.offsetColumnFrame */
   offsetColumnFrame(row: number): Rect {
     return {
       x: this.leftPadding,
@@ -220,7 +305,12 @@ export class HexLayout {
     };
   }
 
-  /** The x of the decoded character for a byte. */
+  /**
+   * The x of the decoded character for a byte.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.asciiX
+   * @upstream-differs the column decodes through a table that reaches past ASCII, so it is the text column
+   */
   textX(column: number): number {
     const hexEnd =
       this.leftPadding +
@@ -232,6 +322,10 @@ export class HexLayout {
     return hexEnd + column * this.charWidth;
   }
 
+  /**
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.asciiColumnFrame
+   * @upstream-differs the column decodes through a table that reaches past ASCII, so it is the text column
+   */
   textColumnFrame(row: number): Rect {
     return {
       x: this.textX(0),
@@ -244,6 +338,8 @@ export class HexLayout {
   /**
    * The caret's x inside a byte cell. Nibble 0 places it before the high
    * nibble, nibble 1 before the low one.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.caretX
    */
   caretX(column: number, nibble: number): number {
     return this.hexByteX(column) + nibble * this.charWidth;
@@ -252,12 +348,18 @@ export class HexLayout {
   /**
    * The middle of a byte's high-nibble character — the left edge of the dead
    * zone around the mid-byte caret.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.highNibbleMidX
    */
   highNibbleMidX(column: number): number {
     return this.hexByteX(column) + this.charWidth / 2;
   }
 
-  /** The middle of its low-nibble character — the dead zone's right edge. */
+  /**
+   * The middle of its low-nibble character — the dead zone's right edge.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.lowNibbleMidX
+   */
   lowNibbleMidX(column: number): number {
     return this.hexByteX(column) + (3 * this.charWidth) / 2;
   }
@@ -271,6 +373,8 @@ export class HexLayout {
    * Every point in the hex region maps to a byte. A click between two words —
    * or in the gap between the two groups — places the caret on the following
    * word, so a click never falls dead between cells.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.hitTest
    */
   hitTest(x: number, y: number, rowCount: number): HexHit | undefined {
     const row = this.rowAt(x, y, rowCount);
@@ -321,6 +425,8 @@ export class HexLayout {
    * between N and N+1 sits at the centre of N+1's cell — and the row's last
    * byte joins while the pointer is still over it. A byte never needs a
    * following byte in order to be reachable.
+   *
+   * @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.dragEndOffset
    */
   dragEndOffset(x: number, y: number, rowCount: number): number | undefined {
     const row = this.rowAt(x, y, rowCount);

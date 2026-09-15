@@ -17,6 +17,7 @@ const bios = { type: "bios" as const, start: 0x1000, end: 0x40_0000 };
 describe("a descriptor's own header", () => {
   // On a real board these bytes are the first instruction the chip executes, so
   // they are shown rather than skipped.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheReservedVectorIsReadWhole
   it("reads the reserved vector whole", () => {
     const vector = Uint8Array.of(
       0x11,
@@ -48,6 +49,7 @@ describe("a descriptor's own header", () => {
 
   // Every region the table declares, by where it begins — the descriptor's own
   // first, which the format states rather than stores.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testEachDeclaredRegionsOffsetIsRead
   it("reads each declared region's offset", () => {
     const read = info(
       Test.descriptor({
@@ -64,6 +66,7 @@ describe("a descriptor's own header", () => {
 
   // A region with a zero limit is not there at all, and is left out rather than
   // shown as an area at offset zero.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAnAbsentRegionIsNotListed
   it("leaves an absent region out", () => {
     const read = info(Test.descriptor({ regions: [bios] }));
     expect(read.regionOffsets.map((one) => one.type)).toEqual(["descriptor", "bios"]);
@@ -73,6 +76,7 @@ describe("a descriptor's own header", () => {
 describe("the master section", () => {
   // A version 1 descriptor keeps a byte of read and a byte of write per master,
   // in records of four.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAVersion1DescriptorReadsItsThreeMastersAsBytes
   it("reads three masters as bytes on a version 1 descriptor", () => {
     const read = info(
       Test.descriptor({
@@ -96,6 +100,7 @@ describe("the master section", () => {
 
   // A version 2 descriptor packs twelve bits of each into one dword, and has an
   // EC master the older one does not.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAVersion2DescriptorReadsTwelveBitMasksAndTheECMaster
   it("reads twelve-bit masks and the EC master on a version 2", () => {
     const read = info(
       Test.descriptor({
@@ -122,6 +127,7 @@ describe("the master section", () => {
  * is a bit out of its two masks.
  */
 describe("the BIOS access table", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheBiosAccessTableIsReadOffTheBiosMasksOwnBits
   it("is read off the BIOS master's own bits", () => {
     // Read: descriptor + BIOS + ME. Write: BIOS only.
     const read = info(
@@ -145,6 +151,7 @@ describe("the BIOS access table", () => {
     ]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAVersion2AccessTableHasAnECRow
   it("has an EC row on a version 2 descriptor", () => {
     const read = info(Test.descriptor({ regions: [bios], masters: [{ read: 0x20, write: 0x20 }] }));
 
@@ -161,6 +168,7 @@ describe("the BIOS access table", () => {
 });
 
 describe("the VSCC table", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheVsccTableIsReadAndItsChipsNamed
   it("names the chips the catalogue knows", () => {
     const read = info(Test.descriptor({ regions: [bios], chips: [0x1f4700, 0xef4019, 0x0a0b0c] }));
 
@@ -171,6 +179,7 @@ describe("the VSCC table", () => {
     ]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAnErasedVsccEntryIsNotAChip
   it("does not make a chip out of an erased entry", () => {
     const read = info(Test.descriptor({ regions: [bios], chips: [0xef4019, 0xffffff, 0x000000] }));
     expect(read.chips.map((one) => one.jedecId)).toEqual([0xef4019]);
@@ -178,6 +187,7 @@ describe("the VSCC table", () => {
 
   // A descriptor with no table at all says so by having none, rather than by
   // inventing one out of whatever is at the offset a zero base points to.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testNoVsccTableMeansNoChips
   it("has no chips when there is no table", () => {
     const read = info(Test.descriptor({ regions: [bios] }));
     expect(read.chips).toEqual([]);
@@ -185,6 +195,7 @@ describe("the VSCC table", () => {
   });
 
   // The catalogue is the whole of upstream's table, not a truncated read of it.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheChipCatalogueIsComplete
   it("carries the whole chip catalogue", () => {
     expect(JEDEC_COUNT).toBe(185);
     expect(jedecName(0x1c7018)).toBe("EON EN25QH128");

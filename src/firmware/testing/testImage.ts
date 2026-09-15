@@ -75,6 +75,7 @@ export class BinaryWriter {
   }
 }
 
+/** @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.driverGUID */
 export const DRIVER_GUID = guid("11111111-2222-3333-4444-555555555555");
 
 const join = (...parts: Uint8Array[]): Uint8Array => {
@@ -93,6 +94,8 @@ const join = (...parts: Uint8Array[]): Uint8Array => {
  *
  * Raw by default, because a raw file's body is the bytes it says it is — every
  * other type's body is read as sections, which is a different test.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.file
  */
 export function file(options: {
   readonly guid?: EFIGUID;
@@ -138,6 +141,8 @@ export function file(options: {
 /**
  * An FFSv3 large file: the size lives in a 64-bit field after the base header,
  * and the header is eight bytes longer for it.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.largeFile
  */
 export function largeFile(options: {
   readonly guid?: EFIGUID;
@@ -164,6 +169,8 @@ export function largeFile(options: {
 /**
  * A section: a three-byte size, a type, whatever the type puts in front of the
  * body, and the body.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.section
  */
 export function section(options: {
   readonly type: number;
@@ -190,6 +197,8 @@ export function section(options: {
 /**
  * A compression section, whose header says how big the body gets and how it was
  * squeezed.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.compressionSection
  */
 export function compressionSection(algorithm: number, body: Uint8Array): Uint8Array {
   const extra = new BinaryWriter().u32(body.length * 3).u8(algorithm).bytes;
@@ -199,6 +208,8 @@ export function compressionSection(algorithm: number, body: Uint8Array): Uint8Ar
 /**
  * A GUID-defined section. `dataOffset` is from the start of the section, so a
  * vendor header between the structure and the data just moves it along.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.guidedSection
  */
 export function guidedSectionBytes(options: {
   readonly guid: EFIGUID;
@@ -214,7 +225,11 @@ export function guidedSectionBytes(options: {
   return section({ type: Section.guidDefined, body: options.body, extra });
 }
 
-/** A name section: UCS-2 with a terminating zero. */
+/**
+ * A name section: UCS-2 with a terminating zero.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.nameSection
+ */
 export function nameSection(text: string): Uint8Array {
   const writer = new BinaryWriter();
   for (let index = 0; index < text.length; index++) writer.u16(text.charCodeAt(index));
@@ -222,7 +237,11 @@ export function nameSection(text: string): Uint8Array {
   return section({ type: Section.userInterface, body: writer.bytes });
 }
 
-/** A file whose body is a run of sections, four-byte aligned. */
+/**
+ * A file whose body is a run of sections, four-byte aligned.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.sectionedFile
+ */
 export function sectionedFile(options: {
   readonly guid?: EFIGUID;
   readonly type?: number;
@@ -244,6 +263,8 @@ export function sectionedFile(options: {
  * A Volume Top File whose last forty-eight bytes are the reset vector — which
  * is where they are in a real image, since the file's last byte is mapped at
  * `0xFFFFFFFF`.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.volumeTopFile
  */
 export function volumeTopFile(
   options: {
@@ -265,7 +286,11 @@ export function volumeTopFile(
   return file({ guid: VOLUME_TOP_FILE, body });
 }
 
-/** A volume, its files laid out eight-byte aligned, the rest erased. */
+/**
+ * A volume, its files laid out eight-byte aligned, the rest erased.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.volume
+ */
 export function volume(
   options: {
     readonly fileSystem?: EFIGUID;
@@ -339,7 +364,11 @@ export function volume(
   return writer.bytes;
 }
 
-/** An Intel microcode image, its dword checksum correct unless a test breaks it. */
+/**
+ * An Intel microcode image, its dword checksum correct unless a test breaks it.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.microcode
+ */
 export function microcode(
   options: {
     readonly signature?: number;
@@ -393,6 +422,8 @@ export interface RegionPlacement {
 /**
  * An Intel flash descriptor: `0x1000` bytes, the signature at `0x10`, and a
  * region section at `RegionBase << 4`.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.descriptor
  */
 export function descriptor(options: {
   readonly regions: readonly RegionPlacement[];
@@ -483,7 +514,11 @@ export function descriptor(options: {
   return bytes;
 }
 
-/** A full flash dump: a descriptor and the contents of the regions it maps. */
+/**
+ * A full flash dump: a descriptor and the contents of the regions it maps.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.intelImage
+ */
 export function intelImage(options: {
   readonly size: number;
   readonly regions: readonly RegionPlacement[];
@@ -508,7 +543,11 @@ export function intelImage(options: {
   return bytes;
 }
 
-/** A capsule wrapping an image. */
+/**
+ * A capsule wrapping an image.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.capsule
+ */
 export function capsule(options: {
   readonly guid?: EFIGUID;
   readonly headerSize?: number;
@@ -534,7 +573,11 @@ export function capsule(options: {
   return writer.bytes;
 }
 
-/** A volume with nothing before or after it. */
+/**
+ * A volume with nothing before or after it.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.image
+ */
 export function image(options: {
   readonly before?: number;
   readonly volume: Uint8Array;

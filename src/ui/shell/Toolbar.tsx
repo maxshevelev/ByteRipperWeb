@@ -1,11 +1,14 @@
+import { useRef } from "react";
 import { saveVerb } from "@/platform/files/capabilities";
-import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
+import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
-import { editStore } from "@/state/editStore";
+import { editStore, noteDocumentChanged } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
+import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
-import { chooseTool, toolPanelStore } from "@/state/toolPanelStore";
+import { wordSizeFrom } from "@/state/settingsStore";
+import { activate, menuState, panesSwapped, toolController } from "@/state/toolController";
 import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import {
@@ -19,11 +22,29 @@ import {
 } from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
+import { wordSizeChoiceTitle } from "@/ui/settings/settingsText";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
-
-/** The picker's value for None: no tool, and no tool panel. */
-const NO_TOOL = "";
+import {
+  BackwardGlyph,
+  FindGlyph,
+  ForwardGlyph,
+  GoToGlyph,
+  IdenticalGlyph,
+  InsertModeGlyph,
+  MinimapGlyph,
+  PaneLayoutGlyph,
+  SegmentsGlyph,
+  ToolsGlyph,
+} from "@/ui/shell/ToolbarIcons";
+import {
+  identicalBadgeAfter,
+  paneLayoutOffer,
+  type ToolbarContext,
+  type ToolbarItemId,
+  toolbarItemEnabled,
+  toolbarItems,
+} from "@/ui/shell/toolbarModel";
 
 /**
  * A web page has no menu bar (D12), so the commands live behind one button at
@@ -37,6 +58,13 @@ const NO_TOOL = "";
  * Go To, which is how you get anywhere in a file too large to scroll, and the
  * minimap toggle, which is where you are in it. Upstream gives the minimap the
  * same treatment — a toolbar button *and* a menu item — for the same reason.
+ *
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.buildToolbar
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolbar
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolbarDefaultItemIdentifiers
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolbarAllowedItemIdentifiers
+ * @upstream-differs a React toolbar in the page, not an NSToolbar
  */
 export function Toolbar({
   onOpen,
@@ -57,6 +85,8 @@ export function Toolbar({
   onDuplicate,
   onFind,
   onClose,
+  onSettings,
+  navigation,
 }: {
   readonly onOpen: (into?: PaneId) => void;
   readonly onNew: () => void;
@@ -76,10 +106,13 @@ export function Toolbar({
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
   readonly onClose: () => void;
+  readonly onSettings: () => void;
+  /** Where difference navigation has somewhere to go from the active caret. */
+  readonly navigation: ToolbarContext["navigation"];
 }) {
   const state = useStore(workspaceStore);
   const minimap = useStore(minimapStore);
-  const panel = useStore(toolPanelStore);
+  const tools = useStore(toolController);
   const diff = useStore(diffStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
@@ -99,6 +132,17 @@ export function Toolbar({
   const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
 
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState
+   * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState.previousDifference
+   * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState.nextDifference
+   * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState.previousSameBlock
+   * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState.nextSameBlock
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.diffNavigationState
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.refreshDiffNavigation
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncDiffNavigationToolbarItem
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyDiffNavigationToolbarItem
+   */
   const canNavigate = diff.status === "ready" && diff.hunks !== undefined;
   const anyOpen = state.panes.a !== undefined;
   const dirty = active?.document.isDirty === true;
@@ -111,8 +155,23 @@ export function Toolbar({
    * is left out rather than stubbed: New Window and New Tab belong to a window
    * manager this application does not have (D11), and Enter Full Screen is the
    * browser's own key.
+   *
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.build
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeFileMenu
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeEditMenu
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeViewMenu
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeToolsMenu
+   * @upstream-differs one command menu in the toolbar with File, Edit, Bookmarks, Segments and View sections; the browser keeps the menu bar, and Tools and the word size are the toolbar's alone
    */
   const entries = compactEntries([
+    // The application menu's Settings…, which has nowhere else to go. No ⌘, —
+    // in a browser that is the browser's own settings.
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showSettings
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.settingsWindowController
+    // @upstream-differs an item in the command menu, with no key equivalent
+    { label: "Settings…", onSelect: onSettings },
+    { kind: "separator" },
     { kind: "heading", label: "File" },
     { label: "New", onSelect: onNew },
     { label: "Open…", onSelect: () => onOpen() },
@@ -215,7 +274,15 @@ export function Toolbar({
           onSelect: () => setLayout(state.layout === "sideBySide" ? "stacked" : "sideBySide"),
         }
       : undefined,
-    bothOpen ? { label: "Swap Panes", onSelect: swapPanes } : undefined,
+    bothOpen
+      ? {
+          label: "Swap Panes",
+          onSelect: () => {
+            panesSwapped();
+            swapPanes();
+          },
+        }
+      : undefined,
     anyOpen
       ? {
           label: minimap.visible ? "Hide Minimap" : "Show Minimap",
@@ -223,26 +290,6 @@ export function Toolbar({
           onSelect: toggleMinimap,
         }
       : undefined,
-    // None, then every tool by name, as upstream's Tools menu has them: one tool
-    // at a time, so a choice rather than toggles, and None closes the panel.
-    anyOpen ? { kind: "separator" } : undefined,
-    anyOpen ? { kind: "heading", label: "Tools" } : undefined,
-    anyOpen
-      ? {
-          label: "None",
-          checked: panel.toolId === undefined,
-          exclusive: true,
-          onSelect: () => chooseTool(undefined),
-        }
-      : undefined,
-    ...(anyOpen
-      ? TOOLS.map((tool) => ({
-          label: tool.title,
-          checked: panel.toolId === tool.id,
-          exclusive: true,
-          onSelect: () => chooseTool(tool.id),
-        }))
-      : []),
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen
       ? {
@@ -269,17 +316,6 @@ export function Toolbar({
         }
       : undefined,
 
-    active === undefined ? undefined : { kind: "separator" },
-    active === undefined ? undefined : { kind: "heading", label: "Word size" },
-    ...(active === undefined
-      ? []
-      : WORD_SIZES.map((size) => ({
-          label: wordSizeTitle(size),
-          checked: state.wordSize === size,
-          exclusive: true,
-          onSelect: () => setWordSize(size),
-        }))),
-
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen ? { kind: "heading", label: "Grouping distance" } : undefined,
     ...(bothOpen
@@ -292,49 +328,275 @@ export function Toolbar({
       : []),
   ]);
 
+  // The plaque's last determined answer, held through a rebuild.
+  const identical = useRef(false);
+  identical.current = identicalBadgeAfter(identical.current, diff);
+  const search = useStore(searchStore);
+  const context: ToolbarContext = {
+    activeOpen: active !== undefined,
+    comparison: bothOpen,
+    navigation,
+  };
+  const activeTool = TOOLS.find((tool) => tool.id === tools.activeIdentifier);
+  const layoutOffer = paneLayoutOffer(state.layout);
+  const insertOn = active?.typing.isInsertMode === true;
+
+  // The Tools pull-down: None, then every tool by name, as upstream's Tools menu
+  // has them — a radio group where None closes the panel and stays available,
+  // and a tool needs a file open in the active pane. The web edition has no
+  // Tools menu besides it; the toolbar is where the list lives.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateTool
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateMenuItem
+  const toolEntries = compactEntries([
+    {
+      label: "None",
+      checked: menuState(undefined, active !== undefined).checked,
+      exclusive: true,
+      onSelect: () => activate(undefined),
+    },
+    ...TOOLS.map((tool) => {
+      const row = menuState(tool.id, active !== undefined);
+      return {
+        label: tool.title,
+        checked: row.checked,
+        disabled: !row.enabled,
+        exclusive: true,
+        onSelect: () => activate(tool.id),
+      };
+    }),
+  ]);
+
+  const keyed: { readonly id: ToolbarItemId; readonly key: string }[] = [];
+  const seen = new Map<ToolbarItemId, number>();
+  for (const id of toolbarItems(bothOpen, identical.current)) {
+    const count = seen.get(id) ?? 0;
+    seen.set(id, count + 1);
+    keyed.push({ id, key: `${id}${count}` });
+  }
+
+  /**
+   * One toolbar item, drawn for its identifier.
+   *
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolbar
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolbarAllowedItemIdentifiers
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.diffNavigationGroup
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.minimapToggleItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.filesIdenticalItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.goToItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.findItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.segmentsItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.insertModeItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.wordSizeItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.paneLayoutItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolsItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeDiffNavigationGroup
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeFilesIdenticalItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeFilesIdenticalBadgeView
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeInsertModeItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeWordSizeItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeToolsItem
+   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.noToolTitle
+   * @upstream-differs elements built on each render from the stores, rather than NSToolbarItems cached on the window controller
+   */
+  const item = (id: ToolbarItemId, key: string): React.ReactNode => {
+    const disabled = !toolbarItemEnabled(id, context);
+    switch (id) {
+      case "space":
+        return <span key={key} className="toolbar-space" />;
+      case "flexibleSpace":
+        return <span key={key} className="toolbar-spacer" />;
+      case "tools":
+        // The wrench, and the name of the tool-module in force — nothing at
+        // rest, so the toolbar fits the window it opens in.
+        return (
+          <MenuButton
+            key={key}
+            className="toolbar-tools"
+            ariaLabel="Tools"
+            title="The tool-module this tab is working with"
+            disabled={disabled}
+            label={
+              <>
+                <ToolsGlyph />
+                {activeTool === undefined ? null : <span>{activeTool.title}</span>}
+              </>
+            }
+            entries={toolEntries}
+          />
+        );
+      case "goTo":
+        return (
+          <IconButton
+            key={key}
+            label="Go To"
+            title="Go to an offset or a bookmark"
+            disabled={disabled}
+            onClick={onGoTo}
+          >
+            <GoToGlyph />
+          </IconButton>
+        );
+      case "find":
+        // A switch, not the menu's command: pressing it again closes the bar.
+        return (
+          <IconButton
+            key={key}
+            label="Find"
+            title="Find a byte pattern"
+            pressed={search.open}
+            disabled={disabled}
+            onClick={() => (search.open ? closeSearch() : onFind())}
+          >
+            <FindGlyph />
+          </IconButton>
+        );
+      case "segments":
+        return (
+          <IconButton
+            key={key}
+            label="Segments"
+            title="The file's cuts and pieces"
+            disabled={disabled}
+            onClick={onSegments}
+          >
+            <SegmentsGlyph />
+          </IconButton>
+        );
+      case "insertMode":
+        // The active pane's typing mode, readable from the chrome and not only
+        // as OVR / INS in the pane's status line.
+        return (
+          <IconButton
+            key={key}
+            label="Insert Mode"
+            title="Insert mode: typing shifts the rest of the file"
+            pressed={insertOn}
+            disabled={disabled}
+            onClick={() => void active?.typing.toggleInsertMode().then(noteDocumentChanged)}
+          >
+            <InsertModeGlyph />
+          </IconButton>
+        );
+      case "wordSize":
+        return (
+          <select
+            key={key}
+            className="toolbar-select"
+            value={state.wordSize}
+            onChange={(event) => setWordSize(wordSizeFrom(Number(event.target.value)))}
+            aria-label="Word Size"
+            title="Bytes per word in the hex grid"
+          >
+            {WORD_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {wordSizeChoiceTitle(size)}
+              </option>
+            ))}
+          </select>
+        );
+      case "diffNavigation":
+        return (
+          <span key={key} className="toolbar-group">
+            <IconButton
+              label="Prev Diff"
+              title="Previous difference"
+              disabled={!toolbarItemEnabled("previousDifference", context)}
+              onClick={() => onNavigate("difference", -1)}
+            >
+              <BackwardGlyph />
+            </IconButton>
+            <IconButton
+              label="Next Diff"
+              title="Next difference"
+              disabled={!toolbarItemEnabled("nextDifference", context)}
+              onClick={() => onNavigate("difference", 1)}
+            >
+              <ForwardGlyph />
+            </IconButton>
+          </span>
+        );
+      case "filesIdentical":
+        return (
+          <span
+            key={key}
+            className="toolbar-identical"
+            role="status"
+            aria-label="Files are identical"
+          >
+            <IdenticalGlyph />
+            Files are identical
+          </span>
+        );
+      case "paneLayout":
+        return (
+          <IconButton
+            key={key}
+            label={layoutOffer.label}
+            title={layoutOffer.toolTip}
+            disabled={disabled}
+            onClick={() => setLayout(layoutOffer.next)}
+          >
+            <PaneLayoutGlyph stacked={layoutOffer.next === "stacked"} />
+          </IconButton>
+        );
+      case "toggleMinimap":
+        return (
+          <IconButton
+            key={key}
+            label="Toggle Minimap"
+            title="Show or hide the minimap (Cmd/Ctrl+M)"
+            pressed={minimap.visible}
+            onClick={toggleMinimap}
+          >
+            <MinimapGlyph />
+          </IconButton>
+        );
+    }
+  };
+
   return (
     <header className="toolbar">
+      {/* The web edition's menu bar, before everything: a page has nowhere else
+          to put File, Edit and View. */}
       <MenuButton label="☰" title="Commands" entries={entries} />
-      <span className="toolbar-title">ByteRipper</span>
-
-      {/* Disabled with nothing open, as the minimap toggle is: the choice is
-          kept, and the panel comes back with the next file. */}
-      <select
-        className="toolbar-select"
-        value={panel.toolId ?? NO_TOOL}
-        onChange={(event) =>
-          chooseTool(event.target.value === NO_TOOL ? undefined : event.target.value)
-        }
-        disabled={!anyOpen}
-        aria-label="Tool"
-        title="The tool shown in the panel on the left"
-      >
-        <option value={NO_TOOL}>None</option>
-        {TOOLS.map((tool) => (
-          <option key={tool.id} value={tool.id} title={tool.summary}>
-            {tool.title}
-          </option>
-        ))}
-      </select>
-
-      {active === undefined ? null : (
-        <button type="button" className="toolbar-button" onClick={onGoTo} title="Go to position">
-          Go To…
-        </button>
-      )}
-
-      <span className="toolbar-spacer" />
-
-      <button
-        type="button"
-        className={`toolbar-button${minimap.visible ? " is-on" : ""}`}
-        aria-pressed={minimap.visible}
-        onClick={toggleMinimap}
-        disabled={!anyOpen}
-        title="Show the minimap (Cmd/Ctrl+M)"
-      >
-        Minimap
-      </button>
+      {keyed.map((one) => item(one.id, one.key))}
     </header>
+  );
+}
+
+/**
+ * A plain icon button: a glyph, a tooltip, and — for the ones that carry a
+ * state — pressed while the state is on.
+ *
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeCommandItem
+ * @upstream-differs a button element; a toggle says its state with aria-pressed
+ */
+function IconButton({
+  label,
+  title,
+  pressed,
+  disabled,
+  onClick,
+  children,
+}: {
+  readonly label: string;
+  readonly title: string;
+  readonly pressed?: boolean | undefined;
+  readonly disabled?: boolean | undefined;
+  readonly onClick: () => void;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={`toolbar-icon${pressed === true ? " is-on" : ""}`}
+      aria-label={label}
+      aria-pressed={pressed}
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
   );
 }

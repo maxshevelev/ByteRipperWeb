@@ -13,6 +13,7 @@ const name = (
 ) => csePlatformName({ family, major, minor, chipsetInitTable });
 
 describe("csePlatformName", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#CSEPlatformTests.testCSMEPlatformsByVersion
   it("names the CSME platforms by version", () => {
     expect(name("csme", 11, 0)).toBe("SPT");
     expect(name("csme", 11, 8)).toBe("SPT/KBP");
@@ -29,6 +30,7 @@ describe("csePlatformName", () => {
     expect(name("csme", 16, 5)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#CSEPlatformTests.testTheInitialisationTableTakesTheRowInstead
   it("leaves the row to a chipset initialisation table where there is one", () => {
     // And says nothing where it cannot tell: a file system this engine cannot
     // read might hold one, and naming a platform on a maybe would print a row
@@ -38,6 +40,7 @@ describe("csePlatformName", () => {
     expect(name("csme", 16, 1, "absent")).toBe("ADP/RPP");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#CSEPlatformTests.testCSTXEPlatformsIgnoreTheTable
   it("names the CSTXE platforms whatever the file system holds", () => {
     expect(name("cstxe", 3, 0, "present")).toBe("APL");
     expect(name("cstxe", 3, 2, "present")).toBe("BXT");
@@ -45,6 +48,7 @@ describe("csePlatformName", () => {
     expect(name("cstxe", 5, 0)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#CSEPlatformTests.testUnportedFamiliesNameNothing
   it("names nothing for the families whose tables are not ported", () => {
     expect(name("cssps", 5, 0)).toBeUndefined();
     expect(name("gsc", 1, 0)).toBeUndefined();
@@ -72,6 +76,7 @@ describe("variantByModule", () => {
       meuMinor: "meuMinor" in options ? options.meuMinor : 0,
     });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#VariantByModuleTests.testPMCPlatformsByMajor
   it("tells one platform's PMC from another by its major", () => {
     // Every PMC carries a module called `PMCC000`, so the name alone says
     // nothing — it is the version beside it that decides.
@@ -95,6 +100,7 @@ describe("variantByModule", () => {
     );
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#VariantByModuleTests.testPCHCAndPHYByModuleAndVersion
   it("names the PCHC and PHY firmware by module and version", () => {
     expect(variant(["IntelRec"], { major: 16 })).toBe("PCHCADP");
     expect(variant(["IntelRec"], { major: 15, meuMinor: 0 })).toBe("PCHCTGP");
@@ -105,6 +111,7 @@ describe("variantByModule", () => {
     expect(variant(["SNPMULTI"], { major: 13, meuMajor: 16 })).toBe("PHYSADP");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#VariantByModuleTests.testEngineFamiliesAndTheCSTXETail
   it("names the engine families, and closes with the version-only rules", () => {
     expect(variant(["kernel", "fwupdate", "bup"], { major: 15 })).toBe("CSME");
     expect(variant(["bup_rcv"], { major: 5 })).toBe("CSSPS");
@@ -117,6 +124,7 @@ describe("variantByModule", () => {
     expect(variant([], { major: 4, minor: 0 })).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#VariantByModuleTests.testTheLastMatchingModuleDecides
   it("lets the last matching module decide", () => {
     // The loop assigns rather than returns, so the order of the directory is
     // what settles a firmware two rules both match.

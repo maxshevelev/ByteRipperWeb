@@ -9,7 +9,7 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { elementHeightLimit } from "@/platform/layout/elementHeightLimit";
-import { MONOSPACE_STACK, measureFont } from "@/render/hexGrid/fontMetrics";
+import { hexFontStack, measureFont } from "@/render/hexGrid/fontMetrics";
 import {
   type HexGridColors,
   HexGridRenderer,
@@ -17,22 +17,35 @@ import {
 } from "@/render/hexGrid/hexGridRenderer";
 import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
-import { bookmarkAt, bookmarksStore, moveBookmark, toggleBookmark } from "@/state/bookmarksStore";
+import {
+  type BookmarkEditSession,
+  bookmarkEditStore,
+  editBookmarkInPane,
+  handleOffsetDoubleClick,
+  toggleBookmarkInPane,
+} from "@/state/bookmarkEditStore";
+import { bookmarkAt, bookmarksStore, moveBookmark } from "@/state/bookmarksStore";
+import { editStore } from "@/state/editStore";
 import { toggleMinimap } from "@/state/minimapStore";
-import { stepSearch } from "@/state/searchStore";
+import { type SearchStatus, stepSearch } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
+import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
-import { activeDecoder, HEX_FONT_SIZE_PX, type PaneId } from "@/state/workspaceStore";
+import { activeDecoder, decoderFor, type PaneId } from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
+import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
 import { DocumentIcon } from "@/ui/pane/DocumentIcon";
 import {
   detectKeyboardPlatform,
   type HexKeyEvent,
+  isContextClick,
   resolveHexKey,
   resolveTarget,
 } from "@/ui/pane/hexKeys";
+import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { PaneScroller } from "@/ui/pane/paneScroller";
+import { RenameField } from "@/ui/pane/RenameField";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
 import { CloseButton } from "@/ui/shell/CloseButton";
@@ -49,19 +62,36 @@ import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/he
  */
 
 export interface HexPaneProps {
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.dataSource */
   readonly document: BinaryDocument;
   readonly wordSize: WordSize;
-  /** The file's name, shown in the pane's own header. */
+  /**
+   * The file's name, shown in the pane's own header.
+   *
+   * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView
+   * @upstream-differs the header is the pane's own markup
+   */
   readonly name: string;
   /** Which slot this is, for the header and for focus. */
   readonly label: string;
+  /**
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isActive
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.setActive
+   */
   readonly isActive: boolean;
   /**
    * Which slot this is, as the scroll link's key. Comparison locks the two
    * panes to the same offsets, and the link needs to tell them apart.
    */
   readonly paneId: PaneId;
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onFocus
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onActivate
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.mouseDown
+   */
   readonly onActivate: () => void;
+  /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onClose */
   readonly onClose: () => void;
   /** The comparison, when there are two files. */
   readonly differences?: DiffBlockIndex | undefined;
@@ -88,20 +118,66 @@ export interface HexPaneProps {
    * A right-click on the dump, with the byte under the pointer. The caret has
    * already been placed there — see {@link placeContextCaret} — so the menu's
    * offset-scoped commands and the caret agree about what was aimed at.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetMenuProvider
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.offsetMenuProvider
    */
   readonly onDumpMenu?: ((event: React.MouseEvent, offset: number) => void) | undefined;
-  /** A right-click on the pane's header: this pane's File menu. */
+  /**
+   * A right-click on the pane's header: this pane's File menu.
+   *
+   * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.rightMouseDown
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.paneMenu
+   */
   readonly onHeaderMenu?: ((event: React.MouseEvent) => void) | undefined;
-  /** True while files are being dragged over the window (§22.4). */
+  /**
+   * Whether the header's name is a field being edited (§23).
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isRenaming
+   */
+  readonly renaming?: boolean | undefined;
+  /** The field closed, with what was typed and whether to take it. */
+  readonly onRenameEnd?: ((typed: string, commit: boolean) => void) | undefined;
+  /**
+   * True while files are being dragged over the window (§22.4).
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.enableFileDrop
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingEntered
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingExited
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingEnded
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.dragActive
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.setDragActive
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.showBands
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.hideBands
+   */
   readonly dragActive?: boolean | undefined;
   /**
    * A drop on one of this pane's bands: the file joins at that end rather than
    * replacing what the pane holds.
+   *
+   * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands1
+   * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands2
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget.isJoin
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget.title
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onDrop
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.insertTarget
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.appendTarget
+   * @upstream-differs a pane offers its start and end bands for a join; a drop elsewhere opens
    */
   readonly onJoinDrop?: ((event: React.DragEvent, where: "start" | "end") => void) | undefined;
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
-  /** Asks the workspace to reveal a range — difference navigation uses it. */
+  /**
+   * Asks the workspace to reveal a range — difference navigation uses it.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealSelectionCentered
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealSelectionCenteredIfNeeded
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealOffsetCentered
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealOffsetIfOffScreen
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.scrollRowToTop
+   */
   readonly revealRequest?:
     | { offset: number; token: number; moveCaret?: boolean | undefined }
     | undefined;
@@ -109,6 +185,8 @@ export interface HexPaneProps {
    * The document's editing state machine. It belongs to the document, not to
    * this component: it holds a half-typed nibble and an open undo group,
    * neither of which should survive a remount or a layout change.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.typingModeLabel
    */
   readonly typing: TypingController;
   /**
@@ -128,6 +206,15 @@ export interface HexPaneProps {
    * the set through that interface anyway.
    */
   readonly matches?: MatchSet | undefined;
+  /**
+   * Whether the results panel is up under the dump. The find bar's results
+   * button is what raises it; the panel's × takes it down.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.searchResultsPanelVisible
+   */
+  readonly resultsShown?: boolean | undefined;
+  /** How far the pane's search has got, so an open panel can say "Searching…". */
+  readonly searchStatus?: SearchStatus | undefined;
   readonly currentMatch?: { start: number; end: number } | undefined;
 }
 
@@ -142,6 +229,14 @@ const platform = detectKeyboardPlatform();
  */
 const COPY_LIMIT = 1024 * 1024;
 
+/**
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView
+ * @upstream-differs the event half; the drawing half is HexGridRenderer
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.viewModel
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.searchResults
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.searchResultsSplit
+ */
 export function HexPane({
   document: doc,
   wordSize,
@@ -157,6 +252,8 @@ export function HexPane({
   onGoToMatch,
   onDumpMenu,
   onHeaderMenu,
+  renaming,
+  onRenameEnd,
   dragActive,
   onJoinDrop,
   onSelectionChanged,
@@ -169,9 +266,12 @@ export function HexPane({
   onFind,
   matches,
   currentMatch,
+  resultsShown,
+  searchStatus,
 }: HexPaneProps) {
   const readoutId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.scrollView */
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const spacerRef = useRef<HTMLDivElement | null>(null);
   /**
@@ -182,6 +282,7 @@ export function HexPane({
   const scrollerRef = useRef<PaneScroller | null>(null);
   const rendererRef = useRef<HexGridRenderer | null>(null);
   const frameRef = useRef<number | undefined>(undefined);
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.hexLayout */
   const layoutRef = useRef<HexLayout | undefined>(undefined);
   const headerRef = useRef<HTMLCanvasElement | null>(null);
   const headerRendererRef = useRef<HexHeaderRenderer | null>(null);
@@ -242,7 +343,15 @@ export function HexPane({
   /**
    * The header is pinned outside the scroller, so it has to be told about a
    * sideways scroll — that is the whole reason it is redrawn on scroll at all.
+   *
+   * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.refreshForGridChange
    */
+  // The font, its size and the row pitch are the user's, and so is the text
+  // column's table: any of them changing re-lays the pane out.
+  const settings = useStore(settingsStore);
+  const fontFamily = hexFontStack(settings.fontFamily);
+  const { fontSize, rowHeightScale, textDecoding } = settings;
+
   const drawHeader = useCallback(() => {
     const canvas = headerRef.current;
     const layout = layoutRef.current;
@@ -258,8 +367,8 @@ export function HexPane({
     headerRendererRef.current.resize(box.width, box.height, window.devicePixelRatio);
     headerRendererRef.current.draw({
       layout,
-      fontPx: HEX_FONT_SIZE_PX,
-      fontFamily: MONOSPACE_STACK,
+      fontPx: fontSize,
+      fontFamily,
       colors: {
         background: palette.background,
         ink: palette.address,
@@ -267,7 +376,7 @@ export function HexPane({
       },
       scrollLeft: host?.scrollLeft ?? 0,
     });
-  }, []);
+  }, [fontSize, fontFamily]);
 
   /** Hands the renderer where the pane now is. */
   const applyViewport = useCallback(() => {
@@ -290,7 +399,11 @@ export function HexPane({
     scrollLink.report(paneId);
   }, [applyViewport, drawHeader, scheduleDraw, paneId]);
 
-  /** Scrolls to a content position: the one way this pane's own code moves it. */
+  /**
+   * Scrolls to a content position: the one way this pane's own code moves it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.scrollRowToTop
+   */
   const scrollPaneTo = useCallback(
     (top: number, left?: number) => {
       const scroller = scrollerRef.current;
@@ -335,7 +448,7 @@ export function HexPane({
           ? undefined
           : Math.floor(scroller.top / previous.rowHeight);
 
-      const metrics = measureFont(HEX_FONT_SIZE_PX);
+      const metrics = measureFont(fontSize, fontFamily, rowHeightScale);
       const layout = new HexLayout({
         charWidth: metrics.charWidth,
         rowHeight: metrics.rowHeight,
@@ -358,17 +471,22 @@ export function HexPane({
         .trim();
       renderer.configure({
         layout,
-        decoder: activeDecoder(),
+        decoder: decoderFor(textDecoding),
         colors: palette,
-        fontFamily: MONOSPACE_STACK,
-        fontSizePx: HEX_FONT_SIZE_PX,
+        fontFamily,
+        fontSizePx: fontSize,
         devicePixelRatio: window.devicePixelRatio,
       });
       renderer.setSource(doc);
       renderer.setScrollExtent(companionSize);
       const moved = scroller?.setContentHeight(renderer.contentHeight) === true;
       setContentWidth(renderer.contentWidth);
-      if (anchorRow !== undefined) scrollPaneTo(anchorRow * layout.rowHeight);
+      // A re-layout is the pane fitting itself, not a scroll: it settles under
+      // the position the panes share — the same rows at the new measure, as far
+      // as this file reaches — and the other pane is not moved. Only a pane with
+      // nothing to settle to keeps its own top row.
+      if (scrollLink.settle(paneId)) applyViewport();
+      else if (anchorRow !== undefined) scrollPaneTo(anchorRow * layout.rowHeight);
       else if (moved) scrolled();
       scheduleDraw();
       drawHeader();
@@ -381,7 +499,21 @@ export function HexPane({
       stopWatchingColors();
       stopWatchingScale();
     };
-  }, [doc, wordSize, scheduleDraw, drawHeader, companionSize, scrollPaneTo, scrolled]);
+  }, [
+    doc,
+    wordSize,
+    fontSize,
+    fontFamily,
+    rowHeightScale,
+    textDecoding,
+    scheduleDraw,
+    drawHeader,
+    companionSize,
+    scrollPaneTo,
+    scrolled,
+    applyViewport,
+    paneId,
+  ]);
 
   /**
    * The header is sized to its element, so it has to hear about a resize.
@@ -409,9 +541,12 @@ export function HexPane({
       // The track's mapping depends on the viewport's height, so a resize can
       // move the element's offset without moving the content.
       const moved = scrollerRef.current?.fit() === true;
+      // A resize is not a scroll: a shorter viewport can clamp the pane, and
+      // reporting that would drag the other pane with it.
+      const settled = scrollLink.settle(paneId);
       applyViewport();
       drawNow();
-      if (moved) scrollLink.report(paneId);
+      if (moved && !settled) scrollLink.report(paneId);
     };
 
     measure();
@@ -458,7 +593,16 @@ export function HexPane({
     const apply = () => {
       setDirty(doc.isDirty);
       const height = rendererRef.current?.contentHeight ?? 0;
-      if (scrollerRef.current?.setContentHeight(height) === true) scrolled();
+      const moved = scrollerRef.current?.setContentHeight(height) === true;
+      // A file that grew or shrank — an insert, a delete, a revert — fits itself
+      // back under the shared position; the clamp at a shorter end is not a
+      // scroll to hand to the other pane, and a longer file comes level again.
+      if (scrollLink.settle(paneId)) {
+        if (moved) {
+          applyViewport();
+          drawHeader();
+        }
+      } else if (moved) scrolled();
       scheduleDraw();
     };
     apply();
@@ -485,7 +629,7 @@ export function HexPane({
       stopContent();
       stopCommit();
     };
-  }, [doc, scheduleDraw, scrolled]);
+  }, [doc, scheduleDraw, scrolled, applyViewport, drawHeader, paneId]);
 
   // The comparison, and the other pane's selection outlined here.
   useEffect(() => {
@@ -506,6 +650,9 @@ export function HexPane({
   // Difference navigation asks the pane to show a range. The token makes a
   // repeat of the same range a fresh request — pressing Next twice on a file
   // with one difference should still scroll back to it.
+  // @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealOffsetCentered
+  // @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealSelectionCentered
+  // @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealSelectionCenteredIfNeeded
   useEffect(() => {
     if (revealRequest === undefined) return;
     // The caret moves; the block is not selected. A selection would claim the
@@ -586,7 +733,11 @@ export function HexPane({
     return () => host.removeEventListener("wheel", onWheel);
   }, [scrolled]);
 
-  /** Brings an offset into view with the least scrolling that will do it. */
+  /**
+   * Brings an offset into view with the least scrolling that will do it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealCaret
+   */
   const reveal = useCallback(
     (offset: number) => {
       const scroller = scrollerRef.current;
@@ -615,6 +766,58 @@ export function HexPane({
     [doc, reveal]
   );
 
+  /**
+   * The bookmark popover, when its session is about this pane. The row is
+   * scrolled into view first — a popover has to point at something the user
+   * can see, and ⇧⌘D can be pressed with the caret's row just off screen — and
+   * the popover is placed under its mark, or over it where there is no room.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkRect
+   */
+  const editing = useStore(bookmarkEditStore).session;
+  const editingHere = editing?.pane === paneId ? editing : undefined;
+  const [editAnchor, setEditAnchor] = useState<
+    { token: number; top: number; left: number; above: boolean } | undefined
+  >(undefined);
+  useEffect(() => {
+    if (editingHere === undefined) {
+      setEditAnchor(undefined);
+      return;
+    }
+    reveal(editingHere.row);
+    // After the scroll lands, or the popover points at where the row used to be.
+    const frame = requestAnimationFrame(() => {
+      const layout = layoutRef.current;
+      const host = scrollRef.current;
+      const scroller = scrollerRef.current;
+      if (layout === undefined || host === null || scroller === null) return;
+      const inView = Math.floor(editingHere.row / BYTES_PER_ROW) * layout.rowHeight - scroller.top;
+      const roomBelow = scroller.viewportHeight - (inView + layout.rowHeight);
+      const above = roomBelow < 130 && inView > roomBelow;
+      setEditAnchor({
+        token: editingHere.token,
+        top: (above ? inView - 6 : inView + layout.rowHeight + 6) + host.scrollTop,
+        left: layout.leftPadding,
+        above,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editingHere, reveal]);
+
+  /**
+   * A mark just made is where the eye lands once it is named — on the commit,
+   * after the popover has let the keyboard go, so the move is not lost behind it.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealBookmark
+   */
+  const onBookmarkCommitted = useCallback(
+    (session: BookmarkEditSession, row: number) => {
+      if (session.existingName === undefined) moveCaret(row, false);
+    },
+    [moveCaret]
+  );
+  const focusDump = useCallback(() => scrollRef.current?.focus({ preventScroll: true }), []);
+
   useEffect(() => {
     rendererRef.current?.setActive(isActive);
     scheduleDraw();
@@ -637,6 +840,8 @@ export function HexPane({
    * The selection does not change when the mode, the column or the nibble does,
    * so those three need their own nudge — and the nibble changes on every hex
    * digit, which is what makes the bar step across the byte as you type.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.redrawCaret
    */
   const refreshCaret = useCallback(() => {
     const current = doc.selection;
@@ -650,6 +855,20 @@ export function HexPane({
     scheduleDraw();
   }, [doc, typing, scheduleDraw]);
 
+  // The typing mode can be switched from outside the pane — the toolbar's
+  // toggle — so the readout and the caret follow the controller, not only this
+  // pane's own key.
+  const editVersion = useStore(editStore).version;
+  useEffect(() => {
+    void editVersion;
+    setMode(typing.modeLabel);
+    refreshCaret();
+  }, [editVersion, typing, refreshCaret]);
+
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.keyDown
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.delegate
+   */
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const command = resolveHexKey(event as unknown as HexKeyEvent, platform, region);
@@ -744,7 +963,10 @@ export function HexPane({
           onSaveAs?.();
           break;
         case "toggleBookmark":
-          toggleBookmark(doc.caret);
+          toggleBookmarkInPane(paneId, doc.selection.start);
+          break;
+        case "editBookmark":
+          editBookmarkInPane(paneId, doc.selection.start);
           break;
         case "contextMenu": {
           // Shift+F10 and the Menu key are the platform's own way of asking for
@@ -906,6 +1128,7 @@ export function HexPane({
     };
   }, []);
 
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDown */
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const layout = layoutRef.current;
@@ -917,6 +1140,13 @@ export function HexPane({
       // suppresses the click's own focusing, so without this the grid never
       // gets the keyboard and nothing typed into it arrives.
       event.currentTarget.focus();
+
+      // A press that opens the context menu is not a click in the dump. The
+      // browser sends it here before `contextmenu`, and treating it as a click
+      // put the caret down and took the selection away — so the menu, opened on
+      // the selection, no longer had one to act on. Where the caret goes is
+      // `onContextMenu`'s decision, as it is upstream's `placeContextMenuCaret`.
+      if (isContextClick(event, platform)) return;
 
       const hit = layout.hitTest(point.x, point.y, layout.rowCount(doc.size));
       if (hit === undefined) return;
@@ -951,7 +1181,14 @@ export function HexPane({
     [contentPoint, doc, region, typing, refreshCaret]
   );
 
-  /** Shows a named mark's name while the pointer rests on it. */
+  /**
+   * Shows a named mark's name while the pointer rests on it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTooltipTag
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.view
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmark
+   * @upstream-differs a tip element placed over the mark, not a tooltip rect
+   */
   const trackMarkTip = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const layout = layoutRef.current;
     const host = scrollRef.current;
@@ -983,6 +1220,11 @@ export function HexPane({
     });
   }, []);
 
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDragged
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.performDragAutoscrollTick
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onBookmarkDrag
+   */
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       trackMarkTip(event);
@@ -1028,10 +1270,16 @@ export function HexPane({
   );
 
   /**
-   * A double-click on an address marks that row, or unmarks it (§20.3).
+   * A double-click on an address opens the bookmark popover on that row
+   * (§20.3): it marks and names a bare row, and edits the mark already there.
    *
-   * The mouse gesture for the same command ⌘D is, on the one column where a
-   * double-click has nothing else to mean — in the bytes it selects a word.
+   * The mouse gesture for what ⌘D does, on the one column where a double-click
+   * has nothing else to mean — in the bytes it selects a word.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onOffsetDoubleClick
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onOffsetDoubleClick
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleOffsetDoubleClick
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireBookmarkDoubleClick
    */
   const onDoubleClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1046,9 +1294,9 @@ export function HexPane({
       );
       if (hit === undefined || hit.column.kind !== "offset") return;
       event.preventDefault();
-      toggleBookmark(layout.byteOffset(hit.row, 0));
+      handleOffsetDoubleClick(paneId, layout.byteOffset(hit.row, 0));
     },
-    [doc]
+    [doc, paneId]
   );
 
   /**
@@ -1058,6 +1306,14 @@ export function HexPane({
    * would place it — unless the click landed *inside* the selection, because
    * placing the caret would clear it and the menu's selection-scoped commands
    * (Copy, Fill Selection…, Delete Bytes…) are about that selection.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.rightMouseDown
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.placeContextMenuCaret
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.rightClickedOffset
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contextMenuOffset
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contextMenuAnchor
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.ContextMenuAnchor
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.ContextMenuAnchor.offset
    */
   const onContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1083,6 +1339,7 @@ export function HexPane({
     [doc, onDumpMenu]
   );
 
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseUp */
   const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     dragAnchorRef.current = undefined;
     markDragRef.current = undefined;
@@ -1157,9 +1414,21 @@ export function HexPane({
         onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
       >
         <DocumentIcon slot={label} dirty={dirty} untitled={saved === undefined} />
-        <span className="pane-name" title={name}>
-          {name}
-        </span>
+        {renaming === true ? (
+          <RenameField
+            name={name}
+            onEnd={(typed, commit) => {
+              onRenameEnd?.(typed, commit);
+              // The dump takes the keyboard back, the way it has it everywhere
+              // else: a field that vanished must not leave nothing focused.
+              scrollRef.current?.focus();
+            }}
+          />
+        ) : (
+          <span className="pane-name" title={name}>
+            {name}
+          </span>
+        )}
         <CloseButton label={`Close ${label}`} onClick={onClose} />
       </header>
       {/*
@@ -1204,14 +1473,26 @@ export function HexPane({
             {markTip.name}
           </p>
         )}
+        {editingHere !== undefined && editAnchor?.token === editingHere.token ? (
+          <BookmarkEditPopover
+            key={editingHere.token}
+            session={editingHere}
+            top={editAnchor.top}
+            left={editAnchor.left}
+            above={editAnchor.above}
+            onCommitted={onBookmarkCommitted}
+            onKeyboardClose={focusDump}
+          />
+        ) : null}
         {/* Its height is PaneScroller's to set: the content's own when that
             fits, the browser's layout limit when it does not. */}
         <div ref={spacerRef} className="hex-spacer" style={{ width: `${contentWidth}px` }} />
       </div>
-      {matches !== undefined && matches.total > 0 && onGoToMatch !== undefined ? (
+      {resultsShown === true && onGoToMatch !== undefined ? (
         <SearchResults
           pane={paneId}
           matches={matches}
+          status={searchStatus ?? "idle"}
           document={doc}
           current={currentMatch}
           onGo={onGoToMatch}
@@ -1225,6 +1506,7 @@ export function HexPane({
         </span>
         <span className="readout-region">{region === "hex" ? "Hex" : "Text"}</span>
         {dirty ? <span className="readout-dirty">Unsaved</span> : null}
+        <OperationStrip pane={paneId} />
       </p>
     </div>
   );

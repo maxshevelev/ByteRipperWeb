@@ -19,10 +19,17 @@ export function MenuButton({
   label,
   title,
   entries,
+  ariaLabel,
+  disabled,
+  className,
 }: {
-  readonly label: string;
+  readonly label: React.ReactNode;
   readonly title: string;
   readonly entries: readonly MenuEntry[];
+  /** Where the label is a glyph, what the button is called. */
+  readonly ariaLabel?: string | undefined;
+  readonly disabled?: boolean | undefined;
+  readonly className?: string | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -61,7 +68,9 @@ export function MenuButton({
       <button
         type="button"
         ref={buttonRef}
-        className="toolbar-button menu-trigger"
+        className={`toolbar-button menu-trigger${className === undefined ? "" : ` ${className}`}`}
+        aria-label={ariaLabel}
+        disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

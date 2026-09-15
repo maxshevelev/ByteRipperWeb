@@ -21,11 +21,19 @@ import { StorageError } from "@/core/storage/storageError";
  *   or not at all, because a canvas repaint has no way to wait.
  * - **Saying what is about to be needed.** {@link prefetch} is how the pane
  *   makes the rows around the viewport resident before it paints them.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage
  */
 export class FileBackedStorage implements ByteStorage {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage.size */
   readonly size: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage.cache */
   readonly cache: ChunkCache;
 
+  /**
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage.url
+   * @upstream-differs a Blob the picker handed over, not a URL opened with open(2)
+   */
   private readonly source: ByteSource;
   private readonly inFlight = new Map<number, Promise<Bytes>>();
 
@@ -33,6 +41,8 @@ export class FileBackedStorage implements ByteStorage {
    * @param source The file, or anything shaped like a `Blob`.
    * @param cache This file's cache. A cache is keyed by chunk index alone, so
    * it must not be shared with another file — see `chunkCache.ts`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage.init
    */
   constructor(source: ByteSource, cache: ChunkCache = new ChunkCache()) {
     this.size = assertRepresentableSize(source.size);
@@ -40,6 +50,7 @@ export class FileBackedStorage implements ByteStorage {
     this.cache = cache;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage.read */
   async read(at: number, length: number): Promise<Bytes> {
     const span = this.clamp(at, length);
     if (span === undefined) return new Uint8Array(0);

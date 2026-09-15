@@ -18,29 +18,45 @@
  * Ported from `Packages/ToolModuleKit/ToolTransaction.swift`.
  */
 
+/** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write */
 export interface ToolWrite {
+  /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.offset */
   readonly offset: number;
-  /** A write replaces exactly as much as it carries. */
+  /**
+   * A write replaces exactly as much as it carries.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.bytes
+   */
   readonly bytes: Uint8Array;
 }
 
+/** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction */
 export interface ToolTransaction {
   /**
    * What the user is about to be able to undo — "Add Microcode", not "Write 16
    * bytes". It becomes the Edit menu's `Undo <name>`, so it is written from the
    * user's side of the action.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.name
    */
   readonly name: string;
+  /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.writes */
   readonly writes: readonly ToolWrite[];
 }
 
-/** What a write covers. */
+/**
+ * What a write covers.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.range
+ */
 export const writeEnd = (write: ToolWrite): number => write.offset + write.bytes.length;
 
 /**
  * From the first byte written to the last — what the dump has to redraw, and
  * what a tool's own re-read can be narrowed to. Nothing for a transaction with
  * nothing in it.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.span
  */
 export function transactionSpan(
   transaction: ToolTransaction
@@ -51,7 +67,11 @@ export function transactionSpan(
   return { start, end };
 }
 
-/** Why a transaction cannot be applied. */
+/**
+ * Why a transaction cannot be applied.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransactionError
+ */
 export type ToolTransactionProblem =
   | { readonly kind: "unnamed" }
   | { readonly kind: "noWrites" }
@@ -96,6 +116,8 @@ export type ValidatedTransaction =
  *
  * Bounds are not checked here — the file's size belongs to the document, and it
  * checks them when it applies.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.validated
  */
 export function validateTransaction(transaction: ToolTransaction): ValidatedTransaction {
   if (transaction.name.trim().length === 0) return { ok: false, problem: { kind: "unnamed" } };

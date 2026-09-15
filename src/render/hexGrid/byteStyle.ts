@@ -40,6 +40,8 @@ export const INK_ROLES: readonly InkRole[] = [
  * A modified byte stays red even when its value is a fill byte: the
  * unsaved-change warning outranks the significance accent, because one says
  * "you have not saved this" and the other only says "this is padding".
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.textColor
  */
 export function byteInk(byte: number, isModified: boolean): InkRole {
   if (isModified) return "modified";
@@ -53,6 +55,8 @@ export function byteInk(byte: number, isModified: boolean): InkRole {
  * and draws `0000` muted with `DEAD` at full contrast. An address that is all
  * zeros — row 0 — is muted in full, which is what makes the significant part of
  * every other address stand out.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetAddress
  */
 export function addressSignificantFrom(text: string): number {
   const index = text.split("").findIndex((character) => character !== "0");

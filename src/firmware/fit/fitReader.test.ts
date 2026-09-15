@@ -19,6 +19,7 @@ const ordinaryImage = () =>
   });
 
 describe("finding the table", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testTheTableIsFoundThroughThePointer
   it("finds it through the pointer", () => {
     const report = read(ordinaryImage());
 
@@ -32,6 +33,7 @@ describe("finding the table", () => {
 
   // The header's `Size` counts entries, not bytes — the field everyone reads
   // wrong.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testTheHeaderCountsEntriesRatherThanBytes
   it("counts entries rather than bytes", () => {
     const report = read(
       Test.fitImage({
@@ -52,6 +54,7 @@ describe("finding the table", () => {
    * that the same as forty bytes before the end of the file. An image with
    * anything after its volume top file puts it somewhere else entirely.
    */
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testThePointerIsFoundByAddressAndNotFromTheEndOfTheFile
   it("finds the pointer by address and not from the end of the file", () => {
     const diff = 0xffff_1000; // a volume top file ending at 0xF000
     const image = Test.fitImage({
@@ -76,6 +79,7 @@ describe("the address mapping", () => {
    * region cut out of one, so the reading says which it did — but as a caveat
    * about itself, not as a problem with the table.
    */
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testAnAssumedAddressMappingIsSaidOutLoud
   it("says out loud when it was assumed", () => {
     const report = read(ordinaryImage());
 
@@ -84,6 +88,7 @@ describe("the address mapping", () => {
     expect(report.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testAKnownAddressMappingIsUsedAsItIs
   it("uses a known mapping as it is", () => {
     const parsed = new UEFIImage({ size: 0x1_0000, roots: [], addressDiff: 0xffff_0000 });
 
@@ -101,6 +106,7 @@ describe("a table the pointer does not lead to", () => {
    * does not mean there is no table, and the one the scan finds is still worth
    * showing the user.
    */
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testAPointerLeadingNowhereStillFindsTheTableByScanning
   it("is still found by scanning", () => {
     const image = Test.fitImage({
       rows: [{ type: FIT.microcodeType, target: MICROCODE_AT }],
@@ -119,6 +125,7 @@ describe("a table the pointer does not lead to", () => {
     ).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testAPointerOutsideTheImageIsReported
   it("reports a pointer outside the image", () => {
     const image = Test.fitImage({
       rows: [{ type: FIT.microcodeType, target: MICROCODE_AT }],
@@ -135,6 +142,7 @@ describe("a table the pointer does not lead to", () => {
     ).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testAnImageWithNoRoomForAPointerIsReported
   it("reports an image with no room for a pointer", () => {
     const report = read(new Uint8Array(0x20).fill(0xff));
 
@@ -145,6 +153,7 @@ describe("a table the pointer does not lead to", () => {
 
 describe("a header that cannot be believed", () => {
   // A count of zero, believed, is a table of nothing.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testAHeaderWithNoEntriesIsReported
   it("reports a header with no entries", () => {
     const report = read(Test.fitImage({ rows: [], entryCount: 0 }));
 
@@ -153,6 +162,7 @@ describe("a header that cannot be believed", () => {
   });
 
   // A count that runs past the end: read what is there, and say the rest is not.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testATableRunningPastTheEndIsCutAndReported
   it("cuts a table running past the end, and reports it", () => {
     const image = Test.fitImage({
       size: 0x1_0000,
@@ -174,6 +184,7 @@ describe("a header that cannot be believed", () => {
 });
 
 describe("a row", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testARowIsReadFieldByField
   it("is read field by field", () => {
     const image = Test.fitImage({
       rows: [
@@ -196,6 +207,7 @@ describe("a row", () => {
   });
 
   // The seven-bit type and the eighth bit that is not part of it.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITReaderTests.swift#FITReaderTests.testTheChecksumValidBitIsNotPartOfTheType
   it("keeps the checksum-valid bit out of the type", () => {
     const image = Test.fitImage({ rows: [], entryCount: 1, checksumValid: true });
 

@@ -17,6 +17,10 @@ import {
  * an image carrying none.
  *
  * Returns the reason nothing was written, or nothing when it all was.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.apply
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.apply
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyToolWrites
  */
 export async function applyTransaction(
   pane: PaneId,

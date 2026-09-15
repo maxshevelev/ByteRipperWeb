@@ -190,22 +190,114 @@ textarea,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 14px;
   height: 100%;
   padding: 2rem;
+  border-radius: 4px;
+  overflow: auto;
   text-align: center;
+}
+
+/* Files dragged over an empty window: the whole landing screen is the target. */
+.app-shell[data-dragging] .empty-state {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* The icon is the Open File button: a third of the window's shorter side,
+   capped, in the muted grey the headline shares — a hint, not a control. */
+.empty-state-icon {
+  flex: none;
+  width: min(33.333vmin, 400px);
+  height: min(33.333vmin, 400px);
+  /* 48 between the icon and the headline, less the stack's own 14. */
+  margin-bottom: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.empty-state-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.empty-state-icon:active {
+  opacity: 0.6;
+}
+
+.empty-state-icon:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 8px;
 }
 
 .empty-state-headline {
   margin: 0;
-  font-size: 1.1rem;
-  color: var(--text);
+  color: var(--text-faint);
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .empty-state-detail {
   margin: 0;
-  max-width: 42ch;
   color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* The marks: a different subject from the landing screen, so more air above. */
+.empty-state-bookmarks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  /* 30 above the section, less the stack's own 14. */
+  margin-top: 16px;
+}
+
+.empty-state-bookmarks-heading {
+  margin: 0;
+  color: var(--bookmark);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.empty-state-bookmarks-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 10px;
+  min-width: 220px;
+  max-height: 220px;
+  overflow-y: auto;
+  text-align: left;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.empty-state-bookmark {
+  display: contents;
+}
+
+/* The dump's address shape in the bookmark colour: the same purple as the mark
+   in the gutter and the arrow on the minimap. */
+.empty-state-bookmark-address {
+  justify-self: end;
+  color: var(--bookmark);
+  font-family: var(--hex-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  font-size: 12px;
+}
+
+.empty-state-bookmark-name {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .status-bar {
@@ -237,6 +329,83 @@ textarea,
 
 .toolbar-spacer {
   flex: 1;
+}
+
+/* A fixed gap between toolbar groups, as the toolbar's system space is. */
+.toolbar-space {
+  flex: none;
+  width: 8px;
+}
+
+/* An icon-only toolbar button: the glyph, a platter on hover, and a pressed
+   look for the ones that carry a state. */
+.toolbar-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.toolbar-icon:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.toolbar-icon.is-on {
+  border-color: var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--accent);
+}
+
+.toolbar-icon:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* The two difference arrows, joined in one block. */
+.toolbar-group {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.toolbar-group .toolbar-icon {
+  border-radius: 0;
+}
+
+.toolbar-group .toolbar-icon:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.toolbar-group .toolbar-icon:last-child {
+  border-radius: 0 5px 5px 0;
+}
+
+/* The plaque's other face: a green check and the words. */
+.toolbar-identical {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  white-space: nowrap;
+}
+
+.toolbar-identical svg {
+  color: var(--semantic-good);
+}
+
+/* The Tools pull-down: the wrench, and the tool-module's name beside it. */
+.toolbar-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .toolbar-button,
@@ -432,6 +601,20 @@ textarea,
   font-weight: 600;
 }
 
+/* The name as a field, where the name was: no narrower than a name can be read
+   in, and still able to give way in a pane squeezed to nothing. */
+.pane-name-field {
+  flex: 1;
+  min-width: min(140px, 100%);
+  padding: 1px 6px;
+  border: 1px solid var(--focus-ring);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+}
+
 /*
  * The active pane is the one the commands act on, so it says so — with a rule
  * along its top edge rather than a tint, which would fight the difference wash.
@@ -543,6 +726,49 @@ textarea,
   font-weight: 600;
 }
 
+/* A long operation at the end of the status line: its name, a bar, a cross. */
+.operation-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: auto;
+  align-self: center;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.operation-strip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* 120 wide at any real width, and able to give way in a pane dragged narrow. */
+.operation-strip-bar {
+  flex: 0 1 120px;
+  width: 120px;
+  min-width: 0;
+  height: 6px;
+  accent-color: var(--accent);
+}
+
+.operation-strip-cancel {
+  display: inline-grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.operation-strip-cancel:hover {
+  color: var(--text);
+}
+
 /* ── Dialogs ──────────────────────────────────────────────────────────── */
 
 .dialog {
@@ -556,6 +782,11 @@ textarea,
   font: inherit;
 }
 
+/* A dialog that holds the focus itself is not a control, so it is not ringed. */
+.dialog:focus {
+  outline: none;
+}
+
 .dialog::backdrop {
   background: rgb(0 0 0 / 0.35);
 }
@@ -564,6 +795,19 @@ textarea,
   margin: 0;
   padding: 0.75rem 1rem 0;
   font-size: 1rem;
+}
+
+/* The title row of a dialog that closes itself: the title, and its cross. */
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-right: 0.6rem;
+}
+
+.dialog-head .close-button {
+  margin-top: 0.75rem;
 }
 
 .dialog-body {
@@ -667,6 +911,78 @@ textarea,
   pointer-events: none;
   transform: translateY(-0.15rem);
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+}
+
+/* The bookmark popover (§20.3): 300 wide, the stack inset 14 and 16, lines 8
+   apart — upstream's. Fixed rather than fitted, so it does not jitter from row
+   to row. It hangs under the mark with an arrow pointing at it. */
+.bookmark-popover {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
+  cursor: default;
+  font-size: 12px;
+}
+
+.bookmark-popover::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 18px;
+  width: 10px;
+  height: 10px;
+  border-left: 1px solid var(--border-strong);
+  border-top: 1px solid var(--border-strong);
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.bookmark-popover.is-above {
+  transform: translateY(-100%);
+}
+
+.bookmark-popover.is-above::before {
+  top: auto;
+  bottom: -6px;
+  transform: rotate(225deg);
+}
+
+.bookmark-popover input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* The address in the dump's own font: read far more often than edited. */
+.bookmark-popover input.bookmark-popover-offset {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.bookmark-popover input.bookmark-popover-offset.is-invalid {
+  color: var(--semantic-bad);
+}
+
+.bookmark-popover-delete {
+  font-size: 11px;
 }
 
 /* The join bands (§22.4): a file dropped at a pane's top goes in before what it
@@ -781,14 +1097,58 @@ textarea,
   color: var(--text-muted);
 }
 
-/* The bookmark list inside Go To. */
-.bookmark-list-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+/* Go To (§10.1, §20.5): upstream's form is at least 460 wide, inset 18. */
+.dialog.goto-dialog {
+  width: min(30rem, 90vw);
+}
+
+/* "Offset: [ field ] (Go To)", with the message under the field and indented to
+   its left edge — the message is that field's, not a line of the form. */
+.goto-offset {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 5px;
+  margin: 0;
+}
+
+.goto-offset-label,
+.goto-list-label {
   color: var(--text-muted);
+  font-size: 12px;
+}
+
+.goto-offset input {
+  min-width: 0;
+  font: inherit;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.goto-error {
+  grid-column: 2 / 4;
+  min-height: 1.2em;
+  margin: 0;
+  font-size: 11px;
+  color: var(--semantic-bad);
+}
+
+.goto-list-label {
   font-weight: 600;
+  margin-bottom: -4px;
+}
+
+.goto-actions {
+  justify-content: space-between;
+}
+
+.goto-actions > :only-child {
+  margin-left: auto;
 }
 
 .toolbar-button.is-quiet {
@@ -799,14 +1159,17 @@ textarea,
   font-weight: 400;
 }
 
+/* The list and what hangs off it: the empty state over it, the editor under a
+   row. */
+.bookmark-table {
+  position: relative;
+}
+
 .bookmark-list {
+  box-sizing: border-box;
   margin: 0;
-  padding: 0.2rem;
-  list-style: none;
-  max-height: 14rem;
   overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 5px;
+  border: 1px solid var(--border-strong);
   background: var(--surface-sunken);
 }
 
@@ -815,12 +1178,17 @@ textarea,
   outline-offset: 1px;
 }
 
+/* Upstream's table row: 20 high, no stripes, no header; the address column
+   exactly as wide as eight digits, and the rest the name's. */
 .bookmark-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.15rem 0.25rem;
-  border-radius: 4px;
+  gap: 8px;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 12px;
+  cursor: default;
+  user-select: none;
 }
 
 .bookmark-row[data-selected] {
@@ -829,47 +1197,42 @@ textarea,
 
 .bookmark-address {
   flex: none;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  border: 0;
-  background: none;
-  padding: 0;
+  width: 8ch;
+  font-family: var(--hex-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   color: var(--bookmark);
-  font-weight: 600;
-  cursor: pointer;
 }
 
-.bookmark-name,
-.bookmark-name-field {
+.bookmark-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-muted);
-}
-
-.bookmark-name-field {
-  font: inherit;
-  padding: 0.1rem 0.25rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  background: var(--surface);
   color: var(--text);
 }
 
-.bookmark-remove {
-  flex: none;
-  border: 0;
-  background: none;
-  padding: 0 0.25rem;
-  color: var(--text-faint);
-  cursor: pointer;
-  font-size: 1.1em;
-  line-height: 1;
+/* An unnamed bookmark's bytes stand in for its name, dimmer, as a placeholder
+   is: a preview of the row, not a value. */
+.bookmark-name.is-preview {
+  font-family: var(--hex-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  color: var(--text-muted);
 }
 
-.bookmark-remove:hover {
-  color: var(--semantic-bad);
+.bookmark-name.is-preview.is-past-end {
+  font-family: inherit;
+}
+
+.bookmark-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 .dialog-actions {
@@ -990,25 +1353,102 @@ textarea,
   /* Under the toolbar, above the dumps: the border goes on the bottom now. */
   grid-row: 2;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-raised);
+  background: var(--surface);
 }
 
+/* One row, 8 apart, inset 8 and 10 — upstream's stack. Only the field grows. */
 .find-form {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.find-label {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.find-form > :not(.search-field) {
+  flex: none;
 }
 
 .find-input {
+  width: 100%;
+  min-width: 0;
   font: inherit;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  min-width: 14rem;
   padding: 0.25rem 0.45rem;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface);
   color: var(--text);
+}
+
+/* The pattern field with its magnifier, which drops the recent queries. */
+.search-field {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 120px;
+}
+
+.search-field .find-input {
+  padding-left: 1.75rem;
+}
+
+.search-field-menu {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  padding: 1px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.search-field-menu:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.search-field-popup {
+  min-width: 100%;
+  margin: 0;
+  list-style: none;
+}
+
+.search-field-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.search-field-option,
+.search-field-command {
+  padding: 0.25rem 0.4rem 0.25rem 1.3rem;
+  border-radius: 4px;
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.search-field-option {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.search-field-option.is-active,
+.search-field-command.is-active {
+  background: var(--selection);
 }
 
 .find-encoding {
@@ -1020,17 +1460,82 @@ textarea,
   color: var(--text);
 }
 
-/* Both find-bar toggles read the same way when they are on. */
-.find-case.is-on,
-.find-smart.is-on {
-  border-color: var(--accent);
-  color: var(--accent);
+/* Smart Search and Aa: borderless glyphs, quiet grey when off, accent and a
+   heavier stroke when on — colour and weight, so the state survives either. */
+.find-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  stroke-width: 1.3;
+  cursor: pointer;
 }
 
-.find-status {
+.find-glyph.is-on {
+  color: var(--accent);
+  stroke-width: 1.9;
+}
+
+/* The results button is dimmed with the stepper, once a scan has come back
+   empty: there is nothing to list. */
+.find-glyph:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* The count: small tabular digits, wide enough for "8888 of 8888" so a step
+   does not move the stepper; red when the field holds no pattern at all. */
+.find-count {
+  min-width: 12ch;
   color: var(--text-muted);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
+}
+
+.find-count.is-problem {
+  color: var(--semantic-bad);
+}
+
+/* ‹ ›, joined in one block as a segmented control is. */
+.find-nav {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.find-nav-button {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+
+.find-nav-button + .find-nav-button {
+  border-left: 1px solid var(--border-strong);
+}
+
+.find-nav-button:active:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.find-nav-button:disabled {
+  color: var(--text-faint);
+  cursor: default;
 }
 
 .search-results {
@@ -1071,9 +1576,11 @@ textarea,
   grid-template-columns: 9ch minmax(0, 5fr) minmax(0, 2fr);
   gap: 0.75rem;
   padding: 0 0.75rem;
-  /* The app's own size, as before. Only the row *pitch* is tighter. */
+  /* The dump's own font and size, so the list follows its size as the dump does.
+     Only the row *pitch* is tighter. */
   font: inherit;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--hex-font-size, inherit);
+  font-family: var(--hex-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
 }
 
 .search-results-head > span {
@@ -1155,15 +1662,58 @@ textarea,
   white-space: nowrap;
 }
 
-.search-results-refusal {
-  margin: 0;
-  padding: 0.6rem;
+/* Upstream's header: 12 pt semibold in the secondary colour, inset 10 and 5,
+   with the × 6 in from the right edge on the title's centre line. */
+.search-results-title {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 4px 10px;
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
-.search-results-hint {
-  color: var(--text-faint);
+.search-results-title > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-results-close {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.search-results-close:hover {
+  color: var(--text);
+}
+
+.search-results-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+/* Where the rows would be: the count and the refusal, "Searching…", or
+   "No matches." — centred, as upstream's message is. */
+.search-results-message {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 .minimap {
@@ -1269,6 +1819,14 @@ textarea,
   pointer-events: none;
 }
 
+/* A sliver's position in overview: a triangle in each outer margin, in the
+   band's edge grey, pointing at the map. */
+.minimap-viewport-marker {
+  position: absolute;
+  fill: var(--minimap-viewport-border);
+  pointer-events: none;
+}
+
 .minimap-band {
   position: absolute;
   left: 0;
@@ -1359,6 +1917,9 @@ textarea,
 
 .tool-panel {
   position: relative;
+  /* A panel's text is the dump's size, so it follows the dump's size — upstream's
+     ToolPanelFont. */
+  font-size: var(--hex-font-size, inherit);
   grid-row: 3;
   grid-column: 1;
   display: grid;
@@ -1372,18 +1933,42 @@ textarea,
   background: var(--surface);
 }
 
+/* The same chrome as a pane's header (`.pane-header`), so the two headers read
+   as one line across the window: the tools' icon, the tool's name, the file its
+   session is bound to — the part that gives way first — and the close cross. */
 .tool-panel-head {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
+  min-width: 0;
 }
 
-.tool-pane {
-  font: inherit;
-  max-width: 12rem;
+.tool-panel-icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: var(--text-muted);
+}
+
+.tool-panel-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.tool-panel-file {
+  flex: 1 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
 }
 
 .tool-panel-body {
@@ -1463,6 +2048,22 @@ button.uefi-title {
 
 .uefi-reveal:hover {
   color: var(--text);
+}
+
+/* The title row's checkbox. The title gives way first: a long image name
+   truncates before the checkbox does. */
+.uefi-padding-toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.uefi-padding-toggle input {
+  margin: 0;
 }
 
 .uefi-reveal svg,
@@ -1668,7 +2269,8 @@ button.uefi-title {
 
 .tool-detail-title {
   margin: 0 0 2px;
-  font-size: 14px;
+  /* One point over the body, as upstream's heading is. */
+  font-size: calc(var(--hex-font-size, 13px) + 1px);
   font-weight: 600;
 }
 
@@ -1703,6 +2305,27 @@ button.uefi-title {
 
 .tool-detail-row dd[data-problem] {
   color: var(--semantic-bad);
+}
+
+/* A check that passed: a filled green circle with a white tick, sat on the
+   text's baseline. */
+.tool-detail-done {
+  width: 1em;
+  height: 1em;
+  margin-right: 0.3em;
+  vertical-align: -0.15em;
+}
+
+.tool-detail-done circle {
+  fill: var(--semantic-good);
+}
+
+.tool-detail-done path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tool-detail-table {
@@ -1840,6 +2463,25 @@ button.uefi-title {
   background: var(--selection);
 }
 
+/* The backup's rows read quieter: they are there to be compared, and nothing on
+   them is changed on its own. */
+.fit-row[data-backup] > td {
+  color: var(--text-muted);
+}
+
+/* The heading in front of the Top Swap backup's copy of the table. */
+.fit-backup-heading > th {
+  height: 22px;
+  padding: 0 6px;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .fit-number {
   font-variant-numeric: tabular-nums;
 }
@@ -1887,13 +2529,14 @@ button.uefi-title {
   list-style: none;
 }
 
+/* A finding wraps onto as many lines as it needs: cut at the panel's edge, the
+   part that says what to do about it was the part that went. One line is still
+   22 tall, so the list's cap of eight lines holds. */
 .fit-problems li {
-  height: 22px;
-  padding: 0 8px;
-  overflow: hidden;
-  line-height: 22px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 3px 8px;
+  line-height: 16px;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: default;
 }
 
@@ -1912,11 +2555,11 @@ button.uefi-title {
 
 /* Named rather than coloured alone: the three failures have three answers. */
 .fit-catalogue-problem {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
   color: var(--semantic-caution);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .fit-catalogue-problem[data-kind="badResponse"] {
@@ -2345,4 +2988,277 @@ button.uefi-title {
 
 .microcode-buttons .is-primary:disabled {
   opacity: 0.5;
+}
+
+/* ── Settings ─────────────────────────────────────────────────────────── */
+
+.settings-dialog {
+  max-width: min(44rem, 94vw);
+}
+
+/* The tabs as a segmented strip, where upstream's window has its toolbar. */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0.6rem 1rem 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+
+.settings-tab {
+  flex: 1 1 auto;
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.settings-pane {
+  padding: 18px;
+}
+
+.settings-heading {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Labels right-aligned against their controls, as upstream's grid has them. */
+.settings-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, auto);
+  align-items: center;
+  justify-content: start;
+  gap: 12px;
+}
+
+.settings-grid > label {
+  justify-self: end;
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-select {
+  width: 200px;
+  max-width: 100%;
+  font: inherit;
+}
+
+.settings-slider {
+  width: 180px;
+  max-width: 100%;
+}
+
+.settings-stepper {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.settings-stepper button {
+  width: 1.4rem;
+  height: 0.8rem;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 8px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-stepper button:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.settings-stepper button:last-child {
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+}
+
+.settings-stepper button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.settings-value {
+  min-width: 3.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-caption {
+  max-width: 444px;
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.settings-decoding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+.settings-decoding-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.settings-decoding-controls .settings-heading,
+.settings-decoding-controls .settings-caption {
+  margin: 0;
+}
+
+.settings-placeholder {
+  width: 48px;
+  text-align: center;
+  font: inherit;
+}
+
+.settings-problem {
+  color: var(--semantic-bad);
+  font-size: 11px;
+}
+
+.settings-preview {
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--hex-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre;
+}
+
+.settings-preview-row {
+  display: flex;
+}
+
+.settings-preview-header {
+  width: calc(2ch + 8px);
+  color: var(--address-text);
+}
+
+.settings-preview-cell {
+  width: 1ch;
+  color: var(--text);
+}
+
+.settings-preview-cell.is-muted {
+  color: var(--byte-text-muted);
+}
+
+/* ── Transient notices ────────────────────────────────────────────────── */
+
+/* Over the whole window and never in the way: a click goes to what is under. */
+.transient-notice-host {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* A frosted plate, centred, a third of the way up from the bottom. */
+.transient-notice {
+  position: absolute;
+  left: 50%;
+  top: calc(100% * 2 / 3);
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100% - 40px);
+  padding: 14px 20px 14px 18px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+  color: var(--text);
+  animation: transient-notice-in 150ms ease-out;
+}
+
+.transient-notice[data-glyph-only] {
+  padding: 22px;
+}
+
+.transient-notice[data-leaving] {
+  animation: transient-notice-out 300ms ease-in forwards;
+}
+
+.transient-notice-glyph {
+  flex: none;
+}
+
+.transient-notice-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.transient-notice-heading,
+.transient-notice-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transient-notice-heading {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.transient-notice-line {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@keyframes transient-notice-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes transient-notice-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transient-notice {
+    animation: none;
+  }
+
+  .transient-notice[data-leaving] {
+    animation: none;
+    opacity: 0;
+  }
 }

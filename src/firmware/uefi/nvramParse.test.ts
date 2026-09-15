@@ -23,6 +23,7 @@ describe("a VSS store", () => {
   const oneVariable = () =>
     N.nvramVolume({ stores: [N.vssStore({ variables: [N.vssVariable({ name: "BootOrder" })] })] });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAnNvramVolumeExpandsToItsStores
   it("is what an NVRAM volume expands to", () => {
     const parsed = root(oneVariable());
 
@@ -35,6 +36,7 @@ describe("a VSS store", () => {
     expect(range(vss)).toEqual({ start: 0x48, end: 0x9e });
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAVssVariableIsNamedByItsDecodedName
   it("names a variable by its decoded name", () => {
     const entry = root(oneVariable()).children[0]?.children[0] as UEFINode;
 
@@ -55,6 +57,7 @@ describe("a VSS store", () => {
    * monotonic counter, timestamp and key index in between are zeros or noise;
    * reading them as a GUID would show a null or a wrong owner.
    */
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAnAuthenticatedVssVariableKeepsItsVendorGuid
   it("keeps an authenticated variable's vendor GUID", () => {
     const efiGlobalVariable = guid("8BE4DF61-93CA-11D2-AA0D-00E098032B8C");
     const pk = N.authVssVariable({
@@ -73,6 +76,7 @@ describe("a VSS store", () => {
     expect(entry.guid).toEqual(efiGlobalVariable);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testTheFreeSpaceAfterTheVariablesIsFound
   it("finds the free space after the variables", () => {
     const children = root(oneVariable()).children[0]?.children ?? [];
 
@@ -81,6 +85,7 @@ describe("a VSS store", () => {
     expect(children[1]?.isErased).toBe(true);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testADeletedVariableIsInvalid
   it("calls a deleted variable invalid", () => {
     const deleted = N.vssVariable({ name: "BootOrder", state: 0xfd });
     const entry = root(N.nvramVolume({ stores: [N.vssStore({ variables: [deleted] })] }))
@@ -90,6 +95,7 @@ describe("a VSS store", () => {
     expect(entry.name).toBe("Invalid");
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testTwoVariablesAreBothFound
   it("finds both of two variables", () => {
     const store = N.vssStore({
       variables: [N.vssVariable({ name: "BootOrder" }), N.vssVariable({ name: "SetupMode" })],
@@ -103,6 +109,7 @@ describe("a VSS store", () => {
 
   // A store whose size field is the "no size" marker is not a store at all: the
   // reference parser refuses it, so the body is padding.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testANoSizeMarkerIsNotAStore
   it("is not made out of a no-size marker", () => {
     const store = N.vssStore({
       variables: [N.vssVariable({ name: "BootOrder" })],
@@ -113,6 +120,7 @@ describe("a VSS store", () => {
 
   // A store whose size field overruns the body is cut at the body's end, not
   // believed past it.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAStoreSizeThatOverrunsTheBodyIsCut
   it("is cut when its size overruns the body", () => {
     const store = N.vssStore({ variables: [N.vssVariable({ name: "BootOrder" })], size: 0x100 });
     const vss = root(N.nvramVolume({ stores: [store] })).children[0] as UEFINode;
@@ -125,6 +133,7 @@ describe("a VSS store", () => {
 describe("the walk over an NVRAM body", () => {
   // An all-erased NVRAM volume has no stores: its body is one run of free
   // space, and it is not an unknown file system.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAnErasedNvramVolumeIsFreeSpace
   it("reads an erased volume as free space", () => {
     const parsed = parse(N.nvramVolume({ stores: [], length: 0x400 }));
 
@@ -138,6 +147,7 @@ describe("the walk over an NVRAM body", () => {
    * the free space whole (a run of the erase byte cannot start a store) instead
    * of probing its recognisers byte by byte, and lands on the store.
    */
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAStoreAfterLongFreeSpaceIsStillFound
   it("finds a store after a long run of free space", () => {
     const vss = N.vssStore({ variables: [N.vssVariable({ name: "First" })] });
     const vss2 = N.vss2Store({ variables: [N.vss2Variable({ name: "Second" })] });
@@ -168,6 +178,7 @@ describe("a VSS2 store", () => {
     });
 
   // A VSS2 store is led by a 16-byte store GUID and is 28 bytes of header.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAVss2StoreExpandsToItsVariables
   it("expands to its variables", () => {
     const children = root(oneVariable()).children;
 
@@ -180,6 +191,7 @@ describe("a VSS2 store", () => {
   });
 
   // A VSS2 variable's header includes its name; the data is the body.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAVss2VariableIsNamedByItsDecodedName
   it("names a variable by its decoded name", () => {
     const entry = root(oneVariable()).children[0]?.children[0] as UEFINode;
 
@@ -192,6 +204,7 @@ describe("a VSS2 store", () => {
   });
 
   // The 4-byte alignment padding after a variable is a node of its own.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAVss2AlignmentPaddingAndFreeSpaceAreFound
   it("keeps the alignment padding and the free space", () => {
     const children = root(oneVariable()).children[0]?.children ?? [];
 
@@ -201,6 +214,7 @@ describe("a VSS2 store", () => {
     expect(children[2]?.isErased).toBe(true);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testADeletedVss2VariableIsInvalid
   it("calls a deleted variable invalid", () => {
     const deleted = N.vss2Variable({ name: "BootOrder", state: 0xfd });
     const entry = root(N.nvramVolume({ stores: [N.vss2Store({ variables: [deleted] })] }))
@@ -212,6 +226,7 @@ describe("a VSS2 store", () => {
 });
 
 describe("an FTW working block", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAnFtwStoreWithAValidCrcIsFound
   it("is found when its header CRC matches", () => {
     const store = N.ftwStore({ writeQueue: Uint8Array.of(0x01, 0x02, 0x03, 0x04) });
     const parsed = parse(N.nvramVolume({ stores: [store] }));
@@ -222,6 +237,7 @@ describe("an FTW working block", () => {
     expect(parsed.diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAnFtwStoreWithABadCrcIsReported
   it("is reported when its header CRC no longer matches", () => {
     const store = N.ftwStore({
       writeQueue: Uint8Array.of(0x01, 0x02, 0x03, 0x04),
@@ -245,6 +261,7 @@ describe("the stores that nest", () => {
    * inside it that says "no size" means the whole FDC body — so the store is
    * cut at the FDC's end, not refused.
    */
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAnFdcStoreRecursesIntoItsBodyWithTheSizeOverride
   it("recurses into an FDC body with the size override", () => {
     const inner = N.vssStore({
       variables: [N.vssVariable({ name: "BootOrder" })],
@@ -269,6 +286,7 @@ describe("the stores that nest", () => {
 
   // A firmware volume nested whole inside an NVRAM body is handed to the volume
   // parser, which reads it as the volume it is — not as padding.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAFirmwareVolumeNestedInsideNvramIsParsedByTheVolumeParser
   it("hands a nested firmware volume to the volume parser", () => {
     const parsed = parse(N.nvramVolume({ stores: [volume({ length: 0x200 })] }));
     const outer = parsed.roots[0] as UEFINode;
@@ -283,6 +301,7 @@ describe("the stores that nest", () => {
 
   // An Intel microcode image sitting in an NVRAM body is handed to the
   // microcode parser, which names it and keeps its whole image whole.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testMicrocodeInsideNvramIsParsedByTheMicrocodeParser
   it("hands microcode to the microcode parser", () => {
     const parsed = parse(N.nvramVolume({ stores: [microcode()] }));
     const outer = parsed.roots[0] as UEFINode;
@@ -307,6 +326,7 @@ describe("the depth budget over nested stores", () => {
     return N.nvramVolume({ stores: [N.fdcStore({ stores: [middle], freeSpace: 0 })] });
   };
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testFdcNestingBeyondTheDepthLimitIsBounded
   it("stops the nesting past the limit", () => {
     const parsed = parse(nested(), { maxDepth: 2 });
     const outer = parsed.roots[0] as UEFINode;
@@ -318,6 +338,7 @@ describe("the depth budget over nested stores", () => {
   });
 
   // The boundary is inclusive, not a refusal of the deepest allowed level.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testFdcNestingWithinTheDepthLimitIsRead
   it("reads the same nesting one level shallower", () => {
     const parsed = parse(nested(), { maxDepth: 3 });
     const outer = parsed.roots[0] as UEFINode;

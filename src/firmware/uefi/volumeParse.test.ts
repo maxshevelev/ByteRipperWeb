@@ -14,6 +14,7 @@ const ranges = (nodes: readonly UEFINode[]) =>
   nodes.map((node) => [nodeRange(node).start, nodeRange(node).end]);
 
 describe("finding a volume", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAVolumeIsFoundBetweenPadding
   it("finds one between padding", () => {
     const parsed = parse(
       Test.image({ before: 0x100, volume: Test.volume({ length: 0x400 }), after: 0x100 })
@@ -32,6 +33,7 @@ describe("finding a volume", () => {
 
   // Erased padding and padding with something in it are not the same thing to
   // anyone rebuilding an image.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testPaddingKnowsWhetherItIsErased
   it("says whether padding is erased", () => {
     const bytes = Test.image({ before: 0x100, volume: Test.volume({ length: 0x400 }) });
     bytes[0x40] = 0x5a;
@@ -44,6 +46,7 @@ describe("finding a volume", () => {
   // Four bytes reading `_FVH` turn up inside compressed data all the time. A
   // candidate that fails its header checks is not a volume and — just as
   // important — not a complaint about the image either.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testASignatureWithoutAValidHeaderIsNotAVolume
   it("does not make a volume out of a bare signature", () => {
     const bytes = new Uint8Array(0x200).fill(0xff);
     bytes.set([0x5f, 0x46, 0x56, 0x48], 0x128);
@@ -54,6 +57,7 @@ describe("finding a volume", () => {
     expect(parsed.diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testASignatureTooCloseToTheStartIsNotAVolume
   it("does not make a volume out of a signature too close to the start", () => {
     const bytes = new Uint8Array(0x100).fill(0xff);
     bytes.set([0x5f, 0x46, 0x56, 0x48], 0x10);
@@ -61,6 +65,7 @@ describe("finding a volume", () => {
     expect(kinds(parse(bytes).roots)).toEqual(["padding"]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testARevisionOutsideOneAndTwoIsNotAVolume
   it("is not a volume at a revision outside one and two", () => {
     expect(kinds(parse(Test.volume({ revision: 3, length: 0x400 })).roots)).toEqual(["padding"]);
   });
@@ -70,6 +75,7 @@ describe("a volume's header", () => {
   // The body starts after the header, and the header is where the file walk
   // must not begin — off by `HeaderLength` and every file in the volume is
   // misread.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testTheHeaderAndBodyAreSplitAtTheHeaderLength
   it("is split from the body at the header length", () => {
     const volume = parse(Test.volume({ length: 0x400 })).roots[0];
 
@@ -82,6 +88,7 @@ describe("a volume's header", () => {
 
   // A checksum that no longer matches is the ordinary trace of an image edited
   // by a tool that did not put it back.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAStaleHeaderChecksumIsReported
   it("reports a stale checksum", () => {
     const parsed = parse(Test.volume({ length: 0x400, checksum: 0x1234 }));
 
@@ -94,6 +101,7 @@ describe("a volume's header", () => {
 
   // The block map is a second opinion about the size. When the two disagree the
   // volume is damaged, but it is still the volume.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testABlockMapThatDisagreesWithTheLengthIsReported
   it("reports a block map that disagrees with the length", () => {
     const parsed = parse(Test.volume({ length: 0x400, blockMapLength: 0x200 }));
 
@@ -105,6 +113,7 @@ describe("a volume's header", () => {
 
   // A volume claiming more bytes than the image has: keep what is there, and
   // say so.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAVolumeRunningPastTheEndIsCutAndReported
   it("cuts a volume running past the end, and reports it", () => {
     const parsed = parse(Test.volume({ length: 0x400 }).subarray(0, 0x300));
 
@@ -117,6 +126,7 @@ describe("a volume's header", () => {
   // The extended header moves the body but stays outside the checksum. Summing
   // over it instead of over `HeaderLength` makes every Revision 2 volume in
   // existence look corrupt.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAnExtendedHeaderMovesTheBodyAndStaysOutOfTheChecksum
   it("moves the body for an extended header, and keeps it out of the checksum", () => {
     const name = guid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
     const parsed = parse(Test.volume({ length: 0x400, extendedHeader: name }));
@@ -127,6 +137,7 @@ describe("a volume's header", () => {
     expect(parsed.diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAnExtendedHeaderOffTheEndIsReported
   it("reports an extended header off the end", () => {
     const bytes = Test.volume({ length: 0x400, extendedHeader: FFS_V2 });
     bytes[0x34] = 0x00;
@@ -147,6 +158,7 @@ describe("a volume's body", () => {
   // An NVRAM store volume is read as a run of stores, not as files. An
   // all-erased one has no stores, so its body is one run of free space — and it
   // is not an unknown file system.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAnErasedNvramVolumeReadsAsFreeSpace
   it("reads an erased NVRAM volume as free space", () => {
     const nvram = guid("FFF12B8D-7696-4C8B-A985-2747075B4F50");
     const parsed = parse(Test.volume({ fileSystem: nvram, length: 0x400 }));
@@ -159,6 +171,7 @@ describe("a volume's body", () => {
 
   // A volume whose file system is not one we parse keeps its body whole and
   // says so — the NVRAM store GUIDs no longer land here.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAGenuinelyUnknownFileSystemKeepsItsBodyWhole
   it("keeps a genuinely unknown file system's body whole", () => {
     const unknown = guid("11111111-2222-3333-4444-555555555555");
     const parsed = parse(Test.volume({ fileSystem: unknown, length: 0x400 }));
@@ -171,6 +184,7 @@ describe("a volume's body", () => {
 
   // Erase polarity decides what free space looks like, and it is the volume's
   // attribute that says.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAVolumeErasedWithZeroesReadsItsFreeSpaceAsFree
   it("reads a zero-erased volume's free space as free", () => {
     const parsed = parse(Test.volume({ length: 0x400, emptyByte: 0x00 }));
     const volume = parsed.roots[0];

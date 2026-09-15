@@ -25,6 +25,10 @@ const FPT_ENGINE_NAMES = ["FTPR", "RCVY", "OPR1", "OPR", "COD1"];
  */
 const CPD_ENGINE_NAMES = ["FTPR", "RBEP"];
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/ManifestSelection.swift#ManifestSelection
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/ManifestSelection.swift#ManifestSelection.selectOperational
+ */
 export function selectOperationalManifest(options: {
   /** Sorted by their region-relative base, as a scan returns them. */
   readonly candidates: readonly Manifest[];

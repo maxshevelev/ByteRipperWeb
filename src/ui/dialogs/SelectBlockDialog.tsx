@@ -29,10 +29,20 @@ export interface SelectBlockDialogProps {
   readonly onClose: () => void;
 }
 
+/**
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.endRadio
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.lengthRadio
+ */
 type Mode = "end" | "length";
 
 const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
 
+/**
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.startField
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.endField
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.lengthField
+ */
 export function SelectBlockDialog({
   open,
   fileSize,
@@ -59,6 +69,12 @@ export function SelectBlockDialog({
   const startValue = offsetIn(start);
   const problem = validate();
 
+  /**
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.validate
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.validate
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.showError
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.errorLabel
+   */
   function validate(): string | undefined {
     if (startValue === undefined) return "That start offset could not be read.";
     if (startValue > fileSize) return "The start is past the end of the file.";
@@ -74,6 +90,13 @@ export function SelectBlockDialog({
     return undefined;
   }
 
+  /**
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.handleSubmit
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.onSubmit
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.handleSubmit
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.submitPressed
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.submitButton
+   */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (problem !== undefined || startValue === undefined) return;
@@ -90,7 +113,14 @@ export function SelectBlockDialog({
     onClose();
   };
 
-  /** The two boundary shortcuts read the Start field and nothing else. */
+  /**
+   * The two boundary shortcuts read the Start field and nothing else.
+   *
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.toBeginningButton
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.toEndButton
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.submitToBeginning
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.submitToEnd
+   */
   const toBoundary = (which: "beginning" | "end") => {
     if (startValue === undefined || startValue > fileSize) return;
     if (which === "beginning") onSelect(0, startValue);

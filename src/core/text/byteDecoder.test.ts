@@ -18,6 +18,7 @@ const decoder = (identifier: string, placeholder?: string) =>
 const decodeAll = (identifier: string, bytes: number[]) =>
   decoder(identifier).decodeAll(new Uint8Array(bytes));
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testCp1252Vectors
 describe("the cp1252 vectors", () => {
   // One character per byte, so each expected string states every byte's
   // rendering at its own position.
@@ -71,6 +72,7 @@ describe("the cp1252 vectors", () => {
 });
 
 describe("what never draws", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testUndefinedCp1252Slots
   it("leaves cp1252's undefined slots as placeholders", () => {
     const cp = decoder("cp1252");
     for (const byte of [0x81, 0x8d, 0x8f, 0x90, 0x9d]) {
@@ -79,6 +81,7 @@ describe("what never draws", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testControlsDecodeToPlaceholderInAllPresets
   it("placeholders the controls in every preset", () => {
     for (const identifier of ["cp1252", "isoLatin1", "strictASCII"]) {
       const d = decoder(identifier);
@@ -91,6 +94,7 @@ describe("what never draws", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testSoftHyphenIsFilteredInBothLatinTables
   it("filters the soft hyphen out of both Latin tables", () => {
     // 0xAD is SOFT HYPHEN — an invisible format character, so it is a
     // placeholder rather than being drawn as nothing at all.
@@ -103,6 +107,8 @@ describe("what never draws", () => {
 });
 
 describe("strict ASCII", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testStrictASCIIPrintable
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testStrictASCIIHighBytesPlaceholder
   it("draws the printable range and nothing else", () => {
     const d = decoder("strictASCII");
     for (let byte = 0x20; byte <= 0x7e; byte++) {
@@ -117,6 +123,7 @@ describe("strict ASCII", () => {
 });
 
 describe("ISO-8859-1 against cp1252", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testISOLatin1LeavesTheC1RangeAsPlaceholdersWhereCp1252HasCharacters
   it("is the difference that makes the menu item worth having", () => {
     // 0x80–0x9F is the C1 control block there, so every byte in it is a
     // placeholder — where cp1252 spends the same range on €, œ, ™ and the rest.
@@ -144,6 +151,7 @@ describe("ISO-8859-1 against cp1252", () => {
 });
 
 describe("encoding, for typing in the text column", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testRoundTrip
   it("round-trips every displayable byte", () => {
     const d = decoder("cp1252");
     for (let byte = 0x00; byte <= 0xff; byte++) {
@@ -160,6 +168,7 @@ describe("encoding, for typing in the text column", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testExplicitEncodeVectors
   it("encodes the vectors", () => {
     const d = decoder("cp1252");
     expect(d.encode("ÿ")).toBe(0xff);
@@ -168,6 +177,7 @@ describe("encoding, for typing in the text column", () => {
     expect(d.encode(" ")).toBe(0x20);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testNonRepresentableEncodeReturnsNil
   it("refuses what the table cannot hold", () => {
     const d = decoder("cp1252");
     expect(d.encode("汉")).toBeUndefined(); // CJK
@@ -175,6 +185,7 @@ describe("encoding, for typing in the text column", () => {
     expect(d.encode("🖖")).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testEncodePlaceholderDoesNotAffectInverse
   it("is unaffected by the placeholder setting", () => {
     const plain = decoder("cp1252", ".");
     const custom = decoder("cp1252", "·");
@@ -187,6 +198,7 @@ describe("encoding, for typing in the text column", () => {
 });
 
 describe("alignment", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testAlignmentDecodedLengthEqualsByteCount
   it("decodes exactly one character per byte, whatever the bytes", () => {
     // The property the hex grid depends on: the text column and the hex column
     // line up because they have to have the same number of cells.
@@ -200,6 +212,7 @@ describe("alignment", () => {
 });
 
 describe("the custom placeholder", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testCustomPlaceholder
   it("replaces every undrawable byte and no drawable one", () => {
     const d = decoder("cp1252", "·");
     expect(d.decode(0x00)).toBe("·");
@@ -215,6 +228,7 @@ describe("the custom placeholder", () => {
 });
 
 describe("the registry", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testRegistryListsBuiltins
   it("lists the built-ins in menu order", () => {
     expect(BYTE_DECODERS.map((d) => d.identifier)).toEqual(["cp1252", "isoLatin1", "strictASCII"]);
     expect(BYTE_DECODERS.map((d) => d.displayName)).toEqual([
@@ -224,6 +238,7 @@ describe("the registry", () => {
     ]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testRegistryFallbackToCp1252
   it("falls back to cp1252 for an identifier it does not know", () => {
     // A persisted setting from a newer version should leave the column
     // readable rather than empty.

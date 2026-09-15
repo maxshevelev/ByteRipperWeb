@@ -12,19 +12,50 @@
  * repaint needs it to be.
  */
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoderDescriptor */
 export interface ByteDecoderDescriptor {
-  /** Stable identifier, for persistence — e.g. `cp1252`. */
+  /**
+   * Stable identifier, for persistence — e.g. `cp1252`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoderDescriptor.identifier
+   */
   readonly identifier: string;
-  /** What a menu shows — e.g. `Windows-1252`. */
+  /**
+   * What a menu shows — e.g. `Windows-1252`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoderDescriptor.displayName
+   */
   readonly displayName: string;
 }
 
-/** The character shown for a byte with no displayable mapping. */
+/**
+ * The character shown for a byte with no displayable mapping.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecodingSettings.swift#TextDecodingSettings.placeholder
+ * @upstream-differs the default; the setting itself is settingsStore's
+ */
 export const DEFAULT_PLACEHOLDER = ".";
 
+/**
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder
+ * @upstream-differs one class: the decoders here are all single-byte tables, so there is no protocol over them
+ */
 export class ByteDecoder {
+  /**
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.identifier
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.identifier
+   */
   readonly identifier: string;
+  /**
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.displayName
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.displayName
+   */
   readonly displayName: string;
+  /**
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.placeholder
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.placeholder
+   */
   readonly placeholder: string;
 
   /** Index = byte value, value = the character to draw. */
@@ -36,6 +67,8 @@ export class ByteDecoder {
   /**
    * @param scalars 256 code points, one per byte; `undefined` where the code
    * page has no mapping for that byte.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.init
    */
   constructor(
     descriptor: ByteDecoderDescriptor,
@@ -70,22 +103,41 @@ export class ByteDecoder {
     }
   }
 
-  /** The character for a byte, or the placeholder. */
+  /**
+   * The character for a byte, or the placeholder.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.decode
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.decode
+   */
   decode(byte: number): string {
     return this.forward[byte & 0xff] ?? this.placeholder;
   }
 
-  /** Whether the byte maps to a real character, so the view can dim the rest. */
+  /**
+   * Whether the byte maps to a real character, so the view can dim the rest.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.isDisplayable
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.isDisplayable
+   */
   isDisplayable(byte: number): boolean {
     return this.displayable[byte & 0xff] ?? false;
   }
 
-  /** The byte typing `character` produces, or `undefined` if it has none. */
+  /**
+   * The byte typing `character` produces, or `undefined` if it has none.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.encode
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#SingleByteTextDecoder.encode
+   */
   encode(character: string): number | undefined {
     return this.inverse.get(character);
   }
 
-  /** A row of bytes as a string — the text column of one hex row. */
+  /**
+   * A row of bytes as a string — the text column of one hex row.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoder.decode
+   */
   decodeAll(bytes: Uint8Array): string {
     let out = "";
     for (const byte of bytes) out += this.decode(byte);

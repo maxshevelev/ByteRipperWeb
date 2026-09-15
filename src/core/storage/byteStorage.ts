@@ -48,9 +48,17 @@ export interface ByteSourceSlice {
   arrayBuffer(): Promise<ArrayBuffer>;
 }
 
-/** Read-only access to a stream of bytes. */
+/**
+ * Read-only access to a stream of bytes.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#ByteStorage
+ */
 export interface ByteStorage {
-  /** Total number of bytes. */
+  /**
+   * Total number of bytes.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#ByteStorage.size
+   */
   readonly size: number;
 
   /**
@@ -59,6 +67,8 @@ export interface ByteStorage {
    * Asking past the end is not an error — it yields fewer bytes, or none. That
    * is upstream's contract and the reason no caller range-checks before
    * reading.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#ByteStorage.read
    */
   read(at: number, length: number): Promise<Bytes>;
 
@@ -89,21 +99,37 @@ export interface ByteStorage {
  * redo and dirty state on top — see `src/core/document/binaryDocument.ts`.
  *
  * Ranges are half-open `[start, end)` throughout (D13).
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#EditableByteStorage
  */
 export interface EditableByteStorage extends ByteStorage {
   /**
    * Lays `bytes` over the content starting at `at`. Exactly `bytes.length`
    * bytes are written. Extends the file when the write runs past EOF, zero
    * filling any gap. Never shifts an existing offset.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#EditableByteStorage.overwrite
    */
   overwrite(at: number, bytes: Uint8Array): Promise<void>;
 
-  /** Inserts `bytes` at `at`, shifting everything after it right. */
+  /**
+   * Inserts `bytes` at `at`, shifting everything after it right.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#EditableByteStorage.insert
+   */
   insert(at: number, bytes: Uint8Array): Promise<void>;
 
-  /** Removes `[start, end)`, shifting everything after it left. */
+  /**
+   * Removes `[start, end)`, shifting everything after it left.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#EditableByteStorage.delete
+   */
   delete(start: number, end: number): Promise<void>;
 
-  /** Appends `bytes` at the current end. */
+  /**
+   * Appends `bytes` at the current end.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteStorage.swift#EditableByteStorage.append
+   */
   append(bytes: Uint8Array): Promise<void>;
 }

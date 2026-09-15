@@ -25,10 +25,19 @@ export interface MEDatabaseState {
   readonly status: "idle" | "loading" | "ready" | "failed";
   /** The file's text, which the worker parses; the main thread never does. */
   readonly text: string | undefined;
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.freshness
+   * @upstream-differs the date the body was fetched, which the panel shows, rather than a Freshened status
+   */
   readonly fetchedAt: number | undefined;
   readonly failure: RemoteFailure | undefined;
 }
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.databaseChanges
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.databaseChanges
+ * @upstream-differs a store subscription rather than an AsyncStream
+ */
 export const meDatabaseStore = createStore<MEDatabaseState>({
   status: "idle",
   text: undefined,
@@ -39,10 +48,17 @@ export const meDatabaseStore = createStore<MEDatabaseState>({
 /** `MEA.dat` from ME Analyzer, which is the living version of this database. */
 export const MEA_DAT_URL = "https://raw.githubusercontent.com/platomav/MEAnalyzer/master/MEA.dat";
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource */
 export interface MEDatabaseSource {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.database */
   load(signal?: AbortSignal): Promise<{ readonly text: string; readonly fetchedAt: number }>;
 }
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.dataSource
+ */
 export const liveMEDatabaseSource: MEDatabaseSource = {
   async load(signal) {
     const body = await remoteSource(MEA_DAT_URL).body(signal === undefined ? {} : { signal });
@@ -55,13 +71,21 @@ export const fixedMEDatabaseSource = (text: string): MEDatabaseSource => ({
   load: async () => ({ text, fetchedAt: Date.now() }),
 });
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataError
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataError.errorDescription
+ */
 export function meDatabaseMessage(state: MEDatabaseState): string | undefined {
   return state.failure === undefined ? undefined : remoteFailureMessage(state.failure);
 }
 
 let controller: AbortController | undefined;
 
-/** Starts a download, unless one is running or one has landed. */
+/**
+ * Starts a download, unless one is running or one has landed.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.database
+ */
 export function loadMEDatabase(source: MEDatabaseSource = liveMEDatabaseSource): void {
   const state = meDatabaseStore.getSnapshot();
   if (state.status === "loading" || state.status === "ready") return;
@@ -107,6 +131,7 @@ export function cancelMEDatabase(): void {
   );
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.markStale */
 export function forgetMEDatabase(): void {
   controller?.abort();
   controller = undefined;

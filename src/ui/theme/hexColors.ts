@@ -10,24 +10,64 @@ import type { HexGridColors } from "@/render/hexGrid/hexGridRenderer";
  * to change a colour in and keeps the canvas honest about following the theme.
  */
 
+/**
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme
+ * @upstream-differs the colours are CSS custom properties in theme.css, read once per theme change
+ */
 const VARIABLES: Record<keyof HexGridColors, string> = {
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.byteText */
   byte: "--byte-text",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.mutedByteText */
   mutedByte: "--byte-text-muted",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.modifiedText */
   modified: "--byte-modified",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.inkBlue */
   address: "--address-text",
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.mutedInkBlue
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.mutedTextColor
+   */
   mutedAddress: "--address-text-muted",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.bookmarkTextColor */
   bookmarkAddress: "--bookmark-text",
   background: "--surface",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.selectionFill */
   selection: "--selection",
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.eofHatch
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.eofFill
+   * @upstream-differs one hatch colour; the cell beneath keeps the surface
+   */
   eofHatch: "--eof-hatch",
+  /**
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#DifferenceColors
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#DifferenceColors.fill
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.differenceFill
+   */
   difference: "--difference-fill",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.mirrorFrame */
   peerSelection: "--peer-selection",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.caretColor */
   caret: "--caret",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.insertCaretColor */
   insertCaret: "--insert-caret",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.matchFill */
   matchFill: "--match-fill",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.findIndicatorFill */
   currentMatchFill: "--current-match-fill",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.bookmarkColor */
   bookmark: "--bookmark",
+  /**
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.focused
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zoneFrame
+   */
   zoneFocused: "--zone-focused",
+  /**
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.other
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zoneFrameInactive
+   */
   zoneOther: "--zone-other",
 };
 
@@ -75,6 +115,12 @@ export type { InkRole };
  */
 export const SEGMENT_TINT_COUNT = 6;
 
+/**
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SegmentTints
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SegmentTints.all
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SegmentTints.tint
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.segmentTints
+ */
 export function readSegmentTints(element: Element = document.documentElement): string[] {
   const computed = getComputedStyle(element);
   const tints: string[] = [];

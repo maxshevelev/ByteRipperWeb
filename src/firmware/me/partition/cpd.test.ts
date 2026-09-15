@@ -13,6 +13,7 @@ import { cpdDirectory } from "@/firmware/me/testing/testMe";
 /** The `$CPD` directory — upstream's `CPDParserTests`. */
 
 describe("decodeCpdHeader", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testDecodesR1Header
   it("decodes a revision 1 header", () => {
     const bytes = cpdDirectory({ name: "FTPR", modules: [{ name: "$MN2" }, { name: "rbe" }] });
     const header = decodeCpdHeader(bytes, 0);
@@ -27,6 +28,7 @@ describe("decodeCpdHeader", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testDecodesR2HeaderWithCRCField
   it("decodes a revision 2 header with its checksum word", () => {
     const bytes = cpdDirectory({ name: "RBEP", headerVersion: 2 });
     const header = decodeCpdHeader(bytes, 0);
@@ -38,6 +40,7 @@ describe("decodeCpdHeader", () => {
     expect(header !== undefined && cpdChecksumValid(bytes, header)).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testRejectsNonCPDAndMalformedHeaders
   it("refuses what is not a directory", () => {
     expect(decodeCpdHeader(new Uint8Array(0x30).fill(0xff), 0)).toBeUndefined();
 
@@ -56,6 +59,7 @@ describe("decodeCpdHeader", () => {
 });
 
 describe("cpdEntries", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testReadsEntries
   it("reads the entries", () => {
     const bytes = cpdDirectory({ name: "FTPR", modules: [{ name: "$MN2" }] });
     const header = decodeCpdHeader(bytes, 0);
@@ -92,6 +96,7 @@ describe("cpdEntries", () => {
 });
 
 describe("cpdChecksumValid", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testR1ChecksumValidation
   it("validates a revision 1 checksum, and notices a changed byte", () => {
     const bytes = cpdDirectory({ name: "FTPR", modules: [{ name: "$MN2" }, { name: "rbe" }] });
     const header = decodeCpdHeader(bytes, 0);
@@ -104,6 +109,7 @@ describe("cpdChecksumValid", () => {
     expect(bad !== undefined && cpdChecksumValid(corrupted, bad)).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testR2ChecksumValidation
   it("validates a revision 2 checksum, and notices a changed byte", () => {
     const bytes = cpdDirectory({ name: "RBEP", headerVersion: 2 });
     const header = decodeCpdHeader(bytes, 0);
@@ -126,6 +132,7 @@ describe("cpdChecksumValid", () => {
 });
 
 describe("trailingEmptyCpdEntries", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testTrailingEmptyEntryProbe
   it("counts the empty slots after the last declared entry", () => {
     // Some directories under-count themselves when the real table carries extra
     // empty entries. They are reported, and the module list stays as declared.
@@ -141,6 +148,7 @@ describe("trailingEmptyCpdEntries", () => {
 });
 
 describe("cpdModuleContentEnd", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testModuleContentEnd
   it("reaches the end of the furthest module's content", () => {
     const bytes = cpdDirectory({
       name: "FTPR",
@@ -157,6 +165,7 @@ describe("cpdModuleContentEnd", () => {
 });
 
 describe("findPrecedingCpd", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testFindPrecedingCPDFindsNearestInWindow
   it("finds the one nearest the manifest, not the first in the window", () => {
     const ftpr = cpdDirectory({ name: "FTPR" });
     const rbep = cpdDirectory({ name: "RBEP" });
@@ -170,6 +179,7 @@ describe("findPrecedingCpd", () => {
     expect(found?.header.partitionName).toBe("FTPR");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDParserTests.testFindPrecedingCPDReturnsNilOutsideWindow
   it("does not reach past the window a directory can be in", () => {
     const directory = cpdDirectory({ name: "FTPR" });
     const bytes = new Uint8Array(directory.length + 0x3000);

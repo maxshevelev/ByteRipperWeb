@@ -50,6 +50,7 @@ const ranges = (matches: { start: number; end: number }[]) =>
   matches.map((match) => `${match.start}-${match.end}`);
 
 describe("what the dump asks for", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testMatchesOverlappingARangeIncludeOneStraddlingItsStart
   it("includes a match that starts before the range and reaches in", () => {
     // The case a row boundary creates on every screen.
     expect(ranges(built(0x1000, [0x00, 0x0e, 0x40]).matchesIntersecting(0x10, 0x20))).toEqual([
@@ -57,6 +58,7 @@ describe("what the dump asks for", () => {
     ]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testMatchesOverlappingARangeStopAtItsEnd
   it("stops at the range's end", () => {
     const all = built(0x1000, [0x00, 0x10, 0x20, 0x30]);
     expect(ranges(all.matchesIntersecting(0x10, 0x30))).toEqual(["16-20", "32-36"]);
@@ -64,6 +66,7 @@ describe("what the dump asks for", () => {
     expect(all.matchesIntersecting(0x100, 0x200)).toEqual([]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testASingleBytePatternDoesNotReachBackwards
   it("does not reach backwards for a single-byte pattern", () => {
     const builder = new MatchSetBuilder(single(0xff), EXACT, 0x100);
     builder.add([0x0f, 0x10]);
@@ -72,6 +75,7 @@ describe("what the dump asks for", () => {
 });
 
 describe("what navigation asks for", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testTheOrdinalsAroundACaret
   it("names the ordinals around a caret", () => {
     const all = built(0x1000, [0x10, 0x20, 0x30]);
     expect(all.indexStartingAt(0x20)).toBe(1); // standing on a match names it
@@ -88,6 +92,7 @@ describe("what navigation asks for", () => {
 });
 
 describe("the two representations", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testBitmapAndSparseAgreeOnEveryQuery
   it("answer every query identically", () => {
     // The bitmap exists to make an uncapped highlight affordable, not to change
     // any answer. Checked over a dense, irregular set including runs of
@@ -120,6 +125,7 @@ describe("the two representations", () => {
     expect(b.startAt(starts.length)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testSelectFindsMatchesFarIntoTheBitmap
   it("select finds matches far into the bitmap", () => {
     // The rank table narrows select to a block; a set whose matches all sit in
     // the last block is what exposes an off-by-one there.
@@ -131,6 +137,7 @@ describe("the two representations", () => {
 });
 
 describe("choosing the representation", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testDensityPicksTheRepresentation
   it("switches where a list costs what the bitmap costs", () => {
     expect(built(6400, [0x10, 0x20, 0x30]).storage.kind).toBe("sparse");
 
@@ -143,6 +150,7 @@ describe("choosing the representation", () => {
     expect(dense.isHighlightable).toBe(true);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testBatchedDeliveryMatchesOneBigBatch
   it("gives the same outcome however the matches are batched", () => {
     // The scan hands over a window's matches at once, and the conversion can
     // fall in the middle of a batch.
@@ -158,6 +166,7 @@ describe("choosing the representation", () => {
     );
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testPastTheCeilingTheCountSurvivesAlone
   it("keeps the count when even a bitmap will not fit", () => {
     const counted = built(
       1 << 20,
@@ -172,6 +181,7 @@ describe("choosing the representation", () => {
     expect(counted.startAt(0)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testListabilityFollowsTheCountAlone
   it("decides listability on the count alone, never the representation", () => {
     expect(built(0x1000, []).isListable).toBe(false);
     expect(sparse(1 << 24, [0x10]).isListable).toBe(true);
@@ -191,6 +201,7 @@ describe("choosing the representation", () => {
 });
 
 describe("following an overwrite", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testSplicingAnOverwrittenRange
   it("splices the edited range, in both representations", () => {
     for (const subject of [
       sparse(0x1000, [0x10, 0x40, 0x80]),
@@ -207,6 +218,7 @@ describe("following an overwrite", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testSplicingCanRemoveAndAddMatches
   it("can remove matches as well as add them", () => {
     for (const subject of [
       sparse(0x1000, [0x10, 0x40, 0x80]),
@@ -218,6 +230,7 @@ describe("following an overwrite", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testACountedSetRefusesToBeSpliced
   it("refuses when the set kept only a count", () => {
     const counted = new MatchSet(pattern, EXACT, 1 << 20, 500_000, { kind: "counted" }, 1 << 20);
     expect(counted.splice([1], 0, 16)).toBeUndefined();
@@ -225,6 +238,7 @@ describe("following an overwrite", () => {
 });
 
 describe("naming a match", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testTheIndexAtAnOffsetPointsAtTheMatchThere
   it("makes the index and the offset agree", () => {
     // A dense bitmap is where a rank/select mismatch shows, and upstream's
     // showed as a mark one row above the match it named.
@@ -252,6 +266,7 @@ describe("naming a match", () => {
 });
 
 describe("stepping", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testAStepSaysWhenItWrapped
   it("says when it came round the end", () => {
     const set = MatchSet.of(single(0xaa), EXACT, 64, [8, 16, 32]);
 
@@ -270,6 +285,8 @@ describe("stepping", () => {
     expect(set.step("backward", 32)?.wrapped).toBe(false);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testALoneMatchWrapsOntoItself
+  // @upstream ByteRipperTests/FindFlowTests.swift#FindFlowTests.testASingleMatchWrapsOntoItself
   it("wraps a lone match onto itself", () => {
     // A press that does nothing at all reads as a broken key, so it re-lands
     // and says why.
@@ -282,6 +299,7 @@ describe("stepping", () => {
     expect(set.step("backward", 16)?.wrapped).toBe(true);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testThereIsNoStepWhereThereIsNothingToStepTo
   it("has nowhere to step when there is nothing to step to", () => {
     expect(MatchSet.of(single(0xaa), EXACT, 64, []).step("forward", 0)).toBeUndefined();
     const counted = new MatchSet(
@@ -297,6 +315,7 @@ describe("stepping", () => {
 });
 
 describe("a partial index", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchEngineTests.swift#SearchEngineTests.testAPartialSetKnowsItIsPartial
   it("knows it is partial", () => {
     const builder = new MatchSetBuilder(pattern, EXACT, 1000);
     builder.add([10, 20]);
@@ -310,5 +329,29 @@ describe("a partial index", () => {
     const whole = builder.finish();
     expect(whole.isComplete).toBe(true);
     expect(whole.total).toBe(3);
+  });
+});
+
+describe("the start of the next match", () => {
+  it("is the same held sparsely or as a bitmap", () => {
+    const starts = Array.from({ length: 600 }, (_, i) => i * 7);
+    const dense = built(4200, starts);
+    const thin = sparse(4200, starts);
+    expect(dense.storage.kind).toBe("bitmap");
+    for (const offset of [0, 1, 7, 8, 4192, 4193]) {
+      expect(dense.startAtOrAfter(offset)).toBe(thin.startAtOrAfter(offset));
+    }
+    expect(dense.startAtOrAfter(8)).toBe(14);
+    expect(dense.startAtOrAfter(4194)).toBeUndefined();
+  });
+
+  it("is nowhere in a set that only counts", () => {
+    expect(
+      built(
+        1 << 20,
+        Array.from({ length: 50_000 }, (_, i) => i * 4),
+        1
+      ).startAtOrAfter(0)
+    ).toBeUndefined();
   });
 });

@@ -34,18 +34,28 @@ import {
  * one queue, in the order the keys were pressed.
  */
 
-/** Which column the typing is going into. */
+/**
+ * Which column the typing is going into.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion
+ */
 export type InputRegion = "hex" | "text";
 
 /**
  * How long a pause breaks a typing run, in milliseconds. Upstream's 0.7 s:
  * long enough that a slow typist's run stays one gesture, short enough that
  * coming back to the keyboard starts a new one.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.seriesBreakThreshold
  */
 export const SERIES_BREAK_MS = 700;
 
 export interface TypingControllerOptions {
-  /** For tests; defaults to the wall clock. */
+  /**
+   * For tests; defaults to the wall clock.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.clock
+   */
   readonly now?: () => number;
   /** Announces what changed, so a comparison can update without re-scanning. */
   readonly onEdit?: (edit: DiffEdit) => void;
@@ -66,6 +76,13 @@ export interface TypingControllerOptions {
   readonly confirmInsertShift?: () => boolean | Promise<boolean>;
 }
 
+/**
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexEditor
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexEditorDeleteForward
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexEditorDeleteBackward
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexEditorSelectAll
+ * @upstream-differs typing lives in the document's TypingController, which the pane drives
+ */
 export class TypingController {
   /**
    * Where to scroll when typing starts at an offset that may be off screen.
@@ -107,6 +124,10 @@ export class TypingController {
 
   // MARK: - Mode
 
+  /**
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.isInsertMode
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexInsertMode
+   */
   get isInsertMode(): boolean {
     return this.insertMode;
   }
@@ -116,11 +137,20 @@ export class TypingController {
     return this.insertMode ? "INS" : "OVR";
   }
 
-  /** Which nibble the next hex digit fills — the caret's position inside a byte. */
+  /**
+   * Which nibble the next hex digit fills — the caret's position inside a byte.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.nibble
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexCaretNibble
+   */
   get nibble(): 0 | 1 {
     return this.nibbleIndex;
   }
 
+  /**
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.inputRegion
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexInputRegion
+   */
   get inputRegion(): InputRegion {
     return this.region;
   }
@@ -132,6 +162,7 @@ export class TypingController {
     return this.breakRun();
   }
 
+  /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleInsertMode */
   toggleInsertMode(): Promise<void> {
     return this.setInsertMode(!this.insertMode);
   }
@@ -139,6 +170,8 @@ export class TypingController {
   /**
    * Moves the input to the other column. Breaks the run: the hex and text
    * columns are different gestures even when they land on the same byte.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setInputRegion
    */
   setInputRegion(region: InputRegion): Promise<void> {
     if (this.region === region) return Promise.resolve();
@@ -174,6 +207,8 @@ export class TypingController {
    * *first* digit inserts a new byte with the high nibble set and the low one
    * empty — the tail shifts right — and the *second* fills that byte's low
    * nibble in place. Either way the pair is one undo step.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.typeHexNibble
    */
   typeHexDigit(digit: number): Promise<void> {
     if (!Number.isInteger(digit) || digit < 0 || digit > 15) return Promise.resolve();
@@ -214,6 +249,8 @@ export class TypingController {
    *
    * The caller has already put the character through the decoding table, so
    * whatever arrives here is representable. A whole byte, so one undo step.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.typeASCII
    */
   typeByte(byte: number): Promise<void> {
     return this.run(async () => {
@@ -255,6 +292,8 @@ export class TypingController {
    * undo changes bytes exactly as an edit does, and a comparison that only
    * heard about the forward direction would drift the moment anyone pressed
    * Cmd+Z.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undo
    */
   undo(batch = false): Promise<void> {
     return this.run(async () => {
@@ -270,6 +309,7 @@ export class TypingController {
     });
   }
 
+  /** @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redo */
   redo(): Promise<void> {
     return this.run(async () => {
       await this.closeGroup();
@@ -292,6 +332,12 @@ export class TypingController {
    * In overwrite mode they replace what is there and the file keeps its length;
    * in insert mode they go in and the tail shifts. Either way it is one undo
    * step, because it was one gesture.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.paste
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.pasteWrite
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.pasteInsert
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.pasteWrite
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.pasteInsert
    */
   pasteBytes(bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return Promise.resolve();
@@ -341,6 +387,8 @@ export class TypingController {
    * The caret is left at the range's start rather than its end: a fill is an
    * act on a region, and coming back to the start is how you look at what you
    * just did.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.fillSelection
    */
   fillSelection(pattern: Uint8Array): Promise<void> {
     if (pattern.length === 0) return Promise.resolve();
@@ -367,6 +415,8 @@ export class TypingController {
    *
    * Distinct from Delete, which only removes bytes in insert mode: this is the
    * explicit command, so it does what it says and asks first.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.deleteBytes
    */
   deleteBytes(): Promise<void> {
     return this.run(async () => {
@@ -392,12 +442,18 @@ export class TypingController {
    * Delete. In overwrite mode it fills the selection — or the byte at the caret
    * — with `0x00`, because a file has no gaps. In insert mode it removes those
    * bytes and shifts the tail left.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.deleteForward
    */
   deleteForward(): Promise<void> {
     return this.deleting(true);
   }
 
-  /** Backspace: the same, one byte earlier when there is no selection. */
+  /**
+   * Backspace: the same, one byte earlier when there is no selection.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.deleteBackward
+   */
   deleteBackward(): Promise<void> {
     return this.deleting(false);
   }

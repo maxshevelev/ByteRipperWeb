@@ -7,6 +7,7 @@ import {
   scanDiff,
 } from "@/core/diff/diffEngine";
 import { DiffHunkIndex, type HunkRange } from "@/core/diff/diffHunkIndex";
+import { BackgroundOperation, presentOnActivePane } from "@/state/operationStore";
 import { createStore } from "@/state/store";
 import { workspaceStore } from "@/state/workspaceStore";
 import type { DiffWorkerRequest, DiffWorkerResponse, JobId } from "@/workers/protocol";
@@ -26,13 +27,23 @@ import type { DiffWorkerRequest, DiffWorkerResponse, JobId } from "@/workers/pro
 export type DiffStatus = "idle" | "scanning" | "ready" | "failed";
 
 export interface DiffState {
+  /** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.isBuilding */
   readonly status: DiffStatus;
-  /** In `[0, 1]` while scanning. */
+  /**
+   * In `[0, 1]` while scanning.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder.progress
+   * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.operation
+   * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.onOperation
+   */
   readonly progress: number;
+  /** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.index */
   readonly index: DiffBlockIndex | undefined;
+  /** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.hunkIndex */
   readonly hunks: DiffHunkIndex | undefined;
   readonly differingBytes: number;
   readonly sameBytes: number;
+  /** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.onError */
   readonly problem: string | undefined;
 }
 
@@ -46,6 +57,12 @@ const IDLE: DiffState = {
   problem: undefined,
 };
 
+/**
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.onIndexChanged
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.onStateChanged
+ * @upstream-differs a store the panes subscribe to
+ */
 export const diffStore = createStore<DiffState>(IDLE);
 
 let worker: Worker | undefined;
@@ -69,6 +86,7 @@ function ensureWorker(): Worker {
           status: "scanning",
           progress: response.fraction,
         }));
+        buildOperation?.report(response.fraction);
         break;
       case "done": {
         const index = DiffBlockIndex.fromColumns(
@@ -92,6 +110,7 @@ function ensureWorker(): Worker {
           problem: undefined,
         }));
         currentJobId = undefined;
+        endBuildOperation();
         break;
       }
       case "cancelled":
@@ -105,6 +124,7 @@ function ensureWorker(): Worker {
           problem: response.message,
         }));
         currentJobId = undefined;
+        endBuildOperation();
         break;
     }
   });
@@ -120,6 +140,13 @@ function send(request: DiffWorkerRequest): void {
  *
  * With fewer than two files there is nothing to compare, and the store goes
  * back to idle rather than keeping a stale answer on screen.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder.build
+ * @upstream-differs a worker job the next one replaces, rather than an actor cancelled in place
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.start
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.rebuild
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.init
  */
 export function refreshComparison(): void {
   const { panes, groupingGap } = workspaceStore.getSnapshot();
@@ -128,6 +155,7 @@ export function refreshComparison(): void {
 
   if (left === undefined || right === undefined) {
     cancelRunning();
+    endBuildOperation();
     currentInputs = undefined;
     diffStore.update(() => IDLE);
     return;
@@ -155,6 +183,7 @@ export function refreshComparison(): void {
   const id = nextJobId++;
   currentJobId = id;
   diffStore.update((state) => ({ ...state, status: "scanning", progress: 0, problem: undefined }));
+  beginBuildOperation();
 
   // The worker is given the two *files*. A document with unsaved edits is not
   // its file — so comparing them there would show the dump as it is on disk
@@ -197,12 +226,14 @@ async function scanOnThisThread(id: JobId, gap: number): Promise<void> {
       onProgress: (fraction: number) => {
         if (currentJobId === id) {
           diffStore.update((state) => ({ ...state, status: "scanning", progress: fraction }));
+          buildOperation?.report(fraction);
         }
       },
     });
     if (currentJobId !== id) return;
     publishIndex(index, gap);
     currentJobId = undefined;
+    endBuildOperation();
   } catch (error) {
     if (error instanceof DiffCancelled) return;
     if (currentJobId !== id) return;
@@ -211,14 +242,53 @@ async function scanOnThisThread(id: JobId, gap: number): Promise<void> {
       status: "failed",
       problem: error instanceof Error ? error.message : "The comparison failed.",
     }));
+    endBuildOperation();
     currentJobId = undefined;
   }
 }
 
+/**
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder.cancel
+ *
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.stop
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.cancelBuild
+ */
 function cancelRunning(): void {
   if (currentJobId === undefined) return;
   send({ kind: "cancel", id: currentJobId });
   currentJobId = undefined;
+}
+
+/** The full scan's strip, shown on the pane the user is looking at. */
+let buildOperation: BackgroundOperation | undefined;
+
+function beginBuildOperation(): void {
+  endBuildOperation();
+  const operation = new BackgroundOperation("Indexing…", cancelBuild);
+  buildOperation = operation;
+  presentOnActivePane(operation);
+}
+
+function endBuildOperation(): void {
+  buildOperation?.finish();
+  buildOperation = undefined;
+}
+
+/**
+ * The strip's (×): the scan stops and its index is dropped. The comparison
+ * says it was stopped, and stays stopped until one of the files changes.
+ */
+function cancelBuild(): void {
+  cancelRunning();
+  endBuildOperation();
+  diffStore.update((state) => ({
+    ...state,
+    status: "failed",
+    progress: 0,
+    index: undefined,
+    hunks: undefined,
+    problem: "The comparison was cancelled.",
+  }));
 }
 
 /**
@@ -232,7 +302,11 @@ function blobOf(source: unknown): Blob | undefined {
   return source instanceof Blob ? source : undefined;
 }
 
-/** Publishes an index and the navigation hunks derived from it. */
+/**
+ * Publishes an index and the navigation hunks derived from it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder.hunks
+ */
 function publishIndex(index: DiffBlockIndex, gap: number): void {
   const summary = index.summary;
   diffStore.update(() => ({
@@ -271,6 +345,7 @@ let incrementalRun = 0;
 /** Small enough that a tail rescan yields to the frame between chunks. */
 const INCREMENTAL_CHUNK_SIZE = 256 * 1024;
 
+/** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.record */
 export function noteEdit(edit: DiffEdit): void {
   pendingEdits.push(edit);
   if (editTimer !== undefined) return;
@@ -285,6 +360,7 @@ export function noteEdit(edit: DiffEdit): void {
 /** A fast typist produces one rescan rather than one per keystroke. */
 const EDIT_COALESCE_MS = 120;
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder.apply */
 async function applyEditsToComparison(edits: readonly DiffEdit[]): Promise<void> {
   const { panes, groupingGap } = workspaceStore.getSnapshot();
   const left = panes.a?.document;
@@ -315,7 +391,13 @@ async function applyEditsToComparison(edits: readonly DiffEdit[]): Promise<void>
   }
 }
 
-/** Re-runs the comparison whenever the files or the grouping distance change. */
+/**
+ * Re-runs the comparison whenever the files or the grouping distance change.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireComparison
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.unwireComparison
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonCoordinator
+ */
 export function watchWorkspaceForComparison(): () => void {
   refreshComparison();
   return workspaceStore.subscribe(refreshComparison);

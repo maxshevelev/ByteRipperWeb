@@ -19,37 +19,74 @@ const SKU_TAG = tagBytes("$SKU");
 const DAT_TAG = tagBytes("$DAT");
 const IFRP_TAG = tagBytes("IFRP");
 
-/** The decoded `$SKU` header and its attribute split. */
+/**
+ * The decoded `$SKU` header and its attribute split.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes
+ */
 export interface SKUAttributes {
-  /** Region-relative offset of the tag. */
+  /**
+   * Region-relative offset of the tag.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.offset
+   */
   readonly offset: number;
-  /** 3 (ME 2–6) or 4 (ME 7–10). */
+  /**
+   * 3 (ME 2–6) or 4 (ME 7–10).
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.sizeDwords
+   */
   readonly sizeDwords: number;
-  /** The top four attribute bytes, big-endian — ME 2–6 only. */
+  /**
+   * The top four attribute bytes, big-endian — ME 2–6 only.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.skuMe
+   */
   readonly skuMe: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.value1 */
   readonly value1: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.slim */
   readonly slim: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.patsburg */
   readonly patsburg: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.skuType */
   readonly skuType: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.skuSize */
   readonly skuSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Attributes.value10 */
   readonly value10: number;
 }
 
 /**
  * The summary rows the `$SKU` fills. Independent of each other: a part may carry
  * a platform yet an unrecognised SKU, or the other way round.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Summary
  */
 export interface PreCSESummary {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Summary.sku */
   readonly sku: string | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Summary.platform */
   readonly platform: string | undefined;
-  /** The Patsburg bit, which only ME 7–8 give a meaning to. */
+  /**
+   * The Patsburg bit, which only ME 7–8 give a meaning to.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.Summary.patsburgSupport
+   */
   readonly patsburgSupport: boolean | undefined;
 }
 
-/** One blacklist entry: the minor, hotfix and build of the newest refused firmware. */
+/**
+ * One blacklist entry: the minor, hotfix and build of the newest refused firmware.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.BlacklistEntry
+ */
 export interface BlacklistEntry {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.BlacklistEntry.minor */
   readonly minor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.BlacklistEntry.hotfix */
   readonly hotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.BlacklistEntry.build */
   readonly build: number;
 }
 
@@ -58,6 +95,9 @@ export interface BlacklistEntry {
  * its tag — 0x6DF and 0x6EB past upstream's `start_man_match`, the byte before
  * the tag, which is this engine's manifest base plus 0x1B. A zero build word is
  * upstream's "Empty": nothing blacklisted on that line.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.downgradeBlacklist
  */
 export function downgradeBlacklist(
   bytes: Uint8Array,
@@ -81,6 +121,8 @@ function entry(bytes: Uint8Array, at: number): BlacklistEntry | undefined {
  * The production-ready bit of a pre-CSE ME 8–10 or TXE image: past the manifest
  * sits a `$DAT` marker — the tag, twenty bytes, then `IFRP` — and the byte 0x10
  * into that match is the bit. Nothing when the marker is not there.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.productionReady
  */
 export function preCseProductionReady(
   bytes: Uint8Array,
@@ -99,7 +141,11 @@ export function preCseProductionReady(
   }
 }
 
-/** The first `$SKU` attributes after the manifest, mapped to the summary rows. */
+/**
+ * The first `$SKU` attributes after the manifest, mapped to the summary rows.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.summary
+ */
 export function preCseSummary(options: {
   readonly bytes: Uint8Array;
   readonly manifestBase: number;
@@ -112,7 +158,11 @@ export function preCseSummary(options: {
   return attributes === undefined ? undefined : mapSummary(attributes, options);
 }
 
-/** Locates and decodes the first plausible `$SKU` after `manifestBase`. */
+/**
+ * Locates and decodes the first plausible `$SKU` after `manifestBase`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/PreCSEME.swift#PreCSEME.scan
+ */
 export function scanSkuAttributes(
   bytes: Uint8Array,
   manifestBase: number

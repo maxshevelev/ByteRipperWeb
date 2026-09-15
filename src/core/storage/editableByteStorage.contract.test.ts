@@ -34,6 +34,8 @@ interface Case {
  * that reads right but counts wrong still fails.
  */
 function check(group: string, cases: Case[]): void {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MemoryBackedStorageTests.swift#MemoryBackedStorageTests.testInitWithBytes
+  // @upstream-differs the contract runs over every storage, the memory-backed one among them
   describe(group, () => {
     for (const implementation of implementations) {
       for (const testCase of cases) {
@@ -48,6 +50,7 @@ function check(group: string, cases: Case[]): void {
   });
 }
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditableByteStorageContractTests.swift#EditableByteStorageContractTests.testOverwrite
 check("overwrite", [
   {
     name: "in place, read back",
@@ -76,6 +79,7 @@ check("overwrite", [
   },
 ]);
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditableByteStorageContractTests.swift#EditableByteStorageContractTests.testInsert
 check("insert", [
   {
     name: "in the middle shifts the tail",
@@ -97,6 +101,7 @@ check("insert", [
   },
 ]);
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditableByteStorageContractTests.swift#EditableByteStorageContractTests.testDelete
 check("delete", [
   {
     name: "a middle range shrinks the file",
@@ -124,6 +129,7 @@ check("delete", [
   },
 ]);
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditableByteStorageContractTests.swift#EditableByteStorageContractTests.testAppend
 check("append", [
   {
     name: "onto content",
@@ -139,6 +145,7 @@ check("append", [
   },
 ]);
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditableByteStorageContractTests.swift#EditableByteStorageContractTests.testSequencesOfEdits
 check("sequences of edits", [
   {
     name: "an untouched empty file reads empty",
@@ -180,6 +187,7 @@ check("sequences of edits", [
   },
 ]);
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditableByteStorageContractTests.swift#EditableByteStorageContractTests.testReadClampsAtEOF
 describe("reads clamp at EOF", () => {
   const reads: { name: string; at: number; length: number; expected: number[] }[] = [
     { name: "whole file", at: 0, length: 3, expected: [0x01, 0x02, 0x03] },

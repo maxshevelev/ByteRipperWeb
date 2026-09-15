@@ -40,6 +40,7 @@ describe("a microcode row", () => {
    * A microcode row's own `Size` is required to be zero and the truth is in the
    * component — which is why the size shown comes from there.
    */
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testAMicrocodeRowLeadsToItsHeader
   it("leads to its header", () => {
     const report = reportOf(
       { type: FIT.microcodeType, target: TARGET },
@@ -57,6 +58,7 @@ describe("a microcode row", () => {
 
   // `FF FF FF FF` is a slot a vendor reserved for a later update, and the
   // specification allows a row to point at one. It is not a defect.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testAMicrocodeRowMayPointAtAnEmptySlot
   it("may point at an empty slot", () => {
     const report = reportOf({ type: FIT.microcodeType, target: TARGET });
 
@@ -72,6 +74,7 @@ describe("a microcode row", () => {
    * and not an empty slot. One read of forty-eight bytes catches the whole
    * class.
    */
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testAMicrocodeRowPointingAtSomethingElseIsReported
   it("is reported when it points at something else", () => {
     const report = reportOf(
       { type: FIT.microcodeType, target: TARGET },
@@ -100,6 +103,7 @@ describe("a microcode row", () => {
  * it would put the dump somewhere meaningless.
  */
 describe("a policy row", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testAPolicyRowAtVersionZeroIsNotAnAddress
   it("is not an address at version zero", () => {
     expect(
       targetOf({ type: FIT.tpmPolicyType, address: 0x0002_0001_0000_0080, version: 0 })
@@ -125,6 +129,7 @@ describe("a policy row", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testAPolicyRowAtVersionOneIsAnAddress
   it("is an address at version one", () => {
     expect(targetOf({ type: FIT.tpmPolicyType, target: TARGET, version: 1 })).toEqual({
       kind: "bytes",
@@ -135,6 +140,7 @@ describe("a policy row", () => {
 });
 
 describe("the rows that lead nowhere", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testTheHeaderAndAnEmptySlotPointNowhere
   it("are the header and an empty slot", () => {
     const table = reportOf({ type: FIT.emptyType, address: 0 }).table;
 
@@ -142,6 +148,7 @@ describe("the rows that lead nowhere", () => {
     expect(tableEntries(table as never)[0]?.target).toEqual({ kind: "nothing" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testAnAddressOutsideTheImageLeadsNowhere
   it("include an address outside the image", () => {
     expect(targetOf({ type: FIT.startupACMType, address: 0x1234 })).toEqual({
       kind: "outsideTheImage",
@@ -154,6 +161,7 @@ describe("the rows that lead nowhere", () => {
 
 describe("naming what a row points at", () => {
   // The difference between an address and a place.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testWhatARowPointsAtIsNamedByTheTree
   it("uses what the tree says covers the bytes", () => {
     const node = makeSpan({ kind: "volume", name: "FFSv2", range: { start: 0x1800, end: 0x3000 } });
     const image = new UEFIImage({ size: 0x1_0000, roots: [node], addressDiff: 0xffff_0000 });
@@ -167,6 +175,7 @@ describe("naming what a row points at", () => {
 
   // A row whose type does not use `Size` shows nothing rather than a zero that
   // looks like a size.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITTargetTests.swift#FITTargetTests.testARowWithNoSizeShowsNoSize
   it("shows no size for a row that has none", () => {
     const report = reportOf({ type: FIT.startupACMType, target: TARGET });
     const row = tableEntries(report.table as never)[0];

@@ -59,7 +59,13 @@ export class MEWriter {
   }
 }
 
-/** Writes a little-endian word into bytes already written. */
+/**
+ * Writes a little-endian word into bytes already written.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDFixture.setUInt32
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTFixture.setUInt32
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.wU32
+ */
 export function putU32(bytes: Uint8Array, at: number, value: number): void {
   bytes[at] = value & 0xff;
   bytes[at + 1] = (value >>> 8) & 0xff;
@@ -78,6 +84,9 @@ export interface TestPartition {
  * A minimal `$FPT` v2.0 header — exactly 0x20 bytes — and its entries at
  * `anchor`. A header version of 0x20 with a zero second checksum word resolves
  * to v2.0 rather than to the v2.1 the quirk branch looks for.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTFixture.fptRegion
  */
 export function fptRegion(options: {
   readonly anchor?: number;
@@ -145,7 +154,11 @@ export function descriptorWithMeRegion(options: {
   return bytes;
 }
 
-/** A module's place inside a `$CPD`, when the fixture puts real content there. */
+/**
+ * A module's place inside a `$CPD`, when the fixture puts real content there.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDFixture.ModuleLayout
+ */
 export interface TestModule {
   readonly name: string;
   readonly offset?: number;
@@ -160,6 +173,9 @@ export interface TestModule {
  * which is exactly the kind of thing a fixture must get right, since a decoder
  * that agreed with a fixture computing its checksum the same wrong way would
  * agree with nothing real.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CPDTests.swift#CPDFixture.make
  */
 export function cpdDirectory(options: {
   readonly name: string;
@@ -202,7 +218,11 @@ export function cpdDirectory(options: {
   return bytes;
 }
 
-/** How a manifest fixture differs from the ordinary CSE one. */
+/**
+ * How a manifest fixture differs from the ordinary CSE one.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Params
+ */
 export interface TestManifest {
   readonly tag?: string;
   readonly format?: "r0" | "r1" | "r2";
@@ -240,6 +260,9 @@ export interface TestManifest {
  * control number or a build tag and the MEU block. The fixture writes whichever
  * the requested format would have, so a decoder that read the wrong one reads
  * the wrong thing rather than a zero.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.manifest
  */
 export function manifest(options: TestManifest = {}): Uint8Array {
   const format = options.format ?? "r1";
@@ -290,7 +313,11 @@ export function manifest(options: TestManifest = {}): Uint8Array {
   return bytes;
 }
 
-/** A region whose manifest sits past some leading filler. */
+/**
+ * A region whose manifest sits past some leading filler.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.region
+ */
 export function regionWithManifest(base: number, options: TestManifest = {}): Uint8Array {
   const one = manifest(options);
   const bytes = new Uint8Array(base + one.length);

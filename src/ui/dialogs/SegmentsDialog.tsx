@@ -24,12 +24,44 @@ import { readSegmentTints } from "@/ui/theme/hexColors";
 export interface SegmentsDialogProps {
   readonly open: boolean;
   readonly pane: PaneId;
+  /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.addCutPressed */
   readonly onAddCut: () => void;
+  /**
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.saveAll
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.saveAllPressed
+   */
   readonly onSaveAll: () => void;
+  /**
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.selectedSegmentIndex
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.selectedSegment
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.selectSegment
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.tableViewSelectionDidChange
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.goToSelectedSegment
+   */
   readonly onSelectPiece: (piece: Segment) => void;
+  /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.dismissForm */
   readonly onClose: () => void;
 }
 
+/**
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.segmentTable
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.addButton
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeButton
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeAllButton
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.saveAllButton
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.closeButton
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.editPopoverPresenter
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.isEditingSegment
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.editClickedSegment
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.cancelEdit
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.handleDoubleClick
+ * @upstream-differs a dialog; a piece is renamed in place with a double-click rather than in a popover
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showSegments
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openSegmentsForm
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSegmentsForm
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentsFormPresenter
+ */
 export function SegmentsDialog({
   open,
   pane,
@@ -39,6 +71,7 @@ export function SegmentsDialog({
   onClose,
 }: SegmentsDialogProps) {
   const partition = useStore(segmentsStore).panes[pane]?.partition;
+  /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.segments */
   const pieces = partition?.segments ?? [];
   const [selected, setSelected] = useState(0);
   const [renaming, setRenaming] = useState<number | undefined>(undefined);
@@ -48,6 +81,7 @@ export function SegmentsDialog({
     if (open) setRenaming(undefined);
   }, [open]);
 
+  /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.validateMenuItem */
   const rowMenu = (piece: Segment) =>
     pieceMenu({
       pane,

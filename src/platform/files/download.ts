@@ -6,6 +6,12 @@
  * directory picker, one selected range saved out.
  */
 
+/**
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.exportFile
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.exportFileForTool
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.exportFile
+ */
 export function downloadBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   try {

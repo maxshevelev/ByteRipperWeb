@@ -10,6 +10,7 @@ import {
   scanDiff,
 } from "@/core/diff/diffEngine";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import type { ByteStorage } from "@/core/storage/byteStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import { SeededRandom } from "@/core/testing/support";
 
@@ -28,6 +29,7 @@ const shape = (index: DiffBlockIndex) =>
 const scan = (left: number[] | Uint8Array, right: number[] | Uint8Array, chunkSize?: number) =>
   scanDiff(storage(left), storage(right), chunkSize === undefined ? {} : { chunkSize });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testBlockConstruction
 describe("block construction, byte at a time", () => {
   // The reference implementation: maximal runs at absolute offsets, with the
   // tail only one file has folded into a difference block.
@@ -88,11 +90,13 @@ describe("block construction, byte at a time", () => {
 });
 
 describe("the chunked scan", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testDifferenceSpanningChunkBoundary
   it("joins a difference spanning a chunk boundary", async () => {
     const index = await scan([0, 1, 2, 3, 4, 5], [0, 1, 2, 9, 4, 5], 3);
     expect(shape(index)).toBe("s0-3 d3-4 s4-6");
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testScanCancellationThrows
   it("throws when cancelled between chunks", async () => {
     let checks = 0;
     await expect(
@@ -103,6 +107,8 @@ describe("the chunked scan", () => {
     ).rejects.toBeInstanceOf(DiffCancelled);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testScanReportsProgressReachingOne
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testScanAsyncReportsProgressIncrementally
   it("reports progress reaching one", async () => {
     let last = -1;
     const index = await scanDiff(storage(new Uint8Array(16)), storage(new Uint8Array(16)), {
@@ -112,9 +118,39 @@ describe("the chunked scan", () => {
     expect(last).toBe(1);
     expect(shape(index)).toBe("s0-16");
   });
+
+  // Upstream compares two sparse files on disk; a storage that reads as zeros
+  // without holding them is the same question — the scan streams, and never
+  // needs the whole of either side.
+  const zeros = (size: number): ByteStorage => ({
+    size,
+    read: async (at, length) => new Uint8Array(Math.max(0, Math.min(length, size - at))),
+    peek: () => undefined,
+    prefetch: async () => {},
+  });
+  const MiB = 1024 * 1024;
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testLargeSparseFilesProduceCorrectEOFOnlyBlocks
+  it("streams two large files into one same block and an end-of-file one", async () => {
+    const index = await scanDiff(zeros(64 * MiB), zeros(32 * MiB), { chunkSize: 8 * MiB });
+    expect(shape(index)).toBe(`s0-${32 * MiB} d${32 * MiB}-${64 * MiB}`);
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testLargeScanCancellationStopsEarly
+  it("stops a large scan early when cancelled", async () => {
+    let chunks = 0;
+    await expect(
+      scanDiff(zeros(64 * MiB), zeros(64 * MiB), {
+        chunkSize: 8 * MiB,
+        shouldCancel: () => ++chunks > 2,
+      })
+    ).rejects.toBeInstanceOf(DiffCancelled);
+    expect(chunks).toBe(3);
+  });
 });
 
 describe("looking things up", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testStateAt
   it("finds the state at an offset", async () => {
     const index = await scan([0x00, 0x01, 0x02], [0x00, 0xff, 0x02]);
     expect(index.stateAt(0)).toBe("same");
@@ -128,6 +164,7 @@ describe("looking things up", () => {
     expect(index.summary).toEqual({ differing: 1, same: 4 });
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testHasDifferences
   it("answers whether anything differs at all", async () => {
     // The trap is the single-block case: identical files coalesce to one same
     // block, while wholly different ones coalesce to one different block.
@@ -143,6 +180,7 @@ describe("navigation", () => {
   const range = (block: DiffBlock | undefined) =>
     block === undefined ? undefined : `${block.start}-${block.end}`;
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testNavigation
   it("steps by block in both directions", async () => {
     // s0-2 d2-4 s4-6 d6-8
     const index = await scan([0, 0, 1, 1, 2, 2, 3, 3], [0, 0, 9, 9, 2, 2, 8, 8]);
@@ -170,12 +208,14 @@ describe("navigation", () => {
     expect(index.previousSame(1)).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testNavigationIncludesEOFOnlyBlocks
   it("includes the EOF-only block", async () => {
     const index = await scan([0x00, 0x01], [0x00, 0x01, 0xaa, 0xbb]);
     expect(range(index.nextDifference(0))).toBe("2-4");
     expect(range(index.previousDifference(4))).toBe("2-4");
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testNavigationQueriesScaleToManyBlocks
   it("stays fast across hundreds of thousands of blocks", () => {
     // Two very different large files produce one block per byte. A linear scan
     // here is exactly what froze drag selection upstream once indexing finished.
@@ -207,6 +247,7 @@ describe("navigation", () => {
 });
 
 describe("incremental invalidation", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testApplyOverwrite
   it("splices an overwrite back and matches a full rescan", async () => {
     const cases: {
       name: string;
@@ -272,6 +313,7 @@ describe("incremental invalidation", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testApplyInsertShiftsOffsets
   it("rescans the tail after an insert", async () => {
     const right = storage([1, 2, 3, 4]);
     const base = await scanDiff(storage([1, 2, 3, 4, 5]), right);
@@ -283,6 +325,7 @@ describe("incremental invalidation", () => {
     expect(shape(updated)).toBe(shape(await scanDiff(inserted, right)));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testApplyDeleteShiftsOffsets
   it("rescans the tail after a delete", async () => {
     const right = storage([1, 0x0a, 3, 4]);
     const base = await scanDiff(storage([1, 2, 3, 4]), right);
@@ -294,6 +337,7 @@ describe("incremental invalidation", () => {
     expect(shape(updated)).toBe(shape(await scanDiff(deleted, right)));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testApplyMatchesFreshScanForMutations
   it("matches a full rescan for every edit shape", async () => {
     const right = storage([0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f]);
     const edits: [DiffEdit, number[]][] = [
@@ -316,6 +360,7 @@ describe("incremental invalidation", () => {
   });
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testNetDiffEdit
 describe("the net edit a transaction produces", () => {
   const overwrite = (at: number, length: number): UndoOperation => ({
     kind: "overwrite",
@@ -386,6 +431,7 @@ describe("the net edit a transaction produces", () => {
   }
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testCollapse
 describe("collapsing a batch of edits", () => {
   const overwrite = (start: number, end: number): DiffEdit => ({ kind: "overwrite", start, end });
   const insert = (at: number, length: number): DiffEdit => ({ kind: "insert", at, length });
@@ -450,6 +496,7 @@ describe("collapsing a batch of edits", () => {
     });
   }
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testCollapsedBatchGivesTheSameIndexAsApplyingEveryEdit
   it("describes the same damage as applying every edit", async () => {
     const size = 4096;
     const left = new Uint8Array(size).map((_, i) => i % 251);
@@ -479,6 +526,7 @@ describe("collapsing a batch of edits", () => {
   });
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testWordWiseScanMatchesTheByteWiseReference
 describe("the word-wise scan against the byte-wise reference", () => {
   // These are the shapes word stepping can get wrong: runs shorter than a word,
   // runs straddling a word boundary, runs ending exactly on one, and a
@@ -536,6 +584,7 @@ describe("the word-wise scan against the byte-wise reference", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testRunsCrossingChunkBoundariesMatchTheReference
   it("joins runs that cross a chunk boundary", async () => {
     // The builder merges them, and the word stepping must not confuse it by
     // ending a chunk mid-run.
@@ -551,6 +600,7 @@ describe("the word-wise scan against the byte-wise reference", () => {
     }
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testRandomFilesMatchTheReference
   it("agrees over a random walk", async () => {
     // Mostly-equal files with scattered differences, which is what the word
     // stepping is tuned for, plus a few dense ones.
@@ -579,6 +629,7 @@ describe("querying a window", () => {
   const kinds = (start: number, end: number) =>
     index.blocksIn(start, end).map((block) => `${block.kind === "same" ? "s" : "d"}${block.start}`);
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testBlocksInAWindow
   it("finds the blocks a window touches, by binary search", () => {
     expect(kinds(0, 40)).toEqual(["s0", "d10", "s20", "d30"]);
     expect(kinds(0, 1)).toEqual(["s0"]);
@@ -592,6 +643,7 @@ describe("querying a window", () => {
     expect(DiffBlockIndex.empty().blocksIn(0, 10)).toEqual([]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testBlocksInAWindowAgreesWithTheWholeIndex
   it("agrees with the flattened list over a random index", () => {
     for (let round = 0; round < 30; round++) {
       const random = new SeededRandom(0x51d3b10c + round);

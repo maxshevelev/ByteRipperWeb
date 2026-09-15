@@ -25,23 +25,23 @@ export function metAttributes(
 }
 
 /**
- * A declared-Huffman module backed by a `.met` that advertises Huffman and no
- * encryption — the one case the decompression check can verify.
+ * A Huffman module the check can decompress: one whose `.met` advertises Huffman
+ * and no encryption, or one with no `.met`, which is checked against the `pm` /
+ * `rbe` metadata tables.
+ *
+ * The analyzer asks `huffmanSlices`, which also leaves out an erased module; this
+ * answers from the analysis alone, without the region's bytes, so the panel can
+ * decide whether to fetch the dictionaries.
  */
 export function hasHuffmanModuleToValidate(codePartition: CodePartition): boolean {
-  return codePartition.modules.some(
-    (module) =>
-      module.isHuffman &&
-      module.size > 0 &&
-      codePartition.modules.some(
-        (candidate) =>
-          candidate.name === `${module.name}.met` &&
-          (candidate.extensions ?? []).some(
-            (one) =>
-              one.moduleAttributes?.compression === 1 && one.moduleAttributes.encryption === 0
-          )
-      )
-  );
+  return codePartition.modules.some((module) => {
+    if (!module.isHuffman || module.size <= 0) return false;
+    const met = codePartition.modules.find((candidate) => candidate.name === `${module.name}.met`);
+    if (met === undefined) return true;
+    return (met.extensions ?? []).some(
+      (one) => one.moduleAttributes?.compression === 1 && one.moduleAttributes.encryption === 0
+    );
+  });
 }
 
 /** Whether analysing this image again with the dictionaries would read more of it. */

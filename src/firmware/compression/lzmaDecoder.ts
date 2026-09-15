@@ -115,6 +115,7 @@ interface Decoder {
 
 // MARK: - LZMA_DECODE_REAL
 
+/** @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LZMA_DECODE_REAL */
 function decodeReal(p: Decoder, limit: number, bufLimit: number): number {
   const probs = p.probs;
   const input = p.input;
@@ -353,6 +354,7 @@ function decodeReal(p: Decoder, limit: number, bufLimit: number): number {
   return len >= kMatchSpecLen_Error_Data ? SZ_ERROR_DATA : SZ_OK;
 }
 
+/** @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_WriteRem */
 function writeRem(p: Decoder, limit: number): void {
   let len = p.remainLen;
   if (len === 0) return;
@@ -376,6 +378,7 @@ function writeRem(p: Decoder, limit: number): void {
   p.dicPos = dicPos;
 }
 
+/** @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_DecodeReal2 */
 function decodeReal2(p: Decoder, limit: number, bufLimit: number): number {
   let bounded = limit;
   if (p.checkDicSize === 0) {
@@ -392,6 +395,8 @@ function decodeReal2(p: Decoder, limit: number, bufLimit: number): number {
 /**
  * Whether the next symbol can be decoded from `input[start, end)`, and what kind
  * it is — without moving the model. `pos` is where it would leave the input.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_TryDummy
  */
 function tryDummy(
   p: Decoder,
@@ -587,6 +592,7 @@ interface Step {
   readonly srcLen: number;
 }
 
+/** @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_DecodeToDic */
 function decodeToDic(
   p: Decoder,
   dicLimit: number,
@@ -749,6 +755,13 @@ function decodeToDic(
  * Decodes a whole stream laid out as five property bytes, an eight-byte size and
  * the stream, into `output`, to the end: the size is known, so a decode that has
  * filled the buffer is a decode that must be finished.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDecode
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaProps_Decode
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_Init
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_InitDicAndState
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/CLZMA.c#clzma_decode
+ * @upstream-differs one whole-buffer entry: the properties are decoded and the state initialised inline, over a dictionary that is the output buffer
  */
 export function lzmaDecodeWhole(
   source: Uint8Array,

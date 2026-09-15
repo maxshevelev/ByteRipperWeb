@@ -20,10 +20,16 @@ import type { HexLayout } from "@/render/hexGrid/hexLayout";
 /**
  * Padding above and below the labels. Without it the strip is one hex row tall
  * and the ink — drawn at the row baseline — nearly touches both edges.
+ *
+ * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.verticalPadding
  */
 export const HEADER_VERTICAL_PADDING = 4;
 
-/** One hex row plus symmetric padding, so the labels have breathing room. */
+/**
+ * One hex row plus symmetric padding, so the labels have breathing room.
+ *
+ * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.headerHeight
+ */
 export function headerHeight(rowHeight: number): number {
   return rowHeight + 2 * HEADER_VERTICAL_PADDING;
 }
@@ -39,6 +45,10 @@ export interface HexHeaderColors {
   readonly rule: string;
 }
 
+/**
+ * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView
+ * @upstream-differs a canvas renderer the pane redraws, not a view that observes the hex view
+ */
 export class HexHeaderRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
@@ -64,6 +74,13 @@ export class HexHeaderRenderer {
     if (this.canvas.height !== height) this.canvas.height = height;
   }
 
+  /**
+   * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.draw
+   * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.labelFrames
+   * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.hexView
+   * @upstream ByteRipperApp/Hex/HexColumnHeaderView.swift#HexColumnHeaderView.horizontalOffset
+   * @upstream-differs the layout and the scroll offset are passed to each draw; the labels are placed inline
+   */
   draw(options: {
     readonly layout: HexLayout;
     readonly fontPx: number;

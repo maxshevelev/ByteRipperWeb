@@ -8,6 +8,10 @@
  * A microcode image is a few hundred kilobytes at most, so it is read whole
  * rather than streamed: the editor has to check its header and its checksum
  * before anything is written, which means holding all of it anyway.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.requestFile
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.requestFileForTool
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.requestFile
  */
 export function pickMicrocode(): Promise<Uint8Array | undefined> {
   return new Promise((resolve) => {

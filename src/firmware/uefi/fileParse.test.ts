@@ -17,6 +17,7 @@ const ranges = (nodes: readonly UEFINode[]) =>
 const bytes = (...values: number[]) => new Uint8Array(values);
 
 describe("the file walk", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testFilesAreReadBackToBack
   it("reads files back to back", () => {
     const node = volumeOf([
       Test.file({ body: bytes(1, 2, 3, 4) }),
@@ -34,6 +35,7 @@ describe("the file walk", () => {
 
   // The header is `0x18` bytes and the body is the rest — the split every
   // consumer of this tree reads a structure out of.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileIsAHeaderAndABody
   it("splits a file into a header and a body", () => {
     const file = volumeOf([Test.file({ type: 0x07, body: bytes(1, 2, 3, 4) })])?.children[0];
 
@@ -48,6 +50,7 @@ describe("the file walk", () => {
   // A file whose size stops short of the next eight-byte boundary leaves bytes
   // that belong to no structure, and a byte in no node is a byte that cannot be
   // written back.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testTheAlignmentGapBetweenFilesIsKept
   it("keeps the alignment gap between files", () => {
     const node = volumeOf([Test.file({ body: bytes(1, 2, 3, 4) }), Test.file({ body: bytes(5) })]);
     const gap = node?.children[1];
@@ -59,17 +62,20 @@ describe("the file walk", () => {
 });
 
 describe("naming a file", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAKnownGuidNamesTheFile
   it("uses a GUID we know, whatever its type says", () => {
     const file = volumeOf([Test.file({ guid: VOLUME_TOP_FILE, body: bytes(1) })])?.children[0];
     expect(file?.name).toBe("Volume Top File");
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAPadFileIsNamedByItsType
   it("names a pad file by its type, and says nothing about it", () => {
     const parsed = parse([Test.file({ type: 0xf0, body: bytes(1, 2) })]);
-    expect(parsed.roots[0]?.children[0]?.name).toBe("Pad file");
+    expect(parsed.roots[0]?.children[0]?.name).toBe("Padding file");
     expect(parsed.diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAnUnknownFileTypeIsReportedAndKept
   it("keeps an unknown type, and reports it", () => {
     const parsed = parse([Test.file({ type: 0x42, body: bytes(1) })]);
 
@@ -84,12 +90,14 @@ describe("naming a file", () => {
 describe("a file that cannot be believed", () => {
   // A file that must not be moved when the image is rebuilt says so in one bit,
   // and losing it is how a rebuild breaks Boot Guard.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testTheFixedAttributeReachesTheNode
   it("carries its fixed attribute to the node", () => {
     const file = volumeOf([Test.file({ attributes: FFS.fixed, body: bytes(1) })])?.children[0];
     expect(file?.isFixed).toBe(true);
   });
 
   // A size of zero would put the walk back on the same offset for ever.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileOfZeroSizeStopsTheWalk
   it("stops the walk at a size of zero", () => {
     const parsed = parse([
       Test.file({ body: bytes(1, 2, 3, 4), size: 0 }),
@@ -103,6 +111,7 @@ describe("a file that cannot be believed", () => {
     expect(parsed.diagnostics.map((one) => one.offset)).toEqual([0x5c]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileSmallerThanItsHeaderStopsTheWalk
   it("stops the walk at a file smaller than its header", () => {
     const parsed = parse([Test.file({ body: bytes(1, 2, 3, 4), size: 0x10 })]);
 
@@ -112,6 +121,7 @@ describe("a file that cannot be believed", () => {
     ]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileRunningPastTheVolumeIsCutAndReported
   it("cuts a file running past the volume, and reports it", () => {
     const parsed = parse([Test.file({ body: bytes(1, 2, 3, 4), size: 0x600 })]);
 
@@ -123,6 +133,7 @@ describe("a file that cannot be believed", () => {
 });
 
 describe("a file's checksums", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAStaleHeaderChecksumIsReported
   it("reports a stale header checksum", () => {
     const parsed = parse([Test.file({ body: bytes(1, 2), headerChecksum: 0x11 })]);
 
@@ -138,6 +149,7 @@ describe("a file's checksums", () => {
 
   // A file without the checksum attribute carries a fixed value in the field,
   // and which fixed value depends on the volume's revision.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAWrongFixedBodyChecksumIsReported
   it("reports a wrong fixed body checksum", () => {
     const parsed = parse([Test.file({ body: bytes(1, 2), bodyChecksum: FFS.fixedChecksum })]);
 
@@ -148,6 +160,7 @@ describe("a file's checksums", () => {
 
   // With the attribute set the field is a real checksum of the body, and a body
   // edited without recomputing it is exactly what this catches.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAComputedBodyChecksumIsCheckedAgainstTheBody
   it("checks a computed body checksum against the body", () => {
     const good = Test.file({ attributes: FFS.checksumBit, body: bytes(1, 2, 3, 4) });
     expect(parse([good]).diagnostics).toEqual([]);
@@ -164,6 +177,7 @@ describe("the shapes a file header can take", () => {
   // FFSv3 puts a large file's size in a 64-bit field after the base header,
   // which makes the header longer — read it as a short file and the body starts
   // eight bytes early.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAnFfsV3LargeFileHasALongerHeader
   it("gives an FFSv3 large file a longer header", () => {
     const image = Test.volume({
       fileSystem: FFS_V3,
@@ -177,6 +191,7 @@ describe("the shapes a file header can take", () => {
 
   // Only FFSv1 files have a tail, and only in a Revision 1 volume — the same
   // attribute bit means "large file" everywhere else.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAnFfsV1TailIsHeldApartFromTheBody
   it("holds an FFSv1 tail apart from the body", () => {
     const image = Test.volume({
       fileSystem: FFS_V1,
@@ -200,6 +215,7 @@ describe("the shapes a file header can take", () => {
 describe("what is past the last file", () => {
   // The bytes after the last erased one are data somebody put there, and they
   // are kept as their own node rather than swallowed by the free space.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testDataAfterTheFreeSpaceIsHeldApart
   it("holds data after the free space apart", () => {
     const trailing = new Uint8Array(0x104).fill(0xff);
     trailing.set([0x11, 0x22, 0x33, 0x44], 0x100);
@@ -217,6 +233,7 @@ describe("what is past the last file", () => {
   // And what is in there gets searched: vendors put runs of microcode and whole
   // volumes in the space after a volume's files, and leaving it as one opaque
   // block would hide them.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testWhatIsInsideNonUefiDataIsFound
   it("searches inside non-UEFI data", () => {
     const microcode = Test.microcode();
     const trailing = new Uint8Array(0x100 + microcode.length).fill(0xff);
@@ -237,6 +254,7 @@ describe("what is past the last file", () => {
   // And the boundary between the two goes *back* to the eight-byte mark:
   // whatever the data turns out to be, it starts aligned, so the erased bytes
   // in front of it belong to it and not to the free space.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testTheFreeSpaceBoundaryStepsBackToTheAlignment
   it("steps the free-space boundary back to the alignment", () => {
     const trailing = new Uint8Array(0x105).fill(0xff);
     trailing.set([0x11, 0x22, 0x33, 0x44], 0x101);

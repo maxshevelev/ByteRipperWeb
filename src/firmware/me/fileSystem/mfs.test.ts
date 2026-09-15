@@ -87,6 +87,7 @@ function volumeChunk(
 }
 
 describe("the volume decode", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testParsesVolumeHeaderFromSystemChunkZero
   it("reads the volume header from System chunk 0", () => {
     const region = makeVolume(volumeChunk());
     const info = parseMfs(region, 0, region.length);
@@ -105,6 +106,7 @@ describe("the volume decode", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testLegacyVolumeWithoutFTBLFlags
   it("reads the legacy (1, 0, 0) layout as no file table", () => {
     const region = makeVolume(volumeChunk({ dictionary: 1, platform: 0, reserved: 0 }));
     const info = parseMfs(region, 0, region.length);
@@ -112,6 +114,7 @@ describe("the volume decode", () => {
     expect(info?.ftblDictionary).toBe(1);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testBadVolumeSignatureReportedNotThrown
   it("reports a bad volume signature rather than failing", () => {
     const chunk = volumeChunk();
     put32(chunk, 0, 0xdead_beef);
@@ -123,11 +126,13 @@ describe("the volume decode", () => {
 });
 
 describe("detection", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testNoMFSPagesYieldsNil
   it("finds nothing without MFS pages", () => {
     const blank = filled(0xff, 0x2000);
     expect(parseMfs(blank, 0, blank.length)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testOffsetsOutOfBoundsYieldNil
   it("finds nothing out of bounds", () => {
     const region = makeVolume(volumeChunk());
     expect(parseMfs(region, region.length, 0x2000)).toBeUndefined();
@@ -135,6 +140,7 @@ describe("detection", () => {
     expect(parseMfs(region, 0, 0x100)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testCRC16_14TransformVector
   it("de-obfuscates with the CRC-16/14 transform", () => {
     expect(crc16_14(0)).toBe(0x0b5b);
   });
@@ -181,6 +187,7 @@ function makeFileVolume(options: {
 }
 
 describe("the low-level file walk", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testWalksLowLevelFileChainsAcrossFAT
   it("walks chains across the FAT to their end markers", () => {
     const region = makeFileVolume({
       fileRecords: 20,
@@ -195,6 +202,7 @@ describe("the low-level file walk", () => {
     expect(info?.files[1]?.content).toEqual(filled(0x42, 4));
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testUsedButCorruptChainIsNonFatalAndFlagged
   it("flags a corrupt chain without failing", () => {
     const region = makeFileVolume({ fileRecords: 20, fat: { 0: 60 }, dataSlotContents: [] });
     const info = parseMfs(region, 0, region.length);
@@ -240,6 +248,7 @@ const HW_BINDING = {
 };
 
 describe("the legacy configuration streams", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testLegacyConfigurationStreamDecodesRecordFields
   it("decode the record fields", () => {
     const stream = configStream([HOME, HW_BINDING]);
     const region = makeFileVolume({
@@ -281,6 +290,7 @@ describe("the legacy configuration streams", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testFTBLVolumeDoesNotDecodeConfigurationStream
   it("are not decoded on a file-table volume", () => {
     const stream = configStream([HOME]);
     const region = makeFileVolume({
@@ -294,6 +304,7 @@ describe("the legacy configuration streams", () => {
     expect(info?.configurations).toEqual([]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testLegacyVolumeWithoutConfigFilesHasEmptyConfigurations
   it("are absent when the volume has no files 6 or 7", () => {
     const region = makeFileVolume({
       fileRecords: 20,
@@ -308,6 +319,7 @@ describe("the legacy configuration streams", () => {
     expect(info?.configurations).toEqual([]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testConfigStreamTruncatedBeforeItsDeclaredCountDecodesWhatFits
   it("decode what fits of a truncated stream", () => {
     const cut = configStream([HOME, HW_BINDING]).subarray(0, 4 + 0x1c);
     const records = decodeConfigRecords(cut);
@@ -375,6 +387,7 @@ const TABLE28 = () =>
   integrityFixture({ size: 0x28, flags: 0, hmac: filled(0x5a, 16), nonce: filled(0x6b, 12) });
 
 describe("the layout selectors", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testSecHeaderSizeLayoutSelectors
   it("choose the integrity table size", () => {
     expect(secHeaderSize("CSME", 14, 5, 0)).toBe(0x34);
     expect(secHeaderSize("CSSPS", 4, 4, 0)).toBe(0x28);
@@ -388,6 +401,7 @@ describe("the layout selectors", () => {
     expect(secHeaderSize("GSC", 1, 0, 0)).toBe(0x28);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testVfsStartsAtZeroLayoutSelectors
   it("say whether the files start at zero", () => {
     expect(vfsStartsAtZero("CSME", 13, 30)).toBe(true);
     expect(vfsStartsAtZero("CSME", 15, 40)).toBe(true);
@@ -401,6 +415,7 @@ describe("the layout selectors", () => {
 });
 
 describe("the integrity table", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testIntegrityTable028DecodesFields
   it("decodes the 0x28 layout", () => {
     const flags = 0x2 | 0x8 | (5 << 11) | (3 << 22);
     const table = integrityTable(
@@ -434,6 +449,7 @@ describe("the integrity table", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testIntegrityTable034DecodesFields
   it("decodes the 0x34 layout", () => {
     const flags = 0x2 | 0x4 | (7 << 10) | (4 << 21);
     const table = integrityTable(
@@ -460,6 +476,7 @@ describe("the integrity table", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testIntegrityTableRejectsOtherLengths
   it("rejects any other length", () => {
     expect(integrityTable(new Uint8Array(0x2c))).toBeUndefined();
     expect(integrityTable(new Uint8Array(0))).toBeUndefined();
@@ -467,6 +484,7 @@ describe("the integrity table", () => {
 });
 
 describe("the home record size", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeRecordSizeDetectedFromMarkerPair
   it("comes from the marker pair", () => {
     expect(
       homeRecordSize(
@@ -476,6 +494,7 @@ describe("the home record size", () => {
     expect(homeRecordSize(concat(homeRow("."), homeRow("..")))).toBe(0x1c);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeRecordSizeNilWithoutTwoMarkers
   it("is nothing without two markers", () => {
     expect(homeRecordSize(homeRow("."))).toBeUndefined();
     expect(homeRecordSize(new Uint8Array(0))).toBeUndefined();
@@ -486,6 +505,7 @@ describe("the home record size", () => {
 const file = (index: number, content: Uint8Array): MFSLowLevelFile => ({ index, content });
 
 describe("the reserved files' integrity", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testReservedIntegrityCSME12IncludesQuotaFile
   it("includes Quota Storage on CSME 12", () => {
     const table = integrityFixture({
       size: 0x28,
@@ -511,6 +531,7 @@ describe("the reserved files' integrity", () => {
     expect(result.map((one) => one.integrity.size)).toEqual([0x28, 0x28, 0x28]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testReservedIntegrityHonorsRoleExemptions
   it("honours the role exemptions", () => {
     const table = integrityFixture({
       size: 0x34,
@@ -530,6 +551,7 @@ describe("the reserved files' integrity", () => {
     ]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testReservedIntegritySkipsFilesOutsideOneToFive
   it("skips files outside 1–5", () => {
     const result = reservedIntegrity({
       files: [
@@ -549,6 +571,7 @@ describe("the reserved files' integrity", () => {
 const csme12 = { variant: "CSME", major: 12, minor: 0, platform: 0 };
 
 describe("the home directory", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeDirectoryRecursesIntoFolderFiles
   it("recurses into folder files", () => {
     const file3 = concat(filled(0x44, 5), TABLE28());
     const file6 = concat(filled(0x49, 3), TABLE28());
@@ -589,6 +612,7 @@ describe("the home directory", () => {
     expect(folder?.children[0]?.integrity?.size).toBe(0x28);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeDirectorySurfacesUnknownSalt
   it("surfaces the unknown salt", () => {
     const file8 = concat(homeRow("."), homeRow(".."), homeRow("salt", { fileIndex: 3 }), TABLE28());
     const home = homeDirectory({ files: [file(3, new Uint8Array(4)), file(8, file8)], ...csme12 });
@@ -596,6 +620,7 @@ describe("the home directory", () => {
     expect(home?.entries[0]?.unknownSalt).toBe(0x3333_2222_1111);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeFolderSelfReferenceTerminatesWithEmptyChildren
   it("stops a folder that refers to itself", () => {
     const file30 = concat(
       homeRow(".", { fileIndex: 30, folder: true }),
@@ -618,6 +643,7 @@ describe("the home directory", () => {
     expect(outer?.children[0]?.children).toEqual([]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testNulPrefixDirtyMarkerIsTruncatedAndSkipped
   it("treats a NUL-prefixed dirty marker as the marker it is", () => {
     const file8 = concat(
       homeRow(".", { fileIndex: 8, folder: true }),
@@ -641,6 +667,7 @@ describe("the home directory", () => {
     expect(home?.entries[0]?.size).toBe(2);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeDirectoryNilCases
   it("is nothing where there is no home to read", () => {
     const file8 = concat(
       homeRow(".", { fileIndex: 8, folder: true }),
@@ -664,30 +691,36 @@ describe("the File System State", () => {
     hasConfiguration = false
   ) => mfsState({ usesFTBL, presentFileIndices, hasConfiguration });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testLegacyIndexSetMapsToInitialized
   it("is Initialized for any reserved file", () => {
     for (const index of [0, 1, 2, 3, 4, 5, 8]) expect(state([index])).toBe("initialized");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testConfiguredWhenOnlyFaultOrBackupPresent
   it("is Configured for the fault log or backup alone", () => {
     expect(state([7])).toBe("configured");
     expect(state([9])).toBe("configured");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testInitializedWinsOverConfigured
   it("prefers Initialized", () => {
     expect(state([8, 9])).toBe("initialized");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testEmptyVolumeStaysUnconfigured
   it("stays Unconfigured on an empty volume", () => {
     expect(state([])).toBe("unconfigured");
     expect(state([10])).toBe("unconfigured");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testAConfigurationPartitionRaisesAnUnconfiguredVolume
   it("is raised to Configured by a configuration partition, and no further", () => {
     expect(state([], false, true)).toBe("configured");
     expect(state([0, 1, 2], true, true)).toBe("configured");
     expect(state([8], false, true)).toBe("initialized");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testFTBLVolumeWithoutConfigurationStaysUnconfigured
   it("reads no index on a file-table volume", () => {
     expect(state([8], true)).toBe("unconfigured");
     expect(state([7, 9], true)).toBe("unconfigured");

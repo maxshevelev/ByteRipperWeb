@@ -47,6 +47,10 @@ const HEADER_HEIGHT = 21;
 /** Rows kept either side of the viewport: the Intel list is thousands long. */
 const OVERSCAN = 10;
 
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.loadView
+ */
 export function MicrocodeForm({
   mode,
   entries,
@@ -106,6 +110,10 @@ export function MicrocodeForm({
     if (selected !== undefined && !busy) onPick(selected);
   }, [selected, busy, onPick]);
 
+  /**
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.selectedEntry
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.tableViewSelectionDidChange
+   */
   const selectAt = useCallback(
     (index: number) => {
       const one = shown[Math.max(0, Math.min(shown.length - 1, index))];

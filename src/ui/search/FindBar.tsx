@@ -1,15 +1,20 @@
 import { useEffect, useId, useRef } from "react";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
 import {
+  clearRecents,
   closeSearch,
+  editQuery,
   resultsFor,
   searchStore,
+  setCaseSensitive,
+  setSearchEncoding,
   setSmartSearch,
   startSearch,
   stepSearch,
+  toggleSearchResults,
 } from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
-import { CloseButton } from "@/ui/shell/CloseButton";
+import { SearchField } from "@/ui/search/SearchField";
 
 /**
  * The find bar.
@@ -29,6 +34,9 @@ export const FIND_INPUT_CLASS = "find-input";
  * Reaching for the element rather than passing a ref down: the bar is mounted
  * and unmounted by the shell, so a ref would be null exactly when the shortcut
  * that mounts it needs to use it.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.focusForEditing
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.focusPatternField
  */
 export function focusFindInput(): void {
   // After the render that mounts the bar, not before it.
@@ -39,10 +47,39 @@ export function focusFindInput(): void {
   });
 }
 
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.navControl
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.supportsCaseFolding
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUp
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpPatternField
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpEncodingPopup
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpCaseButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpSmartButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpCountLabel
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpNavControl
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpDoneButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.syncCaseButtonAppearance
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.syncSmartButtonAppearance
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.updateCaseButtonVisibility
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartToggled
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.iconPointSize
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.countLabel
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.doneButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.applyCountLabel
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.findAllButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpFindAllButton
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.findAllPressed
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.runSearchAll
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setResultsShown
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.resultsShown
+ * @upstream-differs a React component over the search store
+ */
 export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => void }) {
   const state = useStore(searchStore);
   const inputId = useId();
-  const listId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Reveal whatever the search landed on.
@@ -59,6 +96,9 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
     inputRef.current?.select();
   }, []);
 
+  // A search from the bar leaves the keyboard in the field, so Return searches
+  // again; the dump takes it only when the bar is closed.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handOffFocusAfterFind
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     // Return re-runs the search when the query changed, and steps when it did
@@ -67,65 +107,66 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
     else startSearch({ query: inputRef.current?.value ?? state.query });
   };
 
+  const count = statusText(state);
+  // No search yet is not "no matches": the stepper is a way of starting one, so
+  // it stays live until a scan has actually come back empty.
+  const navLive = results.status !== "notFound" && results.status !== "failed";
+  // Hex is bytes, with no case to match: the toggle leaves the bar — unless
+  // Smart Search will try the text encodings whatever the popup says.
+  const caseFoldable = state.smart || state.encoding !== "hex";
+
+  /**
+   * ‹ and › step through the matches a search holds, and start the search in
+   * their direction when there is none yet.
+   *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.navPressed
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.press
+   */
+  const navigate = (direction: "forward" | "backward") => {
+    if (results.matches?.isHighlightable === true) stepSearch(direction);
+    else startSearch({ query: inputRef.current?.value ?? state.query, direction });
+  };
+
+  /**
+   * Escape in the field, with its list already away, clears it — which ends the
+   * search, since clearing is an edit. Done is the way out of the bar.
+   */
+  const clearField = () => {
+    const input = inputRef.current;
+    if (input !== null) input.value = "";
+    editQuery("");
+  };
+
   return (
     // `<search>` is the element the role names, and it is a landmark: a screen
     // reader can jump straight to the find bar rather than walking the dump.
     <search className="find-bar">
       <form className="find-form" onSubmit={submit}>
+        <span className="find-label" aria-hidden="true">
+          Find
+        </span>
         <label className="visually-hidden" htmlFor={inputId}>
-          Find in the dump
+          Find
         </label>
-        <input
+        {/* Typing ends the last search and starts nothing: Return searches. The
+            recent queries drop from the magnifier, or on ↓. */}
+        <SearchField
           id={inputId}
-          ref={inputRef}
-          className="find-input"
-          list={listId}
+          inputRef={inputRef}
+          className={FIND_INPUT_CLASS}
           defaultValue={state.query}
           placeholder="Find bytes or text…"
-          spellCheck={false}
-          onChange={(event) => startSearch({ query: event.target.value })}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              closeSearch();
-            }
-          }}
+          history={state.history}
+          onEdit={editQuery}
+          onEscape={clearField}
+          onClearRecents={clearRecents}
         />
-        {/* The queries this session has run, offered back rather than retyped. */}
-        <datalist id={listId}>
-          {state.history.map((entry) => (
-            <option key={entry} value={entry} />
-          ))}
-        </datalist>
-
-        {/*
-          A toggle of its own, beside the encoding it makes a result rather than
-          an instruction. With it on the popup shows what the last pass settled
-          on; with it off, what the next one is told to use.
-        */}
-        <button
-          type="button"
-          className={`toolbar-button find-smart${state.smart ? " is-on" : ""}`}
-          aria-pressed={state.smart}
-          onClick={() => {
-            setSmartSearch(!state.smart);
-            if (state.query.length > 0) startSearch({ query: state.query, smart: !state.smart });
-          }}
-          title={
-            state.smart
-              ? "Smart Search: the encoding is worked out from what you typed"
-              : "Smart Search off: only the chosen encoding is tried"
-          }
-        >
-          Smart
-        </button>
 
         <select
           className="find-encoding"
+          aria-label="Encoding"
           value={state.encoding}
-          onChange={(event) =>
-            startSearch({ query: state.query, encoding: event.target.value as SearchEncoding })
-          }
+          onChange={(event) => setSearchEncoding(event.target.value as SearchEncoding)}
           title={
             state.smart
               ? "The encoding the search settled on. Picking one starts the next pass from it."
@@ -139,60 +180,185 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           ))}
         </select>
 
+        {/* Beside the encoding it takes over: with it on, the popup stops being
+            the question and becomes the answer. */}
         <button
           type="button"
-          className={`toolbar-button find-case${state.caseSensitive ? " is-on" : ""}`}
-          aria-pressed={state.caseSensitive}
-          // Hex has no case to be sensitive about — but with Smart Search on a
-          // text pass will happen whatever the popup currently says, so the
-          // toggle is still offered.
-          disabled={!state.smart && state.encoding === "hex"}
-          onClick={() => startSearch({ query: state.query, caseSensitive: !state.caseSensitive })}
-          title="Match upper and lower case exactly"
+          className={`find-glyph${state.smart ? " is-on" : ""}`}
+          aria-pressed={state.smart}
+          aria-label="Smart Search"
+          title={
+            state.smart
+              ? "Smart Search — the encoding is whichever one finds a match"
+              : "Smart Search — off, searching the chosen encoding only"
+          }
+          onClick={() => setSmartSearch(!state.smart)}
         >
-          Aa
+          <SmartSearchGlyph />
         </button>
 
+        {caseFoldable ? (
+          <button
+            type="button"
+            className={`find-glyph${state.caseSensitive ? " is-on" : ""}`}
+            aria-pressed={state.caseSensitive}
+            aria-label="Case Sensitive"
+            title={
+              state.caseSensitive
+                ? "Case Sensitive — matching exactly"
+                : "Case Sensitive — off, upper and lower case match"
+            }
+            onClick={() => setCaseSensitive(!state.caseSensitive)}
+          >
+            <CaseGlyph />
+          </button>
+        ) : null}
+
+        {/* After the query it describes, before the stepper that walks it. */}
+        {count === "" ? null : (
+          <span
+            className={`find-count${results.status === "failed" ? " is-problem" : ""}`}
+            aria-live="polite"
+          >
+            {count}
+          </span>
+        )}
+
+        <fieldset className="find-nav">
+          <legend className="visually-hidden">Find Previous / Find Next</legend>
+          <button
+            type="button"
+            className="find-nav-button"
+            aria-label="Find Previous"
+            title="Find Previous"
+            disabled={!navLive}
+            onClick={() => navigate("backward")}
+          >
+            <ChevronGlyph direction="backward" />
+          </button>
+          <button
+            type="button"
+            className="find-nav-button"
+            aria-label="Find Next"
+            title="Find Next"
+            disabled={!navLive}
+            onClick={() => navigate("forward")}
+          >
+            <ChevronGlyph direction="forward" />
+          </button>
+        </fieldset>
+
+        {/* A toggle, not a search: accent while the pane's list is up, the
+            bar's quiet grey otherwise — the case toggle's "on" language. */}
         <button
           type="button"
-          className="toolbar-button"
-          onClick={() => stepSearch("backward")}
-          disabled={results.matches === undefined || !results.matches.isHighlightable}
-          title="Previous match"
+          className={`find-glyph${results.resultsShown ? " is-on" : ""}`}
+          aria-label="Search Results"
+          aria-pressed={results.resultsShown}
+          title={results.resultsShown ? "Hide Search Results" : "Show Search Results"}
+          disabled={!navLive}
+          onClick={() => toggleSearchResults(inputRef.current?.value ?? state.query)}
         >
-          ◀
-        </button>
-        <button
-          type="button"
-          className="toolbar-button"
-          onClick={() => stepSearch("forward")}
-          disabled={results.matches === undefined || !results.matches.isHighlightable}
-          title="Next match"
-        >
-          ▶
+          <ListGlyph />
         </button>
 
-        <span className="find-status">{statusText(state)}</span>
-        <span className="toolbar-spacer" />
-        <CloseButton label="Close (Escape)" onClick={closeSearch} />
+        <button type="button" className="toolbar-button find-done" onClick={closeSearch}>
+          Done
+        </button>
       </form>
     </search>
   );
 }
 
+const glyphStroke = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+} as const;
+
+/** `wand.and.sparkles`. */
+function SmartSearchGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>
+      <path d="M2.5 13.5 10 6" />
+      <path d="m9 5 2 2" />
+      <path d="M12 1.5v2M11 2.5h2" />
+      <path d="M13.5 6.5v1.5M12.75 7.25h1.5" />
+      <path d="M6 1.5v1.5M5.25 2.25h1.5" />
+    </svg>
+  );
+}
+
+/** `textformat`: a large A beside a small a. */
+function CaseGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>
+      <path d="M1.5 12.5 4.75 3.5 8 12.5M2.7 9.5h4.1" />
+      <path d="M14.5 8v4.5" />
+      <circle cx="12.25" cy="10.25" r="2.25" />
+    </svg>
+  );
+}
+
+/** `list.bullet`. */
+function ListGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>
+      <path d="M6 4h8.5M6 8h8.5M6 12h8.5" />
+      <circle cx="2.5" cy="4" r="0.6" />
+      <circle cx="2.5" cy="8" r="0.6" />
+      <circle cx="2.5" cy="12" r="0.6" />
+    </svg>
+  );
+}
+
+/** `chevron.left` / `chevron.right`. */
+function ChevronGlyph({ direction }: { readonly direction: "forward" | "backward" }) {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" {...glyphStroke}>
+      <path d={direction === "forward" ? "m6 3 5 5-5 5" : "M10 3 5 8l5 5"} />
+    </svg>
+  );
+}
+
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.show
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.total
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.ordinal
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.isListable
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.isHighlightable
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.reading
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.hasMatches
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.text
+ * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.warning
+ * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SmartSearch.Attempt
+ * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SmartSearch.Attempt.label
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showFindMessage
+ * @upstream-differs the count and the encoding that answered are read from the store's results in one function; a find message is said here, where a count would go, without a beep
+ */
 function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
   const results = resultsFor(state, state.pane);
   if (results.status === "failed") return state.problem ?? "That search could not be run.";
   if (results.status === "idle") return "";
   if (results.status === "notFound") return "Not found";
-  if (results.status === "searching" && results.current === undefined) return "Searching…";
-
-  const parts: string[] = [];
   const matches = results.matches;
   const current = results.current;
+  // A search the results button started has no current match — the caret did
+  // not move — so until its index arrives it is still searching.
+  if (
+    (results.status === "searching" || results.status === "found") &&
+    current === undefined &&
+    matches === undefined
+  ) {
+    return "Searching…";
+  }
 
-  if (matches !== undefined && current !== undefined && matches.isHighlightable) {
-    const ordinal = matches.indexStartingAt(current.start);
+  const parts: string[] = [];
+
+  if (matches?.isHighlightable) {
+    const ordinal = current === undefined ? undefined : matches.indexStartingAt(current.start);
     // The ordinal is only meaningful once the whole file has been scanned;
     // until then the count is what has been found so far.
     if (ordinal !== undefined && matches.isComplete) {

@@ -26,10 +26,18 @@ import { DATA_SLOT_NAME, type LayoutInfo } from "@/firmware/me/layout/ifwi";
  * Ported from `Packages/MEFirmware/Layout/FirmwareEnd.swift`.
  */
 
-/** An offset or size at or past this is an erased field, not a position. */
+/**
+ * An offset or size at or past this is an erased field, not a position.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.maxSize
+ */
 const MAX_SIZE = 0xffff_ffff;
 
-/** The 4 KiB the firmware is padded to. */
+/**
+ * The 4 KiB the firmware is padded to.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.alignment
+ */
 const ALIGNMENT = 0x1000;
 
 const CPD_TAG = tagBytes("$CPD");
@@ -38,17 +46,30 @@ const CPD_TAG = tagBytes("$CPD");
  * What the walk learns about an image's tail beyond the size itself: the facts
  * FWUpdate Support is decided from, which come out of this same arithmetic
  * rather than being worked out twice.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.Layout
  */
 export interface FirmwareEndLayout {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.Layout.firmwareSize */
   readonly firmwareSize: number | undefined;
-  /** An uncharted `$CPD` partition follows the last charted one. */
+  /**
+   * An uncharted `$CPD` partition follows the last charted one.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.Layout.hasUnchartedPartition
+   */
   readonly hasUnchartedPartition: boolean;
   /**
    * The probe that *searched* for an uncharted `$CPD` in the 8 KiB after the last
    * charted partition found one further along, rather than right at the end.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.Layout.unchartedProbeHit
    */
   readonly unchartedProbeHit: boolean;
-  /** How much of the 4 KiB padding the firmware wants is present in the buffer. */
+  /**
+   * How much of the 4 KiB padding the firmware wants is present in the buffer.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.Layout.alignmentPresent
+   */
   readonly alignmentPresent: number;
 }
 
@@ -61,9 +82,14 @@ export interface FirmwareEndInput {
   readonly ignores4KAlignment: boolean;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.firmwareSize */
 export const firmwareSize = (input: FirmwareEndInput): number | undefined =>
   firmwareEndLayout(input).firmwareSize;
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FirmwareEnd.swift#FirmwareEndCalculator.layout
+ */
 export function firmwareEndLayout(input: FirmwareEndInput): FirmwareEndLayout {
   const { bytes, partitions, fptStart, cseLayout } = input;
   let size: number | undefined;

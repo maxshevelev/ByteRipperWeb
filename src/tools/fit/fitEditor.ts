@@ -1,6 +1,12 @@
 import { sourceOver } from "@/firmware/byteSource";
 import { FIT, FIT_ENTRY_SIZE } from "@/firmware/fit/fitEntry";
 import type { FITTable } from "@/firmware/fit/fitTable";
+import {
+  type FITTopSwapBackup,
+  findTopSwapBackup,
+  topSwapCopiesMatch,
+  topSwapSize,
+} from "@/firmware/fit/fitTopSwap";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { ImageReader as Reader } from "@/firmware/imageReader";
 import { OverlayByteSource } from "@/firmware/overlayByteSource";
@@ -34,6 +40,8 @@ import type { ToolTransaction, ToolWrite } from "@/tools/toolTransaction";
  * Each of these is a rule from the specification, and each is worth saying in a
  * sentence rather than refusing silently: the user is at a bench with a dump
  * that has to boot afterwards.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem
  */
 export type FITEditProblem =
   /** The file this tool was pointed at is not a microcode image. */
@@ -69,8 +77,23 @@ export type FITEditProblem =
   | { readonly kind: "notAMicrocodeRow" }
   | { readonly kind: "noSuchEntry" }
   /** Nothing to add to. */
-  | { readonly kind: "noTable" };
+  | { readonly kind: "noTable" }
+  /**
+   * The image keeps a Top Swap backup of the block the FIT is in, and the two
+   * copies are not the same bytes, so one change cannot be right for both.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.topSwapCopiesDiffer
+   */
+  | { readonly kind: "topSwapCopiesDiffer"; readonly backup: ImageRange }
+  /**
+   * A write reaches into a Top Swap block without lying wholly inside the top
+   * one, so it has no place in the other copy.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.topSwapWriteCrossesTheBlocks
+   */
+  | { readonly kind: "topSwapWriteCrossesTheBlocks"; readonly at: number };
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.message */
 export function fitEditProblemMessage(problem: FITEditProblem): string {
   switch (problem.kind) {
     case "notMicrocode":
@@ -99,33 +122,89 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
       return "That entry is no longer in the table.";
     case "noTable":
       return "There is no FIT table in this file to change.";
+    case "topSwapCopiesDiffer":
+      return (
+        "This image keeps a Top Swap backup of the boot block at " +
+        `0x${problem.backup.start.toString(16).toUpperCase()}–0x${problem.backup.end.toString(16).toUpperCase()}, ` +
+        "and it is not the same as the block the FIT is in, so the change cannot be made in both. " +
+        "Nothing was changed."
+      );
+    case "topSwapWriteCrossesTheBlocks":
+      return (
+        `The change writes at 0x${problem.at.toString(16).toUpperCase()} across a Top Swap block ` +
+        "boundary, where it cannot be made in both copies. Nothing was changed."
+      );
   }
 }
 
-/** What a change to the table turned out to be, for the sentence said after. */
+/**
+ * What a change to the table turned out to be, for the sentence said after.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome
+ */
 export interface FITEditOutcome {
-  /** A new row for a CPUID the table did not name, or one it already named. */
+  /**
+   * A new row for a CPUID the table did not name, or one it already named.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.kind
+   */
   readonly kind: "added" | "replaced";
-  /** Where the component went. */
+  /**
+   * Where the component went.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.range
+   */
   readonly range: ImageRange;
-  /** The row that names it. */
+  /**
+   * The row that names it.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.entryIndex
+   */
   readonly entryIndex: number;
-  /** What the replaced component was, when there was one. */
+  /**
+   * What the replaced component was, when there was one.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.replaced
+   */
   readonly replaced: MicrocodeHeader | undefined;
   /**
    * How many components behind it moved, because the new one is a different
    * size from the old.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.moved
    */
   readonly moved: number;
+  /**
+   * The Top Swap backup block the change was made in as well, when the image
+   * keeps one.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.topSwapBackup
+   */
+  readonly topSwapBackup?: ImageRange | undefined;
 }
 
-/** What a removal came to. */
+/**
+ * What a removal came to.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome
+ */
 export interface FITRemovalOutcome {
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.entryIndex */
   readonly entryIndex: number;
-  /** How many components moved up into the space the removed one left. */
+  /**
+   * How many components moved up into the space the removed one left.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.moved
+   */
   readonly moved: number;
-  /** The bytes the move freed at the end of the run, now erased. */
+  /**
+   * The bytes the move freed at the end of the run, now erased.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.erased
+   */
   readonly erased: ImageRange | undefined;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.topSwapBackup */
+  readonly topSwapBackup?: ImageRange | undefined;
 }
 
 export type FITEdit<T> =
@@ -134,7 +213,12 @@ export type FITEdit<T> =
 
 const refuse = <T>(problem: FITEditProblem): FITEdit<T> => ({ ok: false, problem });
 
-/** A microcode image the user picked, checked before anything is written. */
+/**
+ * A microcode image the user picked, checked before anything is written.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.microcode
+ */
 export function readPickedMicrocode(
   bytes: Uint8Array
 ):
@@ -165,8 +249,10 @@ export function readPickedMicrocode(
  * count, not even the checksum. Where it is bigger it goes wherever a new one
  * would, and the row that named the old one is repointed. The old bytes are
  * left where they are either way: erasing them is the riskier half of the edit.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.addOrReplaceMicrocodeInTheTopBlock
  */
-export function addOrReplaceMicrocode(
+function addOrReplaceMicrocodeInTheTopBlock(
   component: Uint8Array,
   table: FITTable,
   image: UEFIImage | undefined,
@@ -194,8 +280,10 @@ export function addOrReplaceMicrocode(
  * "put a different microcode here", so the row is the target, not a CPUID
  * match. The new component may be for a different processor — a row that named
  * one CPUID now names another — and the table keeps the same number of rows.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.replaceMicrocodeInTheTopBlock
  */
-export function replaceMicrocodeAt(
+function replaceMicrocodeInTheTopBlock(
   index: number,
   component: Uint8Array,
   table: FITTable,
@@ -239,8 +327,10 @@ export function replaceMicrocodeAt(
  * named it will not know about. What this *can* put right it does: a run inside
  * an FFS file leaves that file's checksums describing what used to be there,
  * and those are recomputed into the same transaction.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.removeMicrocodeFromTheTopBlock
  */
-export function removeMicrocodeAt(
+function removeMicrocodeFromTheTopBlock(
   index: number,
   table: FITTable,
   image: UEFIImage | undefined,
@@ -331,6 +421,122 @@ interface NamedRow {
  * names platform 22's. So an exact mask wins, an overlapping one is next, and
  * only if neither is there does the first row for the CPUID answer.
  */
+/**
+ * Adds a microcode, or replaces the one for the same CPUID — in the top block and
+ * in its Top Swap backup alike. The rules are `addOrReplaceMicrocodeInTheTopBlock`'s.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITEditor.addOrReplaceMicrocode
+ */
+export function addOrReplaceMicrocode(
+  component: Uint8Array,
+  table: FITTable,
+  image: UEFIImage | undefined,
+  reader: ImageReader,
+  addressDiff: number
+): FITEdit<FITEditOutcome> {
+  return mirroredIntoTopSwap(
+    addOrReplaceMicrocodeInTheTopBlock(component, table, image, reader, addressDiff),
+    table,
+    reader
+  );
+}
+
+/**
+ * Swaps the microcode a row names — in both copies of a Top Swap image. The rules
+ * are `replaceMicrocodeInTheTopBlock`'s.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITEditor.replaceMicrocode
+ */
+export function replaceMicrocodeAt(
+  index: number,
+  component: Uint8Array,
+  table: FITTable,
+  image: UEFIImage | undefined,
+  reader: ImageReader,
+  addressDiff: number
+): FITEdit<FITEditOutcome> {
+  return mirroredIntoTopSwap(
+    replaceMicrocodeInTheTopBlock(index, component, table, image, reader, addressDiff),
+    table,
+    reader
+  );
+}
+
+/**
+ * Takes a microcode out of the table — in both copies of a Top Swap image. The
+ * rules are `removeMicrocodeFromTheTopBlock`'s.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITEditor.removeMicrocode
+ */
+export function removeMicrocodeAt(
+  index: number,
+  table: FITTable,
+  image: UEFIImage | undefined,
+  reader: ImageReader,
+  addressDiff: number
+): FITEdit<FITRemovalOutcome> {
+  return mirroredIntoTopSwap(
+    removeMicrocodeFromTheTopBlock(index, table, image, reader, addressDiff),
+    table,
+    reader
+  );
+}
+
+const overlaps = (left: ImageRange, right: ImageRange) =>
+  left.start < right.end && right.start < left.end;
+
+/**
+ * `transaction`, with every write into the top block made at the same place in
+ * the backup too. A write outside both blocks is made once: both tables name it
+ * by the same address. One that reaches into either block without lying wholly
+ * inside the top one has no place in the other copy.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.mirroring
+ */
+export function mirroringTransaction(
+  copy: FITTopSwapBackup,
+  transaction: ToolTransaction
+):
+  | { readonly ok: true; readonly transaction: ToolTransaction }
+  | { readonly ok: false; readonly problem: FITEditProblem } {
+  const size = topSwapSize(copy);
+  const writes: ToolWrite[] = [...transaction.writes];
+  for (const write of transaction.writes) {
+    const range = { start: write.offset, end: write.offset + write.bytes.length };
+    if (copy.top.start <= range.start && range.end <= copy.top.end) {
+      writes.push({ offset: write.offset - size, bytes: write.bytes });
+    } else if (overlaps(range, copy.top) || overlaps(range, copy.backup)) {
+      return { ok: false, problem: { kind: "topSwapWriteCrossesTheBlocks", at: range.start } };
+    }
+  }
+  return { ok: true, transaction: { name: transaction.name, writes } };
+}
+
+/**
+ * An edit worked out for the top block, carried into the backup when the image
+ * has one: refused when the copies already differ, since one change cannot then
+ * be right for both, and recorded on the outcome otherwise.
+ */
+function mirroredIntoTopSwap<T extends { readonly topSwapBackup?: ImageRange | undefined }>(
+  edit: FITEdit<T>,
+  table: FITTable,
+  reader: ImageReader
+): FITEdit<T> {
+  if (!edit.ok) return edit;
+  const copy = findTopSwapBackup(table, reader);
+  if (copy === undefined) return edit;
+  if (!topSwapCopiesMatch(copy, reader)) {
+    return refuse({ kind: "topSwapCopiesDiffer", backup: copy.backup });
+  }
+  const mirrored = mirroringTransaction(copy, edit.transaction);
+  if (!mirrored.ok) return refuse(mirrored.problem);
+  return {
+    ok: true,
+    transaction: mirrored.transaction,
+    outcome: { ...edit.outcome, topSwapBackup: copy.backup },
+  };
+}
+
 function rowNaming(header: MicrocodeHeader, table: FITTable): NamedRow | undefined {
   const candidates: NamedRow[] = [];
   for (const row of table.rows) {
@@ -346,9 +552,10 @@ function rowNaming(header: MicrocodeHeader, table: FITTable): NamedRow | undefin
 }
 
 /**
- * The shared half of a replacement: lay the run down again with the row's
- * component swapped for the new bytes, and repoint the row only when the move
- * demands it.
+ * The shared half of a replacement. A component no bigger than the old one goes
+ * where the old one was and nothing else moves; a bigger one lays the run down
+ * again with the row's component swapped for the new bytes, and repoints the
+ * rows the move demands.
  */
 function replacing(
   row: NamedRow,
@@ -367,6 +574,40 @@ function replacing(
   if (at < 0 || first?.kind !== "existing" || last?.kind !== "existing") {
     return refuse({ kind: "noSuchEntry" });
   }
+
+  // No bigger than the old one: it goes where the old one was, and nothing
+  // behind it moves. A vendor lays a run out with gaps of its own — CSME images
+  // align each microcode to 4 KiB — and packing the run tight would move every
+  // component behind this one, and rewrite the rows naming them, for nothing the
+  // user asked for. What the old one covered past the new one's end is erased
+  // with the fill the run already sits in.
+  if (bytes.length <= old.totalSize) {
+    const fill = fillByte(
+      microcodeRange(last.header).end,
+      spareArea(first.header.offset, image, reader).range.end,
+      reader
+    );
+    const payload = new Uint8Array(old.totalSize).fill(fill);
+    payload.set(bytes);
+    const write = changedPart(payload, old.offset, reader);
+    return {
+      ok: true,
+      transaction: withContainerRepairs(
+        { name: "Replace Microcode", writes: write === undefined ? [] : [write] },
+        image,
+        reader,
+        undefined
+      ),
+      outcome: {
+        kind: "replaced",
+        range: { start: old.offset, end: old.offset + header.totalSize },
+        entryIndex: row.index,
+        replaced: old,
+        moved: 0,
+      },
+    };
+  }
+
   const items = [...run];
   items[at] = { kind: "fresh", bytes };
 
@@ -682,25 +923,9 @@ function relayRun(
   }
 
   const payload = concat(parts);
-  // Only the part that differs is written. A run whose first components do not
-  // move must not be rewritten with the bytes it already holds: the dump would
-  // colour every one of them as changed, and the undo step would take back more
-  // than the edit did.
-  let write: ToolWrite | undefined = { offset: start, bytes: payload };
-  const current = reader.bytes({ start, end: start + payload.length });
-  if (current !== undefined) {
-    // Both ends: a replacement in the middle of a run leaves the components in
-    // front of it and behind it exactly as they were.
-    let from = 0;
-    while (from < payload.length && payload[from] === current[from]) from++;
-    if (from === payload.length) {
-      write = undefined;
-    } else {
-      let to = payload.length - 1;
-      while (to > from && payload[to] === current[to]) to--;
-      write = { offset: start + from, bytes: payload.subarray(from, to + 1) };
-    }
-  }
+  // Only the part that differs is written: a run whose first components do not
+  // move is not rewritten with the bytes it already holds.
+  const write = changedPart(payload, start, reader);
 
   return {
     ok: true,
@@ -712,6 +937,28 @@ function relayRun(
       freshOffset,
     },
   };
+}
+
+/**
+ * `payload` at `start`, cut to the stretch that differs from what is there — at
+ * both ends, so a change in the middle of a run leaves the components in front
+ * of it and behind it alone. Bytes that do not change are not written: the dump
+ * would colour them as changed, and the undo step would take back more than the
+ * edit did. Undefined when nothing differs.
+ */
+function changedPart(
+  payload: Uint8Array,
+  start: number,
+  reader: ImageReader
+): ToolWrite | undefined {
+  const current = reader.bytes({ start, end: start + payload.length });
+  if (current === undefined) return { offset: start, bytes: payload };
+  let from = 0;
+  while (from < payload.length && payload[from] === current[from]) from++;
+  if (from === payload.length) return undefined;
+  let to = payload.length - 1;
+  while (to > from && payload[to] === current[to]) to--;
+  return { offset: start + from, bytes: payload.subarray(from, to + 1) };
 }
 
 /**
@@ -883,6 +1130,8 @@ const SPARE_KINDS: ReadonlySet<string> = new Set(["freeSpace", "padding", "nonUE
  * So what marks filler is not the byte but the uniformity: one value, unbroken,
  * from here to the end of the element that holds it. Sixteen identical bytes in
  * the middle of content would not pass that, and a vendor's padding does.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.isFree
  */
 export function isFree(range: ImageRange, end: number, reader: ImageReader): boolean {
   if (range.end <= range.start) return false;
@@ -902,6 +1151,8 @@ export function isFree(range: ImageRange, end: number, reader: ImageReader): boo
  * Tidying up after an edit means leaving the same fill the image already uses:
  * sixteen bytes of `0xFF` in the middle of a `0x20`-padded file are litter of a
  * new kind, and they break the uniformity the *next* edit reads as free space.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.fillByte
  */
 export function fillByte(offset: number, end: number, reader: ImageReader): number {
   if (offset >= end) return 0xff;

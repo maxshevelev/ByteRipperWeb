@@ -23,12 +23,14 @@ const cutAt8 = (): Segmentation => {
 const extents = (of: Segmentation) => of.segments.map((piece) => [piece.start, piece.end]);
 
 describe("a partition", () => {
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testAFreshFileIsOnePieceNamedAfterIt
   it("starts as one piece covering the file", () => {
     const one = wholeFile(16);
     expect(one.cuts).toEqual([]);
     expect(extents(one)).toEqual([[0, 16]]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testTheLabelIsBuiltInOnePlace
   it("builds its labels in one place", () => {
     expect(segmentLabel(0)).toBe("S0");
     expect(segmentLabel(7)).toBe("S7");
@@ -37,6 +39,7 @@ describe("a partition", () => {
     expect(mergeTitle(0)).toBe("Merge S0 into S1");
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testACutMakesTwoPiecesAndRenumbersThem
   it("makes two pieces from a cut, and renumbers", () => {
     const split = cutAt8();
     expect(split.cuts).toEqual([8]);
@@ -47,6 +50,7 @@ describe("a partition", () => {
     expect(split.segments.map((piece) => piece.index)).toEqual([0, 1]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testACutAtZeroOrEOFIsRefused
   it("refuses a cut at 0, at EOF, or where one already is", () => {
     const one = wholeFile(16);
     expect(one.addCut(0)).toBeUndefined();
@@ -54,6 +58,7 @@ describe("a partition", () => {
     expect(cutAt8().addCut(8)).toBeUndefined();
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testTwoCutsAddedInEitherOrderGiveTheSamePartition
   it("gives the same partition whichever order the cuts arrive in", () => {
     const forward = wholeFile(16).addCut(4)?.addCut(12);
     const backward = wholeFile(16).addCut(12)?.addCut(4);
@@ -61,6 +66,7 @@ describe("a partition", () => {
     expect(backward?.cuts).toEqual(forward?.cuts);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testSegmentContainingIsHalfOpenAtBothEnds
   it("is half-open at both ends: a cut belongs to the piece that starts there", () => {
     const split = cutAt8();
     expect(split.containing(0)?.index).toBe(0);
@@ -72,18 +78,21 @@ describe("a partition", () => {
 });
 
 describe("removing", () => {
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRemovingACutMergesIntoTheEarlierPieceAndKeepsItsName
   it("merges a removed cut into the earlier piece, which keeps its name", () => {
     const named = cutAt8().rename(0, "header").rename(1, "second");
     const merged = named.removeCut(8);
     expect(merged?.segments).toEqual([{ index: 0, start: 0, end: 16, name: "header" }]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRemovingAPieceMergesIntoThePieceAbove
   it("merges a removed piece into the one above", () => {
     const named = cutAt8().rename(0, "header").rename(1, "second");
     const merged = named.removePiece(1);
     expect(merged?.segments).toEqual([{ index: 0, start: 0, end: 16, name: "header" }]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRemovingS0PromotesThePieceBelow
   it("promotes the piece below when S0 goes", () => {
     // It reopens at the file start and keeps its own name: what was S1 is S0.
     const named = cutAt8().rename(0, "header").rename(1, "body");
@@ -91,6 +100,7 @@ describe("removing", () => {
     expect(merged?.segments).toEqual([{ index: 0, start: 0, end: 16, name: "body" }]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRemovingTheOnlyPieceOrAnOutOfRangeIndexIsRefused
   it("refuses to remove the only piece, or an index that is not there", () => {
     expect(wholeFile(16).removePiece(0)).toBeUndefined();
     expect(cutAt8().removePiece(5)).toBeUndefined();
@@ -119,6 +129,7 @@ describe("sliding a cut", () => {
     expect(moved.moveCut(6, 10)).toBeUndefined();
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testMoveCutTowardTheBoundsStopsShortOfThem
   it("stops short of the bounds it may not reach", () => {
     expect(three().moveCut(4, 0)).toBeUndefined();
     expect(three().moveCut(8, 16)).toBeUndefined();
@@ -149,12 +160,14 @@ describe("a cut travels with the content", () => {
     expect(moved).toBe(false);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testADeleteThatSwallowsACutMergesThePieces
   it("merges the pieces when a delete swallows the cut between them", () => {
     const named = cutAt8().rename(0, "dump.bin").rename(1, "second");
     const { partition } = named.applyEdit({ kind: "delete", start: 4, end: 12 }, 8);
     expect(partition.segments).toEqual([{ index: 0, start: 0, end: 8, name: "dump.bin" }]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testADeleteThatEmptiesAPieceRemovesIt
   it("drops a piece a delete empties, with its name", () => {
     const named = cutAt8().rename(0, "dump.bin").rename(1, "second");
     const { partition } = named.applyEdit({ kind: "delete", start: 8, end: 16 }, 8);
@@ -185,11 +198,14 @@ describe("re-basing onto a new size", () => {
     ]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRebaseDropsCutsPastTheNewEnd
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRebaseDropsACutAtTheNewEnd
   it("drops a cut at or past the new end", () => {
     expect(cutAt8().resized(8).cuts).toEqual([]);
     expect(cutAt8().resized(4).cuts).toEqual([]);
   });
 
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testRebaseToAnEmptyFileKeepsTheWholeFilePiece
   it("keeps the whole-file piece when the file becomes empty", () => {
     const empty = cutAt8().resized(0);
     expect(empty.pieces).toHaveLength(1);

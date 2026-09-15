@@ -45,7 +45,11 @@ export class DirtyRows {
     this.ranges = merged;
   }
 
-  /** Marks a single row. */
+  /**
+   * Marks a single row.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.redrawRow
+   */
   invalidateRow(row: number): void {
     this.invalidate(row, row + 1);
   }

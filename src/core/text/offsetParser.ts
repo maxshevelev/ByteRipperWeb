@@ -20,6 +20,7 @@ import { MAX_REPRESENTABLE_SIZE } from "@/core/limits";
  * to a different offset and report success.
  */
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/OffsetParser.swift#OffsetParser.ParseError */
 export type OffsetParseFailure = "invalidInput" | "outOfRange";
 
 export type OffsetParseResult =
@@ -29,6 +30,7 @@ export type OffsetParseResult =
 const DECIMAL = /^[0-9]+$/;
 const HEX = /^[0-9a-fA-F]+$/;
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/OffsetParser.swift#OffsetParser.parse */
 export function parseOffset(text: string): OffsetParseResult {
   const trimmed = text.trim();
   if (trimmed.length === 0) return { ok: false, reason: "invalidInput" };
@@ -50,7 +52,11 @@ function fromBigInt(value: bigint): OffsetParseResult {
   return { ok: true, value: Number(value) };
 }
 
-/** `value` as a lowercase hexadecimal string, with no prefix. */
+/**
+ * `value` as a lowercase hexadecimal string, with no prefix.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/OffsetParser.swift#OffsetParser.hexString
+ */
 export function hexString(value: number): string {
   return value.toString(16);
 }

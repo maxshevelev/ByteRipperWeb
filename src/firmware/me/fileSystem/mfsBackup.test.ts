@@ -137,6 +137,7 @@ const parse = (area: Uint8Array, absoluteOffset = 0) =>
   parseMfsBackup(area, 0, area.length, absoluteOffset);
 
 describe("an R0 backup", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR0ParsesHeaderAndReconstructsIntoValidMFS
   it("reads its header and rebuilds into a valid volume", () => {
     const backup = parse(makeR0(compact(makeMfsVolume())), 0x4000);
     expect(backup).toEqual({
@@ -152,11 +153,13 @@ describe("an R0 backup", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR0ReconstructionRoundTripsTheCompaction
   it("round-trips the compaction", () => {
     const target = makeMfsVolume();
     expect(reconstructR0Body(compact(target))).toEqual(target);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR0CorruptedBodyCRCReported
   it("reports a corrupted body", () => {
     const area = makeR0(compact(makeMfsVolume()));
     area[0x20 + 0x10] = (area[0x20 + 0x10] ?? 0) ^ 0xff;
@@ -165,6 +168,7 @@ describe("an R0 backup", () => {
     expect(backup?.headerCRCValid).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR0BodyThatReconstructsButNotIntoMFSIsFalse
   it("says a body that rebuilds into no MFS does not parse", () => {
     const backup = parse(makeR0(new Uint8Array(0x400).fill(0x55)));
     expect(backup?.headerCRCValid).toBe(true);
@@ -173,6 +177,7 @@ describe("an R0 backup", () => {
 });
 
 describe("an R1 backup", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR1ParsesHeaderAndThreeEntries
   it("reads its header and its three entries", () => {
     const d6 = fill(0x10);
     const d9 = fill(0x20, 0x22);
@@ -208,6 +213,7 @@ describe("an R1 backup", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR1CorruptedHeaderCRCReported
   it("reports a corrupted header CRC", () => {
     const area = makeR1(fill(0x10), fill(0x20), fill(0x30));
     area[0x08] = (area[0x08] ?? 0) ^ 0xff;
@@ -217,6 +223,7 @@ describe("an R1 backup", () => {
     expect(backup?.entries.every((one) => one.headerCRCValid && one.dataCRCValid)).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR1HeaderRevisionMismatchReported
   it("reports a header revision mismatch", () => {
     const backup = parse(makeR1(fill(0x10), fill(0x20), fill(0x30), 2));
     expect(backup?.headerRevision).toBe(2);
@@ -224,6 +231,7 @@ describe("an R1 backup", () => {
     expect(backup?.headerCRCValid).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR1EntryHeaderCRCInvalidIsolated
   it("isolates an invalid entry header CRC", () => {
     const area = makeR1(fill(0x10), fill(0x20), fill(0x30));
     area[R1_HEADER_SIZE + 0x04] = (area[R1_HEADER_SIZE + 0x04] ?? 0) ^ 0xff;
@@ -238,6 +246,7 @@ describe("an R1 backup", () => {
     expect(e7?.headerCRCValid).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR1EntryDataCRCInvalidIsolated
   it("isolates an invalid entry data CRC", () => {
     const area = makeR1(fill(0x10), fill(0x20), fill(0x30));
     const at = R1_HEADER_SIZE + ENTRY_HEADER_SIZE + 0x10 + 0x10 + 0x03;
@@ -248,6 +257,7 @@ describe("an R1 backup", () => {
     expect(e7?.dataCRCValid).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testR1OutOfRangeEntryReportedNotThrown
   it("reports an out-of-range entry rather than failing", () => {
     const e6 = makeEntry(fill(0x10));
     const e9 = makeEntry(fill(0x20));
@@ -280,6 +290,7 @@ describe("an R1 backup", () => {
 });
 
 describe("detection", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testNonMFSBAreaReturnsNil
   it("finds nothing in a normal volume or an erased area", () => {
     expect(
       parse(concat(Uint8Array.of(0x87, 0x78, 0x55, 0xaa), new Uint8Array(0x20).fill(0xff)))
@@ -287,11 +298,13 @@ describe("detection", () => {
     expect(parse(new Uint8Array(0x40).fill(0xff))).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testRegionTooSmallOrOutOfBoundsReturnsNil
   it("finds nothing too small or out of bounds", () => {
     expect(parseMfsBackup(new Uint8Array(0x10), 0, 0x10, 0)).toBeUndefined();
     expect(parseMfsBackup(new Uint8Array(0x40), 0x20, 0x40, 0)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testOutOfRangeHeaderOffsetsStayGraceful
   it("stays graceful with a header shorter than R1's", () => {
     const area = new Uint8Array(0x20);
     put32(area, 0, SIGNATURE);

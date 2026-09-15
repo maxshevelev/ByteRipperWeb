@@ -4,7 +4,11 @@
  * Ported from the pattern half of `SearchEngine.swift`.
  */
 
-/** How the text in the find field becomes bytes. */
+/**
+ * How the text in the find field becomes bytes.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEncoding
+ */
 export type SearchEncoding = "hex" | "ascii" | "utf8" | "utf16LE" | "utf16BE";
 
 export const SEARCH_ENCODINGS: readonly SearchEncoding[] = [
@@ -15,7 +19,12 @@ export const SEARCH_ENCODINGS: readonly SearchEncoding[] = [
   "utf16BE",
 ];
 
-/** What a menu calls each one. */
+/**
+ * What a menu calls each one.
+ *
+ * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SearchEncoding
+ * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SearchEncoding.displayName
+ */
 export const encodingTitle = (encoding: SearchEncoding): string =>
   ({
     hex: "Hex bytes",
@@ -32,6 +41,8 @@ export const encodingTitle = (encoding: SearchEncoding): string =>
  * pass over the file: fold both the pattern and the data, and the fast search
  * does the rest. What *may* be folded depends on the encoding, which is why
  * this is a type rather than a boolean.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#CaseFolding
  */
 export type CaseFolding =
   /** Byte for byte. Hex is always this, and so is any encoding when the user asks. */
@@ -50,7 +61,11 @@ export type CaseFolding =
 
 export const EXACT: CaseFolding = { kind: "exact" };
 
-/** The rule for an encoding and the user's choice. */
+/**
+ * The rule for an encoding and the user's choice.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#CaseFolding.init
+ */
 export function foldingFor(encoding: SearchEncoding, caseSensitive: boolean): CaseFolding {
   if (caseSensitive) return EXACT;
   switch (encoding) {
@@ -72,6 +87,7 @@ export const sameFolding = (a: CaseFolding, b: CaseFolding): boolean =>
   a.kind === b.kind &&
   (a.kind !== "utf16" || b.kind !== "utf16" || a.littleEndian === b.littleEndian);
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchError */
 export type SearchFailure =
   /** The pattern resolved to no bytes — empty input, or empty hex. */
   | "emptyPattern"
@@ -80,9 +96,15 @@ export type SearchFailure =
   /** The text cannot be written in the requested encoding. */
   | "undecodableText";
 
-/** A resolved pattern: the exact bytes to find, and the encoding they came from. */
+/**
+ * A resolved pattern: the exact bytes to find, and the encoding they came from.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern
+ */
 export interface SearchPattern {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.bytes */
   readonly bytes: Uint8Array;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.encoding */
   readonly encoding: SearchEncoding;
 }
 
@@ -98,11 +120,17 @@ export type ParseResult =
  * `0xDE 0xAD` — so this is the one form to show back: text a reader can compare,
  * byte for byte, against the dump beside it. Derived from the *bytes*, so
  * whatever was typed comes back meaning exactly what was searched for.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.hexText
  */
 export const patternHexText = (pattern: SearchPattern): string =>
   Array.from(pattern.bytes, (byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ");
 
-/** Resolves the text in the find field to bytes. */
+/**
+ * Resolves the text in the find field to bytes.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.parsePattern
+ */
 export function parsePattern(text: string, encoding: SearchEncoding): ParseResult {
   const bytes = encodePattern(text, encoding);
   if (bytes === "invalidHex") return { ok: false, reason: "invalidHexPattern" };

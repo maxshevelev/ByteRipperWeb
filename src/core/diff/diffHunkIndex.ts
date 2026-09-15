@@ -30,25 +30,38 @@ export interface HunkRange {
   readonly end: number;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex */
 export class DiffHunkIndex {
   /**
    * The shortest matching run that still separates two hunks: a run of
    * `gap - 1` bytes or fewer is swallowed. A gap of 1 or less merges nothing —
    * blocks always have at least one matching byte between them — which
    * reproduces byte-exact block navigation.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.gap
    */
   readonly gap: number;
-  /** The comparison's extent: the longer file's length. */
+  /**
+   * The comparison's extent: the longer file's length.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.extent
+   */
   readonly extent: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.hunks */
   readonly hunks: readonly HunkRange[];
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.init */
   constructor(hunks: readonly HunkRange[], gap: number, extent: number) {
     this.hunks = hunks;
     this.gap = gap;
     this.extent = extent;
   }
 
-  /** Groups an index's difference blocks. One linear pass. */
+  /**
+   * Groups an index's difference blocks. One linear pass.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.init
+   */
   static from(index: DiffBlockIndex, gap: number): DiffHunkIndex {
     const merged: { start: number; end: number }[] = [];
     for (let i = 0; i < index.blockCount; i++) {
@@ -61,6 +74,7 @@ export class DiffHunkIndex {
     return new DiffHunkIndex(merged, gap, index.maxSize);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.isEmpty */
   get isEmpty(): boolean {
     return this.hunks.length === 0;
   }
@@ -74,13 +88,19 @@ export class DiffHunkIndex {
    *
    * A caret inside a hunk — including inside a matching run the hunk swallowed
    * — therefore lands on the *next* hunk rather than on a fragment of this one.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.nextDifference
    */
   nextDifference(offset: number): HunkRange | undefined {
     const index = this.firstHunkStartAfter(offset);
     return index === undefined ? undefined : this.hunks[index];
   }
 
-  /** The last hunk ending at or before `offset`. */
+  /**
+   * The last hunk ending at or before `offset`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.previousDifference
+   */
   previousDifference(offset: number): HunkRange | undefined {
     const index = this.lastHunkEndAtOrBefore(offset);
     return index === undefined ? undefined : this.hunks[index];
@@ -93,6 +113,8 @@ export class DiffHunkIndex {
    * and trailing runs. The short runs a hunk swallowed are inside a difference
    * and are not navigation targets — otherwise Next Same Block would land in
    * the middle of what Next Difference treats as one change.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.nextSame
    */
   nextSame(offset: number): HunkRange | undefined {
     // Every candidate run starts where a hunk ends; the leading run starts at
@@ -101,7 +123,11 @@ export class DiffHunkIndex {
     return index === undefined ? undefined : this.matchingRunAfter(index);
   }
 
-  /** The last matching run ending at or before `offset`. */
+  /**
+   * The last matching run ending at or before `offset`.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffHunkIndex.swift#DiffHunkIndex.previousSame
+   */
   previousSame(offset: number): HunkRange | undefined {
     if (this.hunks.length === 0) {
       // No differences at all: the extent is one matching run.

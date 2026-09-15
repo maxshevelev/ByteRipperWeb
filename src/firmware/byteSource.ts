@@ -18,8 +18,11 @@
  * check.
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ByteSource */
 export interface ByteSource {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ByteSource.byteCount */
   readonly byteCount: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ByteSource.bytes */
   bytes(start: number, end: number): Uint8Array;
   /**
    * `count` bytes at `offset`, little-endian, as one number.
@@ -31,6 +34,8 @@ export interface ByteSource {
    * `count` is 1 to 8. Assembled by multiplication, not by shifting:
    * JavaScript's bitwise operators are 32-bit, and a dword with its top bit set
    * comes back negative from `<<`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ByteSource.word
    */
   word(offset: number, count: number): number;
 }
@@ -43,6 +48,9 @@ export interface ByteSource {
  * every bounds check it feeds fails, which is the same answer as reading it
  * exactly. Where the *bits* matter rather than the magnitude — a magic number
  * — {@link assembleBits} answers in full.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ByteSourceWord
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ByteSourceWord.assemble
  */
 export function assembleWord(bytes: Uint8Array, from: number, count: number): number {
   let value = 0;
@@ -61,7 +69,17 @@ export function assembleBits(bytes: Uint8Array, from: number, count: number): bi
   return value;
 }
 
-/** A source over bytes already in memory — what the tests and the worker use. */
+/**
+ * A source over bytes already in memory — what the tests and the worker use.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#Data.byteCount
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#Data.bytes
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#Data.word
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#Array.byteCount
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#Array.bytes
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#Array.word
+ * @upstream-differs one source over a Uint8Array stands for both Data and [UInt8]
+ */
 export function sourceOver(bytes: Uint8Array): ByteSource {
   return {
     byteCount: bytes.length,
@@ -88,6 +106,8 @@ export function sourceOver(bytes: Uint8Array): ByteSource {
  * The window is a read cache, so a source whose bytes change under it can be
  * read inconsistently within one parse. That is already true of a live source
  * without it — a parse is not a snapshot — and it is what invalidation answers.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/WindowedByteSource.swift#WindowedByteSource
  */
 export class WindowedByteSource implements ByteSource {
   /**
@@ -103,21 +123,25 @@ export class WindowedByteSource implements ByteSource {
   private windowEndOffset = 0;
   private cache: Uint8Array = new Uint8Array(0);
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/WindowedByteSource.swift#WindowedByteSource.init */
   constructor(source: ByteSource, window = 64 * 1024) {
     this.source = source;
     this.size = window;
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/WindowedByteSource.swift#WindowedByteSource.byteCount */
   get byteCount(): number {
     return this.source.byteCount;
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/WindowedByteSource.swift#WindowedByteSource.bytes */
   bytes(start: number, end: number): Uint8Array {
     const from = this.window(start, end);
     if (from === undefined) return this.source.bytes(start, end);
     return this.cache.subarray(start - from, end - from);
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/WindowedByteSource.swift#WindowedByteSource.word */
   word(offset: number, count: number): number {
     const from = this.window(offset, offset + count);
     if (from === undefined) {

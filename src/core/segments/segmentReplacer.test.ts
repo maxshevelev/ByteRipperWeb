@@ -29,7 +29,9 @@ const cutAt8 = (): Segmentation => {
 
 const donorBytes = new Uint8Array([0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7]);
 
+// @upstream ByteRipperTests/SegmentReplaceTests.swift#SegmentReplaceTests.testTheBytesAfterASwap
 describe("the bytes after a swap", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testTheDonorsBytesLandInTheRange
   it("gives the piece the donor's bytes and leaves the rest alone", async () => {
     const document = documentOf(countingBytes(16));
 
@@ -59,9 +61,11 @@ describe("the bytes after a swap", () => {
   });
 });
 
+// @upstream ByteRipperTests/SegmentReplaceTests.swift#SegmentReplaceTests.testOneUndoRestoresTheSwap
 describe("the swap as one undo step", () => {
   // The whole swap is one transaction, so one undo takes it all back — however
   // many chunks it was written in.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testAMultiChunkSwapIsOneTransaction
   it("is taken back by a single undo", async () => {
     const document = documentOf(countingBytes(16));
     await replaceSegment({
@@ -97,6 +101,8 @@ describe("the swap as one undo step", () => {
 describe("the refusal", () => {
   // Making a mismatch an insert-and-shift is a decision, not a default: every
   // offset after the piece would move.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testALengthMismatchIsRefusedWithBothSizes
+  // @upstream ByteRipperTests/SegmentReplaceTests.swift#SegmentReplaceTests.testTheRefusalNamesBothSizes
   it("names both sizes when the donor is the wrong length", async () => {
     const document = documentOf(countingBytes(16));
     const donor = storageOver(new Uint8Array([0xb0, 0xb1, 0xb2]));
@@ -123,6 +129,7 @@ describe("the refusal", () => {
   // A short read means the donor shrank under us. Stopping quietly would commit
   // HALF a swap as one transaction and call it a success: the piece would hold
   // the donor's first chunks and the document's own bytes after them.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testAShortDonorReadLeavesTheDocumentUnchanged
   it("rolls the whole swap back when the donor shrinks part-way", async () => {
     const document = documentOf(countingBytes(16));
     let served = 0;
@@ -147,6 +154,7 @@ describe("the refusal", () => {
 describe("what a swap does to the partition", () => {
   // A same-length swap changes no size, so the partition's boundaries do not
   // shift: the cuts stay where they were.
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testOverwritingNeverMovesACut
   it("moves no cut", async () => {
     const document = documentOf(countingBytes(16));
     const partition = cutAt8();

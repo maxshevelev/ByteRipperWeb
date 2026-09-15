@@ -3,6 +3,7 @@ import { asArray } from "@/core/testing/support";
 import { formatHex, parseHex } from "@/core/text/hexText";
 
 describe("formatting bytes as hex text", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ClipboardCodecTests.swift#ClipboardCodecTests.testHexTextFormatting
   it("writes uppercase pairs, sixteen to a line", () => {
     expect(formatHex(new Uint8Array([0x00, 0x0f, 0xff]))).toBe("00 0F FF");
     const twenty = new Uint8Array(20).map((_, i) => i);
@@ -17,6 +18,7 @@ describe("formatting bytes as hex text", () => {
   });
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ClipboardCodecTests.swift#ClipboardCodecTests.testParseHexText
 describe("parsing hex text", () => {
   // What arrives on a clipboard came from somewhere else and was formatted by
   // somebody else's tool, so the parser is generous about separators.
@@ -42,12 +44,14 @@ describe("parsing hex text", () => {
     expect(parseHex("A")).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ClipboardCodecTests.swift#ClipboardCodecTests.testRejectInvalidHexText
   it("refuses text that is not hex at all", () => {
     expect(parseHex("")).toBeUndefined();
     expect(parseHex("hello world")).toBeUndefined();
     expect(parseHex("   ")).toBeUndefined();
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ClipboardCodecTests.swift#ClipboardCodecTests.testHexTextRoundtrip
   it("round-trips what it formatted", () => {
     const bytes = new Uint8Array(64).map((_, i) => (i * 37) & 0xff);
     expect(asArray(parseHex(formatHex(bytes)) ?? new Uint8Array(0))).toEqual(asArray(bytes));

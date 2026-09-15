@@ -16,6 +16,11 @@ import {
   type FITRow,
   type FITTable,
 } from "@/firmware/fit/fitTable";
+import {
+  type FITBackupReading,
+  type FITTopSwapBackup,
+  topSwapSize,
+} from "@/firmware/fit/fitTopSwap";
 import { microcodeDate, microcodeRange } from "@/firmware/uefi/microcodeParser";
 import { buildDetail, EMPTY_DETAIL, type FITRowDetail } from "@/tools/fit/fitDetail";
 import { cpuidText, fitHex as hex } from "@/tools/fit/fitText";
@@ -37,7 +42,11 @@ import { EMPTY_ZONES, type Zone, type ZoneMap } from "@/tools/zone";
  * Ported from `Modules/FITTool/FITDisplay.swift`.
  */
 
-/** What the right-button menu offers for a row. */
+/**
+ * What the right-button menu offers for a row.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITRowCommand
+ */
 export type FITRowCommand =
   /** The number a bench writes down and looks up. */
   | { readonly kind: "copyCPUID"; readonly cpuid: string }
@@ -60,6 +69,7 @@ export type FITRowCommand =
    */
   | { readonly kind: "fixChecksum" };
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITRowCommand.title */
 export function fitCommandTitle(command: FITRowCommand): string {
   switch (command.kind) {
     case "copyCPUID":
@@ -75,46 +85,71 @@ export function fitCommandTitle(command: FITRowCommand): string {
   }
 }
 
-/** One row as the panel shows it. */
+/**
+ * One row as the panel shows it.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow
+ */
 export interface FITDisplayRow {
-  /** Its place in the table; 0 is the header. */
+  /**
+   * Its place in the table; 0 is the header.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.index
+   */
   readonly index: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.typeText */
   readonly typeText: string;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.addressText */
   readonly addressText: string;
   /**
    * The size worth showing, in its own column: the component's for the rows
    * that point at one, the header's entry count for the header, and `0` for a
    * row whose size field is empty.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.sizeText
    */
   readonly sizeText: string;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.versionText */
   readonly versionText: string;
   /**
    * What is actually there, read rather than assumed: for microcode the CPUID,
    * the revision, the date, and where and how long it is.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.targetText
    */
   readonly targetText: string;
   /**
    * The CPUID of the microcode this row leads to, as hex digits with no leading
    * zero — what a bench writes down and looks up. Nothing for a row that does
    * not lead to microcode.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.cpuidText
    */
   readonly cpuidText: string | undefined;
   /**
    * Something is wrong with this row, and the panel says so by colour as well
    * as in the list below.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.hasProblem
    */
   readonly hasProblem: boolean;
   /** The zone for the row itself — sixteen bytes of the table. */
   readonly zoneId: string;
   /** Those sixteen bytes. */
   readonly rowStart: number;
-  /** Where the row points, when it points into the image. */
+  /**
+   * Where the row points, when it points into the image.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.targetRange
+   */
   readonly targetRange: { readonly start: number; readonly end: number } | undefined;
   /**
    * Whether this row is a microcode that may go. Only a microcode is offered
    * for removal — the extent of anything else a row can point at is not
    * something this tool knows — and a table keeps one microcode, so the last
    * one a table has cannot be removed.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.canRemove
    */
   readonly canRemove: boolean;
   /**
@@ -122,12 +157,16 @@ export interface FITDisplayRow {
    * microcode row may be replaced — the slot stays, so the one-microcode rule
    * is not touched — and the replacement need not be the same CPUID: the row,
    * not the processor, is what is being changed.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.canReplace
    */
   readonly canReplace: boolean;
   /**
    * Whether this row offers the checksum fix. The byte is the header's, so the
    * fix lives on the header row — the one the mismatch turns red — and on no
    * other.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.checksumFixAvailable
    */
   readonly checksumFixAvailable: boolean;
   /**
@@ -136,19 +175,41 @@ export interface FITDisplayRow {
    * same processor and platform is out there. Not rated before the catalogue
    * arrives, for a row that is not a microcode, and wherever nothing the
    * collection holds matches. The Type column wears it as a mark.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.latestState
    */
   readonly latestState: MicrocodeLatest;
   /**
    * The row as the table read it — entry and what it points at — kept so the
    * detail can be rebuilt for whatever row comes into focus.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.model
    */
   readonly model: FITRow;
+  /**
+   * A row of the Top Swap backup's copy of the table: shown, and never changed on
+   * its own — a change to the table is made in both copies.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.isBackup
+   */
+  readonly isBackup: boolean;
 }
+
+/**
+ * The row's identity in the panel: its index in the table, or — for a row of the
+ * backup's copy — past `BACKUP_KEY_BASE`.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.key
+ */
+export const rowKey = (row: FITDisplayRow): number =>
+  row.isBackup ? backupKey(row.index) : row.index;
 
 /**
  * The number the panel shows for the row. Counting starts at one, the way a
  * reader counts the rows of a table, rather than at the header's zero — which
  * is the row's place, not its number.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.displayNumber
  */
 export const displayNumber = (row: FITDisplayRow): number => row.index + 1;
 
@@ -156,12 +217,18 @@ export const displayNumber = (row: FITDisplayRow): number => row.index + 1;
  * Where "go to the offset" leads: what the row points at, or — for the header
  * and for an empty slot, which point nowhere — the row itself. Every row has an
  * offset, so every row has somewhere to go.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.offsetToGoTo
  */
 export const offsetToGoTo = (row: FITDisplayRow): number => row.targetRange?.start ?? row.rowStart;
 
-/** The zone that "go to the offset" brings to the front. */
+/**
+ * The zone that "go to the offset" brings to the front.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.zoneToFocus
+ */
 export const zoneToFocus = (row: FITDisplayRow): string =>
-  row.targetRange === undefined ? row.zoneId : targetZoneId(row.index);
+  row.targetRange === undefined ? row.zoneId : targetZoneId(rowKey(row));
 
 /**
  * What the right-button menu offers here. Every row leads with its offset —
@@ -174,6 +241,8 @@ export const zoneToFocus = (row: FITDisplayRow): string =>
  * tested: the panel builds items from this and nothing more. An item that does
  * not apply to the row is *absent* rather than present and greyed — a greyed
  * "Copy CPUID" on the header row explains nothing.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.commands
  */
 export function rowCommands(row: FITDisplayRow): FITRowCommand[] {
   const commands: FITRowCommand[] = [{ kind: "goToOffset", offset: offsetToGoTo(row) }];
@@ -184,24 +253,50 @@ export function rowCommands(row: FITDisplayRow): FITRowCommand[] {
   return commands;
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay */
 export interface FITDisplay {
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.summary */
   readonly summary: string;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.rows */
   readonly rows: readonly FITDisplayRow[];
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.problems */
   readonly problems: readonly FITProblem[];
   /**
    * The writes that would put the table's checksum right, or nothing when there
    * is nothing to put right.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.checksumFix
    */
   readonly checksumFix: ToolTransaction | undefined;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.zones */
   readonly zones: ZoneMap;
   /**
    * What the row in focus is, field by field — the entry's own sixteen bytes
    * and what its address leads to. Empty when no row is in focus.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.detail
    */
   readonly detail: FITRowDetail;
+  /**
+   * Where in `rows` the Top Swap backup's copy of the table starts; nothing for
+   * an image that keeps none.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.backupStart
+   */
+  readonly backupStart: number | undefined;
+  /**
+   * The heading the panel puts above the backup's rows.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.backupHeading
+   */
+  readonly backupHeading: string | undefined;
 }
 
-/** Nothing read yet, or nothing to show. */
+/**
+ * Nothing read yet, or nothing to show.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.empty
+ */
 export const EMPTY_DISPLAY: FITDisplay = {
   summary: "",
   rows: [],
@@ -209,20 +304,56 @@ export const EMPTY_DISPLAY: FITDisplay = {
   checksumFix: undefined,
   zones: EMPTY_ZONES,
   detail: EMPTY_DETAIL,
+  backupStart: undefined,
+  backupHeading: undefined,
 };
 
+/**
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.tableZoneID
+ */
 export const TABLE_ZONE_ID = "fit.table";
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.pointerZoneID */
 export const POINTER_ZONE_ID = "fit.pointer";
 
-export const rowZoneId = (index: number): string => `fit.row.${index}`;
-export const targetZoneId = (index: number): string => `fit.target.${index}`;
+/**
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.rowZoneID
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.zoneID
+ */
+export const rowZoneId = (key: number): string =>
+  key >= BACKUP_KEY_BASE ? `fit.backup.row.${key - BACKUP_KEY_BASE}` : `fit.row.${key}`;
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.targetZoneID */
+export const targetZoneId = (key: number): string =>
+  key >= BACKUP_KEY_BASE ? `fit.backup.target.${key - BACKUP_KEY_BASE}` : `fit.target.${key}`;
+
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.backupTableZoneID */
+export const BACKUP_TABLE_ZONE_ID = "fit.backup.table";
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.backupPointerZoneID */
+export const BACKUP_POINTER_ZONE_ID = "fit.backup.pointer";
+
+/**
+ * Where the keys of the Top Swap backup's rows start: past any index a table can
+ * have.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.backupKeyBase
+ */
+export const BACKUP_KEY_BASE = 0x1_0000;
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.backupKey */
+export const backupKey = (index: number): number => BACKUP_KEY_BASE + index;
 
 /**
  * Which row a zone id belongs to, for the trip back: the user picks a zone in
  * the dump and the panel has to select the row it came from. Nothing for the
  * table and the pointer, which stand for no row in particular.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.rowIndex
  */
 export function rowIndexOfZone(id: string): number | undefined {
+  for (const prefix of ["fit.backup.row.", "fit.backup.target."]) {
+    if (!id.startsWith(prefix)) continue;
+    const index = Number.parseInt(id.slice(prefix.length), 10);
+    return Number.isNaN(index) ? undefined : backupKey(index);
+  }
   for (const prefix of ["fit.row.", "fit.target."]) {
     if (!id.startsWith(prefix)) continue;
     const index = Number.parseInt(id.slice(prefix.length), 10);
@@ -237,6 +368,8 @@ export function rowIndexOfZone(id: string): number | undefined {
  * wrong. Nothing when the checksum checks out or is not checked. It is not
  * something the row itself carries: the byte the row holds is checked against
  * the whole table.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.checksumShouldBe
  */
 export function checksumShouldBe(problems: readonly FITProblem[]): number | undefined {
   for (const problem of problems) {
@@ -249,6 +382,8 @@ export function checksumShouldBe(problems: readonly FITProblem[]): number | unde
  * The same display with another row selected. Selecting a row changes what is
  * drawn strongly in the dump and what the detail says, so it is a change to the
  * focus rather than a reason to read the file again.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.focusing
  */
 export function focusingRow(display: FITDisplay, index: number | undefined): FITDisplay {
   return focusingZone(display, index === undefined ? undefined : rowZoneId(index));
@@ -257,23 +392,25 @@ export function focusingRow(display: FITDisplay, index: number | undefined): FIT
 /**
  * The same display with what "go to the offset" leads to in focus: the
  * component a row points at, or the row itself where it points nowhere.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.focusingTarget
  */
 export function focusingTarget(display: FITDisplay, index: number): FITDisplay {
-  const row = display.rows.find((one) => one.index === index);
+  const row = display.rows.find((one) => rowKey(one) === index);
   return row === undefined ? display : focusingZone(display, zoneToFocus(row));
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.focusing */
 export function focusingZone(display: FITDisplay, zoneId: string | undefined): FITDisplay {
   // The detail follows the selection: the row the outline is on, whether the
   // outline sits on the row itself or on what it points at. The table and the
   // pointer stand for no row, so they leave the detail empty.
   const index = zoneId === undefined ? undefined : rowIndexOfZone(zoneId);
-  const row = index === undefined ? undefined : display.rows.find((one) => one.index === index);
+  const row = index === undefined ? undefined : display.rows.find((one) => rowKey(one) === index);
   return {
     ...display,
     zones: { ...display.zones, focus: zoneId },
-    detail:
-      row === undefined ? EMPTY_DETAIL : buildDetail(row.model, checksumShouldBe(display.problems)),
+    detail: row === undefined ? EMPTY_DETAIL : detailFor(row, display.problems),
   };
 }
 
@@ -286,6 +423,8 @@ export function focusingZone(display: FITDisplay, zoneId: string | undefined): F
  * with the catalogue already in hand. It changes the marks, never the map: the
  * zones, the focus and the detail ride on untouched, so a catalogue landing
  * late does not move the outline the user is looking at.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.ratingLatest
  */
 export function ratingLatest(
   display: FITDisplay,
@@ -322,7 +461,11 @@ export function latestText(state: MicrocodeLatest): string | undefined {
 
 const hexDigits = (value: number) => value.toString(16).toUpperCase();
 
-/** What to show for a report. `focus` is the row the user has selected. */
+/**
+ * What to show for a report. `focus` is the row the user has selected.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.display
+ */
 export function fitDisplay(report: FITReport, focus?: number | undefined): FITDisplay {
   const table = report.table;
   if (table === undefined) {
@@ -333,19 +476,67 @@ export function fitDisplay(report: FITReport, focus?: number | undefined): FITDi
       checksumFix: undefined,
       zones: EMPTY_ZONES,
       detail: EMPTY_DETAIL,
+      backupStart: undefined,
+      backupHeading: undefined,
     };
   }
 
+  // The checksum byte is the header's, so the fix is offered on the header row
+  // — the one the mismatch turns red — and on no other. It is made in the
+  // backup's copy too, when that copy is the same table.
+  const backup = report.backup;
+  const fix = fitChecksumFix(table, backup?.tableBytesMatch === true ? backup.block : undefined);
+  const rows = displayRows(
+    table,
+    report.problems.filter((one) => one.inBackup !== true),
+    false,
+    fix
+  );
+  let backupStart: number | undefined;
+  let backupHeading: string | undefined;
+  if (backup?.table !== undefined) {
+    // The backup's copy follows the table, under a heading of its own, and
+    // offers nothing that changes it.
+    backupStart = rows.length;
+    backupHeading = headingOf(backup);
+    rows.push(
+      ...displayRows(
+        backup.table,
+        report.problems.filter((one) => one.inBackup === true),
+        true,
+        undefined
+      )
+    );
+  }
+
+  // The detail is the row the user has selected, or nothing before a selection
+  // — built here so a fresh parse shows the same detail the selection would.
+  const focused = focus === undefined ? undefined : rows.find((one) => rowKey(one) === focus);
+  return {
+    summary: summaryOf(report),
+    rows,
+    problems: report.problems,
+    checksumFix: fix,
+    zones: zonesOf(table, backup?.table, rows, focus),
+    detail: focused === undefined ? EMPTY_DETAIL : detailFor(focused, report.problems),
+    backupStart,
+    backupHeading,
+  };
+}
+
+/** One copy of the table's rows. `problems` are that copy's own. */
+function displayRows(
+  table: FITTable,
+  problems: readonly FITProblem[],
+  isBackup: boolean,
+  fix: ToolTransaction | undefined
+): FITDisplayRow[] {
   const problemRows = new Set(
-    report.problems.map((problem) => problem.entryIndex).filter((one) => one !== undefined)
+    problems.map((problem) => problem.entryIndex).filter((one) => one !== undefined)
   );
   // A table needs one microcode entry, so the last one cannot go.
   const microcodeCount = table.rows.filter((row) => row.entry.type === FIT.microcodeType).length;
-  // The checksum byte is the header's, so the fix is offered on the header row
-  // — the one the mismatch turns red — and on no other.
-  const fix = fitChecksumFix(table);
-
-  const rows = table.rows.map((row): FITDisplayRow => {
+  return table.rows.map((row): FITDisplayRow => {
     const target = targetRangeOf(row);
     return {
       index: row.entry.index,
@@ -359,47 +550,73 @@ export function fitDisplay(report: FITReport, focus?: number | undefined): FITDi
           ? cpuidText(row.target.header.processorSignature)
           : undefined,
       hasProblem: problemRows.has(row.entry.index),
-      zoneId: rowZoneId(row.entry.index),
+      zoneId: rowZoneId(isBackup ? backupKey(row.entry.index) : row.entry.index),
       rowStart: row.entry.offset,
       targetRange: target,
-      canRemove: row.entry.type === FIT.microcodeType && microcodeCount > 1,
-      canReplace: row.entry.type === FIT.microcodeType,
-      checksumFixAvailable: fix !== undefined && row.entry.index === 0,
+      canRemove: !isBackup && row.entry.type === FIT.microcodeType && microcodeCount > 1,
+      canReplace: !isBackup && row.entry.type === FIT.microcodeType,
+      checksumFixAvailable: !isBackup && fix !== undefined && row.entry.index === 0,
       // No catalogue here: a display built fresh from a parse does not know
       // what is out there, and `ratingLatest` fills the verdicts in once the
       // catalogue is in hand.
       latestState: NOT_RATED,
       model: row,
+      isBackup,
     };
   });
+}
 
-  // The detail is the row the user has selected, or nothing before a selection
-  // — built here so a fresh parse shows the same detail the selection would.
-  const focused = focus === undefined ? undefined : rows.find((one) => one.index === focus);
-  return {
-    summary: summaryOf(report),
-    rows,
-    problems: report.problems,
-    checksumFix: fix,
-    zones: zonesOf(table, rows, focus),
-    detail:
-      focused === undefined
-        ? EMPTY_DETAIL
-        : buildDetail(focused.model, checksumShouldBe(report.problems)),
-  };
+/**
+ * What the detail says for a row: the checksum it quotes is the one its own copy
+ * of the table was checked against.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.detail
+ */
+export function detailFor(row: FITDisplayRow, problems: readonly FITProblem[]): FITRowDetail {
+  return buildDetail(
+    row.model,
+    checksumShouldBe(problems.filter((one) => (one.inBackup === true) === row.isBackup)),
+    row.isBackup
+  );
+}
+
+/**
+ * The line above the backup's rows: where the copy is, that it is not changed on
+ * its own, and whether it agrees with the table.
+ */
+function headingOf(backup: FITBackupReading): string {
+  const place = `Top Swap backup at ${hex(backup.block.backup.start)} · read-only`;
+  switch (backup.status.kind) {
+    case "identical":
+      return `${place} · same as above`;
+    case "otherBytesDiffer":
+      return `${place} · same table, other bytes differ`;
+    case "tableDiffers":
+      return `${place} · differs from the table above`;
+    case "noTable":
+      return `${place} · no table`;
+  }
 }
 
 /**
  * The one edit this tool makes on its own: the header's checksum byte, which an
  * editor that changed the table and did not recompute leaves behind. One byte,
  * one named undo step.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.checksumFix
  */
-export function fitChecksumFix(table: FITTable): ToolTransaction | undefined {
+export function fitChecksumFix(
+  table: FITTable,
+  backup?: FITTopSwapBackup | undefined
+): ToolTransaction | undefined {
   if (!table.checksumIsChecked || checksumIsCorrect(table)) return undefined;
-  return {
-    name: "Fix FIT Checksum",
-    writes: [{ offset: table.range.start + 0x0f, bytes: Uint8Array.of(table.computedChecksum) }],
-  };
+  const offset = table.range.start + 0x0f;
+  const bytes = Uint8Array.of(table.computedChecksum);
+  // Written into the Top Swap backup's copy of the table as well, when it holds
+  // the same one.
+  const writes = [{ offset, bytes }];
+  if (backup !== undefined) writes.push({ offset: offset - topSwapSize(backup), bytes });
+  return { name: "Fix FIT Checksum", writes };
 }
 
 // MARK: - Text
@@ -426,6 +643,13 @@ function summaryOf(report: FITReport): string {
     // dump — and there every address in the table is wrong by whatever was cut
     // off in front of it.
     parts.push("addresses assumed");
+  }
+  if (report.backup !== undefined) {
+    parts.push(
+      report.backup.status.kind === "identical"
+        ? "Top Swap backup matches"
+        : "Top Swap backup differs"
+    );
   }
   if (!table.checksumIsChecked) {
     parts.push("checksum unused");
@@ -528,6 +752,7 @@ function targetRangeOf(row: FITRow): { readonly start: number; readonly end: num
  */
 function zonesOf(
   table: FITTable,
+  backup: FITTable | undefined,
   rows: readonly FITDisplayRow[],
   focus: number | undefined
 ): ZoneMap {
@@ -540,25 +765,41 @@ function zonesOf(
       end: table.pointerOffset + 4,
     },
   ];
+  // The Top Swap backup's copy is drawn the same way, under names that say so.
+  if (backup !== undefined) {
+    zones.push({
+      id: BACKUP_TABLE_ZONE_ID,
+      name: "Backup FIT table",
+      start: backup.range.start,
+      end: backup.range.end,
+    });
+    zones.push({
+      id: BACKUP_POINTER_ZONE_ID,
+      name: "Backup FIT pointer",
+      start: backup.pointerOffset,
+      end: backup.pointerOffset + 4,
+    });
+  }
   for (const row of rows) {
-    const start = table.range.start + row.index * FIT_ENTRY_SIZE;
+    const prefix = row.isBackup ? "Backup " : "";
     zones.push({
       id: row.zoneId,
-      name: `#${displayNumber(row)} ${row.typeText}`,
-      start,
-      end: start + FIT_ENTRY_SIZE,
+      name: `${prefix}#${displayNumber(row)} ${row.typeText}`,
+      start: row.rowStart,
+      end: row.rowStart + FIT_ENTRY_SIZE,
     });
     if (row.targetRange === undefined) continue;
     // Named by CPUID where there is one: that is what a bench is looking for
     // when it goes hunting for a microcode in a dump.
     zones.push({
-      id: targetZoneId(row.index),
+      id: targetZoneId(rowKey(row)),
       name:
-        row.cpuidText !== undefined
+        prefix +
+        (row.cpuidText !== undefined
           ? `CPUID ${row.cpuidText}`
           : row.targetText.length === 0
             ? `#${displayNumber(row)}`
-            : row.targetText,
+            : row.targetText),
       start: row.targetRange.start,
       end: row.targetRange.end,
     });

@@ -18,6 +18,9 @@ import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
  * A `DataTransfer` is emptied the moment the drop event returns, so a plain
  * `await` before touching `items` or `files` leaves nothing to touch — the
  * promises are started first and awaited afterwards.
+ *
+ * @upstream ByteRipperApp/DragDrop/DragDrop.swift#NSPasteboard
+ * @upstream ByteRipperApp/DragDrop/DragDrop.swift#NSPasteboard.droppedFileURLs
  */
 export async function filesFromDrop(transfer: DataTransfer): Promise<OpenedFile[]> {
   const { canWriteDroppedFiles } = detectFileCapabilities();
@@ -68,7 +71,12 @@ async function handleFromItem(item: DataTransferItem): Promise<OpenedFile | unde
   return file === null ? undefined : openedFileFrom(file);
 }
 
-/** True when a drag carries something this app could open. */
+/**
+ * True when a drag carries something this app could open.
+ *
+ * @upstream ByteRipperApp/DragDrop/DragDrop.swift#NSPasteboard.PasteboardType
+ * @upstream ByteRipperApp/DragDrop/DragDrop.swift#NSPasteboard.PasteboardType.fileNames
+ */
 export function dragCarriesFiles(transfer: DataTransfer | null): boolean {
   if (transfer === null) return false;
   return Array.from(transfer.types).includes("Files");

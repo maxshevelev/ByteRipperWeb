@@ -20,8 +20,14 @@ import type { MFSBackup, MFSBackupEntry } from "@/firmware/me/models/fileSystemF
  * Ported from `Packages/MEFirmware/FileSystem/MFSBackup.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.signature
+ */
 const SIGNATURE = 0x4d46_5342;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.r0HeaderSize */
 const R0_HEADER_SIZE = 0x20;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.chunkMarker */
 const CHUNK_MARKER = Uint8Array.of(0x01, 0x03, 0x02, 0x04);
 
 /**
@@ -62,6 +68,8 @@ function concat(parts: readonly Uint8Array[]): Uint8Array {
 /**
  * The backup area in `bytes[offset, offset + size)`, reported at
  * `absoluteOffset`. Nothing when it does not open with "MFSB".
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.parse
  */
 export function parseMfsBackup(
   bytes: Uint8Array,
@@ -104,6 +112,8 @@ function r0(buffer: Uint8Array, absoluteOffset: number): MFSBackup {
  * The paged image an R0 body rebuilds into: each marker's big-endian length of
  * erased space reinserted, the tail past the last marker (or up to the first
  * 32-byte erased run) kept, the whole padded to the page size.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.reconstructR0Body
  */
 export function reconstructR0Body(body: Uint8Array): Uint8Array {
   const bodyEnd = firstErasedRun(body, 32) ?? body.length;

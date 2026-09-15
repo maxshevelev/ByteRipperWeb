@@ -20,6 +20,7 @@ import { NVRAM } from "@/firmware/uefi/nvramParser";
  * parameter.
  */
 
+/** @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.nvramVolumeGUID */
 export const NVRAM_VOLUME_GUID = nvramMainStoreVolumeGuid;
 
 const join = (...parts: Uint8Array[]): Uint8Array => {
@@ -38,6 +39,8 @@ const ascii = (text: string) => Uint8Array.from(text, (one) => one.charCodeAt(0)
 /**
  * A UCS-2 string with a terminating zero, the way a variable name is stored in
  * a VSS store.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.ucs2
  */
 export function ucs2(text: string): Uint8Array {
   const writer = new BinaryWriter();
@@ -49,6 +52,8 @@ export function ucs2(text: string): Uint8Array {
 /**
  * A standard VSS variable: the 0x55AA marker, state, attributes, the name and
  * data sizes, the vendor GUID, the name, and the data.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.vssVariable
  */
 export function vssVariable(options: {
   readonly name: string;
@@ -80,6 +85,8 @@ export function vssVariable(options: {
  * counter, a timestamp and a key index before the sizes — so the real name and
  * data sizes sit at offsets 36 and 40, and the vendor GUID moves down the
  * header to its last sixteen bytes, offset 44, just before the name at 60.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.authVssVariable
  */
 export function authVssVariable(options: {
   readonly name: string;
@@ -110,6 +117,8 @@ export function authVssVariable(options: {
 /**
  * A VSS store: the 16-byte header, the variables back to back, and erased free
  * space after them.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.vssStore
  */
 export function vssStore(
   options: {
@@ -137,6 +146,8 @@ export function vssStore(
 /**
  * An NVRAM volume: an FV header with the NVRAM file-system GUID, whose body is
  * the given stores laid out back to back.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.nvramVolume
  */
 export function nvramVolume(
   options: {
@@ -156,12 +167,18 @@ export function nvramVolume(
   });
 }
 
-/** A standard VSS2 variable — the same shape as a VSS one. */
+/**
+ * A standard VSS2 variable — the same shape as a VSS one.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.vss2Variable
+ */
 export const vss2Variable = vssVariable;
 
 /**
  * A VSS2 store: the 28-byte header led by the store GUID, the variables back to
  * back with 4-byte alignment padding, and erased free space after them.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.vss2Store
  */
 export function vss2Store(
   options: {
@@ -196,6 +213,8 @@ export function vss2Store(
  * An FTW working block: the 28-byte header led by the signature GUID, with a
  * header CRC32 over itself (CRC and state blanked to the erase byte), and an
  * opaque write queue after it.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.ftwStore
  */
 export function ftwStore(
   options: {
@@ -238,6 +257,8 @@ export function ftwStore(
  * An Insyde FDC store: `_FDC`, a size, a volume header and two block map
  * entries (0x50 bytes of header), then the store body the reference parser
  * reads as an NVRAM volume body of its own.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.fdcStore
  */
 export function fdcStore(
   options: {
@@ -263,6 +284,8 @@ export function fdcStore(
 /**
  * A SysF variable: a name-length byte (the length in its low seven bits, the
  * invalid flag on top), the ASCII name, a data length and the data.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.sysfVariable
  */
 export function sysfVariable(options: {
   readonly name: string;
@@ -278,6 +301,8 @@ export function sysfVariable(options: {
 /**
  * The chunk that ends a SysF store: a name-length byte, `EOF`, and no data
  * after it. The parser reads nothing past an EOF chunk.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.sysfEofChunk
  */
 export function sysfEofChunk(): Uint8Array {
   return join(Uint8Array.of(3), ascii("EOF"));
@@ -286,6 +311,8 @@ export function sysfEofChunk(): Uint8Array {
 /**
  * An Apple SysF/Diag store: the 11-byte header, the variables, an EOF chunk,
  * zero free space, and the CRC32 in the last four bytes.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.sysfStore
  */
 export function sysfStore(
   options: {
@@ -316,6 +343,8 @@ export function sysfStore(
 /**
  * A Phoenix SCT flash map entry: a region GUID, its data and entry types,
  * physical address, size and offset — one fixed 36-byte record.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.flashMapEntry
  */
 export function flashMapEntry(options: {
   readonly guid: EFIGUID;
@@ -337,6 +366,8 @@ export function flashMapEntry(options: {
 /**
  * A Phoenix SCT flash map: the 16-byte header and one 36-byte entry per region.
  * `entryCount` overrides the count implied by the entries.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.flashMapStore
  */
 export function flashMapStore(
   options: { readonly entries?: readonly Uint8Array[]; readonly entryCount?: number } = {}
@@ -355,6 +386,8 @@ export function flashMapStore(
 /**
  * A Phoenix EVSA GUID entry: a type byte, a checksum, a size word, an id word
  * and the 16-byte GUID the id names.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.evsaGuidEntry
  */
 export function evsaGuidEntry(options: {
   readonly guid: EFIGUID;
@@ -372,6 +405,8 @@ export function evsaGuidEntry(options: {
 /**
  * A Phoenix EVSA name entry: a type byte, a checksum, a size word, an id word
  * and the UCS-2 name the id gives a variable.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.evsaNameEntry
  */
 export function evsaNameEntry(options: {
   readonly name: string;
@@ -390,6 +425,8 @@ export function evsaNameEntry(options: {
 /**
  * A Phoenix EVSA data entry: a type byte, a checksum, a size word, the GuidId
  * and VarId words, an attributes word and the data.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.evsaDataEntry
  */
 export function evsaDataEntry(options: {
   readonly type?: number;
@@ -414,6 +451,8 @@ export function evsaDataEntry(options: {
 /**
  * A Phoenix EVSA store: the 20-byte header (an entry of type 0xEC whose
  * signature is `EVSA`), the entries back to back, and erased free space.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.evsaStore
  */
 export function evsaStore(
   options: {
@@ -440,7 +479,11 @@ export function evsaStore(
 
 // MARK: - Phoenix CMDB, SLIC
 
-/** A Phoenix CMDB store: a 0x100-byte region led by the signature and sizes. */
+/**
+ * A Phoenix CMDB store: a 0x100-byte region led by the signature and sizes.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.cmdbStore
+ */
 export function cmdbStore(totalSize = 0x10): Uint8Array {
   return new BinaryWriter()
     .u32(NVRAM.cmdbSignature)
@@ -449,7 +492,11 @@ export function cmdbStore(totalSize = 0x10): Uint8Array {
     .fill(NVRAM.cmdbStoreSize - 12, 0xff).bytes;
 }
 
-/** A Microsoft SLIC public key: a fixed 0x9C-byte activation record. */
+/**
+ * A Microsoft SLIC public key: a fixed 0x9C-byte activation record.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.slicPubkey
+ */
 export function slicPubkey(): Uint8Array {
   return new BinaryWriter()
     .u32(NVRAM.slicPubkeyType)
@@ -464,7 +511,11 @@ export function slicPubkey(): Uint8Array {
     .fill(128, 0xcd).bytes; // modulus
 }
 
-/** A Microsoft SLIC marker: a fixed 0xB6-byte activation record. */
+/**
+ * A Microsoft SLIC marker: a fixed 0xB6-byte activation record.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVRAM.swift#TestNVRAM.slicMarker
+ */
 export function slicMarker(): Uint8Array {
   const writer = new BinaryWriter()
     .u32(NVRAM.slicMarkerType)

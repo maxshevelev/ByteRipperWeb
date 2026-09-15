@@ -14,6 +14,10 @@ import type {
  * Ported from `Packages/MEFirmware/IUP/GSCInfo.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/GSCInfo.swift#GSCInfoParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/GSCInfo.swift#GSCInfoParser.decode
+ */
 export function decodeGscInfo(
   bytes: Uint8Array,
   offset: number,

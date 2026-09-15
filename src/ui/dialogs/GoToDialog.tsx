@@ -1,17 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Bookmark } from "@/core/bookmarks/bookmarkStore";
-import { bookmarkDisplayName, rowContaining } from "@/core/bookmarks/bookmarkStore";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { type Bookmark, rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import { hexAddress } from "@/core/text/hexText";
 import { parseOffset } from "@/core/text/offsetParser";
 import {
-  bookmarksStore,
-  clearRecentAddresses,
-  editBookmark,
-  removeBookmark,
-} from "@/state/bookmarksStore";
+  abandonBookmarkEdit,
+  type BookmarkEditSession,
+  bookmarkEditStore,
+  cancelBookmarkEdit,
+  editBookmarkInList,
+} from "@/state/bookmarkEditStore";
+import { bookmarksStore, clearRecentAddresses, removeBookmark } from "@/state/bookmarksStore";
 import { useStore } from "@/state/useStore";
+import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
+import { rowDescription, selectionAfterChange, visibleRowCount } from "@/ui/dialogs/bookmarkList";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
+import { openContextMenu } from "@/ui/shell/ContextMenu";
 
 /**
  * Go To, and the bookmark list, in one window (§10.1, §20.5).
@@ -20,11 +26,12 @@ import { Dialog } from "@/ui/dialogs/Dialog";
  * them apart would mean two dialogs each offering half an answer. The keyboard
  * follows the focus, which is what lets one Return mean two things without ever
  * guessing: in the field it goes to what was typed, in the list to what is
- * selected.
+ * selected, and in the list with nothing selected it does nothing at all.
  *
- * The list is also where bookmarks are managed — Backspace removes the
- * selected one, Return on its name commits a rename — so nothing about a
- * bookmark lives in two places.
+ * The list is also where bookmarks are managed — ⌫ removes the selected one, a
+ * double click opens its editor, a right-click offers both — so nothing about a
+ * bookmark lives in two places. The editor is the popover the dump's ⇧⌘D opens:
+ * one editor for a bookmark, wherever it is edited from.
  *
  * The parser is `src/core/text/offsetParser.ts`, which already knows every
  * spelling this accepts and refuses — `0x1F`, `1F`, `4096` — and refuses a
@@ -35,12 +42,38 @@ export interface GoToDialogProps {
   readonly fileSize: number;
   /** The active pane's bytes, for describing a bookmark that has no name. */
   readonly document?: BinaryDocument | undefined;
-  /** Which half the keyboard starts in: ⌘L types, the bookmark command picks. */
+  /**
+   * Which half the keyboard starts in: ⌘L types, the bookmark command picks.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.Focus
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.focus
+   */
   readonly focus?: "offset" | "bookmarks";
   readonly onGo: (offset: number) => void;
+  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.dismissForm */
   readonly onClose: () => void;
 }
 
+/** What the offset field opens with. */
+const HEX_PREFIX = "0x";
+
+/** One row of the list, in pixels — upstream's table row. */
+const ROW_HEIGHT = 20;
+
+const platform = detectKeyboardPlatform();
+
+/**
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.bookmarks
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.offsetCombo
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.goButton
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.cancelButton
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.bookmarkTable
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.errorLabel
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.emptyLabel
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.mostRecent
+ * @upstream-differs a dialog; the recent addresses are offered in the field's list
+ */
 export function GoToDialog({
   open,
   fileSize,
@@ -49,267 +82,383 @@ export function GoToDialog({
   onGo,
   onClose,
 }: GoToDialogProps) {
-  const [text, setText] = useState("");
+  // The field opens holding the hex prefix, because a firmware offset is typed in
+  // hex: the reader goes straight to the digits.
+  const [text, setText] = useState(HEX_PREFIX);
   const state = useStore(bookmarksStore);
+  const editing = useStore(bookmarkEditStore).session;
+  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.isEditingBookmark */
+  const editingHere =
+    open && editing !== undefined && editing.pane === undefined ? editing : undefined;
+  /**
+   * The selected bookmark, kept as the bookmark's row rather than a position in
+   * the list: the list re-sorts when an address is edited and renumbers when a
+   * mark is made elsewhere, and the selection means "this bookmark".
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.selectedBookmarkRow
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.selectedBookmark
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.selectBookmark
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.tableViewSelectionDidChange
+   */
   const [selected, setSelected] = useState<number | undefined>(undefined);
-  const [renaming, setRenaming] = useState<number | undefined>(undefined);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const tableRef = useRef<HTMLDivElement | null>(null);
+  const offsetRef = useRef<HTMLInputElement | null>(null);
+  const rowElements = useRef(new Map<number, HTMLDivElement>());
+  const offsetId = useId();
+  const errorId = useId();
+
+  const bookmarksNow = useRef(state.bookmarks);
+  bookmarksNow.current = state.bookmarks;
 
   useEffect(() => {
     if (!open) return;
-    setText("");
-    setSelected(state.bookmarks[0]?.row);
-    setRenaming(undefined);
+    setText(HEX_PREFIX);
     if (focus === "bookmarks") {
+      // Opened for the list, the list offers its first bookmark — the lowest
+      // address. The jump still takes a Return: a selection is an offer.
+      setSelected(bookmarksNow.current[0]?.row);
       requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
+    } else {
+      setSelected(undefined);
+      // After the dialog has put the focus on its first field: the caret goes
+      // past the prefix, not over it, so the first key typed is a digit.
+      requestAnimationFrame(() => {
+        const input = offsetRef.current;
+        if (input === null) return;
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
     }
-    // The list this opens over is a snapshot of the moment it opened; it
-    // follows the store from then on.
-  }, [open, focus, state.bookmarks[0]?.row]);
+  }, [open, focus]);
 
-  const parsed = text.trim() === "" ? undefined : parseOffset(text);
-  const problem =
-    parsed === undefined
-      ? undefined
-      : !parsed.ok
-        ? parsed.reason === "outOfRange"
-          ? "That number is too large to be an offset."
-          : "Type a decimal number, or hex as 1F or 0x1F."
-        : parsed.value > fileSize
-          ? `This file ends at 0x${fileSize.toString(16).toUpperCase()}.`
-          : undefined;
+  // The selection follows the list: a bookmark still listed stays selected, and
+  // one removed — by ⌫, the menu, or its popover's Delete — hands it on.
+  const previousRows = useRef<readonly number[]>([]);
+  useEffect(() => {
+    const rows = state.bookmarks.map((mark) => mark.row);
+    setSelected((current) => selectionAfterChange(previousRows.current, rows, current));
+    previousRows.current = rows;
+  }, [state.bookmarks]);
 
+  /**
+   * Validation as the address is typed. The form opens with "0x" in the field:
+   * nothing to go to yet, so the button is off — but no error, because nothing
+   * has been typed wrong.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.controlTextDidChange
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.updateValidation
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.showValidationError
+   */
+  const typed = text.trim();
+  const untouched = typed === "" || typed.toLowerCase() === HEX_PREFIX;
+  const parsed = parseOffset(text);
+  const problem = untouched
+    ? undefined
+    : !parsed.ok
+      ? "Invalid offset — use hex with 0x prefix or decimal."
+      : parsed.value > fileSize
+        ? `This file ends at 0x${fileSize.toString(16).toUpperCase()}.`
+        : undefined;
+  const target = parsed.ok && problem === undefined ? parsed.value : undefined;
+
+  /**
+   * Leaving the form takes a bookmark editor hanging off its list with it.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.cancelPressed
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.closeForm
+   */
+  const close = useCallback(() => {
+    if (bookmarkEditStore.getSnapshot().session?.pane === undefined) abandonBookmarkEdit();
+    onClose();
+  }, [onClose]);
+
+  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.jump */
   const go = useCallback(
     (offset: number) => {
+      close();
       onGo(offset);
-      onClose();
     },
-    [onGo, onClose]
+    [onGo, close]
   );
 
+  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.goToTypedOffset */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (parsed === undefined || !parsed.ok || problem !== undefined) return;
-    go(parsed.value);
+    if (target !== undefined) go(target);
   };
 
+  /**
+   * Escape's first level closes an open bookmark editor and leaves the bookmark
+   * as it was; only the next one closes the form.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.cancelBookmarkEdit
+   */
+  const onCancelRequest = useCallback(() => {
+    const session = bookmarkEditStore.getSnapshot().session;
+    if (session === undefined || session.pane !== undefined) return true;
+    cancelBookmarkEdit();
+    listRef.current?.focus({ preventScroll: true });
+    return false;
+  }, []);
+
+  const scrollRowIntoView = (row: number | undefined) => {
+    if (row !== undefined) rowElements.current.get(row)?.scrollIntoView({ block: "nearest" });
+  };
+
+  /**
+   * The list's own keys: the arrows pick, Return goes to the pick, ⌫ removes it.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.goToSelectedBookmark
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.removeSelectedBookmark
+   */
   const onListKeyDown = (event: React.KeyboardEvent) => {
+    if (editingHere !== undefined) return;
     const rows = state.bookmarks.map((mark) => mark.row);
-    if (rows.length === 0 || renaming !== undefined) return;
+    if (rows.length === 0) return;
     const at = selected === undefined ? -1 : rows.indexOf(selected);
 
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
-      setSelected(rows[Math.min(Math.max(at + step, 0), rows.length - 1)]);
+      const next = rows[Math.min(Math.max(at + step, 0), rows.length - 1)];
+      setSelected(next);
+      scrollRowIntoView(next);
       return;
     }
-    if (event.key === "Enter" && selected !== undefined) {
+    if (event.key === "Enter") {
       event.preventDefault();
-      go(selected);
+      // With nothing selected, nothing: Return in the list is never a guess.
+      if (selected !== undefined) go(selected);
       return;
     }
-    // Backspace removes the selected mark, and the selection moves to what took
-    // its place so a run of removals needs no pointer.
     if (event.key === "Backspace" || event.key === "Delete") {
-      if (selected === undefined) return;
       event.preventDefault();
-      removeBookmark(selected);
-      setSelected(rows[Math.min(at, rows.length - 2)]);
+      if (selected !== undefined) removeBookmark(selected);
     }
   };
 
+  /**
+   * The editor hangs under the row it edits, or over it where the form has no
+   * room below.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.editPopoverPresenter
+   */
+  const [editAnchor, setEditAnchor] = useState<
+    { token: number; top: number; above: boolean } | undefined
+  >(undefined);
+  useLayoutEffect(() => {
+    if (editingHere === undefined) {
+      setEditAnchor(undefined);
+      return;
+    }
+    const table = tableRef.current;
+    const row = rowElements.current.get(editingHere.row);
+    const dialog = table?.closest("dialog");
+    if (table === null || row === undefined || dialog === null || dialog === undefined) return;
+    row.scrollIntoView({ block: "nearest" });
+    const rowBox = row.getBoundingClientRect();
+    const tableBox = table.getBoundingClientRect();
+    const dialogBox = dialog.getBoundingClientRect();
+    const roomBelow = dialogBox.bottom - rowBox.bottom;
+    const above = roomBelow < 140 && rowBox.top - dialogBox.top > roomBelow;
+    setEditAnchor({
+      token: editingHere.token,
+      top: above ? rowBox.top - tableBox.top - 6 : rowBox.bottom - tableBox.top + 6,
+      above,
+    });
+  }, [editingHere]);
+
+  /** The edited bookmark stays selected, at whatever row it now sits. */
+  const onBookmarkCommitted = useCallback((_session: BookmarkEditSession, row: number) => {
+    setSelected(row);
+  }, []);
+  const focusList = useCallback(() => listRef.current?.focus({ preventScroll: true }), []);
+
+  /**
+   * A right-click offers what the list does that a key does not announce, on the
+   * row that was clicked rather than the selected one.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.editClickedBookmark
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.deleteClickedBookmark
+   */
+  const rowMenu = (event: React.MouseEvent, mark: Bookmark) => {
+    setSelected(mark.row);
+    openContextMenu(event, [
+      { label: "Edit Bookmark…", onSelect: () => editBookmarkInList(mark.row) },
+      { label: "Delete Bookmark", destructive: true, onSelect: () => removeBookmark(mark.row) },
+    ]);
+  };
+
+  const empty = state.bookmarks.length === 0;
+
   return (
-    <Dialog open={open} title="Go to position" onClose={onClose}>
-      <form className="dialog-body" onSubmit={submit}>
-        <label className="dialog-field">
-          Offset
+    <Dialog
+      open={open}
+      title="Go To"
+      className="goto-dialog"
+      onClose={close}
+      onCancelRequest={onCancelRequest}
+    >
+      <div className="dialog-body">
+        {/* "Offset: [ 0x… ] (Go To)" — ⌘L, type, Return. The button names the
+            action; Return in the field is what submits. */}
+        <form className="goto-offset" onSubmit={submit}>
+          <label className="goto-offset-label" htmlFor={offsetId}>
+            Offset:
+          </label>
           <input
-            autoFocus={focus === "offset"}
+            id={offsetId}
+            ref={offsetRef}
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder="0x1000"
             list="goto-recent"
             inputMode="text"
             spellCheck={false}
-            aria-describedby="goto-help"
+            autoComplete="off"
+            aria-invalid={problem !== undefined}
+            aria-describedby={errorId}
           />
-        </label>
+          <button type="submit" className="toolbar-button" disabled={target === undefined}>
+            Go To
+          </button>
+          {/* Always in the layout, empty when nothing is wrong, so the list does
+              not move under the pointer as the address is typed. */}
+          <p className="goto-error" id={errorId} aria-live="polite">
+            {problem ?? ""}
+          </p>
+        </form>
         {/* The addresses this workspace has already been sent to, offered back
-            rather than retyped — on a bench the interesting ones get typed over
-            and over. */}
+            rather than retyped. */}
         <datalist id="goto-recent">
           {state.recent.map((row) => (
             <option key={row} value={`0x${hexAddress(row)}`} />
           ))}
         </datalist>
-        <p className="dialog-help" id="goto-help">
-          {problem ?? "Decimal, or hex as 1F or 0x1F."}
-        </p>
 
-        <div className="bookmark-list-head">
-          <span>Bookmarks</span>
-          {state.recent.length > 0 ? (
-            <button
-              type="button"
-              className="toolbar-button is-quiet"
-              onClick={clearRecentAddresses}
-            >
-              Clear recent addresses
-            </button>
-          ) : null}
-        </div>
-
-        {state.bookmarks.length === 0 ? (
-          <p className="dialog-help">
-            No bookmarks yet. Cmd/Ctrl+D marks the row the caret is on, and so does a double-click
-            on its address.
-          </p>
-        ) : (
-          // A listbox, not a list: these rows are picked, and the arrows and
-          // Return are how they are picked.
+        <span className="goto-list-label">Bookmarks</span>
+        <div className="bookmark-table" ref={tableRef}>
+          {/* A listbox: these rows are picked, and the arrows and Return are how. */}
           <div
             className="bookmark-list"
             ref={listRef}
             role="listbox"
             aria-label="Bookmarks"
             tabIndex={0}
+            style={{ height: visibleRowCount(state.bookmarks.length) * ROW_HEIGHT + 2 }}
             onKeyDown={onListKeyDown}
           >
             {state.bookmarks.map((mark) => (
-              <BookmarkRow
+              // biome-ignore lint/a11y/useFocusableInteractive: the listbox holds the focus; its options are picked with the arrows
+              <div
                 key={mark.row}
-                mark={mark}
-                document={doc}
-                fileSize={fileSize}
-                selected={selected === mark.row}
-                renaming={renaming === mark.row}
-                onSelect={() => setSelected(mark.row)}
-                onGo={() => go(mark.row)}
-                onRename={() => setRenaming(mark.row)}
-                onRenamed={(name) => {
-                  editBookmark(mark.row, mark.row, name);
-                  setRenaming(undefined);
+                ref={(element) => {
+                  if (element === null) rowElements.current.delete(mark.row);
+                  else rowElements.current.set(mark.row, element);
+                }}
+                className="bookmark-row"
+                role="option"
+                aria-selected={selected === mark.row}
+                data-selected={selected === mark.row ? "" : undefined}
+                onMouseDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  setSelected(mark.row);
                   listRef.current?.focus({ preventScroll: true });
                 }}
-                onRemove={() => removeBookmark(mark.row)}
-              />
+                // @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.handleDoubleClick
+                onDoubleClick={() => editBookmarkInList(mark.row)}
+                onContextMenu={(event) => rowMenu(event, mark)}
+              >
+                <span className="bookmark-address">{hexAddress(mark.row)}</span>
+                {mark.name.length > 0 ? (
+                  <span className="bookmark-name">{mark.name}</span>
+                ) : (
+                  <RowPreview row={mark.row} document={doc} fileSize={fileSize} />
+                )}
+              </div>
             ))}
           </div>
-        )}
+          {empty ? (
+            <p className="bookmark-empty">
+              No bookmarks yet. {platform === "apple" ? "⌘D" : "Ctrl+D"} marks the row your caret is
+              on, so you can come back to it.
+            </p>
+          ) : null}
+          {editingHere !== undefined && editAnchor?.token === editingHere.token ? (
+            <BookmarkEditPopover
+              key={editingHere.token}
+              session={editingHere}
+              top={editAnchor.top}
+              left={12}
+              above={editAnchor.above}
+              onCommitted={onBookmarkCommitted}
+              onKeyboardClose={focusList}
+            />
+          ) : null}
+        </div>
 
-        <div className="dialog-actions">
-          <button type="button" className="toolbar-button" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="toolbar-button"
-            disabled={parsed === undefined || !parsed.ok || problem !== undefined}
-          >
-            Go
+        <div className="dialog-actions goto-actions">
+          {state.recent.length > 0 ? (
+            <button
+              type="button"
+              className="toolbar-button is-quiet"
+              onClick={clearRecentAddresses}
+            >
+              Clear Recent Addresses
+            </button>
+          ) : null}
+          {/* Close, not Cancel: nothing here is undone by leaving. A bookmark
+              edited or removed from the list already is. */}
+          <button type="button" className="toolbar-button" onClick={close}>
+            Close
           </button>
         </div>
-      </form>
+      </div>
     </Dialog>
   );
 }
 
-function BookmarkRow({
-  mark,
+/**
+ * What an unnamed bookmark is described by: its row's bytes in the active pane,
+ * read live, so the list shows what the row holds now.
+ *
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.rowDescription
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.pastEndOfFileText
+ */
+function RowPreview({
+  row,
   document: doc,
   fileSize,
-  selected,
-  renaming,
-  onSelect,
-  onGo,
-  onRename,
-  onRenamed,
-  onRemove,
 }: {
-  readonly mark: Bookmark;
+  readonly row: number;
   readonly document: BinaryDocument | undefined;
   readonly fileSize: number;
-  readonly selected: boolean;
-  readonly renaming: boolean;
-  readonly onSelect: () => void;
-  readonly onGo: () => void;
-  readonly onRename: () => void;
-  readonly onRenamed: (name: string) => void;
-  readonly onRemove: () => void;
 }) {
   const [preview, setPreview] = useState("");
 
-  // What the row actually holds, read live from the active pane — which is how
-  // an unnamed bookmark says what it marks. A row past this file's end says so
-  // rather than showing zeros (§9).
   useEffect(() => {
     let current = true;
-    if (mark.row >= fileSize || doc === undefined) {
-      setPreview(mark.row >= fileSize ? "past the end of this file" : "");
+    if (row >= fileSize) {
+      setPreview(rowDescription(undefined));
       return;
     }
-    void doc.read(mark.row, Math.min(8, fileSize - mark.row)).then((bytes) => {
-      if (!current) return;
-      setPreview(
-        [...bytes].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ")
-      );
+    if (doc === undefined) {
+      setPreview("");
+      return;
+    }
+    void doc.read(row, Math.min(BYTES_PER_ROW, fileSize - row)).then((bytes) => {
+      if (current) setPreview(rowDescription(bytes));
     });
     return () => {
       current = false;
     };
-  }, [mark.row, fileSize, doc]);
+  }, [row, fileSize, doc]);
 
   return (
-    <div
-      className="bookmark-row"
-      role="option"
-      aria-selected={selected}
-      data-selected={selected ? "" : undefined}
-      tabIndex={-1}
-      onPointerDown={onSelect}
-      onDoubleClick={onRename}
-    >
-      <button
-        type="button"
-        className="bookmark-address"
-        onClick={onGo}
-        title={`Go to ${hexAddress(mark.row)}`}
-      >
-        {hexAddress(mark.row)}
-      </button>
-      {renaming ? (
-        <input
-          className="bookmark-name-field"
-          ref={(element) => element?.select()}
-          defaultValue={mark.name}
-          aria-label="Bookmark name"
-          onBlur={(event) => onRenamed(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onRenamed(event.currentTarget.value);
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              onRenamed(mark.name);
-            }
-          }}
-        />
-      ) : (
-        <span className="bookmark-name">
-          {mark.name.length > 0 ? bookmarkDisplayName(mark) : preview}
-        </span>
-      )}
-      <button
-        type="button"
-        className="bookmark-remove"
-        onClick={onRemove}
-        title={`Remove the bookmark at ${hexAddress(mark.row)}`}
-      >
-        ×
-      </button>
-    </div>
+    <span className={`bookmark-name is-preview${row >= fileSize ? " is-past-end" : ""}`}>
+      {preview}
+    </span>
   );
 }
 

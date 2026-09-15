@@ -3,6 +3,7 @@ import {
   detectKeyboardPlatform,
   type HexKeyEvent,
   hasPrimaryModifier,
+  isContextClick,
   resolveHexKey,
   resolveTarget,
 } from "@/ui/pane/hexKeys";
@@ -33,6 +34,37 @@ describe("the primary modifier", () => {
   });
 });
 
+// The press that opens the context menu must not put the caret down: the
+// browser sends it before the menu, and a caret placed there took the
+// selection away from the menu that was opened on it.
+describe("the press that opens the context menu", () => {
+  it("is the secondary button, on every platform", () => {
+    expect(isContextClick({ button: 2, ctrlKey: false }, "apple")).toBe(true);
+    expect(isContextClick({ button: 2, ctrlKey: false }, "other")).toBe(true);
+  });
+
+  it("is Control-click on a Mac, and only there", () => {
+    expect(isContextClick({ button: 0, ctrlKey: true }, "apple")).toBe(true);
+    expect(isContextClick({ button: 0, ctrlKey: true }, "other")).toBe(false);
+  });
+
+  it("is not a plain click", () => {
+    expect(isContextClick({ button: 0, ctrlKey: false }, "apple")).toBe(false);
+    expect(isContextClick({ button: 0, ctrlKey: false }, "other")).toBe(false);
+  });
+});
+
+describe("the bookmark keys", () => {
+  it("mark with ⌘D and edit with ⇧⌘D", () => {
+    expect(resolveHexKey(key({ key: "d", metaKey: true }), "apple")).toEqual({
+      kind: "toggleBookmark",
+    });
+    expect(resolveHexKey(key({ key: "D", metaKey: true, shiftKey: true }), "apple")).toEqual({
+      kind: "editBookmark",
+    });
+  });
+});
+
 describe("the arrow keys", () => {
   for (const platform of ["apple", "other"] as const) {
     it(`move by a byte and by a row on ${platform}`, () => {
@@ -59,6 +91,7 @@ describe("the arrow keys", () => {
     });
   }
 
+  // @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testCmdShiftRightExtendsSelection
   it("extends the selection with Shift", () => {
     expect(resolveHexKey(key({ key: "ArrowRight", shiftKey: true }), "other")).toEqual({
       kind: "moveBy",

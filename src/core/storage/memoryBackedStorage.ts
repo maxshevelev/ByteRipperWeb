@@ -13,16 +13,20 @@ import type { Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
  * amortises appends for free; a `Uint8Array` has a fixed length, so this keeps
  * a capacity of its own and doubles it, rather than allocating and copying the
  * whole buffer per typed byte.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage
  */
 export class MemoryBackedStorage implements EditableByteStorage {
   private buffer: Bytes;
   private length: number;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.init */
   constructor(bytes: Uint8Array = new Uint8Array(0)) {
     this.buffer = bytes.slice();
     this.length = this.buffer.length;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.size */
   get size(): number {
     return this.length;
   }
@@ -34,6 +38,7 @@ export class MemoryBackedStorage implements EditableByteStorage {
     return this.buffer.slice(at, at + count);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.read */
   read(at: number, length: number): Promise<Bytes> {
     return Promise.resolve(this.peek(at, length));
   }
@@ -43,6 +48,7 @@ export class MemoryBackedStorage implements EditableByteStorage {
     return Promise.resolve();
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.overwrite */
   overwrite(at: number, bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return Promise.resolve();
     const end = assertRepresentableSize(at + bytes.length, "This edit");
@@ -54,6 +60,7 @@ export class MemoryBackedStorage implements EditableByteStorage {
     return Promise.resolve();
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.insert */
   insert(at: number, bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return Promise.resolve();
     const start = Math.min(Math.max(at, 0), this.length);
@@ -64,6 +71,7 @@ export class MemoryBackedStorage implements EditableByteStorage {
     return Promise.resolve();
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.delete */
   delete(start: number, end: number): Promise<void> {
     const from = Math.min(Math.max(start, 0), this.length);
     const to = Math.min(Math.max(end, 0), this.length);
@@ -73,6 +81,7 @@ export class MemoryBackedStorage implements EditableByteStorage {
     return Promise.resolve();
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MemoryBackedStorage.swift#MemoryBackedStorage.append */
   append(bytes: Uint8Array): Promise<void> {
     return this.overwrite(this.length, bytes);
   }

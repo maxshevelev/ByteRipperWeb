@@ -15,6 +15,8 @@ import { parseVolume } from "@/firmware/uefi/volumeParser";
  *
  * Called again for a capsule's body, because what is inside an envelope is one
  * of the same three things.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.parseTopLevel
  */
 export function parseTopLevel(parser: Parser, range: ImageRange, depth: number): UEFINode[] {
   if (depth >= parser.limits.maxDepth) {
@@ -68,6 +70,8 @@ export function parseTopLevel(parser: Parser, range: ImageRange, depth: number):
  * nothing here guarantees a volume starts on a multiple of four, and images
  * where one does not are common enough that the reference parser gave up on the
  * shortcut too.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.scanRawArea
  */
 export function scanRawArea(
   parser: Parser,

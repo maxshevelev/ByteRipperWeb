@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { FIT } from "@/firmware/fit/fitEntry";
+import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import { type FITTable, readFitTable, tableEntries, tableHeader } from "@/firmware/fit/fitTable";
+import { findTopSwapBackup, topSwapCopiesMatch } from "@/firmware/fit/fitTopSwap";
 import { ImageReader } from "@/firmware/imageReader";
 import { fitImage, fitMicrocode, type TestRow } from "@/firmware/testing/testFit";
 import { file, volume } from "@/firmware/testing/testImage";
@@ -9,7 +11,20 @@ import { guidFromText } from "@/firmware/uefi/efiGuid";
 import { FFS } from "@/firmware/uefi/fileParser";
 import { parseUefiImage, type UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange } from "@/firmware/uefi/uefiNode";
-import { addOrReplaceMicrocode, type FITEdit, removeMicrocodeAt } from "@/tools/fit/fitEditor";
+import {
+  backupKey,
+  fitDisplay,
+  focusingRow,
+  rowCommands,
+  rowIndexOfZone,
+  rowKey,
+} from "@/tools/fit/fitDisplay";
+import {
+  addOrReplaceMicrocode,
+  type FITEdit,
+  mirroringTransaction,
+  removeMicrocodeAt,
+} from "@/tools/fit/fitEditor";
 import { validateTransaction } from "@/tools/toolTransaction";
 
 /**
@@ -67,9 +82,20 @@ function join(...parts: readonly Uint8Array[]): Uint8Array {
 const readerOver = (bytes: Uint8Array) => new ImageReader(sourceOver(bytes));
 const parse = (bytes: Uint8Array): UEFIImage => parseUefiImage(sourceOver(bytes));
 
-/** Where a node covering `offset` ends — the bound a run may not grow past. */
+/**
+ * The FFS file holding `offset` — the element that bounds a run. The microcode
+ * images inside it are nodes of their own, so the innermost node there is the
+ * image, not the file.
+ */
+const fileAt = (tree: UEFIImage, offset: number) =>
+  tree.allNodes.find(
+    (node) =>
+      node.kind === "file" && nodeRange(node).start <= offset && offset < nodeRange(node).end
+  );
+
+/** Where the element covering `offset` ends — the bound a run may not grow past. */
 function endOfNodeAt(tree: UEFIImage, offset: number): number {
-  const node = tree.innermostNodeContaining(offset);
+  const node = fileAt(tree, offset) ?? tree.innermostNodeContaining(offset);
   if (node === undefined) throw new Error(`nothing covers 0x${offset.toString(16)}`);
   return nodeRange(node).end;
 }
@@ -140,15 +166,17 @@ const addIn = (component: Uint8Array, bytes: Uint8Array, parsed: UEFIImage) =>
   addOrReplaceMicrocode(component, tableIn(bytes, parsed), parsed, readerOver(bytes), ADDRESS_DIFF);
 
 describe("a run inside an FFS file", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testTheFixtureStartsOutRight
   it("starts out a valid image", () => {
     // Or the tests below prove nothing.
     const bytes = containerImage({ slack: 0x200 });
     const parsed = parse(bytes);
 
     expect(checksumProblems(bytes)).toEqual([]);
-    // The file bounds the run — its body is opaque to the tree, being a raw
-    // file, and that is exactly the element a component must not grow past.
-    expect(parsed.innermostNodeContaining(FIRST)?.kind).toBe("file");
+    // The raw file reads as its microcode images, and the file around them is
+    // the element a component must not grow past.
+    expect(parsed.innermostNodeContaining(FIRST)?.kind).toBe("microcode");
+    expect(fileAt(parsed, FIRST)).toBeDefined();
     const report = readFitTable(readerOver(bytes), parsed);
     expect(report.problems).toEqual([]);
     expect(
@@ -160,6 +188,7 @@ describe("a run inside an FFS file", () => {
     ).toEqual([FIRST, SECOND]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testRemovingInsideAFileRepairsThatFilesChecksums
   it("repairs that file's checksums when a removal moves its body", () => {
     const bytes = containerImage({ slack: 0x200 });
     const parsed = parse(bytes);
@@ -175,6 +204,7 @@ describe("a run inside an FFS file", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testReplacingInsideAFileRepairsThatFilesChecksums
   it("repairs them when a replacement of another size moves its body", () => {
     const bytes = containerImage({ slack: 0x200 });
     const parsed = parse(bytes);
@@ -189,6 +219,7 @@ describe("a run inside an FFS file", () => {
     expect(checksumProblems(edited)).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testAFileWithNoBodyChecksumIsLeftAlone
   it("leaves a file with no body checksum alone", () => {
     // Without the attribute the field carries a fixed value, and which one
     // depends on the *volume's* revision. A change to the body leaves that
@@ -205,6 +236,7 @@ describe("a run inside an FFS file", () => {
 });
 
 describe("growing out of the file", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testANewMicrocodeGoesIntoTheVolumesFreeSpace
   it("puts a new microcode in the volume's free space, and grows the file over it", () => {
     // The shape a real board has: a raw FFS file holding the run with no slack
     // left in it, and the volume's own free space directly behind that file.
@@ -231,7 +263,8 @@ describe("growing out of the file", () => {
     // than loose in the volume's free space — and the free space shrank by
     // exactly as much, without anything having to record it.
     const tree = parse(edited);
-    expect(tree.innermostNodeContaining(outcome.range.start)?.kind).toBe("file");
+    // And the new component reads as microcode inside it.
+    expect(tree.innermostNodeContaining(outcome.range.start)?.kind).toBe("microcode");
     expect(endOfNodeAt(tree, outcome.range.start)).toBe(outcome.range.end);
     const free = tree.allNodes.find((node) => node.kind === "freeSpace");
     expect(free === undefined ? -1 : nodeRange(free).start).toBe(outcome.range.end);
@@ -239,6 +272,7 @@ describe("growing out of the file", () => {
     expect(tree.allNodes.some((node) => node.kind === "nonUEFIData")).toBe(false);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testAReplacementThatOutgrowsTheFileGrowsIt
   it("grows the file for a replacement that outgrows it", () => {
     // The same move an addition makes, for the same reason: the run belongs
     // inside a structure.
@@ -251,13 +285,14 @@ describe("growing out of the file", () => {
     const tree = parse(edited);
 
     expect(outcomeOf(edit).moved).toBe(1);
-    expect(tree.innermostNodeContaining(FIRST)?.kind).toBe("file");
+    expect(fileAt(tree, FIRST)).toBeDefined();
     expect(endOfNodeAt(tree, FIRST)).toBeGreaterThan(fileEnd);
     expect(checksumProblems(edited)).toEqual([]);
     expect(tree.allNodes.some((node) => node.kind === "nonUEFIData")).toBe(false);
     expect(readFitTable(readerOver(edited), tree).problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testAFileWithSomethingBehindItIsNotGrown
   it("does not grow a file with another one behind it", () => {
     // The free space beyond that neighbour is not somewhere to drop a
     // component: the volume's own walk would meet it as a file that is not one.
@@ -274,6 +309,7 @@ describe("growing out of the file", () => {
     expect(problem.kind).toBe("theRunCannotGrow");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testAReplacementIsRefusedWhereTheFileCannotGrow
   it("refuses a replacement where the file cannot grow", () => {
     const bytes = containerImage({ neighbour: true });
     const parsed = parse(bytes);
@@ -318,6 +354,7 @@ describe("a file padded with something that is not 0xFF", () => {
     });
   }
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testAFilePaddedWithSomethingElseStillHasRoom
   it("still has room in it", () => {
     // The specification says nothing about what unused space inside a file has
     // to contain; only a volume's free space is described. What marks filler is
@@ -337,6 +374,7 @@ describe("a file padded with something that is not 0xFF", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITContainerTests.testWhatARemovalGivesBackIsFilledTheWayTheFileIs
   it("gets back what an edit gives up padded the same way", () => {
     // So the tail stays the one uniform stretch the next edit can use.
     const bytes = paddedWithSpaces(2);
@@ -349,6 +387,218 @@ describe("a file padded with something that is not 0xFF", () => {
     // The row it gave up is padded like the rest of the file.
     expect([...edited.subarray(tableEnd - 16, tableEnd)]).toEqual([
       ...new Uint8Array(16).fill(0x20),
+    ]);
+  });
+});
+
+/** Ported from upstream's `FITTopSwapTests`, in `FITContainerTests.swift`. */
+describe("a Top Swap image", () => {
+  /**
+   * A 64 KiB block with a FIT at 0x1000 naming two microcodes in a file of a
+   * volume at 0x4000 — the block an image keeps twice.
+   */
+  const block = (checksum?: number) =>
+    fitImage({
+      rows: [
+        { type: FIT.microcodeType, target: FIRST },
+        { type: FIT.microcodeType, target: SECOND },
+      ],
+      ...(checksum === undefined ? {} : { checksum }),
+      contents: new Map([
+        [
+          0x4000,
+          holding(
+            rawFile(
+              join(
+                fitMicrocode({ signature: 0x0008_06ea, totalSize: 0x100 }),
+                fitMicrocode({ signature: 0x0009_06ea, totalSize: 0x100 })
+              )
+            )
+          ),
+        ],
+      ]),
+    });
+  const SWAP_DIFF = 0xfffe_0000;
+  const reportOf = (bytes: Uint8Array) => readFitTable(readerOver(bytes), parse(bytes));
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testTheBackupIsFoundByItsOwnFIT
+  it("finds the backup by its own FIT", () => {
+    const bytes = join(block(), block());
+    const found = findTopSwapBackup(tableIn(bytes, parse(bytes)), readerOver(bytes));
+    expect(found?.top).toEqual({ start: 0x1_0000, end: 0x2_0000 });
+    expect(found?.backup).toEqual({ start: 0, end: 0x1_0000 });
+    expect(found === undefined ? false : topSwapCopiesMatch(found, readerOver(bytes))).toBe(true);
+
+    // One block, and no copy of it.
+    const single = block();
+    expect(findTopSwapBackup(tableIn(single, parse(single)), readerOver(single))).toBeUndefined();
+    // Bytes below that hold no FIT of their own are not a backup.
+    const unrelated = join(new Uint8Array(0x1_0000).fill(0xff), block());
+    unrelated[0xffc0] = 0x00;
+    expect(
+      findTopSwapBackup(tableIn(unrelated, parse(unrelated)), readerOver(unrelated))
+    ).toBeUndefined();
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testAnAdditionLandsInTheBackupToo
+  it("makes an addition in the backup too", () => {
+    const bytes = join(block(), block());
+    const parsed = parse(bytes);
+    const edit = addOrReplaceMicrocode(
+      fitMicrocode({ signature: 0x000a_0671, totalSize: 0x300 }),
+      tableIn(bytes, parsed),
+      parsed,
+      readerOver(bytes),
+      SWAP_DIFF
+    );
+    const edited = applying(edit, bytes);
+
+    expect(outcomeOf(edit).topSwapBackup).toEqual({ start: 0, end: 0x1_0000 });
+    expect(edited).not.toEqual(bytes);
+    // Both copies carry the change.
+    expect(edited.subarray(0, 0x1_0000)).toEqual(edited.subarray(0x1_0000));
+    // The backup, read as the top block it becomes when the swap is set.
+    const swapped = Uint8Array.from(edited.subarray(0, 0x1_0000));
+    const report = readFitTable(readerOver(swapped), parse(swapped));
+    expect(report.table === undefined ? 0 : tableEntries(report.table).length).toBe(3);
+    expect(report.problems).toEqual([]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testARemovalLandsInTheBackupToo
+  it("makes a removal in the backup too", () => {
+    const bytes = join(block(), block());
+    const parsed = parse(bytes);
+    const edit = removeMicrocodeAt(1, tableIn(bytes, parsed), parsed, readerOver(bytes), SWAP_DIFF);
+    const edited = applying(edit, bytes);
+
+    expect(outcomeOf(edit).topSwapBackup).toEqual({ start: 0, end: 0x1_0000 });
+    expect(edited.subarray(0, 0x1_0000)).toEqual(edited.subarray(0x1_0000));
+    const lower = readFitTable(readerOver(Uint8Array.from(edited.subarray(0, 0x1_0000))));
+    expect(lower.table === undefined ? 0 : tableEntries(lower.table).length).toBe(1);
+  });
+
+  // Copies that already differ are not changed as if they did not: the change is
+  // refused, and says where the other copy is.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testCopiesThatDifferAreNotChanged
+  it("refuses to change copies that differ", () => {
+    const backup = block();
+    backup[0x8000] = 0x00;
+    const bytes = join(backup, block());
+    const parsed = parse(bytes);
+    const edit = addOrReplaceMicrocode(
+      fitMicrocode({ signature: 0x000a_0671, totalSize: 0x300 }),
+      tableIn(bytes, parsed),
+      parsed,
+      readerOver(bytes),
+      SWAP_DIFF
+    );
+    expect(problemOf(edit)).toEqual({
+      kind: "topSwapCopiesDiffer",
+      backup: { start: 0, end: 0x1_0000 },
+    });
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testAChecksumFixLandsInTheBackupToo
+  it("writes a checksum fix into the backup too", () => {
+    const bytes = join(block(0x00), block(0x00));
+    const report = reportOf(bytes);
+    expect(report.backup?.block.backup).toEqual({ start: 0, end: 0x1_0000 });
+    expect(fitDisplay(report).checksumFix?.writes.map((write) => write.offset)).toEqual([
+      0x1_100f, 0x100f,
+    ]);
+
+    const lone = reportOf(join(block(), block(0x00)));
+    // A backup whose table differs is not written into.
+    expect(lone.backup?.tableBytesMatch).toBe(false);
+    expect(fitDisplay(lone).checksumFix?.writes).toHaveLength(1);
+  });
+
+  // The backup's copy of the table follows it, read-only, at its own offsets.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testTheBackupsRowsFollowTheTableReadOnly
+  it("lists the backup's rows after the table, read-only", () => {
+    const report = reportOf(join(block(), block()));
+    expect(report.backup?.status).toEqual({ kind: "identical" });
+    // At its own place in the file.
+    expect(report.backup?.table?.range.start).toBe(0x1000);
+    expect(report.problems).toEqual([]);
+
+    const display = fitDisplay(report);
+    expect(display.rows).toHaveLength(6);
+    expect(display.backupStart).toBe(3);
+    expect(display.backupHeading).toBe("Top Swap backup at 0x0 · read-only · same as above");
+    expect(display.summary).toContain("Top Swap backup matches");
+
+    const copy = display.rows[4];
+    if (copy === undefined) throw new Error("no backup row");
+    expect(copy.isBackup).toBe(true);
+    expect(rowKey(copy)).toBe(backupKey(1));
+    expect(copy.zoneId).toBe("fit.backup.row.1");
+    expect(copy.targetRange?.start).toBe(0x4060);
+    // Nothing that changes the table.
+    expect(rowCommands(copy)).toEqual([
+      { kind: "goToOffset", offset: 0x4060 },
+      { kind: "copyCPUID", cpuid: "806EA" },
+    ]);
+    const top = display.rows[1];
+    expect(top === undefined ? [] : rowCommands(top).map((one) => one.kind)).toContain(
+      "replaceMicrocode"
+    );
+    expect(rowIndexOfZone("fit.backup.target.1")).toBe(backupKey(1));
+    expect(display.zones.zones.find((zone) => zone.id === "fit.backup.target.1")?.start).toBe(
+      0x4060
+    );
+    expect(focusingRow(display, rowKey(copy)).detail.title).toBe("Backup #2 Microcode");
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testABackupWhoseMicrocodeDiffersIsWarnedAbout
+  it("warns about a backup whose microcode differs", () => {
+    const lower = block();
+    lower[0x4164] = (lower[0x4164] ?? 0) ^ 0xff; // the second microcode's revision, in the backup
+    const report = reportOf(join(lower, block()));
+
+    expect(report.backup?.status).toEqual({ kind: "tableDiffers", rows: [2] });
+    expect(
+      report.problems.some(
+        (one) => one.detail.kind === "topSwapTableDiffers" && one.detail.at === 0x1000
+      )
+    ).toBe(true);
+    const entry = report.problems.find((one) => one.detail.kind === "topSwapEntryDiffers");
+    expect(entry?.entryIndex).toBe(2);
+    expect(entry?.inBackup).toBe(true);
+    expect(entry === undefined ? undefined : fitSeverity(entry.detail)).toBe("warning");
+    expect(entry === undefined ? "" : fitProblemMessage(entry)).toMatch(/^Top Swap backup: /);
+
+    const display = fitDisplay(report);
+    expect(display.backupHeading).toBe(
+      "Top Swap backup at 0x0 · read-only · differs from the table above"
+    );
+    // The backup's row wears it, not the table's.
+    expect(display.rows.filter((row) => row.hasProblem).map(rowKey)).toEqual([backupKey(2)]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testABackupWithOtherBytesDifferentSaysEditsWaitForIt
+  it("says edits wait for a backup whose other bytes differ", () => {
+    const lower = block();
+    lower[0x8000] = 0x00;
+    const report = reportOf(join(lower, block()));
+    expect(report.backup?.status).toEqual({ kind: "otherBytesDiffer" });
+    expect(report.problems.map((one) => one.detail)).toEqual([
+      { kind: "topSwapBlockDiffers", backup: { start: 0, end: 0x1_0000 } },
+    ]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testAWriteAcrossTheBlocksHasNoPlaceInTheCopy
+  it("refuses a write across the blocks, which has no place in the copy", () => {
+    const copy = { top: { start: 0x1_0000, end: 0x2_0000 }, backup: { start: 0, end: 0x1_0000 } };
+    const across = { name: "Edit", writes: [{ offset: 0xfff8, bytes: new Uint8Array(0x10) }] };
+    expect(mirroringTransaction(copy, across)).toEqual({
+      ok: false,
+      problem: { kind: "topSwapWriteCrossesTheBlocks", at: 0xfff8 },
+    });
+    const inside = { name: "Edit", writes: [{ offset: 0x1_2000, bytes: Uint8Array.of(1, 2) }] };
+    const mirrored = mirroringTransaction(copy, inside);
+    expect(mirrored.ok ? mirrored.transaction.writes.map((write) => write.offset) : []).toEqual([
+      0x1_2000, 0x2000,
     ]);
   });
 });

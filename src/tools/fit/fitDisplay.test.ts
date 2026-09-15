@@ -74,16 +74,19 @@ function rowAt(rows: readonly FITDisplayRow[], index: number): FITDisplayRow {
 }
 
 describe("the summary", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheSummarySaysWhereTheTableIsAndWhetherItAddsUp
   it("says where the table is and whether it adds up", () => {
     // The count includes the header row, so one microcode reads as two.
     expect(display([microcodeRow]).summary).toBe("FIT at 0x1000 · 2 entries · checksum 0x5C");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheSummaryDoesNotRestateAWrongChecksum
   it("does not restate a wrong checksum", () => {
     // It is a problem, and the list below says so in red.
     expect(display([microcodeRow], { checksum: 0xcc }).summary).toBe("FIT at 0x1000 · 2 entries");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheSummarySaysWhenTheMappingWasAssumed
   it("says when the mapping was assumed", () => {
     // A region cut out of a dump has no volume top file, and then every address
     // in the table is wrong by whatever was cut off in front of it.
@@ -97,6 +100,7 @@ describe("the summary", () => {
     expect(shown.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheSummarySaysWhenTheChecksumIsNotUsed
   it("says when the checksum is not used", () => {
     // A table whose header says the checksum does not count is not wrong for
     // having a stale one.
@@ -105,6 +109,7 @@ describe("the summary", () => {
     );
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheSummaryOffersTheCandidatesWhenThePointerHasLostTheTable
   it("offers the candidates when the pointer has lost the table", () => {
     const shown = display([microcodeRow], { pointerAddress: 0xffff_5000 });
 
@@ -114,6 +119,7 @@ describe("the summary", () => {
 });
 
 describe("the rows", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowLeadsWithItsCpuid
   it("leads a microcode row with its CPUID", () => {
     // The type column has said "microcode" already, and the CPUID is the thing
     // being looked for. Hex digits, no leading zero, the way a bench writes it.
@@ -130,6 +136,7 @@ describe("the rows", () => {
     expect(row?.hasProblem).toBe(false);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowThatLeadsSomewhereElseStillSaysWhereAndHowLong
   it("says where a row that leads somewhere else leads", () => {
     const node = makeNode({
       kind: "volume",
@@ -151,6 +158,7 @@ describe("the rows", () => {
     expect(row?.targetText).toBe("0x3000 (FFSv2)");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheHeaderRowSaysItsCountBothWays
   it("says the header's count both ways", () => {
     // The header's `Size` counts entries, not bytes — the field everyone reads
     // wrong — so the row says it both ways rather than showing `0x20` and
@@ -163,6 +171,7 @@ describe("the rows", () => {
     expect(row?.sizeText).toBe("2 rows");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testACseSecureBootRowNamesItsSubtype
   it("names a CSE SecureBoot row's subtype", () => {
     // The reserved byte is a subtype here, and saying so is the difference
     // between a row that means something and a row that does not.
@@ -174,6 +183,7 @@ describe("the rows", () => {
     expect(row?.typeText).toBe("CSE SecureBoot Settings: IBB Hash");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowWithAProblemIsMarked
   it("marks a row the validator complained about", () => {
     const shown = display([{ type: FIT.microcodeType, target: MICROCODE + 4 }]);
 
@@ -183,6 +193,7 @@ describe("the rows", () => {
 });
 
 describe("the zones", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheZonesCoverTheTableThePointerAndWhatTheRowsPointAt
   it("covers the table, the pointer and what the rows point at", () => {
     const zones = display([microcodeRow]).zones;
     const find = (id: string) => zones.zones.find((zone) => zone.id === id);
@@ -203,6 +214,8 @@ describe("the zones", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testEveryMicrocodeIsAZoneNamedByItsCpuid
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testEveryMicrocodeIsAZoneNamedByItsCpuid
   it("names every microcode zone by its CPUID", () => {
     const zones = display([microcodeRow, { type: FIT.microcodeType, target: 0x3000 }]).zones;
     const find = (id: string) => zones.zones.find((zone) => zone.id === id);
@@ -214,10 +227,12 @@ describe("the zones", () => {
     expect(find("fit.target.2")).toMatchObject({ start: 0x3000, end: 0x3010 });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testGoingToATargetFocusesTheComponent
   it("focuses the component when going to a target", () => {
     expect(focusingTarget(display([microcodeRow]), 1).zones.focus).toBe("fit.target.1");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testSelectingARowFocusesItsZone
   it("focuses a row's own zone when it is selected", () => {
     // It is a change to the focus and not a reason to read the file again.
     expect(display([microcodeRow]).zones.focus).toBeUndefined();
@@ -229,6 +244,7 @@ describe("the zones", () => {
     expect(refocused.rows).toEqual(shown.rows);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAZoneIdSaysWhichRowItCameFrom
   it("says which row a zone id came from", () => {
     // The trip back: the user picks a zone in the dump, and the panel has to
     // know which row it came from.
@@ -241,6 +257,7 @@ describe("the zones", () => {
 });
 
 describe("the right-button menu", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowOffersItsCpuidAndItsOffset
   it("offers a microcode row its CPUID and its offset", () => {
     // An item that does not apply to the row is absent rather than greyed. The
     // one microcode may be replaced but not removed: the slot stays, so the
@@ -259,6 +276,7 @@ describe("the right-button menu", () => {
     ]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testEveryMicrocodeRowOffersItsReplacement
   it("offers every microcode row its replacement", () => {
     // The slot stays, so even the last and only one is offered it, where it is
     // not offered removal. A row that is not a microcode is offered neither.
@@ -274,6 +292,7 @@ describe("the right-button menu", () => {
     expect(rowCommands(rowAt(acm, 1)).map(fitCommandTitle)).not.toContain("Replace Microcode");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowThatPointsNowhereGoesToItself
   it("sends a row that points nowhere to itself", () => {
     // The header and an empty slot still have an offset of their own, so they
     // still go somewhere: to their own sixteen bytes in the table.
@@ -285,6 +304,7 @@ describe("the right-button menu", () => {
     expect(zoneToFocus(rowAt(rows, 2))).toBe("fit.row.2");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowWithNoCpuidStillOffersItsOffset
   it("offers its offset to a row with no CPUID", () => {
     const rows = display([{ type: FIT.startupACMType, target: 0x3000 }]).rows;
 
@@ -292,6 +312,8 @@ describe("the right-button menu", () => {
     expect(zoneToFocus(rowAt(rows, 1))).toBe("fit.target.1");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheLastMicrocodeIsNotOfferedForRemoval
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheLastMicrocodeIsNotOfferedForRemoval
   it("does not offer the last microcode for removal", () => {
     // A table needs one microcode entry, so the only one is not offered at all
     // — rather than offered and then refused.
@@ -304,6 +326,7 @@ describe("the right-button menu", () => {
     expect(two[2]?.canRemove).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheChecksumFixIsOfferedOnlyOnTheHeaderRow
   it("offers the checksum fix only on the header row", () => {
     // The byte is the header's, so the fix sits on the row the mismatch turns
     // red and on no other; a table whose checksum is right offers nothing.
@@ -340,6 +363,7 @@ describe('"latest" against the catalogue', () => {
     catalogue: readonly MicrocodeCatalogueEntry[]
   ) => ratingLatest(display([microcodeRow], options), catalogue).rows;
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testEveryRowStartsWithoutALatestVerdict
   it("starts every row without a verdict", () => {
     // A display built fresh from a parse does not know what is out there.
     expect(display([microcodeRow]).rows.map((row) => row.latestState)).toEqual([
@@ -348,6 +372,7 @@ describe('"latest" against the catalogue', () => {
     ]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAnEmptyCatalogueLeavesTheVerdictsUnrated
   it("leaves the verdicts unrated for an empty catalogue", () => {
     // Nothing fetched, or the fetch failed: it must not flip a display into
     // pretending a verdict exists.
@@ -358,6 +383,7 @@ describe('"latest" against the catalogue', () => {
     ]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheRowMatchingTheCataloguesNewestIsLatest
   it("calls the row matching the catalogue's newest latest", () => {
     const rows = rated({ platformIDs: 0x02 }, [
       catalogueEntry(0x0008_06ea, 0x02, 0x7c),
@@ -369,6 +395,7 @@ describe('"latest" against the catalogue', () => {
     expect(rows[0]?.latestState).toEqual({ kind: "notRated" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowBehindTheCatalogueIsOutdatedAndNamesTheNewerRevision
   it("names the newer revision a row behind the catalogue is behind", () => {
     const rows = rated({ revision: 0x7c, platformIDs: 0x02 }, [
       catalogueEntry(0x0008_06ea, 0x02, 0xf0),
@@ -377,6 +404,7 @@ describe('"latest" against the catalogue', () => {
     expect(rows[1]?.latestState).toEqual({ kind: "outdated", newestRevision: 0xf0 });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAnEqualRevisionBehindAPartialOverlapIsNotADoubt
   it("does not call an equal revision behind a partial overlap a doubt", () => {
     // The row is `plat22` and the catalogue's 806EA is `plat02` — the sets meet
     // on bit 1 without either covering the other — but both are r.F0, so there
@@ -386,6 +414,7 @@ describe('"latest" against the catalogue', () => {
     expect(rows[1]?.latestState).toEqual({ kind: "notRated" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testANewerRevisionBehindAPartialOverlapIsUndecided
   it("leaves a newer revision behind a partial overlap undecided", () => {
     // Whether that update serves this board depends on which platform the board
     // is, and the image does not say.
@@ -396,6 +425,7 @@ describe('"latest" against the catalogue', () => {
     expect(rows[1]?.latestState).toEqual({ kind: "undecided", newestRevision: 0xf0 });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testACoveringSetIsAVerdictNotADoubt
   it("treats a covering set as a verdict rather than a doubt", () => {
     // `plat36` is bits 1, 2, 4 and 5, `plat32` is bits 1, 4 and 5, so the
     // `plat36` update serves this board whichever of the three it is.
@@ -406,12 +436,14 @@ describe('"latest" against the catalogue', () => {
     expect(rows[1]?.latestState).toEqual({ kind: "outdated", newestRevision: 0x137 });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testACpuidTheCatalogueDoesNotListIsNotRated
   it("does not rate a CPUID the catalogue does not list", () => {
     const rows = rated({ platformIDs: 0x02 }, [catalogueEntry(0x0009_06eb, 0x02, 0xf0)]);
 
     expect(rows[1]?.latestState).toEqual({ kind: "notRated" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowNewerThanTheCatalogueIsNotRatedNotLatest
   it("does not call a row newer than the catalogue latest", () => {
     // The collection is behind the board, and a behind catalogue cannot confirm
     // what it does not know.
@@ -422,6 +454,7 @@ describe('"latest" against the catalogue', () => {
 });
 
 describe("the one repair", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAStaleChecksumIsOfferedAsAOneByteRepair
   it("offers a stale checksum as a one-byte repair", () => {
     const fix = display([microcodeRow], { checksum: 0xcc }).checksumFix;
 
@@ -430,6 +463,7 @@ describe("the one repair", () => {
     expect(fix?.writes.map((write) => [...write.bytes])).toEqual([[0x5c]]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testNothingIsOfferedWhenTheChecksumIsRightOrUnused
   it("offers nothing when the checksum is right or unused", () => {
     expect(display([microcodeRow]).checksumFix).toBeUndefined();
     expect(

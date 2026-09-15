@@ -15,7 +15,15 @@ import {
  * to what the image already names. Nothing is downloaded until one is picked.
  */
 
-/** Why the form is open: to add a microcode, or to replace one row's. */
+/**
+ * Why the form is open: to add a microcode, or to replace one row's.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.isReplacing
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.targetCpuid
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.targetCpuidText
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.cpuidsInTheImage
+ * @upstream-differs the form's mode as one value, add or replace, rather than four properties
+ */
 export type MicrocodeFormMode =
   | {
       readonly kind: "add";
@@ -62,7 +70,11 @@ export function searchIsHidden(mode: MicrocodeFormMode, narrowed: boolean): bool
   return mode.kind === "replace" && narrowed;
 }
 
-/** The rows the form shows. */
+/**
+ * The rows the form shows.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.shown
+ */
 export function shownEntries(
   entries: readonly MicrocodeCatalogueEntry[],
   mode: MicrocodeFormMode,

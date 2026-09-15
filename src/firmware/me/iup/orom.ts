@@ -15,6 +15,10 @@ import type { GSCOROMImage } from "@/firmware/me/models/independentFacts";
  * Ported from `Packages/MEFirmware/IUP/OROM.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/OROM.swift#GSCOROM
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/IUP/OROM.swift#GSCOROM.decode
+ */
 export function decodeOromImages(bytes: Uint8Array, baseOffset = 0): GSCOROMImage[] | undefined {
   const images: GSCOROMImage[] = [];
   for (let at = 0; at + 0x28 <= bytes.length; at++) {

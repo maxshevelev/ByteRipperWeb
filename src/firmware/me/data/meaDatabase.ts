@@ -13,19 +13,39 @@ import type { FirmwareFamily } from "@/firmware/me/models/firmwareFacts";
  * Ported from `Packages/MEFirmware/Data/MEADatabase.swift`.
  */
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.CSECells */
 export interface CSECells {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.CSECells.sku */
   readonly sku: string | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.CSECells.stepping */
   readonly stepping: string | undefined;
-  /** The token as the database spells it: `YPDM`, `NPDM`, `UPDM1`, `UPDM2`, `UPDM`. */
+  /**
+   * The token as the database spells it: `YPDM`, `NPDM`, `UPDM1`, `UPDM2`, `UPDM`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.CSECells.pdm
+   */
   readonly pdm: string | undefined;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase */
 export class MEADatabase {
-  /** The revision from the file's own header, when it has one. */
+  /**
+   * The revision from the file's own header, when it has one.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.revision
+   */
   readonly revision: number | undefined;
-  /** Every non-empty line, verbatim — the search corpus. */
+  /**
+   * Every non-empty line, verbatim — the search corpus.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.lines
+   */
   readonly lines: readonly string[];
-  /** The public-key hashes the database knows to be pre-production keys. */
+  /**
+   * The public-key hashes the database knows to be pre-production keys.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.preProductionKeyHashes
+   */
   readonly preProductionKeyHashes: ReadonlySet<string>;
 
   /**
@@ -39,6 +59,7 @@ export class MEADatabase {
   private readonly haystack: string;
   private readonly lineStarts: readonly number[];
 
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.init */
   constructor(
     options: {
       readonly revision?: number | undefined;
@@ -69,6 +90,8 @@ export class MEADatabase {
    * Additions to the database — a new firmware line, a new key — need no change
    * here. Only a change to the *grammar* does, which is the point of keeping the
    * corpus as text.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.parse
    */
   static parse(text: string): MEADatabase {
     const lines = text
@@ -101,6 +124,8 @@ export class MEADatabase {
   /**
    * The variant token whose key line carries `publicKeyHash`: the matched line
    * split on underscores, taking what comes second.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.variant
    */
   variantForKeyHash(publicKeyHash: string): string | undefined {
     const index = this.firstLineIndex(publicKeyHash);
@@ -109,13 +134,21 @@ export class MEADatabase {
     return parts.length > 1 ? parts[1] : undefined;
   }
 
-  /** The canonical firmware row whose signature hash is `signatureHash`. */
+  /**
+   * The canonical firmware row whose signature hash is `signatureHash`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.firmwareRow
+   */
   firmwareRowForSignatureHash(signatureHash: string): string | undefined {
     const index = this.firstLineIndex(signatureHash);
     return index === undefined ? undefined : this.lines[index];
   }
 
-  /** Whether this public key is one the database knows to be pre-production. */
+  /**
+   * Whether this public key is one the database knows to be pre-production.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.isPreProductionKey
+   */
   isPreProductionKey(publicKeyHash: string): boolean {
     return this.preProductionKeyHashes.has(publicKeyHash);
   }
@@ -127,6 +160,8 @@ export class MEADatabase {
    * Which cell holds what depends on the family, exactly as upstream's
    * per-family branches say. A stepping cell reading `X` or `XX` is the database
    * saying "not recorded", and comes back absent.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.cseCells
    */
   cseCellsIn(row: string, family: FirmwareFamily): CSECells | undefined {
     const cells = row.split("_");
@@ -165,7 +200,11 @@ export class MEADatabase {
     }
   }
 
-  /** The same cells, found by the firmware's signature hash. */
+  /**
+   * The same cells, found by the firmware's signature hash.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.cseCells
+   */
   cseCellsForSignatureHash(signatureHash: string, family: FirmwareFamily): CSECells | undefined {
     const row = this.firmwareRowForSignatureHash(signatureHash);
     return row === undefined ? undefined : this.cseCellsIn(row, family);
@@ -174,6 +213,7 @@ export class MEADatabase {
 
 // MARK: - The grammar
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.revision */
 export function revisionIn(text: string): number | undefined {
   const found = /Revision\s+r(\d+)/.exec(text);
   return found?.[1] === undefined ? undefined : Number.parseInt(found[1], 10);
@@ -183,6 +223,8 @@ export function revisionIn(text: string): number | undefined {
  * The list of pre-production key hashes: what sits between the file's own
  * begin and end markers, with each line's trailing comment stripped, read as a
  * JSON array.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADatabase.swift#MEADatabase.preProductionKeys
  */
 export function preProductionKeysIn(text: string): Set<string> {
   const begin = text.indexOf("rsa_pre_keys*BGN");

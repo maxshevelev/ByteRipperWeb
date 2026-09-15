@@ -13,10 +13,21 @@ import type { EFSVolume, OEMConfiguration } from "@/firmware/me/models/fileSyste
  * Ported from `Packages/MEFirmware/FileSystem/EFS.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.pageSize
+ */
 const PAGE_SIZE = 0x1000;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.pageHeaderSize */
 const PAGE_HEADER_SIZE = 0x10;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.crcLength */
 const CRC_LENGTH = 0x04;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.indexPaddingLength */
 const INDEX_PADDING_LENGTH = 0x08;
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#FITCParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#FITCParser.headerSize
+ */
 const FITC_HEADER_SIZE = 0x10;
 
 const u16 = (bytes: Uint8Array, at: number): number | undefined =>
@@ -39,6 +50,8 @@ const allErased = (bytes: Uint8Array): boolean => bytes.every((byte) => byte ===
  * The EFS volume in `bytes[offset, offset + size)`. Nothing when it does not open
  * with a System page — a Dictionary that is neither 0x0000 nor 0xFFFF, which is
  * what upstream's fixed format pattern amounts to.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.parse
  */
 export function parseEfs(
   bytes: Uint8Array,
@@ -179,6 +192,8 @@ export function parseEfs(
  * header's own, over its first twelve bytes with the checksum word zeroed, and
  * the data's. Any other revision (the CSME 15 TGP alpha layout) carries none: the
  * configuration length is the first word, and the tail past it must be erased.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#FITCParser.parse
  */
 export function parseFitc(
   bytes: Uint8Array,

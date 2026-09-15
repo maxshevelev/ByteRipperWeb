@@ -65,7 +65,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Muted `0x00`/`0xFF`, hatching past EOF | Same | Colour *and* form, as on the desktop. |
 | Keyboard navigation: arrows, Home/End, PageUp/Down, direct hex typing | Same | |
 | Editing in the decoded-text column | Same | |
-| Zoom (font size stepping), viewport keeps its place | Adapted | Browser page zoom is a separate thing the user also has; ours steps the hex font only, and must not fight `Ctrl/Cmd +`. |
+| Zoom In / Zoom Out (font size stepping) | Dropped | The browser's page zoom (`Ctrl/Cmd +` / `−`) is the zoom. It scales the whole interface and the canvas re-measures on it, so the web edition has no zoom commands of its own: two zooms side by side would not agree about what "bigger" means. The hex font's size stays a setting (Settings, below). |
 | Text decoding tables (Windows-1252 default, live 256-value grid) | Same | Pure table lookup, ports directly. |
 
 ### Editing

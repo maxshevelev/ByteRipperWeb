@@ -15,6 +15,11 @@ import type { DetailSymbol, DetailTable, NodeDetail } from "@/tools/toolDetail";
  * re-renders for reasons that have nothing to do with the user — a checksum
  * pass, the GUID names arriving — and resetting on those would throw a reader
  * back to the top of the detail they were part-way through.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.showPlaceholder
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.prepareForRows
+ * @upstream-differs a component: its placeholder and its scroll-to-top on a new subject are what it renders
  */
 export function ToolDetail({
   subject,
@@ -60,6 +65,7 @@ export function ToolDetail({
                   data-mono={one.value.startsWith("0x") ? "" : undefined}
                   data-problem={one.isProblem ? "" : undefined}
                 >
+                  {one.isDone === true ? <DoneMark /> : null}
                   {one.value}
                 </dd>
               </div>
@@ -120,6 +126,19 @@ function DetailTableView({ table }: { readonly table: DetailTable }) {
         </tbody>
       </table>
     </section>
+  );
+}
+
+/**
+ * The green done mark before a value that is a check that passed — upstream's
+ * `checkmark.circle.fill`, in the text so it wraps and selects with it.
+ */
+function DoneMark() {
+  return (
+    <svg className="tool-detail-done" viewBox="0 0 16 16" role="img" aria-label="Done">
+      <circle cx="8" cy="8" r="7" />
+      <path d="M4.8 8.3 7 10.4l4.2-4.6" />
+    </svg>
   );
 }
 

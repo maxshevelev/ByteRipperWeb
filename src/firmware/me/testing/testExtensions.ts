@@ -9,6 +9,10 @@ import { putU32 } from "@/firmware/me/testing/testMe";
  * front of it, which is the thing easiest to be off by eight about.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.block
+ */
 export function extBlock(tag: number, headerLength: number, tail = 0): Uint8Array {
   const bytes = new Uint8Array(headerLength + tail);
   putU32(bytes, 0, tag);
@@ -16,20 +20,27 @@ export function extBlock(tag: number, headerLength: number, tail = 0): Uint8Arra
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.wU16 */
 const put16 = (bytes: Uint8Array, at: number, value: number) => {
   bytes[at] = value & 0xff;
   bytes[at + 1] = (value >>> 8) & 0xff;
 };
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.wAscii */
 const putAscii = (bytes: Uint8Array, at: number, text: string) => {
   for (let index = 0; index < text.length; index++) bytes[at + index] = text.charCodeAt(index);
 };
 
-/** A deterministic byte ramp, which is what a stored hash stands in as. */
+/**
+ * A deterministic byte ramp, which is what a stored hash stands in as.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.ramp
+ */
 const ramp = (bytes: Uint8Array, at: number, length: number, from = 0) => {
   for (let index = 0; index < length; index++) bytes[at + index] = (from + index) & 0xff;
 };
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.concat */
 export function extConcat(blocks: readonly Uint8Array[]): Uint8Array {
   const bytes = new Uint8Array(blocks.reduce((total, one) => total + one.length, 0));
   let at = 0;
@@ -40,6 +51,7 @@ export function extConcat(blocks: readonly Uint8Array[]): Uint8Array {
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.systemInfo */
 export function extSystemInfo(revised: boolean): Uint8Array {
   const bytes = extBlock(0x00, revised ? 0x50 : 0x40);
   putU32(bytes, 0x08, 0x1122_3344); // MinUMASize
@@ -49,12 +61,14 @@ export function extSystemInfo(revised: boolean): Uint8Array {
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.featurePermissions */
 export function extFeaturePermissions(moduleCount: number, rowCount = 0): Uint8Array {
   const bytes = extBlock(0x02, 0x0c, rowCount * 4);
   putU32(bytes, 0x08, moduleCount);
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.clientSystemInfo */
 export function extClientSystemInfo(): Uint8Array {
   const bytes = extBlock(0x0c, 0x30);
   putU32(bytes, 0x08, 0x0001_00fe); // the capability bitmask
@@ -64,6 +78,7 @@ export function extClientSystemInfo(): Uint8Array {
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.signedPackage */
 export function extSignedPackage(
   revised: boolean,
   options: { readonly vcn?: number; readonly arbSvn?: number } = {}
@@ -81,6 +96,7 @@ export function extSignedPackage(
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.partitionInfo */
 export function extPartitionInfo(
   tag: 0x03 | 0x16,
   revised: boolean,
@@ -103,6 +119,7 @@ export function extPartitionInfo(
   return bytes;
 }
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.moduleAttributes */
 export function extModuleAttributes(revised: boolean): Uint8Array {
   const hashLength = revised ? 48 : 32;
   const bytes = extBlock(0x0a, 0x18 + hashLength);
@@ -116,7 +133,19 @@ export function extModuleAttributes(revised: boolean): Uint8Array {
   return bytes;
 }
 
-/** A block with rows behind its header, for the row-bearing tags. */
+/**
+ * A block with rows behind its header, for the row-bearing tags.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.threadAttributes
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.deviceTypes
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.mmioRanges
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.lockedRanges
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.userInfo
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.specialFiles
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.processAttributes
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ExtensionTests.swift#ExtFixture.sharedLibrary
+ * @upstream-differs one row-block builder the tests give a tag, a header and a row filler, instead of one builder per block
+ */
 export function extRows(
   tag: number,
   headerLength: number,

@@ -27,61 +27,123 @@ import type { MFSState } from "@/firmware/me/models/firmwareFacts";
  * Ported from `Packages/MEFirmware/FileSystem/MFS.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.pageSize
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.pageSize
+ * @upstream-differs the backup reuses the MFS page size rather than naming its own
+ */
 export const MFS_PAGE_SIZE = 0x2000;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.pageHeaderSize */
 const PAGE_HEADER_SIZE = 0x12;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.chunkAllSize */
 const CHUNK_ALL_SIZE = 0x42;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.chunkRawSize */
 const CHUNK_RAW_SIZE = 0x40;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.systemIndexSize */
 const SYSTEM_INDEX_SIZE = 2;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.dataIndexSize */
 const DATA_INDEX_SIZE = 1;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.volumeHeaderSize */
 const VOLUME_HEADER_SIZE = 0xe;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.pageTag */
 const PAGE_TAG = 0xaa55_7887;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.volumeTag */
 const VOLUME_TAG = 0x724f_6201;
 
-/** One present low-level file: the raw bytes of its FAT chain. */
+/**
+ * One present low-level file: the raw bytes of its FAT chain.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSLowLevelFile
+ */
 export interface MFSLowLevelFile {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSLowLevelFile.index */
   readonly index: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSLowLevelFile.content */
   readonly content: Uint8Array;
 }
 
-/** One decoded `MFS_Config_Record_0x1C`. */
+/**
+ * One decoded `MFS_Config_Record_0x1C`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord
+ */
 export interface MFSRawConfigRecord {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.isFolder */
   readonly isFolder: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.size */
   readonly size: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.offset */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.unixRights */
   readonly unixRights: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.integrity */
   readonly integrity: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.encryption */
   readonly encryption: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.antiReplay */
   readonly antiReplay: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.oemConfigurable */
   readonly oemConfigurable: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.mcaConfigurable */
   readonly mcaConfigurable: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.reserved */
   readonly reserved: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.ownerUserID */
   readonly ownerUserID: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigRecord.ownerGroupID */
   readonly ownerGroupID: number;
 }
 
-/** A legacy configuration stream: file 6 (Intel) or 7 (OEM). */
+/**
+ * A legacy configuration stream: file 6 (Intel) or 7 (OEM).
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigDecode
+ */
 export interface MFSConfigDecode {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigDecode.owningFile */
   readonly owningFile: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigDecode.records */
   readonly records: readonly MFSRawConfigRecord[];
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo */
 export interface MFSVolumeInfo {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.pageSize */
   readonly pageSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.systemPageCount */
   readonly systemPageCount: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.dataPageCount */
   readonly dataPageCount: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.volumeSignatureValid */
   readonly volumeSignatureValid: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.volumeSize */
   readonly volumeSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.computedVolumeSize */
   readonly computedVolumeSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.fileRecordCount */
   readonly fileRecordCount: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.usedFileCount */
   readonly usedFileCount: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.ftblDictionary */
   readonly ftblDictionary: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.ftblPlatform */
   readonly ftblPlatform: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.ftblReserved */
   readonly ftblReserved: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.usesFTBL */
   readonly usesFTBL: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.files */
   readonly files: readonly MFSLowLevelFile[];
-  /** Every used chain reached a clean end marker. */
+  /**
+   * Every used chain reached a clean end marker.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.fileChainsIntact
+   */
   readonly fileChainsIntact: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.configurations */
   readonly configurations: readonly MFSConfigDecode[];
 }
 
@@ -111,6 +173,8 @@ function concat(parts: readonly Uint8Array[]): Uint8Array {
  * The volume in `bytes[offset, offset + size)`. Nothing when the area carries no
  * MFS pages at all; a volume whose System chunk 0 is not a volume header comes
  * back with `volumeSignatureValid` false rather than failing.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.parse
  */
 export function parseMfs(
   bytes: Uint8Array,
@@ -300,6 +364,8 @@ export function parseMfs(
 /**
  * A legacy configuration stream: a u32 count, then that many 0x1C records. A
  * stream shorter than its count decodes the records that fit.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.decodeConfigRecords
  */
 export function decodeConfigRecords(content: Uint8Array): MFSRawConfigRecord[] | undefined {
   if (content.length < 4) return undefined;
@@ -404,6 +470,9 @@ function utf8Lossy(bytes: Uint8Array): string {
  *
  * Not ported: an EFS volume holding file contents raises the state to
  * Initialized, but which bytes of an EFS are a file only `FileTable.dat` says.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder.state
  */
 export function mfsState(options: {
   readonly usesFTBL: boolean;
@@ -427,6 +496,9 @@ export function mfsState(options: {
 /**
  * `get_sec_hdr_size`: the length of the trailing integrity table a reserved or
  * home file carries — 0x28 or 0x34.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.secHeaderSize
  */
 export function secHeaderSize(
   variant: string,
@@ -447,6 +519,8 @@ export function secHeaderSize(
  * `get_vfs_start_0`: whether the volume's files start at System offset 0. When
  * they do, the files are named through FTBL/EFST and the reserved walk reads
  * nothing.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.vfsStartsAtZero
  */
 export function vfsStartsAtZero(variant: string, major: number, minor: number): boolean {
   if (variant === "CSME" && major === 13 && minor === 30) return true;
@@ -461,6 +535,8 @@ export function vfsStartsAtZero(variant: string, major: number, minor: number): 
  * The trailing integrity tables of the reserved low-level files (1–5, and 6 and
  * 7 on AFS). A file whose role carries none — Quota Storage before CSME 12, SVN
  * Migration on AFS — or that is too short for one is left out.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.reservedIntegrity
  */
 export function reservedIntegrity(options: {
   readonly files: readonly MFSLowLevelFile[];
@@ -499,6 +575,8 @@ export function reservedIntegrity(options: {
  * `\x2E[\x00\xAA]{10}`. The `..` row's first dot is followed by a dot, which is
  * not in the set, so its *second* dot is the second match and the distance less
  * one is the record size. Nothing with fewer than two markers.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.homeRecordSize
  */
 export function homeRecordSize(content: Uint8Array): number | undefined {
   const matches: number[] = [];
@@ -533,6 +611,8 @@ export function homeRecordSize(content: Uint8Array): number | undefined {
  * and both upstream's own port: a name is cut at its first NUL before the marker
  * test — a dirty row named `.\0faults…` is a marker, not a folder to recurse into
  * for ever — and a folder whose file is already being walked yields no children.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.homeDirectory
  */
 export function homeDirectory(options: {
   readonly files: readonly MFSLowLevelFile[];
@@ -630,6 +710,8 @@ function walkHome(
  * A trailing `MFS_Integrity_Table`: 0x28 (HMAC-MD5, flags, the anti-replay words,
  * an AES-GCM nonce) or 0x34 (HMAC-SHA-256, flags, a 128-bit region whose first
  * two words are the anti-replay values). Nothing for any other length.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.integrityTable
  */
 export function integrityTable(table: Uint8Array): MFSIntegrityTable | undefined {
   let flagsRaw: number;

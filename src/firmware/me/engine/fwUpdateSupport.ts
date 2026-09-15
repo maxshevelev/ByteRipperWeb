@@ -25,18 +25,32 @@ import type {
  * Ported from `Packages/MEFirmware/Engine/FWUpdateSupport.swift`.
  */
 
-/** Which independent firmware kinds the region's own `$FPT` lists, non-empty. */
+/**
+ * Which independent firmware kinds the region's own `$FPT` lists, non-empty.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence
+ */
 export interface IUPPresence {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.pmc */
   readonly pmc: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.pchc */
   readonly pchc: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.phy */
   readonly phy: boolean;
 }
 
-/** The names each kind goes by in a `$FPT`. */
+/**
+ * The names each kind goes by in a `$FPT`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.pmcNames
+ */
 export const PMC_PARTITION_NAMES: readonly string[] = ["PMCP", "PCOD"];
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.pchcNames */
 export const PCHC_PARTITION_NAMES: readonly string[] = ["PCHC"];
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.phyNames */
 export const PHY_PARTITION_NAMES: readonly string[] = ["PPHY", "NPHY", "SPHY", "PHYP"];
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.IUPPresence.init */
 export function iupPresence(partitions: readonly FPTPartition[]): IUPPresence {
   let pmc = false;
   let pchc = false;
@@ -56,6 +70,9 @@ export function iupPresence(partitions: readonly FPTPartition[]): IUPPresence {
  * `sku` is the engine's own SKU text ("Corporate H"): its first word says
  * Corporate, and the letters after it are the tie-breaker between the CSME 15.0
  * rules.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/FWUpdateSupport.swift#FWUpdateSupportDecider.result
  */
 export function fwUpdateSupport(options: {
   readonly family: FirmwareFamily;

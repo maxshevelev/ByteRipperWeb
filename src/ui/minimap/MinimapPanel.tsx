@@ -20,6 +20,7 @@ import {
   MinimapRenderer,
   type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
+import { overviewBandFloor } from "@/render/minimap/viewportMarker";
 import { bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import {
@@ -37,6 +38,7 @@ import { useStore } from "@/state/useStore";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
 import type { Zone } from "@/tools/zone";
+import { ViewportMarks } from "@/ui/minimap/ViewportMarks";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { pieceMenu, selectPiece } from "@/ui/segments/segmentMenu";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -61,6 +63,7 @@ export interface MinimapPanelProps {
   readonly stacked: boolean;
 }
 
+/** @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView */
 export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelProps) {
   const state = useStore(minimapStore);
   const workspace = useStore(workspaceStore);
@@ -147,6 +150,10 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
  * Measured rather than assumed: the pane header's height comes from its own
  * padding and font, and the column header's from the hex font's metrics, so a
  * constant here would be right until one of them moved.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.defaultHeaderHeight
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.defaultStatusBarHeight
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.switchBandHeight
  */
 interface PaneChrome {
   /** The pane's transparent top border, which the minimap has to clear too. */
@@ -158,6 +165,12 @@ interface PaneChrome {
 
 const NO_CHROME: PaneChrome = { offsetTop: 0, headerHeight: 0, gapBelowHeader: 0 };
 
+/**
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.setChromeHeights
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.dumpAreaInWindow
+ * @upstream-differs measured from the panes' elements
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.dumpAreaInWindow
+ */
 function usePaneChrome(
   panelRef: React.RefObject<HTMLElement | null>,
   openPanes: number
@@ -242,14 +255,14 @@ function SharedBand({
     topRow: derivedTopRow({ mode, sizes, windowRows: visibleRowCount(height), viewport }),
     extent: state.extent,
     overviewRows: state.pictures.a?.rowCount ?? state.pictures.b?.rowCount ?? 0,
-    minHeight: MIN_BAND_HEIGHT,
+    // Drawn, not grabbed: overview gets upstream's two-device-pixel floor, so a
+    // sliver's middle is where the panes really are.
+    minHeight: mode === "overview" ? overviewBandFloor(window.devicePixelRatio) : 0,
   });
 
   return (
     <div className="minimap-band-layer" ref={ref} aria-hidden="true">
-      {band === undefined ? null : (
-        <div className="minimap-band" style={{ top: band.top, height: band.height }} />
-      )}
+      <ViewportMarks mode={mode} band={band} />
     </div>
   );
 }
@@ -259,6 +272,10 @@ function SharedBand({
  *
  * Re-read on every scroll — including the mirrored ones, which is why this
  * listens to the link rather than to one pane.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewports
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setViewports
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewport
  */
 function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number }>> {
   const [viewports, setViewports] = useState<
@@ -287,7 +304,12 @@ function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number
   return viewports;
 }
 
-/** The mode switch and the build's progress. */
+/**
+ * The mode switch and the build's progress.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.modeSwitch
+ * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.showMode
+ */
 function MinimapModes({
   offsetTop,
   height,
@@ -340,15 +362,29 @@ function MinimapModes({
  * Stacked, both are padded on both sides like a single map — the inner edge
  * that loses its padding is the one two maps *share*, and stacked maps share a
  * horizontal edge rather than a vertical one.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mapLayout
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setMapLayout
  */
 function placementFor(stacked: boolean, openCount: number, index: number): MapPlacement {
   if (stacked || openCount < 2) return "single";
   return index === 0 ? "left" : "right";
 }
 
+/**
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.Map
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.maps
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setMaps
+ * @upstream-differs one canvas per open pane, each given its own props
+ */
 interface CanvasProps {
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.Map.fileSize */
   readonly pane: PaneId;
   readonly mode: MinimapMode;
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.Map.selection
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.selection
+   */
   readonly selection: { readonly start: number; readonly end: number } | undefined;
   readonly viewport: { readonly start: number; readonly end: number } | undefined;
   /** Stacked, each map carries its own band; side by side they share one. */
@@ -370,6 +406,7 @@ interface CanvasProps {
  */
 const MIN_BAND_HEIGHT = 6;
 
+/** @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.mapView */
 function MinimapCanvas({
   pane,
   mode,
@@ -422,6 +459,8 @@ function MinimapCanvas({
   // Detail mode pulls the bytes of its window on each change rather than
   // holding a picture: it is a couple of thousand bytes, and holding them would
   // mean invalidating them.
+  // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.byteStates
+  // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.invalidateCells
   useEffect(() => {
     if (mode !== "detail" || slot === undefined || windowRows <= 0) {
       setCells([]);
@@ -489,6 +528,16 @@ function MinimapCanvas({
     overviewRows: state.pictures[pane]?.rowCount ?? 0,
     minHeight: MIN_BAND_HEIGHT,
   });
+  /** The band as it is drawn: upstream's floor in overview, the rows in detail. */
+  const drawnBand = viewportBand({
+    mode,
+    viewport,
+    areaHeight: size.height,
+    topRow,
+    extent: state.extent,
+    overviewRows: state.pictures[pane]?.rowCount ?? 0,
+    minHeight: mode === "overview" ? overviewBandFloor(window.devicePixelRatio) : 0,
+  });
 
   /**
    * Where each bookmarked row falls on this map.
@@ -517,6 +566,7 @@ function MinimapCanvas({
    * the length of the map would say nothing.
    */
   const pieces = useStore(segmentsStore).panes[pane]?.partition.segments ?? [];
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentBlocks */
   const segmentBands = (() => {
     if (pieces.length < 2) return undefined;
     const tints = readSegmentTints();
@@ -540,6 +590,12 @@ function MinimapCanvas({
    * the nesting is what the eye reads rather than something to work out.
    */
   const zones = useStore(zoneStore).panes[pane];
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setZoneMaps
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.brackets
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBrackets
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.id
+   */
   const zoneBrackets = (() => {
     if (zones.zones.length === 0) return undefined;
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
@@ -662,6 +718,10 @@ function MinimapCanvas({
    */
   const grab = useRef<{ offset: number; height: number } | undefined>(undefined);
 
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseDown
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.onSelectOffset
+   */
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       if (event.button !== 0) return;
@@ -701,7 +761,13 @@ function MinimapCanvas({
    * The piece the pointer is over in the strip, or nothing when it is not in
    * the strip at all.
    */
-  /** The zone whose bracket is under the pointer, if the pointer is in the gutter. */
+  /**
+   * The zone whose bracket is under the pointer, if the pointer is in the gutter.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracket
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketMenu
+   * @upstream-differs the menu opens from the canvas's onContextMenu
+   */
   const zoneUnder = useCallback(
     (event: { clientX: number; clientY: number }): Zone | undefined => {
       const canvas = canvasRef.current;
@@ -722,6 +788,12 @@ function MinimapCanvas({
     [zoneBrackets, zones.zones, layout]
   );
 
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentPiece
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripMenu
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.rightMouseDown
+   * @upstream-differs the menu opens from the canvas's onContextMenu
+   */
   const pieceUnder = useCallback(
     (event: { clientX: number; clientY: number }): Segment | undefined => {
       const canvas = canvasRef.current;
@@ -738,6 +810,12 @@ function MinimapCanvas({
     [segmentBands, pieces, layout]
   );
 
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseDragged
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseMoved
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseExited
+   * @upstream-differs leaving the canvas clears the hovered piece inline
+   */
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       setHoveredPiece(pieceUnder(event)?.index);
@@ -762,6 +840,7 @@ function MinimapCanvas({
     [mode, size.height, sizes, viewport, pane, pieceUnder]
   );
 
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseUp */
   const endDrag = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     grab.current = undefined;
     try {
@@ -837,9 +916,7 @@ function MinimapCanvas({
           );
         }}
       />
-      {stacked && band !== undefined ? (
-        <div className="minimap-band" style={{ top: band.top, height: band.height }} />
-      ) : null}
+      {stacked ? <ViewportMarks mode={mode} band={drawnBand} /> : null}
     </div>
   );
 }

@@ -29,6 +29,10 @@ import { entriesFromTree, type MicrocodeCatalogueEntry } from "@/tools/fit/micro
  * which is why that state has to be named rather than read as "it is broken".
  */
 
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.freshness
+ * @upstream-differs the fetch date and status in a store, not a Freshened value
+ */
 export interface MicrocodeCatalogueState {
   readonly status: "idle" | "loading" | "ready" | "failed";
   readonly entries: readonly MicrocodeCatalogueEntry[];
@@ -38,6 +42,11 @@ export interface MicrocodeCatalogueState {
   readonly failure: RemoteFailure | undefined;
 }
 
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource.catalogueChanges
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.catalogueChanges
+ * @upstream-differs a store subscription rather than an AsyncStream
+ */
 export const microcodeCatalogueStore = createStore<MicrocodeCatalogueState>({
   status: "idle",
   entries: [],
@@ -45,12 +54,22 @@ export const microcodeCatalogueStore = createStore<MicrocodeCatalogueState>({
   failure: undefined,
 });
 
-/** What the panel prints for the state it is in. */
+/**
+ * What the panel prints for the state it is in.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSourceError
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSourceError.errorDescription
+ */
 export function microcodeCatalogueMessage(state: MicrocodeCatalogueState): string | undefined {
   return state.failure === undefined ? undefined : remoteFailureMessage(state.failure);
 }
 
-/** The live source, behind the interface so a test installs its own. */
+/**
+ * The live source, behind the interface so a test installs its own.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.microcodeSource
+ */
 export const liveMicrocodeSource: MicrocodeSource = {
   async catalogue(signal) {
     const body = await remoteSource(MICROCODE_TREE_URL).body(
@@ -81,6 +100,9 @@ let controller: AbortController | undefined;
  *
  * A failed attempt is startable again: being rate-limited is temporary, and a
  * button the user is told to press in a few minutes has to work when they do.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource.catalogue
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.catalogue
  */
 export function loadMicrocodeCatalogue(source: MicrocodeSource = liveMicrocodeSource): void {
   const state = microcodeCatalogueStore.getSnapshot();
@@ -135,7 +157,11 @@ export function cancelMicrocodeCatalogue(): void {
   );
 }
 
-/** Forgets what was fetched, so the next ask goes back to the network. */
+/**
+ * Forgets what was fetched, so the next ask goes back to the network.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.markStale
+ */
 export function forgetMicrocodeCatalogue(): void {
   controller?.abort();
   controller = undefined;
@@ -151,6 +177,9 @@ export function forgetMicrocodeCatalogue(): void {
  * One microcode's bytes, from the collection the list came from — fetched only
  * once one is picked, so the form costs a single request for the listing and
  * one for the file.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource.download
+ * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.download
  */
 export function downloadMicrocode(
   entry: MicrocodeCatalogueEntry,

@@ -7,10 +7,19 @@ import {
 import { invertOperation, UndoHistory, type UndoOperation } from "@/core/edit/undoHistory";
 import type { ByteStorage, Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
 
-/** Which end of the document a join puts its bytes at (§22). */
+/**
+ * Which end of the document a join puts its bytes at (§22).
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#JoinPosition
+ */
 export type JoinPosition = "start" | "end";
 
-/** A file with no bytes in it has nothing to join, and saying so beats a no-op. */
+/**
+ * A file with no bytes in it has nothing to join, and saying so beats a no-op.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#JoinError
+ * @upstream-differs one error class for JoinError's one case, emptySource
+ */
 export class JoinEmpty extends Error {
   constructor() {
     super("That file has no bytes to join.");
@@ -23,6 +32,8 @@ export class JoinEmpty extends Error {
  *
  * The same megabyte the save path streams in: a join of a 32 MB donor is 32
  * inserts through the piece table, not one array the size of the file.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.joinChunkSize
  */
 const JOIN_CHUNK_SIZE = 1024 * 1024;
 
@@ -56,7 +67,9 @@ export interface DocumentContentChange {
 
 type Unsubscribe = () => void;
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument */
 export class BinaryDocument {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.undoHistory */
   readonly undoHistory = new UndoHistory();
 
   private storageValue: EditableByteStorage;
@@ -86,6 +99,7 @@ export class BinaryDocument {
   private readonly selectionListeners = new Set<(selection: Selection) => void>();
   private readonly commitListeners = new Set<() => void>();
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.init */
   constructor(storage: EditableByteStorage) {
     this.storageValue = storage;
     this.selectionValue = caretAt(0, storage.size);
@@ -93,14 +107,17 @@ export class BinaryDocument {
 
   // MARK: - Reading
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.storage */
   get storage(): EditableByteStorage {
     return this.storageValue;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.size */
   get size(): number {
     return this.storageValue.size;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.read */
   read(at: number, length: number): Promise<Bytes> {
     return this.storageValue.read(at, length);
   }
@@ -135,6 +152,9 @@ export class BinaryDocument {
    * Fires exactly when a transaction is committed to the undo history — a
    * forward edit, or the close of a coalesced typing group. Not for undo or
    * redo, which restore rather than record, and not for a cancelled group.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.onTransactionCommitted
+   * @upstream-differs a subscription, so more than one listener can hear a commit
    */
   onTransactionCommitted(listener: () => void): Unsubscribe {
     this.commitListeners.add(listener);
@@ -143,13 +163,21 @@ export class BinaryDocument {
 
   // MARK: - Mutations, each recording an undo operation
 
-  /** Overwrites `bytes` at `at`, extending past EOF when needed. */
+  /**
+   * Overwrites `bytes` at `at`, extending past EOF when needed.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.overwrite
+   */
   async overwrite(at: number, bytes: Uint8Array): Promise<void> {
     this.record(await this.applyOverwrite(at, bytes));
     this.clampSelection();
   }
 
-  /** Inserts `bytes` at `at`, clamped to EOF, shifting what follows. */
+  /**
+   * Inserts `bytes` at `at`, clamped to EOF, shifting what follows.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.insert
+   */
   async insert(at: number, bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return;
     const offset = Math.min(Math.max(at, 0), this.storageValue.size);
@@ -158,7 +186,11 @@ export class BinaryDocument {
     this.clampSelection();
   }
 
-  /** Removes `[start, end)`, shifting what follows. */
+  /**
+   * Removes `[start, end)`, shifting what follows.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.delete
+   */
   async delete(start: number, end: number): Promise<void> {
     const from = Math.min(Math.max(start, 0), this.storageValue.size);
     const to = Math.min(Math.max(end, 0), this.storageValue.size);
@@ -170,7 +202,11 @@ export class BinaryDocument {
     this.clampSelection();
   }
 
-  /** Overwrites `[start, end)` with zero bytes — what Delete and Backspace do. */
+  /**
+   * Overwrites `[start, end)` with zero bytes — what Delete and Backspace do.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.fillZero
+   */
   fillZero(start: number, end: number, caretAfter?: number): Promise<void> {
     return this.fill(new Uint8Array([0]), start, end, caretAfter);
   }
@@ -184,6 +220,8 @@ export class BinaryDocument {
    *
    * `caretAfter` overrides what redo restores — a fill leaves the caret at the
    * range start, not at its end.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.fill
    */
   async fill(pattern: Uint8Array, start: number, end: number, caretAfter?: number): Promise<void> {
     if (pattern.length === 0) return;
@@ -205,6 +243,8 @@ export class BinaryDocument {
    * Replaces `[start, end)` with `bytes`: writes from the range start, then
    * deletes the leftover tail when `bytes` is shorter. This is what "typed text
    * overwrites a selection" needs.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.replace
    */
   async replace(start: number, end: number, bytes: Uint8Array): Promise<void> {
     const ops = await this.applyOverwrite(start, bytes);
@@ -239,6 +279,8 @@ export class BinaryDocument {
    *
    * The caret ends at the start of the added part, which is the seam, and that
    * is what redo restores; undo returns it to where it was before.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.join
    */
   async join(
     source: ByteStorage,
@@ -291,6 +333,8 @@ export class BinaryDocument {
    * as one step. Returns the operations that were applied, which is what a
    * comparison will need in M3 to update incrementally rather than re-scan, or
    * `undefined` when there was nothing to undo.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.undo
    */
   async undo(batch = false): Promise<UndoOperation[] | undefined> {
     const transactions = this.undoHistory.undo(batch);
@@ -315,6 +359,8 @@ export class BinaryDocument {
    * Reapplies the next undone step in its original order — all of a batch's
    * transactions, in recording order — and restores the selection the gesture's
    * last edit left.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.redo
    */
   async redo(): Promise<UndoOperation[] | undefined> {
     const transactions = this.undoHistory.redo();
@@ -341,6 +387,8 @@ export class BinaryDocument {
    * document cannot know whether a command collapses the selection (a fill
    * does) or keeps consuming what is left of it (typing does). A no-op unless
    * an edit was recorded since the last call.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.noteSelectionAfterEdit
    */
   noteSelectionAfterEdit(): void {
     if (!this.transactionAwaitingSelection) return;
@@ -358,20 +406,29 @@ export class BinaryDocument {
    * on screen, in red — but its transaction is not recorded until the second
    * nibble closes the group. Upstream reports that state as clean, which is the
    * one moment a close could throw away a visible edit without asking.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.isDirty
    */
   get isDirty(): boolean {
     return this.undoHistory.isDirty || this.pendingGroupOps.length > 0;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.canUndo */
   get canUndo(): boolean {
     return this.undoHistory.canUndo;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.canRedo */
   get canRedo(): boolean {
     return this.undoHistory.canRedo;
   }
 
-  /** Marks the current state as the saved one. Called by the save path (M4). */
+  /**
+   * Marks the current state as the saved one. Called by the save path (M4).
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.save
+   * @upstream-differs the document only takes the saved checkpoint; the write itself is src/platform/files/fileSink.ts
+   */
   markSaved(): void {
     this.undoHistory.markSaved();
   }
@@ -382,6 +439,9 @@ export class BinaryDocument {
    * Upstream's `revert()` reopens the file itself; here the reopening is the
    * platform's job and the reopened storage is handed in, which keeps the
    * document free of file handles and makes the whole thing testable.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.revert
+   * @upstream-differs one revert onto a base the caller supplies: there is no URL for the document to reopen
    */
   revert(storage: EditableByteStorage): void {
     this.storageValue = storage;
@@ -405,6 +465,8 @@ export class BinaryDocument {
    * `label` names that step for the menu — "Undo Add Microcode" — and is what
    * an edit made on the user's behalf by something with a name of its own
    * passes in. Ordinary editing leaves it out: typing has no name worth saying.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.beginEditGroup
    */
   beginEditGroup(label?: string): void {
     if (this.groupDepth === 0) {
@@ -414,6 +476,7 @@ export class BinaryDocument {
     this.groupDepth++;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.endEditGroup */
   endEditGroup(): void {
     this.groupDepth--;
     if (this.groupDepth > 0 || this.pendingGroupOps.length === 0) {
@@ -441,6 +504,8 @@ export class BinaryDocument {
    * half-typed insert-mode byte is rolled back as if it never happened — the
    * byte disappears, the tail shifts back, and nothing is left on the undo
    * stack.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.cancelEditGroup
    */
   async cancelEditGroup(): Promise<void> {
     if (this.groupDepth === 0) return;
@@ -461,22 +526,30 @@ export class BinaryDocument {
   /**
    * Opens a typing series: transactions recorded until {@link endSeries} share
    * `id`, so a fast undo can roll the series back in one batch.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.beginSeries
    */
   beginSeries(id: number): void {
     this.currentSeriesId = id;
   }
 
-  /** Closes the series — a breaker fired, or the input simply ended. */
+  /**
+   * Closes the series — a breaker fired, or the input simply ended.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.endSeries
+   */
   endSeries(): void {
     this.currentSeriesId = undefined;
   }
 
   // MARK: - Selection
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.selection */
   get selection(): Selection {
     return this.selectionValue;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.setSelection */
   setSelection(selection: Selection): void {
     this.setSelectionInternal(clampedSelection(selection, this.storageValue.size));
   }

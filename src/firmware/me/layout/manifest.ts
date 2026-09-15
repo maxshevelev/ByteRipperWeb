@@ -13,6 +13,11 @@ import { has, slice, tag, u8, u16, u32 } from "@/firmware/me/bytes";
  * Ported from `Packages/MEFirmware/Layout/Manifest.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Format
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ManifestFormat
+ */
 export type ManifestFormat =
   /** Pre-CSE `$MAN`/`$MN2`, with no MEU version block. */
   | "r0"
@@ -21,56 +26,97 @@ export type ManifestFormat =
   /** CSE with a 3072-bit key. */
   | "r2";
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest */
 export interface Manifest {
-  /** The struct's own base, which is the anchor minus 0x10. */
+  /**
+   * The struct's own base, which is the anchor minus 0x10.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.base
+   */
   readonly base: number;
   /**
    * The struct's size in bytes. A `.man` module's extension chain starts right
    * after it.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.headerLengthBytes
    */
   readonly headerLengthBytes: number;
   /**
    * The whole manifest's size in bytes. The signature's protected data ends
    * here.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.sizeBytes
    */
   readonly sizeBytes: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.tag */
   readonly tag: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.format */
   readonly format: ManifestFormat;
 
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.day */
   readonly day: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.month */
   readonly month: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.year */
   readonly year: number;
 
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.major */
   readonly major: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.minor */
   readonly minor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.hotfix */
   readonly hotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.build */
   readonly build: number;
-  /** The security version number. */
+  /**
+   * The security version number.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.svn
+   */
   readonly svn: number;
 
-  /** The MEU version block, which only the CSE formats have. */
+  /**
+   * The MEU version block, which only the CSE formats have.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.meMajor
+   */
   readonly meMajor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.meMinor */
   readonly meMinor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.meHotfix */
   readonly meHotfix: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.meBuild */
   readonly meBuild: number | undefined;
 
   /**
    * The version control number of a pre-CSE manifest. The CSE formats reuse
    * those bytes for the MEU block, so it is absent rather than zero there.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.vcn
    */
   readonly vcn: number | undefined;
   /**
    * A pre-CSE manifest's module count — the declared length of its `$MME`
    * directory. The CSE formats put a build tag in the same word.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.numModules
    */
   readonly numModules: number | undefined;
 
-  /** Production-signed. */
+  /**
+   * Production-signed.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.pvBit
+   */
   readonly pvBit: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.debugSigned */
   readonly debugSigned: boolean;
 
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.rsaPublicKey */
   readonly rsaPublicKey: Uint8Array | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.rsaExponent */
   readonly rsaExponent: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.Manifest.rsaSignature */
   readonly rsaSignature: Uint8Array | undefined;
 }
 
@@ -85,6 +131,8 @@ export interface Manifest {
  * The scan leans on the platform's own byte search for the vendor id's first
  * byte: it is vectorised where a loop is not, and one byte in 256 means the skip
  * does nearly all the work.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.anchors
  */
 export function manifestAnchors(bytes: Uint8Array): number[] {
   if (bytes.length < 16) return [];
@@ -103,11 +151,20 @@ export function manifestAnchors(bytes: Uint8Array): number[] {
   return found;
 }
 
-/** The first manifest anchor, or nothing. */
+/**
+ * The first manifest anchor, or nothing.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.findAnchor
+ */
 export const findManifestAnchor = (bytes: Uint8Array): number | undefined =>
   manifestAnchors(bytes)[0];
 
-/** Decodes the manifest whose vendor anchor sits at `anchor`. */
+/**
+ * Decodes the manifest whose vendor anchor sits at `anchor`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.decode
+ */
 export function decodeManifest(bytes: Uint8Array, anchor: number): Manifest | undefined {
   const base = anchor - 0x10;
   if (base < 0) return undefined;
@@ -198,7 +255,11 @@ export function manifestProtectedData(
   return window;
 }
 
-/** Every plausible manifest in the region, in offset order. */
+/**
+ * Every plausible manifest in the region, in offset order.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.parseCandidates
+ */
 export function parseManifestCandidates(bytes: Uint8Array): Manifest[] {
   const found: Manifest[] = [];
   for (const anchor of manifestAnchors(bytes)) {
@@ -208,7 +269,11 @@ export function parseManifestCandidates(bytes: Uint8Array): Manifest[] {
   return found;
 }
 
-/** The first plausible manifest, which only a test with one wants. */
+/**
+ * The first plausible manifest, which only a test with one wants.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/Manifest.swift#ManifestParser.parseFirst
+ */
 export const parseFirstManifest = (bytes: Uint8Array): Manifest | undefined =>
   parseManifestCandidates(bytes)[0];
 

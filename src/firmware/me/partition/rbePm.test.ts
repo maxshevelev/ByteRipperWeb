@@ -3,6 +3,7 @@ import { decodeRbePmMetadata } from "@/firmware/me/partition/rbePm";
 
 /** The `pm` / `rbe` metadata table. Ported from upstream's `RBEPMMetadataDecodeTests`. */
 
+/** @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec */
 interface Spec {
   readonly stride: number;
   readonly extended: boolean;
@@ -10,6 +11,12 @@ interface Spec {
   readonly hashLength: number;
 }
 
+/**
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec.r1
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec.r2
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec.r3
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec.r4
+ */
 const RBEPM_SPECS = {
   r1: { stride: 0x48, extended: true, hashOffset: 0x28, hashLength: 0x20 },
   r2: { stride: 0x30, extended: false, hashOffset: 0x10, hashLength: 0x20 },
@@ -17,7 +24,12 @@ const RBEPM_SPECS = {
   r4: { stride: 0x40, extended: false, hashOffset: 0x10, hashLength: 0x30 },
 } as const satisfies Record<string, Spec>;
 
-/** `rows` contiguous entries; a row may override its vendor id. */
+/**
+ * `rows` contiguous entries; a row may override its vendor id.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.table
+ */
 function rbePmTable(spec: Spec, rows: readonly { vendorID?: number }[]): Uint8Array {
   const bytes = new Uint8Array(spec.stride * rows.length);
   const view = new DataView(bytes.buffer);
@@ -44,6 +56,7 @@ const THREE = [{}, {}, {}];
 const ROW0_HASH = "201F1E1D1C1B1A191817161514131211100F0E0D0C0B0A090807060504030201";
 
 describe("decodeRbePmMetadata", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testDecodesR1ExtendedTable
   it("decodes an R1 extended table", () => {
     const entries = decodeRbePmMetadata(rbePmTable(RBEPM_SPECS.r1, THREE));
     expect(entries?.map((one) => one.variant)).toEqual(["r1", "r1", "r1"]);
@@ -65,6 +78,7 @@ describe("decodeRbePmMetadata", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testDecodesR2CompactTable
   it("decodes an R2 compact table", () => {
     const entries = decodeRbePmMetadata(rbePmTable(RBEPM_SPECS.r2, THREE));
     expect(entries?.map((one) => one.variant)).toEqual(["r2", "r2", "r2"]);
@@ -77,6 +91,7 @@ describe("decodeRbePmMetadata", () => {
     expect(row?.hash).toBe(ROW0_HASH);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testDecodesR3ExtendedSHA384Table
   it("decodes an R3 extended SHA-384 table", () => {
     const row = decodeRbePmMetadata(rbePmTable(RBEPM_SPECS.r3, THREE))?.[0];
     expect(row?.variant).toBe("r3");
@@ -86,6 +101,7 @@ describe("decodeRbePmMetadata", () => {
     expect(row?.hash.slice(-2)).toBe("01");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testDecodesR4CompactSHA384Table
   it("decodes an R4 compact SHA-384 table", () => {
     const row = decodeRbePmMetadata(rbePmTable(RBEPM_SPECS.r4, THREE))?.[0];
     expect(row?.variant).toBe("r4");
@@ -94,6 +110,7 @@ describe("decodeRbePmMetadata", () => {
     expect(row?.hash.slice(0, 2)).toBe("30");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testPicksCompactLayoutBySpacing
   it("picks the layout by the spacing", () => {
     for (const variant of ["r1", "r2", "r3", "r4"] as const) {
       expect(decodeRbePmMetadata(rbePmTable(RBEPM_SPECS[variant], THREE))?.[0]?.variant).toBe(
@@ -102,6 +119,16 @@ describe("decodeRbePmMetadata", () => {
     }
   });
 
+  // Only the matching spacing yields rows, and the first layout that fits is the
+  // answer: an R2 table is not also readable as another.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testDecodePrefersFirstMatchingLayout
+  it("reads an R2 table as R2 and nothing else", () => {
+    const entries = decodeRbePmMetadata(rbePmTable(RBEPM_SPECS.r2, THREE));
+    expect(entries?.[0]?.variant).toBe("r2");
+    expect(entries).toHaveLength(3);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testChainsContiguousEntriesThenStopsAtForeignVendor
   it("stops at a row whose vendor is not Intel", () => {
     const entries = decodeRbePmMetadata(
       rbePmTable(RBEPM_SPECS.r1, [{}, {}, {}, { vendorID: 0x9999 }])
@@ -109,6 +136,7 @@ describe("decodeRbePmMetadata", () => {
     expect(entries?.map((one) => one.deviceID)).toEqual([0x1234, 0x1235, 0x1236]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testFindsTableBuriedInLargerBody
   it("finds a table inside a larger body", () => {
     const table = rbePmTable(RBEPM_SPECS.r1, THREE);
     const body = new Uint8Array(0x40 + table.length).fill(0xaa);
@@ -119,6 +147,7 @@ describe("decodeRbePmMetadata", () => {
     expect(entries?.[0]?.variant).toBe("r1");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMMetadataDecodeTests.testReturnsNilWithoutThreeSpacedVendors
   it("finds nothing without three spaced vendor ids", () => {
     expect(decodeRbePmMetadata(rbePmTable(RBEPM_SPECS.r2, [{}, {}]))).toBeUndefined();
     expect(decodeRbePmMetadata(new Uint8Array(0x200))).toBeUndefined();

@@ -26,6 +26,7 @@ const applying = (repairs: readonly ChecksumRepair[], image: Uint8Array) => {
 describe("repairing a file", () => {
   // The test that matters: repair, write, parse again, and the image no longer
   // complains.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testRepairingAFileBodyLeavesNothingToComplainAbout
   it("leaves nothing to complain about after a body edit", () => {
     const image = Test.volume({
       files: [Test.file({ attributes: FFS.checksumBit, body: bytes(1, 2, 3, 4, 5, 6, 7, 8) })],
@@ -40,6 +41,7 @@ describe("repairing a file", () => {
     expect(parse(applying(repairs, image)).diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testRepairingAFileHeaderLeavesNothingToComplainAbout
   it("leaves nothing to complain about after a header edit", () => {
     const image = Test.volume({ files: [Test.file({ body: bytes(1, 2, 3, 4) })] });
     image[0x52] = 0x0a; // the file's type byte
@@ -54,6 +56,7 @@ describe("repairing a file", () => {
 
   // A file with nothing wrong with it needs no writes, and an empty list is how
   // that gets said.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testAFileThatIsAlreadyRightNeedsNoRepair
   it("needs no repair when it is already right", () => {
     const image = Test.volume({ files: [Test.file({ body: bytes(1, 2, 3, 4) })] });
     const parsed = parse(image);
@@ -63,6 +66,7 @@ describe("repairing a file", () => {
 
   // Without the checksum attribute the field holds a fixed value, and which one
   // depends on the volume's revision.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testTheFixedBodyChecksumFollowsTheVolumeRevision
   it("follows the volume revision for the fixed body checksum", () => {
     const image = Test.volume({ files: [Test.file({ body: bytes(1, 2), bodyChecksum: 0x00 })] });
     const file = parse(image).roots[0]?.children[0] as never;
@@ -79,6 +83,7 @@ describe("repairing a file", () => {
 describe("repairing a volume header", () => {
   // A volume's checksum covers its own header and nothing below it, which is
   // the one mercy in this format: editing a file does not cascade upwards.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testRepairingAVolumeHeaderLeavesNothingToComplainAbout
   it("leaves nothing to complain about", () => {
     const image = Test.volume({ length: 0x400 });
     image[0x37] = 0x02; // Revision, inside the header
@@ -92,6 +97,7 @@ describe("repairing a volume header", () => {
     expect(parse(applying(repairs, image)).diagnostics).toEqual([]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testAVolumeThatIsAlreadyRightNeedsNoRepair
   it("needs no repair when it is already right", () => {
     const image = Test.volume({ length: 0x400 });
     expect(repairsForVolume(parse(image).roots[0] as never, reader(image))).toEqual([]);
@@ -101,6 +107,7 @@ describe("repairing a volume header", () => {
 describe("repairing microcode", () => {
   // Microcode checks out when every dword of it sums to zero, so a body edit
   // moves the field by exactly the amount the sum moved.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testRepairingMicrocodeLeavesNothingToComplainAbout
   it("leaves nothing to complain about", () => {
     const image = Test.microcode();
     image[0x40] = 0x77;
@@ -120,6 +127,7 @@ describe("repairing microcode", () => {
  * if the kind were not looked at.
  */
 describe("which node a repair will answer for", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ChecksumRepairTests.swift#ChecksumRepairTests.testARepairAsksForTheRightKindOfNode
   it("asks for the right kind", () => {
     const image = Test.volume({ length: 0x400, files: [Test.file({ body: bytes(1, 2, 3, 4) })] });
     image[0x00] = 0x11; // a volume header worth repairing

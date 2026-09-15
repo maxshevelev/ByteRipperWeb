@@ -21,9 +21,13 @@ export { BYTES_PER_ROW };
  * The detail scale, fixed by design: a byte cell is `BYTE_HEIGHT` tall with
  * `ROW_GAP` between rows, so one hex row costs `ROW_STEP` no matter how large
  * the file is. This is what makes detail a window rather than an overview.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.byteHeight
  */
 export const BYTE_HEIGHT = 2;
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.rowGap */
 export const ROW_GAP = 1;
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.rowStep */
 export const ROW_STEP = BYTE_HEIGHT + ROW_GAP;
 
 /**
@@ -32,18 +36,27 @@ export const ROW_STEP = BYTE_HEIGHT + ROW_GAP;
  * file byte by byte, while the overview would have little left to compress.
  * Fixed rather than derived from the panel's current height, so which mode a
  * file opens in does not depend on the window's size at that moment.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.detailPreferredMaxSize
  */
 export const DETAIL_PREFERRED_MAX_SIZE = 4 * 1024;
 
-/** How near an overview's top or bottom edge a click snaps to the file bounds. */
+/**
+ * How near an overview's top or bottom edge a click snaps to the file bounds.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.fileEdgeSnapDistance
+ */
 export const FILE_EDGE_SNAP_DISTANCE = 3;
 
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.RenderMode */
 export type MinimapMode = "detail" | "overview";
 
 /**
  * How many hex rows a map `areaHeight` tall can show in detail: every row costs
  * `BYTE_HEIGHT` plus a trailing `ROW_GAP` except the last. Small heights
  * collapse to zero rows — nothing fits.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.visibleRowCount
  */
 export function visibleRowCount(areaHeight: number): number {
   if (areaHeight <= 0) return 0;
@@ -53,6 +66,9 @@ export function visibleRowCount(areaHeight: number): number {
 /**
  * How many overview rows a map `areaHeight` tall can show, at one device pixel
  * per row. Shared by both maps so the offset axis stays common.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewRowCount
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewRowHeight
  */
 export function overviewRowCount(areaHeight: number, devicePixelRatio: number): number {
   const rowHeight = 1 / Math.max(devicePixelRatio, 1);
@@ -66,7 +82,11 @@ export function referenceRowCount(sizes: readonly number[]): number {
   return Math.ceil(largest / BYTES_PER_ROW);
 }
 
-/** Whether the detail window can show the whole file at once. */
+/**
+ * Whether the detail window can show the whole file at once.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.detailWindowFitsWholeFile
+ */
 export function detailWindowFitsWholeFile(sizes: readonly number[], areaHeight: number): boolean {
   const rows = referenceRowCount(sizes);
   return rows === 0 || rows <= Math.max(0, visibleRowCount(areaHeight));
@@ -81,6 +101,8 @@ export function detailWindowFitsWholeFile(sizes: readonly number[], areaHeight: 
  * mode is not offered there at all. An unmeasured panel has no answer yet and
  * counts as useful, so the switch is never disabled on the strength of geometry
  * that does not exist.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewIsInformative
  */
 export function overviewIsInformative(sizes: readonly number[], rows: number): boolean {
   if (rows <= 0) return true;
@@ -105,6 +127,8 @@ export function preferredMode(sizes: readonly number[], areaHeight: number): Min
  * last. That is what keeps the viewport band fully on the map — it travels the
  * map's height exactly once over the whole file. A file short enough to fit
  * sits at row 0 and the band moves inside it directly.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.topRow
  */
 export function derivedTopRow(options: {
   readonly mode: MinimapMode;
@@ -130,7 +154,11 @@ export function derivedTopRow(options: {
   return Math.round(fraction * (totalRows - windowRows));
 }
 
-/** The byte offset a point on the map stands for. */
+/**
+ * The byte offset a point on the map stands for.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.byteOffset
+ */
 export function offsetAtY(options: {
   readonly mode: MinimapMode;
   readonly y: number;
@@ -158,6 +186,8 @@ export function offsetAtY(options: {
  * Without it the first and last pixel rows of a map are unreachable: they stand
  * for a slice of the file, and the offset they yield is somewhere inside it.
  * Aiming at the top of the map means the start of the file.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.snappedOffset
  */
 export function snappedOffsetAtY(options: {
   readonly mode: MinimapMode;
@@ -183,6 +213,8 @@ export function snappedOffsetAtY(options: {
  *
  * Given a minimum height so a viewport that is a sliver of a large file is
  * still a thing the pointer can catch.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewportRects
  */
 export function viewportBand(options: {
   readonly mode: MinimapMode;
@@ -253,6 +285,8 @@ export function yOfOffset(options: {
  * to a bookmark or a file edge would fight the hand holding it.
  *
  * Ported from `MinimapView.requestScroll(bandTop:bandHeight:)`.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.onScrollToOffset
  */
 export function scrollTargetForBand(options: {
   readonly mode: MinimapMode;
@@ -311,6 +345,8 @@ export function scrollTargetForBand(options: {
  *
  * Ported from `MinimapView.scrollWheel`, with the sign the web's `deltaY` uses:
  * positive is downward, towards the end of the file.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.scrollWheel
  */
 export function wheelScrollTarget(options: {
   readonly deltaY: number;

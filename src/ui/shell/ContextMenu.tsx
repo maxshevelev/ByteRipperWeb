@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createStore } from "@/state/store";
 import { useStore } from "@/state/useStore";
 import { focusFirstItem, MenuItems, useMenuKeys } from "@/ui/shell/MenuItems";
@@ -121,7 +122,12 @@ export function ContextMenuHost() {
 
   if (request === undefined) return null;
 
-  return (
+  // Inside the open modal dialog, when there is one: everything outside a modal
+  // <dialog> is inert and drawn beneath it, so a menu opened on a row of a
+  // dialog's list would be neither visible nor clickable anywhere else.
+  const modal = openModalDialog();
+
+  const menu = (
     <div
       className="menu-popup context-menu"
       role="menu"
@@ -138,4 +144,17 @@ export function ContextMenuHost() {
       <MenuItems entries={request.entries} onChosen={close} />
     </div>
   );
+
+  return modal === null ? menu : createPortal(menu, modal);
+}
+
+/** The topmost modal dialog on screen, if any. */
+function openModalDialog(): Element | null {
+  try {
+    const modals = document.querySelectorAll("dialog:modal");
+    return modals.length === 0 ? null : (modals[modals.length - 1] ?? null);
+  } catch {
+    // A browser without `:modal`: an open dialog is the nearest answer.
+    return document.querySelector("dialog[open]");
+  }
 }

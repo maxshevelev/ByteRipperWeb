@@ -11,6 +11,10 @@ import { workspaceStore } from "@/state/workspaceStore";
  * difference D7 insists the user be told about rather than discover, and from
  * M6 the minimap build progress. Every wait on the network will be announced
  * here too, with a cancel (D10).
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.statusLabel
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.showTransientMessage
+ * @upstream-differs one status bar for the window; a problem stands in it until the next
  */
 export function StatusBar() {
   const state = useStore(workspaceStore);
@@ -44,6 +48,14 @@ export function StatusBar() {
   );
 }
 
+/**
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.friendlySize
+ * @upstream-differs bytes, with digit grouping
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.fileName
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.fileSize
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.status
+ */
 function fileSummary(state: ReturnType<typeof workspaceStore.getSnapshot>): string {
   const a = state.panes.a;
   const b = state.panes.b;
@@ -60,6 +72,9 @@ function fileSummary(state: ReturnType<typeof workspaceStore.getSnapshot>): stri
  * "Identical" is its own sentence rather than "0 differing", because that is
  * the answer the whole application exists to give and it should not have to be
  * inferred from a zero.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.comparisonInfo
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.refreshComparisonInfo
  */
 function comparisonSummary(diff: ReturnType<typeof diffStore.getSnapshot>): string {
   switch (diff.status) {

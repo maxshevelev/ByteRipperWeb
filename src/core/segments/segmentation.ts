@@ -19,22 +19,50 @@
 
 import type { DiffEdit } from "@/core/diff/diffEngine";
 
-/** One piece as the partition stores it: where it opens and what it is called. */
+/**
+ * One piece as the partition stores it: where it opens and what it is called.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#Piece
+ */
 export interface Piece {
-  /** The opening offset. The first piece opens at 0; the rest are the cuts. */
+  /**
+   * The opening offset. The first piece opens at 0; the rest are the cuts.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Piece.start
+   */
   readonly start: number;
-  /** The user's name; empty means "no name". */
+  /**
+   * The user's name; empty means "no name".
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Piece.name
+   */
   readonly name: string;
 }
 
-/** One piece of the content, with its derived position and extent. */
+/**
+ * One piece of the content, with its derived position and extent.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment
+ */
 export interface Segment {
-  /** Positional label index: S0, S1, … in file order. Derived, never stored. */
+  /**
+   * Positional label index: S0, S1, … in file order. Derived, never stored.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.index
+   */
   readonly index: number;
-  /** Half-open `[start, end)`. */
+  /**
+   * Half-open `[start, end)`.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.range
+   */
   readonly start: number;
   readonly end: number;
-  /** Survives renumbering; empty means "no name" (still shown as S<i>). */
+  /**
+   * Survives renumbering; empty means "no name" (still shown as S<i>).
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.name
+   */
   readonly name: string;
 }
 
@@ -44,6 +72,8 @@ export interface Segment {
  * The one place the "S" prefix is built, so every site that names a piece — the
  * form's label column, the status bar, the merge commands, the saved file
  * names — reads the same shape.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.label
  */
 export function segmentLabel(index: number): string {
   return `S${index}`;
@@ -54,32 +84,53 @@ export function segmentLabel(index: number): string {
  *
  * The one place the "into which" rule is written: the piece above absorbs it,
  * or the one below for S0.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.mergeTitle
  */
 export function mergeTitle(index: number): string {
   return `Merge ${segmentLabel(index)} into ${segmentLabel(index === 0 ? 1 : index - 1)}`;
 }
 
-/** The whole-file partition a freshly opened document starts with. */
+/**
+ * The whole-file partition a freshly opened document starts with.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.reset
+ */
 export function wholeFile(contentSize: number): Segmentation {
   return new Segmentation(contentSize, [{ start: 0, name: "" }]);
 }
 
+/** @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation */
 export class Segmentation {
+  /** @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.contentSize */
   readonly contentSize: number;
-  /** In file order, never empty, the first opening at 0. */
+  /**
+   * In file order, never empty, the first opening at 0.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.pieces
+   */
   readonly pieces: readonly Piece[];
 
+  /** @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.init */
   constructor(contentSize: number, pieces: readonly Piece[]) {
     this.contentSize = contentSize;
     this.pieces = pieces;
   }
 
-  /** Every piece start except the first: the partition's cuts. */
+  /**
+   * Every piece start except the first: the partition's cuts.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.cuts
+   */
   get cuts(): number[] {
     return this.pieces.slice(1).map((piece) => piece.start);
   }
 
-  /** The pieces in file order, with derived indices and extents. */
+  /**
+   * The pieces in file order, with derived indices and extents.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.segments
+   */
   get segments(): Segment[] {
     return this.pieces.map((piece, index) => ({
       index,
@@ -93,6 +144,8 @@ export class Segmentation {
    * The index of the piece containing `offset` — the last one that opens at or
    * before it — or `undefined` past the end of the file. A cut belongs to the
    * piece that *starts* there.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.pieceIndex
    */
   indexContaining(offset: number): number | undefined {
     if (offset >= this.contentSize || offset < 0) return undefined;
@@ -102,7 +155,11 @@ export class Segmentation {
     return undefined;
   }
 
-  /** The piece containing `offset`, or `undefined` past the end of the file. */
+  /**
+   * The piece containing `offset`, or `undefined` past the end of the file.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.segment
+   */
   containing(offset: number): Segment | undefined {
     const index = this.indexContaining(offset);
     return index === undefined ? undefined : this.segments[index];
@@ -114,6 +171,8 @@ export class Segmentation {
    *
    * Refused at 0, at EOF, or where a cut already is — every piece must stay
    * non-empty.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.addCut
    */
   addCut(offset: number): Segmentation | undefined {
     if (offset <= 0 || offset >= this.contentSize) return undefined;
@@ -132,6 +191,8 @@ export class Segmentation {
    *
    * The bytes are untouched: removing a cut changes how the file is read, not
    * the file.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.removeCut
    */
   removeCut(offset: number): Segmentation | undefined {
     const index = this.pieces.findIndex((piece) => piece.start === offset);
@@ -146,6 +207,8 @@ export class Segmentation {
    * keeping that neighbour's name: the piece above absorbs it, or — for S0 —
    * the piece below, which reopens at the file start, so what was S1 becomes
    * S0. Refused when there is only one piece: no neighbour to merge into.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.removePiece
    */
   removePiece(index: number): Segmentation | undefined {
     if (this.pieces.length <= 1 || index < 0 || index >= this.pieces.length) return undefined;
@@ -168,6 +231,8 @@ export class Segmentation {
    * between its neighbours — so it never jumps over another: the partition's
    * structure is preserved, and the piece that opened at `from` keeps its name,
    * which travels with the boundary.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.moveCut
    */
   moveCut(from: number, offset: number): Segmentation | undefined {
     if (from === offset) return undefined;
@@ -188,6 +253,8 @@ export class Segmentation {
   /**
    * Renames the piece at `index`. An empty name unnames it — it goes back to
    * showing its label. A name never changes the tint, which is by position.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.rename
    */
   rename(index: number, name: string): Segmentation {
     const piece = this.pieces[index];
@@ -211,6 +278,8 @@ export class Segmentation {
    * Returns the partition and whether a boundary actually moved — the content
    * edit repaints the bytes on its own, so the partition only has to repaint
    * when a cut shifted.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.apply
    */
   applyEdit(edit: DiffEdit, newSize: number): { partition: Segmentation; moved: boolean } {
     if (edit.kind === "overwrite") {
@@ -306,6 +375,8 @@ export class Segmentation {
    * cut — and the last survivor extends to the new end. What Revert to Saved
    * needs: the file's size changes without throwing away the partition the user
    * set up. The partition stays non-empty.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.rebase
    */
   resized(contentSize: number): Segmentation {
     const kept = this.pieces.filter((piece) => piece.start === 0 || piece.start < contentSize);

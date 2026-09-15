@@ -10,11 +10,18 @@ import { type EFIGUID, guid, guidEquals, guidKey } from "@/firmware/uefi/efiGuid
  * no test of ours would otherwise catch.
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.ffsV1 */
 export const FFS_V1 = guid("7A9354D9-0468-444A-81CE-0BF617D890DF");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.ffsV2 */
 export const FFS_V2 = guid("8C8CE578-8A3D-4F1C-9935-896185C32DD3");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.ffsV3 */
 export const FFS_V3 = guid("5473C07A-3DCB-4DCA-BD6F-1E9689E7349A");
 
-/** Every GUID vendors use for what is, byte for byte, an FFSv2 volume. */
+/**
+ * Every GUID vendors use for what is, byte for byte, an FFSv2 volume.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.ffsV2FileSystems
+ */
 export const FFS_V2_FILE_SYSTEMS: readonly EFIGUID[] = [
   FFS_V2,
   guid("04ADEEAD-61FF-4D31-B6BA-64F8BF901F5A"), // Apple immutable
@@ -28,6 +35,8 @@ export const FFS_V2_FILE_SYSTEMS: readonly EFIGUID[] = [
 /**
  * A volume's file system decides how its body is read. A volume whose GUID is
  * not here keeps its body whole.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.ffsVersion
  */
 export function ffsVersionOfFileSystem(candidate: EFIGUID): number | undefined {
   if (guidEquals(candidate, FFS_V1)) return 1;
@@ -40,6 +49,8 @@ export function ffsVersionOfFileSystem(candidate: EFIGUID): number | undefined {
  * The Volume Top File, which the second pass cannot do without: the last byte
  * of the last one is mapped at `0xFFFFFFFF`, and that is the only thing in an
  * image that ties an offset to an address.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.volumeTopFile
  */
 export const VOLUME_TOP_FILE = guid("1BA0062E-C779-4582-8566-336AE8F78F09");
 
@@ -47,13 +58,18 @@ export const VOLUME_TOP_FILE = guid("1BA0062E-C779-4582-8566-336AE8F78F09");
  * AMD keeps its microcode in FFS files rather than in a run of its own, and
  * these two GUIDs are the only thing that says so — Intel's is recognised by
  * its header, AMD's is not.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amdMicrocode
  */
 export const AMD_MICROCODE = guid("DE3E049C-A218-4891-8658-5FC0FA84C788");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amdCompressedRawFile */
 export const AMD_COMPRESSED_RAW_FILE = guid("20BC8AC9-94D1-4208-AB28-5D673FD73487");
 
 /**
  * Names for the volumes, files and sections worth naming. Everything else is
  * shown by its type, which is more useful than a GUID nobody knows.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.name
  */
 export function nameOfGuid(candidate: EFIGUID): string | undefined {
   return NAMES.get(guidKey(candidate));
@@ -102,6 +118,7 @@ export interface GuidedSection {
   readonly transformsBody: boolean;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.guidedSection */
 export function guidedSection(candidate: EFIGUID): GuidedSection | undefined {
   return GUIDED_SECTIONS.get(guidKey(candidate));
 }

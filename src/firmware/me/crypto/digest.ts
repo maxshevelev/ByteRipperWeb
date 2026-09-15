@@ -19,7 +19,14 @@
  * Ported alongside `Packages/MEFirmware/Crypto`, whose `Digest` is CryptoKit.
  */
 
-/** Uppercase hex — the display form upstream uses for a digest. */
+/**
+ * Uppercase hex — the display form upstream uses for a digest.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.sha256Hex
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.sha384Hex
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#Digest.hex
+ * @upstream-differs hex(sha256(bytes)) at the call site, rather than a hex variant of each digest
+ */
 export function hex(bytes: Uint8Array): string {
   let text = "";
   for (const byte of bytes) text += byte.toString(16).toUpperCase().padStart(2, "0");
@@ -60,6 +67,10 @@ function padded32(message: Uint8Array): Uint8Array {
 const rotl32 = (value: number, by: number) => ((value << by) | (value >>> (32 - by))) >>> 0;
 const rotr32 = (value: number, by: number) => ((value >>> by) | (value << (32 - by))) >>> 0;
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.sha1
+ */
 export function sha1(message: Uint8Array): Uint8Array {
   const data = padded32(message);
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -129,6 +140,7 @@ const K256 = new Uint32Array([
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ]);
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.sha256 */
 export function sha256(message: Uint8Array): Uint8Array {
   const data = padded32(message);
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -281,6 +293,7 @@ const MASK64 = 0xffff_ffff_ffff_ffffn;
 const rotr64 = (value: bigint, by: bigint) =>
   ((value >> by) | ((value << (64n - by)) & MASK64)) & MASK64;
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.sha384 */
 export function sha384(message: Uint8Array): Uint8Array {
   // The 64-bit family pads to 128 bytes with a 128-bit length. The high half of
   // that length is always zero here: it would need a message of 2^64 bits.

@@ -53,30 +53,36 @@ function size(
 }
 
 describe("the $FPT leg", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testTheLastStartingPartitionDecidesTheEnd
   it("measures to the end of the partition that starts last", () => {
     // FTPR reaches further, but MFS starts last: 0x3000 − 0x1000, already aligned.
     expect(size([part("FTPR", 0x1000, 0x5000), part("MFS", 0x2000, 0x1000)], 0x1000)).toBe(0x2000);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testAnUnalignedEndIsRoundedUp
   it("rounds an unaligned end up to the next 4 KiB", () => {
     expect(size([part("FTPR", 0x1000, 0x2800)], 0x1000)).toBe(0x3000);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testCSME16KeepsTheUnalignedEnd
   it("keeps a CSME 16 end unaligned", () => {
     expect(size([part("FTPR", 0x1000, 0x2800)], 0x1000, { ignores4KAlignment: true })).toBe(0x2800);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testAnErasedEntryDoesNotDecideTheEnd
   it("does not let an erased entry decide the end", () => {
     expect(
       size([part("FTPR", 0x1000, 0x2000), part("", 0xffff_ffff, 0xffff_ffff, true)], 0x1000)
     ).toBe(0x2000);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testALastPartitionWithoutASizeIsNotGuessed
   it("does not guess the end of a last partition with no size", () => {
     expect(size([part("FTPR", 0x1000, 0)], 0x1000)).toBeUndefined();
     expect(size([], 0x1000)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testAnUnchartedPartitionPastTheLastEntryIsFound
   it("finds an uncharted partition past the last entry on an extracted region", () => {
     const bytes = new Uint8Array(0x8000).fill(0xff);
     bytes.set(
@@ -95,6 +101,7 @@ describe("the $FPT leg", () => {
 });
 
 describe("the IFWI leg", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testTheCSME12OracleReproducesItsPrintedSize
   it("reproduces the CSME 12 dump's printed size", () => {
     const wholeFile = size(
       [
@@ -147,6 +154,7 @@ describe("the IFWI leg", () => {
     expect(region).toBe(0x27c000);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testTheLargerOfTheFPTEndAndTheDataPartitionCounts
   it("takes the larger of the $FPT end and the Data partition", () => {
     const measured = size([part("FTPR", 0x1000, 0x1000)], 0x1000, {
       cseLayout: layout(0, [slot("Data", 0x1000, 0x8000), slot("Boot 1", 0x9000, 0x1000)]),
@@ -154,6 +162,7 @@ describe("the IFWI leg", () => {
     expect(measured).toBe(0x1000 + 0x8000 + 0x1000 - 0x1000);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareEndTests.swift#FirmwareEndTests.testANestedPartitionIsNotCountedTwice
   it("counts a nested partition once", () => {
     const nested = size([part("FTPR", 0x1000, 0x1000)], 0x1000, {
       cseLayout: layout(0, [

@@ -14,6 +14,8 @@
  * `unknown` is a real answer and not a failure: a key the database does not
  * list belongs to firmware nobody has catalogued, and saying so is better than
  * naming the nearest family.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareFamily
  */
 export type FirmwareFamily =
   | "me"
@@ -29,18 +31,31 @@ export type FirmwareFamily =
   | "orom"
   | "unknown";
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version */
 export interface MEVersion {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.major */
   readonly major: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.minor */
   readonly minor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.hotfix */
   readonly hotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.build */
   readonly build: number;
-  /** The MEU fields, where the manifest has them. */
+  /**
+   * The MEU fields, where the manifest has them.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.meMajor
+   */
   readonly meMajor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.meMinor */
   readonly meMinor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.meHotfix */
   readonly meHotfix: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.meBuild */
   readonly meBuild: number | undefined;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#Version.text */
 export const versionText = (version: {
   readonly major: number;
   readonly minor: number;
@@ -48,14 +63,23 @@ export const versionText = (version: {
   readonly build: number;
 }): string => `${version.major}.${version.minor}.${version.hotfix}.${version.build}`;
 
-/** The version of the Flash Image Tool an image was built with. */
+/**
+ * The version of the Flash Image Tool an image was built with.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FITVersion
+ */
 export interface FITVersion {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FITVersion.major */
   readonly major: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FITVersion.minor */
   readonly minor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FITVersion.hotfix */
   readonly hotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FITVersion.build */
   readonly build: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#ReleaseType */
 export type ReleaseType = "production" | "preProduction" | "romBypass" | "unknown";
 
 export function releaseText(release: ReleaseType): string {
@@ -75,10 +99,16 @@ export function releaseText(release: ReleaseType): string {
  * The kind of image: an OEM or stock IFWI with a real `$FPT` (`extracted`), a
  * stock image with no FIT, an update image whose whole firmware is the update
  * trio, or — on an unidentified region — the raw-partition placeholder.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareType
  */
 export type FirmwareType = "region" | "extracted" | "update" | "stock" | "unknown";
 
-/** Whether Intel's own update tool can update this image in place. */
+/**
+ * Whether Intel's own update tool can update this image in place.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FWUpdateSupport
+ */
 export type FWUpdateSupport = "yes" | "no" | "impossible";
 
 /**
@@ -87,6 +117,8 @@ export type FWUpdateSupport = "yes" | "no" | "impossible";
  * Three of these five are the database saying it does not know, and they are
  * kept apart because the database itself keeps them apart — a panel showing
  * "Unknown" for all three would be throwing away what the row said.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#PowerDownMitigation
  */
 export type PowerDownMitigation = "yes" | "no" | "unknown" | "unknown1" | "unknown2";
 
@@ -126,10 +158,16 @@ export function powerDownMitigationText(value: PowerDownMitigation): string {
  * The file system's state: initialised once a reserved or indexed file set
  * appears, configured once the configuration and home files do, and
  * unconfigured otherwise.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSState
  */
 export type MFSState = "unconfigured" | "initialized" | "configured" | "error";
 
-/** One row of the Flash Partition Table, as the analysis reports it. */
+/**
+ * One row of the Flash Partition Table, as the analysis reports it.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion
+ */
 export interface FPTRegionRow {
   /**
    * Its place in the table.
@@ -139,8 +177,12 @@ export interface FPTRegionRow {
    * is a fact about the row and not a detail of how it is displayed.
    */
   readonly index: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion.offset */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion.size */
   readonly size: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion.flags */
   readonly flags: number;
 }

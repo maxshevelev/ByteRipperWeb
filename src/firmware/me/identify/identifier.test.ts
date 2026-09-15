@@ -37,6 +37,7 @@ function identityOf(
 }
 
 describe("identify", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testIdentifiesCSMEFamilyVersionReleaseAndDBRow
   it("names the family, the version and the database row", () => {
     const identity = identityOf(csmeDatabaseText());
 
@@ -53,6 +54,7 @@ describe("identify", () => {
     expect(identity.identified).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testTheDatabaseSteppingReachesTheAnalysis
   it("brings the database's stepping through", () => {
     const identity = identityOf(csmeDatabaseText());
 
@@ -62,6 +64,7 @@ describe("identify", () => {
     expect(identity.powerDownMitigation).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testPreProductionKeyCorrectsWrongProduction
   it("corrects a wrongly production-signed key to pre-production", () => {
     // The manifest's own flag says production; the database's list says the
     // key is a pre-production one, and the list wins.
@@ -70,16 +73,19 @@ describe("identify", () => {
     );
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testDebugSignedFlagMeansPreProduction
   it("reads the debug flag as pre-production", () => {
     expect(identityOf(csmeDatabaseText(), { manifest: { flags: 0x8000_0001 } }).release).toBe(
       "preProduction"
     );
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testRomBypassPartitionMeansRomBypassRelease
   it("lets a ROM-Bypass partition beat both", () => {
     expect(identityOf(csmeDatabaseText(), { hasRomBypass: true }).release).toBe("romBypass");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testUnknownKeyYieldsUnknownFamilyAndNote
   it("says unknown for a key the database does not list", () => {
     const identity = identityOf(unrelatedDatabaseText(), {
       manifest: {
@@ -96,6 +102,7 @@ describe("identify", () => {
     expect(identity.major).toBe(15);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testRecognisedEngineNotInDBGetsNote
   it("names a family with no row for the firmware itself", () => {
     // The key resolves but no row carries its signature hash: a build newer
     // than the database, which is a different thing from an unknown engine.
@@ -130,6 +137,7 @@ describe("identify", () => {
 });
 
 describe("preKeyOverride", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testSharedPreKeyOverrideByMajor
   it("splits the one shared key by the firmware's major", () => {
     // One key, two families, and the version is the only thing telling them
     // apart.

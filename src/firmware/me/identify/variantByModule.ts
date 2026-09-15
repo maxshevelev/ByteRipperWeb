@@ -16,6 +16,10 @@
  * Ported from `Packages/MEFirmware/Identify/VariantByModule.swift`.
  */
 
+/**
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/VariantByModule.swift#VariantByModule
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/VariantByModule.swift#VariantByModule.variant
+ */
 export function variantByModule(options: {
   readonly moduleNames: readonly string[];
   readonly major: number;

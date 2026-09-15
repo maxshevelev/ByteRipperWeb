@@ -42,6 +42,7 @@ function setUp(bytes: number[]) {
 }
 
 describe("typing hex, in overwrite mode", () => {
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testTypeHexNibblesWritesByteAndAdvances
   it("writes a byte as two nibbles and undoes it in one press", async () => {
     const t = setUp([0x00, 0x11, 0x22]);
     await t.hex("a5");
@@ -83,6 +84,7 @@ describe("typing hex, in overwrite mode", () => {
     expect(t.doc.caret).toBe(4);
   });
 
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testTypeHexIgnoresInvalidDigit
   it("ignores anything that is not a hex digit", async () => {
     const t = setUp([0x00]);
     await t.typing.typeHexDigit(16);
@@ -133,6 +135,7 @@ describe("typing into a selection", () => {
   });
 });
 
+// @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testFastUndoRemovesTheRestOfTheTypingSeries
 describe("the typing series", () => {
   it("makes an uninterrupted run one fast-undo gesture", async () => {
     const t = setUp([0, 0, 0]);
@@ -199,6 +202,7 @@ describe("typing into the text column", () => {
 });
 
 describe("insert mode", () => {
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testInsertModeHexNibblesInsertOneByteThenFillItInPlace
   it("inserts a byte and fills its low nibble in place", async () => {
     const t = setUp([0x11, 0x22]);
     await t.typing.setInsertMode(true);
@@ -272,6 +276,7 @@ describe("insert mode", () => {
 });
 
 describe("delete and backspace", () => {
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testOverwriteModeBackspaceStillFillsTheSelection
   it("fills with zero in overwrite mode, leaving the length alone", async () => {
     const t = setUp([1, 2, 3, 4]);
     t.doc.setSelection(caretAt(1, t.doc.size));
@@ -282,6 +287,7 @@ describe("delete and backspace", () => {
     expect(t.doc.caret).toBe(1);
   });
 
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testFillSelectionWithZero
   it("fills a whole selection with zero", async () => {
     const t = setUp([1, 2, 3, 4]);
     t.doc.setSelection(selection(1, 3, t.doc.size));
@@ -289,6 +295,7 @@ describe("delete and backspace", () => {
     expect(await t.content()).toEqual([1, 0, 0, 4]);
   });
 
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testInsertModeBackspaceDeletesByteBeforeCaret
   it("takes the byte before the caret on backspace", async () => {
     const t = setUp([1, 2, 3, 4]);
     t.doc.setSelection(caretAt(2, t.doc.size));
@@ -296,6 +303,7 @@ describe("delete and backspace", () => {
     expect(await t.content()).toEqual([1, 0, 3, 4]);
   });
 
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testInsertModeForwardDeleteRemovesTheByteAtTheCaret
   it("removes bytes and shifts the tail in insert mode", async () => {
     const t = setUp([1, 2, 3, 4]);
     await t.typing.setInsertMode(true);
@@ -360,6 +368,7 @@ describe("keystrokes that arrive faster than the bytes can be read", () => {
 });
 
 describe("paste", () => {
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testPasteWriteOverwritesFromCaret
   it("overwrites at the caret, keeping the length", async () => {
     const t = setUp([1, 2, 3, 4, 5]);
     t.doc.setSelection(caretAt(1, t.doc.size));
@@ -378,6 +387,7 @@ describe("paste", () => {
     expect(await t.content()).toEqual([1, 0xff, 5]);
   });
 
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testPasteInsertShiftsOffsets
   it("inserts and shifts the tail in insert mode", async () => {
     const t = setUp([1, 2, 3]);
     await t.typing.setInsertMode(true);
@@ -436,6 +446,7 @@ describe("fill", () => {
   });
 });
 
+// @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testDeleteBytesRemovesRange
 describe("Delete Bytes", () => {
   it("removes the selection and shifts the tail, in either mode", async () => {
     for (const insertMode of [false, true]) {

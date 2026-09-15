@@ -28,18 +28,26 @@ export const rangeLength = (range: ImageRange): number => range.end - range.star
 /** Where a chunked read stops. Free space is megabytes; the answer rarely is. */
 const CHUNK_SIZE = 64 * 1024;
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader */
 export class ImageReader {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.source */
   readonly source: ByteSource;
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.init */
   constructor(source: ByteSource) {
     this.source = source;
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.count */
   get count(): number {
     return this.source.byteCount;
   }
 
-  /** The whole image as one range. */
+  /**
+   * The whole image as one range.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.all
+   */
   get all(): ImageRange {
     return { start: 0, end: this.count };
   }
@@ -51,6 +59,8 @@ export class ImageReader {
    * "Overflow" here is a number that has stopped being an integer: a corrupt
    * eight-byte size read as a double is past 2^53 long before it is past the
    * image, and arithmetic on it silently stops being exact.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.range
    */
   range(offset: number, count: number): ImageRange | undefined {
     if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(count)) return undefined;
@@ -60,16 +70,19 @@ export class ImageReader {
     return { start: offset, end };
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.has */
   has(range: ImageRange): boolean {
     return range.start >= 0 && range.end <= this.count && range.start <= range.end;
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.bytes */
   bytes(range: ImageRange): Uint8Array | undefined {
     if (!this.has(range)) return undefined;
     if (range.end === range.start) return new Uint8Array(0);
     return this.source.bytes(range.start, range.end);
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.bytes */
   bytesAt(offset: number, count: number): Uint8Array | undefined {
     const range = this.range(offset, count);
     return range === undefined ? undefined : this.bytes(range);
@@ -80,20 +93,28 @@ export class ImageReader {
    * assembled by whoever can do it cheapest. A source with the bytes already in
    * hand answers without building an array, which is what keeps a walk that
    * reads a dword at every byte from allocating millions of them.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.uint8
    */
   uint8(offset: number): number | undefined {
     return this.range(offset, 1) === undefined ? undefined : this.source.word(offset, 1);
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.uint16 */
   uint16(offset: number): number | undefined {
     return this.range(offset, 2) === undefined ? undefined : this.source.word(offset, 2);
   }
 
-  /** The three-byte size field FFS files and sections use. */
+  /**
+   * The three-byte size field FFS files and sections use.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.uint24
+   */
   uint24(offset: number): number | undefined {
     return this.range(offset, 3) === undefined ? undefined : this.source.word(offset, 3);
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.uint32 */
   uint32(offset: number): number | undefined {
     return this.range(offset, 4) === undefined ? undefined : this.source.word(offset, 4);
   }
@@ -102,6 +123,8 @@ export class ImageReader {
    * Exact to 2^53, which covers every offset and size a real image holds. A
    * corrupt length past that comes back rounded — and then every bounds check
    * it feeds fails, which is the same answer as reading it exactly.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.uint64
    */
   uint64(offset: number): number | undefined {
     return this.range(offset, 8) === undefined ? undefined : this.source.word(offset, 8);
@@ -113,6 +136,7 @@ export class ImageReader {
     return bytes === undefined ? undefined : assembleBits(bytes, 0, 8);
   }
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.guid */
   guid(offset: number): EFIGUID | undefined {
     const bytes = this.bytesAt(offset, 16);
     return bytes === undefined ? undefined : guidFromBytes(bytes);
@@ -124,6 +148,8 @@ export class ImageReader {
    *
    * Out of bounds is "no", not "vacuously yes": free space is decided with
    * this, and a range past the end must never read as empty space.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.isFilled
    */
   isFilled(range: ImageRange, byte: number): boolean {
     if (!this.has(range) || rangeLength(range) === 0) return this.has(range);
@@ -140,6 +166,8 @@ export class ImageReader {
    *
    * This is how the end of a volume's free space is found, so it reads in
    * chunks: the range is usually most of a volume.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.firstOffset
    */
   firstOffsetNotEqualTo(range: ImageRange, byte: number): number | undefined {
     let found: number | undefined;
@@ -160,6 +188,8 @@ export class ImageReader {
    * Walks `range` in chunks, stopping early when `body` returns false. Out of
    * bounds is no chunks at all, which every caller reads as "nothing matched"
    * rather than as a silent success.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSource.swift#ImageReader.forEachChunk
    */
   forEachChunk(range: ImageRange, body: (chunk: Uint8Array) => boolean, size = CHUNK_SIZE): void {
     if (!this.has(range) || size <= 0) return;

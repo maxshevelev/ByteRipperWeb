@@ -19,14 +19,20 @@ import { FV } from "@/firmware/uefi/volumeFormat";
  * reason this cascade is two steps and not ten.
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#ChecksumRepair */
 export interface ChecksumRepair {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#ChecksumRepair.offset */
   readonly offset: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#ChecksumRepair.bytes */
   readonly bytes: Uint8Array;
 }
 
 /**
  * What to write after a file's body or header changed. Returns only what
  * actually differs, so an empty result means nothing needs fixing.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums.repairs
  */
 export function repairsForFile(
   file: UEFINode,
@@ -80,6 +86,8 @@ export function repairsForFile(
  * What to write after a volume header changed. The sum covers `HeaderLength`
  * bytes and not the extended header, so this reads the length back out of the
  * header rather than trusting the node's.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums.repairs
  */
 export function repairsForVolume(volume: UEFINode, reader: ImageReader): ChecksumRepair[] {
   if (volume.kind !== "volume") return [];
@@ -105,6 +113,8 @@ export function repairsForVolume(volume: UEFINode, reader: ImageReader): Checksu
 /**
  * What to write after a microcode image changed: the field that brings the sum
  * of every dword back to zero.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums.repairs
  */
 export function repairsForMicrocode(microcode: UEFINode, reader: ImageReader): ChecksumRepair[] {
   if (microcode.kind !== "microcode") return [];

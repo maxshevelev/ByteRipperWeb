@@ -15,6 +15,7 @@ const read = (source: OverlayByteSource, start: number, end: number) => [
 ];
 
 describe("OverlayByteSource", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/OverlayByteSourceTests.swift#OverlayByteSourceTests.testAReadThatMissesEveryPatchIsTheImage
   it("reads the base where no patch reaches", () => {
     const source = new OverlayByteSource(base(), [
       { offset: 0x20, bytes: Uint8Array.of(1, 2, 3, 4) },
@@ -24,6 +25,7 @@ describe("OverlayByteSource", () => {
     expect(source.byteCount).toBe(0x40);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/OverlayByteSourceTests.swift#OverlayByteSourceTests.testAPatchIsSeenWhereItLies
   it("reads a patch where one covers the read whole", () => {
     const source = new OverlayByteSource(base(), [
       { offset: 0x10, bytes: Uint8Array.of(1, 2, 3, 4) },
@@ -32,6 +34,7 @@ describe("OverlayByteSource", () => {
     expect(read(source, 0x10, 0x14)).toEqual([1, 2, 3, 4]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/OverlayByteSourceTests.swift#OverlayByteSourceTests.testAReadThatStraddlesAPatchGetsBothSides
   it("joins a patch to the base where the read straddles its edge", () => {
     const source = new OverlayByteSource(base(), [
       { offset: 0x10, bytes: Uint8Array.of(1, 2, 3, 4) },
@@ -43,6 +46,7 @@ describe("OverlayByteSource", () => {
     expect(read(source, 0x12, 0x16)).toEqual([3, 4, 0xaa, 0xaa]);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/OverlayByteSourceTests.swift#OverlayByteSourceTests.testTheLastPatchWins
   it("lets a later patch win where two cover the same byte", () => {
     // A repair is patched over a write the transaction is already making, and
     // the repair is the one that counts.
@@ -65,6 +69,21 @@ describe("OverlayByteSource", () => {
 
     expect(reader.uint32(0x04)).toBe(0x1234_5678);
     expect(reader.uint32(0x00)).toBe(0xaaaa_aaaa);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/OverlayByteSourceTests.swift#OverlayByteSourceTests.testSeveralPatchesAllShow
+  it("shows every one of several patches", () => {
+    const counting = sourceOver(Uint8Array.from({ length: 32 }, (_, index) => index));
+    const reader = new ImageReader(
+      new OverlayByteSource(counting, [
+        { offset: 0, bytes: Uint8Array.of(0xf0) },
+        { offset: 31, bytes: Uint8Array.of(0xf1) },
+      ])
+    );
+
+    expect(reader.uint8(0)).toBe(0xf0);
+    expect(reader.uint8(31)).toBe(0xf1);
+    expect(reader.uint8(15)).toBe(15);
   });
 
   it("gives nothing for an empty read", () => {

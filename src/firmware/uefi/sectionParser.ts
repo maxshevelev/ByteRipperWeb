@@ -19,26 +19,52 @@ import { parseVolume } from "@/firmware/uefi/volumeParser";
  * it is, and the day one is implemented it grows children instead.
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section */
 export const Section = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.headerSize */
   headerSize: 4,
-  /** FFSv3 only: a size of `0xFFFFFF` means the real one follows in 32 bits. */
+  /**
+   * FFSv3 only: a size of `0xFFFFFF` means the real one follows in 32 bits.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.extendedHeaderSize
+   */
   extendedHeaderSize: 8,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.extendedSizeMarker */
   extendedSizeMarker: 0xff_ffff,
-  /** Sections sit on four-byte boundaries, where files sit on eight. */
+  /**
+   * Sections sit on four-byte boundaries, where files sit on eight.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.alignment
+   */
   alignment: 4,
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.compression */
   compression: 0x01,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.guidDefined */
   guidDefined: 0x02,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.disposable */
   disposable: 0x03,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.userInterface */
   userInterface: 0x15,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.firmwareVolumeImage */
   firmwareVolumeImage: 0x17,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.raw */
   raw: 0x19,
 
-  /** `EFI_COMPRESSION_SECTION`, which follows the common header. */
+  /**
+   * `EFI_COMPRESSION_SECTION`, which follows the common header.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.compressionHeaderSize
+   */
   compressionHeaderSize: 5,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.notCompressed */
   notCompressed: 0x00,
 
-  /** `EFI_GUID_DEFINED_SECTION`: a GUID, a `DataOffset` and attributes. */
+  /**
+   * `EFI_GUID_DEFINED_SECTION`: a GUID, a `DataOffset` and attributes.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.guidDefinedHeaderSize
+   */
   guidDefinedHeaderSize: 20,
 } as const;
 
@@ -62,13 +88,19 @@ const SECTION_TYPE_NAMES: Readonly<Record<number, string>> = {
   240: "Phoenix postcode",
 };
 
-/** A vendor type nobody documented keeps its number. */
+/**
+ * A vendor type nobody documented keeps its number.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypeNames.swift#UEFITypeNames.section
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.typeName
+ */
 export function sectionTypeName(type: number): string {
   return (
     SECTION_TYPE_NAMES[type] ?? `Section type 0x${type.toString(16).toUpperCase().padStart(2, "0")}`
   );
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.isKnown */
 export function isKnownSectionType(type: number): boolean {
   // 0x1A is not a section type. The gap is the specification's, and a range
   // that papered over it would wave through the one value in here that means
@@ -83,7 +115,11 @@ export function isKnownSectionType(type: number): boolean {
   );
 }
 
-/** A file's body, read as the run of sections it is. */
+/**
+ * A file's body, read as the run of sections it is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Parser.walkSections
+ */
 export function walkSections(
   parser: Parser,
   body: ImageRange,
@@ -260,6 +296,8 @@ function compressionName(algorithm: number): string {
 /**
  * A user-interface section is a UCS-2 string with a terminating zero — the name
  * a person gave the file, and the only readable name most files have.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Parser.ucs2String
  */
 export function ucs2String(parser: Parser, range: ImageRange): string | undefined {
   const bytes = parser.reader.bytes(range);

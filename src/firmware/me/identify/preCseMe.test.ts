@@ -35,6 +35,7 @@ const summary = (
 ) => preCseSummary({ bytes, manifestBase, major, minor, hotfix, build });
 
 describe("ME 7's own rows", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME7SaysPatsburgSupportAndItsDowngradeBlacklist
   it("says Patsburg support, and the platform says so too", () => {
     const patsburg = skuRegion(0x40, [0, 0, 0, 0, 0x83, 0, 0, 0]);
     expect(summary(patsburg, 0, 7, 1)).toMatchObject({
@@ -48,6 +49,7 @@ describe("ME 7's own rows", () => {
     expect(summary(patsburg, 0, 10, 0)?.patsburgSupport).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testTheDowngradeBlacklistReadsBothLines
   it("reads both downgrade blacklist lines", () => {
     const bytes = new Uint8Array(0x2000);
     const write = (words: readonly number[], at: number) =>
@@ -82,6 +84,7 @@ describe("the production-ready bit", () => {
     return bytes;
   }
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testTheProductionReadyBitOfAPreCSEImage
   it("rides in the $DAT marker past the manifest", () => {
     expect(preCseProductionReady(region(1), 0)).toBe(true);
     expect(preCseProductionReady(region(0), 0)).toBe(false);
@@ -93,6 +96,7 @@ describe("the production-ready bit", () => {
 });
 
 describe("the attribute scan", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testScanSplitsT450OracleBytesExactly
   it("splits the T450's bytes exactly", () => {
     const a = scanSkuAttributes(skuRegion(0x100, T450_ATTRIB), 0x100);
     expect(a).toEqual({
@@ -108,6 +112,7 @@ describe("the attribute scan", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testScanAllowsSize3AndSmallSKUSize
   it("allows a size of 3 and a small SKU size", () => {
     const a = scanSkuAttributes(skuRegion(0, [0, 0, 0, 0, 0x01, 0, 0, 0], 3), 0);
     expect(a?.sizeDwords).toBe(3);
@@ -115,6 +120,7 @@ describe("the attribute scan", () => {
     expect(a?.slim).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testScanSkipsMalformedHeaderToReachValidBlock
   it("skips a malformed header to reach the real block", () => {
     const bad = new Uint8Array(0x80 + 4 + 13).fill(0xff);
     bad.set(ascii("$SKU"), 0x80);
@@ -127,6 +133,7 @@ describe("the attribute scan", () => {
     expect(scanSkuAttributes(bytes, 0x80)?.offset).toBe(bad.length);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testScanReturnsNilWithoutSKU
   it("finds nothing without a $SKU", () => {
     const bytes = new Uint8Array(0x200).fill(0xff);
     expect(scanSkuAttributes(bytes, 0)).toBeUndefined();
@@ -135,6 +142,7 @@ describe("the attribute scan", () => {
 });
 
 describe("ME 7–10", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME10T450OracleMapsTo5MBWPTLP
   it("maps the T450 to 5MB on WPT-LP", () => {
     expect(summary(skuRegion(0x100, T450_ATTRIB), 0x100, 10, 0)).toMatchObject({
       sku: "5MB",
@@ -142,6 +150,8 @@ describe("ME 7–10", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME10SlimSKUType2
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME10SKUType1Is15MB
   it("reads SKU Type 2 as Slim and 1 as 1.5MB", () => {
     expect(summary(skuRegion(0, [0, 0, 0, 0, 0x20, 0, 0, 0]), 0, 10, 0)).toMatchObject({
       sku: "Slim",
@@ -150,12 +160,14 @@ describe("ME 7–10", () => {
     expect(summary(skuRegion(0, [0, 0, 0, 0, 0x10, 0, 0, 0]), 0, 10, 0)?.sku).toBe("1.5MB");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME10PlatformNilForNonzeroMinor
   it("names WPT-LP only at minor 0", () => {
     const one = summary(skuRegion(0, T450_ATTRIB), 0, 10, 1);
     expect(one?.sku).toBe("5MB");
     expect(one?.platform).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME9PlatformByMinor
   it("names ME 9's platform by the minor", () => {
     const bytes = skuRegion(0, [0, 0, 0, 0, 0x10, 0, 0, 0]);
     expect(summary(bytes, 0, 9, 0)?.platform).toBe("LPT");
@@ -166,12 +178,14 @@ describe("ME 7–10", () => {
     expect(summary(bytes, 0, 9, 0)?.sku).toBe("1.5MB");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME8SKUSizeInHalfMB
   it("reads ME 8's SKU size in half megabytes", () => {
     const small = skuRegion(0, [0, 0, 0, 0, 0x03, 0, 0, 0]);
     expect(summary(small, 0, 8, 0)).toMatchObject({ sku: "1.5MB", platform: "CPT/PBG/PPT" });
     expect(summary(skuRegion(0, [0, 0, 0, 0, 0x0a, 0, 0, 0]), 0, 8, 0)?.sku).toBe("5MB");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME7SlimAndPatsburg
   it("reads ME 7's slim and Patsburg bits", () => {
     const plain = skuRegion(0, [0, 0, 0, 0, 0x0a, 0, 0, 0]);
     expect(summary(plain, 0, 7, 0)).toMatchObject({ sku: "5MB", platform: "CPT" });
@@ -182,6 +196,7 @@ describe("ME 7–10", () => {
     expect(summary(skuRegion(0, [0, 0, 0, 0, 0x03, 0, 0, 0]), 0, 7, 0)?.sku).toBe("1.5MB");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME7Special5MBBuildCase
   it("keeps ME 7's odd 5MB build", () => {
     const edge = skuRegion(0, [0, 0, 0, 0, 0x01, 0, 0, 0]);
     expect(summary(edge, 0, 7, 0, 0, 1040)?.sku).toBeUndefined();
@@ -190,6 +205,7 @@ describe("ME 7–10", () => {
 });
 
 describe("ME 2–6", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME2ICH8SKUBySkuMe
   it("maps ICH8 by the constant", () => {
     const amt = skuRegion(0, [0, 0, 0, 0, 0, 0, 0, 0]);
     expect(summary(amt, 0, 2, 0)).toMatchObject({ sku: "AMT", platform: "ICH8" });
@@ -197,6 +213,7 @@ describe("ME 2–6", () => {
     expect(summary(amt, 0, 2, 5)?.platform).toBe("ICH8M");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME3AndME4Constants
   it("maps ME 3 and ME 4", () => {
     const asf = skuRegion(0, [0x06, 0, 0, 0, 0, 0, 0, 0]);
     expect(summary(asf, 0, 3, 0)).toMatchObject({ sku: "ASF", platform: "ICH9" });
@@ -204,6 +221,7 @@ describe("ME 2–6", () => {
     expect(summary(amtTpm, 0, 4, 0)).toMatchObject({ sku: "AMT + TPM", platform: "ICH9M" });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME5DigitalOfficeConstant
   it("maps ME 5's Digital Office", () => {
     expect(summary(skuRegion(0, [0x3e, 0x08, 0, 0, 0, 0, 0, 0]), 0, 5, 0)).toMatchObject({
       sku: "Digital Office",
@@ -211,6 +229,7 @@ describe("ME 2–6", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testME6IgnitionAndSizes
   it("maps ME 6's Ignition and sizes", () => {
     const ignition = skuRegion(0, [0, 0, 0, 0, 0, 0, 0, 0]);
     expect(summary(ignition, 0, 6, 0, 50)).toMatchObject({ sku: "Ignition CCK", platform: "CCK" });
@@ -222,6 +241,7 @@ describe("ME 2–6", () => {
 });
 
 describe("a major outside the decode", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEDecodeTests.testUnhandledMajorYieldsNilRows
   it("yields no rows", () => {
     expect(summary(skuRegion(0, T450_ATTRIB), 0, 11, 0)).toEqual({
       sku: undefined,

@@ -214,6 +214,8 @@ const TABLE: Readonly<Record<number, string>> = {
 /**
  * The chip a 24-bit JEDEC id names — vendor byte, then the two device bytes —
  * or nothing for one this table does not know.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/JedecIDs.swift#JedecIDs.name
  */
 export function jedecName(id: number): string | undefined {
   return TABLE[id];
@@ -222,5 +224,7 @@ export function jedecName(id: number): string | undefined {
 /**
  * How many chips the table knows, for the test that the generated file is the
  * whole of upstream's rather than a truncated read of it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/JedecIDs.swift#JedecIDs.count
  */
 export const JEDEC_COUNT = Object.keys(TABLE).length;

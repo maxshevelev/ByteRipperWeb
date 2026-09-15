@@ -14,6 +14,7 @@ import { detectFileCapabilities } from "@/platform/files/capabilities";
 import { openFiles } from "@/platform/files/openFile";
 import { directorySink, namesIn, pickDirectory, zipSink } from "@/platform/files/partSinks";
 import { saveRange } from "@/platform/files/rangeSave";
+import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { applySegments, segmentLabel, segmentsFor } from "@/state/segmentsStore";
 import { type PaneId, reportProblem, workspaceStore } from "@/state/workspaceStore";
 
@@ -26,7 +27,15 @@ import { type PaneId, reportProblem, workspaceStore } from "@/state/workspaceSto
  * be three commands wearing one name.
  */
 
-/** Adds a cut at `offset`, naming the piece that starts there. Says whether it took. */
+/**
+ * Adds a cut at `offset`, naming the piece that starts there. Says whether it took.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.addCut
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addCut
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.splitHere
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentCutEditPopover
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.cutEditPresenter
+ */
 export function addCut(pane: PaneId, offset: number, name = ""): boolean {
   return applySegments(pane, (partition) => {
     const cut = partition.addCut(offset);
@@ -38,12 +47,26 @@ export function addCut(pane: PaneId, offset: number, name = ""): boolean {
   });
 }
 
-/** Merges the piece at `index` into its neighbour, which keeps its name. */
+/**
+ * Merges the piece at `index` into its neighbour, which keeps its name.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.removePiece
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.removeCut
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeCutPressed
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeSelectedSegment
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeClickedSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.removeSegment
+ */
 export function mergePiece(pane: PaneId, index: number): boolean {
   return applySegments(pane, (partition) => partition.removePiece(index));
 }
 
-/** Back to one piece covering the file, keeping the first piece's name. */
+/**
+ * Back to one piece covering the file, keeping the first piece's name.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeAllPressed
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.confirmRemoveAll
+ */
 export function mergeAll(pane: PaneId): boolean {
   return applySegments(pane, (partition) => {
     if (partition.cuts.length === 0) return undefined;
@@ -57,16 +80,26 @@ export function mergeAll(pane: PaneId): boolean {
   });
 }
 
+/** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.rename */
 export function renamePiece(pane: PaneId, index: number, name: string): boolean {
   return applySegments(pane, (partition) => partition.rename(index, name));
 }
 
-/** Moves the cut that opens a piece to another offset. */
+/**
+ * Moves the cut that opens a piece to another offset.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.moveCut
+ */
 export function moveCut(pane: PaneId, from: number, to: number): boolean {
   return applySegments(pane, (partition) => partition.moveCut(from, to));
 }
 
-/** The piece under an offset, or nothing when the pane has no partition. */
+/**
+ * The piece under an offset, or nothing when the pane has no partition.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentStore
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onSegmentsChanged
+ */
 export function pieceAt(pane: PaneId, offset: number): Segment | undefined {
   return segmentsFor(pane)?.containing(offset);
 }
@@ -76,7 +109,14 @@ function baseName(pane: PaneId): string {
   return workspaceStore.getSnapshot().panes[pane]?.name ?? "Untitled";
 }
 
-/** Save Segment…: one piece to a file the user chooses (§21.5). */
+/**
+ * Save Segment…: one piece to a file the user chooses (§21.5).
+ *
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.savePiece
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.saveSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePiece
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSaveSegment
+ */
 export async function savePiece(pane: PaneId, piece: Segment): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
@@ -107,13 +147,28 @@ export async function saveAllPieces(
   if (slot === undefined || pieces.length === 0) return;
 
   const parts = partsFor(pieces, baseName(pane));
+  let cancelled = false;
+  const operation = new BackgroundOperation(
+    `Writing ${parts.length} segment${parts.length === 1 ? "" : "s"}…`,
+    () => {
+      cancelled = true;
+    }
+  );
+  // The strip goes up once the writing starts, not while a dialog is asking.
+  const write = (sink: Parameters<typeof writeParts>[2]) => {
+    beginOperation(pane, operation);
+    return writeParts(parts, slot.document.storage, sink, {
+      shouldCancel: () => cancelled,
+      onProgress: (fraction) => operation.report(fraction),
+    });
+  };
   try {
     if (detectFileCapabilities().canPickDirectory) {
       const directory = await pickDirectory();
       if (directory === undefined) return;
       const preview = previewWrite(parts, await namesIn(directory));
       if (!(await confirm(writeTitle(parts.length), messageFor(preview)))) return;
-      await writeParts(parts, slot.document.storage, directorySink(directory));
+      await write(directorySink(directory));
       reportProblem(`Wrote ${parts.length} segment${parts.length === 1 ? "" : "s"}.`);
     } else {
       const preview = previewWrite(parts);
@@ -123,11 +178,13 @@ export async function saveAllPieces(
       ) {
         return;
       }
-      await writeParts(parts, slot.document.storage, zipSink(archive));
+      await write(zipSink(archive));
       reportProblem(`Downloaded ${archive}. This browser cannot write into a folder you choose.`);
     }
   } catch (error) {
     reportProblem(error instanceof Error ? error.message : "Those segments could not be written.");
+  } finally {
+    operation.finish();
   }
 }
 
@@ -143,6 +200,12 @@ function messageFor(preview: { lines: readonly string[]; replacing: readonly str
  * The donor must be exactly as long as the piece. A mismatch is refused with
  * both sizes named, because making it an insert-and-shift would move every
  * offset after the piece — a decision, not a default.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.replacePiece
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.replaceSegmentFromFile
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.replacePiece
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuReplaceSegment
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.replaceSegment
  */
 export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[pane];

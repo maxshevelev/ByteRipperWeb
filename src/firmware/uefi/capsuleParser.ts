@@ -11,25 +11,35 @@ import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
  * what turns "this file makes no sense" into "this file is an update".
  */
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.Layout */
 interface CapsuleLayout {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.Layout.name */
   readonly name: string;
   /**
    * Where the total size is written, which is not the same field in every
    * vendor's version of this header.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.Layout.sizeOffset
    */
   readonly sizeOffset: number;
   /**
    * Aptio signed capsules put a certificate between the header and the image,
    * and only `RomImageOffset` knows how much of it there is.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.Layout.romImageOffsetAt
    */
   readonly romImageOffsetAt?: number | undefined;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule */
 export const Capsule = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.headerSizeOffset */
   headerSizeOffset: 0x10,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.minimumHeaderSize */
   minimumHeaderSize: 0x1c,
 } as const;
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Capsule.layout */
 const LAYOUTS = new Map<string, CapsuleLayout>(
   (
     [
@@ -55,6 +65,8 @@ const LAYOUTS = new Map<string, CapsuleLayout>(
 /**
  * Nothing when there is no capsule here, which is the usual answer — a dump off
  * a chip has no envelope.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/CapsuleParser.swift#Parser.parseCapsule
  */
 export function parseCapsule(
   parser: Parser,

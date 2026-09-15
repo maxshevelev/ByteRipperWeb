@@ -65,6 +65,13 @@ export async function writeBytes(bytes: Uint8Array): Promise<boolean> {
  *
  * `undefined` when there is nothing that unambiguously reads as bytes — which
  * is not a failure, only a paste of something that was not bytes.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#pasteboardBytes
+ * @upstream ByteRipperApp/Window/MainViewController.swift#PasteError
+ * @upstream ByteRipperApp/Window/MainViewController.swift#PasteError.noClipboardData
+ * @upstream ByteRipperApp/Window/MainViewController.swift#PasteError.errorDescription
+ * @upstream ByteRipperApp/Window/MainViewController.swift#NSPasteboard.PasteboardType
+ * @upstream ByteRipperApp/Window/MainViewController.swift#NSPasteboard.PasteboardType.rawBytes
  */
 export async function readBytes(): Promise<Uint8Array | undefined> {
   if (typeof navigator === "undefined" || navigator.clipboard?.read === undefined) return undefined;

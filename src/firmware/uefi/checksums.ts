@@ -10,14 +10,22 @@ import type { ImageRange, ImageReader } from "@/firmware/imageReader";
  * FIT and FFS update procedures ask for.
  */
 
-/** Sum of the bytes, modulo 256. */
+/**
+ * Sum of the bytes, modulo 256.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.sum8
+ */
 export function sum8(bytes: Iterable<number>): number {
   let sum = 0;
   for (const byte of bytes) sum = (sum + byte) & 0xff;
   return sum;
 }
 
-/** The value that makes the byte sum come out at zero. */
+/**
+ * The value that makes the byte sum come out at zero.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.checksum8
+ */
 export function checksum8(bytes: Iterable<number>): number {
   return (0x100 - sum8(bytes)) & 0xff;
 }
@@ -27,6 +35,8 @@ export function checksum8(bytes: Iterable<number>): number {
  *
  * An odd length has no answer rather than a rounded one: the FV header length
  * that produced it is itself the corruption worth reporting.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.sum16
  */
 export function sum16(bytes: Uint8Array): number | undefined {
   if (bytes.length % 2 !== 0) return undefined;
@@ -37,6 +47,7 @@ export function sum16(bytes: Uint8Array): number | undefined {
   return sum;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.checksum16 */
 export function checksum16(bytes: Uint8Array): number | undefined {
   const sum = sum16(bytes);
   return sum === undefined ? undefined : (0x1_0000 - sum) & 0xffff;
@@ -45,6 +56,8 @@ export function checksum16(bytes: Uint8Array): number | undefined {
 /**
  * Sum of the bytes of `range`, read in chunks so that a file body of any size
  * costs one buffer. Nothing when the range is not inside the image.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.sum8
  */
 export function sum8Of(range: ImageRange, reader: ImageReader): number | undefined {
   if (!reader.has(range)) return undefined;
@@ -60,6 +73,8 @@ export function sum8Of(range: ImageRange, reader: ImageReader): number | undefin
  * Sum of the little-endian 32-bit words of `range` — how an Intel microcode
  * image checks out: the sum of every dword is zero. The length must be a
  * multiple of four, and the chunking keeps it so.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.sum32
  */
 export function sum32Of(range: ImageRange, reader: ImageReader): number | undefined {
   if (!reader.has(range) || (range.end - range.start) % 4 !== 0) return undefined;
@@ -86,6 +101,8 @@ export function sum32Of(range: ImageRange, reader: ImageReader): number | undefi
  * The FTW header, the Apple SysF store and the Apple `DataCrc32` field all
  * check themselves with it, and it is the one checksum in this format that is
  * not a "sum to zero" — a stored value is compared against a computed one.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.crc32
  */
 export function crc32(bytes: Iterable<number>): number {
   let crc = 0xffff_ffff;
@@ -116,6 +133,8 @@ const CRC32_TABLE = (() => {
  * reader can write it back by hand as well as by Fix: `0x5C (Invalid), should
  * be 0x5A`. One spelling of it, so a checksum that carries a validity bit reads
  * the same in every panel that shows it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#Checksums.text
  */
 export function checksumText(options: {
   readonly value: number;
@@ -142,6 +161,8 @@ function hex(value: number, digits: number): string {
  * would leave the range of exact integers — which is not a theoretical worry
  * here, since the value being aligned is usually `offset + size` with both
  * fields read out of a corrupt image.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/Checksums.swift#alignUp
  */
 export function alignUp(value: number, alignment: number): number | undefined {
   if (alignment <= 0 || !Number.isSafeInteger(value)) return undefined;

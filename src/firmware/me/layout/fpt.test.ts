@@ -5,6 +5,7 @@ import { fptRegion } from "@/firmware/me/testing/testMe";
 /** The `$FPT` spine — upstream's `FPTParserTests`. */
 
 describe("decodeFpt", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testDecodesV20HeaderAndEntries
   it("decodes a v2.0 header and its entries", () => {
     const region = fptRegion({
       entries: [
@@ -38,6 +39,7 @@ describe("decodeFpt", () => {
     expect(decodeFpt(region, 0)?.resolvedVersion).toBe(0x21);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testFindsFPTWhenNotAtRegionStart
   it("finds a `$FPT` that is not at the region's start", () => {
     // A marker 0x10 in, with no descriptor and no Layout Table: partitions
     // measure from the region base, not from the marker. Measuring them from
@@ -74,6 +76,7 @@ describe("decodeFpt", () => {
     expect(decodeFpt(region, 0)).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testEmptyRegionHasNoFPT
   it("finds no `$FPT` in an erased region", () => {
     expect(parseFirstFpt(new Uint8Array(64).fill(0xff))).toBeUndefined();
   });
@@ -102,6 +105,7 @@ describe("fptStart", () => {
     expect(at({ anchor: 0x10, version: 0x20, headerLength: 0x20, hasLayoutTable: false })).toBe(0);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testResolvedFptStartKeyedOnCseLayoutTablePresence
   it("measures from the marker when it is the IFWI data table", () => {
     expect(at({ anchor: 0x10, version: 0x20, headerLength: 0x20, hasLayoutTable: true })).toBe(
       0x10
@@ -120,6 +124,7 @@ describe("fptStart", () => {
     expect(at({ anchor: 0, version: 0x20, headerLength: 0x20, hasLayoutTable: false })).toBe(0);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testErasedWindowBranchKeepsMarkerBase
   it("measures from the marker when an erased CSE header window precedes it", () => {
     // Zeros then sixteen erased bytes, 0x1000 before the marker: that window
     // means the marker is the region's base even with no Layout Table.

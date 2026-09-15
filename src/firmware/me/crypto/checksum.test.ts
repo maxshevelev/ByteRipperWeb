@@ -7,16 +7,19 @@ const bytes = (...values: number[]) => Uint8Array.from(values);
 const ascii = (text: string) => Uint8Array.from(text, (one) => one.charCodeAt(0));
 
 describe("crc32", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ChecksumTests.swift#ChecksumTests.testCRC32KnownVector
   it("gives the standard check value", () => {
     // CRC-32("123456789") == 0xCBF43926 — what zlib and crccheck give, so a
     // synthetic `$CPD` fixture built with this validates against a real parser.
     expect(crc32(ascii("123456789"))).toBe(0xcbf4_3926);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ChecksumTests.swift#ChecksumTests.testCRC32EmptyIsZero
   it("is zero for nothing", () => {
     expect(crc32(new Uint8Array(0))).toBe(0);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ChecksumTests.swift#ChecksumTests.testCRC32DiffersOnBitFlip
   it("differs on a bit flip", () => {
     expect(crc32(bytes(0x00, 0x01, 0x02))).not.toBe(crc32(bytes(0x00, 0x01, 0x03)));
   });
@@ -42,6 +45,7 @@ describe("crc32", () => {
     }
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ChecksumTests.swift#ChecksumTests.testCRC32FITCHeaderSpanVector
   it("matches the FITC header span of a real region", () => {
     // Bytes [0x00:0x04] + a zeroed HeaderChecksum + [0x08:0x0C] of a CSME
     // 15.0.30 FITC region equal its stored HeaderChecksum 0x6856049C.
@@ -51,6 +55,7 @@ describe("crc32", () => {
 });
 
 describe("crc32FromZero", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ChecksumTests.swift#ChecksumTests.testCRC32IV0RawEFSSystemHeaderVector
   it("matches the EFS System Page header of a real region", () => {
     // The header span (Unknown0 … DictRevision) of a CSME 15.0.30 EFS region
     // equals the stored 0xF4D864F7 — which the standard spelling does *not*

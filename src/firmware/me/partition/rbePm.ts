@@ -32,7 +32,12 @@ const LAYOUTS: readonly Layout[] = [
   { variant: "r4", stride: 0x40, gap: 62, hashOffset: 0x10, hashLength: 0x30, extended: false },
 ];
 
-/** The table's rows, or nothing when none of the four spacings matches. */
+/**
+ * The table's rows, or nothing when none of the four spacings matches.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/RBEPM.swift#RBEPMMetadataParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/RBEPM.swift#RBEPMMetadataParser.decode
+ */
 export function decodeRbePmMetadata(body: Uint8Array): RBEPMMetadata[] | undefined {
   for (const layout of LAYOUTS) {
     const first = firstEntry(layout, body);

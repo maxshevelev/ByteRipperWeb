@@ -35,6 +35,7 @@ const equalBytes = (one: Uint8Array, two: Uint8Array) =>
   one.length === two.length && one.every((byte, index) => byte === two[index]);
 
 describe("decompressLzma", () => {
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testAStreamDecodesToWhatWentIn
   it("decodes a stream to what went in", () => {
     const decoded = decompressLzma(fixtureBytes(LZMA_SAMPLE_STREAM), LIMIT);
     expect(equalBytes(decoded.bytes, lzmaSample())).toBe(true);
@@ -42,6 +43,7 @@ describe("decompressLzma", () => {
     expect(decoded.dictionarySize).toBe(1 << 16);
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testTheIntelLegacyPrefixIsSkipped
   it("skips the Intel legacy prefix", () => {
     const stream = fixtureBytes(LZMA_SAMPLE_STREAM);
     const prefixed = new Uint8Array(4 + stream.length);
@@ -53,6 +55,7 @@ describe("decompressLzma", () => {
     expect(decoded.dictionarySize).toBe(1 << 16);
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testAStreamThatStopsEarlyIsTruncated
   it("calls a stream that stops early truncated", () => {
     const stream = fixtureBytes(LZMA_SAMPLE_STREAM);
     expect(failure(() => decompressLzma(stream.subarray(0, stream.length / 2), LIMIT))).toEqual({
@@ -60,6 +63,7 @@ describe("decompressLzma", () => {
     });
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testLessThanAHeaderIsTruncated
   it("calls less than a header truncated", () => {
     expect(
       failure(() => decompressLzma(Uint8Array.of(0x5d, 0x00, 0x00, 0x01, 0x00), LIMIT))
@@ -71,6 +75,7 @@ describe("decompressLzma", () => {
     });
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testASizeOverTheLimitIsRefused
   it("refuses a size over the limit before allocating anything", () => {
     const stream = fixtureBytes(LZMA_SAMPLE_STREAM);
     expect(failure(() => decompressLzma(stream, 1000))).toEqual({
@@ -83,18 +88,21 @@ describe("decompressLzma", () => {
     });
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testImpossiblePropertiesAreCorrupt
   it("calls impossible properties corrupt", () => {
     const stream = fixtureBytes(LZMA_SAMPLE_STREAM);
     stream[0] = 0xff;
     expect(failure(() => decompressLzma(stream, LIMIT))).toEqual({ kind: "corrupt" });
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testADeclaredSizeBeyondTheStreamIsAFailure
   it("fails a declared size beyond the stream", () => {
     const stream = fixtureBytes(LZMA_SAMPLE_STREAM);
     stream[LZMA_PROPERTIES_SIZE] = ((stream[LZMA_PROPERTIES_SIZE] ?? 0) + 100) & 0xff;
     expect(failure(() => decompressLzma(stream, LIMIT))).toBeDefined();
   });
 
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testNoUsableHeaderEitherWayIsCorrupt
   it("calls data with no usable header either way corrupt", () => {
     expect(failure(() => decompressLzma(new Uint8Array(64).fill(0xff), LIMIT))).toEqual({
       kind: "corrupt",
@@ -103,6 +111,7 @@ describe("decompressLzma", () => {
 });
 
 describe("decompressLzmaX86", () => {
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/LZMATests.swift#LZMATests.testTheX86FilterIsUndoneAfterDecoding
   it("undoes the filter after decoding", () => {
     const original = lzmaSample();
     const stream = fixtureBytes(LZMA_X86_SAMPLE_STREAM);

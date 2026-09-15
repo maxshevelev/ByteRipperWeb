@@ -17,35 +17,62 @@ import { type LayoutInfo, layoutTable } from "@/firmware/me/layout/ifwi";
 
 const FPT_TAG = tagBytes("$FPT");
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Partition */
 export interface FPTPartition {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Partition.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Partition.offset */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Partition.size */
   readonly size: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Partition.flags */
   readonly flags: number;
   /**
    * The offset field is absent, or the size is zero, or — for a bounded size —
    * the whole content is erased. A partition a vendor reserved and never filled.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Partition.empty
    */
   readonly empty: boolean;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result */
 export interface FPTResult {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.headerVersion */
   readonly headerVersion: number;
-  /** After the dispatch below, which sees through a v2.1 written with a v2.0 tag. */
+  /**
+   * After the dispatch below, which sees through a v2.1 written with a v2.0 tag.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.resolvedVersion
+   */
   readonly resolvedVersion: number;
-  /** Where partitions are measured from, which is not always the marker. */
+  /**
+   * Where partitions are measured from, which is not always the marker.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.fptStart
+   */
   readonly fptStart: number;
   /**
    * The header's FIT fields, raw. The 0 and 0xFFFF markers are kept rather than
    * turned into absence: what tests them is the firmware-type classifier, and it
    * tests the marker itself.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.fitMajor
    */
   readonly fitMajor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.fitMinor */
   readonly fitMinor: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.fitHotfix */
   readonly fitHotfix: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.fitBuild */
   readonly fitBuild: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.partitions */
   readonly partitions: readonly FPTPartition[];
-  /** The CSE Layout Table that precedes the `$FPT`, when there is one. */
+  /**
+   * The CSE Layout Table that precedes the `$FPT`, when there is one.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.Result.cseLayout
+   */
   readonly cseLayout: LayoutInfo | undefined;
 }
 
@@ -55,6 +82,8 @@ export interface FPTResult {
  *
  * Four ASCII bytes turn up in compressed data often enough that the tag alone is
  * not an anchor; a count in `[1, 0x7F]` with a zeroed high half is.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.findAnchor
  */
 export function findFptAnchor(
   bytes: Uint8Array,
@@ -82,7 +111,12 @@ export function findFptAnchor(
   return undefined;
 }
 
-/** Decodes the `$FPT` whose header begins at `anchor`. */
+/**
+ * Decodes the `$FPT` whose header begins at `anchor`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.decode
+ */
 export function decodeFpt(bytes: Uint8Array, anchor: number): FPTResult | undefined {
   // The header and at least one entry.
   if (!has(bytes, anchor, 0x40)) return undefined;
@@ -149,6 +183,8 @@ export function decodeFpt(bytes: Uint8Array, anchor: number): FPTResult | undefi
  * region and its partitions measure from the region's base — measuring them
  * from the marker puts every partition on a CSME 11 image 0x10 bytes too high,
  * which is a real defect this rule exists to prevent.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.fptStart
  */
 export function fptStart(
   bytes: Uint8Array,
@@ -188,6 +224,8 @@ function zeroThenErased(bytes: Uint8Array, at: number, zeros: number): boolean {
 /**
  * Finds the first `$FPT` — inside the Engine region when the image is whole
  * flash, else anywhere — and decodes it.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/FPT.swift#FPTParser.parseFirst
  */
 export function parseFirstFpt(bytes: Uint8Array): FPTResult | undefined {
   const region = meRegion(bytes);

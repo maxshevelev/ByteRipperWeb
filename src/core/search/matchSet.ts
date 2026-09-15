@@ -26,31 +26,53 @@ import type { CaseFolding, SearchPattern } from "@/core/search/searchPattern";
  * question about the caret, and the caret belongs to the pane.
  */
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Storage */
 export type MatchStorage =
   | { readonly kind: "sparse"; readonly starts: Float64Array }
   | { readonly kind: "bitmap"; readonly bitmap: MatchBitmap }
   | { readonly kind: "counted" };
 
-/** The ceiling on the index itself: 32 MB, which a bitmap reaches at 256 MB. */
+/**
+ * The ceiling on the index itself: 32 MB, which a bitmap reaches at 256 MB.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.maxIndexBytes
+ */
 export const MAX_INDEX_BYTES = 32 << 20;
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step */
 export interface MatchStep {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.index */
   readonly index: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.range */
   readonly range: { readonly start: number; readonly end: number };
-  /** True when the step came round the end of the file. */
+  /**
+   * True when the step came round the end of the file.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.wrapped
+   */
   readonly wrapped: boolean;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet */
 export class MatchSet {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.pattern */
   readonly pattern: SearchPattern;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.folding */
   readonly folding: CaseFolding;
-  /** The size of the file the scan covered — also the bitmap's bit count. */
+  /**
+   * The size of the file the scan covered — also the bitmap's bit count.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.extent
+   */
   readonly extent: number;
   /**
    * Exact at any count, and the only number the find bar shows. `> 1000` is not
    * a diagnosis: 1001 and 3,000,000 call for different actions.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.total
    */
   readonly total: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.storage */
   readonly storage: MatchStorage;
   /**
    * How much of the file the scan has covered, half-open: every match below it
@@ -61,9 +83,12 @@ export class MatchSet {
    * millisecond. So the greys arrive in file order as the scan advances, and
    * the things that need the *whole* file — the total, the wrap, an ordinal —
    * wait for {@link isComplete}.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.indexedUpTo
    */
   readonly indexedUpTo: number;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.init */
   constructor(
     pattern: SearchPattern,
     folding: CaseFolding,
@@ -80,7 +105,11 @@ export class MatchSet {
     this.indexedUpTo = Math.min(indexedUpTo, extent);
   }
 
-  /** From starts already in hand — tests, and a worker's reply. */
+  /**
+   * From starts already in hand — tests, and a worker's reply.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.init
+   */
   static of(
     pattern: SearchPattern,
     folding: CaseFolding,
@@ -93,20 +122,30 @@ export class MatchSet {
     return builder.snapshot(indexedUpTo ?? extent);
   }
 
-  /** Whether the scan reached the end. Only then is `total` the whole answer. */
+  /**
+   * Whether the scan reached the end. Only then is `total` the whole answer.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isComplete
+   */
   get isComplete(): boolean {
     return this.indexedUpTo >= this.extent;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.patternLength */
   get patternLength(): number {
     return Math.max(this.pattern.bytes.length, 1);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isEmpty */
   get isEmpty(): boolean {
     return this.total === 0;
   }
 
-  /** Whether the matches can be pointed at — false only for a counted set. */
+  /**
+   * Whether the matches can be pointed at — false only for a counted set.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isHighlightable
+   */
   get isHighlightable(): boolean {
     return this.storage.kind !== "counted" && this.total > 0;
   }
@@ -114,6 +153,8 @@ export class MatchSet {
   /**
    * Whether the results panel should list them. Past the limit a list of four
    * thousand rows impersonates a tool, so the panel states the count instead.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isListable
    */
   get isListable(): boolean {
     return this.total > 0 && this.total <= DEFAULT_MAX_RESULTS;
@@ -125,6 +166,8 @@ export class MatchSet {
    * A match starting *before* the range can still reach into it, so the lookup
    * begins `patternLength - 1` earlier — which is what makes a match straddling
    * the top of a drawn row range highlighted rather than half-drawn.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.matches
    */
   matchesIntersecting(start: number, end: number): { start: number; end: number }[] {
     if (end <= start || this.total === 0) return [];
@@ -159,6 +202,8 @@ export class MatchSet {
    * past the last match is the first match again — the *set* is what knows that
    * is what happened, and a view working it out from a nothing would work it
    * out twice, once per direction.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.step
    */
   step(direction: "forward" | "backward", offset: number): MatchStep | undefined {
     if (!this.isHighlightable) return undefined;
@@ -180,6 +225,8 @@ export class MatchSet {
    *
    * Returns `undefined` when the set cannot be updated in place, which is the
    * caller's signal to rescan the file instead.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.splice
    */
   splice(starts: readonly number[], start: number, end: number): MatchSet | undefined {
     if (this.storage.kind === "counted") return undefined;
@@ -217,7 +264,11 @@ export class MatchSet {
     );
   }
 
-  /** The `index`-th match's start. */
+  /**
+   * The `index`-th match's start.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.start
+   */
   startAt(index: number): number | undefined {
     if (index < 0 || index >= this.total) return undefined;
     if (this.storage.kind === "counted") return undefined;
@@ -225,12 +276,17 @@ export class MatchSet {
     return this.storage.bitmap.select(index);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.range */
   rangeAt(index: number): { start: number; end: number } | undefined {
     const start = this.startAt(index);
     return start === undefined ? undefined : { start, end: start + this.patternLength };
   }
 
-  /** The ordinal of the match starting exactly at `offset` — the "3" in "3 of 128". */
+  /**
+   * The ordinal of the match starting exactly at `offset` — the "3" in "3 of 128".
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.index
+   */
   indexStartingAt(offset: number): number | undefined {
     if (this.storage.kind === "counted") return undefined;
     if (this.storage.kind === "sparse") {
@@ -241,7 +297,11 @@ export class MatchSet {
     return this.storage.bitmap.countBefore(offset);
   }
 
-  /** The first match at or after `offset` — where Find Next lands. */
+  /**
+   * The first match at or after `offset` — where Find Next lands.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.index
+   */
   indexAtOrAfter(offset: number): number | undefined {
     if (this.storage.kind === "counted") return undefined;
     if (this.storage.kind === "sparse") {
@@ -252,7 +312,25 @@ export class MatchSet {
     return start === undefined ? undefined : this.storage.bitmap.countBefore(start);
   }
 
-  /** The last match strictly before `offset` — where Find Previous lands. */
+  /**
+   * Where the first match at or after `offset` starts, without its ordinal.
+   *
+   * @web-only a bitmap's ordinal costs a block of popcounts, which the overview's walk over its rows would pay once per row
+   */
+  startAtOrAfter(offset: number): number | undefined {
+    if (this.storage.kind === "counted") return undefined;
+    if (this.storage.kind === "sparse") {
+      const i = firstIndexAtOrAfter(this.storage.starts, this.total, offset);
+      return i < this.total ? this.storage.starts[i] : undefined;
+    }
+    return this.storage.bitmap.firstSetAtOrAfter(offset);
+  }
+
+  /**
+   * The last match strictly before `offset` — where Find Previous lands.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.index
+   */
   indexBefore(offset: number): number | undefined {
     if (this.storage.kind === "counted") return undefined;
     if (this.storage.kind === "sparse") {
@@ -264,7 +342,11 @@ export class MatchSet {
   }
 }
 
-/** The first index whose value is at least `value`, in a sorted prefix. */
+/**
+ * The first index whose value is at least `value`, in a sorted prefix.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.firstIndex
+ */
 function firstIndexAtOrAfter(starts: Float64Array, count: number, value: number): number {
   let low = 0;
   let high = count;
@@ -283,11 +365,16 @@ function firstIndexAtOrAfter(starts: Float64Array, count: number, value: number)
  * This is what makes an uncapped highlight affordable: a pattern occurring at a
  * third of a file's offsets costs the same as one occurring once. The rank
  * table adds four bytes per 4096 bits — a tenth of a per cent.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap
  */
 export class MatchBitmap {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.bitsPerBlock */
   static readonly bitsPerBlock = 4096;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.wordsPerBlock */
   static readonly wordsPerBlock = MatchBitmap.bitsPerBlock / 32;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.bitCount */
   readonly bitCount: number;
   /**
    * 32-bit words, not 64. JavaScript's bitwise operators are defined on 32-bit
@@ -299,6 +386,7 @@ export class MatchBitmap {
   private ranks: Int32Array = new Int32Array(0);
   private count = 0;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.init */
   constructor(bitCount: number) {
     this.bitCount = bitCount;
     this.words = new Uint32Array(Math.ceil(bitCount / 32));
@@ -322,17 +410,23 @@ export class MatchBitmap {
     return bitmap;
   }
 
-  /** What a bitmap over `bitCount` offsets costs, rank table included. */
+  /**
+   * What a bitmap over `bitCount` offsets costs, rank table included.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.byteCost
+   */
   static byteCost(bitCount: number): number {
     const words = Math.ceil(bitCount / 32);
     const blocks = Math.ceil(words / MatchBitmap.wordsPerBlock);
     return words * 4 + blocks * 4;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.total */
   get total(): number {
     return this.count;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.set */
   set(offset: number): void {
     if (offset < 0 || offset >= this.bitCount) return;
     const word = offset >>> 5;
@@ -342,12 +436,17 @@ export class MatchBitmap {
     this.count++;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.contains */
   contains(offset: number): boolean {
     if (offset < 0 || offset >= this.bitCount) return false;
     return (((this.words[offset >>> 5] ?? 0) >>> (offset & 31)) & 1) === 1;
   }
 
-  /** Clears every bit in `[start, end)` — the first half of splicing. */
+  /**
+   * Clears every bit in `[start, end)` — the first half of splicing.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.clear
+   */
   clearIn(start: number, end: number): void {
     for (let offset = Math.max(0, start); offset < Math.min(end, this.bitCount); offset++) {
       const word = offset >>> 5;
@@ -359,7 +458,11 @@ export class MatchBitmap {
     }
   }
 
-  /** Builds the rank table: one pass over the words. */
+  /**
+   * Builds the rank table: one pass over the words.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.sealRanks
+   */
   sealRanks(): void {
     const blocks = Math.max(1, Math.ceil(this.words.length / MatchBitmap.wordsPerBlock));
     const ranks = new Int32Array(blocks);
@@ -374,7 +477,11 @@ export class MatchBitmap {
     this.count = running;
   }
 
-  /** How many matches start before `offset` — the ordinal lookup. */
+  /**
+   * How many matches start before `offset` — the ordinal lookup.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.count
+   */
   countBefore(offset: number): number {
     const limit = Math.min(offset, this.bitCount);
     if (limit <= 0) return 0;
@@ -393,6 +500,7 @@ export class MatchBitmap {
     return count;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.firstSet */
   firstSetAtOrAfter(offset: number): number | undefined {
     if (offset >= this.bitCount) return undefined;
     let word = Math.max(0, offset) >>> 5;
@@ -408,6 +516,7 @@ export class MatchBitmap {
     }
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.lastSet */
   lastSetBefore(offset: number): number | undefined {
     const limit = Math.min(offset, this.bitCount);
     if (limit <= 0) return undefined;
@@ -424,7 +533,11 @@ export class MatchBitmap {
     }
   }
 
-  /** The `index`-th set bit: the rank table narrows it to one block. */
+  /**
+   * The `index`-th set bit: the rank table narrows it to one block.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.select
+   */
   select(index: number): number | undefined {
     if (index < 0 || index >= this.count) return undefined;
 
@@ -468,6 +581,8 @@ const leadingZeros = (value: number): number => Math.clz32(value);
  *
  * Fed in batches: a scan delivers a window's matches at once, because a million
  * separate hand-overs cost more than finding them did.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder
  */
 export class MatchSetBuilder {
   private readonly pattern: SearchPattern;
@@ -482,6 +597,7 @@ export class MatchSetBuilder {
   private counted = false;
   private count = 0;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.init */
   constructor(
     pattern: SearchPattern,
     folding: CaseFolding,
@@ -495,6 +611,7 @@ export class MatchSetBuilder {
     this.sparseLimit = Math.max(Math.floor(extent / 64), 1);
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.add */
   add(starts: readonly number[]): void {
     if (starts.length === 0) return;
     this.count += starts.length;
@@ -523,6 +640,7 @@ export class MatchSetBuilder {
     this.bitmap = bitmap;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.finish */
   finish(): MatchSet {
     return this.snapshot(this.extent);
   }
@@ -530,6 +648,8 @@ export class MatchSetBuilder {
   /**
    * The set as it stands, covering the file up to `indexedUpTo` — what a
    * still-running scan publishes so the dump can grey what is known.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.snapshot
    */
   snapshot(indexedUpTo: number): MatchSet {
     let storage: MatchStorage;

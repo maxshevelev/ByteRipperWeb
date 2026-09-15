@@ -32,22 +32,37 @@ import { manufactureDate } from "@/tools/me/meaTree";
  * leaves it out.
  */
 
+/** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue */
 export type MEASummaryValue =
   | { readonly kind: "value"; readonly text: string }
   | { readonly kind: "comingSoon" };
 
-/** The colour a value is drawn in, decided where the fact behind it is known. */
+/**
+ * The colour a value is drawn in, decided where the fact behind it is known.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryTone
+ */
 export type MEASummaryTone = "standard" | "good" | "caution" | "bad";
 
+/** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow */
 export interface MEASummaryRow {
+  /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.label */
   readonly label: string;
+  /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.value */
   readonly value: MEASummaryValue;
+  /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.tone */
   readonly tone: MEASummaryTone;
 }
 
-/** A titled group of rows. The primary table has no title, as in the console. */
+/**
+ * A titled group of rows. The primary table has no title, as in the console.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryBlock
+ */
 export interface MEASummaryBlock {
+  /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryBlock.title */
   readonly title: string | undefined;
+  /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryBlock.rows */
   readonly rows: readonly MEASummaryRow[];
 }
 
@@ -57,7 +72,12 @@ export const COMING_SOON: MEASummaryValue = { kind: "comingSoon" };
 const nonEmpty = (text: string | undefined): text is string =>
   text !== undefined && text.length > 0;
 
-/** The blocks in reading order: the firmware table, the independent firmware, the messages. */
+/**
+ * The blocks in reading order: the firmware table, the independent firmware, the messages.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummary
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummary.build
+ */
 export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   const rows: MEASummaryRow[] = [];
   const add = (label: string, value: MEASummaryValue, tone: MEASummaryTone = "standard") =>
@@ -266,6 +286,10 @@ function independentBlock(
   const meu = meuVersion(firmware);
   if (meu !== undefined) add("Manifest Extension Utility", meu);
   if (platform.length > 0) add("Chipset Support", platform);
+  // Not a console row: upstream prints the copy as a second, identical table,
+  // and this one says where it is.
+  const copies = firmware.redundantCopies;
+  if (copies !== undefined && copies.length > 0) add("Redundant Copy", copies.join(", "));
   return { title, rows };
 }
 
@@ -290,6 +314,7 @@ const numberText = (value: number | undefined) => (value === undefined ? undefin
 
 const POWER_DOWN_VALUES: readonly string[] = ["yes", "no", "unknown", "unknown1", "unknown2"];
 
+/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.powerDownMitigation */
 function powerDownText(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   return POWER_DOWN_VALUES.includes(value)
@@ -297,7 +322,11 @@ function powerDownText(value: string | undefined): string | undefined {
     : value;
 }
 
-/** The MEU version, or nothing for an R0 manifest and the 0 / 0xFFFF no-MEU markers. */
+/**
+ * The MEU version, or nothing for an R0 manifest and the 0 / 0xFFFF no-MEU markers.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#Version.meText
+ */
 function meuVersion(a: FirmwareAnalysis): string | undefined {
   const { meMajor, meMinor, meHotfix, meBuild } = a.version;
   if (meMajor === undefined || meMajor === 0 || meMajor === 0xffff) return undefined;

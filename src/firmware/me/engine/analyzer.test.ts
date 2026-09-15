@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { fixtureBytes, LZMA_MODULE_BODY_STREAM } from "@/firmware/compression/testing/lzmaFixtures";
-import { hex, sha384 } from "@/firmware/me/crypto/digest";
+import { crc32 } from "@/firmware/me/crypto/checksum";
+import { hex, sha256, sha384 } from "@/firmware/me/crypto/digest";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
-import { analyzeMeRegion } from "@/firmware/me/engine/analyzer";
+import { analyzeMeRegion, checksums } from "@/firmware/me/engine/analyzer";
 import { CSME12_KEY, CSME12_PROTECTED, CSME12_SIG } from "@/firmware/me/testing/realManifests";
 import {
   csmeDatabaseText,
@@ -16,6 +17,8 @@ import {
   extConcat,
   extFeaturePermissions,
   extModuleAttributes,
+  extPartitionInfo,
+  extSignedPackage,
   extSystemInfo,
 } from "@/firmware/me/testing/testExtensions";
 import {
@@ -52,6 +55,7 @@ const analyze = (databaseText: string, bytes: Uint8Array, baseOffset = 0) =>
   analyzeMeRegion({ bytes, baseOffset, database: MEADatabase.parse(databaseText) });
 
 describe("analyzeMeRegion", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testIdentifiesCSMEFamilyVersionReleaseAndDBRow
   it("names the family, version, release and database row", () => {
     const result = analyze(csmeDatabaseText(), region());
 
@@ -68,6 +72,7 @@ describe("analyzeMeRegion", () => {
     expect(result.issues).toEqual([]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testTheDatabaseSteppingReachesTheAnalysis
   it("brings the database's stepping through to the analysis", () => {
     const result = analyze(csmeDatabaseText(), region());
 
@@ -75,6 +80,8 @@ describe("analyzeMeRegion", () => {
     expect(result.powerDownMitigation).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeReturnsFPTPartitionsAndSize
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testIdentifiesWithBaseOffset
   it("reports partitions at the caller's own offsets", () => {
     const result = analyze(csmeDatabaseText(), region(), 0x1000);
 
@@ -97,22 +104,26 @@ describe("analyzeMeRegion", () => {
     });
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testPreProductionKeyCorrectsWrongProduction
   it("corrects a wrongly production-signed key", () => {
     expect(analyze(csmeDatabaseText({ preKeys: [FIXTURE_KEY_HASH] }), region()).release).toBe(
       "preProduction"
     );
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testDebugSignedFlagMeansPreProduction
   it("reads the debug flag as pre-production", () => {
     expect(analyze(csmeDatabaseText(), region({ manifest: { flags: 0x8000_0001 } })).release).toBe(
       "preProduction"
     );
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testRomBypassPartitionMeansRomBypassRelease
   it("lets a ROM-Bypass partition decide the release", () => {
     expect(analyze(csmeDatabaseText(), region({ romBypass: true })).release).toBe("romBypass");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testUnknownKeyYieldsUnknownFamilyAndNote
   it("notes a key the database does not list", () => {
     const result = analyze(
       unrelatedDatabaseText(),
@@ -131,6 +142,7 @@ describe("analyzeMeRegion", () => {
     expect(result.issues.map((one) => one.id)).toEqual([2]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/IdentificationTests.swift#IdentificationTests.testRecognisedEngineNotInDBGetsNote
   it("notes a recognised engine that is not in the database", () => {
     const result = analyze(csmeDatabaseText({ signature: UNKNOWN_SIGNATURE_HASH }), region());
 
@@ -139,6 +151,7 @@ describe("analyzeMeRegion", () => {
     expect(result.issues.map((one) => one.id)).toEqual([3]);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeWithoutFPTNotesAbsence
   it("notes a region with no partition table", () => {
     const result = analyzeMeRegion({ bytes: manifest() });
 
@@ -160,6 +173,7 @@ describe("analyzeMeRegion", () => {
     expect(result.regions).toHaveLength(1);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzePopulatesOperationalCodePartition
   it("reads the directory that owns the manifest", () => {
     // The directory sits before the manifest, and the manifest names no owner:
     // finding it is a walk backwards.
@@ -246,6 +260,7 @@ function ftprRegion(manifestOptions: TestManifest, after: readonly Uint8Array[] 
 }
 
 describe("the operational manifest's facts", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeR0ManifestFallsBackVcnToSummary
   it("falls back to a pre-CSE manifest's own VCN, with no production bit to read", () => {
     const result = analyzeMeRegion({ bytes: ftprRegion({ format: "r0" }) });
 
@@ -257,6 +272,7 @@ describe("the operational manifest's facts", () => {
     expect(result.codePartition).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeSurfacesProductionReadyFromR1PVBit
   it("reads Production Ready from an R1 manifest's flags", () => {
     expect(analyzeMeRegion({ bytes: ftprRegion({ flags: 0x1 }) }).manifest?.productionReady).toBe(
       true
@@ -266,6 +282,8 @@ describe("the operational manifest's facts", () => {
     );
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeDecodesManifestModuleExtensionChain
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeDecodesMetModuleMetadata
   it("decodes a .met companion's body as a chain", () => {
     const manChain = extConcat([extSystemInfo(true), extFeaturePermissions(4, 2)]);
     const one = manifest();
@@ -300,6 +318,83 @@ describe("the operational manifest's facts", () => {
     expect(blocks[1]?.moduleAttributes).toBeUndefined();
     expect(blocks[1]?.specialFiles?.rows).toHaveLength(1);
     expect(result.codePartition?.checksumValid).toBe(true);
+  });
+});
+
+describe("the code partition's directory", () => {
+  const database = MEADatabase.parse("*** Revision r378 ***");
+  const directory = () =>
+    cpdDirectory({ name: "FTPR", headerVersion: 2, modules: [{ name: "$MN2" }, { name: "rbe" }] });
+
+  // A revision 2 directory stores a CRC-32, and a right one adds no warning.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeValidatesR2CodePartitionChecksum
+  it("validates a revision 2 directory's CRC-32", () => {
+    const result = analyzeMeRegion({ bytes: concat([directory(), manifest()]), database });
+
+    expect(result.codePartition?.headerVersion).toBe(2);
+    expect(result.codePartition?.checksumValid).toBe(true);
+    expect(result.issues.every((issue) => issue.severity !== "warning")).toBe(true);
+    expect(result.issues.some((issue) => issue.message.includes("INVALID"))).toBe(false);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeWarnsOnInvalidChecksumAndOverrun
+  it("warns on a wrong checksum and on an empty slot after the entries", () => {
+    const corrupt = directory();
+    corrupt[0x0c] = (corrupt[0x0c] ?? 0) ^ 0xff; // a partition name byte: the CRC fails
+    const result = analyzeMeRegion({
+      bytes: concat([corrupt, new Uint8Array(0x18), manifest()]),
+      database,
+    });
+
+    expect(result.codePartition?.checksumValid).toBe(false);
+    expect(result.issues.some((issue) => issue.severity === "warning")).toBe(true);
+    expect(result.issues.some((issue) => issue.message.includes("INVALID"))).toBe(true);
+    expect(result.issues.some((issue) => issue.message.includes("empty trailing module"))).toBe(
+      true
+    );
+  });
+
+  // A manifest with no \$CPD over it is still summarised; there is just no
+  // code partition to report.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeLeavesCodePartitionNilWithoutOwningCPD
+  it("leaves the code partition out when no directory owns the manifest", () => {
+    const table = fptRegion({
+      entries: [{ name: "FTPR", offset: 0x1000, size: 0x2000, flags: 0 }],
+      size: 0x1000,
+    });
+    const result = analyzeMeRegion({ bytes: concat([table, manifest()]), database });
+
+    expect(result.manifest).toBeDefined();
+    expect(result.codePartition).toBeUndefined();
+  });
+
+  // The security version comes from the signed package, and the VCN prefers the
+  // partition information's over the signed package's; the second partition
+  // information tag carries none.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#AnalyzerTests.testAnalyzeHoistsArbSvnAndVcnFromOperationalChain
+  it("hoists the security version and the VCN from the manifest's chain", () => {
+    const chain = extConcat([
+      extSignedPackage(true),
+      extPartitionInfo(0x03, true, { vcn: 3 }),
+      extPartitionInfo(0x16, true),
+    ]);
+    const one = manifest();
+    const manifestBase = 0x10 + 0x18;
+    const bytes = concat([
+      cpdDirectory({
+        name: "FTPR",
+        modules: [{ name: "$MN2", offset: manifestBase, size: one.length + chain.length }],
+      }),
+      one,
+      chain,
+    ]);
+
+    const result = analyzeMeRegion({ bytes, baseOffset: 0x1000, database });
+
+    expect(result.codePartition?.extensions?.map((block) => block.tag)).toEqual([0x0f, 0x03, 0x16]);
+    expect(result.arbSvn).toBe(5);
+    expect(result.vcn).toBe(3);
+    expect(result.manifest?.productionReady).toBe(true);
   });
 });
 
@@ -416,6 +511,7 @@ function mcpHeader(codeSize: number, offsetPartFPT: number): Uint8Array {
 }
 
 describe("a classic ME image", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEAnalyzerTests.testAnalyzeFillsSKUPlatformAndVCNForME10R0
   it("fills the SKU, the platform and the manifest's VCN", () => {
     const result = analyzeMeRegion({
       bytes: ftprRegion(ME10, [T450_SKU]),
@@ -430,6 +526,7 @@ describe("a classic ME image", () => {
     expect(result.codePartition).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSETests.swift#PreCSEAnalyzerTests.testAnalyzeLeavesSKUEmptyWhenFamilyIsNotME
   it("leaves the pre-CSE decode alone when the family is not ME", () => {
     const result = analyzeMeRegion({
       bytes: ftprRegion(ME10, [T450_SKU]),
@@ -441,6 +538,7 @@ describe("a classic ME image", () => {
     expect(result.manifest?.vcn).toBe(2);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleAnalyzerTests.testAnalyzeSurfacesMMEDirectoryAndMCP
   it("surfaces the $MME directory and its $MCP", () => {
     const result = analyzeMeRegion({
       bytes: ftprRegion({ ...ME10, numModules: 3 }, [
@@ -468,6 +566,7 @@ describe("a classic ME image", () => {
     expect(result.issues.some((one) => one.id === 11)).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleAnalyzerTests.testAnalyzeNotesTruncatedDirectory
   it("notes a directory that declares more rows than it has", () => {
     const result = analyzeMeRegion({
       bytes: ftprRegion({ ...ME10, numModules: 4 }, [
@@ -484,6 +583,7 @@ describe("a classic ME image", () => {
     expect(result.issues.some((one) => one.id === 11 && one.severity === "note")).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PreCSEModuleTests.swift#PreCSEModuleAnalyzerTests.testAnalyzeLeavesMMEInventoryNilForCSME
   it("reads no $MME directory for a CSME", () => {
     const result = analyzeMeRegion({
       bytes: ftprRegion({ ...ME10, numModules: 1 }, [
@@ -523,5 +623,36 @@ describe("independent firmware", () => {
     expect(pmc?.manifest?.major).toBe(150);
     expect(pmc?.sizeBytes).toBe(0x400);
     expect(pmc?.independentFirmware).toBeUndefined();
+  });
+});
+
+describe("the region's checksums", () => {
+  /** Bytes with no structure in them, every byte distinct enough that a wrong span changes a digest. */
+  const checksummed = () =>
+    Uint8Array.from({ length: 0x4000 }, (_, index) => (index * 31 + 7) & 0xff);
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#RegionChecksumsTests.testAnalyzeLeavesTheRegionChecksumsForTheCallerToAskFor
+  it("are left for the caller to ask for", () => {
+    // analyze must not read the whole region three more times.
+    const analysis = analyzeMeRegion({ bytes: checksummed() });
+    expect(Object.hasOwn(analysis, "checksums")).toBe(false);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#RegionChecksumsTests.testAskingForThemGivesTheSameNumbersTheDigestsDo
+  it("give the same numbers the digests do", () => {
+    const bytes = checksummed();
+    const checks = checksums(bytes);
+    expect(checks.sha256).toBe(hex(sha256(bytes)));
+    expect(checks.sha384).toBe(hex(sha384(bytes)));
+    expect(checks.crc32).toBe(crc32(bytes));
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#RegionChecksumsTests.testAnEmptyRegionHasNothingToMeasure
+  it("have nothing to measure in an empty region", () => {
+    expect(checksums(new Uint8Array(0))).toEqual({
+      sha256: undefined,
+      sha384: undefined,
+      crc32: undefined,
+    });
   });
 });

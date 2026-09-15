@@ -12,6 +12,10 @@
 
 const needsConversionForMsByte = (b: number) => ((b + 1) & 0xfe) === 0;
 
+/**
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/SDK/Bra86.c#Z7_BRANCH_CONV_ST
+ * @upstream Packages/FirmwareCompression/Sources/CLZMA/CLZMA.c#clzma_x86_convert
+ */
 export function x86BranchConvert(data: Uint8Array, encoding: boolean): void {
   const size = data.length;
   if (size < 5) return;

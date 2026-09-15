@@ -31,16 +31,23 @@ const SALT_PADDING = 8;
  * `embeddedHash` is the digest read out of the decrypted signature and
  * `dataHash` the digest recomputed over the protected data — both absent when
  * that branch never produced one, as a PSS signature with bad padding does not.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA.Outcome
  */
 export interface RSAOutcome {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA.Outcome.valid */
   readonly valid: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA.Outcome.embeddedHash */
   readonly embeddedHash: string | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA.Outcome.dataHash */
   readonly dataHash: string | undefined;
 }
 
 /**
  * All three inputs zero. Upstream calls this "Valid/Empty RSA block": a
  * manifest with no signature in it is not a manifest with a bad one.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA.Outcome.emptyRSA
  */
 export const EMPTY_RSA: RSAOutcome = { valid: true, embeddedHash: undefined, dataHash: undefined };
 
@@ -50,6 +57,9 @@ export const EMPTY_RSA: RSAOutcome = { valid: true, embeddedHash: undefined, dat
  * Nothing only when the signature cannot be checked at all — a degenerate
  * modulus, which is not an RSA modulus and which upstream would crash on. That
  * is "not checkable", and a panel must say so rather than show a verdict.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#RSA.validate
  */
 export function validateSignature(options: {
   /** `$MN2` or `$MAN`. */
@@ -88,7 +98,13 @@ export function validateSignature(options: {
   return pssCheck(decrypted, options.protectedData, keyLength);
 }
 
-/** `base^exponent mod modulus`, square-and-multiply over the language's own type. */
+/**
+ * `base^exponent mod modulus`, square-and-multiply over the language's own type.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.powerMod
+ * @upstream-differs JavaScript's bigint does the limb arithmetic upstream writes out as Montgomery multiplication
+ */
 export function powerMod(base: bigint, exponent: bigint, modulus: bigint): bigint {
   if (modulus <= 1n) return 0n;
   let result = 1n;
@@ -102,7 +118,11 @@ export function powerMod(base: bigint, exponent: bigint, modulus: bigint): bigin
   return result;
 }
 
-/** The bytes read as one little-endian value — the `int.from_bytes(…, 'little')` upstream uses. */
+/**
+ * The bytes read as one little-endian value — the `int.from_bytes(…, 'little')` upstream uses.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.limbs
+ */
 export function littleEndianValue(bytes: Uint8Array): bigint {
   let value = 0n;
   for (let index = bytes.length - 1; index >= 0; index--) {
@@ -111,7 +131,11 @@ export function littleEndianValue(bytes: Uint8Array): bigint {
   return value;
 }
 
-/** `value` as big-endian bytes, zero-padded to the width of an RSA modulus. */
+/**
+ * `value` as big-endian bytes, zero-padded to the width of an RSA modulus.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.bigEndianBytes
+ */
 export function bigEndianBytes(value: bigint, byteCount: number): Uint8Array {
   const out = new Uint8Array(byteCount);
   let remaining = value;

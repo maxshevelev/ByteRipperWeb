@@ -43,6 +43,8 @@ afterEach(() => {
 });
 
 describe("a remote database", () => {
+  // @upstream Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testTheFirstCallFetches
+  // @upstream Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testWithinTheDayTheSourceIsNotAsked
   it("fetches it once and serves the cache after", async () => {
     const store = installCaches();
     const fetcher = vi.fn(async () => new Response("A,one\n"));
@@ -60,6 +62,7 @@ describe("a remote database", () => {
   });
 
   // Two panels asking at once make one request, not two.
+  // @upstream Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testASecondCallerDuringTheFetchDoesNotStartASecondOne
   it("is single-flight", async () => {
     installCaches();
     const fetcher = vi.fn(async () => new Response("A,one\n"));
@@ -71,6 +74,7 @@ describe("a remote database", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  // @upstream Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testAfterADayFreshReplacesTheValueForTheNextReader
   it("goes back to the network once the body is a day old", async () => {
     installCaches();
     const fetcher = vi.fn(async () => new Response("A,one\n"));
@@ -86,6 +90,7 @@ describe("a remote database", () => {
 
   // A bench with no network still has yesterday's databases, and the date says
   // which they are.
+  // @upstream Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testAFailedCheckKeepsWhatIsHeld
   it("serves a stale body when the network is not there", async () => {
     installCaches();
     let fail = false;
@@ -108,6 +113,7 @@ describe("a remote database", () => {
     expect(stale.fetchedAt).toBe(fresh.fetchedAt);
   });
 
+  // @upstream Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testAFailedFirstFetchIsNotRemembered
   it("gives up when there is nothing cached and no network", async () => {
     installCaches();
     vi.stubGlobal(

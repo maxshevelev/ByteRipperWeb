@@ -33,6 +33,7 @@ const region = (name: string, offset: number, size: number) => ({
 const titles = (nodes: readonly MEANode[]) => nodes.map((one) => one.title);
 
 describe("group presence and order", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testPresentSkipsAbsentGroupsAndOrdersTheRest
   it("skips absent groups and orders the rest", () => {
     const roots = presentMEA(
       analysisWith({ regions: [region("FTPR", 0x1000, 0x12_5000)] }),
@@ -42,6 +43,7 @@ describe("group presence and order", () => {
     expect(titles(roots)).toEqual(["Firmware", "Regions (FPT)", "Checksums"]);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testStructuralGroupsAppearInFixedOrder
   it("puts the structural groups in a fixed order", () => {
     const roots = presentMEA(
       analysisWith({
@@ -66,6 +68,7 @@ describe("group presence and order", () => {
     ]);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testCodeAndManifestThenMFSThenFactGroupsOrder
   it("puts the code partition and manifest, then the MFS, before the fact groups", () => {
     const roots = presentMEA(
       analysisWith({
@@ -86,6 +89,7 @@ describe("group presence and order", () => {
     ]);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testPathsAreStablePerRootAndChild
   it("keeps paths stable per root and child", () => {
     const roots = presentMEA(
       analysisWith({ regions: [region("FTPR", 0x1000, 0x1000), region("FTUE", 0x2000, 0x800)] }),
@@ -99,6 +103,7 @@ describe("group presence and order", () => {
 });
 
 describe("the identity", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testIdentityFieldsAndSubtitle
   it("says what the firmware is, and leaves out what is empty", () => {
     const firmware = presentMEA(
       analysisWith({
@@ -121,6 +126,7 @@ describe("the identity", () => {
 });
 
 describe("the layout", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testRegionRowSubtitleRangeAndDetail
   it("gives a region its range, second line and detail", () => {
     const regions = presentMEA(
       analysisWith({ regions: [region("FTPR", 0x1000, 0x12_5000)] }),
@@ -135,6 +141,7 @@ describe("the layout", () => {
     expect(field("Flags", ftpr)).toBe("0x00008000");
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testAnEmptySectionSaysEmptyAndIsMarkedAsOne
   it("says Empty for a section that holds nothing, and marks it", () => {
     const roots = presentMEA(
       analysisWith({
@@ -164,6 +171,7 @@ describe("the layout", () => {
     expect(field("Size", slot)).toBe("0x400 (1024 bytes)");
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testCseLayoutRowsAndBootPartitionNesting
   it("nests boot partitions under their tables", () => {
     const roots = presentMEA(
       analysisWith({
@@ -193,6 +201,7 @@ describe("the layout", () => {
 });
 
 describe("the code partition and manifest", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testCodePartitionModulesAndExtensions
   it("lists modules and extensions at their absolute bytes", () => {
     const cpd = presentMEA(analysisWith({ codePartition: codePartitionFixture() }), undefined)[1];
     expect(cpd?.subtitle).toBe("FTPR · R1");
@@ -208,6 +217,7 @@ describe("the code partition and manifest", () => {
     expect(init?.range).toEqual({ start: 0x1040, end: 0x1048 });
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testExtensionPayloadIsDumpedFieldByField
   it("dumps an extension's payload field by field", () => {
     const cpd = presentMEA(
       analysisWith({
@@ -236,6 +246,7 @@ describe("the code partition and manifest", () => {
     expect(field("arbSvn", signed)).toBe("6");
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testHuffmanModuleGetsNoRange
   it("gives a Huffman module no range", () => {
     const fixture = codePartitionFixture();
     const cpd = presentMEA(
@@ -252,6 +263,7 @@ describe("the code partition and manifest", () => {
     expect(man?.subtitle).toBe("0x284 (644 bytes)");
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testManifestFields
   it("says what the manifest carries", () => {
     const m = presentMEA(analysisWith({ manifest: manifestFixture() }), undefined)[1];
     expect(m?.title).toBe("Manifest");
@@ -265,6 +277,7 @@ describe("the code partition and manifest", () => {
 });
 
 describe("the MFS volume", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testMFSFilesAreListedWithoutRange
   it("lists its files without a range", () => {
     const mfs = presentMEA(analysisWith({ mfsVolume: mfsVolumeFixture() }), undefined)[1];
     expect(mfs?.title).toBe("File System (MFS)");
@@ -279,6 +292,7 @@ describe("the MFS volume", () => {
 });
 
 describe("the checksums group", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTheChecksumsRowWaitsWithPlaceholdersUntilItIsAskedFor
   it("waits with placeholders until it is asked for", () => {
     const roots = presentMEA(analysisWith(), undefined);
     const group = find(CHECKSUMS_TITLE, roots);
@@ -287,6 +301,7 @@ describe("the checksums group", () => {
     expect(checksumsPath(roots)).toEqual(group?.path);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTheChecksumsRowShowsTheNumbersOnceTheyArrive
   it("shows the numbers once they arrive", () => {
     const group = find(
       CHECKSUMS_TITLE,
@@ -299,6 +314,7 @@ describe("the checksums group", () => {
     ]);
   });
 
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testAnAnsweredButEmptyChecksumsDropsTheRow
   it("goes when it was asked for and nothing came back", () => {
     const roots = presentMEA(analysisWith(), {
       sha256: undefined,
@@ -311,6 +327,7 @@ describe("the checksums group", () => {
 });
 
 describe("the fact groups", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testIssuesAndMFSBackupAppearWhenPresent
   it("show issues and an MFS backup when present", () => {
     const roots = presentMEA(
       analysisWith({
@@ -332,6 +349,7 @@ describe("the fact groups", () => {
 });
 
 describe("the zone a row publishes", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testZoneForByteRangeAndEmptyOtherwise
   it("is one focused zone for a row's bytes, and nothing otherwise", () => {
     const roots = presentMEA(
       analysisWith({ regions: [region("FTPR", 0x1000, 0x1000)] }),
@@ -343,5 +361,56 @@ describe("the zone a row publishes", () => {
     expect(map.zones[0]).toEqual({ id: "1/0", name: "FTPR", start: 0x1000, end: 0x2000 });
     expect(meaZones(undefined).zones).toEqual([]);
     expect(meaZones(roots[0]).zones).toEqual([]);
+  });
+});
+
+describe("the RBE/PM metadata table", () => {
+  const metadataRow = {
+    variant: "r4" as const,
+    unknown0: 0,
+    deviceID: 0,
+    vendorID: 0x8086,
+    sizeUncompressed: 0x1000,
+    sizeCompressed: 0x800,
+    bssSize: undefined,
+    codeSizeUncompressed: undefined,
+    codeBaseAddress: undefined,
+    mainThreadEntry: undefined,
+    unknown1: undefined,
+    unknown2: undefined,
+    hash: "00",
+  };
+
+  // The hashes no module accounts for are listed under the metadata table, with
+  // its count in the table's detail; with every hash accounted for the detail
+  // says so, with the done mark, and there is nothing to list.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheUnmatchedHashesAreListedUnderTheMetadataTable
+  it("lists the unmatched hashes under it", () => {
+    const left = presentMEA(
+      analysisWith({
+        rbePmMetadata: [metadataRow],
+        unmatchedMetadataHashes: ["ABCDEF0123456789ABCDEF"],
+      }),
+      undefined
+    );
+    const group = find("RBE/PM Metadata", left);
+    const count = group?.fields.find((one) => one.label === "Unmatched Hashes");
+    expect(count?.value).toBe("1");
+    // A hash left over is no done mark.
+    expect(count?.tone ?? "standard").toBe("standard");
+    const list = find("Unmatched Hashes", group?.children);
+    expect(list?.children.map((one) => one.title)).toEqual(["Hash 1"]);
+    expect(list?.children[0]?.fields).toEqual([{ label: "Hash", value: "ABCDEF0123456789ABCDEF" }]);
+
+    const none = presentMEA(
+      analysisWith({ rbePmMetadata: [metadataRow], unmatchedMetadataHashes: [] }),
+      undefined
+    );
+    const accounted = find("RBE/PM Metadata", none);
+    const verdict = accounted?.fields.find((one) => one.label === "Unmatched Hashes");
+    expect(verdict?.value).toBe("None");
+    // Every hash accounted for wears the done mark.
+    expect(verdict?.tone).toBe("good");
+    expect(find("Unmatched Hashes", accounted?.children)).toBeUndefined();
   });
 });

@@ -9,6 +9,7 @@ import {
   sizeInBytes,
 } from "@/firmware/fit/fitEntry";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
+import { type FITBackupReading, readTopSwapBackup } from "@/firmware/fit/fitTopSwap";
 import { problemsIn } from "@/firmware/fit/fitValidator";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { sum8Of } from "@/firmware/uefi/checksums";
@@ -18,33 +19,64 @@ import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 /**
  * The table as it was found: where it is, what is in it, and what its rows
  * actually point at.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable
  */
 export interface FITTable {
-  /** The table itself, header row included. */
+  /**
+   * The table itself, header row included.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.range
+   */
   readonly range: ImageRange;
-  /** Where the pointer that led here lives, and what it held. */
+  /**
+   * Where the pointer that led here lives, and what it held.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.pointerOffset
+   */
   readonly pointerOffset: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.pointerAddress */
   readonly pointerAddress: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.rows */
   readonly rows: readonly FITRow[];
-  /** The header's checksum byte, and what it should be for the table as it stands. */
+  /**
+   * The header's checksum byte, and what it should be for the table as it stands.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.storedChecksum
+   */
   readonly storedChecksum: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.computedChecksum */
   readonly computedChecksum: number;
   /**
    * The header's `ChecksumValid` bit: when it is clear, the checksum means
    * nothing and nobody checks it.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.checksumIsChecked
    */
   readonly checksumIsChecked: boolean;
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.header */
 export const tableHeader = (table: FITTable): FITEntry | undefined => table.rows[0]?.entry;
-/** Every row but the header — what a reader of the table is actually interested in. */
+/**
+ * Every row but the header — what a reader of the table is actually interested in.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.entries
+ */
 export const tableEntries = (table: FITTable): readonly FITRow[] => table.rows.slice(1);
+/** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTable.checksumIsCorrect */
 export const checksumIsCorrect = (table: FITTable): boolean =>
   table.storedChecksum === table.computedChecksum;
 
-/** A row and what it leads to. */
+/**
+ * A row and what it leads to.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITRow
+ */
 export interface FITRow {
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITRow.entry */
   readonly entry: FITEntry;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITRow.target */
   readonly target: FITTarget;
 }
 
@@ -54,6 +86,8 @@ export interface FITRow {
  * For microcode the row's own field is required to be zero and the truth is in
  * the component — showing the field raw is how a tool comes to display a silent
  * `0` that is indistinguishable from "this type does not use the field".
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITRow.effectiveSize
  */
 export function effectiveSize(row: FITRow): number | undefined {
   if (row.target.kind === "microcode") return row.target.header.totalSize;
@@ -71,16 +105,27 @@ export function effectiveSize(row: FITRow): number | undefined {
  *   0x05   1   BitPosition
  *   0x06   2   Index
  * ```
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITIndexIODescriptor
  */
 export interface FITIndexIODescriptor {
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITIndexIODescriptor.indexRegister */
   readonly indexRegister: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITIndexIODescriptor.dataRegister */
   readonly dataRegister: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITIndexIODescriptor.accessWidth */
   readonly accessWidth: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITIndexIODescriptor.bitPosition */
   readonly bitPosition: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITIndexIODescriptor.index */
   readonly index: number;
 }
 
-/** What is at a row's address. */
+/**
+ * What is at a row's address.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTarget
+ */
 export type FITTarget =
   /** The row points nowhere by design: the header, an empty slot. */
   | { readonly kind: "nothing" }
@@ -101,7 +146,11 @@ export type FITTarget =
   /** Bytes in the image, named by whatever the tree says covers them. */
   | { readonly kind: "bytes"; readonly offset: number; readonly description?: string | undefined };
 
-/** Where it is in the file, when it is anywhere. */
+/**
+ * Where it is in the file, when it is anywhere.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITTarget.offset
+ */
 export function targetOffset(target: FITTarget): number | undefined {
   switch (target.kind) {
     case "microcode":
@@ -114,24 +163,45 @@ export function targetOffset(target: FITTarget): number | undefined {
   }
 }
 
-/** What one look at an image found. */
+/**
+ * What one look at an image found.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport
+ */
 export interface FITReport {
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport.table */
   readonly table: FITTable | undefined;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport.problems */
   readonly problems: readonly FITProblem[];
   /**
    * Offsets carrying the `_FIT_   ` signature, collected when the pointer did
    * not lead to a table. Both sides of the link are worth checking, and a table
    * the pointer has lost is still a table the user can look at.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport.candidates
    */
   readonly candidates: readonly number[];
-  /** `address = offset + addressDiff`. */
+  /**
+   * `address = offset + addressDiff`.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport.addressDiff
+   */
   readonly addressDiff: number;
   /**
    * No Volume Top File said so, so the image was taken to be mapped against the
    * top of the address space. True for a full flash dump and false for a region
    * cut out of one — which is why it is said out loud.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport.addressDiffIsAssumed
    */
   readonly addressDiffIsAssumed: boolean;
+  /**
+   * The Top Swap backup of the block the table is in, read and set against this
+   * table, when the image keeps one.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReport.backup
+   */
+  readonly backup?: FITBackupReading | undefined;
 }
 
 /**
@@ -142,8 +212,17 @@ export interface FITReport {
  * therefore from a full parse, and naming what a row points at. Absent is
  * allowed — the table can still be read, on the assumption every full flash
  * dump satisfies.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReader
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReader.read
  */
-export function readFitTable(reader: ImageReader, image?: UEFIImage): FITReport {
+export function readFitTable(
+  reader: ImageReader,
+  image?: UEFIImage,
+  // False is the backup's own reading: a swapped view of the image finds the top
+  // block's table as *its* backup, and must not go looking for it.
+  readsBackup = true
+): FITReport {
   const assumed = image?.addressDiff === undefined;
   const addressDiff = image?.addressDiff ?? 0x1_0000_0000 - reader.count;
   // That the mapping was assumed is not a problem with the table: it is a
@@ -224,12 +303,19 @@ export function readFitTable(reader: ImageReader, image?: UEFIImage): FITReport 
     checksumIsChecked: header.checksumValid,
   };
   problems.push(...problemsIn(table));
-  return report(table);
+  // A Top Swap image keeps the block twice, with a FIT in each: the backup's is
+  // read too, and what differs from this one is said.
+  const backup = readsBackup ? readTopSwapBackup(table, reader, image) : undefined;
+  if (backup === undefined) return report(table);
+  problems.push(...backup.findings);
+  return { ...report(table), backup: backup.reading };
 }
 
 /**
  * The checksum the table should carry: every byte of it, with the header's own
  * checksum field counted as zero, summing to zero.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReader.checksum
  */
 export function fitChecksum(range: ImageRange, reader: ImageReader): number {
   const sum = sum8Of(range, reader);
@@ -301,6 +387,8 @@ function targetOf(
  * Every `_FIT_   ` in the image. Only worth doing when the pointer has failed:
  * a table the pointer agrees with makes every other candidate somebody else's
  * bytes that happened to match.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTable.swift#FITReader.scanForSignatures
  */
 export function scanForSignatures(reader: ImageReader): number[] {
   const found: number[] = [];

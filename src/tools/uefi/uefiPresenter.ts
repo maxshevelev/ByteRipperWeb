@@ -31,6 +31,12 @@ export interface ZonedNode {
 /** What separates a part of a node from the node in a zone id. */
 const PART_SEPARATOR = "#";
 
+/**
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zones
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zoneID
+ * @upstream-differs the zone id is built inline from the node's path
+ */
 export function uefiZones(node: ZonedNode | undefined): ZoneMap {
   if (node === undefined) return { zones: [], focus: undefined };
   // The node's path, `1.2.0` — the same key the tree's rows use, and stable

@@ -7,23 +7,37 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
 /**
  * The Intel flash descriptor: the first `0x1000` bytes of a full SPI dump, and
  * the map of everything else in it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor
  */
 export const Descriptor = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.signature */
   signature: 0x0ff0_a55a,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.size */
   size: 0x1000,
-  /** `FLASH_DESCRIPTOR_MAP`, straight after the header. */
+  /**
+   * `FLASH_DESCRIPTOR_MAP`, straight after the header.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.mapOffset
+   */
   mapOffset: 0x14,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.versionOffset */
   versionOffset: 0x20,
   /**
    * Every `*Base` field holds bits [11:4] of a real offset, so the real one is
    * `base << 4` and anything above this is a broken descriptor.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.maxBase
    */
   maxBase: 0xe0,
   /**
    * `0xFFFFFFFF` in the version field means the field is reserved, which means
    * a version 1 descriptor — and those have five regions, not sixteen.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.reservedVersion
    */
   reservedVersion: 0xffff_ffff,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.version1RegionCount */
   version1RegionCount: 5,
 } as const;
 
@@ -50,6 +64,7 @@ export const FLASH_REGIONS = [
   "ptt",
 ] as const;
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#FlashRegionType */
 export type FlashRegionType = (typeof FLASH_REGIONS)[number];
 
 const REGION_LABELS: Readonly<Record<FlashRegionType, string>> = {
@@ -71,6 +86,7 @@ const REGION_LABELS: Readonly<Record<FlashRegionType, string>> = {
   ptt: "PTT region",
 };
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#FlashRegionType.label */
 export function regionLabel(type: FlashRegionType): string {
   return REGION_LABELS[type];
 }
@@ -79,11 +95,14 @@ export function regionLabel(type: FlashRegionType): string {
  * Which regions are read further. A BIOS region is volumes and padding, a
  * microcode region is microcode images; ME, GbE and the rest are formats of
  * their own and are kept whole.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#FlashRegionType.readsAsRawArea
  */
 export function readsAsRawArea(type: FlashRegionType): boolean {
   return type === "bios" || type === "bios2" || type === "devExp1" || type === "microcode";
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Parser.hasDescriptorSignature */
 export function hasDescriptorSignature(parser: Parser, offset: number): boolean {
   return (
     parser.reader.uint32(offset) === Descriptor.signature ||
@@ -98,6 +117,8 @@ export function hasDescriptorSignature(parser: Parser, offset: number): boolean 
  * The wrapping node is the root UEFITool shows as `Image/Intel`: its body is
  * the whole file, and everything a descriptor describes sits under it rather
  * than beside it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Parser.parseIntelImage
  */
 export function parseIntelImage(parser: Parser, range: ImageRange, depth: number): UEFINode[] {
   return [
@@ -158,6 +179,8 @@ function intelImageChildren(parser: Parser, range: ImageRange, depth: number): U
  * expanded. This is what lets the ME analyser ask for the ME region's bytes
  * without either scanning the file itself or waiting for the BIOS region's own
  * volumes to be walked.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Parser.flashRegionRange
  */
 export function flashRegionRange(
   parser: Parser,

@@ -60,7 +60,7 @@ describe("metAttributes", () => {
 });
 
 describe("hasHuffmanModuleToValidate", () => {
-  it("needs a Huffman module whose .met says Huffman and no encryption", () => {
+  it("needs a Huffman module whose .met says Huffman and no encryption, or that has no .met", () => {
     expect(
       hasHuffmanModuleToValidate(
         partition([module("kernel", true), module("kernel.met", false, [attributes(1)])])
@@ -76,7 +76,8 @@ describe("hasHuffmanModuleToValidate", () => {
         partition([module("kernel", true), module("kernel.met", false, [attributes(1, 1)])])
       )
     ).toBe(false);
-    expect(hasHuffmanModuleToValidate(partition([module("kernel", true)]))).toBe(false);
+    // No `.met`: checked against the `pm` / `rbe` metadata tables, as upstream does.
+    expect(hasHuffmanModuleToValidate(partition([module("kernel", true)]))).toBe(true);
   });
 });
 

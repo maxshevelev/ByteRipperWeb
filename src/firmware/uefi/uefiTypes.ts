@@ -13,7 +13,11 @@
  * the network to say what a BIOS region is.
  */
 
-/** The item-type codes, `Root = 0x3C` and counting. */
+/**
+ * The item-type codes, `Root = 0x3C` and counting.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Item
+ */
 export const ItemType = {
   root: 0x3c,
   capsule: 0x3d,
@@ -65,86 +69,169 @@ export const ItemType = {
 
 export type ItemTypeCode = (typeof ItemType)[keyof typeof ItemType];
 
-/** The subtype codes, grouped in source by the item type that gives them meaning. */
+/**
+ * The subtype codes, grouped in source by the item type that gives them meaning.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub
+ */
 export const Sub = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.aptioSignedCapsule */
   aptioSignedCapsule: 0x64,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.aptioUnsignedCapsule */
   aptioUnsignedCapsule: 0x65,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.uefiCapsule */
   uefiCapsule: 0x66,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.toshibaCapsule */
   toshibaCapsule: 0x67,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.manifestCpdPartition */
   manifestCpdPartition: 0xf0,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.metadataCpdPartition */
   metadataCpdPartition: 0xf1,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.keyCpdPartition */
   keyCpdPartition: 0xf2,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.codeCpdPartition */
   codeCpdPartition: 0xf3,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pspDirectory */
   pspDirectory: 0x9b,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.comboDirectory */
   comboDirectory: 0x9c,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.biosDirectory */
   biosDirectory: 0x9d,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.ishDirectory */
   ishDirectory: 0x9e,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.anyDirectory */
   anyDirectory: 0x9f,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidDvarEntry */
   invalidDvarEntry: 0xb4,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.namespaceGuidDvarEntry */
   namespaceGuidDvarEntry: 0xb5,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.nameIdDvarEntry */
   nameIdDvarEntry: 0xb6,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.unknownDvarEntry */
   unknownDvarEntry: 0xb7,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidEvsaEntry */
   invalidEvsaEntry: 0xa0,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.unknownEvsaEntry */
   unknownEvsaEntry: 0xa1,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.guidEvsaEntry */
   guidEvsaEntry: 0xa2,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.nameEvsaEntry */
   nameEvsaEntry: 0xa3,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.dataEvsaEntry */
   dataEvsaEntry: 0xa4,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.volumeFlashMapEntry */
   volumeFlashMapEntry: 0xaa,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.dataFlashMapEntry */
   dataFlashMapEntry: 0xab,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.unknownFlashMapEntry */
   unknownFlashMapEntry: 0xac,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.validFptEntry */
   validFptEntry: 0xdc,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidFptEntry */
   invalidFptEntry: 0xdd,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.codeFptPartition */
   codeFptPartition: 0xe6,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.dataFptPartition */
   dataFptPartition: 0xe7,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.glutFptPartition */
   glutFptPartition: 0xe8,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.dataIfwiPartition */
   dataIfwiPartition: 0xd2,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.bootIfwiPartition */
   bootIfwiPartition: 0xd3,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.intelImage */
   intelImage: 0x5a,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.uefiImage */
   uefiImage: 0x5b,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.amdImage */
   amdImage: 0x5c,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.intelMicrocode */
   intelMicrocode: 0xbe,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.amdMicrocode */
   amdMicrocode: 0xbf,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidNvarEntry */
   invalidNvarEntry: 0x82,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidLinkNvarEntry */
   invalidLinkNvarEntry: 0x83,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.linkNvarEntry */
   linkNvarEntry: 0x84,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.dataNvarEntry */
   dataNvarEntry: 0x85,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.fullNvarEntry */
   fullNvarEntry: 0x86,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.zeroPadding */
   zeroPadding: 0x78,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.onePadding */
   onePadding: 0x79,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.dataPadding */
   dataPadding: 0x7a,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.descriptorRegion */
   descriptorRegion: 0x00,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.biosRegion */
   biosRegion: 0x01,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.meRegion */
   meRegion: 0x02,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.gbeRegion */
   gbeRegion: 0x03,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pdrRegion */
   pdrRegion: 0x04,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.devExp1Region */
   devExp1Region: 0x05,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.bios2Region */
   bios2Region: 0x06,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.microcodeRegion */
   microcodeRegion: 0x07,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.ecRegion */
   ecRegion: 0x08,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.devExp2Region */
   devExp2Region: 0x09,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.ieRegion */
   ieRegion: 0x0a,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.tgbe1Region */
   tgbe1Region: 0x0b,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.tgbe2Region */
   tgbe2Region: 0x0c,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.reserved1Region */
   reserved1Region: 0x0d,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.reserved2Region */
   reserved2Region: 0x0e,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pttRegion */
   pttRegion: 0x0f,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pspL1DirectoryRegion */
   pspL1DirectoryRegion: 0x10,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pspL2DirectoryRegion */
   pspL2DirectoryRegion: 0x11,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pspDirectoryFile */
   pspDirectoryFile: 0x12,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.pubkeySlicData */
   pubkeySlicData: 0xc8,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.markerSlicData */
   markerSlicData: 0xc9,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.x86128kStartupApDataEntry */
   x86128kStartupApDataEntry: 0xfa,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidSysFEntry */
   invalidSysFEntry: 0x96,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.normalSysFEntry */
   normalSysFEntry: 0x97,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.unknownVolume */
   unknownVolume: 0x6e,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.ffs2Volume */
   ffs2Volume: 0x6f,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.ffs3Volume */
   ffs3Volume: 0x70,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.nvramVolume */
   nvramVolume: 0x71,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.appleMicrocodeVolume */
   appleMicrocodeVolume: 0x72,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.invalidVssEntry */
   invalidVssEntry: 0x8c,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.standardVssEntry */
   standardVssEntry: 0x8d,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.appleVssEntry */
   appleVssEntry: 0x8e,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.authVssEntry */
   authVssEntry: 0x8f,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.Sub.intelVssEntry */
   intelVssEntry: 0x90,
 } as const;
 
@@ -268,12 +355,20 @@ const SUBTYPE_NAMES: Readonly<Record<number, Readonly<Record<number, string>>>> 
 
 const unknown = (code: number) => `Unknown ${code.toString(16).toUpperCase().padStart(2, "0")}h`;
 
-/** The word for an item-type code. An unknown code keeps its number. */
+/**
+ * The word for an item-type code. An unknown code keeps its number.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.typeName
+ */
 export function typeName(type: number): string {
   return TYPE_NAMES[type] ?? unknown(type);
 }
 
-/** The word for a flash-descriptor region type. Unknown keeps its number. */
+/**
+ * The word for a flash-descriptor region type. Unknown keeps its number.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.regionName
+ */
 export function regionName(type: number): string {
   return REGION_NAMES[type] ?? unknown(type);
 }
@@ -282,6 +377,8 @@ export function regionName(type: number): string {
  * The word for a subtype, given the item type that owns it. Nothing where the
  * type has no named subtypes — File and Section delegate to the FFS and section
  * type tables, which a caller names itself.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.subtypeName
  */
 export function subtypeName(type: number, subtype: number): string | undefined {
   return SUBTYPE_NAMES[type]?.[subtype];

@@ -16,6 +16,7 @@ import { x86BranchConvert } from "@/firmware/compression/x86BranchConverter";
  * Ported from `Packages/FirmwareCompression/FirmwareDecompression.swift`.
  */
 
+/** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Failure */
 export type DecompressionFailure =
   /** The data ends before its header does, or before the stream produced the declared size. */
   | { readonly kind: "truncated" }
@@ -24,6 +25,10 @@ export type DecompressionFailure =
   /** The header declares more than the caller allows; refused before anything is allocated. */
   | { readonly kind: "tooLarge"; readonly declared: number };
 
+/**
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Failure
+ * @upstream-differs a thrown Error carrying the failure, since a TypeScript union cannot be thrown as itself
+ */
 export class DecompressionError extends Error {
   readonly failure: DecompressionFailure;
 
@@ -34,24 +39,41 @@ export class DecompressionError extends Error {
   }
 }
 
+/** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Variant */
 export type LzmaVariant = "LZMA" | "LZMA (Intel legacy)" | "LZMA with x86 filter";
 
+/** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded */
 export interface LzmaDecoded {
+  /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded.bytes */
   readonly bytes: Uint8Array;
+  /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded.variant */
   readonly variant: LzmaVariant;
-  /** The dictionary size from the properties — the one thing that tells two encoders apart. */
+  /**
+   * The dictionary size from the properties — the one thing that tells two encoders apart.
+   *
+   * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded.dictionarySize
+   */
   readonly dictionarySize: number;
 }
 
-/** Properties, then the uncompressed size as a 64-bit number. */
+/**
+ * Properties, then the uncompressed size as a 64-bit number.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.lzmaPropertiesSize
+ */
 export const LZMA_PROPERTIES_SIZE = 5;
+/** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.lzmaHeaderSize */
 export const LZMA_HEADER_SIZE = 13;
+/** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.lzmaIntelLegacyPrefix */
 export const LZMA_INTEL_LEGACY_PREFIX = 4;
 
 /**
  * An LZMA stream as EDK2 writes it. The Intel legacy layout is recognised the way
  * UEFITool recognises it: when the header at the start does not give a size that
  * fits in 32 bits, the same header is looked for four bytes further on.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.lzma
  */
 export function decompressLzma(data: Uint8Array, limit: number): LzmaDecoded {
   const declared = declaredSize(data, 0);
@@ -79,6 +101,8 @@ export function decompressLzma(data: Uint8Array, limit: number): LzmaDecoded {
 /**
  * LZMA, then the x86 branch converter run backwards over the result. There is no
  * legacy layout of this one.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.lzmaX86
  */
 export function decompressLzmaX86(data: Uint8Array, limit: number): LzmaDecoded {
   const declared = declaredSize(data, 0);

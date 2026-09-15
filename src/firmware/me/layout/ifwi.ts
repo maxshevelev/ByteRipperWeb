@@ -15,33 +15,77 @@ import { crc32 } from "@/firmware/me/crypto/checksum";
  * Ported from `Packages/MEFirmware/Layout/IFWI.swift`.
  */
 
-/** One slot of the Layout Table's partition inventory. */
+/**
+ * One slot of the Layout Table's partition inventory.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutSlot
+ */
 export interface LayoutSlot {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutSlot.name */
   readonly name: string;
-  /** The table's base plus the slot's own offset field, region-relative. */
+  /**
+   * The table's base plus the slot's own offset field, region-relative.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutSlot.offset
+   */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutSlot.size */
   readonly size: number;
-  /** The offset or size is absent, or the whole content is erased. */
+  /**
+   * The offset or size is absent, or the whole content is erased.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutSlot.empty
+   */
   readonly empty: boolean;
 }
 
-/** The decoded CSE Layout Table. */
+/**
+ * The decoded CSE Layout Table.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutInfo
+ */
 export interface LayoutInfo {
-  /** The table's own region-relative offset. */
+  /**
+   * The table's own region-relative offset.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutInfo.base
+   */
   readonly base: number;
-  /** 0x16 or 0x17. */
+  /**
+   * 0x16 or 0x17.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutInfo.version
+   */
   readonly version: number;
-  /** The 1.7 flag saying the first boot partition is backed up in the second. */
+  /**
+   * The 1.7 flag saying the first boot partition is backed up in the second.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutInfo.redundancy
+   */
   readonly redundancy: boolean;
-  /** The 1.7 pointer block's CRC-32 result; nothing for 1.6, which has none. */
+  /**
+   * The 1.7 pointer block's CRC-32 result; nothing for 1.6, which has none.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutInfo.checksumValid
+   */
   readonly checksumValid: boolean | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.LayoutInfo.slots */
   readonly slots: readonly LayoutSlot[];
 }
 
-/** The Data partition's own label — the one slot a size total treats apart. */
+/**
+ * The Data partition's own label — the one slot a size total treats apart.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.dataSlotName
+ */
 export const DATA_SLOT_NAME = "Data";
 
-/** The IFWI 1.6/1.7 Layout Table and 2.0 Boot Partition Descriptor signatures. */
+/**
+ * The IFWI 1.6/1.7 Layout Table and 2.0 Boot Partition Descriptor signatures.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.bpdtSignatures
+ */
 const BPDT_SIGNATURES: readonly (readonly number[])[] = [
   [0xaa, 0x55, 0x00, 0x00],
   [0xaa, 0x55, 0xaa, 0x00],
@@ -68,6 +112,8 @@ const isFptSignature = (bytes: Uint8Array, at: number): boolean =>
  * erased padding), a 1.7 table, and the two variants without Data — each gated
  * on where its pointers lead and on the erased padding that fills the rest of
  * the table's own 0x1000.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.detectCseLayoutTable
  */
 export function detectLayoutTable(bytes: Uint8Array, at: number): 0x16 | 0x17 | undefined {
   if (!has(bytes, at, 0x48)) return undefined;
@@ -102,6 +148,8 @@ export function detectLayoutTable(bytes: Uint8Array, at: number): 0x16 | 0x17 | 
 /**
  * The full Layout Table at `at`: its partition inventory, its 1.7 checksum and
  * its redundancy flag. Nothing when no table is there.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.layoutTable
  */
 export function layoutTable(bytes: Uint8Array, at: number): LayoutInfo | undefined {
   const version = detectLayoutTable(bytes, at);
@@ -183,7 +231,11 @@ function slotEntry(
 
 // MARK: - Boot Partition Descriptor Tables
 
-/** A descriptor entry's type, as a partition name. */
+/**
+ * A descriptor entry's type, as a partition name.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.bpdtTypeNames
+ */
 export const BPDT_TYPE_NAMES: Readonly<Record<number, string>> = {
   0: "SMIP",
   1: "RBEP",
@@ -229,26 +281,49 @@ export const BPDT_TYPE_NAMES: Readonly<Record<number, string>> = {
   45: "PSEP",
 };
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTSlot */
 export interface BPDTSlot {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTSlot.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTSlot.type */
   readonly type: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTSlot.offset */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTSlot.size */
   readonly size: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTSlot.empty */
   readonly empty: boolean;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo */
 export interface BPDTInfo {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.base */
   readonly base: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.partitionName */
   readonly partitionName: string;
-  /** 1 for IFWI 1.6 and 2.0, 2 for IFWI 1.7. */
+  /**
+   * 1 for IFWI 1.6 and 2.0, 2 for IFWI 1.7.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.version
+   */
   readonly version: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.redundancy */
   readonly redundancy: boolean;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.checksumValid */
   readonly checksumValid: boolean | undefined;
-  /** The header's FIT fields, all absent together when it carries no FIT. */
+  /**
+   * The header's FIT fields, all absent together when it carries no FIT.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.fitMajor
+   */
   readonly fitMajor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.fitMinor */
   readonly fitMinor: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.fitHotfix */
   readonly fitHotfix: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.fitBuild */
   readonly fitBuild: number | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.BPDTInfo.slots */
   readonly slots: readonly BPDTSlot[];
 }
 
@@ -260,6 +335,8 @@ export interface BPDTInfo {
  * version tag, and three twelve-byte blocks each holding zero at four fixed
  * positions — which is what an entry table looks like and what four bytes of
  * coincidence do not.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.firstBpdt
  */
 export function findBpdt(bytes: Uint8Array, low: number, high: number): number | undefined {
   if (low < 0 || high > bytes.length || high - low < 60) return undefined;
@@ -287,6 +364,8 @@ function looksLikeEntryTable(bytes: Uint8Array, at: number): boolean {
 /**
  * The Boot Partition Descriptor Table whose header begins at `base`: the header
  * and its entries, each entry's offset measured from the table's own base.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#IFWI.bpdtTable
  */
 export function bpdtTable(
   bytes: Uint8Array,

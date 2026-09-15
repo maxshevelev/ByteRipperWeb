@@ -44,7 +44,11 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   nonUEFIData: ItemType.file,
 };
 
-/** The `Types::ItemTypes` code this node is. */
+/**
+ * The `Types::ItemTypes` code this node is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIItemClassification.swift#UEFINode.uefiItemType
+ */
 export function itemType(node: UEFINode): number {
   return ITEM_TYPE_OF_KIND[node.kind];
 }
@@ -52,6 +56,8 @@ export function itemType(node: UEFINode): number {
 /**
  * The subtype code, when the node has one. Nothing where there is nothing to
  * say: free space, and the Intel microcode, which is one kind and no more.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIItemClassification.swift#UEFINode.uefiItemSubtype
  */
 export function itemSubtype(node: UEFINode): number | undefined {
   switch (node.kind) {

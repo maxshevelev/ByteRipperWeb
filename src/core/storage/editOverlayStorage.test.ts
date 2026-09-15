@@ -30,6 +30,7 @@ const rangeStrings = (storage: EditOverlayStorage) =>
   storage.changedRanges.map((range) => `${range.start}-${range.end}`);
 
 describe("what saving is allowed to do", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageTests.swift#EditOverlayStorageTests.testCanPatchInPlaceUntilAnEditShiftsAnOffset
   it("may patch in place until an edit shifts an offset", async () => {
     const overwritten = overlayOver([0x00, 0x00, 0x00, 0x00]);
     expect(overwritten.isDirty).toBe(false); // an untouched overlay holds no edit
@@ -53,6 +54,7 @@ describe("what saving is allowed to do", () => {
 });
 
 describe("reading through the overlay", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageTests.swift#EditOverlayStorageTests.testOverwriteAfterLengthChangeStillWorks
   it("overwrites at the current offsets, not the base's", async () => {
     const storage = overlayOver([0x00, 0x01, 0x02, 0x03]);
     await storage.insert(2, new Uint8Array([0xff]));
@@ -60,6 +62,7 @@ describe("reading through the overlay", () => {
     expect(asArray(await readAll(storage))).toEqual([0x99, 0x01, 0xff, 0x02, 0x03]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageTests.swift#EditOverlayStorageTests.testReadMergesOverlayAndBase
   it("merges overlay and base in one window", async () => {
     const storage = overlayOver([0x00, 0x00, 0x00, 0x00, 0x00]);
     await storage.overwrite(1, new Uint8Array([0xee]));
@@ -70,6 +73,7 @@ describe("reading through the overlay", () => {
 });
 
 describe("what counts as changed", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageTests.swift#EditOverlayStorageTests.testAShiftMarksTheWholeTailAsChanged
   it("marks the whole tail after a shift", async () => {
     // One shifted byte marks everything from the insert or delete point to EOF:
     // nothing there holds the content the file held at that offset any more.
@@ -93,6 +97,7 @@ describe("what counts as changed", () => {
 });
 
 describe("a base that changes underneath", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageTests.swift#EditOverlayStorageTests.testABaseTruncatedUnderUsPadsInsteadOfShiftingOffsets
   it("pads a truncated base instead of shifting the offsets after it", async () => {
     // The base is immutable by contract, so a short read means the file was
     // truncated behind the overlay's back. The missing bytes read as zeros
@@ -121,6 +126,7 @@ describe("what the piece table exists for", () => {
   // These pin the properties, not the timings — but the properties are what
   // make the timings possible, and they are what a future change could lose.
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageCostTests.swift#EditOverlayStorageCostTests.testATypedRunCopiesNothingAndStaysCompact
   it("copies nothing for a typed run, and stays compact", async () => {
     const scratch = new RecordingScratchStore();
     const storage = overlayOver(new Uint8Array(200_000).fill(0xff), scratch);
@@ -135,6 +141,7 @@ describe("what the piece table exists for", () => {
     expect(asArray(await storage.read(1100, 2))).toEqual([0xff, 0xff]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageCostTests.swift#EditOverlayStorageCostTests.testDeleteCopiesNothing
   it("copies nothing for a delete either", async () => {
     const scratch = new RecordingScratchStore();
     const storage = overlayOver(countingBytes(100), scratch);
@@ -154,6 +161,7 @@ describe("the materialisation valve", () => {
     budgets: { maxInlineInsert?: number; maxAddedBytes?: number; maxPieces?: number }
   ) => new EditOverlayStorage(storageOver(bytes), { scratch, budgets });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageCostTests.swift#EditOverlayStorageCostTests.testAnOversizedInsertMaterializesOnceAndKeepsOneCopy
   it("folds an oversized insert once and keeps one copy", async () => {
     const scratch = new RecordingScratchStore();
     const storage = withBudgets(new Uint8Array(4096).fill(0x11), scratch, {
@@ -171,6 +179,7 @@ describe("the materialisation valve", () => {
     expect(asArray(await storage.read(199, 3))).toEqual([0x22, 0x33, 0x33]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageCostTests.swift#EditOverlayStorageCostTests.testTheAddBufferIsFoldedIntoTheBaseWhenItGrowsTooLarge
   it("folds the add buffer into the base when it grows too large", async () => {
     const scratch = new RecordingScratchStore();
     const storage = withBudgets(new Uint8Array(1000).fill(0xff), scratch, { maxAddedBytes: 4096 });
@@ -184,6 +193,7 @@ describe("the materialisation valve", () => {
     expect(asArray(await storage.read(6999, 1))).toEqual([0xff]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageCostTests.swift#EditOverlayStorageCostTests.testAScatteredEditPatternCollapsesOnThePieceBudget
   it("collapses a scattered edit pattern on the piece budget", async () => {
     // A scattered pattern collapses once the list gets long, so reads never
     // walk thousands of pieces.
@@ -197,6 +207,7 @@ describe("the materialisation valve", () => {
     expect(storage.size).toBe(10_090);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageCostTests.swift#EditOverlayStorageCostTests.testChangedRangesSurviveAMaterialization
   it("keeps changed ranges across a fold", async () => {
     // Otherwise saving after a long overwrite-only session would write nothing.
     const scratch = new RecordingScratchStore();
@@ -228,6 +239,7 @@ describe("the materialisation valve", () => {
 });
 
 describe("against a plain array", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/EditOverlayStorageTests.swift#EditOverlayStorageTests.testMatchesAPlainArrayOverARandomEditSequence
   it("matches over a random edit sequence", async () => {
     // The piece table's arithmetic has many boundary cases, and this is the
     // cheapest way to be sure none of them drifts.

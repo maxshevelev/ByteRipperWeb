@@ -39,6 +39,7 @@ function detailOf(
 }
 
 describe("buildDetail", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testAMicrocodeRowSaysItsFieldsAndItsHeader
   it("says a microcode row's own fields and its header", () => {
     const detail = detailOf(
       [{ type: FIT.microcodeType, target: MICROCODE }],
@@ -72,6 +73,7 @@ describe("buildDetail", () => {
     expect(value(detail, "Image checksum")?.endsWith(" (Valid)")).toBe(true);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testTheHeaderRowSaysItsCountAndItsSignature
   it("says the header row's count and its signature", () => {
     // The header is a row like any other, but its `Size` counts entries rather
     // than bytes and its `Address` is the signature, not a pointer.
@@ -90,6 +92,7 @@ describe("buildDetail", () => {
     expect(value(detail, "CPUID")).toBeUndefined();
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testAWrongHeaderChecksumIsMarkedAsAProblem
   it("marks a wrong header checksum as the problem it is", () => {
     // The panel colours that one value red — the same contract the UEFI detail
     // has. Whether it checks out is the validator's word about the whole table,
@@ -123,6 +126,7 @@ describe("buildDetail", () => {
     expect(field(unchecked.detail, "Checksum")?.isProblem).toBe(false);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testAWrongMicrocodeChecksumIsMarkedAsAProblem
   it("marks a wrong microcode checksum as a problem, and says what it should be", () => {
     // It is read from the image the row points at, and a wrong one is what a
     // bad edit leaves behind.
@@ -139,10 +143,11 @@ describe("buildDetail", () => {
 
     expect(field(detail, "Image checksum")?.isProblem).toBe(true);
     expect(field(detail, "Image checksum")?.value).toBe(
-      checksumText({ value: stored, valid: false, expected: shouldBe, digits: 4 })
+      checksumText({ value: stored, valid: false, expected: shouldBe, digits: 8 })
     );
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testAPolicyRowSaysItsIndexIORegisters
   it("reads a policy row's Index/IO registers", () => {
     // A policy row at version 0 keeps a descriptor in the first eight bytes,
     // and the detail reads it as such rather than as the pointer it is shaped
@@ -158,6 +163,7 @@ describe("buildDetail", () => {
     expect(value(detail, "Index")).toBe("0x0002");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testARowThatLeadsSomewhereElseSaysWhere
   it("says where and how long for a row that leads somewhere else", () => {
     // Nothing has read at that offset here — no tree was handed over — so there
     // is no "Points at" line to draw. The name of what is there is the tree's
@@ -171,6 +177,7 @@ describe("buildDetail", () => {
     expect(value(detail, "Length")).toBe("0x100 (256)");
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testARowThatPointsNowhereHasNoTargetFields
   it("gives a row that points nowhere no target fields", () => {
     // The entry's own bytes are the whole of what there is to say.
     const detail = detailOf([{ type: FIT.emptyType, address: 0 }]);
@@ -180,6 +187,7 @@ describe("buildDetail", () => {
     expect(value(detail, "Index register")).toBeUndefined();
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDetailTests.swift#FITDetailTests.testAnEmptyDetailSaysNothing
   it("says nothing when there is no row to speak of", () => {
     expect(EMPTY_DETAIL.fields).toEqual([]);
     expect(EMPTY_DETAIL.title).toBe("");

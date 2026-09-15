@@ -11,6 +11,7 @@ import { BYTES_PER_ROW, HexLayout, wordSizeTitle } from "@/render/hexGrid/hexLay
 const layout = (overrides: { wordSize?: number; offsetColumnChars?: number } = {}) =>
   new HexLayout({ charWidth: 8, rowHeight: 17, ...overrides });
 
+// @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testDerivedMetrics
 describe("derived metrics", () => {
   it("are what the character width implies", () => {
     const l = layout();
@@ -31,6 +32,7 @@ describe("derived metrics", () => {
 });
 
 describe("word size", () => {
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testWordSizeMetrics
   it("packs a word's bytes and spaces the words", () => {
     // Word of 2: 4 words per group, 3 word gaps.
     const w2 = layout({ wordSize: 2 });
@@ -54,12 +56,14 @@ describe("word size", () => {
     expect(w8.contentWidth).toBe(520);
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testWordSizeInvalidFallsBackToOne
   it("falls back to one byte for anything else", () => {
     expect(layout({ wordSize: 3 }).wordSize).toBe(1);
     expect(layout({ wordSize: 16 }).wordSize).toBe(1);
     expect(layout({ wordSize: 0 }).wordSize).toBe(1);
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testWordSizeGroupsBytesWithinAWord
   it("groups bytes within a word", () => {
     const w4 = layout({ wordSize: 4 });
     // Bytes of one word are packed: no gap between them.
@@ -72,6 +76,7 @@ describe("word size", () => {
     expect(w4.hexByteX(8)).toBe(w4.hexByteX(0) + w4.groupWidth + w4.betweenGroupsGap);
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testWordSizeKeepsRowsAndOffsets
   it("leaves rows and offsets alone — the grouping is display only", () => {
     const w4 = layout({ wordSize: 4 });
     expect(w4.rowCount(16)).toBe(2);
@@ -86,6 +91,7 @@ describe("word size", () => {
 });
 
 describe("rows", () => {
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testRowCount
   it("always leaves somewhere for the caret at EOF", () => {
     const l = layout();
     expect(l.rowCount(0)).toBe(1); // empty → one placeholder row
@@ -99,6 +105,7 @@ describe("rows", () => {
     expect(l.totalHeight(16)).toBe(34);
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testByteOffsetAndRowColumnRoundTrip
   it("round-trips an offset through row and column", () => {
     const l = layout();
     expect(l.byteOffset(1, 3)).toBe(19);
@@ -149,12 +156,14 @@ describe("virtualisation", () => {
     expect(l.visibleRowRange(0, 0)).toEqual({ first: 0, end: 0 });
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testRowFrame
   it("frames a row", () => {
     expect(layout().rowFrame(2)).toEqual({ x: 0, y: 34, width: 632, height: 17 });
   });
 });
 
 describe("hit testing", () => {
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testHitTestHexCells
   it("finds the hex cells", () => {
     const l = layout();
     expect(l.hitTest(92, 0, 10)).toEqual({ row: 0, column: { kind: "hex", column: 0 } });
@@ -168,6 +177,7 @@ describe("hit testing", () => {
     expect(l.hitTest(20, 0, 10)).toEqual({ row: 0, column: { kind: "offset" } });
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testHitTestMisses
   it("misses outside the content", () => {
     const l = layout();
     expect(l.hitTest(700, 0, 10)).toBeUndefined(); // the right padding
@@ -194,6 +204,7 @@ describe("hit testing", () => {
     });
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testWordSizeHitTestTracksPackedWords
   it("tracks packed words", () => {
     const w4 = layout({ wordSize: 4 });
     expect(w4.hitTest(w4.hexByteX(3), 0, 10)).toEqual({
@@ -214,6 +225,7 @@ describe("hit testing", () => {
 describe("drag selection", () => {
   // A byte joins the selection when the pointer passes its cell centre, not
   // when it enters the next byte's cell.
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testDragEndOffsetTracksByteCentres
   it("tracks byte centres", () => {
     const l = layout();
     // Before byte 0's centre (92 + 8 = 100) the end is the row start.
@@ -228,6 +240,7 @@ describe("drag selection", () => {
     expect(l.dragEndOffset(300, 0, 10)).toBe(9);
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testDragEndOffsetSelectsLastByteOfRow
   it("selects the row's last byte while the pointer is still over it", () => {
     const l = layout();
     expect(l.dragEndOffset(460, 0, 10)).toBe(15);
@@ -258,6 +271,7 @@ describe("drag selection", () => {
     expect(l.dragEndOffset(-1, 0, 10)).toBeUndefined();
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testDragEndOffsetTracksPackedWords
   it("uses the bytes' own centres inside a packed word, not the word's edge", () => {
     const w4 = layout({ wordSize: 4 });
     expect(w4.dragEndOffset(147, 0, 10)).toBe(3);

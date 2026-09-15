@@ -94,6 +94,7 @@ describe("undo over the partition", () => {
 describe("an edit under the cuts", () => {
   // A cut travels with the content — which is the whole difference between a
   // cut and a bookmark.
+  // @upstream ByteRipperTests/SegmentStoreTests.swift#SegmentStoreTests.testAnInsertBeforeACutMovesIt
   it("moves a cut that the insert came before", () => {
     applySegments("a", (partition) => partition.addCut(16));
 

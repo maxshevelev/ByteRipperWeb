@@ -20,6 +20,10 @@
  *   browser fire a scroll event there, and mirroring that back would be a loop.
  *   The pane filters those itself (`PaneScroller`), because only it knows what
  *   it last set — so a move made through `moveTo` is never reported back.
+ * - **A pane fitting itself is not a scroll either.** A resize, a file that
+ *   grows or shrinks, a font change: the pane settles under the position the
+ *   panes share, and the other pane is not told. Reported, the shorter file's
+ *   clamp at its own end would drag the longer one back to it.
  *
  * Positions are in content pixels, not the elements' own offsets: a file taller
  * than a browser lays out scrolls a scaled track, and two panes with different
@@ -80,13 +84,88 @@ export interface LinkedScroller {
 export class ScrollLink {
   private readonly panes = new Map<string, LinkedScroller>();
 
+  /**
+   * The position the panes share: where a pane was last *taken* — by the user's
+   * scroll or by a navigation — in content pixels, with the row height it was
+   * measured at.
+   *
+   * It is the only position there is. Every other move a pane makes — a resize,
+   * its file growing or shrinking under an edit or a revert, a font change — is
+   * that pane fitting itself back under this position as far as its own file
+   * reaches, never a new position handed to the other pane. That is what keeps
+   * two panes from drifting apart: the one place they may disagree is past the
+   * end of the shorter file, and the moment it reaches that far again it is
+   * level again.
+   *
+   * Kept when the last pane leaves, so a pane whose file is replaced — which
+   * remounts it — comes back where it was; {@link forget} drops it when a pane
+   * is closed on purpose.
+   */
+  private shared:
+    | { readonly top: number; readonly left: number; readonly rowHeight: number }
+    | undefined;
+
+  /**
+   * Joins a pane to the link. Joining is not a scroll: the pane comes to where
+   * the panes already are, and nothing already open moves to meet it — the
+   * comparison opens in lock-step from the position the reader was at.
+   *
+   * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.isSyncArmed
+   * @upstream-differs every pane that joins is aligned, not only the second one on the first layout
+   */
   register(id: string, scroller: LinkedScroller): () => void {
     this.panes.set(id, scroller);
+    this.align(scroller);
     this.announce();
     return () => {
-      this.panes.delete(id);
+      if (this.panes.get(id) === scroller) this.panes.delete(id);
       this.announce();
     };
+  }
+
+  /**
+   * A pane is being closed on purpose, not remounted: when it is the last one,
+   * the next file opens at its top rather than at where this one was.
+   */
+  forget(id: string): void {
+    for (const other of this.panes.keys()) if (other !== id) return;
+    this.shared = undefined;
+  }
+
+  /**
+   * A pane's extent or its measure changed: it goes back under the shared
+   * position, as far as its file reaches, and reports nothing. Returns false
+   * when there is no shared position to go back to — nothing has scrolled yet,
+   * or the pane is not laid out — so the pane can decide for itself.
+   */
+  settle(id: string): boolean {
+    const pane = this.panes.get(id);
+    if (pane === undefined || this.shared === undefined || pane.rowHeight() <= 0) return false;
+    this.align(pane);
+    this.announce();
+    return true;
+  }
+
+  /** Moves a pane under the shared position, clamped to its own extent. */
+  private align(pane: LinkedScroller): void {
+    const shared = this.shared;
+    const rowHeight = pane.rowHeight();
+    if (shared === undefined || rowHeight <= 0) return;
+    // The same rows, whatever each pane is measured at now: a font change
+    // re-lays the panes out one at a time, and pixels only stand for content at
+    // the row height they were taken at.
+    const top =
+      shared.rowHeight === rowHeight ? shared.top : (shared.top / shared.rowHeight) * rowHeight;
+    const extent = pane.extent();
+    const target = mirroredScroll(
+      { top, left: shared.left },
+      { rowHeight },
+      { rowHeight, maxTop: extent.maxTop, maxLeft: extent.maxLeft }
+    );
+    if (target === undefined) return;
+    const current = pane.position();
+    if (current.top === target.top && current.left === target.left) return;
+    pane.moveTo(target);
   }
 
   /**
@@ -116,6 +195,9 @@ export class ScrollLink {
    *
    * Rounded outward: a row half on screen is a row the user can see, and the
    * band should cover it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.visibleByteRange
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onVisibleRangeChanged
    */
   visibleRange(id: string, bytesPerRow: number): { start: number; end: number } | undefined {
     const pane = this.panes.get(id);
@@ -137,6 +219,11 @@ export class ScrollLink {
    * by half a screen.
    *
    * Nothing here touches the caret: this is a way of looking somewhere.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectMinimapOffset
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.trackMinimapViewport
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateMinimapViewports
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapViewports
    */
   scrollToOffset(
     id: string,
@@ -159,27 +246,22 @@ export class ScrollLink {
     this.report(id);
   }
 
-  /** Called when a pane has scrolled. Mirrors it to the others. */
+  /**
+   * Called when a pane has scrolled. Mirrors it to the others.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHexViewportChanged
+   */
   report(id: string): void {
-    this.announce();
     const source = this.panes.get(id);
-    if (source === undefined || this.panes.size < 2) return;
-
-    const position = source.position();
-    const rowHeight = source.rowHeight();
-    for (const [otherId, other] of this.panes) {
-      if (otherId === id) continue;
-      const extent = other.extent();
-      const target = mirroredScroll(
-        position,
-        { rowHeight },
-        { rowHeight: other.rowHeight(), maxTop: extent.maxTop, maxLeft: extent.maxLeft }
-      );
-      if (target === undefined) continue;
-      const current = other.position();
-      if (current.top === target.top && current.left === target.left) continue;
-      other.moveTo(target);
+    const rowHeight = source?.rowHeight() ?? 0;
+    if (source !== undefined && rowHeight > 0) {
+      const position = source.position();
+      this.shared = { top: position.top, left: position.left, rowHeight };
+      for (const [otherId, other] of this.panes) {
+        if (otherId !== id) this.align(other);
+      }
     }
+    this.announce();
   }
 }
 

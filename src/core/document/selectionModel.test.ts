@@ -18,6 +18,7 @@ import { MAX_REPRESENTABLE_SIZE } from "@/core/limits";
 
 /** Ported from `SelectionModelTests.swift`. */
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SelectionModelTests.swift#SelectionModelTests.testConstruction
 describe("a selection can never point outside its file", () => {
   const cases: {
     name: string;
@@ -100,6 +101,7 @@ describe("a selection can never point outside its file", () => {
   }
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SelectionModelTests.swift#BlockRangeTests.testConstruction
 describe("a block range validates instead of clamping", () => {
   // Except a length, which is clamped to EOF the way the Select Block dialog
   // needs it to be.

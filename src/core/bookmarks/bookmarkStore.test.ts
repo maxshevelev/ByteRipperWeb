@@ -29,6 +29,7 @@ beforeEach(() => {
 const rows = (of: BookmarkStore = store) => of.bookmarks.map((mark) => mark.row);
 
 describe("a bookmark marks a row, not a byte", () => {
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testRowContainingSnapsToRowStart
   it("snaps an offset to its row's start", () => {
     expect(rowContaining(0)).toBe(0);
     expect(rowContaining(ROW - 1)).toBe(0);
@@ -36,6 +37,7 @@ describe("a bookmark marks a row, not a byte", () => {
     expect(rowContaining(ROW * 3 + 7)).toBe(ROW * 3);
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTwoOffsetsInOneRowAreOneBookmark
   it("makes two offsets in one row one bookmark", () => {
     store.add(4);
     store.add(9);
@@ -51,24 +53,28 @@ describe("adding, naming and removing", () => {
     expect(rows()).toEqual([]);
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testAddNamesAnUnmarkedRowAndRenamesAMarkedOne
   it("names an unmarked row and renames a marked one", () => {
     expect(store.add(ROW, "first").name).toBe("first");
     expect(store.add(ROW, "second").name).toBe("second");
     expect(rows()).toEqual([ROW]);
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testANameIsStoredTrimmed
   it("stores a name trimmed, and treats whitespace as unnamed", () => {
     expect(normalizeBookmarkName("  header  ")).toBe("header");
     expect(store.add(0, "  header  ").name).toBe("header");
     expect(store.add(ROW, "   ").name).toBe("");
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testRenameOnlyTouchesAMarkedRow
   it("renames only a row that carries a mark", () => {
     expect(store.rename(0, "nope")).toBeUndefined();
     store.add(0);
     expect(store.rename(0, "yes")?.name).toBe("yes");
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testRemoveReportsWhetherThereWasAMark
   it("reports whether there was a mark to remove", () => {
     expect(store.remove(0)).toBe(false);
     store.add(0);
@@ -80,6 +86,7 @@ describe("adding, naming and removing", () => {
     expect(bookmarkDisplayName({ row: 0x1234, name: "vector table" })).toBe("vector table");
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testBookmarksStaySortedByRow
   it("keeps the list sorted by row", () => {
     for (const row of [ROW * 5, 0, ROW * 2, ROW * 9]) store.add(row);
     expect(rows()).toEqual([0, ROW * 2, ROW * 5, ROW * 9]);
@@ -105,6 +112,7 @@ describe("adding, naming and removing", () => {
     expect(reported).toBe(0);
   });
 
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testRowsInRange
   it("lists the marked rows in a range", () => {
     for (const row of [0, ROW * 2, ROW * 6]) store.add(row);
     expect([...store.rowsIn(ROW, ROW * 6)].sort((a, b) => a - b)).toEqual([ROW * 2]);
@@ -119,6 +127,7 @@ describe("dragging a mark", () => {
     return made;
   };
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testAMoveCarriesTheNameAndReportsWhereItLanded
   it("carries the name and reports where it landed", () => {
     store.add(0x10, "EC table");
     const changed: number[] = [];
@@ -130,11 +139,14 @@ describe("dragging a mark", () => {
     expect(changed).toEqual([0x10, 0x40]);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testAMoveSnapsToTheTargetRow
   it("snaps to the target row", () => {
     // The drag reports whatever offset the pointer is over.
     expect(marked([0]).move(0x8, 0x4b, 0x100)).toBe(0x40);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testGoingDownAMarkJumpsTheWholeRunOfMarkedRows
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testDraggingOntoAMarkedRowJumpsPastIt
   it("jumps past a marked row, and past a whole run of them", () => {
     const one = marked([0x00, 0x20]);
     expect(one.move(0x00, 0x20, 0x100)).toBe(0x30);
@@ -145,12 +157,14 @@ describe("dragging a mark", () => {
     expect(run.bookmarks.map((mark) => mark.row)).toEqual([0x20, 0x30, 0x40, 0x50]);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testAMarkedRowIsJumpedOverGoingUp
   it("jumps a marked row going up", () => {
     const up = marked([0x10, 0x40]);
     expect(up.move(0x40, 0x10, 0x100)).toBe(0x00);
     expect(up.bookmarks.map((mark) => mark.row)).toEqual([0x00, 0x10]);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testAMarkWithNoRoomBeyondStopsBeforeTheObstacle
   it("stops before an obstacle with nowhere to jump to", () => {
     // Occupied to the end of the file: the mark travels as far as the pointer
     // took it rather than leaving the file or swallowing what is in its way.
@@ -159,12 +173,14 @@ describe("dragging a mark", () => {
     expect(blocked.bookmarks.map((mark) => mark.row)).toEqual([0x10, 0x20, 0x30]);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testAMarkStopsBeforeTheObstacleGoingUp
   it("stops before the obstacle going up", () => {
     const blocked = marked([0x00, 0x10, 0x30]);
     expect(blocked.move(0x30, 0x10, 0x100)).toBe(0x20);
     expect(blocked.bookmarks.map((mark) => mark.row)).toEqual([0x00, 0x10, 0x20]);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testAMarkWithNoRoomEitherSideStaysPut
   it("stays put when the obstacle leaves no room at all", () => {
     // 0x10 is taken, 0x00 above it is taken, and there is no row between 0x10
     // and the mark's own 0x20 to stop on.
@@ -173,10 +189,12 @@ describe("dragging a mark", () => {
     expect(boxed.bookmarks.map((mark) => mark.row)).toEqual([0x00, 0x10, 0x20]);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testATargetPastTheLastRowIsClamped
   it("clamps a target past the last row the pane draws", () => {
     expect(marked([0x00]).move(0x00, 0x9000, 0x70)).toBe(0x70);
   });
 
+  // @upstream ByteRipperTests/BookmarkDragTests.swift#BookmarkDragTests.testMovingNothingAndMovingNowhereBothReportNothing
   it("reports nothing for moving nothing, or moving nowhere", () => {
     const one = marked([0x20]);
     expect(one.move(0x00, 0x40, 0x100)).toBeUndefined();

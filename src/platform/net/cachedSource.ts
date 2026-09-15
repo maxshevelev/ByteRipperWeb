@@ -26,6 +26,9 @@
  * copy is the best there is; a 404 means the URL has moved and no amount of
  * waiting helps. A panel that showed one message for all three would be telling
  * a bench to keep pressing a button that cannot work.
+ *
+ * @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.Failure
+ * @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.Outcome
  */
 export type RemoteFailure =
   /** The request never got an answer: no network, or it was refused outright. */
@@ -82,16 +85,26 @@ export function remoteFailureMessage(failure: RemoteFailure): string {
   }
 }
 
+/** @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.Status */
 export interface FetchedBody {
   readonly text: string;
-  /** When these bytes were fetched, so the interface can say how old they are. */
+  /**
+   * When these bytes were fetched, so the interface can say how old they are.
+   *
+   * @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.Status.changedAt
+   * @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.status
+   */
   readonly fetchedAt: number;
   /** True when the network was not reached and this came out of the cache. */
   readonly fromCache: boolean;
 }
 
 export interface RemoteSource {
-  /** The body, from the cache while it is fresh and from the network otherwise. */
+  /**
+   * The body, from the cache while it is fresh and from the network otherwise.
+   *
+   * @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.value
+   */
   body(options?: { readonly signal?: AbortSignal }): Promise<FetchedBody>;
 }
 
@@ -102,6 +115,10 @@ const CACHE_NAME = "byteripper-databases";
 /** Where the fetch date is kept, since a Response carries no date of our own. */
 const FETCHED_AT = "x-byteripper-fetched-at";
 
+/**
+ * @upstream Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened
+ * @upstream-differs a Cache API body with a 24-hour lifetime and a stale fallback, rather than an actor revalidating daily with an ETag
+ */
 export function remoteSource(url: string, lifetime = CACHE_LIFETIME_MS): RemoteSource {
   let inFlight: Promise<FetchedBody> | undefined;
 

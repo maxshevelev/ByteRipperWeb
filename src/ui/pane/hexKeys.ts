@@ -33,6 +33,14 @@ export interface HexKeyEvent {
 
 export type KeyboardPlatform = "apple" | "other";
 
+/**
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexEditorDelegate
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexEditorDelegate.hexEditor
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexEditorDelegate.hexEditorDeleteForward
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexEditorDelegate.hexEditorDeleteBackward
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexEditorDelegate.hexEditorSelectAll
+ * @upstream-differs a key resolves to a command the pane runs, rather than a delegate call
+ */
 export type HexCommand =
   /** A hex digit typed into the hex column. */
   | { readonly kind: "hexDigit"; readonly digit: number }
@@ -60,6 +68,8 @@ export type HexCommand =
   | { readonly kind: "toggleMinimap" }
   /** Mark the caret's row, or unmark it (§20.3). */
   | { readonly kind: "toggleBookmark" }
+  /** Edit the mark on the caret's row, its address and its name (§20.3). */
+  | { readonly kind: "editBookmark" }
   /** Shift+F10 or the Menu key: the platform's ask for a context menu. */
   | { readonly kind: "contextMenu" }
   | { readonly kind: "findNext" }
@@ -88,8 +98,32 @@ export function hasPrimaryModifier(event: HexKeyEvent, platform: KeyboardPlatfor
 }
 
 /**
+ * Whether a press in the dump is the one that opens its context menu: the
+ * secondary button anywhere, and Control with the primary button on a Mac,
+ * where that is what a right-click is on a one-button trackpad.
+ *
+ * Any other button that is not the primary one is not a click in the dump
+ * either, so it is answered the same way: the press does not move the caret.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.rightMouseDown
+ * @upstream-differs a browser delivers the press as a pointer event before the context menu, where AppKit sends a right press its own event
+ */
+export function isContextClick(
+  event: { readonly button: number; readonly ctrlKey: boolean },
+  platform: KeyboardPlatform
+): boolean {
+  if (event.button !== 0) return true;
+  return platform === "apple" && event.ctrlKey;
+}
+
+/**
  * The command a keystroke means, or `undefined` to let it through to the
  * browser — which is the right answer for everything this grid does not claim.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.scrollViewportByPage
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.scrollViewportToTop
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.scrollViewportToBottom
+ * @upstream-differs Home, End and the page keys follow the browser's editors (see the file's header)
  */
 export function resolveHexKey(
   event: HexKeyEvent,
@@ -119,7 +153,8 @@ export function resolveHexKey(
         return { kind: "toggleMinimap" };
       case "d":
       case "D":
-        return { kind: "toggleBookmark" };
+        // ⇧⌘D edits the row's mark; ⌘D marks and names it, or unmarks it.
+        return extend ? { kind: "editBookmark" } : { kind: "toggleBookmark" };
       case "g":
       case "G":
         // The other spelling of Find Next, and Shift for the other direction.

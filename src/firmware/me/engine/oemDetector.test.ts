@@ -80,20 +80,24 @@ const detect = (options: Partial<Parameters<typeof oemCustomized>[0]>) =>
   });
 
 describe("the partition scan", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testUTOKInFPTInventoryIsOEM
   it("counts a non-empty UTOK in the $FPT", () => {
     expect(detect({ fpt: fpt([partition("UTOK", 0x1000, 0x100)]) })).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testRealOEMPInFPTInventoryIsOEM
   it("counts a real OEMP in the $FPT", () => {
     expect(detect({ fpt: fpt([partition("OEMP", 0x1000, 0x100)]) })).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testOEMPPlaceholderInFPTInventoryIsNotOEM
   it("does not count an OEMP that opens with the placeholder", () => {
     const bytes = live();
     bytes.set(placeholder(), 0x1000);
     expect(detect({ fpt: fpt([partition("OEMP", 0x1000, 0x100)]), bytes })).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testErasedUTOKHeadIsNotOEM
   it("does not count a UTOK whose head is erased", () => {
     expect(
       detect({
@@ -103,6 +107,7 @@ describe("the partition scan", () => {
     ).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testUTOKInBootBPDTInventoryIsOEM
   it("counts a UTOK inside a boot partition's table", () => {
     expect(
       detect({
@@ -116,22 +121,26 @@ describe("the partition scan", () => {
 });
 
 describe("the oem.key module", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testRealOemKeyModuleIsSigned
   it("counts a real key", () => {
     expect(detect({ codePartition: codePartition(), baseOffset: 0x1000 })).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testPlaceholderOemKeyModuleIsNotSigned
   it("does not count the placeholder key", () => {
     const bytes = live();
     bytes.set(placeholder(), 0x1800);
     expect(detect({ codePartition: codePartition(), bytes, baseOffset: 0x1000 })).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testOemKeyOutsideRegionIsNotSigned
   it("does not count a key whose body lies past the region", () => {
     expect(detect({ codePartition: codePartition(0xa000), baseOffset: 0x1000 })).toBe(false);
   });
 });
 
 describe("a stock image", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/OEMDetectorTests.swift#OEMDetectorTests.testStockWithNoOEMFactsIsNotOEM
   it("reads false with no OEM facts at all", () => {
     expect(detect({ fpt: fpt([]), bootPartitions: [] })).toBe(false);
   });

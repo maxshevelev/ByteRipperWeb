@@ -154,6 +154,8 @@ const writesOf = <T>(edit: FITEdit<T>) => {
 };
 
 describe("the file the user picked", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAFileThatIsNotMicrocodeIsRefused
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAFileThatIsNotMicrocodeIsRefusedWithoutWriting
   it("refuses a file that is not microcode", () => {
     expect(readPickedMicrocode(new Uint8Array(0x100).fill(0x5a))).toEqual({
       ok: false,
@@ -165,6 +167,7 @@ describe("the file the user picked", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAMicrocodeWithABrokenChecksumIsRefused
   it("refuses a microcode with a broken checksum", () => {
     // Every dword of a microcode image sums to zero. One that does not is not
     // going to be loaded by anything.
@@ -177,6 +180,7 @@ describe("the file the user picked", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAGoodMicrocodeComesBackWithItsHeader
   it("gives a good microcode back with its header", () => {
     const read = readPickedMicrocode(fitMicrocode({ totalSize: 0x180 }));
     if (!read.ok) throw new Error("that should have read as microcode");
@@ -187,6 +191,7 @@ describe("the file the user picked", () => {
 });
 
 describe("where a new component goes", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheComponentGoesAfterTheLastMicrocode
   it("puts it after the last microcode", () => {
     // A microcode run is one block, and a new component goes on the end of it.
     const outcome = outcomeOf(add(newMicrocode(), image()));
@@ -196,6 +201,7 @@ describe("where a new component goes", () => {
     expect(outcome.moved).toBe(0);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheComponentStartsOnASixteenByteBoundary
   it("starts it on a sixteen-byte boundary", () => {
     // Every FIT address is aligned to sixteen, so a component whose size is not
     // a multiple of it leaves a gap in front of the next one.
@@ -207,6 +213,7 @@ describe("where a new component goes", () => {
     expect(outcomeOf(add(newMicrocode(), bytes)).range.start).toBe(0x2110);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheComponentGoesAfterTheHighestMicrocodeNotTheFirstListed
   it("puts it after the highest microcode, not the first listed", () => {
     // Rows are ordered by type, not by address.
     const bytes = fitImage({
@@ -227,6 +234,7 @@ describe("where a new component goes", () => {
     expect(outcome.moved).toBe(0);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAGapInTheRunIsClosedRatherThanSteppedOver
   it("closes a gap in the run rather than stepping over it", () => {
     // The run is laid out again with the new component on the end, so it closes
     // up behind it.
@@ -252,6 +260,7 @@ describe("where a new component goes", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testATableWithNoMicrocodeHasNowhereToPutOne
   it("has nowhere to put one when the table names no microcode", () => {
     // Guessing is how a component lands in the wrong region.
     const bytes = image({ rows: [{ type: FIT.startupACMType, target: 0x3000 }] });
@@ -259,6 +268,7 @@ describe("where a new component goes", () => {
     expect(problemOf(add(newMicrocode(), bytes))).toEqual({ kind: "noMicrocodeToFollow" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testSomethingBehindTheRunStopsItGrowing
   it("will not grow the run over something behind it", () => {
     const bytes = image({ contents: new Map([[0x2100, Uint8Array.of(0x11, 0x22, 0x33, 0x44)]]) });
     const problem = problemOf(add(newMicrocode(), bytes));
@@ -267,6 +277,7 @@ describe("where a new component goes", () => {
     expect(problem.kind === "theRunCannotGrow" ? problem.needed : 0).toBe(0x100);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheRunCannotGrowPastItsElement
   it("will not grow the run past its element", () => {
     // Past its end is another structure, or another flash region.
     const bytes = image();
@@ -288,6 +299,7 @@ describe("where a new component goes", () => {
     expect(problem.kind === "theRunCannotGrow" ? problem.needed : 0).toBe(0x80);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAMicrocodeWithNoParentIsBoundedByTheFile
   it("bounds a microcode with no parent by the file", () => {
     // A microcode found by the raw scan of an image with no volumes in it is a
     // node with no parent, and then there is nothing to bound the run but the
@@ -307,6 +319,7 @@ describe("where a new component goes", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testWhatDidNotChangeIsNotWritten
   it("does not write what did not change", () => {
     // The point of laying the run out again rather than appending to it: the
     // dump does not colour bytes that did not change.
@@ -330,6 +343,8 @@ describe("where a new component goes", () => {
 });
 
 describe("replacing", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testANewRevisionOfAKnownCpuidReplacesItWhereItWas
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testANewerRevisionOfAKnownCpuidReplacesItInPlace
   it("replaces a new revision of a known CPUID where it was", () => {
     // The ordinary reason to open this form. A second row for the same
     // processor is legal, wasteful, and not what anybody meant.
@@ -364,6 +379,7 @@ describe("replacing", () => {
     expect(now?.kind === "microcode" ? now.header.updateRevision : undefined).toBe(0xf1);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testASameSizeReplacementInARunMovesNothing
   it("moves nothing for a same-size replacement in a run", () => {
     // The common case at a bench: a revision bump of the same size.
     const bytes = runOfThree();
@@ -382,6 +398,7 @@ describe("replacing", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testABiggerReplacementMovesTheRunAlong
   it("moves the run along for a bigger replacement", () => {
     const bytes = runOfThree();
     const edit = add(
@@ -401,9 +418,12 @@ describe("replacing", () => {
     expect(after.problems).toEqual([]);
   });
 
-  it("pulls the run up for a smaller replacement", () => {
-    // So the run stays tight and the free space stays at the end where the next
-    // addition can use it.
+  // And a smaller one goes where the old one was too: nothing behind it moves,
+  // the table is not written, and what the old one covered past the new one's
+  // end is erased. A vendor's gaps in a run are its own — packing them away
+  // would move components and rows nobody asked to change.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testASmallerReplacementStaysWhereTheOldOneWas
+  it("keeps a smaller replacement where the old one was", () => {
     const bytes = runOfThree();
     const edit = add(
       fitMicrocode({ signature: 0x0009_06ea, revision: 0xf1, totalSize: 0x80 }),
@@ -411,14 +431,48 @@ describe("replacing", () => {
     );
     const edited = applying(edit, bytes);
     const after = reportOf(edited);
+    const outcome = outcomeOf(edit);
 
-    expect(outcomeOf(edit).moved).toBe(1);
-    expect(addressesIn(after)).toEqual([0xffff_2000, 0xffff_2100, 0xffff_2180]);
-    // The bytes the run gave up are erased.
-    expect([...edited.subarray(0x2280, 0x2300)]).toEqual([...new Uint8Array(0x80).fill(0xff)]);
+    expect(outcome.moved).toBe(0);
+    expect(outcome.range).toEqual({ start: 0x2100, end: 0x2180 });
+    const writes = writesOf(edit);
+    expect(writes).toHaveLength(1); // the component only, not the table
+    expect(writes[0]?.offset ?? 0).toBeGreaterThanOrEqual(0x2100);
+    expect((writes[0]?.offset ?? 0) + (writes[0]?.bytes.length ?? 0)).toBeLessThanOrEqual(0x2200);
+    expect(addressesIn(after)).toEqual([0xffff_2000, 0xffff_2100, 0xffff_2200]);
+    // What the old one covered past the new one's end is erased.
+    expect([...edited.subarray(0x2180, 0x2200)]).toEqual([...new Uint8Array(0x80).fill(0xff)]);
+    // The microcode behind it has not moved.
+    expect([...edited.subarray(0x2200, 0x2300)]).toEqual([...bytes.subarray(0x2200, 0x2300)]);
     expect(after.problems).toEqual([]);
   });
 
+  // A run laid out with gaps keeps them: replacing the first component with one
+  // of the same size moves nothing behind it, however far away it is.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAReplacementKeepsTheGapsInARun
+  it("keeps the gaps in a run", () => {
+    const bytes = fitImage({
+      rows: [
+        { type: FIT.microcodeType, target: 0x2000 },
+        { type: FIT.microcodeType, target: 0x3000 },
+      ],
+      contents: new Map([
+        [0x2000, fitMicrocode({ signature: 0x0008_06ea, totalSize: 0x100 })],
+        [0x3000, fitMicrocode({ signature: 0x0009_06ea, totalSize: 0x100 })],
+      ]),
+    });
+    const edit = add(
+      fitMicrocode({ signature: 0x0008_06ea, revision: 0xf1, totalSize: 0x100 }),
+      bytes
+    );
+    const after = reportOf(applying(edit, bytes));
+
+    expect(outcomeOf(edit).moved).toBe(0);
+    expect(addressesIn(after)).toEqual([0xffff_2000, 0xffff_3000]);
+    expect(after.problems).toEqual([]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAReplacementThatWouldLeaveTheElementIsRefused
   it("refuses a replacement that would leave the element", () => {
     const bytes = runOfThree();
     const padding = makeNode({
@@ -443,6 +497,7 @@ describe("replacing", () => {
     expect(problem.kind === "theRunCannotGrow" ? problem.needed : 0).toBe(0x200);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAReplacementThatWouldWriteOverSomethingIsRefused
   it("refuses a replacement that would write over something", () => {
     // Bytes belonging to something else are not room, whatever the element's
     // bounds say.
@@ -457,6 +512,7 @@ describe("replacing", () => {
     expect(problem.kind === "theRunCannotGrow" ? problem.needed : 0).toBe(0x100);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAnUnknownCpuidIsAdded
   it("adds an unknown CPUID rather than replacing", () => {
     const bytes = image();
     const edit = add(fitMicrocode({ signature: 0x0009_06ea, totalSize: 0x100 }), bytes);
@@ -467,6 +523,7 @@ describe("replacing", () => {
     expect(tableEntries(tableOf(applying(edit, bytes)))).toHaveLength(2);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheRowForTheMatchingPlatformIsTheOneReplaced
   it("replaces the row for the matching platform", () => {
     // One CPUID can have a row per platform mask, and they are not
     // interchangeable.
@@ -490,6 +547,7 @@ describe("replacing", () => {
     expect(outcome.range.start).toBe(0x2100);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAFileThatIsNotMicrocodeIsRefusedBeforeAnythingIsPlanned
   it("refuses a file that is not microcode before anything is planned", () => {
     expect(problemOf(add(new Uint8Array(0x100).fill(0x5a), image()))).toEqual({
       kind: "notMicrocode",
@@ -498,6 +556,7 @@ describe("replacing", () => {
 });
 
 describe("replacing a specific row", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testReplacingARowIsByTheRowNotTheCpuid
   it("goes by the row and not the CPUID", () => {
     // A component for a processor the table does not name goes into the row it
     // was asked for, and the table keeps the same number of rows — where the
@@ -516,6 +575,7 @@ describe("replacing a specific row", () => {
     expect(now?.kind === "microcode" ? now.header.processorSignature : undefined).toBe(0x0009_06ea);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testReplacingAnIndexThatIsNotAMicrocodeIsRefused
   it("refuses an index that is not a microcode row", () => {
     const bytes = image();
     const other = fitMicrocode({ signature: 0x0009_06ea, totalSize: 0x100 });
@@ -526,6 +586,8 @@ describe("replacing a specific row", () => {
 });
 
 describe("removing", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testRemovingAMicrocodeClosesUpTheRun
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testRemovingAMicrocodeClosesUpTheRunAndTheTable
   it("closes up the run", () => {
     // A hole in the middle of it is not what a bench wants back: the body goes,
     // what follows moves up into the space, and the rows that name it follow.
@@ -544,6 +606,7 @@ describe("removing", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testRemovingBringsTheCountDownAndErasesTheTail
   it("brings the count down and erases the tail", () => {
     const bytes = runOfThree();
     const before = tableOf(bytes);
@@ -560,6 +623,7 @@ describe("removing", () => {
     ]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testRemovingTheLastOfTheRunJustErasesIt
   it("just erases the last of the run", () => {
     const bytes = runOfThree();
     const edit = remove(3, bytes);
@@ -573,6 +637,7 @@ describe("removing", () => {
     expect(reportOf(edited).problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testCompactionStopsAtWhatIsNotErased
   it("stops compacting at what is not erased", () => {
     // A component with anything but erase bytes in front of it is not part of
     // this run, and the compaction stops rather than writing over whatever that
@@ -602,6 +667,7 @@ describe("removing", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testWhatMovesUpStaysAlignedToSixteen
   it("keeps what moves up aligned to sixteen", () => {
     const bytes = fitImage({
       rows: [
@@ -624,6 +690,8 @@ describe("removing", () => {
     expect(after.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testRemovingARowThatIsNotMicrocodeIsRefused
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testRemovingARowThatIsNotMicrocodeIsRefused
   it("refuses a row that is not microcode", () => {
     // The extent of an ACM or a policy is not something this tool knows, so the
     // row stays and the bytes it names stay with it.
@@ -641,19 +709,23 @@ describe("removing", () => {
     expect(problemOf(remove(2, bytes))).toEqual({ kind: "notAMicrocodeRow" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheHeaderCannotBeRemoved
   it("refuses the header", () => {
     expect(problemOf(remove(0, image()))).toEqual({ kind: "cannotRemoveTheHeader" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testTheLastMicrocodeCannotBeRemoved
   it("refuses the last microcode", () => {
     // A table without microcode will not boot the machine it came out of.
     expect(problemOf(remove(1, image()))).toEqual({ kind: "cannotRemoveTheLastMicrocode" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testARowThatIsNotThereCannotBeRemoved
   it("refuses a row that is not there", () => {
     expect(problemOf(remove(9, image()))).toEqual({ kind: "noSuchEntry" });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAddingAndRemovingComeBackToWhereItStarted
   it("comes back to where it started after an add and a remove", () => {
     // The table and the run both come back to what they were, and the file has
     // not changed size.

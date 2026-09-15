@@ -31,6 +31,7 @@ import type {
 
 export type FirmwareStatus = "idle" | "parsing" | "ready" | "failed";
 
+/** @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState */
 export interface PaneFirmware {
   readonly status: FirmwareStatus;
   readonly size: number;
@@ -73,6 +74,7 @@ function update(pane: PaneId, patch: Partial<PaneFirmware>): void {
   });
 }
 
+/** @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.uefiState */
 export function firmwareFor(pane: PaneId): PaneFirmware | undefined {
   return firmwareStore.getSnapshot().panes[pane];
 }
@@ -222,7 +224,11 @@ export function openFirmware(pane: PaneId, content: Blob): void {
   held.worker.postMessage({ kind: "openFirmware", id: held.job, content });
 }
 
-/** Opens the pane's document through whichever blob is current. */
+/**
+ * Opens the pane's document through whichever blob is current.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.tree
+ */
 export async function parsePaneFirmware(pane: PaneId): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
@@ -297,6 +303,9 @@ export function askFirmwareDetail(pane: PaneId, path: readonly number[]): void {
  * performs the writes because that is the only way an edit this application
  * makes can be taken back with the same key the user's own typing is. Then the
  * image is parsed again: the tree describes bytes, and these bytes changed.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.fixChecksum
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onFixChecksum
  */
 export async function fixFirmwareChecksum(
   pane: PaneId,
@@ -386,6 +395,11 @@ export async function editPaneFit(
  * Both files cross to the worker as text rather than parsed: parsing belongs
  * with the parser, and this side has no business holding a few thousand lines it
  * never reads.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedMEAnalysis
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.setCachedMEAnalysis
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.cachedMEAnalysis
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.setCachedMEAnalysis
  */
 export function analyzePaneMe(
   pane: PaneId,
@@ -441,6 +455,9 @@ const repairWaiters = new Map<
  * to reach it — but not per byte: typing over a run of bytes is one edit to the
  * reader and would be thirty parses to the worker. Long enough that a burst is
  * one parse, short enough that a panel is never quietly stale.
+ *
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.changeDelay
+ * @upstream-differs 300 ms against 150 ms, measured over a worker round trip rather than an in-process parse
  */
 const RE_PARSE_AFTER = 300;
 
@@ -454,6 +471,9 @@ let reParseTimer: ReturnType<typeof setTimeout> | undefined;
  * has a worker only while a tool has asked for one, so this parses exactly what
  * something is looking at — and the undo of an edit is a change like any other,
  * which is the case a tool re-parsing only after its own edits gets wrong.
+ *
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneEdited
+ * @upstream-differs every pane with a parse is read again as a whole, rather than the bound session being told which range changed
  */
 editStore.subscribe(() => {
   if (reParseTimer !== undefined) clearTimeout(reParseTimer);
@@ -463,6 +483,10 @@ editStore.subscribe(() => {
   }, RE_PARSE_AFTER);
 });
 
+/**
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.invalidate
+ */
 export function closeFirmware(pane: PaneId): void {
   workers[pane]?.worker.terminate();
   delete workers[pane];

@@ -7,7 +7,13 @@ import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
 import { itemType } from "@/firmware/uefi/itemClassification";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
-import { microcodeDate, readMicrocodeHeader } from "@/firmware/uefi/microcodeParser";
+import {
+  microcodeCpuid,
+  microcodeFields,
+  microcodePlatformsText,
+  microcodeProcessorText,
+  readMicrocodeHeader,
+} from "@/firmware/uefi/microcodeParser";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -36,6 +42,9 @@ import { kindLabel } from "@/tools/uefi/uefiTreeDisplay";
  * @param repairs the writes that would put this node's checksums right, or none
  *   when they check out. A repair at a checksum's own offset says that field is
  *   wrong, and its bytes are the value the row quotes as what it should be.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
  */
 export function buildNodeDetail(
   node: UEFINode,
@@ -45,6 +54,33 @@ export function buildNodeDetail(
 ): NodeDetail {
   const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
   const title = node.name.length === 0 ? kindLabel(node.kind) : node.name;
+
+  // An update for more than one processor lists the others in a table of its
+  // own, which reads as the grid it is.
+  if (node.kind === "microcode") {
+    const extended = readMicrocodeHeader(node.header.start, reader)?.extendedTable;
+    if (extended === undefined || extended.signatures.length === 0) {
+      return { title, fields, tables: [] };
+    }
+    const cell = (text: string) => ({ text, tone: "plain" as const });
+    return {
+      title,
+      fields,
+      tables: [
+        {
+          title: "Extended signatures",
+          symbol: "cpu",
+          columns: ["CPUID", "Processor", "Platforms", "Checksum"],
+          rows: extended.signatures.map((signature) => [
+            cell(microcodeCpuid(signature.processorSignature)),
+            cell(microcodeProcessorText(signature.processorSignature)),
+            cell(microcodePlatformsText(signature.platformIDs)),
+            cell(hex(signature.checksum)),
+          ]),
+        },
+      ],
+    };
+  }
 
   // A descriptor says more about itself than a header's worth of fields, and
   // two of the things it says are grids.
@@ -152,18 +188,23 @@ function headerFields(
     }
 
     case "microcode": {
+      // The header type and the loader revision are constants of a valid Intel
+      // microcode, read straight off the bytes. The rest is the reading the FIT
+      // panel gives the microcode an entry points at (`microcodeFields`), so the
+      // two say it in the same words — with the checksum's verdict this panel's
+      // own: the repairs.
       add("Header type", reader.uint32(h), hex);
       const header = readMicrocodeHeader(h, reader);
       if (header !== undefined) {
-        fields.push(field("Update revision", hex(header.updateRevision)));
-        fields.push(field("Date", microcodeDate(header)));
-        fields.push(field("Processor signature", hex(header.processorSignature)));
-        fields.push(checksumRow("Checksum", header.checksum, 8, repairs, h + 0x10));
-        // Checked by the reader but not kept on the validated header.
         add("Loader revision", reader.uint32(h + 0x14), hex);
-        fields.push(field("Platform IDs", hex(header.platformIDs)));
-        fields.push(field("Data size", sizeText(header.dataSize)));
-        fields.push(field("Total size", sizeText(header.totalSize)));
+        const repair = repairs.find((one) => one.offset === h + 0x10);
+        fields.push(
+          ...microcodeFields(
+            header,
+            repair === undefined,
+            repair === undefined ? undefined : littleEndian(repair.bytes)
+          )
+        );
       }
       break;
     }

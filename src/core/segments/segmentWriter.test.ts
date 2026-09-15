@@ -101,6 +101,7 @@ describe("the parts a partition becomes", () => {
 
 describe("the preview shown before anything is written", () => {
   // Upstream asserts `S0 → bios.bin_S0.bin (8 B)` appears in the confirmation.
+  // @upstream ByteRipperTests/SegmentSaveTests.swift#SegmentSaveTests.testSaveAllPreviewsEveryPartWithItsNameAndSize
   it("names every part with its file name and size", () => {
     const preview = previewWrite(partsFor(segmentsOf(16, 8), "bios.bin"));
     expect(preview.lines).toEqual(["S0 → bios.bin_S0.bin (8 B)", "S1 → bios.bin_S1.bin (8 B)"]);
@@ -109,6 +110,7 @@ describe("the preview shown before anything is written", () => {
 
   // Upstream: `testSaveAllConfirmsTheFilesItWouldReplace` — the one
   // confirmation names the files that would be replaced, before the write.
+  // @upstream ByteRipperTests/SegmentSaveTests.swift#SegmentSaveTests.testSaveAllConfirmsTheFilesItWouldReplace
   it("names the files it would replace, and only those", () => {
     const preview = previewWrite(partsFor(segmentsOf(16, 8), "bios.bin"), ["bios.bin_S0.bin"]);
     expect(preview.replacing).toEqual(["bios.bin_S0.bin"]);
@@ -121,6 +123,7 @@ describe("the preview shown before anything is written", () => {
 });
 
 describe("the write", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testEachPartHoldsItsOwnBytes
   it("puts each piece's own bytes under its own name", async () => {
     const storage = storageOver(countingBytes(16));
     const sink = new RecordingSink();
@@ -132,6 +135,7 @@ describe("the write", () => {
     expect(sink.published.get("bios_S1.bin")).toEqual(asArray(countingBytes(8, 8)));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testAPartLargerThanOneChunkIsWrittenWhole
   it("streams a large piece in bounded chunks rather than reading it whole", async () => {
     const storage = storageOver(countingBytes(4096));
     const sink = new RecordingSink();
@@ -152,6 +156,7 @@ describe("the write", () => {
     expect(sink.published.get("part")?.length).toBe(4096);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testProgressEndsAtOne
   it("reports progress over the whole set, not over each part", async () => {
     const storage = storageOver(countingBytes(16));
     const onProgress = vi.fn();
@@ -176,9 +181,36 @@ describe("the write", () => {
   });
 });
 
+describe("a single piece and a file already there", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testASinglePieceWritesTheWholeFile
+  it("writes the whole file as its one piece", async () => {
+    const sink = new RecordingSink();
+
+    await writeParts(
+      [{ start: 0, end: 64, name: "whole.bin" }],
+      storageOver(new Uint8Array(64).fill(0xab)),
+      sink
+    );
+
+    expect([...sink.published.keys()]).toEqual(["whole.bin"]);
+    expect(sink.published.get("whole.bin")).toEqual(new Array(64).fill(0xab));
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testAPartReplacesAnExistingFile
+  it("replaces a file that already has the part's name", async () => {
+    const sink = new RecordingSink();
+    sink.published.set("S0.bin", new Array(8).fill(0xff));
+
+    await writeParts([{ start: 0, end: 8, name: "S0.bin" }], storageOver(countingBytes(8)), sink);
+
+    expect(sink.published.get("S0.bin")).toEqual(asArray(countingBytes(8)));
+  });
+});
+
 describe("all or nothing", () => {
   // The whole of the guarantee: a failure on part three never leaves parts one
   // and two published, looking exactly like a complete set.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testAFailureOnTheLastPartLeavesNothingBehind
   it("publishes nothing when a later part fails", async () => {
     const storage = storageOver(countingBytes(24));
     const sink = new RecordingSink();
@@ -192,6 +224,7 @@ describe("all or nothing", () => {
     expect(sink.published.size).toBe(0);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testACancelMidWriteLeavesNothingBehind
   it("publishes nothing when the write is cancelled part-way", async () => {
     const storage = storageOver(countingBytes(24));
     const sink = new RecordingSink();
@@ -210,6 +243,7 @@ describe("all or nothing", () => {
   // Once every part is staged the commit runs to the end. Upstream measured the
   // alternative: cancelling during the renames published a *prefix* of the set
   // and reported a cancelled write.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testCancellingCannotPublishAPrefixOfTheParts
   it("does not cancel once every part is staged", async () => {
     const storage = storageOver(countingBytes(16));
     const sink = new RecordingSink();
@@ -226,6 +260,7 @@ describe("all or nothing", () => {
   // A short read means the content shrank under us. Publishing the part anyway
   // would put a truncated piece on disk under its own name, with no error at
   // all — upstream measured a 3 MB part coming out 1 MB.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift#SegmentWriterTests.testAShortReadFailsTheWriteInsteadOfPublishingATruncatedPart
   it("refuses a short read rather than publishing a truncated piece", async () => {
     const truncating: ByteStorage = {
       size: 16,

@@ -4,6 +4,7 @@ import { addressString, hexString, parseOffset } from "@/core/text/offsetParser"
 
 /** Ported from `OffsetParserTests.swift`. */
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OffsetParserTests.swift#OffsetParserTests.testParse
 describe("every form the Go To field accepts", () => {
   // A bare hex string with no prefix is the interesting one: `10` is decimal
   // ten, but `1F` and `beef` are hex, in either case.
@@ -37,6 +38,7 @@ describe("every form the Go To field accepts", () => {
   }
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OffsetParserTests.swift#OffsetParserTests.testParse
 describe("and every way it can be refused", () => {
   const refused: [input: string, reason: string][] = [
     // Upstream's ceiling is UInt64.max; ours is Number.MAX_SAFE_INTEGER,
@@ -77,6 +79,7 @@ describe("and every way it can be refused", () => {
 });
 
 describe("formatting", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OffsetParserTests.swift#OffsetParserTests.testHexStringFormatting
   it("writes hex the way upstream does", () => {
     expect(hexString(0)).toBe("0");
     expect(hexString(255)).toBe("ff");

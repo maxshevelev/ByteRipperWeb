@@ -22,14 +22,27 @@
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import { hexAddress } from "@/core/text/hexText";
 
+/** @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#Bookmark */
 export interface Bookmark {
-  /** The row's start offset, always a multiple of {@link BYTES_PER_ROW}. */
+  /**
+   * The row's start offset, always a multiple of {@link BYTES_PER_ROW}.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#Bookmark.row
+   */
   readonly row: number;
-  /** A name; empty means "show the address". */
+  /**
+   * A name; empty means "show the address".
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#Bookmark.name
+   */
   readonly name: string;
 }
 
-/** The row containing `offset`: the offset rounded down to a row boundary. */
+/**
+ * The row containing `offset`: the offset rounded down to a row boundary.
+ *
+ * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.row
+ */
 export function rowContaining(offset: number): number {
   return offset - (offset % BYTES_PER_ROW);
 }
@@ -38,6 +51,8 @@ export function rowContaining(offset: number): number {
  * A name with its surrounding whitespace removed — the form every path stores,
  * so a name typed with a stray space is the same name, and one typed as nothing
  * but spaces is unnamed.
+ *
+ * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#Bookmark.normalized
  */
 export function normalizeBookmarkName(name: string): string {
   return name.trim();
@@ -47,15 +62,19 @@ export function normalizeBookmarkName(name: string): string {
  * What a bookmark is called wherever a name is shown — the list, a tooltip, a
  * screen reader. An unnamed bookmark is not nameless: it is called by where it
  * is, so it shows its address. One place decides this, so every surface agrees.
+ *
+ * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#Bookmark.displayName
  */
 export function bookmarkDisplayName(bookmark: Bookmark): string {
   return bookmark.name.length === 0 ? hexAddress(bookmark.row) : bookmark.name;
 }
 
+/** @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore */
 export class BookmarkStore {
   /** Kept sorted by row. */
   private marks: Bookmark[] = [];
 
+  /** @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.bookmarks */
   get bookmarks(): readonly Bookmark[] {
     return this.marks;
   }
@@ -67,6 +86,8 @@ export class BookmarkStore {
    * consumer repaints exactly that row. Replaying a list through them would
    * repaint the workspace once per mark. The contract is: seed a store nothing
    * is drawing yet.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.seed
    */
   seed(marks: readonly Bookmark[]): void {
     this.marks = [...marks].sort((a, b) => a.row - b.row);
@@ -77,10 +98,16 @@ export class BookmarkStore {
    *
    * A toggle touches one row, and the panes redraw just it instead of every
    * visible row of a 16 MB dump.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.onChange
    */
   onChange: ((row: number) => void) | undefined;
 
-  /** The bookmark on the row containing `offset`, if any. */
+  /**
+   * The bookmark on the row containing `offset`, if any.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.bookmark
+   */
   at(offset: number): Bookmark | undefined {
     const row = rowContaining(offset);
     return this.marks.find((mark) => mark.row === row);
@@ -89,6 +116,8 @@ export class BookmarkStore {
   /**
    * Adds an unnamed bookmark to an unmarked row, removes the one on a marked
    * row. Returns the bookmark when the row is marked after the call.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.toggle
    */
   toggle(offset: number): Bookmark | undefined {
     const row = rowContaining(offset);
@@ -110,6 +139,8 @@ export class BookmarkStore {
    * An already-marked row keeps its one bookmark and takes the new name —
    * marking twice never makes two marks on one row, and the name given here is
    * the one that sticks.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.add
    */
   add(offset: number, name = ""): Bookmark {
     const row = rowContaining(offset);
@@ -132,6 +163,8 @@ export class BookmarkStore {
    * renaming is for a mark that exists, so a caller that means "mark it and
    * call it this" uses {@link add}. An empty name unnames it: it goes back to
    * showing its address.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.rename
    */
   rename(offset: number, name: string): Bookmark | undefined {
     const row = rowContaining(offset);
@@ -146,6 +179,8 @@ export class BookmarkStore {
   /**
    * Removes the mark from a row, reporting whether there was one — so a caller
    * can tell "removed" from "nothing there" without reading the list first.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.remove
    */
   remove(offset: number): boolean {
     const row = rowContaining(offset);
@@ -163,6 +198,8 @@ export class BookmarkStore {
    *
    * The target row is taken as given: the dialog only offers free rows, which
    * is a question about the whole list and so is asked before the edit.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.edit
    */
   edit(from: number, to: number, name: string): Bookmark | undefined {
     const fromRow = rowContaining(from);
@@ -191,6 +228,8 @@ export class BookmarkStore {
    * `lastRow` comes from the view, not from a file size held here: the last row
    * a mark may be dragged to is the last row that pane draws, and only the view
    * knows that.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.move
    */
   move(from: number, to: number, lastRow: number): number | undefined {
     const fromRow = rowContaining(from);
@@ -213,7 +252,11 @@ export class BookmarkStore {
     return landing;
   }
 
-  /** The bookmarked rows in a byte range, for the dump's per-row drawing. */
+  /**
+   * The bookmarked rows in a byte range, for the dump's per-row drawing.
+   *
+   * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.rows
+   */
   rowsIn(start: number, end: number): Set<number> {
     const rows = new Set<number>();
     for (const mark of this.marks) {

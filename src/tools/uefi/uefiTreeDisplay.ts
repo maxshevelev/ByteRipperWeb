@@ -19,7 +19,12 @@ import { ItemType, subtypeName, typeName } from "@/firmware/uefi/uefiTypes";
  * so it is worked out there from the fields that cross.
  */
 
-/** The Type column: the node's item type, in UEFITool's words. */
+/**
+ * The Type column: the node's item type, in UEFITool's words.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.typeText
+ */
 export function typeText(node: UEFINode): string {
   return typeName(itemType(node));
 }
@@ -27,6 +32,8 @@ export function typeText(node: UEFINode): string {
 /**
  * The Subtype column, when there is one. A file and a section are named from
  * the parser's own type tables; every other type reads the generated ones.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.subtypeText
  */
 export function subtypeText(node: UEFINode): string {
   const subtype = itemSubtype(node);
@@ -60,6 +67,12 @@ export interface DisplayNode<Self> {
  * open the outline. A real root stays a row: it is a container the tree opens
  * on demand, and folding it would mean deciding again the moment somebody
  * opened it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.present
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage.title
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage.rows
+ * @upstream-differs the presented image is the returned { title, rows }
  */
 export function present<T extends DisplayNode<T>>(
   roots: readonly T[]
@@ -80,7 +93,39 @@ function isWrapper(kind: string): boolean {
   return kind === "intelImage" || kind === "uefiImage" || kind === "capsule";
 }
 
-/** What the title leads with: the type of the top of the tree. */
+/**
+ * Padding nobody wrote to: erased bytes between structures. The tree leaves
+ * these out unless the reader asks for them — a dump is full of them, and a row
+ * that stands for nothing is a row to scroll past. Padding that holds data
+ * stays, and so does free space inside a volume, which says how much room the
+ * volume has.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.isEmptyPadding
+ */
+export function isEmptyPadding(node: {
+  readonly kind: string;
+  readonly isErased: boolean;
+}): boolean {
+  return node.kind === "padding" && node.isErased;
+}
+
+/**
+ * `nodes` as the tree lists them: every one, or all but the empty padding.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.listed
+ */
+export function listed<T extends { readonly kind: string; readonly isErased: boolean }>(
+  nodes: readonly T[],
+  showsEmptyPadding: boolean
+): readonly T[] {
+  return showsEmptyPadding ? nodes : nodes.filter((node) => !isEmptyPadding(node));
+}
+
+/**
+ * What the title leads with: the type of the top of the tree.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.imageType
+ */
 export function imageType<T extends DisplayNode<T>>(roots: readonly T[]): string {
   const root = roots[0];
   if (root === undefined) return "";
@@ -90,6 +135,8 @@ export function imageType<T extends DisplayNode<T>>(roots: readonly T[]): string
 /**
  * What the tree is, in one line. It counts nothing: the tree is materialized
  * branch by branch as it is opened, so a node count would be a count of clicks.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.summary
  */
 export function summary<T extends DisplayNode<T>>(roots: readonly T[]): string {
   if (roots.length === 0) return "Nothing here looks like a firmware image.";
@@ -108,11 +155,21 @@ export function summary<T extends DisplayNode<T>>(roots: readonly T[]): string {
  * variable is the exception: its decoded name — "BootOrder", "PK" — is what a
  * reader looks for, and many variables share one vendor GUID. A node without a
  * GUID keeps the parser's name, falling back to its kind.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.name
  */
 export function nodeName(
-  node: { readonly kind: string; readonly name: string; readonly guid?: EFIGUID | undefined },
+  node: {
+    readonly kind: string;
+    readonly subtype?: number | undefined;
+    readonly name: string;
+    readonly guid?: EFIGUID | undefined;
+  },
   catalogue: GuidsCatalogue
 ): string {
+  // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
+  // header does — all ones, as a rule — and it names nothing.
+  if (node.kind === "file" && node.subtype === 0xf0) return "Padding file";
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }

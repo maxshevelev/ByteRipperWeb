@@ -2,6 +2,7 @@ import type { DiffEdit } from "@/core/diff/diffEngine";
 import { MatchBitmap, MatchSet, MatchSetBuilder } from "@/core/search/matchSet";
 import { findOne, foldedPattern, SearchCancelled, scanAll } from "@/core/search/searchEngine";
 import {
+  encodingTitle,
   foldingFor,
   parsePattern,
   type SearchEncoding,
@@ -9,7 +10,10 @@ import {
 } from "@/core/search/searchPattern";
 import { type Attempt, attemptEncoding, attemptsFor } from "@/core/search/smartSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
+import { dismissNotice, showNotice, showWrapNotice } from "@/state/noticeStore";
+import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { createStore } from "@/state/store";
+import { createTimeSlicer } from "@/state/timeSlice";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type { JobId, SearchWorkerRequest, SearchWorkerResponse } from "@/workers/protocol";
 
@@ -40,8 +44,18 @@ export interface PaneResults {
   /** True when the last step came round the end of the file. */
   readonly wrapped: boolean;
   readonly matches: MatchSet | undefined;
-  /** In `[0, 1]` while the index is still being built. */
-  readonly indexProgress: number;
+  /**
+   * Whether the pane's results panel is up.
+   *
+   * Only the find bar's results button opens it; the × or the button closes it.
+   * It goes with the set — typing a new pattern, an edit, closing the bar — since
+   * a list of offsets the file no longer has is worse than no list. A new search
+   * leaves it where it is, and it lists that search from then on.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.searchResultsPanelVisible
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.syncSearchResults
+   */
+  readonly resultsShown: boolean;
 }
 
 const NO_RESULTS: PaneResults = {
@@ -50,9 +64,10 @@ const NO_RESULTS: PaneResults = {
   current: undefined,
   wrapped: false,
   matches: undefined,
-  indexProgress: 0,
+  resultsShown: false,
 };
 
+/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request */
 export interface SearchState {
   /**
    * Whether the find bar is on screen.
@@ -75,20 +90,35 @@ export interface SearchState {
   /**
    * Whether the encoding is discovered rather than dictated. On unless turned
    * off, and remembered — upstream keeps it in `UserDefaults`.
+   *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isSmartSearchEnabled
    */
   readonly smart: boolean;
+  /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isCaseSensitive */
   readonly caseSensitive: boolean;
   /** Which pane the bar acts on — the active one. */
   readonly pane: PaneId;
+  /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onError */
   readonly problem: string | undefined;
-  /** Most recent first, no duplicates. */
+  /**
+   * Most recent first, no duplicates.
+   *
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.recent
+   * @upstream-differs kept for this tab
+   */
   readonly history: readonly string[];
   readonly results: Readonly<Record<PaneId, PaneResults>>;
 }
 
+/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartSearchKey */
 const SMART_STORAGE_KEY = "byteripper.smartSearch";
 
-/** On unless the user has turned it off. */
+/**
+ * On unless the user has turned it off.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.storedSmartSearch
+ */
 function storedSmart(): boolean {
   try {
     return localStorage.getItem(SMART_STORAGE_KEY) !== "off";
@@ -110,7 +140,21 @@ const IDLE: SearchState = {
   results: { a: NO_RESULTS, b: NO_RESULTS },
 };
 
-/** One pane's results, which is what its list and the bar's counters read. */
+/**
+ * One pane's results, which is what its list and the bar's counters read.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.matchSet
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setMatches
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.currentMatch
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.currentMatchRange
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.currentMatchIndex
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.clearMatches
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexMatchRanges
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexCurrentMatch
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.highlightedMatchSet
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onMatchesChanged
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onMatchSetChanged
+ */
 export function resultsFor(state: SearchState, pane: PaneId): PaneResults {
   return state.results[pane];
 }
@@ -121,6 +165,58 @@ function updateResults(pane: PaneId, patch: Partial<PaneResults>): void {
     ...state,
     results: { ...state.results, [pane]: { ...state.results[pane], ...patch } },
   }));
+  followSearchOperation(pane);
+}
+
+/** The strip of the search running now, on the pane it searches. */
+let searchOperation: BackgroundOperation | undefined;
+let searchOperationPane: PaneId = "a";
+
+/**
+ * Ends the strip along with the results: the search is over once it has
+ * answered for the whole file — found with every match counted, found nothing,
+ * failed, or been cleared.
+ */
+function followSearchOperation(pane: PaneId): void {
+  const operation = searchOperation;
+  if (operation === undefined || pane !== searchOperationPane) return;
+  const results = searchStore.getSnapshot().results[pane];
+  const over =
+    results.status === "notFound" ||
+    results.status === "failed" ||
+    results.status === "idle" ||
+    (results.status === "found" && results.matches?.isComplete === true);
+  if (over) finishSearchOperation();
+}
+
+function finishSearchOperation(): void {
+  searchOperation?.finish();
+  searchOperation = undefined;
+}
+
+/**
+ * Fills the strip's bar as the index is built.
+ *
+ * Straight to the strip rather than through the store: the strip is the only
+ * thing that shows the fraction, and a store update per chunk re-rendered the
+ * whole window once per megabyte scanned.
+ */
+function reportSearchProgress(pane: PaneId, fraction: number): void {
+  if (searchOperation !== undefined && pane === searchOperationPane) {
+    searchOperation.report(fraction);
+  }
+}
+
+/**
+ * The strip's (×): the running search stops, and whatever it had found so far
+ * stays.
+ */
+function cancelSearch(pane: PaneId): void {
+  cancelRunning();
+  finishSearchOperation();
+  if (resultsFor(searchStore.getSnapshot(), pane).status === "searching") {
+    updateResults(pane, { status: "idle" });
+  }
 }
 
 export const searchStore = createStore<SearchState>(IDLE);
@@ -132,6 +228,24 @@ let currentJobId: JobId | undefined;
 let currentAttempt: Attempt | undefined;
 /** Which pane the running job is searching, so its replies land there. */
 let currentPane: PaneId = "a";
+/** Whether the running job goes to its match or only lists the matches. */
+let currentGoal: SearchGoal = "show";
+
+/**
+ * The patch a found first match makes. Listing leaves the current match unset,
+ * so nothing moves: the caret stays where it is and the panel does the showing.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adopt
+ */
+function foundPatch(
+  match: { readonly start: number; readonly end: number },
+  wrapped: boolean,
+  foundEncoding: SearchEncoding | undefined
+): Partial<PaneResults> {
+  return currentGoal === "list"
+    ? { status: "found", current: undefined, wrapped: false, foundEncoding }
+    : { status: "found", current: match, wrapped, foundEncoding };
+}
 
 function ensureWorker(): Worker {
   if (worker !== undefined) return worker;
@@ -149,13 +263,9 @@ function ensureWorker(): Worker {
         if (response.match === undefined) break;
         {
           const found = currentAttempt === undefined ? undefined : attemptEncoding(currentAttempt);
-          updateResults(currentPane, {
-            status: "found",
-            current: response.match,
-            wrapped: response.wrapped,
-            foundEncoding: found,
-          });
+          updateResults(currentPane, foundPatch(response.match, response.wrapped, found));
           adopt(found);
+          recordFoundSearch();
         }
         break;
 
@@ -186,11 +296,12 @@ function ensureWorker(): Worker {
       }
 
       case "searchProgress":
-        updateResults(currentPane, { indexProgress: response.fraction });
+        reportSearchProgress(currentPane, response.fraction);
         break;
 
       case "cancelled":
         currentJobId = undefined;
+        finishSearchOperation();
         break;
 
       case "error":
@@ -211,6 +322,7 @@ function cancelRunning(): void {
   currentJobId = undefined;
 }
 
+/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.reportNoUsablePattern */
 const FAILURE_MESSAGE: Record<SearchFailure, string> = {
   emptyPattern: "Type something to look for.",
   invalidHexPattern: "That is not a hexadecimal byte sequence.",
@@ -224,6 +336,12 @@ const FAILURE_MESSAGE: Record<SearchFailure, string> = {
  * questions to ask is arithmetic over the query string, and only the asking is
  * worth a worker. The attempts are tried in order, so the worker is asked about
  * one at a time and the first that finds something is the answer.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onSearch
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.runSearch
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginPass
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.searchAnchor
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal
  */
 export function startSearch(options: {
   readonly query: string;
@@ -233,7 +351,11 @@ export function startSearch(options: {
   readonly pane?: PaneId;
   readonly direction?: "forward" | "backward";
   readonly from?: number;
+  /** What the search is for: going to a match, or listing them all. */
+  readonly goal?: SearchGoal;
 }): void {
+  // A plate reports a search, so it goes the moment another one starts.
+  dismissNotice();
   const state = searchStore.getSnapshot();
   const query = options.query;
   const encoding = options.encoding ?? state.encoding;
@@ -248,6 +370,7 @@ export function startSearch(options: {
       status: "idle",
       matches: undefined,
       current: undefined,
+      resultsShown: false,
     });
     searchStore.update((current) => ({
       ...current,
@@ -268,7 +391,12 @@ export function startSearch(options: {
     : resolveOne(query, encoding, caseSensitive);
 
   if (typeof attempts === "string") {
-    updateResults(pane, { status: "failed", matches: undefined, current: undefined });
+    updateResults(pane, {
+      status: "failed",
+      matches: undefined,
+      current: undefined,
+      resultsShown: false,
+    });
     searchStore.update((current) => ({
       ...current,
       query,
@@ -280,7 +408,7 @@ export function startSearch(options: {
     return;
   }
   if (attempts.length === 0) {
-    updateResults(pane, { status: "failed" });
+    updateResults(pane, { status: "failed", resultsShown: false });
     searchStore.update((current) => ({
       ...current,
       query,
@@ -293,11 +421,14 @@ export function startSearch(options: {
   }
 
   cancelRunning();
+  const goal = options.goal ?? "show";
   updateResults(pane, {
     status: "searching",
     matches: undefined,
     current: undefined,
-    indexProgress: 0,
+    // The results button opens the panel whatever the search has to say: on
+    // the rows as they arrive, or on "No matches." where they would have been.
+    resultsShown: goal === "list" || resultsFor(state, pane).resultsShown,
   });
   searchStore.update((current) => ({
     ...current,
@@ -307,15 +438,76 @@ export function startSearch(options: {
     caseSensitive,
     pane,
     problem: undefined,
-    history: rememberQuery(current.history, query),
   }));
+  // Remembered only once it finds something: a pattern that occurs nowhere is
+  // not one worth offering again.
+  searchToRecord = query;
 
   void runAttempts(
     attempts,
     pane,
     options.from ?? slot.document.caret,
-    options.direction ?? "forward"
+    options.direction ?? "forward",
+    goal
   );
+}
+
+/**
+ * What a search is for.
+ *
+ * `show` goes to the match, as ‹ › and Return do. `list` is the results button:
+ * pressing it is not a Find Next, so the caret stays where it is and the panel
+ * opens on the matches as the index fills.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal.showTheMatch
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal.listTheMatches
+ */
+export type SearchGoal = "show" | "list";
+
+/**
+ * The find bar's results button: shows or hides the active pane's results
+ * panel.
+ *
+ * It is not a search of its own. A search that is already in hand for the
+ * pattern in the field is simply presented; a pattern typed but not yet
+ * searched is searched here, so the panel is never a list of the previous
+ * pattern's matches.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleSearchResults
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSearchResults
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.showSearchResults
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onSearchAll
+ * @upstream-differs the pass that lists is the same pass that finds, run with the caret left alone, rather than an index started without a first-match scan
+ */
+export function toggleSearchResults(query: string): void {
+  const state = searchStore.getSnapshot();
+  const pane = state.pane;
+  const results = resultsFor(state, pane);
+  if (results.resultsShown) {
+    hideSearchResults(pane);
+    return;
+  }
+  const inHand = query === state.query && results.status !== "idle" && results.status !== "failed";
+  if (inHand) {
+    updateResults(pane, { resultsShown: true });
+    return;
+  }
+  startSearch({ query, pane, goal: "list" });
+}
+
+/**
+ * Takes a pane's results panel down: the ×, or the button pressed again. The
+ * search is not touched — hiding a list is not the end of the search it listed.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.hideSearchResults
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onSearchResultsClose
+ * @upstream ByteRipperApp/Search/SearchResultsViewController.swift#SearchResultsViewController.onClose
+ * @upstream ByteRipperApp/Search/SearchResultsViewController.swift#SearchResultsViewController.clear
+ */
+export function hideSearchResults(pane: PaneId): void {
+  if (!resultsFor(searchStore.getSnapshot(), pane).resultsShown) return;
+  updateResults(pane, { resultsShown: false });
 }
 
 function resolveOne(
@@ -341,12 +533,16 @@ function resolveOne(
  * means — running them together would not tell you which one a reader should
  * adopt, and would scan the file four times to answer a question one scan
  * usually settles.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.attempts
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.steppable
  */
 async function runAttempts(
   attempts: readonly Attempt[],
   pane: PaneId,
   from: number,
-  direction: "forward" | "backward"
+  direction: "forward" | "backward",
+  goal: SearchGoal
 ): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
@@ -355,7 +551,14 @@ async function runAttempts(
   // file, so searching it there would answer about the bytes on disk while the
   // screen shows something else — the comparison learned this the hard way in
   // M4. An edited document is searched here instead, against the document, in
-  // chunks with an await between them so the frame is never held.
+  // chunks with a turn for the event loop between them, so the interface keeps
+  // drawing and taking keys while it runs.
+  finishSearchOperation();
+  const operation = new BackgroundOperation("Searching…", () => cancelSearch(pane));
+  searchOperation = operation;
+  searchOperationPane = pane;
+  beginOperation(pane, operation);
+
   const file = slot.file.source;
   const inWorker = !slot.document.isDirty && file instanceof Blob;
 
@@ -364,6 +567,7 @@ async function runAttempts(
     currentJobId = id;
     currentAttempt = attempt;
     currentPane = pane;
+    currentGoal = goal;
 
     const found = inWorker
       ? await askWorker(id, attempt, file as Blob, from, direction)
@@ -375,6 +579,29 @@ async function runAttempts(
 
   updateResults(pane, { status: "notFound", current: undefined, matches: undefined });
   currentJobId = undefined;
+  // Where there was a choice of encodings, a plate says which were tried: the
+  // answer is about the pass, not about any one of its scans.
+  if (attempts.length > 1) showNotice("smartSearch", nothingFoundLines(attempts));
+}
+
+/**
+ * How an attempt is named when it has to be reported — every encoding it
+ * answered for, so "no results" is honest about what was tried.
+ *
+ * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SmartSearch.Attempt.label
+ */
+export function attemptLabel(attempt: Attempt): string {
+  return attempt.encodings.map(encodingTitle).join(", ");
+}
+
+/**
+ * The plate a Smart Search that found nothing shows: the pass, then one line
+ * per question it asked.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reportNothingFound
+ */
+export function nothingFoundLines(attempts: readonly Attempt[]): string[] {
+  return ["Smart search.", ...attempts.map((attempt) => `${attemptLabel(attempt)} — no results.`)];
 }
 
 /** One attempt, resolving to whether it found anything. */
@@ -391,6 +618,9 @@ function askWorker(
       if (response.id !== id) return;
       if (response.kind === "first") {
         ensureWorker().removeEventListener("message", listener);
+        if (response.match !== undefined && response.wrapped && currentGoal === "show") {
+          showWrapNotice(direction);
+        }
         resolve(response.match !== undefined);
       } else if (response.kind === "cancelled" || response.kind === "error") {
         ensureWorker().removeEventListener("message", listener);
@@ -432,6 +662,7 @@ async function askHere(
   const pattern = foldedPattern(attempt.pattern.bytes, attempt.folding);
   const folding = attempt.folding;
   const cancelled = () => currentJobId !== id;
+  const pause = createTimeSlicer();
 
   try {
     const here = await findOne(pattern, document, {
@@ -439,6 +670,7 @@ async function askHere(
       direction,
       folding,
       shouldCancel: cancelled,
+      pause,
     });
     const match =
       here ??
@@ -447,17 +679,15 @@ async function askHere(
         direction,
         folding,
         shouldCancel: cancelled,
+        pause,
       }));
     if (cancelled()) return true;
     if (match === undefined) return false;
 
-    updateResults(currentPane, {
-      status: "found",
-      current: match,
-      wrapped: here === undefined,
-      foundEncoding: attemptEncoding(attempt),
-    });
+    updateResults(currentPane, foundPatch(match, here === undefined, attemptEncoding(attempt)));
     adopt(attemptEncoding(attempt));
+    recordFoundSearch();
+    if (here === undefined && currentGoal === "show") showWrapNotice(direction);
 
     void indexHere(id, attempt, document, currentPane);
     return true;
@@ -472,7 +702,14 @@ async function askHere(
   }
 }
 
-/** The full index for a local attempt, published as it is built. */
+/**
+ * The full index for a local attempt, published as it is built.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginIndexing
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.startIndexing
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.endIndexing
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.noteIndexFound
+ */
 async function indexHere(
   id: JobId,
   attempt: Attempt,
@@ -493,6 +730,7 @@ async function indexHere(
     await scanAll(foldedPattern(attempt.pattern.bytes, attempt.folding), document, {
       folding: attempt.folding,
       shouldCancel: () => currentJobId !== id,
+      pause: createTimeSlicer(),
       onMatches: (starts) => builder.add(starts),
       onWindow: (upTo) => {
         const now = Date.now();
@@ -501,7 +739,7 @@ async function indexHere(
         publish(builder.snapshot(upTo));
       },
       onProgress: (fraction) => {
-        if (currentJobId === id) updateResults(pane, { indexProgress: fraction });
+        if (currentJobId === id) reportSearchProgress(pane, fraction);
       },
     });
     publish(builder.finish());
@@ -514,48 +752,40 @@ async function indexHere(
 const PUBLISH_EVERY_MS = 120;
 
 /**
- * Re-runs the search when the bytes under it change.
+ * Drops a pane's matches when the bytes under them change: every offset in the
+ * set is a guess now. The greys go rather than shift — a grey in the wrong
+ * place is worse than none — and nothing is searched again, so the caret stays
+ * where the typing is. The next Return or step scans afresh.
  *
- * A search result is a claim about the document, and an edit can make it false:
- * typed bytes can create a match or destroy one, and an insert moves every
- * offset after it. Rather than trying to patch the index — which for a search
- * is not the cheap operation it is for a comparison, since a pattern can match
- * across the edit's own boundary — the search is simply run again, coalesced so
- * a fast typist pays for one.
- *
- * The re-run starts from the current match, so the match a person is looking at
- * stays the match they are looking at.
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.invalidateMatches
  */
-let editTimer: ReturnType<typeof setTimeout> | undefined;
-
 export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
-  const state = searchStore.getSnapshot();
-  const results = resultsFor(state, pane);
-  // Only the pane that was edited, and only if it holds a result an edit could
-  // have falsified. The other pane's list is about a file that did not change.
-  if (results.status !== "found" && results.status !== "notFound") return;
-  if (state.query.length === 0) return;
-
-  if (editTimer !== undefined) clearTimeout(editTimer);
-  editTimer = setTimeout(() => {
-    editTimer = undefined;
-    const now = searchStore.getSnapshot();
-    if (now.query.length === 0) return;
-    const at = resultsFor(now, pane).current;
-    startSearch({
-      query: now.query,
-      encoding: now.encoding,
-      caseSensitive: now.caseSensitive,
-      pane,
-      ...(at === undefined ? {} : { from: at.start }),
-    });
-  }, EDIT_COALESCE_MS);
+  const results = resultsFor(searchStore.getSnapshot(), pane);
+  if (results.status === "idle" && results.matches === undefined && results.current === undefined) {
+    return;
+  }
+  // An index still being built is being built over bytes that just moved.
+  if (pane === currentPane) {
+    cancelRunning();
+    finishSearchOperation();
+  }
+  updateResults(pane, {
+    status: "idle",
+    matches: undefined,
+    current: undefined,
+    wrapped: false,
+    resultsShown: false,
+  });
 }
 
-/** A fast typist produces one re-search rather than one per keystroke. */
-const EDIT_COALESCE_MS = 150;
-
-/** Most recent first, no duplicates, and bounded. */
+/**
+ * Most recent first, no duplicates, and bounded.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.entryForField
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.record
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.limit
+ */
 function rememberQuery(history: readonly string[], query: string): string[] {
   return [query, ...history.filter((entry) => entry !== query)].slice(0, 20);
 }
@@ -565,6 +795,11 @@ function rememberQuery(history: readonly string[], query: string): string[] {
  *
  * An index step, not a fresh scan — which is the point of having the set: once
  * the file has been scanned, moving through the matches costs a lookup.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.stepMatch
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.land
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scanForStep
  */
 export function stepSearch(direction: "forward" | "backward"): void {
   const state = searchStore.getSnapshot();
@@ -580,6 +815,7 @@ export function stepSearch(direction: "forward" | "backward"): void {
   if (step === undefined) return;
 
   updateResults(pane, { status: "found", current: step.range, wrapped: step.wrapped });
+  if (step.wrapped) showWrapNotice(direction);
 }
 
 /**
@@ -592,6 +828,9 @@ export function stepSearch(direction: "forward" | "backward"): void {
  *
  * Only Smart Search adopts. With it off the encoding is the user's instruction,
  * and an instruction is not something the application rewrites.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.adopt
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adopt
  */
 function adopt(encoding: SearchEncoding | undefined): void {
   searchStore.update((state) =>
@@ -599,6 +838,71 @@ function adopt(encoding: SearchEncoding | undefined): void {
       ? { ...state, problem: undefined }
       : { ...state, encoding, problem: undefined }
   );
+}
+
+/** The query a search was started with, until that search finds something. */
+let searchToRecord: string | undefined;
+
+/**
+ * The search that was started found something, so it is worth offering again.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.searchToRecord
+ */
+function recordFoundSearch(): void {
+  const query = searchToRecord;
+  if (query === undefined) return;
+  searchToRecord = undefined;
+  searchStore.update((state) => ({ ...state, history: rememberQuery(state.history, query) }));
+}
+
+/**
+ * Typing in the pattern field ends the search that was running — the count
+ * clears and the matches go, so nothing on screen describes a pattern that is
+ * no longer in the field. It starts nothing: a search starts on Return.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.controlTextDidChange
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onPatternEdited
+ */
+export function editQuery(query: string): void {
+  dismissNotice();
+  cancelRunning();
+  finishSearchOperation();
+  searchToRecord = undefined;
+  const pane = searchStore.getSnapshot().pane;
+  updateResults(pane, {
+    status: "idle",
+    matches: undefined,
+    current: undefined,
+    wrapped: false,
+    resultsShown: false,
+  });
+  searchStore.update((state) => ({ ...state, query, problem: undefined }));
+}
+
+/**
+ * Picks the encoding the next search is told to use. Nothing is searched until
+ * Return; a complaint about the text no longer stands, since the same text
+ * means something else now.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.encodingChanged
+ */
+export function setSearchEncoding(encoding: SearchEncoding): void {
+  searchStore.update((state) => ({ ...state, encoding, problem: undefined }));
+}
+
+/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseToggled */
+export function setCaseSensitive(caseSensitive: boolean): void {
+  searchStore.update((state) => ({ ...state, caseSensitive }));
+}
+
+/**
+ * Forgets the recent queries.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.clearRecents
+ */
+export function clearRecents(): void {
+  searchStore.update((state) => (state.history.length === 0 ? state : { ...state, history: [] }));
 }
 
 /** Turns Smart Search on or off, and remembers which. */
@@ -612,7 +916,11 @@ export function setSmartSearch(smart: boolean): void {
   }
 }
 
-/** Shows the find bar, and says whether it was already up. */
+/**
+ * Shows the find bar, and says whether it was already up.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.prepareForShow
+ */
 export function openSearch(): boolean {
   const wasOpen = searchStore.getSnapshot().open;
   if (!wasOpen) searchStore.update((state) => ({ ...state, open: true }));
@@ -638,13 +946,29 @@ export function selectMatch(pane: PaneId, offset: number): void {
   updateResults(pane, { status: "found", current: range, wrapped: false });
 }
 
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onClose
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.cancelOperation
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.hideFindBar
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.cancelOperation
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.cancelFind
+ */
 export function closeSearch(): void {
+  // The plate is about a search, and closing the bar means that search is over.
+  dismissNotice();
   cancelRunning();
-  if (editTimer !== undefined) clearTimeout(editTimer);
-  editTimer = undefined;
+  finishSearchOperation();
   searchStore.update((state) => ({ ...IDLE, history: state.history, encoding: state.encoding }));
 }
 
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext.count
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext.resultsShown
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.apply
+ * @upstream-differs the bar reads the active pane's results from the store
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncFindBarToActivePane
+ */
 export function setSearchPane(pane: PaneId): void {
   searchStore.update((state) => (state.pane === pane ? state : { ...state, pane }));
 }

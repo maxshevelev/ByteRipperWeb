@@ -27,6 +27,7 @@ test("a row costs the same however large the file is", () => {
   expect(visibleRowCount(300)).toBe(100);
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testEveryByteGetsItsOwnRowWithNoAggregation
 test("every byte gets its own row in detail, with no aggregation", () => {
   const at = (y: number) =>
     offsetAtY({ mode: "detail", y, areaHeight: 300, topRow: 0, extent: 4096, overviewRows: 0 });
@@ -35,6 +36,7 @@ test("every byte gets its own row in detail, with no aggregation", () => {
   expect(at(ROW_STEP * 7)).toBe(BYTES_PER_ROW * 7);
 });
 
+// @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testAMarkSitsAtTheSameHeightOnBothMaps
 test("the same height is the same offset in both maps", () => {
   // The definition of done. Both maps are binned over the same extent, so the
   // mapping depends on nothing but y.
@@ -54,6 +56,7 @@ test("the same height is the same offset in both maps", () => {
   expect(offsetAtY({ ...shared, y: 300 })).toBe(4_000_000);
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testClickingTheOverviewStartAndEndSnapsToFileBounds
 test("clicking the overview's edges snaps to the file's own bounds", () => {
   const map = {
     mode: "overview",
@@ -70,6 +73,7 @@ test("clicking the overview's edges snaps to the file's own bounds", () => {
   expect(snappedOffsetAtY({ ...map, y: 500 })).toBe(3_999_999);
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testWindowSlidesWithThePaneAndReachesTheFileEnd
 test("the window slides with the panes and reaches the file's end", () => {
   const sizes = [1_000_000];
   const windowRows = 100;
@@ -90,6 +94,7 @@ test("the window slides with the panes and reaches the file's end", () => {
   expect(top(lastPaneTop / 2)).toBeGreaterThan(0);
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testWindowStaysAtTheTopForAFileThatFits
 test("a file that fits keeps the window at the top", () => {
   expect(
     derivedTopRow({
@@ -103,6 +108,7 @@ test("a file that fits keeps the window at the top", () => {
   expect(detailWindowFitsWholeFile([16 * 1024 * 1024], 600)).toBe(false);
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testOverviewIsNotOfferedForAFileItWouldMagnify
 test("the overview is not offered where it would magnify rather than compress", () => {
   expect(overviewIsInformative([200], 600)).toBe(false);
   expect(overviewIsInformative([16 * 1024 * 1024], 600)).toBe(true);
@@ -110,6 +116,7 @@ test("the overview is not offered where it would magnify rather than compress", 
   expect(overviewIsInformative([200], 0)).toBe(true);
 });
 
+// @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testAFileTheOverviewCouldCompressStillOpensInDetail
 test("a small file opens in detail and a dump in the overview", () => {
   expect(preferredMode([1024], 600)).toBe("detail");
   expect(preferredMode([16 * 1024 * 1024], 600)).toBe("overview");
@@ -153,6 +160,7 @@ test("no file showing means no band", () => {
   ).toBeUndefined();
 });
 
+// @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testDraggingTheBandDoesNotSnap
 describe("dragging the band", () => {
   // The band is a scrollbar handle, so its travel down the map stands for the
   // file's whole scrollable range — in detail mode especially, where the map
@@ -235,6 +243,7 @@ describe("dragging the band", () => {
     ).toBe((totalRows - paneRows) * BYTES_PER_ROW);
   });
 
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testDraggingTheBandToTheTopClampsAtTheFileStart
   test("a drag past either end clamps rather than running off", () => {
     expect(
       scrollTargetForBand({ mode: "detail", bandTop: -500, bandHeight, areaHeight, sizes })

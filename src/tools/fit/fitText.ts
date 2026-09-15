@@ -1,3 +1,4 @@
+import { microcodeCpuid } from "@/firmware/uefi/microcodeParser";
 /**
  * The spellings the FIT panel shares between its list and its detail.
  *
@@ -10,9 +11,11 @@
  * The CPUID as a bench writes it: hex digits, no leading zero, no `0x` —
  * `806EA`, not `0x000806EA`. It is what gets written on a sticky note and typed
  * into a search box, so it is the one number here that is not spelled as hex.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.cpuid
  */
 export function cpuidText(signature: number): string {
-  return signature.toString(16).toUpperCase();
+  return microcodeCpuid(signature);
 }
 
 /** A hex value, padded to a field's width where the field has one. */

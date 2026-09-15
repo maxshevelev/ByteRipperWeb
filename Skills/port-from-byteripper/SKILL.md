@@ -92,6 +92,48 @@ module carries a `status` of `planned`, `in-progress` or `ported`. Keep it
 current as part of doing the work, not as a chore afterwards — a stale map makes
 every future run lie.
 
+## Anchors
+
+ByteRipper is the master, and the web edition follows its behaviour *and* its
+code structure: a type upstream is a module or a component here, a method is a
+function, a test is a test. That is what makes a symbol-level check possible,
+and the anchors are how the check knows which is which.
+
+- **`@upstream <path>#<Type.member>`** — on every ported declaration: a function,
+  a constant, a component, a store field, a test (as a `//` line above its
+  `it`). The path is from the ByteRipper root; the symbol is the declaration's
+  name qualified by its enclosing types — `ToolController.activate`,
+  `ToolPanelView`, `ToolSessionTests.testNoneEndsTheSession`. Overloads share
+  one name. One web declaration may carry several anchors.
+- **`@upstream-differs <why>`** — on the line after an anchor, when the port
+  deliberately does not do what upstream does. The why is the decision.
+- **`@web-only <why>`** — on code with no upstream counterpart at all.
+- **`unported`** in a module of `reference/module-map.json` —
+  `"<path>#<pattern>": "<why>"` for upstream declarations left out on purpose.
+  Patterns are shell-style (`ToolPanelView.dragging*`). Start the reason with
+  `later —` for work not done yet and `n/a —` for what the browser takes away,
+  so the two do not blur.
+
+A module's `files` names the upstream files it ports whole; only those are
+checked for gaps. A file the web takes a few methods from (a view controller of
+thousands of lines) is anchored where it is used and reported as *anchored, not
+claimed*.
+
+Run the check after porting and before recording a baseline:
+
+```bash
+python3 Skills/port-from-byteripper/scripts/check_anchors.py            # report
+python3 Skills/port-from-byteripper/scripts/check_anchors.py --all-mapped  # + files with no anchors yet
+python3 Skills/port-from-byteripper/scripts/check_anchors.py --strict   # fail on gaps and drift too
+```
+
+It reports broken anchors (the upstream declaration is gone), stale `unported`
+entries, **drift** — anchored declarations whose lines changed upstream since
+the baseline, with the web code to re-read — gaps in claimed files, and every
+deliberate difference. Broken anchors and stale entries fail the run. Drift
+clears when the baseline moves past it, which is why the baseline moves only
+after the drifted code has been re-read.
+
 `reference/` also holds the contract documents this project ports against.
 `Design/ANALYSIS.md` in the repository root records which upstream features are
 in scope at all, and a change to a feature marked *Dropped* there needs no port —

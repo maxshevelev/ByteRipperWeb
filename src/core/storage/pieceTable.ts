@@ -15,23 +15,40 @@
  * the start of an 8 MB dump or at its end.
  */
 
-/** Which immutable source a piece reads from. */
+/**
+ * Which immutable source a piece reads from.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Source
+ */
 export type PieceSource =
   /** The storage the document was opened from. */
   | "base"
   /** The append-only buffer of bytes editing added. */
   | "added";
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Piece */
 export interface Piece {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Piece.source */
   readonly source: PieceSource;
-  /** Offset within the source. */
+  /**
+   * Offset within the source.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Piece.start
+   */
   readonly start: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Piece.length */
   readonly length: number;
 }
 
-/** A slice of one source, in that source's own coordinates. Half-open (D13). */
+/**
+ * A slice of one source, in that source's own coordinates. Half-open (D13).
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Segment
+ */
 export interface PieceSegment {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Segment.source */
   readonly source: PieceSource;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.Segment.range */
   readonly start: number;
   readonly end: number;
 }
@@ -42,7 +59,9 @@ export interface OffsetRange {
   readonly end: number;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable */
 export class PieceTable {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.pieces */
   private pieces: Piece[] = [];
   /**
    * Prefix sums: `starts[i]` is the logical offset piece `i` begins at, and the
@@ -51,17 +70,26 @@ export class PieceTable {
    */
   private starts: number[] = [0];
 
-  /** A table holding one piece: the whole base, unedited. */
+  /**
+   * A table holding one piece: the whole base, unedited.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.init
+   */
   constructor(baseSize = 0) {
     if (baseSize > 0) this.pieces = [{ source: "base", start: 0, length: baseSize }];
     this.rebuildStarts();
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.size */
   get size(): number {
     return this.starts[this.starts.length - 1] ?? 0;
   }
 
-  /** How many pieces describe the content — the cost of a read. */
+  /**
+   * How many pieces describe the content — the cost of a read.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.pieceCount
+   */
   get pieceCount(): number {
     return this.pieces.length;
   }
@@ -86,6 +114,8 @@ export class PieceTable {
   /**
    * The source segments covering `[start, end)`, in logical order. Clamped to
    * the table's size; an empty or out-of-range window yields nothing.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.segments
    */
   segments(start: number, end: number): PieceSegment[] {
     const lower = Math.min(Math.max(start, 0), this.size);
@@ -120,6 +150,8 @@ export class PieceTable {
    * original file's offset — so these are exactly the ranges an in-place save
    * has to patch. After a shift they are no longer file offsets, which is why
    * the storage stops offering the in-place path at all.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.addedRanges
    */
   get addedRanges(): OffsetRange[] {
     const result: OffsetRange[] = [];
@@ -147,6 +179,8 @@ export class PieceTable {
    * A run of typing lands as one piece, not one per keystroke: when the new
    * bytes continue the added piece that ends exactly at `at`, that piece simply
    * grows.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.insert
    */
   insert(at: number, addedStart: number, addedEnd: number): void {
     const length = addedEnd - addedStart;
@@ -176,7 +210,11 @@ export class PieceTable {
     this.rebuildStarts();
   }
 
-  /** Removes `[start, end)`, shifting what follows left. */
+  /**
+   * Removes `[start, end)`, shifting what follows left.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.delete
+   */
   delete(start: number, end: number): void {
     const lower = Math.min(Math.max(start, 0), this.size);
     const upper = Math.min(Math.max(end, 0), this.size);
@@ -194,6 +232,8 @@ export class PieceTable {
    * Replaces `[start, end)` with a slice of the added buffer — an overwrite.
    * The lengths need not match: a longer replacement grows the file, which is
    * how a write past EOF extends it.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.replace
    */
   replace(start: number, end: number, addedStart: number, addedEnd: number): void {
     this.delete(start, end);

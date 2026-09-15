@@ -15,6 +15,10 @@ import { createStore } from "@/state/store";
  * worth knowing without a network.
  */
 
+/**
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.freshness
+ * @upstream-differs the fetch date and status in a store, not a Freshened value
+ */
 export interface CatalogueState {
   readonly status: "idle" | "loading" | "ready" | "failed";
   readonly catalogue: GuidsCatalogue;
@@ -23,6 +27,12 @@ export interface CatalogueState {
   readonly problem: string | undefined;
 }
 
+/**
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#GuidsSource.guidsChanges
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.guidsChanges
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.guidsSource
+ * @upstream-differs a store subscription rather than an AsyncStream
+ */
 export const catalogueStore = createStore<CatalogueState>({
   status: "idle",
   catalogue: GuidsCatalogue.empty,
@@ -30,7 +40,11 @@ export const catalogueStore = createStore<CatalogueState>({
   problem: undefined,
 });
 
-/** The live source, behind the interface so a test can install its own. */
+/**
+ * The live source, behind the interface so a test can install its own.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository
+ */
 export const liveCatalogueSource: CatalogueSource = {
   async load(signal) {
     const body = await remoteSource(GUIDS_CSV_URL).body(signal === undefined ? {} : { signal });
@@ -40,7 +54,12 @@ export const liveCatalogueSource: CatalogueSource = {
 
 let controller: AbortController | undefined;
 
-/** Starts a download, unless one is already running or one has landed. */
+/**
+ * Starts a download, unless one is already running or one has landed.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#GuidsSource.guids
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.guids
+ */
 export function loadGuidCatalogue(source: CatalogueSource = liveCatalogueSource): void {
   const state = catalogueStore.getSnapshot();
   if (state.status === "loading" || state.status === "ready") return;

@@ -20,6 +20,7 @@ const equalBytes = (one: Uint8Array | undefined, two: Uint8Array) =>
   one !== undefined && one.length === two.length && one.every((byte, index) => byte === two[index]);
 
 describe("decompressLzmaModule", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/LZMAModuleTests.swift#LZMAModuleTests.testAModuleDecompressesToItsBody
   it("decompresses a module to its body", () => {
     const body = lzmaModuleBody();
     expect(
@@ -27,6 +28,7 @@ describe("decompressLzmaModule", () => {
     ).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/LZMAModuleTests.swift#LZMAModuleTests.testAShortModuleIsFilledWithItsLastByte
   it("fills a short module with its own last byte", () => {
     const paddedLength = 3000 + 4;
     const output = decompressLzmaModule(fixtureBytes(LZMA_MODULE_PADDED_STREAM), paddedLength + 12);
@@ -34,12 +36,14 @@ describe("decompressLzmaModule", () => {
     expect([...(output?.subarray(-16) ?? [])]).toEqual(new Array(16).fill(0xff));
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/LZMAModuleTests.swift#LZMAModuleTests.testBytesThatAreNotLZMADoNotDecompress
   it("does not decompress bytes that are not LZMA", () => {
     expect(decompressLzmaModule(new Uint8Array(64).fill(0xa5), 64)).toBeUndefined();
   });
 });
 
 describe("lzmaDecoderInput", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/LZMAModuleTests.swift#LZMAModuleTests.testStrayZerosAreRemovedOnlyWhereTheSignatureSaysSo
   it("removes the stray zeros only where the signature says so", () => {
     const head = [...STRAY_ZEROS_SIGNATURE, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     const quirky = Uint8Array.from([...head, 0, 0, 0, 0xab, 0xcd]);
@@ -54,6 +58,7 @@ describe("lzmaDecoderInput", () => {
 });
 
 describe("lzmaHashMatches", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/LZMAModuleTests.swift#LZMAModuleTests.testTheHashCoversTheStoredBytesOrTheDecompressedOnes
   it("covers the stored bytes or the decompressed ones", () => {
     const module = fixtureBytes(LZMA_MODULE_BODY_STREAM);
     const body = lzmaModuleBody();
@@ -68,6 +73,7 @@ describe("lzmaHashMatches", () => {
     expect(lzmaHashMatches(hex(sha256(module)), module, decompressed)).toBe(false);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/LZMAModuleTests.swift#LZMAModuleTests.testReversingHexReversesItsBytes
   it("reverses hex by its bytes", () => {
     expect(reversedHex("0a1b2c")).toBe("2C1B0A");
     expect(reversedHex("ABC")).toBe("");

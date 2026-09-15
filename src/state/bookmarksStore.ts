@@ -24,18 +24,36 @@ import { createStore } from "@/state/store";
  * it is.
  */
 
-/** The most recent addresses Go To offers back, newest first. */
+/**
+ * The most recent addresses Go To offers back, newest first.
+ *
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.limit
+ */
 const RECENT_LIMIT = 10;
 
 export interface BookmarksState {
   readonly bookmarks: readonly Bookmark[];
-  /** Addresses this workspace has been sent to, newest first. */
+  /**
+   * Addresses this workspace has been sent to, newest first.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.recent
+   * @upstream-differs kept with the workspace's bookmarks in IndexedDB
+   */
   readonly recent: readonly number[];
 }
 
 /** The one store the panes, the minimap and the dialogs all read. */
 export const bookmarks = new BookmarkStore();
 
+/**
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.onBookmarksChanged
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkStore
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onBookmarksChanged
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmarkedRows
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmark
+ */
 export const bookmarksStore = createStore<BookmarksState>({ bookmarks: [], recent: [] });
 
 const WORKSPACE_KEY = "byteripper.workspace";
@@ -45,6 +63,7 @@ const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 
 interface StoredWorkspace {
   readonly bookmarks: readonly Bookmark[];
+  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.userDefaultsKey */
   readonly recent: readonly number[];
   readonly savedAt: number;
 }
@@ -137,7 +156,11 @@ async function sweep(): Promise<void> {
 
 // MARK: - What the commands do
 
-/** Marks an unmarked row, unmarks a marked one — what ⌘D and a double-click do. */
+/**
+ * Marks an unmarked row, unmarks a marked one — the store's own toggle, with no
+ * popover. ⌘D and a double-click go through `bookmarkEditStore`, which names
+ * the mark it makes.
+ */
 export function toggleBookmark(offset: number): Bookmark | undefined {
   return bookmarks.toggle(offset);
 }
@@ -158,6 +181,7 @@ export function moveBookmark(from: number, to: number, lastRow: number): number 
   return bookmarks.move(from, to, lastRow);
 }
 
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkRowBytes */
 export function bookmarkAt(offset: number): Bookmark | undefined {
   return bookmarks.at(offset);
 }
@@ -169,6 +193,8 @@ export function bookmarkAt(offset: number): Bookmark | undefined {
  * structure a keystroke rather than a retyped address. The row, not the byte:
  * two addresses in the same row are the same place to come back to, and a list
  * of sixteen near-identical entries is a list of one useful one.
+ *
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.record
  */
 export function noteVisited(offset: number): void {
   const row = rowContaining(offset);

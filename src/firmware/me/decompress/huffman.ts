@@ -18,10 +18,15 @@
  * integer range whose smallest value is `threshold >>> (32 - length)` — the
  * threshold is that minimum shifted up to the 32-bit top, because the decoder
  * compares it against a 32-bit window — and whose largest is `maxCodeword`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanShape
  */
 export interface HuffmanShape {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanShape.length */
   readonly length: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanShape.threshold */
   readonly threshold: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanShape.maxCodeword */
   readonly maxCodeword: number;
 }
 
@@ -33,12 +38,17 @@ export interface HuffmanShape {
  * map keyed by it: the decoder resolves one of these per output symbol, and
  * hashing per symbol was the single most expensive thing in a CSME 11 or 12
  * parse upstream. Rows for lengths the dictionary does not use are empty.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanSymbolTable
  */
 export interface HuffmanSymbolTable {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanSymbolTable.symbolsByLength */
   readonly symbolsByLength: readonly (readonly Uint8Array[])[];
   /**
    * Index for index with the symbols: true where the symbol string was empty or
    * `??` — the placeholders upstream reports as *unknown* and flags.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanSymbolTable.unknownByLength
    */
   readonly unknownByLength: readonly (readonly boolean[])[];
 }
@@ -49,6 +59,8 @@ const PLACEHOLDER = Uint8Array.of(0x7f);
 /**
  * The symbol for a codeword of `length`, and whether it is one of the unknown
  * placeholders. An out-of-range ask answers like a missing codeword.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanSymbolTable.symbol
  */
 export function symbolAt(
   table: HuffmanSymbolTable,
@@ -66,13 +78,27 @@ export function symbolAt(
  * One parsed dictionary version: the canonical shape — taken from the `code`
  * table, as upstream does, which warns and proceeds if `data` disagrees — and
  * the two symbol tables.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionary
  */
 export interface HuffmanDictionary {
-  /** Ascending by codeword length. */
+  /**
+   * Ascending by codeword length.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionary.shape
+   */
   readonly shape: readonly HuffmanShape[];
-  /** Dictionary type 0x20. */
+  /**
+   * Dictionary type 0x20.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionary.code
+   */
   readonly code: HuffmanSymbolTable;
-  /** Dictionary type 0x60. */
+  /**
+   * Dictionary type 0x60.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionary.data
+   */
   readonly data: HuffmanSymbolTable;
 }
 
@@ -81,12 +107,17 @@ export interface HuffmanDictionary {
  *
  * The file carries no per-module signal of its own: the right table is chosen
  * by the engine's variant, major and minor, exactly as upstream does.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries
  */
 export interface HuffmanDictionaries {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries.version11 */
   readonly version11: HuffmanDictionary | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries.version12 */
   readonly version12: HuffmanDictionary | undefined;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries.init */
 export const NO_DICTIONARIES: HuffmanDictionaries = {
   version11: undefined,
   version12: undefined,
@@ -95,6 +126,8 @@ export const NO_DICTIONARIES: HuffmanDictionaries = {
 /**
  * The dictionary version for a variant and version, or nothing where no Huffman
  * dictionary is needed at all — the non-CSE engines, and CSSPS 1.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries.version
  */
 export function dictionaryVersion(
   variant: string,
@@ -121,7 +154,11 @@ export function dictionaryVersion(
   return 12;
 }
 
-/** The parsed dictionary for a variant and version, or nothing when none. */
+/**
+ * The parsed dictionary for a variant and version, or nothing when none.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries.dictionary
+ */
 export function dictionaryFor(
   dictionaries: HuffmanDictionaries,
   variant: string,
@@ -148,6 +185,8 @@ export class HuffmanFileError extends Error {
 
 /**
  * Parses `Huffman.dat`: `{"<version>": {"code": {bits: hex}, "data": {…}}}`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDictionaries.parse
  */
 export function parseHuffmanDictionaries(text: string): HuffmanDictionaries {
   let root: unknown;
@@ -273,6 +312,7 @@ function symbolBytes(symbol: string): Uint8Array {
 
 // MARK: - Decompressing
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDecoder.chunkSize */
 export const HUFFMAN_CHUNK_SIZE = 0x1000;
 
 /**
@@ -286,6 +326,9 @@ export const HUFFMAN_CHUNK_SIZE = 0x1000;
  * or hits an unknown one is filled to its 0x1000 boundary with placeholders and
  * decoding carries on into the next chunk. `clean` is false when any chunk hit
  * one of those, which is upstream's `huff_error`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDecoder
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/Huffman.swift#HuffmanDecoder.decompress
  */
 export function decompressHuffman(options: {
   readonly module: Uint8Array;

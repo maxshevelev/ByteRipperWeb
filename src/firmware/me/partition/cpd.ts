@@ -12,30 +12,66 @@ import { crc32 } from "@/firmware/me/crypto/checksum";
  * Ported from `Packages/MEFirmware/Partition/CPD.swift`.
  */
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.tag */
 export const CPD_TAG = tagBytes("$CPD");
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header */
 export interface CPDHeader {
-  /** The header's own region-relative base. */
+  /**
+   * The header's own region-relative base.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.base
+   */
   readonly base: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.numModules */
   readonly numModules: number;
-  /** 1 or 2, which is what decides the header's length and its checksum. */
+  /**
+   * 1 or 2, which is what decides the header's length and its checksum.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.headerVersion
+   */
   readonly headerVersion: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.entryVersion */
   readonly entryVersion: number;
-  /** 0x10 for revision 1, 0x14 for revision 2. */
+  /**
+   * 0x10 for revision 1, 0x14 for revision 2.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.headerLength
+   */
   readonly headerLength: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.partitionName */
   readonly partitionName: string;
-  /** The stored checksum: a byte on revision 1, a word on revision 2. */
+  /**
+   * The stored checksum: a byte on revision 1, a word on revision 2.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Header.checksumField
+   */
   readonly checksumField: number;
 }
 
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Entry */
 export interface CPDEntry {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Entry.name */
   readonly name: string;
-  /** Raw: the low twenty-five bits are the offset and bit 25 says Huffman. */
+  /**
+   * Raw: the low twenty-five bits are the offset and bit 25 says Huffman.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Entry.offsetAttrib
+   */
   readonly offsetAttrib: number;
-  /** The offset from the directory's own base. */
+  /**
+   * The offset from the directory's own base.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Entry.offset
+   */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Entry.isHuffman */
   readonly isHuffman: boolean;
-  /** The uncompressed size. */
+  /**
+   * The uncompressed size.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.Entry.size
+   */
   readonly size: number;
 }
 
@@ -46,6 +82,9 @@ export interface CPDEntry {
  * all look like a real directory. Four bytes are not enough on their own: a
  * `$CPD` is found by scanning, and a scan that accepted the tag alone would find
  * one in every compressed module.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.decodeHeader
  */
 export function decodeCpdHeader(bytes: Uint8Array, at: number): CPDHeader | undefined {
   if (at < 0 || !has(bytes, at, 0x10)) return undefined;
@@ -81,6 +120,8 @@ export function decodeCpdHeader(bytes: Uint8Array, at: number): CPDHeader | unde
  *
  * Reads are bounded by the region: a truncated tail simply shortens the list,
  * because an image cut short is still an image worth saying something about.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.entries
  */
 export function cpdEntries(
   bytes: Uint8Array,
@@ -112,6 +153,8 @@ export function cpdEntries(
  * walking back: the window is the largest a directory can be plus the manifest's
  * own offset into it, and the *last* match wins because that is the one nearest
  * the manifest.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.findPrecedingCPD
  */
 export function findPrecedingCpd(
   bytes: Uint8Array,
@@ -136,6 +179,8 @@ export function findPrecedingCpd(
  *
  * Nothing only when the region is too short to cover the whole directory, which
  * is a different answer from "it does not check out".
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.checksumValid
  */
 export function cpdChecksumValid(bytes: Uint8Array, header: CPDHeader): boolean | undefined {
   const length = header.headerLength + header.numModules * 0x18;
@@ -163,6 +208,8 @@ export function cpdChecksumValid(bytes: Uint8Array, header: CPDHeader): boolean 
  * empty entries. Upstream tolerates five and complains beyond that; this counts
  * them either way and adds none of them as modules — a module's content is found
  * from its own entry, so an empty entry is a thing to report rather than to use.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.trailingEmptyEntryCount
  */
 export function trailingEmptyCpdEntries(bytes: Uint8Array, header: CPDHeader): number {
   let at = header.base + header.headerLength + header.numModules * 0x18;
@@ -181,6 +228,8 @@ export function trailingEmptyCpdEntries(bytes: Uint8Array, header: CPDHeader): n
  * Used only to notice module content overflowing the region — never to size
  * anything, since a size taken from the largest entry would believe a field that
  * is exactly what is under suspicion.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/CPD.swift#CPDParser.moduleContentEnd
  */
 export function cpdModuleContentEnd(header: CPDHeader, entries: readonly CPDEntry[]): number {
   let end = 0;

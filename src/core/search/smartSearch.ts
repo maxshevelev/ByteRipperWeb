@@ -25,13 +25,20 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
  * is the answer.
  */
 
-/** One thing to look for. */
+/**
+ * One thing to look for.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt
+ */
 export interface Attempt {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.pattern */
   readonly pattern: SearchPattern;
   /**
    * How letters compare, which is part of the question rather than of the
    * caller's bookkeeping: the same bytes compared exactly and compared folded
    * are two different searches.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.folding
    */
   readonly folding: CaseFolding;
   /**
@@ -40,13 +47,17 @@ export interface Attempt {
    * twice for them would be twice the wait for one answer. They are one
    * attempt, and the first of them is the one a field adopts, being the
    * narrower claim.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.encodings
    */
   readonly encodings: readonly SearchEncoding[];
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.encoding */
 export const attemptEncoding = (attempt: Attempt): SearchEncoding =>
   attempt.encodings[0] ?? attempt.pattern.encoding;
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Outcome */
 export type SmartOutcome =
   | {
       readonly kind: "found";
@@ -67,6 +78,8 @@ export type SmartOutcome =
  * digits in pairs — `DE AD BE EF`. Anything else, `DEAD BEEF` included, is text
  * as far as this test is concerned; a reader who means those four bytes writes
  * them the way every hex dump prints them.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.looksLikeHexBytes
  */
 export function looksLikeHexBytes(text: string): boolean {
   const trimmed = text.trim();
@@ -83,6 +96,8 @@ export function looksLikeHexBytes(text: string): boolean {
  * likely to have meant first. ASCII before UTF-8 because they ask the same
  * question of a plain string and ASCII is the narrower claim; the UTF-16 pair
  * after them, where a string in a dump is stored two bytes to a character.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.textOrder
  */
 export const TEXT_ORDER: readonly SearchEncoding[] = ["ascii", "utf8", "utf16LE", "utf16BE"];
 
@@ -101,6 +116,8 @@ export const TEXT_ORDER: readonly SearchEncoding[] = ["ascii", "utf8", "utf16LE"
  * is left out — there is nothing to look for — and a text no encoding can carry
  * yields no attempts at all, which is the caller's cue that there is no pattern
  * here rather than a bad one.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.attempts
  */
 export function attemptsFor(
   text: string,
@@ -151,6 +168,8 @@ const sameBytes = (a: Uint8Array, b: Uint8Array): boolean =>
  * Progress covers the whole pass: each attempt owns its share, and each
  * attempt's two scans own half of that. A wrong guess about an encoding costs a
  * scan of the file, and several of them are a wait worth being able to stop.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.firstMatch
  */
 export async function firstMatchAmong(
   attempts: readonly Attempt[],

@@ -22,9 +22,15 @@ export interface CutDialogProps {
   /** The cuts already made, so a duplicate is refused before it is tried. */
   readonly existingCuts: readonly number[];
   readonly onCut: (offset: number, name: string) => void;
+  /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.cancel */
   readonly onClose: () => void;
 }
 
+/**
+ * @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.presentCutEditPopover
+ * @upstream-differs a dialog, not a popover beside the cut
+ */
 export function CutDialog({
   open,
   fileSize,
@@ -42,8 +48,11 @@ export function CutDialog({
     setName("");
   }, [open, presetOffset]);
 
+  /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.offsetField */
   const parsed = text.trim() === "" ? undefined : parseOffset(text);
+  /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.editedOffset */
   const value = parsed?.ok === true ? parsed.value : undefined;
+  /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.controlTextDidChange */
   const problem =
     parsed === undefined
       ? "Type the offset the new piece starts at."
@@ -55,6 +64,7 @@ export function CutDialog({
             ? "There is already a cut there."
             : undefined;
 
+  /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.commit */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (value === undefined || problem !== undefined) return;

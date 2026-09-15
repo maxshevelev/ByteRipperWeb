@@ -10,6 +10,7 @@ import { manifest, regionWithManifest } from "@/firmware/me/testing/testMe";
 /** The `$MN2` / `$MAN` manifest — upstream's `ManifestParserTests`. */
 
 describe("decodeManifest", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testDecodesR1CSEVersionMEUAndRSA
   it("decodes a CSE manifest's version, MEU block and key", () => {
     const found = parseFirstManifest(manifest());
 
@@ -39,6 +40,7 @@ describe("decodeManifest", () => {
     expect(found?.rsaExponent).toBe(65537);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testFindsManifestNotAtRegionStart
   it("finds a manifest that is not at the region's start", () => {
     const found = parseFirstManifest(regionWithManifest(0x100));
 
@@ -46,6 +48,7 @@ describe("decodeManifest", () => {
     expect(found?.major).toBe(15);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testR0HasNoMEUFields
   it("gives a pre-CSE manifest no MEU fields", () => {
     // The same bytes are a module count and a version control number there, and
     // reading them as an MEU block would report a version nothing has.
@@ -60,6 +63,7 @@ describe("decodeManifest", () => {
     expect(found?.numModules).toBe(4);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testR1AndR2ReadMEUHotfixAndBuild
   it("reads the whole MEU block on both CSE formats", () => {
     for (const format of ["r1", "r2"] as const) {
       const found = parseFirstManifest(manifest({ format, meHotfix: 0x001a, meBuild: 0x12b4 }));
@@ -73,6 +77,7 @@ describe("decodeManifest", () => {
     }
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testR1HasNoVCNField
   it("gives a CSE manifest no version control number or module count", () => {
     const found = parseFirstManifest(manifest({ vcn: 7 }));
 
@@ -82,6 +87,7 @@ describe("decodeManifest", () => {
     expect(found?.numModules).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testR0NumModulesCoversDirectory
   it("reads a pre-CSE manifest's declared module count", () => {
     const found = parseFirstManifest(manifest({ format: "r0", numModules: 8 }));
 
@@ -89,6 +95,7 @@ describe("decodeManifest", () => {
     expect(found?.numModules).toBe(8);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testDebugSignedFlagSetsReleaseBit
   it("reads both signing flags", () => {
     const found = parseFirstManifest(manifest({ flags: 0x8000_0001 }));
 
@@ -96,14 +103,17 @@ describe("decodeManifest", () => {
     expect(found?.pvBit).toBe(true);
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.test
   it("decodes a `$MAN` tag as well", () => {
     expect(parseFirstManifest(manifest({ tag: "$MAN" }))?.tag).toBe("$MAN");
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testEmptyRegionHasNoManifest
   it("finds no manifest in an erased region", () => {
     expect(parseFirstManifest(new Uint8Array(0x300).fill(0xff))).toBeUndefined();
   });
 
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestParserTests.testDateFallsBackToRawWhenNotBCD
   it("keeps a date field that is not valid BCD as it was read", () => {
     // 0x07E9 has a nibble above 9, so it is not BCD at all. Keeping the raw
     // value gives 2025; decoding it as BCD anyway would give a year that is not

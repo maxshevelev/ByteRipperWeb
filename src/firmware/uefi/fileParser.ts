@@ -1,43 +1,74 @@
 import type { ImageRange } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
+import { readMicrocodeHeader } from "@/firmware/uefi/microcodeParser";
 import type { Parser } from "@/firmware/uefi/parserState";
+import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { Section, ucs2String, walkSections } from "@/firmware/uefi/sectionParser";
 import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
 
-/** `EFI_FFS_FILE_HEADER` and its variants. */
+/**
+ * `EFI_FFS_FILE_HEADER` and its variants.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS
+ */
 export const FFS = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.headerSize */
   headerSize: 0x18,
-  /** FFSv3 large file. */
+  /**
+   * FFSv3 large file.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.largeHeaderSize
+   */
   largeHeaderSize: 0x20,
   /**
    * Lenovo's large file in an FFSv2 Revision 2 volume — not in any
    * specification, and in plenty of laptops.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.lenovoHeaderSize
    */
   lenovoHeaderSize: 0x1c,
 
   /**
    * The same bit means different things depending on the *volume's* revision,
    * not the file's, which is the trap in this structure.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.tailPresent
    */
   tailPresent: 0x01, // volume revision 1
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.largeFile */
   largeFile: 0x01, // FFSv3, and Lenovo in FFSv2 rev 2
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.fixed */
   fixed: 0x04,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.checksumBit */
   checksumBit: 0x40,
 
-  /** What the body checksum field holds when the file does not have one. */
+  /**
+   * What the body checksum field holds when the file does not have one.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.fixedChecksum
+   */
   fixedChecksum: 0x5a, // volume revision 1
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.fixedChecksum2 */
   fixedChecksum2: 0xaa, // revision 2
 
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.padType */
   padType: 0xf0,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.rawType */
   rawType: 0x01,
-  /** In the file's *state* byte, not its attributes. */
+  /**
+   * In the file's *state* byte, not its attributes.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.erasePolarity
+   */
   erasePolarity: 0x80,
 } as const;
 
 /**
  * Every file's body is a run of sections except these two, which are the bytes
  * they say they are.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.hasSections
  */
 export function hasSections(type: number): boolean {
   return type !== FFS.rawType && type !== FFS.padType;
@@ -65,6 +96,9 @@ const FILE_TYPE_NAMES: Readonly<Record<number, string>> = {
 /**
  * Unknown codes keep their number, which is the only thing there is to say
  * about a vendor type nobody documented.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.typeName
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypeNames.swift#UEFITypeNames.file
  */
 export function fileTypeName(type: number): string {
   const known = FILE_TYPE_NAMES[type];
@@ -74,9 +108,15 @@ export function fileTypeName(type: number): string {
   return `File type 0x${type.toString(16).toUpperCase().padStart(2, "0")}`;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#Parser.ParsedFile */
 export interface ParsedFile {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#Parser.ParsedFile.node */
   readonly node: UEFINode;
-  /** Header through tail, before the walk aligns to the next file. */
+  /**
+   * Header through tail, before the walk aligns to the next file.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#Parser.ParsedFile.size
+   */
   readonly size: number;
 }
 
@@ -86,6 +126,8 @@ export interface ParsedFile {
  * Nothing means the volume's body cannot be walked past this point — a size of
  * zero or a header that does not fit — and the caller stops rather than looping
  * on the same offset.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#Parser.parseFile
  */
 export function parseFile(
   parser: Parser,
@@ -174,12 +216,27 @@ export function parseFile(
   let children: UEFINode[] = [];
   if (hasSections(type) && body.end > body.start) {
     children = walkSections(parser, body, { ffsVersion, emptyByte, depth: depth + 1 });
+  } else if (
+    type === FFS.rawType &&
+    body.end > body.start &&
+    readMicrocodeHeader(body.start, parser.reader) !== undefined
+  ) {
+    // A raw file that opens on a microcode image is the store the FIT points
+    // into: a run of images, each checked by the header reader the FIT panel
+    // uses, and the empty slots after them. It reads as those, the way
+    // UEFITool shows it, rather than as one blob.
+    children = scanRawArea(parser, body, emptyByte, depth + 1);
   }
 
   const node = makeNode({
     kind: "file",
     subtype: type,
-    name: nameOfGuid(name) ?? userInterfaceName(parser, children) ?? fileTypeName(type),
+    // A pad file's GUID is filler — all ones, as a rule — and names nothing, so
+    // the file is called what it is.
+    name:
+      type === FFS.padType
+        ? "Padding file"
+        : (nameOfGuid(name) ?? userInterfaceName(parser, children) ?? fileTypeName(type)),
     guid: name,
     header: { start: offset, end: offset + headerSize },
     body,

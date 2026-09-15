@@ -12,31 +12,59 @@ import type { ImageReader } from "@/firmware/imageReader";
  *   0x0E   1   Type[6:0] | ChecksumValid[7]
  *   0x0F   1   Checksum
  * ```
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry
  */
 export interface FITEntry {
-  /** Its place in the table; 0 is the header. */
+  /**
+   * Its place in the table; 0 is the header.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.index
+   */
   readonly index: number;
-  /** Where the row itself is in the file — what a write to it addresses. */
+  /**
+   * Where the row itself is in the file — what a write to it addresses.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.offset
+   */
   readonly offset: number;
   /**
    * Exact to 2^53, which covers every address a 32-bit image is mapped at. A
    * corrupt row can hold more and comes back rounded — and then every check
    * that it lands in the image fails, which is the same answer.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.address
    */
   readonly address: number;
   /**
    * As stored. Most types do not use it, and for microcode it is required to
    * be zero — the real size lives in the component, which is why showing this
    * raw is how a tool ends up displaying a silent `0`.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.size
    */
   readonly size: number;
-  /** Must be zero, except on a CSE SecureBoot entry where it is the subtype. */
+  /**
+   * Must be zero, except on a CSE SecureBoot entry where it is the subtype.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.reserved
+   */
   readonly reserved: number;
-  /** BCD: high byte major, low byte minor. */
+  /**
+   * BCD: high byte major, low byte minor.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.version
+   */
   readonly version: number;
-  /** Seven bits. The eighth is `checksumValid`. */
+  /**
+   * Seven bits. The eighth is `checksumValid`.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.type
+   */
   readonly type: number;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.checksumValid */
   readonly checksumValid: boolean;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.checksum */
   readonly checksum: number;
 }
 
@@ -46,6 +74,8 @@ export const FIT_ENTRY_SIZE = 16;
  * Reads a row. Nothing only when the bytes are not there — every field of a row
  * is valid as a value, and what is wrong with it is a diagnostic rather than a
  * refusal to read.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.read
  */
 export function readFitEntry(
   offset: number,
@@ -81,25 +111,40 @@ export function readFitEntry(
   };
 }
 
-/** `1.00`, unpacked from the BCD the field holds. */
+/**
+ * `1.00`, unpacked from the BCD the field holds.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.versionText
+ */
 export function versionText(entry: FITEntry): string {
   const major = (entry.version >>> 8).toString(16).toUpperCase();
   const minor = (entry.version & 0xff).toString(16).toUpperCase().padStart(2, "0");
   return `${major}.${minor}`;
 }
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.isHeader */
 export const isHeaderEntry = (entry: FITEntry): boolean => entry.type === FIT.headerType;
 
 /**
  * A slot a vendor reserved for a later update. Legal, and the safest place to
  * add an entry.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.isEmptySlot
  */
 export const isEmptySlot = (entry: FITEntry): boolean => entry.type === FIT.emptyType;
 
-/** What `Size` means in bytes, for the types that use it at all. */
+/**
+ * What `Size` means in bytes, for the types that use it at all.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.sizeInBytes
+ */
 export const sizeInBytes = (entry: FITEntry): number => entry.size * 16;
 
-/** The table's constants and the names for what is in it. */
+/**
+ * The table's constants and the names for what is in it.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT
+ */
 export const FIT = {
   /**
    * `_FIT_   ` read as a little-endian 64-bit number — it lives in the header
@@ -108,22 +153,37 @@ export const FIT = {
    * A `bigint`, because these eight bytes are a magic number and every one of
    * them matters: as a double the value is past 2^53 and two different byte
    * patterns could round to the same one.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.signature
    */
   signature: 0x2020_205f_5449_465fn,
-  /** The pointer's physical address: `0x40` from the top of the address space. */
+  /**
+   * The pointer's physical address: `0x40` from the top of the address space.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.pointerAddress
+   */
   pointerAddress: 0xffff_ffc0,
 
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.headerType */
   headerType: 0x00,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.microcodeType */
   microcodeType: 0x01,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.startupACMType */
   startupACMType: 0x02,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.tpmPolicyType */
   tpmPolicyType: 0x08,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.txtPolicyType */
   txtPolicyType: 0x0a,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.cseSecureBootType */
   cseSecureBootType: 0x10,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.emptyType */
   emptyType: 0x7f,
 
   /**
    * A policy entry whose version is 0 keeps an Index/IO register descriptor in
    * the first eight bytes, not an address.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.policyIndexIOVersion
    */
   policyIndexIOVersion: 0,
 } as const;
@@ -131,6 +191,8 @@ export const FIT = {
 /**
  * The same eight bytes, derived rather than typed a second time — upstream's
  * first spelling of them was `_TIF_`, and it cost a test to notice.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.signatureBytes
  */
 export const FIT_SIGNATURE_BYTES = Uint8Array.from("_FIT_   ", (one) => one.charCodeAt(0));
 
@@ -161,6 +223,7 @@ const TYPE_NAMES: Readonly<Record<number, string>> = {
 
 const hex2 = (value: number) => `0x${value.toString(16).toUpperCase().padStart(2, "0")}`;
 
+/** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.typeName */
 export function fitTypeName(type: number): string {
   const known = TYPE_NAMES[type];
   if (known !== undefined) return known;
@@ -184,7 +247,11 @@ const CSE_SUBTYPES: Readonly<Record<number, string>> = {
   13: "AC Module Manifest",
 };
 
-/** The subtype a CSE SecureBoot entry keeps in its `Reserved` byte. */
+/**
+ * The subtype a CSE SecureBoot entry keeps in its `Reserved` byte.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.cseSecureBootSubtypeName
+ */
 export function cseSecureBootSubtypeName(subtype: number): string {
   return CSE_SUBTYPES[subtype] ?? `Subtype ${subtype}`;
 }

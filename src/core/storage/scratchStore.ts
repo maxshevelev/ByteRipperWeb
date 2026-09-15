@@ -12,6 +12,8 @@ import type { ByteSource, Bytes } from "@/core/storage/byteStorage";
  * An overlay given no scratch store still works; it simply never folds its
  * piece list, which costs read speed on a pathological edit session and nothing
  * else. The platform-backed implementation arrives with saving, in M4.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TemporaryFileStore.swift#TemporaryFileStore
  */
 export interface ScratchStore {
   /**

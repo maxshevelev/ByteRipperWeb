@@ -29,49 +29,109 @@ import {
 } from "@/render/minimap/minimapLayout";
 import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 
-/** The flags that colour a cell. A byte can carry any combination. */
+/**
+ * The flags that colour a cell. A byte can carry any combination.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.CellState
+ */
 export interface CellState {
-  /** The byte is not a 0x00/0xFF fill. */
+  /**
+   * The byte is not a 0x00/0xFF fill.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.CellState.isSignificant
+   */
   readonly significant: boolean;
-  /** The byte was modified since the file was last read from disk. */
+  /**
+   * The byte was modified since the file was last read from disk.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.CellState.isModified
+   */
   readonly modified: boolean;
-  /** The byte differs from the companion file. */
+  /**
+   * The byte differs from the companion file.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.CellState.isDifferent
+   */
   readonly different: boolean;
 }
 
-/** The overview's precomputed picture of one file. */
+/**
+ * The overview's precomputed picture of one file.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MatchOverlay
+ * @upstream-differs one picture per pane carries the density, the edits, the differences and the match masks
+ */
 export interface OverviewPicture {
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary.extent
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MatchOverlay.extent
+   */
   readonly extent: number;
   /**
    * This file's own length, which is not the extent when the companion is
    * longer. Cells past it hold none of this file's bytes and stay bare.
    */
   readonly fileSize: number;
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary.rowCount
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MatchOverlay.rowCount
+   */
   readonly rowCount: number;
-  /** `rowCount × 16`, row-major. */
+  /**
+   * `rowCount × 16`, row-major.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary.density
+   */
   readonly density: Uint8Array;
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary.modified */
   readonly modified: Uint16Array;
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.OverviewSummary.different */
   readonly different: Uint16Array;
-  /** Per row, a bit per column holding at least one search match. */
+  /**
+   * Per row, a bit per column holding at least one search match.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MatchOverlay.matched
+   */
   readonly matched?: Uint16Array | undefined;
-  /** The same for the current match alone — the one the dump plates. */
+  /**
+   * The same for the current match alone — the one the dump plates.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.MatchOverlay.current
+   */
   readonly current?: Uint16Array | undefined;
 }
 
-/** One piece as the strip draws it. */
+/**
+ * One piece as the strip draws it.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.SegmentBlock
+ */
 export interface SegmentBandStrip {
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.SegmentBlock.range */
   readonly top: number;
   readonly height: number;
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.SegmentBlock.colorIndex */
   readonly tint: string;
   readonly hovered?: boolean | undefined;
 }
 
-/** One zone as the gutter draws it. */
+/**
+ * One zone as the gutter draws it.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket
+ */
 export interface ZoneBracket {
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.range */
   readonly top: number;
   readonly height: number;
-  /** How deeply nested, so brackets inside brackets step inward. */
+  /**
+   * How deeply nested, so brackets inside brackets step inward.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.lane
+   */
   readonly depth: number;
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.isFocused */
   readonly focused?: boolean | undefined;
 }
 
@@ -100,10 +160,17 @@ export interface MinimapColors {
  * content" to solid black and "all padding" to bare paper turned the map into
  * black islands on white; these bounds put it in the tonal range the dump
  * beside it actually occupies.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewMinTone
  */
 const MIN_TONE = 0.1;
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewMaxTone */
 const MAX_TONE = 0.55;
-/** Lifts the low end so a sparse slice separates from an empty one. */
+/**
+ * Lifts the low end so a sparse slice separates from an empty one.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewToneGamma
+ */
 const TONE_GAMMA = 0.75;
 
 /**
@@ -128,9 +195,13 @@ const MIN_MARK_DEVICE_PIXELS = 2;
  * thin frame, "you are here" in the one hue reserved for search. Taller than a
  * stroke, but only just — a tall plate reads as a block on the map rather than
  * as a position in it.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewMatchHeight
  */
 const MATCH_HEIGHT = 2;
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewMatchWidth */
 const MATCH_MIN_WIDTH = 7;
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewCurrentMatchHeight */
 const CURRENT_MATCH_HEIGHT = 4;
 
 /**
@@ -152,6 +223,10 @@ function laneCount(zones: readonly ZoneBracket[] | undefined): number {
   return Math.min(deepest + 1, ZONE_MAX_LANES);
 }
 
+/**
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView
+ * @upstream-differs the drawing half; the events and the data are MinimapCanvas's
+ */
 export class MinimapRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
@@ -165,6 +240,7 @@ export class MinimapRenderer {
     zoneLaneCount: 0,
   });
 
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.init */
   constructor(canvas: HTMLCanvasElement, colors: MinimapColors) {
     const context = canvas.getContext("2d", { alpha: false });
     if (context === null) throw new Error("This browser did not give the minimap a 2D context.");
@@ -173,6 +249,7 @@ export class MinimapRenderer {
     this.colors = colors;
   }
 
+  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewDidChangeEffectiveAppearance */
   setColors(colors: MinimapColors): void {
     this.colors = colors;
   }
@@ -184,6 +261,8 @@ export class MinimapRenderer {
    * `style.width`/`style.height` here from the size just measured overrides the
    * flex layout that produced it, the observer sees the new box, and the two
    * chase each other down to a few pixels — which is exactly what happened.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setFrameSize
    */
   resize(cssWidth: number, cssHeight: number, devicePixelRatio: number): void {
     this.ratio = Math.max(1, devicePixelRatio);
@@ -230,6 +309,8 @@ export class MinimapRenderer {
    * and the measured cost of a full repaint is well inside a frame. The grid
    * next door tracks dirty rows because it blits thousands of glyphs; doing the
    * same here would be bookkeeping bought with nothing.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.draw
    */
   draw(options: {
     readonly mode: MinimapMode;
@@ -278,6 +359,8 @@ export class MinimapRenderer {
    * ones over the inner. Nested brackets step inward so the nesting is what the
    * eye reads. The one in focus takes the louder colour, which is how the panel
    * says which zone it is looking at.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketLineWidth
    */
   private drawZones(brackets: readonly ZoneBracket[]): void {
     const gutter = this.layout.zoneGutterRect;
@@ -310,6 +393,8 @@ export class MinimapRenderer {
    * The piece under the pointer is painted at full strength and the rest are
    * given a little air, so the strip says which piece is being asked about
    * without changing which colour it is.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setSegmentBlocks
    */
   private drawSegmentStrip(bands: readonly SegmentBandStrip[]): void {
     const strip = this.layout.segmentStripRect;
@@ -330,6 +415,11 @@ export class MinimapRenderer {
    * Purple is the bookmark colour throughout (§20.4), which keeps a mark apart
    * from the grey viewport band that shares the map with it. Last, so a mark is
    * never buried under an overlay.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setBookmarks
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.bookmarks
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.bookmarkMarkRect
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.marginMarkerPath
    */
   private drawBookmarks(rows: readonly number[]): void {
     const margin = this.layout.bookmarkMargin;
@@ -355,14 +445,24 @@ export class MinimapRenderer {
     }
   }
 
-  /** The pane's selection, across the width of its map. */
+  /**
+   * The pane's selection, across the width of its map.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateSelection
+   */
   private drawSelection(strip: { readonly top: number; readonly height: number }): void {
     const context = this.context;
     context.fillStyle = this.colors.selection;
     context.fillRect(this.mapLeft, strip.top, this.mapWidth, strip.height);
   }
 
-  /** One cell per byte: the map reads as a miniature of the dump itself. */
+  /**
+   * One cell per byte: the map reads as a miniature of the dump itself.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.visibleCells
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ByteRow
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ByteRow.cells
+   */
   private drawDetail(cells: readonly CellState[]): void {
     const context = this.context;
     const cellWidth = this.mapWidth / BYTES_PER_ROW;
@@ -395,7 +495,11 @@ export class MinimapRenderer {
     }
   }
 
-  /** The whole file at one device pixel per row. */
+  /**
+   * The whole file at one device pixel per row.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewColumnLayoutForTesting
+   */
   private drawOverview(picture: OverviewPicture): void {
     const context = this.context;
     const rowHeight = this.height / Math.max(1, picture.rowCount);
@@ -445,6 +549,12 @@ export class MinimapRenderer {
    * Two passes, because a row here is about a pixel tall while the marks are a
    * few: a stroke drawn for a later row would otherwise land on top of the
    * current match's plate, and the plate has to be the topmost thing on the map.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.detailMatchBars
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.detailMatchHeight
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.detailCurrentMatchHeight
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.detailCurrentMatchPadding
+   * @upstream-differs one set of bar metrics for both modes
    */
   private drawMatches(picture: OverviewPicture, rowHeight: number, cellWidth: number): void {
     const context = this.context;
@@ -550,6 +660,8 @@ export class MinimapRenderer {
  * Ported from `MinimapView.overviewTone`. Note the floor: density 0 is
  * {@link MIN_TONE}, not nothing — a cell of pure fill is still a cell of the
  * file.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewTone
  */
 export function overviewTone(density: number): number {
   const fraction = density / 255;
@@ -563,6 +675,8 @@ export function overviewTone(density: number): number {
  *
  * Ported from the `mark(for:y:height:)` inside
  * `MinimapView.overviewMatchBars`.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewMatchBars
  */
 export function matchBarFor(
   mask: number,
@@ -593,6 +707,8 @@ export function matchBarFor(
  * The last of a row's cells that holds a byte of this file, or -1 for none.
  *
  * Ported from `MinimapView.lastColumnInFile`.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.lastColumnInFile
  */
 function lastColumnInFile(rowStart: number, span: number, fileSize: number): number {
   if (fileSize <= rowStart) return -1;

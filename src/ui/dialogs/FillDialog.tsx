@@ -17,6 +17,7 @@ export interface FillDialogProps {
   readonly onClose: () => void;
 }
 
+/** @upstream ByteRipperApp/Documents/SheetControllers.swift#FillSheetController */
 export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps) {
   const [text, setText] = useState("00");
 
@@ -24,6 +25,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
     if (open) setText("00");
   }, [open]);
 
+  /** @upstream ByteRipperApp/Documents/SheetControllers.swift#FillSheetController.validate */
   const pattern = parseHex(text);
   const preview =
     pattern === undefined || byteCount === 0
@@ -32,6 +34,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
           new Uint8Array(Math.min(byteCount, 16)).map((_, i) => pattern[i % pattern.length] ?? 0)
         );
 
+  /** @upstream ByteRipperApp/Documents/SheetControllers.swift#FillSheetController.handleSubmit */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (pattern === undefined) return;

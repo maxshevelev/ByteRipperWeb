@@ -34,6 +34,8 @@ import { caretAt } from "@/core/document/selectionModel";
  * splits it into an overwrite of the existing bytes plus an insert of the new
  * tail, so every stored operation is length-preserving and reverts without a
  * truncate.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoOperation
  */
 export type UndoOperation =
   | {
@@ -49,6 +51,8 @@ export type UndoOperation =
  * The operation that reverts this one, for applying a transaction in reverse:
  * an overwrite swaps its before and after, an insert becomes a delete of its
  * bytes, a delete re-inserts what it removed.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoOperation.inverted
  */
 export function invertOperation(operation: UndoOperation): UndoOperation {
   switch (operation.kind) {
@@ -75,20 +79,28 @@ export function invertOperation(operation: UndoOperation): UndoOperation {
  * consumes it byte by byte, and an undo that dropped the selection would make
  * the two directions asymmetric — undo would return to a state the editing
  * never passed through.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction
  */
 export interface UndoTransaction {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.ops */
   readonly ops: readonly UndoOperation[];
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.selectionBefore */
   readonly selectionBefore: Selection;
   /**
    * Set at record time from the edit's natural end, then refined by
    * {@link UndoHistory.noteSelectionAfterOnLast} once the command that made the
    * edit has left the selection where it wants it.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.selectionAfter
    */
   readonly selectionAfter: Selection;
   /**
    * The state this step was recorded under. A document-level act — a join —
    * captures it so undo and redo can recognise the transaction and re-attach or
    * detach the file.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.serial
    */
   readonly serial: number;
 }
@@ -124,6 +136,7 @@ interface Step {
   readonly seriesId: number | undefined;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory */
 export class UndoHistory {
   private undoSteps: Step[] = [];
   private redoSteps: Step[] = [];
@@ -147,10 +160,12 @@ export class UndoHistory {
   private lastUndoWasSeriesByte = false;
   private lastUndoSeriesId: number | undefined;
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.canUndo */
   get canUndo(): boolean {
     return this.undoSteps.length > 0;
   }
 
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.canRedo */
   get canRedo(): boolean {
     return this.redoSteps.length > 0;
   }
@@ -158,12 +173,18 @@ export class UndoHistory {
   /**
    * True when the current state differs from the last saved one, or when the
    * document holds never-saved content a cleared history no longer names.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.isDirty
    */
   get isDirty(): boolean {
     return this.dirtyAfterClear || this.currentSerial !== this.savedSerial;
   }
 
-  /** Number of committed transactions. */
+  /**
+   * Number of committed transactions.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.undoDepth
+   */
   get undoDepth(): number {
     return this.transactionCount;
   }
@@ -181,18 +202,28 @@ export class UndoHistory {
    * The same, or `undefined` when nothing has been committed. A join captures
    * this right after its transaction commits, so undo and redo can recognise
    * that step.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.lastCommittedSerial
    */
   get lastCommittedSerial(): number | undefined {
     const step = this.undoSteps[this.undoSteps.length - 1];
     return step?.entries[step.entries.length - 1]?.serial;
   }
 
-  /** What the next undo would take back, when that step has a name. */
+  /**
+   * What the next undo would take back, when that step has a name.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.undoLabel
+   */
   get undoLabel(): string | undefined {
     return this.undoSteps[this.undoSteps.length - 1]?.label;
   }
 
-  /** The same for the next redo. */
+  /**
+   * The same for the next redo.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.redoLabel
+   */
   get redoLabel(): string | undefined {
     return this.redoSteps[this.redoSteps.length - 1]?.label;
   }
@@ -203,6 +234,8 @@ export class UndoHistory {
    * Any undone steps are discarded, because the state has diverged. A new
    * record also breaks the fast-rollback window — a fresh edit is never batched
    * with a previous undo.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.record
    */
   record(ops: readonly UndoOperation[], options: RecordOptions): void {
     if (ops.length === 0) return;
@@ -228,7 +261,11 @@ export class UndoHistory {
     this.lastUndoSeriesId = undefined;
   }
 
-  /** Caret-only form, for edits with no selection to restore. */
+  /**
+   * Caret-only form, for edits with no selection to restore.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.record
+   */
   recordAtCaret(
     ops: readonly UndoOperation[],
     caretBefore: number,
@@ -250,6 +287,8 @@ export class UndoHistory {
    *
    * Ignored unless the last transaction is the current one — nothing has been
    * undone since it was recorded.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.noteSelectionAfterOnLast
    */
   noteSelectionAfterOnLast(selection: Selection): void {
     if (this.redoSteps.length > 0) return;
@@ -266,6 +305,8 @@ export class UndoHistory {
    * With `batch`, a fast repeat of a series-byte undo takes back the rest of
    * that series as one step instead. Returns `undefined` if there is nothing to
    * undo.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.undo
    */
   undo(batch = false): UndoTransaction[] | undefined {
     const last = this.undoSteps.pop();
@@ -302,6 +343,8 @@ export class UndoHistory {
    *
    * A batch step is unfolded back into individual byte steps on the undo stack,
    * restoring the series' byte-by-byte structure.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.redo
    */
   redo(): UndoTransaction[] | undefined {
     const step = this.redoSteps.pop();
@@ -318,13 +361,21 @@ export class UndoHistory {
     return step.entries.map((entry) => entry.transaction);
   }
 
-  /** Marks the state the document is in as the saved one. */
+  /**
+   * Marks the state the document is in as the saved one.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.markSaved
+   */
   markSaved(): void {
     this.savedSerial = this.currentSerial;
     this.dirtyAfterClear = false;
   }
 
-  /** Discards all history and the dirty checkpoint. */
+  /**
+   * Discards all history and the dirty checkpoint.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.reset
+   */
   reset(): void {
     this.undoSteps = [];
     this.redoSteps = [];
@@ -346,6 +397,8 @@ export class UndoHistory {
    * prior state to return to — yet must not be silently discarded on close, so
    * the dirty flag survives the clear. A later save or reset clears it; edits
    * made after the clear undo as usual and never reach the cleared work.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.clearKeepingDirty
    */
   clearKeepingDirty(): void {
     this.reset();

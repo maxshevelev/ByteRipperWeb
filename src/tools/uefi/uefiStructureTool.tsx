@@ -17,7 +17,7 @@ import { clearZones, publishZones } from "@/state/zoneStore";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { uefiZones } from "@/tools/uefi/uefiPresenter";
-import { nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
+import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
@@ -38,7 +38,13 @@ import type { WireNode } from "@/workers/protocol";
  * an image is routinely thousands of nodes.
  */
 
-/** One row as the list draws it. No node is the "Loading…" row of a slow branch. */
+/**
+ * One row as the list draws it. No node is the "Loading…" row of a slow branch.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.id
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.isLoading
+ */
 interface Row {
   readonly node: WireNode | undefined;
   readonly depth: number;
@@ -62,6 +68,8 @@ const SUBTYPE_WIDTH = 88;
 /**
  * How long a branch may take before its row says it is being read. Under this
  * the row simply opens when the branch is there, which is the common case.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.loadingRowDelay
  */
 const LOADING_ROW_DELAY = 200;
 
@@ -79,26 +87,47 @@ function storedTreeShare(): number {
   }
 }
 
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsEmptyPaddingKey */
+const SHOWS_EMPTY_PADDING_KEY = "byteripper.uefiShowsEmptyPadding";
+
+/** Off until the reader turns it on, and remembered like the panel's split. */
+function storedShowsEmptyPadding(): boolean {
+  try {
+    return localStorage.getItem(SHOWS_EMPTY_PADDING_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 const pathOf = (key: string): number[] => (key.length === 0 ? [] : key.split(".").map(Number));
 
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.show */
 function rowsOf(
   nodes: readonly WireNode[],
   open: ReadonlySet<string>,
   loading: ReadonlySet<string>,
+  showsEmptyPadding: boolean,
   depth: number,
   rows: Row[] = []
 ): Row[] {
-  for (const node of nodes) {
+  for (const node of listed(nodes, showsEmptyPadding)) {
     const key = pathKey(node.id);
     rows.push({ node, depth, key });
     if (!open.has(key)) continue;
-    if (node.children.length > 0) rowsOf(node.children, open, loading, depth + 1, rows);
+    if (node.children.length > 0)
+      rowsOf(node.children, open, loading, showsEmptyPadding, depth + 1, rows);
     else if (loading.has(key))
       rows.push({ node: undefined, depth: depth + 1, key: `${key}#loading` });
   }
   return rows;
 }
 
+/**
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.loadView
+ * @upstream-differs a React component: its render and effects are the session and its view controller
+ */
 function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const state = useStore(firmwareStore).panes[context.pane];
   const catalogue = useStore(catalogueStore);
@@ -111,6 +140,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
+  /**
+   * Whether the tree lists empty padding.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsEmptyPadding
+   */
+  const [showsEmptyPadding, setShowsEmptyPadding] = useState(storedShowsEmptyPadding);
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -177,12 +212,19 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   }, [roots, status, open, context.pane]);
 
   const presented = useMemo(() => present(roots ?? []), [roots]);
-  const rows = useMemo(() => rowsOf(presented.rows, open, loading, 0), [presented, open, loading]);
+  const rows = useMemo(
+    () => rowsOf(presented.rows, open, loading, showsEmptyPadding, 0),
+    [presented, open, loading, showsEmptyPadding]
+  );
   const maxDepth = useMemo(
     () => rows.reduce((deepest, row) => Math.max(deepest, row.depth), 0),
     [rows]
   );
 
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewItemDidExpand
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewItemDidCollapse
+   */
   const toggle = useCallback(
     (node: WireNode) => {
       const key = pathKey(node.id);
@@ -209,6 +251,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     [open, context.pane]
   );
 
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelect
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewSelectionDidChange
+   */
   const choose = useCallback(
     (node: WireNode) => {
       const key = pathKey(node.id);
@@ -229,6 +275,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * opened, its row selected, its detail up. Only the tree moves — the dump is
    * where the reader is standing, so nothing is published that would scroll it
    * away from the caret that asked.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealAtCaret = useCallback(async () => {
     const slot = workspaceStore.getSnapshot().panes[context.pane];
@@ -265,6 +314,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   /**
    * What is wrong with this node, when a checksum diagnostic is about it — by
    * offset, because that is how a diagnostic locates itself.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.badFields
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.fields
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.checksumProblems
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.checksumText
+   * @upstream-differs one problem string per row, read from the worker's repairs, rather than a set of fields
    */
   const problemOf = useCallback(
     (node: WireNode) =>
@@ -277,7 +333,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     [state?.diagnostics]
   );
 
-  /** The revision of the volume a node sits in, which a file's fixed sum follows. */
+  /**
+   * The revision of the volume a node sits in, which a file's fixed sum follows.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeRevision
+   */
   const volumeRevisionFor = useCallback(
     (path: readonly number[]) => {
       let nodes = roots ?? [];
@@ -318,7 +378,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           if (current === undefined) return;
           if (
             !open.has(pathKey(current.id)) &&
-            (current.children.length > 0 || current.isExpandable)
+            (listed(current.children, showsEmptyPadding).length > 0 || current.isExpandable)
           ) {
             toggle(current);
           } else {
@@ -343,7 +403,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
       event.preventDefault();
     },
-    [rows, selected, open, choose, toggle]
+    [rows, selected, open, choose, toggle, showsEmptyPadding]
   );
 
   const changeTreeShare = useCallback((share: number) => {
@@ -352,6 +412,16 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       localStorage.setItem(TREE_SHARE_KEY, String(share));
     } catch {
       // A private window may refuse to store it; the split still applies here.
+    }
+  }, []);
+
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.setShowsEmptyPadding */
+  const changeShowsEmptyPadding = useCallback((shows: boolean) => {
+    setShowsEmptyPadding(shows);
+    try {
+      localStorage.setItem(SHOWS_EMPTY_PADDING_KEY, String(shows));
+    } catch {
+      // A private window may refuse to store it; the tree still follows it here.
     }
   }, []);
 
@@ -392,6 +462,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             {summary(state.roots)}
           </button>
         )}
+        <label
+          className="uefi-padding-toggle"
+          title="List the padding nobody wrote to — erased bytes between structures"
+        >
+          <input
+            type="checkbox"
+            checked={showsEmptyPadding}
+            onChange={(event) => changeShowsEmptyPadding(event.target.checked)}
+          />
+          Show Empty Padding
+        </label>
         <button
           type="button"
           className="uefi-reveal"
@@ -437,6 +518,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                     : nodeName(
                         {
                           kind: row.node.kind,
+                          subtype: row.node.subtype,
                           name: row.node.name,
                           guid:
                             row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
@@ -445,6 +527,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                       )
                 }
                 problem={row.node === undefined ? undefined : problemOf(row.node)}
+                showsEmptyPadding={showsEmptyPadding}
                 isOpen={open.has(row.key)}
                 isSelected={selected === row.key}
                 onToggle={toggle}
@@ -509,11 +592,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 }
 
+/**
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.marks
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineView
+ * @upstream-differs a row draws one problem mark; there are no rails or badges yet
+ */
 function TreeRow({
   row,
   index,
   named,
   problem,
+  showsEmptyPadding,
   isOpen,
   isSelected,
   onToggle,
@@ -524,6 +614,7 @@ function TreeRow({
   readonly index: number;
   readonly named: string;
   readonly problem: string | undefined;
+  readonly showsEmptyPadding: boolean;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
   readonly onToggle: (node: WireNode) => void;
@@ -553,7 +644,9 @@ function TreeRow({
     );
   }
 
-  const hasChildren = node.children.length > 0 || node.isExpandable;
+  // A branch read to nothing but empty padding has nothing to open on while
+  // that padding is hidden.
+  const hasChildren = listed(node.children, showsEmptyPadding).length > 0 || node.isExpandable;
   return (
     // The tree takes the keyboard for every row at once (`onKeyDown` above), so
     // a row answers the pointer only.
@@ -606,8 +699,13 @@ function TreeRow({
   );
 }
 
+/**
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.identifier
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.title
+ */
 export const uefiStructureTool: ToolModule = {
-  id: "uefi-structure",
+  id: "dev.maxik.tool.uefi-structure",
   title: "UEFI Structure",
   summary: "The image as a tree: regions, volumes, files and sections.",
   View: UefiStructureView,

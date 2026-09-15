@@ -15,7 +15,12 @@
  * {@link mulDiv}.
  */
 
-/** The dump's row width, and the map's. */
+/**
+ * The dump's row width, and the map's.
+ *
+ * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.columns
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.bytesPerRow
+ */
 export const MINIMAP_COLUMNS = 16;
 
 /** A half-open span of the picture's pixel rows. */
@@ -49,9 +54,15 @@ function mulDiv(a: number, b: number, c: number): number {
   return Number((BigInt(a) * BigInt(b)) / BigInt(c));
 }
 
+/** @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning */
 export class OverviewBinning {
-  /** The extent the rows are binned over — the longest open file. */
+  /**
+   * The extent the rows are binned over — the longest open file.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.extent
+   */
   readonly extent: number;
+  /** @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.rowCount */
   readonly rowCount: number;
 
   constructor(extent: number, rowCount: number) {
@@ -62,6 +73,8 @@ export class OverviewBinning {
   /**
    * The first byte of a row's slice of the file. `row === rowCount` gives the
    * extent, so a row's slice is `startOfRow(row)` up to `startOfRow(row + 1)`.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.start
    */
   startOfRow(row: number): number {
     if (this.rowCount <= 0) return 0;
@@ -79,6 +92,8 @@ export class OverviewBinning {
    * rows. Slicing per cell there gave every cell but the last an empty byte
    * range: the picture came out a pale field with the whole file collapsed into
    * a stripe down its right edge.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.stretchedColumns
    */
   stretchedColumns(index: number, span: number): readonly [number, number] {
     const effective = Math.max(span, 1);
@@ -92,6 +107,8 @@ export class OverviewBinning {
    * The row a byte offset falls in and the cells it occupies there, or
    * `undefined` when the offset is past the extent or its row is outside
    * `rows`.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.cells
    */
   cells(offset: number, rows: RowRange): Cells | undefined {
     if (this.rowCount <= 0 || this.extent <= 0 || offset >= this.extent) return undefined;
@@ -116,6 +133,8 @@ export class OverviewBinning {
    *
    * A range spanning whole rows fills them, so a difference or a run of matches
    * reads as a band rather than as two end marks.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.mark
    */
   mark(start: number, end: number, rows: RowRange, bits: Uint16Array): void {
     const lower = Math.max(start, this.startOfRow(rows.from));
@@ -164,6 +183,8 @@ export class OverviewBinning {
    *
    * A stretch covering a whole dump row's worth of bytes fills the row's cells,
    * since every column holds one of its bytes.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.markHexColumns
    */
   markHexColumns(start: number, end: number, rows: RowRange, bits: Uint16Array): void {
     if (this.rowCount <= 0 || this.extent <= 0) return;

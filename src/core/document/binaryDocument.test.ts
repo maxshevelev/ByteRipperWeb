@@ -3,7 +3,13 @@ import { BinaryDocument, JoinEmpty } from "@/core/document/binaryDocument";
 import { caretAt, selection, selectionOfLength } from "@/core/document/selectionModel";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
-import { asArray, readAll, storageOver } from "@/core/testing/support";
+import {
+  asArray,
+  countingBytes,
+  RecordingScratchStore,
+  readAll,
+  storageOver,
+} from "@/core/testing/support";
 
 /**
  * Ported from `BinaryDocumentTests.swift`.
@@ -19,6 +25,7 @@ const documentOf = (bytes: number[]) =>
 const content = async (doc: BinaryDocument) => asArray(await readAll(doc.storage));
 
 describe("a freshly opened document", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testOpenExposesSizeAndIdentity
   it("exposes its size and nothing to undo", () => {
     const doc = documentOf([0x01, 0x02, 0x03]);
     expect(doc.size).toBe(3);
@@ -29,6 +36,7 @@ describe("a freshly opened document", () => {
   });
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testMutationUndoRedo
 describe("every mutation is one undoable transaction", () => {
   // It changes the content, marks the document dirty, and a single undo takes
   // the file back to exactly what it was opened with — with nothing left to
@@ -77,6 +85,7 @@ describe("every mutation is one undoable transaction", () => {
   }
 });
 
+// @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testFill
 describe("fill", () => {
   const cases: {
     name: string;
@@ -132,6 +141,7 @@ describe("fill", () => {
     });
   }
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testFillUndoRedo
   it("is one transaction from either entry point", async () => {
     const doc = documentOf([0x01, 0x02, 0x03, 0x04]);
     await doc.fill(new Uint8Array([0xde, 0xad]), 0, 4);
@@ -152,6 +162,7 @@ describe("fill", () => {
 });
 
 describe("edits that change the length", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testOverwritePastEOFUndoShrinks
   it("shrinks the file back when an overwrite past EOF is undone", async () => {
     const doc = documentOf([0x00, 0x01]);
     await doc.overwrite(1, new Uint8Array([0xaa, 0xbb]));
@@ -166,6 +177,7 @@ describe("edits that change the length", () => {
     expect(await content(doc)).toEqual([0x00, 0xaa, 0xbb]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testReplaceShorterDeletesLeftover
   it("deletes the leftover when a replacement is shorter", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03]);
     await doc.replace(1, 3, new Uint8Array([0xff]));
@@ -177,6 +189,7 @@ describe("edits that change the length", () => {
     expect(await content(doc)).toEqual([0x00, 0xff, 0x03]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testSelectionClampedAfterSizeChange
   it("clamps the selection when the file shrinks under it", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03]);
     doc.setSelection(selectionOfLength(1, 3, doc.size));
@@ -190,6 +203,8 @@ describe("edits that change the length", () => {
 });
 
 describe("dirty state", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testDirtyLifecycleThroughSave
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testADifferentEditAfterUndoLeavesTheDocumentDirty
   it("stays dirty after a save, an undo and a different edit", async () => {
     // It used to compare the number of edits standing, call that the saved
     // state, and let the change be closed away without a prompt.
@@ -210,6 +225,7 @@ describe("dirty state", () => {
     expect(doc.isDirty).toBe(false);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testRedoStackClearedOnNewEdit
   it("discards the redo stack on a fresh edit", async () => {
     const doc = documentOf([0x00]);
     await doc.overwrite(0, new Uint8Array([0xaa]));
@@ -226,7 +242,9 @@ describe("dirty state", () => {
   });
 });
 
+// @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testUndoRestoresCaretRedoReappliesIt
 describe("where undo and redo leave the caret", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testUndoRestoresCaretBeforeRedoRestoresCaretAfter
   it("returns to where the edit began, and forward to where it ended", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03, 0x04]);
     doc.setSelection(caretAt(3, doc.size));
@@ -238,6 +256,7 @@ describe("where undo and redo leave the caret", () => {
     expect(doc.selection.start).toBe(4);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testUndoRedoInsertCaret
   it("does the same for an insert", async () => {
     const doc = documentOf([0x00, 0x01, 0x02]);
     doc.setSelection(caretAt(1, doc.size));
@@ -250,6 +269,7 @@ describe("where undo and redo leave the caret", () => {
     expect(doc.selection.start).toBe(3); // at + count
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testUndoRestoresTheSelectionTheEditStartedFrom
   it("restores the whole selection, not just its caret", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03, 0x04]);
     doc.setSelection(selection(1, 4, doc.size));
@@ -259,6 +279,7 @@ describe("where undo and redo leave the caret", () => {
     expect(doc.selection).toEqual(selection(1, 4, 5));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testRedoRestoresTheSelectionTheCommandLeft
   it("redoes to the state the command left, remainder included", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03, 0x04]);
     doc.setSelection(selection(1, 4, doc.size));
@@ -272,6 +293,7 @@ describe("where undo and redo leave the caret", () => {
     expect(doc.selection).toEqual(selection(2, 4, 5));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testANoteAfterAnUndoDoesNotTouchTheOlderTransaction
   it("does not attach a stray note to an older transaction", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03]);
     await doc.overwrite(0, new Uint8Array([0xaa]));
@@ -288,6 +310,7 @@ describe("where undo and redo leave the caret", () => {
 });
 
 describe("edit groups", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testUndoGroupCoalesces
   it("coalesce into one undo", async () => {
     const doc = documentOf([0x00, 0x01]);
     doc.beginEditGroup();
@@ -302,6 +325,7 @@ describe("edit groups", () => {
     expect(await content(doc)).toEqual([0x00, 0x01]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testUndoOfACoalescedTypingGroupRestoresTheSelectionAtItsStart
   it("restore the selection the group began with", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03, 0x04]);
     doc.setSelection(selection(2, 5, doc.size));
@@ -314,6 +338,7 @@ describe("edit groups", () => {
     expect(doc.selection).toEqual(selection(2, 5, 5));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testCancellingAnEditGroupRestoresEveryByteItTouched
   it("restore every byte a cancelled group touched", async () => {
     // The operations must be reverted newest first: reverting them in recording
     // order would make the second insert's inverse delete a byte that has
@@ -330,6 +355,7 @@ describe("edit groups", () => {
     expect(doc.size).toBe(5);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testCancellingAnEditGroupRecordsNothingAndRestoresItsStartSelection
   it("record nothing when cancelled, and restore their start selection", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03, 0x04]);
     await doc.overwrite(4, new Uint8Array([0x44])); // one committed edit behind the group
@@ -353,6 +379,7 @@ describe("edit groups", () => {
 });
 
 describe("a typing series", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testTypingSeriesUndoByteThenBatch
   it("undoes a byte, then the rest in one batch, and redoes symmetrically", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03]);
     doc.beginSeries(1);
@@ -382,6 +409,8 @@ describe("a typing series", () => {
     expect(doc.selection.start).toBe(3);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testTypingSeriesBatchUndoRestoresTheConsumedSelection
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testUndoRestoresTheSelectionTypingWasConsuming
   it("restores the selection typing consumed", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03, 0x04]);
     doc.setSelection(selection(2, 5, doc.size));
@@ -410,6 +439,7 @@ describe("a typing series", () => {
     expect(doc.selection).toEqual(caretAt(5, 5));
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testFillCaretOverrideUsedOnUndoRedo
   it("honours a fill's caret override in both directions", async () => {
     const doc = documentOf([0x00, 0x01, 0x02, 0x03]);
     doc.setSelection(selection(1, 3, doc.size));
@@ -490,6 +520,7 @@ describe("the events the UI listens to", () => {
 });
 
 describe("reverting", () => {
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testRevertDiscardsEdits
   it("discards every edit and starts again over the storage it is given", async () => {
     const doc = documentOf([0x00, 0x01, 0x02]);
     await doc.overwrite(0, new Uint8Array([0xff]));
@@ -506,6 +537,7 @@ describe("reverting", () => {
   });
 });
 
+// @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testCaretMoveCommitsAHalfTypedByteAsItsOwnStep
 describe("a half-typed byte", () => {
   it("counts as unsaved while its edit group is still open", async () => {
     // The bytes have already changed — the byte is on screen, in red — but the
@@ -544,6 +576,7 @@ describe("a half-typed byte", () => {
 describe("joining another file in", () => {
   const donor = (bytes: number[]) => storageOver(new Uint8Array(bytes));
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinAtEndAppendsTheSource
   it("appends the source at the end", async () => {
     const doc = documentOf([1, 2, 3]);
 
@@ -552,6 +585,7 @@ describe("joining another file in", () => {
     expect(await content(doc)).toEqual([1, 2, 3, 0xa, 0xb]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinAtStartPutsTheSourceFirst
   it("inserts the source before everything", async () => {
     const doc = documentOf([1, 2, 3]);
 
@@ -562,6 +596,7 @@ describe("joining another file in", () => {
 
   // However many chunks the bytes arrived in, the join is one thing the user
   // did and one press takes it back.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAMultiChunkJoinIsOneTransaction
   it("is one undo step", async () => {
     const doc = documentOf([1, 2, 3]);
     await doc.join(donor([0xa, 0xb, 0xc]), "end");
@@ -574,6 +609,8 @@ describe("joining another file in", () => {
 
   // The seam: the boundary the join opened, which is where the reader wants to
   // be looking afterwards.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinAtEndPutsTheCaretAtTheSeam
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinAtStartPutsTheCaretAtZero
   it("leaves the caret at the start of what arrived", async () => {
     const doc = documentOf([1, 2, 3]);
 
@@ -585,6 +622,7 @@ describe("joining another file in", () => {
     expect(other.caret).toBe(0);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAnEmptySourceIsRefusedAndChangesNothing
   it("refuses a file with no bytes in it", async () => {
     const doc = documentOf([1, 2, 3]);
 
@@ -597,6 +635,8 @@ describe("joining another file in", () => {
   // A document can be joined to itself. The source's size is taken once, before
   // anything is written — a loop that read until it reached the end would never
   // reach it, and the document would grow until the browser stopped it.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAppendingADocumentToItselfDoublesIt
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testASelfJoinIsCorrectAcrossSeveralChunks
   it("terminates when a document is joined to itself", async () => {
     const doc = documentOf([1, 2, 3, 4]);
 
@@ -609,11 +649,117 @@ describe("joining another file in", () => {
 
   // The same case with the reads shifting under the writes: inserting at the
   // start moves the original bytes right by however much has gone in.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testInsertingADocumentIntoItsOwnStartDoublesIt
   it("copies the right bytes when a document is inserted before itself", async () => {
     const doc = documentOf([1, 2, 3, 4]);
 
     await doc.join(doc.storage, "start", { chunkSize: 2 });
 
     expect(await content(doc)).toEqual([1, 2, 3, 4, 1, 2, 3, 4]);
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testASelfJoinUndoesInOneStep
+  it("takes a self-join back in one step", async () => {
+    const doc = documentOf([0x10, 0x20]);
+    await doc.join(doc.storage, "end");
+    expect(doc.size).toBe(4);
+
+    await doc.undo();
+
+    expect(await content(doc)).toEqual([0x10, 0x20]);
+  });
+
+  // The second join joins the already joined document, and the bytes stack in
+  // the order the joins asked for.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testTwoJoinsInARowStackInOrder
+  it("stacks two joins in the order they were asked for", async () => {
+    const doc = documentOf([1, 2, 3]);
+
+    await doc.join(donor([0xa0]), "start");
+    await doc.join(donor([0xb0]), "end");
+
+    expect(await content(doc)).toEqual([0xa0, 1, 2, 3, 0xb0]);
+  });
+
+  // A chunk bigger than the overlay's inline budget makes the storage fold
+  // itself into a fresh base mid-join. Every byte still lands, and the scratch
+  // copy proves the fold happened.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinLargerThanTheAddBufferBudgetStillLands
+  it("still lands every byte when a chunk overflows the add buffer's budget", async () => {
+    const size = 1024 * 1024 + 1;
+    const scratch = new RecordingScratchStore();
+    const storage = new EditOverlayStorage(storageOver(countingBytes(16, 0x10)), {
+      scratch,
+      budgets: { maxInlineInsert: 512 * 1024 },
+    });
+    const doc = new BinaryDocument(storage);
+    const source = new Uint8Array(size);
+    for (let index = 0; index < size; index++) source[index] = index % 251;
+
+    await doc.join(storageOver(source), "start");
+
+    const expected = new Uint8Array(size + 16);
+    expected.set(source);
+    expected.set(countingBytes(16, 0x10), size);
+    expect(await readAll(doc.storage)).toEqual(expected);
+    expect(scratch.writeCount).toBeGreaterThanOrEqual(1);
+  });
+
+  // Undoing the join takes only the join; the edit before it still stands, and
+  // a further undo lands back on the saved state. Upstream also checks the
+  // document is attached to its file again after each undo — here the
+  // attachment is the pane's, not the document's (workspaceStore), and this
+  // suite has no pane.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinStacksOnTopOfEarlierEdits
+  it("stacks on top of earlier edits, which undo as usual", async () => {
+    const doc = documentOf([0x10, 0x11, 0x12, 0x13]);
+    await doc.overwrite(0, new Uint8Array([0x01, 0x02]));
+    await doc.join(donor([0xa0]), "end");
+
+    await doc.undo();
+    expect(doc.size).toBe(4);
+    expect(await content(doc)).toEqual([0x01, 0x02, 0x12, 0x13]);
+
+    await doc.undo();
+    expect(await content(doc)).toEqual([0x10, 0x11, 0x12, 0x13]);
+    expect(doc.isDirty).toBe(false);
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinMakesACleanDocumentDirty
+  it("makes a clean document dirty", async () => {
+    const doc = documentOf([1, 2, 3]);
+    expect(doc.isDirty).toBe(false);
+
+    await doc.join(donor([0xa0]), "end");
+
+    expect(doc.isDirty).toBe(true);
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testUndoingAJoinRestoresThePreJoinCaret
+  it("gives the caret back to where it was when the join is undone", async () => {
+    const doc = documentOf([...countingBytes(16, 0x10)]);
+    doc.setSelection(caretAt(5, doc.size));
+    await doc.join(donor([0xa0, 0xa1]), "end");
+    expect(doc.caret).toBe(16);
+
+    await doc.undo();
+
+    expect(doc.caret).toBe(5);
+  });
+
+  // Redo puts the caret back at the seam, where the join itself left it — not
+  // at the end of the bytes that came back.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testRedoingAJoinRestoresTheSeamCaret
+  it("puts the caret back at the seam when the join is redone", async () => {
+    const doc = documentOf([...countingBytes(16, 0x10)]);
+    doc.setSelection(caretAt(5, doc.size));
+    await doc.join(donor([0xa0, 0xa1]), "end");
+    await doc.undo();
+    expect(doc.caret).toBe(5);
+
+    await doc.redo();
+
+    expect(doc.caret).toBe(16);
+    expect(doc.selection).toEqual(caretAt(16, 18));
   });
 });

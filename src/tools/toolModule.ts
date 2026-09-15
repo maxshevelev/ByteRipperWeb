@@ -19,22 +19,53 @@ import type { PaneId } from "@/state/workspaceStore";
  *   and never on another tool.** Code two tools both need moves to shared code.
  */
 
+/**
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost
+ * @upstream-differs the context a tool is handed is its pane, reveal and report; the rest it reads from the stores it subscribes to
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.pane
+ */
 export interface ToolContext {
   /** The pane this instance of the tool is about. */
   readonly pane: PaneId;
-  /** Shows a range in the dump, and selects it. */
+  /**
+   * Shows a range in the dump, and selects it.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.reveal
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showZoneStartForTool
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.reveal
+   */
   readonly reveal: (start: number, end: number) => void;
   /** Something the user needs told, in the shell's own status line. */
   readonly report: (problem: string | undefined) => void;
 }
 
+/**
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession
+ * @upstream-differs a module object whose View component is the session
+ */
 export interface ToolModule {
-  /** Stable, and what a saved layout would name. */
+  /**
+   * Stable, and what a saved layout would name.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.identifier
+   */
   readonly id: string;
-  /** What the panel's tab says. */
+  /**
+   * What the panel's tab says.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.title
+   */
   readonly title: string;
   /** One line about what it is for, for the picker. */
   readonly summary: string;
-  /** The panel's body. Mounted only while the tool is the one on screen. */
+  /**
+   * The panel's body. Mounted only while the tool is the one on screen.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.makeSession
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.viewController
+   */
   readonly View: (props: { readonly context: ToolContext }) => React.ReactNode;
 }

@@ -31,6 +31,9 @@ export function unsavedPanes(): UnsavedPane[] {
  *
  * The message is the browser's own — every one of them ignores whatever text a
  * page supplies, and has for years — so this only decides *whether* to ask.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.windowShouldClose
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveAllThen
  */
 export function watchForUnsavedWork(): () => void {
   const onBeforeUnload = (event: BeforeUnloadEvent) => {

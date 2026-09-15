@@ -14,15 +14,26 @@ import { hex, sha256, sha384 } from "@/firmware/me/crypto/digest";
  * Ported from `Packages/MEFirmware/Decompress/LZMAModule.swift`.
  */
 
-/** How a module with the stray zeros starts (after `me_unpack.py`, which upstream cites). */
+/**
+ * How a module with the stray zeros starts (after `me_unpack.py`, which upstream cites).
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule.strayZerosSignature
+ */
 export const STRAY_ZEROS_SIGNATURE: readonly number[] = [0x36, 0x00, 0x40, 0x00, 0x00];
 
-/** What any one CSME module may decompress to; the declared size is an untrusted number. */
+/**
+ * What any one CSME module may decompress to; the declared size is an untrusted number.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule.maximumSize
+ */
 export const LZMA_MODULE_MAXIMUM_SIZE = 64 * 1024 * 1024;
 
 /**
  * The stored bytes as the decoder wants them: a module that starts with the
  * signature and has zeros at 0x0E…0x10 loses those three bytes.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule.decoderInput
  */
 export function lzmaDecoderInput(stored: Uint8Array): Uint8Array {
   if (stored.length < 0x11) return stored;
@@ -38,6 +49,8 @@ export function lzmaDecoderInput(stored: Uint8Array): Uint8Array {
  * The module decompressed, or nothing when it does not decode. A stream shorter
  * than the `.met`'s uncompressed size is filled out with its own last byte — the
  * way upstream adds the "missing EOF padding".
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule.decompress
  */
 export function decompressLzmaModule(
   stored: Uint8Array,
@@ -62,6 +75,8 @@ export function decompressLzmaModule(
  * order the `.met` holds it, and upstream prints it as a little-endian integer,
  * so its digest is this one read backwards. 32 bytes is SHA-256, anything else
  * SHA-384.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule.hashMatches
  */
 export function lzmaHashMatches(
   storedHash: string,
@@ -74,7 +89,11 @@ export function lzmaHashMatches(
   return hex(digest(stored)) === expected || hex(digest(decompressed)) === expected;
 }
 
-/** Uppercase hex with its bytes in the opposite order; nothing for half a byte. */
+/**
+ * Uppercase hex with its bytes in the opposite order; nothing for half a byte.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Decompress/LZMAModule.swift#LZMAModule.reversedHex
+ */
 export function reversedHex(text: string): string {
   const upper = text.toUpperCase();
   if (upper.length % 2 !== 0) return "";

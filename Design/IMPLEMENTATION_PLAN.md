@@ -354,7 +354,8 @@ an opinion — decides whether WASM enters the project.
 
 1. Settings: monospaced font, size, row density, theme (system / light / dark),
    diff grouping distance, decoding table with the live 256-value grid.
-   Persisted in IndexedDB.
+   Persisted in IndexedDB. No Zoom In / Zoom Out: the browser's page zoom is
+   the zoom (ANALYSIS.md), so the size is a setting and nothing more.
 2. Favourites and recent queries; a favourite is a recent with a name.
 3. Library sync: in Chromium, `showDirectoryPicker()` plus a handle kept in
    IndexedDB gives upstream's one-file-per-machine merge model — ported from
