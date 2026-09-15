@@ -129,6 +129,9 @@ const PEER_CONTOUR_RADIUS = 3;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourLineWidth */
 const PEER_CONTOUR_LINE_WIDTH = 1.5;
 
+/** The find indicator's outline: a hairline, enough to edge the yellow. */
+const FIND_INDICATOR_LINE_WIDTH = 1;
+
 /**
  * A published zone, drawn as upstream draws one: the mirror's own contour —
  * same padding, same rounding — stroked at a steady strength, teal for the
@@ -169,8 +172,13 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly peerSelection: string;
   /** Every occurrence of the search pattern. */
   readonly matchFill: string;
-  /** The one the find bar is standing on. */
-  readonly currentMatchFill: string;
+  /**
+   * The find indicator: the plate under the match the find bar is standing on.
+   * A fixed yellow in either theme, which is why its ink is a role of its own.
+   */
+  readonly findIndicator: string;
+  /** The indicator's outline, in place of upstream's shadow. */
+  readonly findIndicatorBorder: string;
   /** The overwrite-mode caret: a bar under the nibble about to be replaced. */
   readonly caret: string;
   /** The insert-mode caret: a line at the boundary bytes will be pushed from. */
@@ -290,6 +298,10 @@ export class HexGridRenderer {
    */
   private zones: readonly DrawnZone[] = [];
   private readonly zoneContourCache = new Map<string, ContourPoint[][]>();
+  /** The find indicator's contour, kept for the match and the layout it was traced for. */
+  private indicatorContours:
+    | { readonly key: string; readonly contours: ContourPoint[][] }
+    | undefined;
 
   private readonly dirty = new DirtyRows();
   /** The scroll offset the canvas currently holds, for the blit. */
@@ -758,6 +770,9 @@ export class HexGridRenderer {
     // them it would dull the one thing the window is for, under an opaque
     // segment tint it would vanish.
     this.paintZoneFills(rowStart, y);
+    // The find indicator over every background and under the bytes, as
+    // upstream draws it between its row pass and its glyphs.
+    this.paintFindIndicator(rowStart, y);
     this.paintAddress(rowStart, y);
 
     if (available === 0) {
@@ -782,14 +797,18 @@ export class HexGridRenderer {
     }
 
     const savedSize = this.savedSource?.size ?? 0;
+    const indicator = this.currentMatch;
     for (let column = 0; column < bytes.length; column++) {
       const byte = bytes[column] ?? 0;
+      const offset = rowStart + column;
       const modified =
         this.savedSource === undefined || saved === undefined
           ? false
           : // Past the saved file's end, every byte is new.
-            rowStart + column >= savedSize || saved[column] !== byte;
-      const role = byteInk(byte, modified);
+            offset >= savedSize || saved[column] !== byte;
+      const onIndicator =
+        indicator !== undefined && offset >= indicator.start && offset < indicator.end;
+      const role = byteInk(byte, modified, onIndicator);
       this.blit(atlas.hexPair(byte, role), layout.hexByteX(column), y, 2 * layout.charWidth);
       this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
     }
@@ -1022,9 +1041,10 @@ export class HexGridRenderer {
   /**
    * Every occurrence of the search pattern, and the one being stood on.
    *
-   * Grey for the rest, raised for the current one — so the eye can see how many
-   * there are and where this one sits among them, which is what a scroll
-   * through a result set is for.
+   * Grey for the rest, and the current one on the find indicator's yellow
+   * ({@link paintFindIndicator}) — so the eye can see how many there are and
+   * where this one sits among them, which is what a scroll through a result set
+   * is for.
    */
   private paintMatches(rowStart: number, y: number): void {
     const config = this.config;
@@ -1040,11 +1060,13 @@ export class HexGridRenderer {
       const to = Math.min(match.end, rowStart + BYTES_PER_ROW) - rowStart;
       if (to <= from) continue;
 
+      // The current one is the find indicator's, drawn over the backgrounds.
       const isCurrent =
         this.currentMatch !== undefined &&
         match.start === this.currentMatch.start &&
         match.end === this.currentMatch.end;
-      this.context.fillStyle = isCurrent ? colors.currentMatchFill : colors.matchFill;
+      if (isCurrent) continue;
+      this.context.fillStyle = colors.matchFill;
       this.context.fillRect(
         layout.hexByteX(from),
         y,
@@ -1114,6 +1136,39 @@ export class HexGridRenderer {
       PEER_CONTOUR_LINE_WIDTH,
       1
     );
+  }
+
+  /**
+   * The find indicator: a yellow plate under the match the find bar is standing
+   * on, outlined, with the bytes on it in black.
+   *
+   * The plate follows the mirrored selection's contour — one staircase round a
+   * match that crosses rows, standing off the glyphs as far as a spacer allows —
+   * so it reads as something the bytes sit on rather than a box drawn on them.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawFindIndicator
+   * @upstream-differs flat: no lift, bounce or shadow, and an outline in their place (GAPS.md G9)
+   */
+  private paintFindIndicator(rowStart: number, y: number): void {
+    const config = this.config;
+    const current = this.currentMatch;
+    if (config === undefined || current === undefined || current.end <= current.start) return;
+    // The same reach as every contour: its edges sit on row boundaries.
+    const rows = contourRowSpan(current.start, current.end);
+    const row = rowStart / BYTES_PER_ROW;
+    if (row < rows.first || row >= rows.end) return;
+
+    const { layout, colors } = config;
+    const key = `${current.start}:${current.end}:${layout.wordSize}:${layout.charWidth}:${layout.rowHeight}`;
+    if (this.indicatorContours?.key !== key) {
+      this.indicatorContours = {
+        key,
+        contours: selectionContours(current.start, current.end, layout, PEER_CONTOUR_PADDING),
+      };
+    }
+    const contours = this.indicatorContours.contours;
+    this.fillContours(y, contours, colors.findIndicator, 1);
+    this.strokeContours(y, contours, colors.findIndicatorBorder, FIND_INDICATOR_LINE_WIDTH, 1);
   }
 
   /**

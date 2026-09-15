@@ -22,6 +22,7 @@ export function SearchField({
   placeholder,
   history,
   onEdit,
+  onPick,
   onEscape,
   onClearRecents,
 }: {
@@ -30,9 +31,14 @@ export function SearchField({
   readonly className: string;
   readonly defaultValue: string;
   readonly placeholder: string;
-  /** Most recent first. */
-  readonly history: readonly string[];
+  /**
+   * Most recent first: the text a row puts in the field, and what the row
+   * says — which can say more than the text, as "pattern — encoding" does.
+   */
+  readonly history: readonly { readonly text: string; readonly label: string }[];
   readonly onEdit: (text: string) => void;
+  /** A row was taken into the field, after its text was. */
+  readonly onPick?: ((row: number) => void) | undefined;
   /** Escape with the list already away. */
   readonly onEscape: () => void;
   readonly onClearRecents: () => void;
@@ -69,14 +75,17 @@ export function SearchField({
   };
 
   /** Takes an entry into the field, caret at its end, and searches nothing. */
-  const pick = (entry: string) => {
+  const pick = (row: number) => {
+    const entry = history[row];
+    if (entry === undefined) return;
     const input = inputRef.current;
     if (input !== null) {
-      input.value = entry;
+      input.value = entry.text;
       input.focus();
-      input.setSelectionRange(entry.length, entry.length);
+      input.setSelectionRange(entry.text.length, entry.text.length);
     }
-    onEdit(entry);
+    onEdit(entry.text);
+    onPick?.(row);
     setOpen(false);
   };
 
@@ -87,8 +96,7 @@ export function SearchField({
   };
 
   const choose = (row: number) => {
-    const entry = history[row];
-    if (entry !== undefined) pick(entry);
+    if (history[row] !== undefined) pick(row);
     else if (row === lastRow) clear();
   };
 
@@ -190,7 +198,9 @@ export function SearchField({
           </div>
           {history.map((entry, row) => (
             <div
-              key={entry}
+              // By position: the same text can stand in two rows, one per encoding.
+              // biome-ignore lint/suspicious/noArrayIndexKey: the rows are the history in order, and a row is its position in it
+              key={row}
               id={rowId(row)}
               role="option"
               aria-selected={row === active}
@@ -200,11 +210,11 @@ export function SearchField({
               // the keyboard walks the rows through the combobox instead.
               onPointerDown={(event) => {
                 event.preventDefault();
-                pick(entry);
+                pick(row);
               }}
               onPointerEnter={() => setActive(row)}
             >
-              {entry}
+              {entry.label}
             </div>
           ))}
           <hr className="menu-separator" />

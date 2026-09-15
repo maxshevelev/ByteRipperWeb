@@ -57,8 +57,6 @@ Columns:
 | ID | Gap | Upstream | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|---|
 | G7 | **The pattern library (M11):** favourites, named patterns, keeping a pattern from the find bar, the shared library folder with its merge and conflict sheet; outside Chromium, JSON export and import. | `FavoritePatternStore.swift`, `FavoritesFile.swift`, `FolderSync.swift`, `PatternLibrary.swift`, `SyncMerge.swift`, `VersionVector.swift`, `LibraryConflictSheetController.swift`, `FavoritePatternsSettingsViewController.swift` | ~270 + ~160 tests | Where the library lives without a directory picker | P2 | decision |
-| G8 | **Search remembered between visits:** the history, Case Sensitive, and the field starting from the last search. Today they last for the tab. | `SheetControllers.swift` (`FindHistoryStore`), `FindBarView.caseSensitiveKey` | 4 | — | P3 | open |
-| G9 | **The find indicator's lift, bounce and shadow.** The current match is filled, not raised. | `HexView.swift`, `FilePaneView.swift` | 9 | — | P3 | open |
 
 ### 1.3 Tool panels
 
@@ -141,6 +139,7 @@ Columns:
 | Bookmarks | Scoped to the browser tab's workspace and kept in IndexedDB, so a reload keeps them. | ANALYSIS.md § Bookmarks and navigation |
 | Third-party databases | Fetched live as upstream does, and cached for 24 hours in the Cache API so a bench offline still has yesterday's, with its date shown. | CLAUDE.md, ANALYSIS.md |
 | Popovers (the cut popover) | A dialog with the offset in its form. | module map |
+| The find indicator | A flat yellow plate with an outline and black bytes; upstream's lift, bounce and shadow are left out by the owner's decision. | module map (G9) |
 
 ---
 
@@ -150,6 +149,8 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| G9 — The find indicator: the current match on a yellow plate with an outline and black bytes, over the mirrored selection's contour. No lift, bounce or shadow (see 2.2) | 2026-09-15 |
+| G8 — Search remembered between visits: the recent searches with their encoding and case rule, Case Sensitive, and the bar opening on the last search; a recent search restores its encoding and case rule | 2026-09-15 |
 | G27 — Deploy to GitHub Pages from CI: `.github/workflows/deploy-pages.yml` publishes `main` as the live site and `v*` tags as point releases, and the bundle has its base path | 2026-09-15 |
 | Opening two files with a file already open replaced it; the second file now opens only into an empty workspace, as `OpenPlacement.plan` does | 2026-09-15 |
 | FIT panel findings and catalogue message wrap instead of truncating | 2026-09-15 |

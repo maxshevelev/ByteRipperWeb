@@ -55,7 +55,11 @@
   /* The one hue reserved for search: the current match's plate on the minimap.
      A fixed yellow rather than a semantic colour — it is the platform's find
      indicator, and it means the same thing in either theme. */
-  --find-indicator: rgb(255 214 10);
+  --find-indicator: rgb(255 246 150);
+  /* On that yellow the bytes are black, and the plate has an outline — the web
+     edition's indicator is flat, with no shadow to lift it off the page. */
+  --find-indicator-ink: #000;
+  --find-indicator-border: rgb(214 190 60);
 
   --minimap-viewport: rgb(60 90 160 / 0.16);
   --minimap-viewport-border: rgb(60 90 160 / 0.55);
@@ -109,7 +113,9 @@
     --match-fill: rgb(170 170 185 / 0.26);
     --current-match-fill: rgb(190 190 205 / 0.58);
 
-    --find-indicator: rgb(255 214 10);
+    --find-indicator: rgb(255 246 150);
+    --find-indicator-ink: #000;
+    --find-indicator-border: rgb(214 190 60);
 
     --minimap-viewport: rgb(130 165 235 / 0.16);
     --minimap-viewport-border: rgb(130 165 235 / 0.5);
@@ -166,7 +172,9 @@
   --match-fill: rgb(170 170 185 / 0.26);
   --current-match-fill: rgb(190 190 205 / 0.58);
 
-  --find-indicator: rgb(255 214 10);
+  --find-indicator: rgb(255 246 150);
+  --find-indicator-ink: #000;
+  --find-indicator-border: rgb(214 190 60);
 
   --minimap-viewport: rgb(130 165 235 / 0.16);
   --minimap-viewport-border: rgb(130 165 235 / 0.5);

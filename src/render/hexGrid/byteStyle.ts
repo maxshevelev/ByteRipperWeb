@@ -23,7 +23,12 @@ export type InkRole =
   /** An address's leading zeros. */
   | "mutedAddress"
   /** An address standing on a bookmark's mark, which is a filled shape. */
-  | "bookmarkAddress";
+  | "bookmarkAddress"
+  /**
+   * A byte on the find indicator's yellow plate: black in either theme, since
+   * the plate is the same yellow in both.
+   */
+  | "indicator";
 
 export const INK_ROLES: readonly InkRole[] = [
   "byte",
@@ -32,6 +37,7 @@ export const INK_ROLES: readonly InkRole[] = [
   "address",
   "mutedAddress",
   "bookmarkAddress",
+  "indicator",
 ];
 
 /**
@@ -41,10 +47,16 @@ export const INK_ROLES: readonly InkRole[] = [
  * unsaved-change warning outranks the significance accent, because one says
  * "you have not saved this" and the other only says "this is padding".
  *
+ * On the find indicator every byte is black, fill bytes too — a dimmed ink on
+ * yellow is a smear — except an unsaved edit, which is data-integrity
+ * information and stays red: red on yellow still reads as red.
+ *
  * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.textColor
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorTextColor
  */
-export function byteInk(byte: number, isModified: boolean): InkRole {
+export function byteInk(byte: number, isModified: boolean, onIndicator = false): InkRole {
   if (isModified) return "modified";
+  if (onIndicator) return "indicator";
   return byte === 0x00 || byte === 0xff ? "mutedByte" : "byte";
 }
 

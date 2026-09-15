@@ -30,6 +30,8 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   mutedAddress: "--address-text-muted",
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.bookmarkTextColor */
   bookmarkAddress: "--bookmark-text",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorInk */
+  indicator: "--find-indicator-ink",
   background: "--surface",
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.selectionFill */
   selection: "--selection",
@@ -53,8 +55,13 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
   insertCaret: "--insert-caret",
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.matchFill */
   matchFill: "--match-fill",
-  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.findIndicatorFill */
-  currentMatchFill: "--current-match-fill",
+  /**
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.findIndicatorFill
+   * @upstream-differs a light lemon rather than the platform's find yellow, by the owner's choice
+   */
+  findIndicator: "--find-indicator",
+  /** @web-only the outline the web edition's flat find indicator has in place of upstream's shadow (GAPS.md G9) */
+  findIndicatorBorder: "--find-indicator-border",
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.bookmarkColor */
   bookmark: "--bookmark",
   /**

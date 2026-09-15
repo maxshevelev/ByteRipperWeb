@@ -25,6 +25,18 @@ describe("the significance accent", () => {
   });
 });
 
+describe("the find indicator's ink", () => {
+  it("is black for every byte on the plate, fill bytes included", () => {
+    for (const byte of [0x00, 0xff, 0x41]) {
+      expect(byteInk(byte, false, true), `0x${byte.toString(16)}`).toBe("indicator");
+    }
+  });
+
+  it("keeps an unsaved edit red on the plate", () => {
+    expect(byteInk(0x41, true, true)).toBe("modified");
+  });
+});
+
 describe("the address split", () => {
   // @upstream ByteRipperTests/OffsetColumnAddressTests.swift#OffsetColumnAddressTests.testLeadingZerosAreMutedAndTheSignificantPartIsFullInk
   it("mutes the leading zeros and keeps the rest", () => {

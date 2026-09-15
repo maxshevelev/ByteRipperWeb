@@ -5,6 +5,7 @@ import {
   encodingTitle,
   foldingFor,
   parsePattern,
+  SEARCH_ENCODINGS,
   type SearchEncoding,
   type SearchFailure,
 } from "@/core/search/searchPattern";
@@ -101,13 +102,13 @@ export interface SearchState {
   /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onError */
   readonly problem: string | undefined;
   /**
-   * Most recent first, no duplicates.
+   * The searches that found something, most recent first, kept between visits
+   * in `localStorage`.
    *
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.recent
-   * @upstream-differs kept for this tab
    */
-  readonly history: readonly string[];
+  readonly history: readonly FindHistoryEntry[];
   readonly results: Readonly<Record<PaneId, PaneResults>>;
 }
 
@@ -128,15 +129,130 @@ function storedSmart(): boolean {
   }
 }
 
+/**
+ * One remembered search: the text, the encoding it was found in, and its case
+ * rule — all three, or picking it back would search for something else.
+ *
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.Entry
+ */
+export interface FindHistoryEntry {
+  readonly pattern: string;
+  readonly encoding: SearchEncoding;
+  readonly caseSensitive: boolean;
+}
+
+/** @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.limit */
+export const FIND_HISTORY_LIMIT = 10;
+
+/**
+ * Where the recent searches are kept between visits.
+ *
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.userDefaultsKey
+ */
+const HISTORY_STORAGE_KEY = "byteripper.findHistory";
+
+/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseSensitiveKey */
+const CASE_STORAGE_KEY = "byteripper.findCaseSensitive";
+
+/**
+ * Records a search that found something: most recent first, and bounded. The
+ * same text under another encoding is another search and both stay; the same
+ * pair again replaces the older entry, its case rule with it. Hands back the
+ * history it was given when the search is already at the front, so nothing
+ * that reads it has to redraw for a press of ‹ ›.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.entryForField
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.record
+ */
+export function recordFindHistory(
+  history: readonly FindHistoryEntry[],
+  entry: FindHistoryEntry
+): readonly FindHistoryEntry[] {
+  const pattern = entry.pattern.trim();
+  if (pattern.length === 0) return history;
+  const first = history[0];
+  if (
+    first !== undefined &&
+    first.pattern === pattern &&
+    first.encoding === entry.encoding &&
+    first.caseSensitive === entry.caseSensitive
+  ) {
+    return history;
+  }
+  const rest = history.filter(
+    (kept) => !(kept.pattern === pattern && kept.encoding === entry.encoding)
+  );
+  return [{ ...entry, pattern }, ...rest].slice(0, FIND_HISTORY_LIMIT);
+}
+
+/**
+ * The remembered searches as they were stored, with anything unreadable left
+ * out: a row from another build, or one edited by hand, costs that row and not
+ * the history.
+ *
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.recent
+ */
+export function parseFindHistory(raw: string | null): FindHistoryEntry[] {
+  if (raw === null) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const entries: FindHistoryEntry[] = [];
+  for (const row of parsed) {
+    if (typeof row !== "object" || row === null) continue;
+    const { pattern, encoding, caseSensitive } = row as Record<string, unknown>;
+    if (typeof pattern !== "string" || pattern.trim().length === 0) continue;
+    if (!SEARCH_ENCODINGS.includes(encoding as SearchEncoding)) continue;
+    entries.push({
+      pattern,
+      encoding: encoding as SearchEncoding,
+      caseSensitive: caseSensitive === true,
+    });
+  }
+  return entries.slice(0, FIND_HISTORY_LIMIT);
+}
+
+function storedHistory(): FindHistoryEntry[] {
+  try {
+    return parseFindHistory(localStorage.getItem(HISTORY_STORAGE_KEY));
+  } catch {
+    // A private window may refuse to read it; the tab starts with none.
+    return [];
+  }
+}
+
+function storeHistory(history: readonly FindHistoryEntry[]): void {
+  try {
+    if (history.length === 0) localStorage.removeItem(HISTORY_STORAGE_KEY);
+    else localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch {
+    // Not storable here; the history still holds for this tab.
+  }
+}
+
+/** Off unless the user turned it on. */
+function storedCaseSensitive(): boolean {
+  try {
+    return localStorage.getItem(CASE_STORAGE_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
 const IDLE: SearchState = {
   open: false,
   query: "",
   encoding: "hex",
   smart: storedSmart(),
-  caseSensitive: false,
+  caseSensitive: storedCaseSensitive(),
   pane: "a",
   problem: undefined,
-  history: [],
+  history: storedHistory(),
   results: { a: NO_RESULTS, b: NO_RESULTS },
 };
 
@@ -779,18 +895,6 @@ export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
 }
 
 /**
- * Most recent first, no duplicates, and bounded.
- *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.entryForField
- * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.record
- * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.limit
- */
-function rememberQuery(history: readonly string[], query: string): string[] {
-  return [query, ...history.filter((entry) => entry !== query)].slice(0, 20);
-}
-
-/**
  * Steps to the next or previous match.
  *
  * An index step, not a fresh scan — which is the point of having the set: once
@@ -853,7 +957,17 @@ function recordFoundSearch(): void {
   const query = searchToRecord;
   if (query === undefined) return;
   searchToRecord = undefined;
-  searchStore.update((state) => ({ ...state, history: rememberQuery(state.history, query) }));
+  // The encoding is the one the search settled on — adopt runs before this —
+  // so picking it back later asks the question that was answered.
+  const state = searchStore.getSnapshot();
+  const history = recordFindHistory(state.history, {
+    pattern: query,
+    encoding: state.encoding,
+    caseSensitive: state.caseSensitive,
+  });
+  if (history === state.history) return;
+  storeHistory(history);
+  searchStore.update((current) => ({ ...current, history }));
 }
 
 /**
@@ -894,6 +1008,11 @@ export function setSearchEncoding(encoding: SearchEncoding): void {
 /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseToggled */
 export function setCaseSensitive(caseSensitive: boolean): void {
   searchStore.update((state) => ({ ...state, caseSensitive }));
+  try {
+    localStorage.setItem(CASE_STORAGE_KEY, caseSensitive ? "on" : "off");
+  } catch {
+    // Not storable here; the choice still holds for this tab.
+  }
 }
 
 /**
@@ -903,6 +1022,7 @@ export function setCaseSensitive(caseSensitive: boolean): void {
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.clear
  */
 export function clearRecents(): void {
+  storeHistory([]);
   searchStore.update((state) => (state.history.length === 0 ? state : { ...state, history: [] }));
 }
 
@@ -920,11 +1040,23 @@ export function setSmartSearch(smart: boolean): void {
 /**
  * Shows the find bar, and says whether it was already up.
  *
+ * A bar that opens starts from the last search — its text and the encoding it
+ * was found in — so repeating yesterday's search is ⌘F, Return. The field
+ * arrives with that text selected, so typing replaces it.
+ *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.prepareForShow
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.mostRecent
  */
 export function openSearch(): boolean {
   const wasOpen = searchStore.getSnapshot().open;
-  if (!wasOpen) searchStore.update((state) => ({ ...state, open: true }));
+  if (!wasOpen) {
+    searchStore.update((state) => {
+      const last = state.history[0];
+      return last === undefined
+        ? { ...state, open: true }
+        : { ...state, open: true, query: last.pattern, encoding: last.encoding };
+    });
+  }
   return wasOpen;
 }
 
@@ -959,7 +1091,15 @@ export function closeSearch(): void {
   dismissNotice();
   cancelRunning();
   finishSearchOperation();
-  searchStore.update((state) => ({ ...IDLE, history: state.history, encoding: state.encoding }));
+  // What is remembered between visits outlives the bar: the history, and the
+  // choices the user made about how to search.
+  searchStore.update((state) => ({
+    ...IDLE,
+    history: state.history,
+    encoding: state.encoding,
+    smart: state.smart,
+    caseSensitive: state.caseSensitive,
+  }));
 }
 
 /**

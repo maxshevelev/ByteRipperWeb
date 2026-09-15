@@ -128,6 +128,29 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
   };
 
   /**
+   * The recent searches as the list shows them: "pattern — encoding", so the
+   * same text found in two encodings is two rows that say which is which.
+   */
+  const recents = state.history.map((entry) => ({
+    text: entry.pattern,
+    label: `${entry.pattern} — ${encodingTitle(entry.encoding)}`,
+  }));
+
+  /**
+   * A recent search brings back everything it searched with: its encoding and,
+   * for text, its case rule — or the row would be lying about what it finds.
+   * Hex is byte-exact, so its flag is kept but never restored.
+   *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.apply
+   */
+  const pickRecent = (row: number) => {
+    const entry = state.history[row];
+    if (entry === undefined) return;
+    setSearchEncoding(entry.encoding);
+    if (entry.encoding !== "hex") setCaseSensitive(entry.caseSensitive);
+  };
+
+  /**
    * Escape in the field, with its list already away, clears it — which ends the
    * search, since clearing is an edit. Done is the way out of the bar.
    */
@@ -156,8 +179,9 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           className={FIND_INPUT_CLASS}
           defaultValue={state.query}
           placeholder="Find bytes or text…"
-          history={state.history}
+          history={recents}
           onEdit={editQuery}
+          onPick={pickRecent}
           onEscape={clearField}
           onClearRecents={clearRecents}
         />
