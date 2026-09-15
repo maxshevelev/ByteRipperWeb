@@ -90,7 +90,7 @@ How every part of the desktop app lands here. Four verdicts:
 | First match before the full index; background indexing with cancel | Same | Worker with a cancellation token. |
 | Search Results panel, live excerpts, refusal past 1000 matches | Same | |
 | Recent queries and named favourites | Same | Stored in IndexedDB. |
-| Pattern library synced through a cloud folder | Reduced, then restored | A browser cannot watch a Dropbox folder. **Chromium can**: `showDirectoryPicker()` plus a handle kept in IndexedDB gives exactly the one-file-per-machine merge model the desktop uses. Firefox and Safari get manual JSON export/import instead. |
+| Pattern library synced through a cloud folder | Reduced, then restored | **Chromium syncs in the Mac app's own folder**: `showDirectoryPicker()` plus a handle kept in IndexedDB gives the one-file-per-machine merge model, in upstream's file format, so a browser and a Mac share one library. Firefox and Safari can take what is in a folder (a read-only merge from a picked folder) and export the other way. Plan: `Design/FAVORITES_SYNC_WEB.md`. |
 
 ### Minimap
 

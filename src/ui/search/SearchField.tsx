@@ -1,18 +1,21 @@
 import { useEffect, useId, useRef, useState } from "react";
+import type { PatternMenuRow } from "@/ui/search/patternMenu";
 
 /**
- * The pattern field: a text field with a magnifier that drops the recent
- * queries — the web's `NSSearchField` with its search menu.
+ * The pattern field: a text field with a magnifier that drops the search menu —
+ * the web's `NSSearchField` with its search menu template (§11).
  *
- * The list is the user's to ask for, never the browser's to offer while typing:
+ * The menu is the user's to ask for, never the browser's to offer while typing:
  * it opens on the magnifier or on ↓, is walked with ↑ ↓, and Return takes the
- * entry under the highlight into the field without searching — Return in the
- * field is what searches. Escape puts the list away before it closes the bar.
+ * row under the highlight. Escape puts the menu away before it closes the bar.
+ * What a row *does* is the owner's: this only draws the rows and says which one
+ * was chosen.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternField
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.rebuildPatternMenu
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.menuHeader
- * @upstream-differs a combobox with a listbox of the recent queries; the favourites rows wait for the pattern library (M11)
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.menuRowSize
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.menuFlagSize
+ * @upstream-differs a combobox with a listbox of rows, rather than an NSMenu copied from a template
  */
 export function SearchField({
   id,
@@ -20,38 +23,34 @@ export function SearchField({
   className,
   defaultValue,
   placeholder,
-  history,
+  rows,
   onEdit,
-  onPick,
+  onChoose,
   onEscape,
-  onClearRecents,
 }: {
   readonly id: string;
   readonly inputRef: React.RefObject<HTMLInputElement | null>;
   readonly className: string;
   readonly defaultValue: string;
   readonly placeholder: string;
-  /**
-   * Most recent first: the text a row puts in the field, and what the row
-   * says — which can say more than the text, as "pattern — encoding" does.
-   */
-  readonly history: readonly { readonly text: string; readonly label: string }[];
+  readonly rows: readonly PatternMenuRow[];
   readonly onEdit: (text: string) => void;
-  /** A row was taken into the field, after its text was. */
-  readonly onPick?: ((row: number) => void) | undefined;
-  /** Escape with the list already away. */
+  /** A row was chosen — an entry of either list, or an enabled command. */
+  readonly onChoose: (row: PatternMenuRow) => void;
+  /** Escape with the menu already away. */
   readonly onEscape: () => void;
-  readonly onClearRecents: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  /** The row under the highlight: an entry, or `history.length` for Clear Recents. */
-  const [active, setActive] = useState(0);
+  /** The row under the highlight, by its position in `rows`. */
+  const [active, setActive] = useState(-1);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const listId = useId();
   const rowId = (index: number) => `${listId}-${index}`;
-  const lastRow = history.length;
 
-  // A press anywhere else puts the list away, as a menu does.
+  const choosable = (row: PatternMenuRow | undefined) =>
+    row !== undefined && (row.kind === "entry" || (row.kind === "command" && !row.disabled));
+
+  // A press anywhere else puts the menu away, as a menu does.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
@@ -63,41 +62,24 @@ export function SearchField({
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
-  // A list with nothing in it has nothing to show.
-  useEffect(() => {
-    if (history.length === 0) setOpen(false);
-  }, [history.length]);
+  const step = (from: number, direction: 1 | -1): number => {
+    for (let index = from + direction; index >= 0 && index < rows.length; index += direction) {
+      if (choosable(rows[index])) return index;
+    }
+    return from;
+  };
 
   const show = () => {
-    if (history.length === 0) return;
-    setActive(0);
+    setActive(step(-1, 1));
     setOpen(true);
   };
 
-  /** Takes an entry into the field, caret at its end, and searches nothing. */
-  const pick = (row: number) => {
-    const entry = history[row];
-    if (entry === undefined) return;
-    const input = inputRef.current;
-    if (input !== null) {
-      input.value = entry.text;
-      input.focus();
-      input.setSelectionRange(entry.text.length, entry.text.length);
-    }
-    onEdit(entry.text);
-    onPick?.(row);
-    setOpen(false);
-  };
-
-  const clear = () => {
-    onClearRecents();
+  const choose = (index: number) => {
+    const row = rows[index];
+    if (!choosable(row) || row === undefined) return;
     setOpen(false);
     inputRef.current?.focus();
-  };
-
-  const choose = (row: number) => {
-    if (history[row] !== undefined) pick(row);
-    else if (row === lastRow) clear();
+    onChoose(row);
   };
 
   return (
@@ -105,12 +87,11 @@ export function SearchField({
       <button
         type="button"
         className="search-field-menu"
-        aria-label="Recent Queries"
+        aria-label="Search Menu"
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Recent Queries"
+        title="Recent Queries and Favorites"
         tabIndex={-1}
-        disabled={history.length === 0}
         onClick={() => {
           if (open) setOpen(false);
           else show();
@@ -138,7 +119,7 @@ export function SearchField({
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         aria-autocomplete="none"
-        aria-activedescendant={open ? rowId(active) : undefined}
+        aria-activedescendant={open && active >= 0 ? rowId(active) : undefined}
         defaultValue={defaultValue}
         placeholder={placeholder}
         spellCheck={false}
@@ -152,16 +133,16 @@ export function SearchField({
             case "ArrowDown":
               event.preventDefault();
               if (!open) show();
-              else setActive((row) => Math.min(row + 1, lastRow));
+              else setActive((index) => step(index, 1));
               return;
             case "ArrowUp":
               if (!open) return;
               event.preventDefault();
-              setActive((row) => Math.max(row - 1, 0));
+              setActive((index) => step(index, -1));
               return;
             case "Enter":
               if (!open) return;
-              // The list's Return takes the row; the field's own searches.
+              // The menu's Return takes the row; the field's own searches.
               event.preventDefault();
               choose(active);
               return;
@@ -181,59 +162,102 @@ export function SearchField({
           id={listId}
           className="menu-popup search-field-popup"
           role="listbox"
-          aria-label="Recent Queries"
+          aria-label="Search Menu"
         >
-          <div role="presentation" className="search-field-heading">
-            <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
-              <circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
-              <path
-                d="M6 3.4V6l1.8 1.2"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-              />
-            </svg>
-            Recent Queries
-          </div>
-          {history.map((entry, row) => (
-            <div
-              // By position: the same text can stand in two rows, one per encoding.
-              // biome-ignore lint/suspicious/noArrayIndexKey: the rows are the history in order, and a row is its position in it
-              key={row}
-              id={rowId(row)}
-              role="option"
-              aria-selected={row === active}
-              tabIndex={-1}
-              className={`search-field-option${row === active ? " is-active" : ""}`}
-              // Picked on the press, which also keeps the focus in the field;
-              // the keyboard walks the rows through the combobox instead.
-              onPointerDown={(event) => {
-                event.preventDefault();
-                pick(row);
-              }}
-              onPointerEnter={() => setActive(row)}
-            >
-              {entry.label}
-            </div>
-          ))}
-          <hr className="menu-separator" />
-          <div
-            id={rowId(lastRow)}
-            role="option"
-            aria-selected={active === lastRow}
-            tabIndex={-1}
-            className={`search-field-command${active === lastRow ? " is-active" : ""}`}
-            onPointerDown={(event) => {
-              event.preventDefault();
-              clear();
-            }}
-            onPointerEnter={() => setActive(lastRow)}
-          >
-            Clear Recents
-          </div>
+          {rows.map((row, index) => {
+            if (row.kind === "separator") return <hr key={row.key} className="menu-separator" />;
+            if (row.kind === "heading") {
+              return (
+                <div key={row.key} role="presentation" className="search-field-heading">
+                  {row.icon === "recent" ? <ClockGlyph /> : <StarGlyph />}
+                  {row.label}
+                </div>
+              );
+            }
+            const isActive = index === active;
+            const disabled = row.kind === "command" && row.disabled;
+            return (
+              <div
+                key={row.key}
+                id={rowId(index)}
+                role="option"
+                aria-selected={isActive}
+                aria-disabled={disabled}
+                tabIndex={-1}
+                className={`${row.kind === "entry" ? "search-field-option" : "search-field-command"}${
+                  isActive ? " is-active" : ""
+                }${disabled ? " is-disabled" : ""}`}
+                // Chosen on the press, which also keeps the focus in the field;
+                // the keyboard walks the rows through the combobox instead.
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  choose(index);
+                }}
+                onPointerEnter={() => {
+                  if (!disabled) setActive(index);
+                }}
+              >
+                {row.kind === "entry" ? <EntryRow row={row} /> : row.label}
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * One row of either list: `Name: "pattern"  flags` for a favourite, `"pattern"
+ * flags` for a recent. The flags are grey and a size down — they say how the
+ * pattern is searched, not what is searched for.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternItem
+ */
+function EntryRow({ row }: { readonly row: Extract<PatternMenuRow, { kind: "entry" }> }) {
+  return (
+    <>
+      {row.usable ? null : (
+        <span
+          className="search-field-invalid"
+          role="img"
+          aria-label="Invalid pattern"
+          title="Invalid pattern"
+        >
+          !
+        </span>
+      )}
+      {row.name === "" ? null : <span>{row.name}: </span>}
+      <span>"{row.pattern}"</span>
+      <span className="search-field-flags">{row.flags}</span>
+    </>
+  );
+}
+
+/** `clock`. */
+function ClockGlyph() {
+  return (
+    <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+      <circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M6 3.4V6l1.8 1.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** `star.fill`. */
+function StarGlyph() {
+  return (
+    <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+      <path
+        d="M6 1.2l1.45 3 3.3.45-2.4 2.3.6 3.25L6 8.65 3.05 10.2l.6-3.25-2.4-2.3 3.3-.45z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }

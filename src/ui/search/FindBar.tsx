@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
+import { favoritesStore } from "@/state/favoritesStore";
+import { showNotice } from "@/state/noticeStore";
 import {
   clearRecents,
   closeSearch,
@@ -14,6 +16,8 @@ import {
   toggleSearchResults,
 } from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
+import { AddFavoriteDialog } from "@/ui/search/AddFavoriteDialog";
+import { type MenuSearch, type PatternMenuRow, patternMenuRows } from "@/ui/search/patternMenu";
 import { SearchField } from "@/ui/search/SearchField";
 
 /**
@@ -77,7 +81,14 @@ export function focusFindInput(): void {
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.resultsShown
  * @upstream-differs a React component over the search store
  */
-export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => void }) {
+export function FindBar({
+  onReveal,
+  onManageFavorites,
+}: {
+  readonly onReveal: (offset: number) => void;
+  /** Opens the favourites' list, where Manage Favorites… promises it. */
+  readonly onManageFavorites: () => void;
+}) {
   const state = useStore(searchStore);
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -95,6 +106,18 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
+
+  // A search writes a hex pattern back the way the dump prints it, in the store.
+  // The field is not controlled — typing must never be rewritten under the
+  // caret — so the store's text is put into it only when the two part, with the
+  // caret at the end, since the whole text was replaced.
+  // @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setPatternText
+  useEffect(() => {
+    const input = inputRef.current;
+    if (input === null || input.value === state.query) return;
+    input.value = state.query;
+    input.setSelectionRange(state.query.length, state.query.length);
+  }, [state.query]);
 
   // A search from the bar leaves the keyboard in the field, so Return searches
   // again; the dump takes it only when the bar is closed.
@@ -127,27 +150,64 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
     else startSearch({ query: inputRef.current?.value ?? state.query, direction });
   };
 
-  /**
-   * The recent searches as the list shows them: "pattern — encoding", so the
-   * same text found in two encodings is two rows that say which is which.
-   */
-  const recents = state.history.map((entry) => ({
-    text: entry.pattern,
-    label: `${entry.pattern} — ${encodingTitle(entry.encoding)}`,
-  }));
+  const favorites = useStore(favoritesStore).favorites;
+  const [keeping, setKeeping] = useState<MenuSearch | undefined>(undefined);
+
+  /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.rebuildPatternMenu */
+  const menuRows = patternMenuRows({
+    recents: state.history,
+    favorites,
+    fieldText: state.query,
+  });
 
   /**
-   * A recent search brings back everything it searched with: its encoding and,
-   * for text, its case rule — or the row would be lying about what it finds.
-   * Hex is byte-exact, so its flag is kept but never restored.
+   * A row of either list was picked: it fills the field — pattern, encoding and,
+   * for text, the case rule — and runs the search. An entry is chosen
+   * deliberately, and the Return that would follow it never means anything
+   * else. It records nothing in the history: the history is what was typed.
    *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternPicked
    * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.apply
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setPatternText
    */
-  const pickRecent = (row: number) => {
-    const entry = state.history[row];
-    if (entry === undefined) return;
-    setSearchEncoding(entry.encoding);
-    if (entry.encoding !== "hex") setCaseSensitive(entry.caseSensitive);
+  const pick = (search: MenuSearch) => {
+    const input = inputRef.current;
+    if (input !== null) {
+      input.value = search.pattern;
+      input.setSelectionRange(search.pattern.length, search.pattern.length);
+    }
+    setSearchEncoding(search.encoding);
+    // Hex is byte-exact, so its flag is kept but never restored.
+    if (search.encoding !== "hex") setCaseSensitive(search.caseSensitive);
+    startSearch({ query: search.pattern, recordHistory: false });
+  };
+
+  /**
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onAddToFavorites
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.addToFavorites
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onManageFavorites
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.manageFavorites
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.entryForField
+   */
+  const choose = (row: PatternMenuRow) => {
+    if (row.kind === "entry") {
+      const search = row.list === "recent" ? state.history[row.index] : favorites[row.index];
+      if (search !== undefined) pick(search);
+      return;
+    }
+    if (row.kind !== "command") return;
+    if (row.key === "addToFavorites") {
+      // What the field describes, with the encoding that worked.
+      setKeeping({
+        pattern: inputRef.current?.value ?? state.query,
+        encoding: state.encoding,
+        caseSensitive: state.caseSensitive,
+      });
+    } else if (row.key === "clearRecents") {
+      clearRecents();
+    } else {
+      onManageFavorites();
+    }
   };
 
   /**
@@ -179,13 +239,11 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           className={FIND_INPUT_CLASS}
           defaultValue={state.query}
           placeholder="Find bytes or text…"
-          history={recents}
+          rows={menuRows}
           onEdit={editQuery}
-          onPick={pickRecent}
+          onChoose={choose}
           onEscape={clearField}
-          onClearRecents={clearRecents}
         />
-
         <select
           className="find-encoding"
           aria-label="Encoding"
@@ -290,6 +348,14 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           Done
         </button>
       </form>
+      {/* Beside the bar's form, never inside it: a form nested in a form is not
+          one the browser keeps apart, and Return in the name field submitted
+          the page itself — a reload. */}
+      <AddFavoriteDialog
+        search={keeping}
+        onClose={() => setKeeping(undefined)}
+        onKept={(name) => showNotice("addedToFavorites", ["Added to Favorites", name])}
+      />
     </search>
   );
 }

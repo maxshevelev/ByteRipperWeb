@@ -28,7 +28,7 @@ import { createStore } from "@/state/store";
  *
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolView
  */
-export type NoticeGlyph = "wrapForward" | "wrapBackward" | "smartSearch";
+export type NoticeGlyph = "wrapForward" | "wrapBackward" | "smartSearch" | "addedToFavorites";
 
 export interface Notice {
   /** New for every plate, so a replacement is a new element rather than a changed one. */

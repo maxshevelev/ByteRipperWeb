@@ -14,10 +14,16 @@ interface FileSystemAccessWindow {
   showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
 }
 
+/** One entry of a picker's type menu: a description and the types it admits. */
+export interface FilePickerType {
+  description?: string;
+  accept: Record<string, string[]>;
+}
+
 export interface OpenFilePickerOptions {
   multiple?: boolean;
   excludeAcceptAllOption?: boolean;
-  types?: { description?: string; accept: Record<string, string[]> }[];
+  types?: FilePickerType[];
 }
 
 export interface SaveFilePickerOptions extends OpenFilePickerOptions {

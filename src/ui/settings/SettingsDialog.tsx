@@ -29,6 +29,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { FavoritesTab } from "@/ui/settings/FavoritesTab";
 import { monospacedFontFamilies } from "@/ui/settings/fontFamilies";
 import {
   formatFontSize,
@@ -39,12 +40,18 @@ import {
   wordSizeChoiceTitle,
 } from "@/ui/settings/settingsText";
 
-type SettingsTab = "appearance" | "layout" | "comparison" | "editing" | "textDecoding";
+export type SettingsTab =
+  | "appearance"
+  | "layout"
+  | "comparison"
+  | "editing"
+  | "textDecoding"
+  | "favorites";
 
 /**
- * The tabs, in upstream's toolbar order. Favorites waits for the pattern
- * library (M11); File Types sets which application opens a file, which is the
- * operating system's to decide rather than a web page's.
+ * The tabs, in upstream's toolbar order. File Types sets which application
+ * opens a file, which is the operating system's to decide rather than a web
+ * page's.
  */
 const TABS: readonly { readonly id: SettingsTab; readonly label: string }[] = [
   { id: "appearance", label: "Appearance" },
@@ -52,11 +59,19 @@ const TABS: readonly { readonly id: SettingsTab; readonly label: string }[] = [
   { id: "comparison", label: "Comparison" },
   { id: "editing", label: "Editing" },
   { id: "textDecoding", label: "Text Decoding" },
+  { id: "favorites", label: "Favorites" },
 ];
 
 export interface SettingsDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
+  /**
+   * The tab to open on, when the opener names one — Manage Favorites… in the
+   * find bar's menu lands on the list it promises.
+   *
+   * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showFavorites
+   */
+  readonly tab?: SettingsTab | undefined;
 }
 
 /**
@@ -89,10 +104,16 @@ export interface SettingsDialogProps {
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingTabTapped
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindow
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindow.cancelOperation
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.favoritesController
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.favoritesTabTapped
  * @upstream-differs a <dialog> with a tab strip: Escape closes it natively, and it sizes to the tab it shows
  */
-export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
+export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialogProps) {
   const [tab, setTab] = useState<SettingsTab>("appearance");
+
+  useEffect(() => {
+    if (open && requested !== undefined) setTab(requested);
+  }, [open, requested]);
 
   return (
     <Dialog
@@ -125,6 +146,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           {tab === "comparison" ? <ComparisonTab /> : null}
           {tab === "editing" ? <EditingTab /> : null}
           {tab === "textDecoding" ? <TextDecodingTab /> : null}
+          {tab === "favorites" ? <FavoritesTab /> : null}
         </div>
       ) : null}
     </Dialog>

@@ -12,6 +12,7 @@ import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditSt
 import { bookmarksStore, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
+import { restoreFavorites } from "@/state/favoritesStore";
 import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
 import {
   closeSearch,
@@ -54,7 +55,7 @@ import { HexPane } from "@/ui/pane/HexPane";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { addCut, saveAllPieces } from "@/ui/segments/segmentCommands";
-import { SettingsDialog } from "@/ui/settings/SettingsDialog";
+import { SettingsDialog, type SettingsTab } from "@/ui/settings/SettingsDialog";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
@@ -304,6 +305,8 @@ export function AppShell() {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** The tab Settings was asked to open on, when the opener named one. */
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | undefined>(undefined);
   /** The pane whose header name is a field right now (§23). */
   const [renamingPane, setRenamingPane] = useState<PaneId | undefined>(undefined);
 
@@ -345,6 +348,8 @@ export function AppShell() {
   // which is what it looks like anyway.
   useEffect(() => {
     void restoreBookmarks();
+    // The favourites and this browser's identity, from the last visit.
+    void restoreFavorites();
   }, []);
 
   // The find bar always searches the pane the commands act on.
@@ -798,10 +803,22 @@ export function AppShell() {
         onDuplicate={doDuplicate}
         onFind={openFind}
         onClose={() => closeWithWarning(activePane)}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={() => {
+          setSettingsTab(undefined);
+          setSettingsOpen(true);
+        }}
         navigation={navigation}
       />
-      {searchOpen ? <FindBar onReveal={revealInBoth} /> : null}
+      {searchOpen ? (
+        <FindBar
+          onReveal={revealInBoth}
+          // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
+          onManageFavorites={() => {
+            setSettingsTab("favorites");
+            setSettingsOpen(true);
+          }}
+        />
+      ) : null}
       {/* Before the workspace in the document as well as on screen, so Tab
           reaches the panel in the order it is read. */}
       {toolId !== undefined && panes.length > 0 ? (
@@ -924,7 +941,11 @@ export function AppShell() {
         onClose={() => setSelectBlock(undefined)}
       />
       <TransientNotice />
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        tab={settingsTab}
+        onClose={() => setSettingsOpen(false)}
+      />
       <ConfirmDialog
         open={shiftAsking}
         title="This edit shifts the file"

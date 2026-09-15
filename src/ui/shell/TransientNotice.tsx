@@ -21,6 +21,7 @@ const GLYPH_LABEL: Record<NoticeGlyph, string> = {
   wrapForward: "The search came round the end of the file",
   wrapBackward: "The search came round the start of the file",
   smartSearch: "Smart search",
+  addedToFavorites: "Added to Favorites",
 };
 
 /**
@@ -88,7 +89,8 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
  *
  * A wrap is an arrow round a capsule whose head says which end the search came
  * round — top right for one that ran off the end, bottom left for one that ran
- * off the start. A Smart Search that found nothing is a wand.
+ * off the start. A Smart Search that found nothing is a wand, and a pattern just
+ * kept is a star.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.symbolName
  * @upstream-differs inline SVG in place of named system symbols, so there is no fallback to choose
@@ -107,7 +109,12 @@ function Glyph({ glyph, size }: { readonly glyph: NoticeGlyph; readonly size: nu
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {glyph === "smartSearch" ? (
+      {glyph === "addedToFavorites" ? (
+        <path
+          d="M12 3.2l2.7 5.5 6 .9-4.35 4.25 1.03 6-5.38-2.83-5.38 2.83 1.03-6L3.3 9.6l6-.9z"
+          fill="currentColor"
+        />
+      ) : glyph === "smartSearch" ? (
         <>
           <path d="M4 20 15 9" />
           <path d="m13.5 7.5 3 3" />

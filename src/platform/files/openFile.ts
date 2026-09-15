@@ -1,6 +1,7 @@
 import {
   detectFileCapabilities,
   type FileCapabilities,
+  type FilePickerType,
   fileSystemAccess,
 } from "@/platform/files/capabilities";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
@@ -17,7 +18,7 @@ import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
  * caller carries on.
  */
 
-const BINARY_TYPES = [
+const BINARY_TYPES: FilePickerType[] = [
   {
     description: "Firmware dumps and binary files",
     accept: {
@@ -29,22 +30,28 @@ const BINARY_TYPES = [
 export interface OpenFileOptions {
   readonly multiple?: boolean;
   readonly capabilities?: FileCapabilities;
+  /** What the picker offers; firmware dumps unless said otherwise. */
+  readonly types?: FilePickerType[];
 }
 
 export async function openFiles(options: OpenFileOptions = {}): Promise<OpenedFile[]> {
   const capabilities = options.capabilities ?? detectFileCapabilities();
+  const types = options.types ?? BINARY_TYPES;
   return capabilities.canSaveInPlace
-    ? await openThroughPicker(options.multiple ?? false)
-    : await openThroughInput(options.multiple ?? false);
+    ? await openThroughPicker(options.multiple ?? false, types)
+    : await openThroughInput(options.multiple ?? false, types);
 }
 
-async function openThroughPicker(multiple: boolean): Promise<OpenedFile[]> {
+async function openThroughPicker(
+  multiple: boolean,
+  types: FilePickerType[]
+): Promise<OpenedFile[]> {
   const picker = fileSystemAccess().showOpenFilePicker;
   if (picker === undefined) return [];
 
   let handles: FileSystemFileHandle[];
   try {
-    handles = await picker({ multiple, types: BINARY_TYPES, excludeAcceptAllOption: false });
+    handles = await picker({ multiple, types, excludeAcceptAllOption: false });
   } catch (error) {
     // AbortError is the user closing the picker, which is not a failure.
     if (error instanceof DOMException && error.name === "AbortError") return [];
@@ -61,12 +68,16 @@ async function openThroughPicker(multiple: boolean): Promise<OpenedFile[]> {
  * gives no way to know the user cancelled — so the promise settles on the first
  * of `change` (they chose) or `cancel` (where the browser fires it).
  */
-function openThroughInput(multiple: boolean): Promise<OpenedFile[]> {
+function openThroughInput(multiple: boolean, types: FilePickerType[]): Promise<OpenedFile[]> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = multiple;
-    input.accept = ".bin,.rom,.fd,.cap,.img,.dat,application/octet-stream";
+    input.accept = types
+      .flatMap((type) =>
+        Object.entries(type.accept).flatMap(([mime, extensions]) => [...extensions, mime])
+      )
+      .join(",");
     input.style.display = "none";
 
     const finish = (files: OpenedFile[]) => {

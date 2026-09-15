@@ -74,15 +74,21 @@ export function Dialog({
       ref={ref}
       className={className === undefined ? "dialog" : `dialog ${className}`}
       tabIndex={closeButton === true ? -1 : undefined}
-      // Escape arrives as `cancel`, and a programmatic close as `close`.
+      // Escape arrives as `cancel`, and a programmatic close as `close`. React
+      // carries both up through the component tree, so a dialog opened from
+      // inside this one — the resolver over Settings — would close this one
+      // with it: only the element's own events are this dialog's.
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (onCancelRequest !== undefined && !onCancelRequest()) {
           event.preventDefault();
           return;
         }
         onClose();
       }}
-      onClose={onClose}
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       // A tap outside closes every dialog, the way Escape does: it means the
       // same as Cancel. The backdrop belongs to the dialog element, so a click
       // on it reaches the element too — and so does a click in the gap a

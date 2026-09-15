@@ -126,6 +126,7 @@ export function BookmarkEditPopover({
       onKeyDown={(event) => {
         event.stopPropagation();
         // @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.control
+        // @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.cancel
         if (event.key === "Escape") {
           event.preventDefault();
           cancelBookmarkEdit();

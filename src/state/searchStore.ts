@@ -5,6 +5,7 @@ import {
   encodingTitle,
   foldingFor,
   parsePattern,
+  patternHexText,
   SEARCH_ENCODINGS,
   type SearchEncoding,
   type SearchFailure,
@@ -469,6 +470,12 @@ export function startSearch(options: {
   readonly from?: number;
   /** What the search is for: going to a match, or listing them all. */
   readonly goal?: SearchGoal;
+  /**
+   * False for a search picked from the menu: the history is what was typed, and
+   * spending it on what is already kept elsewhere is the problem the favourites
+   * solve.
+   */
+  readonly recordHistory?: boolean;
 }): void {
   // A plate reports a search, so it goes the moment another one starts.
   dismissNotice();
@@ -546,9 +553,13 @@ export function startSearch(options: {
     // the rows as they arrive, or on "No matches." where they would have been.
     resultsShown: goal === "list" || resultsFor(state, pane).resultsShown,
   });
+  // A search told to read hex shows its bytes back as the dump prints them, and
+  // that is the text remembered. A Smart Search has not decided yet what the
+  // text is: its pass says so when it lands (`adopt`).
+  const shown = smart ? query : hexFieldText(query, encoding);
   searchStore.update((current) => ({
     ...current,
-    query,
+    query: shown,
     encoding,
     smart,
     caseSensitive,
@@ -556,8 +567,8 @@ export function startSearch(options: {
     problem: undefined,
   }));
   // Remembered only once it finds something: a pattern that occurs nowhere is
-  // not one worth offering again.
-  searchToRecord = query;
+  // not one worth offering again. A pick from the menu is not remembered at all.
+  searchToRecord = options.recordHistory === false ? undefined : shown;
 
   void runAttempts(
     attempts,
@@ -604,7 +615,10 @@ export function toggleSearchResults(query: string): void {
     hideSearchResults(pane);
     return;
   }
-  const inHand = query === state.query && results.status !== "idle" && results.status !== "failed";
+  // The search in hand wrote a hex pattern back in the dump's form, so the text
+  // the button is given counts as the same pattern once it is written that way.
+  const samePattern = query === state.query || hexFieldText(query, state.encoding) === state.query;
+  const inHand = samePattern && results.status !== "idle" && results.status !== "failed";
   if (inHand) {
     updateResults(pane, { resultsShown: true });
     return;
@@ -937,11 +951,34 @@ export function stepSearch(direction: "forward" | "backward"): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adopt
  */
 function adopt(encoding: SearchEncoding | undefined): void {
-  searchStore.update((state) =>
-    encoding === undefined || !state.smart || state.encoding === encoding
-      ? { ...state, problem: undefined }
-      : { ...state, encoding, problem: undefined }
-  );
+  const state = searchStore.getSnapshot();
+  if (encoding === undefined || !state.smart) {
+    searchStore.update((current) => ({ ...current, problem: undefined }));
+    return;
+  }
+  // A pass that landed on hex found *bytes*, so the field says so the way a dump
+  // does — and what is remembered says it too.
+  const query = hexFieldText(state.query, encoding);
+  if (searchToRecord !== undefined) searchToRecord = hexFieldText(searchToRecord, encoding);
+  searchStore.update((current) => ({ ...current, encoding, query, problem: undefined }));
+}
+
+/**
+ * The field's text after a search: a hex pattern written back in the form a
+ * dump prints it — `deadbeef` becomes `DE AD BE EF` (§11).
+ *
+ * Only on a search, never while typing: it is the answer to "this is what I
+ * looked for", and a field that regrouped bytes under the caret would be
+ * unusable. The text is derived from the bytes, so it says exactly what was
+ * searched for. Text encodings are left alone: there the field holds the string
+ * itself, not a transcription of bytes.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.normalizeHexText
+ */
+export function hexFieldText(query: string, encoding: SearchEncoding): string {
+  if (encoding !== "hex") return query;
+  const parsed = parsePattern(query, encoding);
+  return parsed.ok ? patternHexText(parsed.pattern) : query;
 }
 
 /** The query a search was started with, until that search finds something. */

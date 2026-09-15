@@ -360,7 +360,9 @@ an opinion — decides whether WASM enters the project.
 3. Library sync: in Chromium, `showDirectoryPicker()` plus a handle kept in
    IndexedDB gives upstream's one-file-per-machine merge model — ported from
    `PatternLibrary.swift`, `SyncMerge.swift` and `VersionVector.swift`, conflict
-   sheet included. Elsewhere, JSON export and import.
+   sheet included — in the Mac app's own file format and folder, so the two
+   share one library. Firefox and Safari fetch from a folder read-only; export
+   and import everywhere. Stages and decisions: `Design/FAVORITES_SYNC_WEB.md`.
 
 **Definition of done:** twelve patterns on one machine and three on another make
 fifteen; a conflict is asked about rather than resolved silently; the library

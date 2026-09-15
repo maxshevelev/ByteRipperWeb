@@ -413,3 +413,60 @@ test("a search that finds nothing still opens the panel the button asked for", a
   expect(paneResults().resultsShown).toBe(true);
   setSmartSearch(true);
 });
+
+// A hex pattern is shown back the way a dump prints it — `deadbeef` goes in,
+// `DE AD BE EF` stands in the field and in the recents (upstream's
+// HexPatternFormattingTests).
+
+const query = () => searchStore.getSnapshot().query;
+const mostRecent = () => searchStore.getSnapshot().history[0];
+
+test("a hex search leaves the field in the dump's form", () => {
+  startSearch({ query: "deadbeef", smart: false, encoding: "hex" });
+  expect(query()).toBe("DE AD BE EF");
+});
+
+test("the recents keep the dump's form", async () => {
+  answerFor = "hex";
+  startSearch({ query: "0xde 0xad", smart: false, encoding: "hex" });
+  await settle();
+  expect(mostRecent()).toMatchObject({ pattern: "DE AD", encoding: "hex" });
+});
+
+test("a smart pass that lands on hex formats the field, and records that", async () => {
+  answerFor = "hex";
+  startSearch({ query: "deadbeef", smart: true, encoding: "ascii" });
+  // Nothing is decided about the text until the pass lands.
+  expect(query()).toBe("deadbeef");
+  await settle();
+  expect(paneResults().foundEncoding).toBe("hex");
+  expect(query()).toBe("DE AD BE EF");
+  expect(mostRecent()?.pattern).toBe("DE AD BE EF");
+});
+
+test("a pass that lands on a text encoding leaves the field alone", async () => {
+  answerFor = "ascii";
+  startSearch({ query: "root", smart: true, encoding: "ascii" });
+  await settle();
+  expect(query()).toBe("root");
+  expect(mostRecent()?.pattern).toBe("root");
+});
+
+test("typing is not reformatted", () => {
+  setSearchEncoding("hex");
+  editQuery("deadbe");
+  expect(query()).toBe("deadbe");
+});
+
+test("Find All formats the field and records the same way", async () => {
+  hideSearchResults("a");
+  setSmartSearch(false);
+  setSearchEncoding("hex");
+  answerFor = "hex";
+  toggleSearchResults("5aa5f00f");
+  await settle();
+  expect(query()).toBe("5A A5 F0 0F");
+  expect(mostRecent()?.pattern).toBe("5A A5 F0 0F");
+  hideSearchResults("a");
+  setSmartSearch(true);
+});
