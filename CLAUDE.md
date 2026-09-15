@@ -10,6 +10,10 @@ Two documents are the plan of record, in this order:
   which the browser takes away. Read it before proposing anything structural.
 - `Design/IMPLEMENTATION_PLAN.md` — the technical decisions and the milestones,
   each with a definition of done. Read it before writing code.
+- `Design/GAPS.md` — what is still left to port and what the web edition will
+  not support, as tables to prioritise from. Keep it current in the same change:
+  closing a gap moves its row to Closed, a new `later —` entry in the module map
+  belongs to a row, and a dropped or adapted feature gets one.
 
 The macOS reference implementation is a sibling clone at `../ByteRipper` (or
 `$BYTERIPPER_REPO`). Read the Swift before inventing a mechanism: it has

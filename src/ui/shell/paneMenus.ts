@@ -115,6 +115,8 @@ export function paneFileMenu(
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makeOffsetMenu
  * @upstream ByteRipperApp/Window/MainViewController.swift#OffsetContextTarget
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copyOffset
+ * @upstream-differs Copy Offset copies the address as the dump writes it, eight hex digits
  */
 export function dumpMenu(
   state: WorkspaceState,

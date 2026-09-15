@@ -181,13 +181,18 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.isOpenableFile
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openFiles
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.application
+   * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.openSecond
+   * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.ignoredCount
    */
   const accept = useCallback((files: OpenedFile[], into?: PaneId) => {
     // Two files chosen at once fill both slots, which is how a comparison is
-    // opened in one gesture. A single one goes where slotForNewFile says.
-    // Only two files can be compared, so a third is not opened over the first —
-    // and the ones left over are said, rather than silently dropped.
-    const taken = files.slice(0, into === undefined ? 2 : 1);
+    // opened in one gesture — but only into an empty workspace: with a file
+    // already open, a second one would land on top of it. A single file goes
+    // where slotForNewFile says, and the ones left over are said, rather than
+    // silently dropped.
+    const { panes } = workspaceStore.getSnapshot();
+    const bothEmpty = panes.a === undefined && panes.b === undefined;
+    const taken = files.slice(0, into === undefined && bothEmpty ? 2 : 1);
     let slot = into ?? slotForNewFile();
     for (const file of taken) {
       openInPane(slot, file);

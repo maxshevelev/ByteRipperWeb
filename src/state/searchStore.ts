@@ -900,6 +900,7 @@ export function setCaseSensitive(caseSensitive: boolean): void {
  * Forgets the recent queries.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.clearRecents
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.clear
  */
 export function clearRecents(): void {
   searchStore.update((state) => (state.history.length === 0 ? state : { ...state, history: [] }));

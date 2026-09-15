@@ -114,6 +114,16 @@ and the anchors are how the check knows which is which.
   `later —` for work not done yet and `n/a —` for what the browser takes away,
   so the two do not blur.
 
+`Design/GAPS.md` is the human view of those entries: the gaps grouped into rows
+to prioritise, and what the web edition does not support. A `later —` or `n/a —`
+entry added, or one closed, changes a row there in the same change.
+`scripts/unported_summary.py` prints the entries grouped by reason, with counts
+and upstream files, which is how the tables are checked against the map:
+
+```bash
+python3 Skills/port-from-byteripper/scripts/unported_summary.py --later --no-tests
+```
+
 A module's `files` names the upstream files it ports whole; only those are
 checked for gaps. A file the web takes a few methods from (a view controller of
 thousands of lines) is anchored where it is used and reported as *anchored, not
