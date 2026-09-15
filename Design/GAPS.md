@@ -96,7 +96,6 @@ Columns:
 | G24 | **App flow tests.** Upstream's UI flow tests have no counterpart: the project has no component or end-to-end tests. | ~1000 upstream tests | A test dependency (Playwright, or a DOM test runner) — needs its reason written down | P2 | decision |
 | G25 | **Modules without tests of their own:** `fileSink`, `duplicatePane`, attaching a join's file on undo and redo, `efiGuid`, `nvramGuids`, `ProgressSink`, the lazy UEFI tree, `firmwareTypeClassifier`, `manifestSelection`, the ME database stores, `BlobByteSource`, the UEFI checksum check, the seam. | ~15 upstream test files | — | P2 | open |
 | G26 | **Cross-browser pass and error states end to end:** Chromium, Firefox, Safari; offline with no cached database, a stale `File`, a file changed on disk, a declined permission — every capability difference announced by the app. | — | — | P1 | open |
-| G27 | **Deploy to GitHub Pages from CI.** | — | — | P1 | open |
 | G28 | **The benchmark table on a low-end machine** as well as a fast one. | — | — | P2 | open |
 | G29 | **Session restore:** a reload offers yesterday's pair back from handles kept in IndexedDB, with one permission click. An open question in both plans. | — | Whether to do it | P2 | decision |
 
@@ -151,6 +150,7 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| G27 — Deploy to GitHub Pages from CI: `.github/workflows/deploy-pages.yml` publishes `main` as the live site and `v*` tags as point releases, and the bundle has its base path | 2026-09-15 |
 | Opening two files with a file already open replaced it; the second file now opens only into an empty workspace, as `OpenPlacement.plan` does | 2026-09-15 |
 | FIT panel findings and catalogue message wrap instead of truncating | 2026-09-15 |
 | Panes stay scrolled together (a pane re-laying out no longer drags the other); a second file, a file opened into a pane and Revert to Saved keep the caret and the viewport | 2026-09-15 |
