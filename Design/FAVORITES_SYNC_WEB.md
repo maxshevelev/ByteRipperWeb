@@ -80,10 +80,11 @@ the orphan like any peer — but the folder collects dead files and the list is
 empty until the first sync. So:
 
 - the app asks for persistent storage (`navigator.storage.persist()`);
-- Manage Favorites lists the files in the folder with their machine name and last
-  write, and where a file carries this browser's label it offers **"This was
-  me"**: adopt that file's device id and carry on writing it, instead of starting
-  a second file. Another machine's file is never deleted by the app.
+- where a file in the folder carries this browser's label and names its own
+  writer, Manage Favorites offers **"This was me"**: adopt that file's device id
+  and carry on writing it, instead of starting a second file. The other files in
+  the folder are not listed — which machines write there is the loop's business,
+  not the reader's. Another machine's file is never deleted by the app.
 
 **Access to the folder (Chromium).** The folder handle is kept in IndexedDB.
 Permission is asked for once per visit, from a user gesture; since Chrome 122 the

@@ -155,7 +155,7 @@ export function locationLine(state: FavoritesState): {
  * @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.moveButton
  * @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.keepHereButton
  * @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.resolveButton
- * @upstream-differs rows of inputs, reordered by dragging a row or with Alt+↑/↓; the folder's files are listed, with This Was Me; Export and Import, and a read-only fetch from a folder, are the web's own
+ * @upstream-differs rows of inputs, reordered by dragging a row or with Alt+↑/↓; This Was Me is offered for an earlier file of this browser's, and nothing else in the folder is shown; Export and Import, and a read-only fetch from a folder, are the web's own
  */
 export function FavoritesTab() {
   const library = useStore(favoritesStore);
@@ -669,40 +669,30 @@ export function FavoritesTab() {
             </button>
           )}
         </div>
-        {files.length > 0 ? (
-          <details className="favorites-files">
-            <summary>
-              {files.length === 1
-                ? "One library file in the folder"
-                : `${files.length} library files in the folder`}
-            </summary>
-            <ul>
-              {files.map((file) => (
-                <li key={file.name}>
+        {/* What is in the folder is the loop's business, not the reader's. The
+            one file worth a word is an earlier one of this browser's own — left
+            by a browser whose data was cleared — since only the user can say it
+            was theirs. */}
+        {readOnly
+          ? null
+          : files
+              .filter((file) => file.adoptable)
+              .map((file) => (
+                <p key={file.name} className="favorites-earlier">
                   <span>
-                    {file.readable
-                      ? `${file.machine === "" ? "An unnamed machine" : file.machine} — ${
-                          file.entries === 1 ? "one pattern" : `${file.entries} patterns`
-                        }`
-                      : "Cannot be read yet"}
-                    {file.own ? " (this browser)" : ""}
+                    The folder holds an earlier library written by “{file.machine}”. If that was
+                    this browser before its data was cleared, carry on with it.
                   </span>
-                  <span className="favorites-file-name">{file.name}</span>
-                  {file.adoptable && !readOnly ? (
-                    <button
-                      type="button"
-                      className="toolbar-button"
-                      title="This browser wrote that file before its data was lost: carry on writing it instead of a second one"
-                      onClick={() => void adopt(file)}
-                    >
-                      This Was Me
-                    </button>
-                  ) : null}
-                </li>
+                  <button
+                    type="button"
+                    className="toolbar-button"
+                    title="Carry on writing that library instead of keeping a second one"
+                    onClick={() => void adopt(file)}
+                  >
+                    This Was Me
+                  </button>
+                </p>
               ))}
-            </ul>
-          </details>
-        ) : null}
       </div>
 
       <p className="settings-caption">

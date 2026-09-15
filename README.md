@@ -22,20 +22,37 @@ file is part of that request.
 
 ## Status
 
-**Usable, for what it does so far.** It opens two dumps, compares them, and
-lets you patch one and save it — the orange wash, the live
-`1,057 differing · 4,193,247 same` summary that follows your edits, Next
-Difference stepping by change rather than by byte, synchronised scrolling, and
-a Save that writes back to the file in Chromium and downloads a copy where it
-cannot. Search is in: hex bytes or text, the encoding guessed from what you
-typed and named once it is found, every occurrence greyed with the current one
-raised, an exact count however common the pattern, and results that follow the
-bytes as you edit them. So is the minimap — the whole file at a glance, shaded
-by how much of each slice is real content, with differences, edits and matches
-marked on it, and both maps on one scale so the same height is the same offset
-in each. The domain half is checked against the macOS app's own unit tests,
-ported with the code they cover. What is missing is segments, bookmarks and the
-firmware tools. Milestone by milestone, the plan is
+**Feature-complete against the plan, and being hardened.** Try it at
+**[maxshevelev.github.io/ByteRipperWeb](https://maxshevelev.github.io/ByteRipperWeb/)**.
+
+It opens two dumps, compares them, and lets you patch one and save it — the
+orange wash, the live `1,057 differing · 4,193,247 same` summary that follows
+your edits, Next Difference stepping by change rather than by byte,
+synchronised scrolling, and a Save that writes back to the file in Chromium and
+downloads a copy where it cannot. Search finds hex bytes or text, guesses the
+encoding from what you typed and names it once found, keeps an exact count
+however common the pattern, remembers your recent searches, and keeps named
+favourites. The minimap shows the whole file at a glance, with differences,
+edits and matches marked on it. Bookmarks mark the rows you come back to, and
+segments cut a dump into named pieces and join files back together.
+
+Beside the dump sit the firmware tools: the **UEFI Structure** tree with its
+checksums, the **FIT Table** with microcode added, replaced and removed in
+place, and the **ME Analyzer**'s reading of the Intel ME/CSME region. Settings
+cover the font, the theme, the grouping and the text decoding table.
+
+The **pattern library** travels between machines. In Chromium it can live in a
+folder you choose — iCloud Drive, OneDrive, Dropbox — where each browser and
+each Mac running ByteRipper writes its own file and reads the others'. Changes
+merge, and a disagreement is asked about rather than decided for you. Firefox and
+Safari can take what such a folder holds, and every browser can export and
+import the library as one file.
+
+The domain half is checked against the macOS app's own unit tests, ported with
+the code they cover. What is still left to port — compressed UEFI sections,
+Boot Guard protected ranges, row marks in the tool panels, and a list of smaller
+details — is tabled with priorities in **[Design/GAPS.md](Design/GAPS.md)**.
+Milestone by milestone, the plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
 **[Design/ANALYSIS.md](Design/ANALYSIS.md)**.
@@ -51,8 +68,10 @@ scope at all, and what the browser takes away, is
 | M6 Minimap | done |
 | M7 Bookmarks and segments | done |
 | M8 Tool panel and UEFI Structure | done |
-| M9 FIT Table | next |
-| M10 – M12 | see the plan |
+| M9 FIT Table | done |
+| M10 ME Analyzer | done |
+| M11 Settings and the pattern library | done |
+| M12 Hardening | in progress — deployed from CI; the cross-browser pass, flow tests and the low-end benchmark are open |
 
 ## Stack
 
@@ -83,9 +102,16 @@ has no canvas. Those rows live in a page: `npm run dev`, then open
 `/benchmarks/paint/`.
 
 Chromium browsers get the File System Access API, which is what makes *Save*
-mean *save in place*. Firefox and Safari are fully usable and save a copy
-through the download flow — the interface says which one you are getting rather
-than pretending.
+mean *save in place* and lets the pattern library live in a folder. Firefox and
+Safari are fully usable and save a copy through the download flow — the
+interface says which one you are getting rather than pretending.
+
+Chromium offers that API only to a secure page: `https://`, or
+`http://localhost`. The dev server opened from another machine at
+`http://192.168.…:5173` is not one, so there it behaves like Firefox — saving
+downloads a copy and the Favorites tab has no Move…. Open it on the machine
+running the server, or allow the address in
+`chrome://flags/#unsafely-treat-insecure-origin-as-secure`.
 
 ## Standing on other people's work
 

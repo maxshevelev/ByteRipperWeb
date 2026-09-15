@@ -3367,33 +3367,17 @@ button.uefi-title {
   gap: 6px;
 }
 
-.favorites-files {
-  margin-top: 8px;
-  font-size: 11px;
-}
-
-.favorites-files summary {
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.favorites-files ul {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.favorites-files li {
+/* An earlier library of this browser's own, found in the folder: the one file
+   the tab ever mentions, and only to offer This Was Me. */
+.favorites-earlier {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 2px 0;
-}
-
-.favorites-file-name {
-  color: var(--text-faint);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .settings-preview {
