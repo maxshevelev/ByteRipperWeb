@@ -1,0 +1,60 @@
+name: Deploy to Pages
+
+# Publishing is not tied to a branch. The site is built here and uploaded as an
+# artifact, so a ref decides only *when* a deploy happens, never what is served.
+# `main` is the live site; a `v*` tag publishes a point release; a run can also be
+# started by hand.
+#
+# Which refs are allowed to publish is a separate gate, set on the repository's
+# `github-pages` environment, not here. A ref missing from that list runs this
+# workflow and is then refused at the deploy step.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Every run publishes to the one Pages site the repository has, so overlapping
+# runs would race. A queued run waits rather than cancelling the one in flight:
+# half-published is worse than late.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Typecheck and bundle in one step, as `npm run build` does. The `base` in
+      # vite.config.ts is what makes the output addressable from a subdirectory.
+      - run: npm run build
+      # Reads the Pages configuration and asserts it is set to build with GitHub
+      # Actions. Left to `deploy-pages`, a mismatch surfaces as a failed deploy
+      # with no useful message.
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

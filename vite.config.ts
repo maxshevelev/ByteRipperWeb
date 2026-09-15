@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // The app is published as a GitHub Pages *project* page, which is served from
+  // a subdirectory of the host rather than its root. Without this, the bundle
+  // asks for `/assets/...`, the host has no such path, and the page comes up
+  // blank while the dev server — which serves from the root — looks fine.
+  base: "/ByteRipperWeb/",
   plugins: [react()],
   server: {
     // The dev server answers only the hosts it knows by name, which is Vite's
