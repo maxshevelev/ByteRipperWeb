@@ -66,9 +66,7 @@ Columns:
 
 ### 1.2 Search
 
-| ID | Gap | Upstream | Size | Depends on | Priority | Status |
-|---|---|---|---|---|---|---|
-| G7 | **The pattern library (M11):** favourites, named patterns, keeping a pattern from the find bar, the shared library folder with its merge and conflict sheet; outside Chromium, JSON export and import. | `FavoritePatternStore.swift`, `FavoritesFile.swift`, `FolderSync.swift`, `PatternLibrary.swift`, `SyncMerge.swift`, `VersionVector.swift`, `LibraryConflictSheetController.swift`, `FavoritePatternsSettingsViewController.swift` | ~270 + ~160 tests | — (decided: `Design/FAVORITES_SYNC_WEB.md`, stages 1–3 of 5 done) | P2 | in progress |
+Nothing open: the last row, G7, is in [Closed](#3-closed).
 
 ### 1.3 Tool panels
 
@@ -153,6 +151,7 @@ Columns:
 | Third-party databases | Fetched live as upstream does, and cached for 24 hours in the Cache API so a bench offline still has yesterday's, with its date shown. | CLAUDE.md, ANALYSIS.md |
 | Popovers (the cut popover) | A dialog with the offset in its form. | module map |
 | The find indicator | A flat yellow plate with an outline and black bytes; upstream's lift, bounce and shadow are left out by the owner's decision. | module map (G9) |
+| The shared pattern library folder | Chromium keeps a directory handle in IndexedDB and asks for write permission once per visit (or never, with "Allow on every visit"), watching the folder with a FileSystemObserver, the window coming forward and a minute's poll. Firefox and Safari read a folder the user picks, without writing to it. A browser has no hardware id: its id is minted and kept, and This Was Me takes back the id of a file it wrote before its data was lost. | Design/FAVORITES_SYNC_WEB.md (G7) |
 | Carrying favourites between machines without a shared folder | Export… and Import… in the Favorites tab, in every browser: the export is this browser's folder file, and an import merges as a peer with no common past, asking in the resolver what it cannot decide. Upstream has only the folder. | Design/FAVORITES_SYNC_WEB.md (G7) |
 
 ---
@@ -163,6 +162,7 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| G7 — The pattern library: favourites in the Find bar's menu and in Settings, Export and Import, the shared library folder with one file per machine, a three-way merge per peer and the resolver (Chromium), a read-only fetch from a folder (Firefox, Safari), and This Was Me for a browser whose data was lost | 2026-09-15 |
 | The toolbar's Tools button is a pull-down: the wrench with a chevron, as upstream's `NSPopUpButton` with `pullsDown` | 2026-09-15 |
 | G33 — A font or row-height change keeps the middle of the view in place: the row at the centre stays centred, in both panes, as upstream's `applyAppearance` does | 2026-09-15 |
 | G32 — A drag selection, or a mark's drag, keeps scrolling while the pointer is held past the dump's edge, by the overshoot, 30 steps a second, until the pointer returns or the file ends | 2026-09-15 |

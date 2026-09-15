@@ -7,6 +7,17 @@ import {
   searchFlags,
 } from "@/ui/search/patternMenu";
 
+// @upstream ByteRipperTests/PatternMenuTests.swift#PatternMenuTests.testTheMenuIsTwoListsEachWithItsOwnCommands
+// @upstream ByteRipperTests/PatternMenuTests.swift#PatternMenuTests.testEmptyListsShowNoHeaderAndNoClear
+// @upstream ByteRipperTests/PatternMenuTests.swift#PatternMenuTests.testARowStatesEverythingItSearchesWith
+// @upstream ByteRipperTests/PatternMenuTests.swift#PatternMenuTests.testAnUnusableRowIsMarkedAndStillPickable
+// @upstream ByteRipperTests/PatternMenuTests.swift#PatternMenuTests.testAddToFavoritesIsDeadOnAnEmptyField
+// @upstream ByteRipperTests/NamePatternSheetTests.swift#NamePatternSheetTests.testItAsksForANameAndSaysWhatIsBeingKept
+// @upstream ByteRipperTests/NamePatternSheetTests.swift#NamePatternSheetTests.testANameIsRequired
+// @upstream ByteRipperTests/NamePatternSheetTests.swift#NamePatternSheetTests.testTheSameSearchIsRefusedByName
+// @upstream ByteRipperTests/NamePatternSheetTests.swift#NamePatternSheetTests.testAnUnsearchablePatternIsRefused
+// @upstream ByteRipperTests/LibraryConflictTests.swift#LibraryConflictTests.testTheFindBarsMenuCarriesTheProblem
+
 const recent: MenuSearch = { pattern: "DE AD BE EF", encoding: "hex", caseSensitive: false };
 const favorite: MenuSearch = {
   name: "ME FPT",
@@ -66,6 +77,25 @@ describe("the search menu", () => {
       name: "ME FPT",
       usable: false,
     });
+  });
+});
+
+describe("the library's problem in the menu", () => {
+  const manage = (problem?: string) =>
+    patternMenuRows({ recents: [], favorites: [], fieldText: "", problem }).find(
+      (row) => row.kind === "command" && row.key === "manageFavorites"
+    );
+
+  it("is said on the row that leads to where it is settled", () => {
+    expect(manage("1 conflicting change")).toMatchObject({
+      label: "Manage Favorites…",
+      problem: "1 conflicting change",
+    });
+  });
+
+  it("goes once the library is well again, and the row is a plain command", () => {
+    const row = manage();
+    expect(row?.kind === "command" ? row.problem : "no row").toBeUndefined();
   });
 });
 

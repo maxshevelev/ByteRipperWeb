@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { isLibraryFile, libraryFileName, stampOf } from "@/core/sync/syncFolderNaming";
 
+// @upstream ByteRipperTests/LibraryConflictTests.swift#LibraryConflictTests.testWhichNamesAreALibraryFile
+// @upstream ByteRipperTests/LibraryLocationTests.swift#LibraryLocationTests.testTheFileIsNamedAfterTheMachineAndNothingThatCanChange
+
 describe("a machine's library file", () => {
   it("is named by the stem and the machine's stamp", () => {
     expect(libraryFileName("A93F1C0D22B7")).toBe("ByteRipper Patterns (A93F1C0D22B7).json");

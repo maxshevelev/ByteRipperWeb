@@ -40,6 +40,8 @@ export type PatternMenuRow =
       readonly key: PatternMenuCommand;
       readonly label: string;
       readonly disabled: boolean;
+      /** What is wrong with the library, said on the row that leads to where it is settled. */
+      readonly problem?: string | undefined;
     }
   | { readonly kind: "separator"; readonly key: string };
 
@@ -67,8 +69,16 @@ export function patternMenuRows(options: {
   readonly favorites: readonly MenuSearch[];
   /** What is in the field: with nothing there, there is nothing to keep. */
   readonly fieldText: string;
+  /**
+   * What is wrong with the library, if anything. A conflict only the Settings
+   * dialog mentions is a silent state: the library has stopped syncing and
+   * stopped being editable, and the bar is where the user actually is.
+   *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.manageItem
+   */
+  readonly problem?: string | undefined;
 }): PatternMenuRow[] {
-  const { recents, favorites, fieldText } = options;
+  const { recents, favorites, fieldText, problem } = options;
   const rows: PatternMenuRow[] = [];
   if (recents.length > 0) {
     rows.push({ kind: "heading", key: "recents", label: "Recent Queries", icon: "recent" });
@@ -99,6 +109,7 @@ export function patternMenuRows(options: {
     key: "manageFavorites",
     label: "Manage Favorites…",
     disabled: false,
+    problem,
   });
   return rows;
 }

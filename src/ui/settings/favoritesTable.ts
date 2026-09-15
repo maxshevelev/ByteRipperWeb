@@ -191,6 +191,11 @@ export function importReport(result: ImportResult, fileName: string): TabReport 
   switch (result.kind) {
     case "unreadable":
       return { problem: `"${fileName}" is not a ByteRipper pattern library.` };
+    case "readOnly":
+      return {
+        problem:
+          "The library is read-only until its conflicting changes are answered — Resolve… first.",
+      };
     case "asking":
       return {};
     case "imported": {

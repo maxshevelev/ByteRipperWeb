@@ -3335,6 +3335,67 @@ button.uefi-title {
   margin-top: 8px;
 }
 
+/* The Find bar's Manage Favorites… row, when the library has a problem. */
+.search-field-problem {
+  color: var(--semantic-bad);
+}
+
+/* Where the library lives: the line on its own, the commands under it — the
+   folder's name is the one thing here that has to be read in full. */
+.favorites-location {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.favorites-location-line {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.favorites-location-line.is-problem {
+  color: var(--semantic-bad);
+}
+
+.favorites-location-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.favorites-files {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.favorites-files summary {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.favorites-files ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.favorites-files li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.favorites-file-name {
+  color: var(--text-faint);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
 .settings-preview {
   padding: 12px;
   border: 1px solid var(--border);

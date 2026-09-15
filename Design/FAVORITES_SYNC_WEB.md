@@ -147,8 +147,23 @@ As upstream settled at its prototype:
 | 1 | **The core**: `SearchPatternEntry` with its bookkeeping, `SyncedCollection`, `VersionVector`, `SyncMerge`, `SyncDocument`, the file codec — pure TypeScript in `src/core/sync` and `src/core/search`, with upstream's `VersionVectorTests`, `SearchPatternEntryTests`, `PatternLibraryTests`, `FavoritesDocumentTests` and `LibraryMergeTests` | all | done |
 | 2 | **Favourites in the browser**: the IndexedDB document, the device id and label, persistent storage; the field menu's Favorites section, Add to Favorites, Manage Favorites (without the folder) | all | done |
 | 3 | **Export and Import**: the library file saved and opened by hand, an import merged as a peer without a base | all | done |
-| 4 | **The folder, both ways**: Move… / Keep in This Browser, the handle and its permission, one file per device, a merge per peer, watching, several tabs, the resolver, "This was me" | Chromium | planned |
-| 5 | **Get Favorites from a Folder**: a read-only merge from a picked folder | Firefox, Safari | planned |
+| 4 | **The folder, both ways**: Move… / Keep in This Browser, the handle and its permission, one file per device, a merge per peer, watching, several tabs, the resolver, "This was me" | Chromium | done |
+| 5 | **Get Favorites from a Folder**: a read-only merge from a picked folder | Firefox, Safari | done |
+
+As built. The loop is `src/core/sync/folderSync.ts`, upstream's `FolderSync` in
+pure TypeScript over a folder interface, asynchronous and serialised, with
+upstream's `LibrarySyncTests` ported against two machines over a memory folder.
+`src/platform/files/libraryFolder.ts` is the folder a browser reaches: a
+directory handle kept in IndexedDB, its `readwrite` permission, a
+`FileSystemObserver` where there is one, and the files a directory input hands
+over where there is not. `src/state/favoritesStore.ts` owns the one loop: a
+change is applied to the list on screen at once and to the loop's own copy when
+its turn comes, so a merge that landed meanwhile is not written over; the folder
+is looked at again on its own events, when the window comes forward, and once a
+minute; a Web Lock is held around a merge-and-publish. **This was me** recovers
+the device a file belongs to from the file itself — the counter in its vector
+whose stamp names it — and carries on writing that file, removing the one the
+browser had started since.
 
 ## Open questions
 

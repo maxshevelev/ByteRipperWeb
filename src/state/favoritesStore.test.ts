@@ -24,6 +24,16 @@ import {
   setFavoritesStorage,
 } from "@/state/favoritesStore";
 
+// @upstream ByteRipperTests/FavoritesFileTests.swift#FavoritesFileTests.testNoFileYetIsAnEmptyLibrary
+// @upstream ByteRipperTests/FavoritesFileTests.swift#FavoritesFileTests.testAKeptPatternIsStampedAndPlaced
+// @upstream ByteRipperTests/FavoritesFileTests.swift#FavoritesFileTests.testIdsSurviveALaunch
+// @upstream ByteRipperTests/FavoritesFileTests.swift#FavoritesFileTests.testRemovingAnEntryLeavesATombstone
+// @upstream ByteRipperTests/FavoritesFileTests.swift#FavoritesFileTests.testOnlyAChangedEntryIsRestamped
+// @upstream ByteRipperTests/FavoritesFileTests.swift#FavoritesFileTests.testEveryWriteCountsAgainstThisMachine
+// @upstream ByteRipperTests/FavoritePatternStoreTests.swift#FavoritePatternStoreTests.testTheSameSearchIsNotKeptTwice
+// @upstream ByteRipperTests/FavoritePatternStoreTests.swift#FavoritePatternStoreTests.testTheSamePatternInAnotherEncodingIsAnotherEntry
+// @upstream ByteRipperTests/FavoritePatternStoreTests.swift#FavoritePatternStoreTests.testTheOrderIsTheOrderItWasGiven
+
 let storage: KeyValueStore;
 
 beforeEach(async () => {

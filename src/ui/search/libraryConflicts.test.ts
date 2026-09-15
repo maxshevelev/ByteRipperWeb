@@ -14,6 +14,8 @@ import {
   theirSide,
 } from "@/ui/search/libraryConflicts";
 
+// @upstream ByteRipperTests/LibraryConflictTests.swift#LibraryConflictTests.testTheSheetShowsBothSidesOfEachConflict
+
 const fpt = searchPatternEntry({
   name: "Intel ME FPT",
   pattern: "$FPT",

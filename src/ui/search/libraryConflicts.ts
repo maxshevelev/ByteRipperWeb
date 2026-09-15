@@ -71,6 +71,21 @@ export const IMPORT_WORDING: ConflictWording = {
     "about them. Choose which to keep.",
 };
 
+/**
+ * The library folder: other machines' files, merged with this browser's.
+ *
+ * @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init
+ */
+export const SHARED_WORDING: ConflictWording = {
+  ours: "This Browser",
+  theirs: "Shared Library",
+  theirsChoice: "Shared",
+  elsewhere: "on another machine",
+  message:
+    "This browser and the shared library were both changed before either saw the other. " +
+    "Choose which to keep.",
+};
+
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init */
 export function conflictTitle(count: number): string {
   return count === 1 ? "One conflicting change" : `${count} conflicting changes`;

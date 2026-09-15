@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
-import { favoritesStore } from "@/state/favoritesStore";
+import { favoritesStore, syncProblem } from "@/state/favoritesStore";
 import { showNotice } from "@/state/noticeStore";
 import {
   clearRecents,
@@ -150,7 +150,8 @@ export function FindBar({
     else startSearch({ query: inputRef.current?.value ?? state.query, direction });
   };
 
-  const favorites = useStore(favoritesStore).favorites;
+  const favoriteState = useStore(favoritesStore);
+  const favorites = favoriteState.favorites;
   const [keeping, setKeeping] = useState<MenuSearch | undefined>(undefined);
 
   /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.rebuildPatternMenu */
@@ -158,6 +159,7 @@ export function FindBar({
     recents: state.history,
     favorites,
     fieldText: state.query,
+    problem: syncProblem(favoriteState),
   });
 
   /**

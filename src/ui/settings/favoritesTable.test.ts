@@ -15,6 +15,14 @@ import {
   withDraft,
 } from "@/ui/settings/favoritesTable";
 
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testAnUnsearchablePatternIsRefusedAndTheCellGoesBack
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testAnEncodingThePatternCannotSurviveIsRefused
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testANewRowIsADraftUntilItHasAPattern
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testOnlyOneDraftAtATime
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testRemovingTheSelectedRow
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testAnAnnouncementThatChangesNothingKeepsTheSelection
+// @upstream ByteRipperTests/FavoritePatternsSettingsTests.swift#FavoritePatternsSettingsTests.testDraggingARowStoresTheNewOrder
+
 const row = (name: string, pattern: string) =>
   searchPatternEntry({ name, pattern, encoding: "hex" });
 const names = (rows: readonly { name: string }[]) => rows.map((each) => each.name);

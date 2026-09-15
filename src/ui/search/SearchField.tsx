@@ -197,7 +197,16 @@ export function SearchField({
                   if (!disabled) setActive(index);
                 }}
               >
-                {row.kind === "entry" ? <EntryRow row={row} /> : row.label}
+                {row.kind === "entry" ? (
+                  <EntryRow row={row} />
+                ) : (
+                  <>
+                    {row.label}
+                    {row.kind === "command" && row.problem !== undefined ? (
+                      <span className="search-field-problem"> — {row.problem}</span>
+                    ) : null}
+                  </>
+                )}
               </div>
             );
           })}
