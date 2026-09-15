@@ -144,6 +144,19 @@ deliberate difference. Broken anchors and stale entries fail the run. Drift
 clears when the baseline moves past it, which is why the baseline moves only
 after the drifted code has been re-read.
 
+The check does not ask for upstream's `private` declarations to be anchored — a
+port folds most of them into the code it anchors — so behaviour that lives only
+in a private function can go missing unseen. `scripts/private_audit.py` is the
+audit for that: the private declarations in claimed files that nothing anchors
+or exempts, narrowed to names that appear nowhere in `src/` and are not AppKit
+plumbing. Read each row against the web code; a real gap becomes a row in
+`Design/GAPS.md` naming the private function, since it has no map entry.
+
+```bash
+python3 Skills/port-from-byteripper/scripts/private_audit.py              # the reading list
+python3 Skills/port-from-byteripper/scripts/private_audit.py --path Hex/  # one area
+```
+
 `reference/` also holds the contract documents this project ports against.
 `Design/ANALYSIS.md` in the repository root records which upstream features are
 in scope at all, and a change to a feature marked *Dropped* there needs no port —

@@ -26,6 +26,18 @@ python3 Skills/port-from-byteripper/scripts/unported_summary.py --later --no-tes
 python3 Skills/port-from-byteripper/scripts/unported_summary.py --na --no-tests
 ```
 
+The map, and so the summary, covers upstream's non-private declarations only:
+the anchor check does not ask for a `private` helper to be anchored, because a
+port folds most of them into the code it does anchor. Behaviour that lives only
+in a private function can therefore be missed without the check saying so — the
+hex field formatting (`FindBarView.normalizeHexText`) was. Rows found that way
+(G32, G33, part of G18) name the private functions in *Upstream* and have no map
+entries. The audit that finds them:
+
+```bash
+python3 Skills/port-from-byteripper/scripts/private_audit.py
+```
+
 Columns:
 
 - **ID** — stable, never reused, so a conversation can say "G4".
@@ -75,11 +87,13 @@ Columns:
 | ID | Gap | Upstream | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|---|
 | G17 | **Minimap tooltips** over its marks, strip and brackets. | `MinimapView.swift` | 6 | — | P3 (postponed) | open |
-| G18 | **Minimap click details:** a click near a bookmark snaps to its row; a gutter between side-by-side maps proportional to the panel. | `MinimapView.swift` | 2 | — | P3 | open |
+| G18 | **Minimap click details:** a click near a bookmark snaps to its row, and a click near a cut on the strip to the cut; a gutter between side-by-side maps proportional to the panel. | `MinimapView.swift` (`nearestBookmarkMark`, `nearestCut`) | 3 | — | P3 | open |
 | G19 | **While a context menu is open:** the byte or address it is about is framed, a marked row becomes the dashed ring; a right-click places the caret on the byte's high nibble. | `HexView.swift` | ~6 | — | P3 | open |
 | G20 | **Drawing details:** the zeros of a marked address muted, a hovered segment band saturated, the dim `_` in a half-typed insert byte's low nibble, hysteresis when a bookmark is dragged across a row boundary. | `HexView.swift`, `PaneViewModel.swift` | ~5 | — | P3 | open |
 | G21 | **The status line names the piece under the caret.** | `PaneViewModel.swift` | 1 | — | P3 | open |
 | G22 | **Fill Selection starts from the last pattern used.** | `SheetControllers.swift` | 1 | — | P3 | open |
+| G32 | **A drag selection keeps scrolling while the pointer is held past the dump's edge.** Today the view follows only while the pointer moves; upstream runs a repeating step until the pointer comes back or the file's end is reached. | `HexView.swift` (`updateDragAutoscrollTimer`, `dragAutoscrollStep`, `canAutoscrollToward`, `isBeyondVisibleEdge`, `stopDragAutoscroll`) | 5 | — | P2 | open |
+| G33 | **A font or row-height change keeps the middle of the view in place.** Today the top row is kept, so what was in the middle drifts down or up. | `HexView.swift` (`visibleCenterOffset`) | 1 | — | P3 | open |
 
 ### 1.5 Accessibility
 
