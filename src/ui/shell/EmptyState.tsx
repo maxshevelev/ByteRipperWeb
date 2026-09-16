@@ -1,5 +1,7 @@
+import { saveNotice } from "@/platform/files/capabilities";
 import { bookmarksStore } from "@/state/bookmarksStore";
 import { useStore } from "@/state/useStore";
+import { workspaceStore } from "@/state/workspaceStore";
 import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
 
 /**
@@ -29,9 +31,14 @@ import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.prepareForDragOperation
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.performDragOperation
  * @upstream-differs the icon scales with the viewport's shorter side in CSS and is drawn without padding, so the headline gap needs no measuring; the window takes the drop (AppShell) and this view is outlined while files are over it
+ * @web-only the hint's second line: what this browser does on save and that the
+ * files never leave the machine. Upstream says the save kind beside the pane's
+ * status and nothing at all about where the bytes go; the landing screen is the
+ * one place with no file open, which is where both belong
  */
 export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
   const { bookmarks } = useStore(bookmarksStore);
+  const { capabilities } = useStore(workspaceStore);
 
   return (
     <div className="empty-state">
@@ -46,6 +53,9 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
       </button>
       <p className="empty-state-headline">Drop files here</p>
       <p className="empty-state-detail">Up to two files can be compared side by side.</p>
+      <p className="empty-state-detail">
+        {`Files never leave this machine. ${saveNotice(capabilities)}`}
+      </p>
       <BookmarkSection bookmarks={bookmarks} />
     </div>
   );

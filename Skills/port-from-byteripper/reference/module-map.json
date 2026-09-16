@@ -1128,13 +1128,15 @@
         "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.openUEFIRows": "n/a — the UEFI panel keeps its own open rows",
         "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysis": "n/a — the UEFI panel keeps its own open rows",
         "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysisRegion": "n/a — the UEFI panel keeps its own open rows",
-        "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.hex": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.ascii": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
+        "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.hex": "ported as the `\"hex\"` member of `InputRegion` (src/core/edit/typingController.ts) — a case of the union, so there is no declaration of its own; nothing renders it in either edition",
+        "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.ascii": "ported as the `\"text\"` member of `InputRegion` (src/core/edit/typingController.ts) — a case of the union, so there is no declaration of its own; spelled `text` rather than `ascii` because the web's column header over it says \"Decoded text\", and nothing renders it in either edition",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isReadOnly": "n/a — the web has no read-only document: an edit goes to an overlay and a save asks the platform for permission at the save, so there is never a file the pane may not write",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isUntitled": "n/a — the pane header's badge says a document was never saved (DocumentIcon)",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.canUndo": "n/a — the undo store's (src/state/undoRouter.ts), which the Edit menu reads",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.canRedo": "n/a — the undo store's (src/state/undoRouter.ts), which the Edit menu reads",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isInsertMode": "n/a — the typing mode is the controller's (TypingController.modeLabel); the readout renders it beside the line, as upstream's sibling label (updateTypingModeIndicator) does",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.fileName": "n/a — a file's name is the pane header's, and the line does not carry it: the header is where a name is read, changed and pointed at",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.status": "n/a — the snapshot the line is spelled from (PaneStatus) is assembled where the line is drawn, in HexPane; there is no view-model object to hold it",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneSaveError.requiresSaveAs": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.origin": "later — decompressed or copied parts opened as their own document, and Update in Parent",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.contentGeneration": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -4119,11 +4121,10 @@
         "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.deinit": "n/a — AppKit layout; CSS lays the panes out",
         "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bindCoordinator": "n/a — AppKit layout; CSS lays the panes out",
         "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.presentOperation": "n/a — AppKit layout; CSS lays the panes out",
-        "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.activePaneView": "n/a — AppKit layout; CSS lays the panes out",
-        "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.showNavigationMessage": "n/a — AppKit layout; CSS lays the panes out"
+        "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.activePaneView": "n/a — AppKit layout; CSS lays the panes out"
       },
       "files": {
-        "ByteRipperApp/Window/ComparisonView.swift": ""
+        "ByteRipperApp/Window/ComparisonView.swift": "src/core/diff/comparisonInfo.ts"
       }
     },
     {
@@ -4163,7 +4164,14 @@
       "status": "ported",
       "note": "The frosted plate over the window, one at a time: the wrap glyph a step or a first-hit scan shows when it came round an end, and the list a Smart Search that found nothing names its encodings in. Upstream's hold and fade timings; a new plate replaces the last at once, a stale one fades, and starting a search or closing the bar takes it away. Drawn with pointer-events: none, glyphs as inline SVG.",
       "unported": {
-        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolImageForTests": "n/a — a test seam"
+        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolImageForTests": "n/a — a test seam",
+        "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView": "n/a — SF Symbols do not ship to a browser: the glyph is inline SVG, drawn by TransientNotice.Glyph",
+        "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.draw": "n/a — an NSView's drawing; the glyph is SVG",
+        "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.image": "n/a — the symbol to draw, which the plate names by glyph instead",
+        "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.intrinsicContentSize": "n/a — an SVG has a width and a height set on it",
+        "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.tint": "n/a — the glyph takes the plate's colour through currentColor",
+        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.glyphToTextSpacing": "n/a — CSS lays the plate out",
+        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.inset": "n/a — CSS lays the plate out"
       },
       "files": {
         "ByteRipperApp/Window/TransientNoticeView.swift": ""

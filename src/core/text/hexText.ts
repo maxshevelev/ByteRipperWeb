@@ -67,8 +67,8 @@ export function parseHex(text: string): Uint8Array | undefined {
  *
  * Eight upper-case digits, zero-padded, with no `0x` — upstream's
  * `bareAddress`. One place decides it, so the column, the menus that name an
- * offset, the bookmark list and the status bar all spell an address the same
- * way, and a reader can compare two of them at a glance.
+ * offset, the bookmark list and the panes' status line all spell an address the
+ * same way, and a reader can compare two of them at a glance.
  *
  * @upstream ByteRipperApp/Hex/HexView.swift#UInt64.bareAddress
  * @upstream ByteRipperApp/Hex/HexView.swift#UInt64.hexAddress

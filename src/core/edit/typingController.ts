@@ -46,6 +46,11 @@ import {
  * Which column the typing is going into.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion
+ * @upstream-differs upstream's second case is `ascii`; here it is `text`, which
+ * is the name the column header above it carries ("Decoded text")
+ *
+ * Neither edition writes the region out: upstream shows it only by where the
+ * caret's bar sits, and the web does the same (see HexPane's readout row).
  */
 export type InputRegion = "hex" | "text";
 

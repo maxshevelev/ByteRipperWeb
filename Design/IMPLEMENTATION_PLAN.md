@@ -120,7 +120,7 @@ M10 both need M8's tree and nothing of each other.
    `src/core/{storage,document,diff,search,segments,bookmarks,edit,text}`,
    `src/firmware/{uefi,me}`, `src/workers`, `src/render`, `src/state`,
    `src/platform`, `src/ui`, `src/tools`, `tests/e2e`, `benchmarks`.
-6. App shell: header, status bar, empty state ("Open a file, or drop one here").
+6. App shell: header, empty state ("Open a file, or drop one here").
    Light and dark from `prefers-color-scheme`.
 7. **Benchmark harness** (`npm run bench`): loads a dump from
    `benchmarks/fixtures/` (gitignored), times the operations in `ANALYSIS.md`'s
@@ -254,7 +254,7 @@ pattern as common as `FF`; the count is exact; results follow later edits.
 1. `src/render/minimap/` — Local (one cell per byte around the caret) and
    Overview (whole file, shaded by content density) modes.
 2. `src/workers/minimap.worker.ts` — the density pass, cached per file version,
-   progress in the status bar, rescale-in-hand on resize.
+   its progress bar shown in the panel's own header, rescale-in-hand on resize.
 3. Differences, edits and search matches drawn over the shading, at least two
    device pixels tall.
 4. Two maps mirroring the panes on one shared scale; drag the viewport marker,

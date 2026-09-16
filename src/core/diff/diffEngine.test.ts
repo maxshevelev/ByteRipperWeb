@@ -159,7 +159,7 @@ describe("looking things up", () => {
     expect(index.stateAt(3)).toBeUndefined(); // past EOF
   });
 
-  it("counts the bytes on each side for the status bar", async () => {
+  it("counts the bytes on each side for the panes' line", async () => {
     const index = await scan([0, 0, 1, 0, 0], [0, 0, 2, 0, 0]);
     expect(index.summary).toEqual({ differing: 1, same: 4 });
   });

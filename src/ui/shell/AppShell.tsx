@@ -24,11 +24,13 @@ import {
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { paneClosed, toolController } from "@/state/toolController";
+import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
   closePane,
+  dismissAlert,
   duplicatePane,
   editingHooks,
   joinIntoPane,
@@ -36,7 +38,7 @@ import {
   openInPane,
   type PaneId,
   renamePane,
-  reportProblem,
+  reportAlert,
   revertPane,
   savePane,
   setActivePane,
@@ -46,6 +48,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
+import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
@@ -62,16 +65,16 @@ import { SettingsDialog, type SettingsTab } from "@/ui/settings/SettingsDialog";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
-import { ignoredFilesMessage } from "@/ui/shell/ignoredFiles";
+import { ignoredFilesAlert } from "@/ui/shell/ignoredFiles";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { dumpMenu, type PaneMenuActions, paneFileMenu } from "@/ui/shell/paneMenus";
-import { StatusBar } from "@/ui/shell/StatusBar";
 import { Toolbar } from "@/ui/shell/Toolbar";
 import { TransientNotice } from "@/ui/shell/TransientNotice";
 import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
 
 /**
- * Header, workspace, status bar — the three bands the app never loses.
+ * Toolbar, find bar, workspace — and nothing under the panes, because
+ * upstream's window ends where the dump ends.
  *
  * The drop target is the window rather than a pane: a person dragging a dump
  * onto an empty app has no pane to aim at, and aiming is not what dropping a
@@ -231,11 +234,15 @@ export function AppShell() {
     const taken = files.slice(0, into === undefined && bothEmpty ? 2 : 1);
     let slot = into ?? slotForNewFile();
     for (const file of taken) {
+      // A report about the file this pane is losing — "Downloaded bios.bin."
+      // — would stand over the name of the file arriving in its place.
+      forgetTransientMessage(slot);
       openInPane(slot, file);
       slot = slot === "a" ? "b" : "a";
     }
     if (files.length > taken.length) {
-      reportProblem(ignoredFilesMessage(files.length - taken.length, "open"));
+      const ignored = ignoredFilesAlert(files.length - taken.length, "open");
+      reportAlert(ignored.title, ignored.message);
     }
   }, []);
 
@@ -248,7 +255,12 @@ export function AppShell() {
           into
         );
       } catch (error) {
-        reportProblem(error instanceof Error ? error.message : "This file could not be opened.");
+        // The panel is the app's, so a picker that came back with nothing was
+        // the user closing it — not a failure to report.
+        reportAlert(
+          "Could not open file.",
+          error instanceof Error ? error.message : "This file could not be opened."
+        );
       }
     },
     [accept, state.capabilities]
@@ -279,7 +291,7 @@ export function AppShell() {
       setDragging(false);
       filesFromDrop(event.dataTransfer)
         .then((files) => accept(files))
-        .catch(() => reportProblem("That file could not be read."));
+        .catch(() => reportAlert("Could not read file.", "That file could not be read."));
     };
 
     window.addEventListener("dragover", onDragOver);
@@ -312,13 +324,22 @@ export function AppShell() {
     async (as: boolean) => {
       try {
         const outcome = await savePane(activePane, as);
+        // A save written back through the file's own handle says so by
+        // itself — the pane stops reading "Modified" — and upstream confirms a
+        // save with nothing at all. A download is the case that needs words:
+        // the file the user opened does *not* carry their edits, and the
+        // readout going clean would say the opposite.
         if (outcome.kind === "downloaded") {
-          reportProblem(`Downloaded ${outcome.name}. The file you opened is unchanged.`);
-        } else {
-          reportProblem(undefined);
+          showTransientMessage(
+            activePane,
+            `Downloaded ${outcome.name}. The file you opened is unchanged.`
+          );
         }
       } catch (error) {
-        reportProblem(error instanceof Error ? error.message : "That file could not be saved.");
+        reportAlert(
+          as ? "Save As failed." : "Save failed.",
+          error instanceof Error ? error.message : "That file could not be saved."
+        );
       }
     },
     [activePane]
@@ -334,7 +355,10 @@ export function AppShell() {
     if (pane === undefined || !pane.document.isDirty) return;
     if (!window.confirm(`Throw away every unsaved edit to ${pane.name}?`)) return;
     void revertPane(activePane).catch(() =>
-      reportProblem("That file could not be read again — it may have changed or been moved.")
+      reportAlert(
+        "Revert failed.",
+        "That file could not be read again — it may have changed or been moved."
+      )
     );
   }, [activePane]);
 
@@ -605,6 +629,7 @@ export function AppShell() {
     // Closed on purpose, not remounted: the next file in an empty workspace
     // opens at its top rather than at where this one was.
     scrollLink.forget(pane);
+    forgetTransientMessage(pane);
     closePane(pane);
   }, []);
 
@@ -616,7 +641,10 @@ export function AppShell() {
    */
   const doDuplicate = useCallback(() => {
     void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
-      reportProblem(error instanceof Error ? error.message : "That copy could not be made.")
+      reportAlert(
+        "Could not duplicate the file.",
+        error instanceof Error ? error.message : "That copy could not be made."
+      )
     );
   }, []);
 
@@ -766,10 +794,13 @@ export function AppShell() {
         revealSeam(pane);
       } catch (error) {
         if (error instanceof JoinEmpty) {
-          reportProblem(`${error.message} Nothing was joined.`);
+          reportAlert("Nothing was joined.", `${error.message} Nothing was joined.`);
           return;
         }
-        reportProblem(error instanceof Error ? error.message : "That file could not be joined.");
+        reportAlert(
+          "Could not join the pane.",
+          error instanceof Error ? error.message : "That file could not be joined."
+        );
       }
     },
     [revealSeam]
@@ -788,7 +819,10 @@ export function AppShell() {
         const [picked, ...extra] = await filesFromDrop(event.dataTransfer);
         // A join takes one file: the rest are not joined, and saying so is the
         // whole of what happens to them.
-        if (extra.length > 0) reportProblem(ignoredFilesMessage(extra.length, "join"));
+        if (extra.length > 0) {
+          const ignored = ignoredFilesAlert(extra.length, "join");
+          reportAlert(ignored.title, ignored.message);
+        }
         if (picked !== undefined) {
           await joinIntoPane({
             pane,
@@ -801,10 +835,13 @@ export function AppShell() {
         }
       } catch (error) {
         if (error instanceof JoinEmpty) {
-          reportProblem(`${error.message} Nothing was joined.`);
+          reportAlert("Nothing was joined.", `${error.message} Nothing was joined.`);
           return;
         }
-        reportProblem(error instanceof Error ? error.message : "That file could not be joined.");
+        reportAlert(
+          "Could not join the pane.",
+          error instanceof Error ? error.message : "That file could not be joined."
+        );
       }
     },
     [revealSeam]
@@ -841,7 +878,20 @@ export function AppShell() {
           : direction > 0
             ? hunks.nextSame(from)
             : hunks.previousSame(from);
-      if (target === undefined) return;
+      if (target === undefined) {
+        // Nothing that way. Upstream says so in the panes' comparison line,
+        // which the next coordinator refresh overwrites — the same slot and the
+        // same two seconds the pane's other transient messages get. It beeps
+        // besides; a page's sound is not the app's to make (see FindBar).
+        // @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.showNavigationMessage
+        // @web-only no beep: upstream's NSSound.beep() has no page equivalent
+        // the app may rely on
+        showTransientMessage(
+          state.activePane,
+          what === "difference" ? "No more difference" : "No more same block"
+        );
+        return;
+      }
 
       // Forward lands on the block's first byte, backward on its LAST — not on
       // the byte past it. Landing past the block would let the next Previous
@@ -894,7 +944,8 @@ export function AppShell() {
       },
       onJoin: (pane, position) => void doJoin(pane, position),
       onSegments: (pane) => setSegmentsPane(pane),
-      onProblem: reportProblem,
+      onProblem: reportAlert,
+      onMessage: showTransientMessage,
     }),
     [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin, revealInBoth]
   );
@@ -1051,8 +1102,11 @@ export function AppShell() {
         onActivate={setActivePane}
         stacked={state.layout === "stacked"}
       />
-      <StatusBar />
       {dragging ? <div className="drop-veil">Drop to open</div> : null}
+
+      {/* The window's own answer to what just went wrong, where upstream puts an
+          `NSAlert` (§4.1: a file that will not open, a save that failed). */}
+      <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
 
       <GoToDialog
         open={goTo !== undefined}

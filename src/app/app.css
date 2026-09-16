@@ -61,20 +61,18 @@ textarea,
      splitter, and a column with no panel in it collapses to nothing. Everything
      else spans every column. */
   grid-template-columns: auto minmax(0, 1fr) auto;
-  /* Toolbar, find bar, workspace, status bar. Every one is placed by hand
-     below: auto-placement fills the first free track, so a find bar that is not
-     up let the status bar slide into its row and sit under the toolbar. An
-     empty row collapses to nothing, so the workspace keeps its height. */
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* Toolbar, find bar, workspace — and nothing else. Upstream's window ends
+     where the dump ends: there is no band under the panes, so there is no band
+     to place here. Every one is placed by hand below: auto-placement fills the
+     first free track, so a find bar that is not up let the next element slide
+     into its row and sit under the toolbar. An empty row collapses to nothing,
+     so the workspace keeps its height. */
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
 }
 
 .app-shell > * {
   grid-column: 1 / -1;
-}
-
-.status-bar {
-  grid-row: 4;
 }
 
 .toolbar {
@@ -300,26 +298,6 @@ textarea,
   font-size: 12px;
 }
 
-.status-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.3rem 0.75rem;
-  background: var(--surface-raised);
-  border-top: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 0.85em;
-  font-variant-numeric: tabular-nums;
-}
-
-.status-spacer {
-  flex: 1;
-}
-
-.status-slot-muted {
-  color: var(--text-faint);
-}
-
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -453,10 +431,6 @@ textarea,
   border-radius: 5px;
   background: var(--surface);
   color: var(--text);
-}
-
-.status-slot-problem {
-  color: var(--semantic-bad);
 }
 
 /* ── The pane ─────────────────────────────────────────────────────────── */
@@ -678,17 +652,6 @@ textarea,
 .toolbar-button:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.status-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--border);
-}
-
-.status-slot-diff {
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
 }
 
 .toolbar-group {

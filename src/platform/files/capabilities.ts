@@ -93,5 +93,22 @@ export function saveExplanation(capabilities: FileCapabilities, hasHandle = true
   );
 }
 
+/**
+ * What saving does in this browser, as one sentence for the landing screen.
+ *
+ * Asked of the browser rather than of a file: the landing screen has no file
+ * open, so the question there is what this browser does with one — and
+ * {@link saveVerb} would answer *Download* even in Chromium, where the only
+ * thing missing is a file to write back through.
+ *
+ * @web-only the landing screen's line. Upstream shows the save kind beside the
+ * pane's status, where the web keeps it in the toolbar's own button wording;
+ * this sentence is what the landing screen says in words, having no file open
+ * to hang a save verb on
+ */
+export function saveNotice(capabilities: FileCapabilities): string {
+  return capabilities.canSaveInPlace ? "Saves in place." : "Saves by downloading a copy.";
+}
+
 export const fileSystemAccess = (scope: unknown = globalThis): FileSystemAccessWindow =>
   scope as FileSystemAccessWindow;

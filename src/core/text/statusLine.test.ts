@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { comparisonInfo } from "@/core/diff/comparisonInfo";
 import { type Segmentation, segmentReadout, wholeFile } from "@/core/segments/segmentation";
 import { type PaneStatus, statusLine } from "@/core/text/statusLine";
 
@@ -27,6 +28,7 @@ const line = (partition: Segmentation | undefined, caret: number): string =>
     selectionLength: 0,
     isDirty: false,
     segment: segmentReadout(partition, caret),
+    comparison: "",
   });
 
 describe("the status line", () => {
@@ -78,6 +80,7 @@ describe("the status line", () => {
         selectionLength: length,
         isDirty: false,
         segment: undefined,
+        comparison: "",
       });
 
     // 2000 B = 1.953 KB → rounds to "2 KB", not "2000 selected".
@@ -96,8 +99,36 @@ describe("the status line", () => {
       selectionLength: 0,
       isDirty: true,
       segment: undefined,
+      comparison: "",
     };
     expect(statusLine(status)).toBe("Offset 04  ·  16 B  ·  Modified");
+  });
+
+  // @upstream ByteRipperTests/DiffNavigationTests.swift#DiffNavigationTests.waitForIndex
+  it("carries the comparison's counts as its last part", () => {
+    const status: PaneStatus = {
+      fileSize: 2048,
+      cursorOffset: 4,
+      selectionLength: 0,
+      isDirty: false,
+      segment: undefined,
+      comparison: comparisonInfo({ ready: true, differingBytes: 12, sameBytes: 2048 }),
+    };
+    expect(statusLine(status)).toBe("Offset 004  ·  2 KB  ·  12 differing · 2048 same");
+  });
+
+  it("does not leave a separator standing for a comparison with nothing to say", () => {
+    // While the index is building the part is empty, and an empty part would
+    // read as a dangling separator at the end of the line.
+    const status: PaneStatus = {
+      fileSize: 2048,
+      cursorOffset: 4,
+      selectionLength: 0,
+      isDirty: false,
+      segment: undefined,
+      comparison: "",
+    };
+    expect(statusLine(status)).toBe("Offset 004  ·  2 KB");
   });
 
   // An empty file has no address to take a width from, so the least it can be

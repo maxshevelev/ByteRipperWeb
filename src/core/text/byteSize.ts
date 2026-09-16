@@ -1,15 +1,16 @@
 /**
  * A byte count as a person reads it.
  *
- * Ported from `FilePaneView.friendlySize`. Binary units under decimal names —
- * "KB" for 1024 bytes — because that is what every tool in this corner of the
- * world means by them, and a firmware dump whose size is a power of two should
- * read as "8 MB" rather than "8.39 MB".
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.friendlySize
+ *
+ * The same 1024 steps under the same names, so "8 MB" means the same size in
+ * both editions, and a firmware dump whose size is a power of two reads as
+ * "8 MB" rather than "8.39 MB".
  *
  * Rounded to a whole unit: "255 KB", not "255.5 KB". The exact figure belongs
- * where exactness is the point — the window's file summary, which says the byte
- * count in full and groups its digits; this is for the places that are naming a
- * size in passing, which is upstream's status line and the Segments form.
+ * where exactness is the point — a dialog that is naming a byte count in full;
+ * this is for the places that are naming a size in passing, which is the pane's
+ * status line and the Segments form.
  */
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"] as const;

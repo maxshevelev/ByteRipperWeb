@@ -53,7 +53,10 @@ export interface PaneMenuActions {
   readonly onSegments: (pane: PaneId) => void;
   /** Append File… / Insert File at Start… (§22). */
   readonly onJoin: (pane: PaneId, position: "start" | "end") => void;
-  readonly onProblem: (message: string | undefined) => void;
+  /** A problem: a title and a message, in the window's own alert. */
+  readonly onProblem: (title: string, message: string) => void;
+  /** Something that happened and needs no answer, in the pane's own line. */
+  readonly onMessage: (pane: PaneId, message: string) => void;
 }
 
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makePaneMenu */
@@ -253,7 +256,7 @@ function selectionItems(
     {
       label: "Copy",
       onSelect: () => {
-        void copySelection(slot, actions.onProblem);
+        void copySelection(slot, actions);
       },
     },
     {
@@ -262,13 +265,15 @@ function selectionItems(
         void saveRange(slot.document.storage, start, end, selectionFileName(slot.name, start, end))
           .then((outcome) => {
             if (outcome === "downloaded") {
-              actions.onProblem(
+              actions.onMessage(
+                pane,
                 "This browser cannot write to a chosen file, so a copy was downloaded."
               );
             }
           })
           .catch((error: unknown) =>
             actions.onProblem(
+              "Save failed.",
               error instanceof Error ? error.message : "That selection could not be saved."
             )
           );
@@ -295,10 +300,7 @@ const COPY_LIMIT = 1024 * 1024;
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copyPaneSelection
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copySelectionBytes
  */
-async function copySelection(
-  slot: PaneState,
-  onProblem: (message: string | undefined) => void
-): Promise<void> {
+async function copySelection(slot: PaneState, actions: PaneMenuActions): Promise<void> {
   const { start, end } = slot.document.selection;
   if (end <= start) return;
   const bytes = await slot.document.read(start, Math.min(end - start, COPY_LIMIT));
@@ -306,7 +308,12 @@ async function copySelection(
   // losslessly; the hex text always, because that is what travels.
   if (!(await writeBytes(bytes))) {
     if (!(await copyText(formatHex(bytes)))) {
-      onProblem("This browser would not let the page write to the clipboard.");
+      // @web-only upstream writes to `NSPasteboard` and has no refusal to
+      // report; a page's clipboard write can be denied by the browser
+      actions.onProblem(
+        "Copy failed.",
+        "This browser would not let the page write to the clipboard."
+      );
     }
   }
 }

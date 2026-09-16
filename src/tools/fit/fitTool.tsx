@@ -216,7 +216,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       setBusy(true);
       const done = await editPaneFit(pane, edit);
       setBusy(false);
-      context.report(done.problem ?? done.summary);
+      // Exactly one of the two is set: the plan's refusal, or what the write
+      // did. Nothing at all when it landed and had nothing to add.
+      const said = done.problem ?? done.summary;
+      if (said !== undefined) context.report(said);
     },
     [pane, context]
   );

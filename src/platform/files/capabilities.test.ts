@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { detectFileCapabilities, saveExplanation, saveVerb } from "@/platform/files/capabilities";
+import {
+  detectFileCapabilities,
+  saveExplanation,
+  saveNotice,
+  saveVerb,
+} from "@/platform/files/capabilities";
 
 /**
  * D7's whole point is that the capability difference lives in one place and is
@@ -55,5 +60,15 @@ describe("what the app calls it", () => {
   it("explains the difference rather than leaving it to be discovered", () => {
     expect(saveExplanation(detectFileCapabilities(firefoxOrSafari))).toMatch(/downloads a copy/);
     expect(saveExplanation(detectFileCapabilities(chromium))).toMatch(/written back/);
+  });
+
+  it("states what saving does on the landing screen from the browser alone", () => {
+    // No file is open there, so the browser is the whole question: a Chromium
+    // landing screen says *in place* even though `saveVerb` would say Download,
+    // which is about a file that does not exist yet.
+    expect(saveNotice(detectFileCapabilities(chromium))).toBe("Saves in place.");
+    expect(saveNotice(detectFileCapabilities(firefoxOrSafari))).toBe(
+      "Saves by downloading a copy."
+    );
   });
 });

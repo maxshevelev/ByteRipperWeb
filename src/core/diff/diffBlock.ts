@@ -175,7 +175,7 @@ export class DiffBlockIndex {
     return true;
   }
 
-  /** How many bytes differ, and how many match — the status bar's summary. */
+  /** How many bytes differ, and how many match — the panes' line summary. */
   get summary(): { differing: number; same: number } {
     let differing = 0;
     let same = 0;

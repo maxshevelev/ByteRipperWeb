@@ -70,8 +70,8 @@ export interface Segment {
  * The positional label for the piece at `index`.
  *
  * The one place the "S" prefix is built, so every site that names a piece — the
- * form's label column, the status bar, the merge commands, the saved file
- * names — reads the same shape.
+ * form's label column, the panes' status line, the merge commands, the saved
+ * file names — reads the same shape.
  *
  * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.label
  */
@@ -80,12 +80,12 @@ export function segmentLabel(index: number): string {
 }
 
 /**
- * One piece as the status bar reads it (§21.3): the label the bar shows and the
- * range it renders.
+ * One piece as the status line reads it (§21.3): the label the line shows and
+ * the range it renders.
  *
- * A snapshot rather than a {@link Segment} because the bar holds it while the
+ * A snapshot rather than a {@link Segment} because the line holds it while the
  * partition may move under it — there is no index to re-resolve and no name the
- * bar does not show.
+ * line does not show.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout
  */
@@ -106,7 +106,7 @@ export interface SegmentReadout {
 }
 
 /**
- * The status bar's readout of the piece the caret is in — nothing when the pane
+ * The status line's readout of the piece the caret is in — nothing when the pane
  * is a single piece, where the readout's absence is the signal that the dump is
  * not partitioned.
  *

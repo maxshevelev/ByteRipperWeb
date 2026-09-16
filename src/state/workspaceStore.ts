@@ -199,8 +199,28 @@ export interface WorkspaceState {
    * @upstream-differs held in the workspace, and remembered through settingsStore
    */
   readonly confirmShiftingEdits: boolean;
-  /** Something the user needs told — a file that would not open. */
-  readonly problem: string | undefined;
+  /**
+   * Something the user needs told, standing until they have read it.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.lastAlertTitle
+   */
+  readonly alert: Alert | undefined;
+}
+
+/**
+ * A title and a message, shown together and dismissed as one — what upstream
+ * puts in an `NSAlert`.
+ *
+ * The title names the kind of thing that happened ("Save failed"), the message
+ * says what it was about ("bios.bin could not be written: …"). Upstream has the
+ * pair in one alert and the web keeps the pair, rather than folding one into the
+ * other: the title is what a person reads first and needs fewest words in.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentAlert
+ */
+export interface Alert {
+  readonly title: string;
+  readonly message: string;
 }
 
 /**
@@ -218,7 +238,7 @@ export const workspaceStore = createStore<WorkspaceState>({
   wordSize: 1,
   groupingGap: DEFAULT_GROUPING_GAP,
   confirmShiftingEdits: true,
-  problem: undefined,
+  alert: undefined,
 });
 
 /** The decoder the panes draw with, rebuilt only when the setting changes. */
@@ -307,16 +327,15 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
         },
       },
       activePane: pane,
-      problem: undefined,
     }));
     // A file arrives as one piece covering it, whatever the pane held before.
     forgetJoins(pane);
     resetSegments(pane, document.size);
   } catch (error) {
-    workspaceStore.update((state) => ({
-      ...state,
-      problem: error instanceof Error ? error.message : "This file could not be opened.",
-    }));
+    reportAlert(
+      "Could not open file.",
+      error instanceof Error ? error.message : "This file could not be opened."
+    );
   }
 }
 
@@ -331,7 +350,6 @@ export function closePane(pane: PaneId): void {
     ...state,
     panes: { ...state.panes, [pane]: undefined },
     activePane: pane === "a" && state.panes.b !== undefined ? "b" : "a",
-    problem: undefined,
   }));
 }
 
@@ -440,12 +458,36 @@ export async function restoreSettings(): Promise<void> {
 }
 
 /**
+ * Shows a modal alert: a title, a message and one button that dismisses it.
+ *
+ * Upstream spells this as three methods, and the web keeps one because the
+ * difference between them is a difference the web does not have: `presentError`
+ * and `presentFileError` take an `NSError` (here an error is thrown and caught,
+ * and its message arrives as the message), and `presentFileError`'s own upgrade
+ * of a sandbox denial to "Access denied — choose the file again to grant
+ * access" has no counterpart — a browser picker hands over access when it hands
+ * over the file, so there is no second, later refusal to explain.
+ *
+ * Nothing else takes the alert down. It is the answer to what just happened, so
+ * the next thing that happens does not erase it: a successful open does not
+ * clear a failure the user has not read yet.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentAlert
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentError
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentFileError
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentAlert
+ * @upstream-differs one entry point for upstream's three, and no `isSandboxAccessDenied` upgrade
  */
-export function reportProblem(problem: string | undefined): void {
-  workspaceStore.update((state) => ({ ...state, problem }));
+export function reportAlert(title: string, message: string): void {
+  workspaceStore.update((state) => ({ ...state, alert: { title, message } }));
+}
+
+/**
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentModal
+ * @upstream-differs the button's own answer to a one-button alert, rather than a
+ * modal response a caller reads
+ */
+export function dismissAlert(): void {
+  workspaceStore.update((state) => ({ ...state, alert: undefined }));
 }
 
 /**
@@ -562,8 +604,10 @@ export async function duplicatePane(from: PaneId): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[from];
   if (slot === undefined) return;
   if (!OpfsScratchStore.isAvailable()) {
-    reportProblem("This browser cannot make a copy: it has no private storage to put one in.");
-    return;
+    // @web-only upstream copies into a temp file it can always create; a page
+    // has no private storage to put one in unless the browser grants OPFS, and
+    // the shell is what knows how to say so
+    throw new Error("This browser cannot make a copy: it has no private storage to put one in.");
   }
 
   const into: PaneId = from === "a" ? "b" : "a";
@@ -593,7 +637,6 @@ export async function duplicatePane(from: PaneId): Promise<void> {
       },
     },
     activePane: into,
-    problem: undefined,
   }));
   // The copy is a document of its own: it starts as one piece, and the
   // original's cuts stay with the original.
@@ -635,7 +678,6 @@ export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
       [pane]: { name, file: emptyFile(name), document, typing, saved: undefined, writable: false },
     },
     activePane: pane,
-    problem: undefined,
   }));
   forgetJoins(pane);
   resetSegments(pane, 0);

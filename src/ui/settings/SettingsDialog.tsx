@@ -394,7 +394,7 @@ function EditingTab() {
       <p className="settings-caption">
         Insert mode, Paste Insert and Delete Bytes move every byte after the edit, so they ask
         first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode
-        still shows INS in the status bar.
+        still shows INS in the pane's status line.
       </p>
     </section>
   );

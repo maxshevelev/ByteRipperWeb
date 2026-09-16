@@ -7,7 +7,6 @@ import type { MatchSet } from "@/core/search/matchSet";
 import { segmentReadout } from "@/core/segments/segmentation";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
-import { statusLine } from "@/core/text/statusLine";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { elementHeightLimit } from "@/platform/layout/elementHeightLimit";
 import { hexFontStack, measureFont } from "@/render/hexGrid/fontMetrics";
@@ -53,6 +52,7 @@ import {
 } from "@/ui/pane/hexKeys";
 import { type ContextMenuAnchor, contextMenuAnchor, pointerTarget } from "@/ui/pane/hexPointer";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
+import { PaneStatusLine } from "@/ui/pane/PaneStatusLine";
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
 import { remeasuredTop, scrollLink } from "@/ui/pane/scrollLink";
@@ -1803,29 +1803,33 @@ export function HexPane({
       ) : null}
       {/*
         The status line (§21.3): the caret's offset, the selection's length, the
-        piece the caret is in, the file's size and the document's state, spelled
-        as upstream spells them and joined into one string. What is the web's
-        own is beside it rather than in it — the INS/OVR mode is upstream's
-        sibling label, and the input region and the operation strip are the
-        web's.
+        piece the caret is in, the file's size, the document's state and the
+        comparison's counts, spelled as upstream spells them and joined into one
+        string. What is the web's own is beside it rather than in it: the
+        INS/OVR mode, which is upstream's sibling label, and the operation strip.
+
+        The input region is not written out here, though the state is ported
+        (`InputRegion` in `src/core/edit/typingController.ts`). Upstream never
+        spells it either: which column a typed key goes to is what the caret's
+        own bar says, sitting in the active column while the other carries a
+        half-transparent box on the same byte — the same two marks here
+        (hexGridRenderer's caret drawing).
 
         @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateTypingModeIndicator
-        @web-only the input region (Hex / Text) and the operation strip
+        @web-only the operation strip
       */}
       <p className="hex-caret-readout" id={readoutId} aria-live="polite">
-        <span className="readout-line">
-          {statusLine({
-            fileSize,
-            cursorOffset: caret,
-            selectionLength,
-            isDirty: dirty,
-            segment: segmentReadout(partition, caret),
-          })}
-        </span>
+        <PaneStatusLine
+          pane={paneId}
+          fileSize={fileSize}
+          cursorOffset={caret}
+          selectionLength={selectionLength}
+          isDirty={dirty}
+          segment={segmentReadout(partition, caret)}
+        />
         <span className="readout-mode" data-insert={mode === "INS" ? "" : undefined}>
           {mode}
         </span>
-        <span className="readout-region">{region === "hex" ? "Hex" : "Text"}</span>
         <OperationStrip pane={paneId} />
       </p>
     </div>

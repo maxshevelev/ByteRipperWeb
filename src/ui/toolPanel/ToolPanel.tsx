@@ -12,8 +12,9 @@ import {
   setToolPanelWidth,
   toolController,
 } from "@/state/toolController";
+import { showTransientMessage } from "@/state/transientMessageStore";
 import { useStore } from "@/state/useStore";
-import { PANE_IDS, type PaneId, reportProblem, workspaceStore } from "@/state/workspaceStore";
+import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
@@ -56,7 +57,9 @@ export function ToolPanel({
   const context: ToolContext = {
     pane: boundPane,
     reveal,
-    report: reportProblem,
+    // What the panel just did, in the line of the pane it is about — the same
+    // two seconds and the same restore the window's own messages get.
+    report: (text) => showTransientMessage(boundPane, text),
     // The window's own plate, through the presenter every other notice goes
     // through, so a tool's confirmation cannot come to look like another app's.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice

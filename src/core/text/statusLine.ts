@@ -13,9 +13,8 @@
  *   largest address — its size, since the last piece ends there. That is what
  *   makes the offset and the piece's bounds read as aligned columns.
  * - **Sizes are abbreviated to a whole unit** ("4 MB", "16 B"), never the exact
- *   count. The exact figure is the file summary's business, in the window's own
- *   bar; a status line naming a selection or a piece is naming a size in
- *   passing.
+ *   count. A status line naming a selection or a piece is naming a size in
+ *   passing; the exact figure is what a dialog asks for.
  */
 
 import type { SegmentReadout } from "@/core/segments/segmentation";
@@ -23,7 +22,7 @@ import { friendlySize } from "@/core/text/byteSize";
 import { addressString } from "@/core/text/offsetParser";
 
 /**
- * Read-only snapshot of the pane's status-bar fields (§15) — what the line
+ * Read-only snapshot of the pane's status-line fields (§15) — what the line
  * below is spelled from.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus
@@ -65,15 +64,24 @@ export interface PaneStatus {
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.segment
    */
   readonly segment: SegmentReadout | undefined;
+  /**
+   * What the comparison has to say (§14.4) — `12 differing · 2048 same`, or
+   * nothing at all while the index is being built. The pane appends it like any
+   * other part, which is what upstream does: the summary is a part of each
+   * pane's line, not a band of the window's.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.comparisonInfo
+   */
+  readonly comparison: string;
 }
 
 /**
  * The line as it reads: the parts joined by the app's separator.
  *
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateStatus
- * @upstream-differs no read-only part (see {@link PaneStatus}), and the comparison
- * summary — upstream's last part — is the window bar's here, where the web keeps the
- * answer to "are these the same?" for the pair rather than for one pane.
+ * @upstream-differs no read-only part (see {@link PaneStatus}); the comparison
+ * summary is a part here as it is upstream, spelled by
+ * `src/core/diff/comparisonInfo.ts`
  */
 export function statusLine(status: PaneStatus): string {
   // The file's largest address: 0x400000 is six digits, so every address in the
@@ -97,5 +105,8 @@ export function statusLine(status: PaneStatus): string {
   }
   parts.push(friendlySize(status.fileSize));
   if (status.isDirty) parts.push("Modified");
+  // Last, as upstream appends it last: an empty one adds nothing at all, not an
+  // empty part — the separator is not left standing between two others.
+  if (status.comparison !== "") parts.push(status.comparison);
   return parts.join("  ·  ");
 }

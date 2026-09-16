@@ -38,8 +38,23 @@ export interface ToolContext {
    * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.reveal
    */
   readonly reveal: (start: number, end: number) => void;
-  /** Something the user needs told, in the shell's own status line. */
-  readonly report: (problem: string | undefined) => void;
+  /**
+   * Something the panel just did, said in the bound pane's own line for a
+   * moment: an edit that landed, a write that was refused.
+   *
+   * The line already carries the window's own short-lived sentences — an
+   * insert's new total, a find that moved the caret — and a panel's sentence is
+   * the same kind of thing: true for a moment, needing no answer, and gone
+   * again without the user dismissing anything.
+   *
+   * @web-only the seam has no such member: its only "what happened" is
+   * `showNotice`, and an upstream tool that cannot act asks beforehand
+   * (`isReadOnly`, `read`) rather than reporting a refusal after the fact. A
+   * browser cannot always ask first — a page's clipboard write can be denied by
+   * the browser, and a worker's plan can refuse a write — so a panel needs
+   * somewhere to say so.
+   */
+  readonly report: (text: string) => void;
   /**
    * Shows a short-lived plate over the window — the one a search result is
    * reported in — about something the panel *did* rather than something it

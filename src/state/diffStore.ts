@@ -9,7 +9,7 @@ import {
 import { DiffHunkIndex, type HunkRange } from "@/core/diff/diffHunkIndex";
 import { BackgroundOperation, presentOnActivePane } from "@/state/operationStore";
 import { createStore } from "@/state/store";
-import { workspaceStore } from "@/state/workspaceStore";
+import { reportAlert, workspaceStore } from "@/state/workspaceStore";
 import type { DiffWorkerRequest, DiffWorkerResponse, JobId } from "@/workers/protocol";
 
 /**
@@ -43,8 +43,6 @@ export interface DiffState {
   readonly hunks: DiffHunkIndex | undefined;
   readonly differingBytes: number;
   readonly sameBytes: number;
-  /** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.onError */
-  readonly problem: string | undefined;
 }
 
 const IDLE: DiffState = {
@@ -54,7 +52,6 @@ const IDLE: DiffState = {
   hunks: undefined,
   differingBytes: 0,
   sameBytes: 0,
-  problem: undefined,
 };
 
 /**
@@ -107,7 +104,6 @@ function ensureWorker(): Worker {
           hunks: new DiffHunkIndex(hunks, response.gap, index.maxSize),
           differingBytes: response.differingBytes,
           sameBytes: response.sameBytes,
-          problem: undefined,
         }));
         currentJobId = undefined;
         endBuildOperation();
@@ -117,12 +113,8 @@ function ensureWorker(): Worker {
         currentJobId = undefined;
         break;
       case "error":
-        diffStore.update((state) => ({
-          ...state,
-          status: "failed",
-          progress: 0,
-          problem: response.message,
-        }));
+        diffStore.update((state) => ({ ...state, status: "failed", progress: 0 }));
+        reportComparisonFailure(response.message);
         currentJobId = undefined;
         endBuildOperation();
         break;
@@ -182,7 +174,7 @@ export function refreshComparison(): void {
   cancelRunning();
   const id = nextJobId++;
   currentJobId = id;
-  diffStore.update((state) => ({ ...state, status: "scanning", progress: 0, problem: undefined }));
+  diffStore.update((state) => ({ ...state, status: "scanning", progress: 0 }));
   beginBuildOperation();
 
   // The worker is given the two *files*. A document with unsaved edits is not
@@ -237,14 +229,31 @@ async function scanOnThisThread(id: JobId, gap: number): Promise<void> {
   } catch (error) {
     if (error instanceof DiffCancelled) return;
     if (currentJobId !== id) return;
-    diffStore.update((state) => ({
-      ...state,
-      status: "failed",
-      problem: error instanceof Error ? error.message : "The comparison failed.",
-    }));
+    diffStore.update((state) => ({ ...state, status: "failed", progress: 0 }));
+    reportComparisonFailure(error instanceof Error ? error.message : undefined);
     endBuildOperation();
     currentJobId = undefined;
   }
+}
+
+/**
+ * A comparison that could not be finished, said out loud.
+ *
+ * Upstream hands the failure to `onError`, and nothing claims it — a scan of a
+ * large file that dies mid-way leaves both panes' counts empty and the window
+ * silent. Silence is the one answer this cannot give: the counts a reader is
+ * waiting for are never coming, and nothing on screen would say so. So it goes
+ * to the window's alert, which is where upstream's errors with an answer of
+ * their own go (`presentError`).
+ *
+ * A *cancelled* scan is not this: the (×) is the user's own word, and upstream
+ * leaves that path without a sound.
+ *
+ * @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.onError
+ * @web-only nothing upstream shows this error; the browser needs it said
+ */
+function reportComparisonFailure(message: string | undefined): void {
+  reportAlert("Comparison failed.", message ?? "Those two files could not be compared.");
 }
 
 /**
@@ -277,6 +286,9 @@ function endBuildOperation(): void {
 /**
  * The strip's (×): the scan stops and its index is dropped. The comparison
  * says it was stopped, and stays stopped until one of the files changes.
+ *
+ * Not a failure and not reported as one: the user asked for the stop, so there
+ * is nothing left to tell them — and upstream's cancel path is silent too.
  */
 function cancelBuild(): void {
   cancelRunning();
@@ -287,7 +299,6 @@ function cancelBuild(): void {
     progress: 0,
     index: undefined,
     hunks: undefined,
-    problem: "The comparison was cancelled.",
   }));
 }
 
@@ -383,11 +394,10 @@ async function applyEditsToComparison(edits: readonly DiffEdit[]): Promise<void>
     publishIndex(index, groupingGap);
   } catch (error) {
     if (error instanceof DiffCancelled) return;
-    diffStore.update((state) => ({
-      ...state,
-      status: "failed",
-      problem: error instanceof Error ? error.message : "The comparison could not be updated.",
-    }));
+    diffStore.update((state) => ({ ...state, status: "failed" }));
+    reportComparisonFailure(
+      error instanceof Error ? error.message : "The comparison could not be updated."
+    );
   }
 }
 

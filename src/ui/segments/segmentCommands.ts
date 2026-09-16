@@ -9,6 +9,7 @@ import {
 } from "@/core/segments/segmentWriter";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
+import { friendlySize } from "@/core/text/byteSize";
 import { hexAddress } from "@/core/text/hexText";
 import { detectFileCapabilities } from "@/platform/files/capabilities";
 import { openFiles } from "@/platform/files/openFile";
@@ -16,7 +17,8 @@ import { directorySink, namesIn, pickDirectory, zipSink } from "@/platform/files
 import { saveRange } from "@/platform/files/rangeSave";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { applySegments, segmentLabel, segmentsFor } from "@/state/segmentsStore";
-import { type PaneId, reportProblem, workspaceStore } from "@/state/workspaceStore";
+import { showTransientMessage } from "@/state/transientMessageStore";
+import { type PaneId, reportAlert, workspaceStore } from "@/state/workspaceStore";
 
 /**
  * What the segment commands actually do.
@@ -123,11 +125,22 @@ export async function savePiece(pane: PaneId, piece: Segment): Promise<void> {
   const name = `${baseName(pane)}_${segmentLabel(piece.index)}.bin`;
   try {
     const outcome = await saveRange(slot.document.storage, piece.start, piece.end, name);
+    // Upstream saves into the folder the user chose and says nothing: the file
+    // is there. A download is the case that needs words — the copy went
+    // somewhere the user did not point at, and no folder holds it.
+    // @web-only a page cannot write into a chosen folder where the browser has
+    // no picker, so the copy is downloaded and the pane's line says so
     if (outcome === "downloaded") {
-      reportProblem(`Downloaded ${name}. This browser cannot write to a folder you choose.`);
+      showTransientMessage(
+        pane,
+        `Downloaded ${name}. This browser cannot write to a folder you choose.`
+      );
     }
   } catch (error) {
-    reportProblem(error instanceof Error ? error.message : "That segment could not be saved.");
+    reportAlert(
+      `Could not save “${name}”.`,
+      error instanceof Error ? error.message : "That segment could not be saved."
+    );
   }
 }
 
@@ -169,7 +182,8 @@ export async function saveAllPieces(
       const preview = previewWrite(parts, await namesIn(directory));
       if (!(await confirm(writeTitle(parts.length), messageFor(preview)))) return;
       await write(directorySink(directory));
-      reportProblem(`Wrote ${parts.length} segment${parts.length === 1 ? "" : "s"}.`);
+      // Upstream writes the files and stops there: the folder holds them, and a
+      // confirmation would have to interrupt to say what the user can see.
     } else {
       const preview = previewWrite(parts);
       const archive = `${baseName(pane)}_segments.zip`;
@@ -179,10 +193,18 @@ export async function saveAllPieces(
         return;
       }
       await write(zipSink(archive));
-      reportProblem(`Downloaded ${archive}. This browser cannot write into a folder you choose.`);
+      // The same words as a single saved piece, for the same reason (§D7).
+      showTransientMessage(
+        pane,
+        `Downloaded ${archive}. This browser cannot write into a folder you choose.`
+      );
     }
   } catch (error) {
-    reportProblem(error instanceof Error ? error.message : "Those segments could not be written.");
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.runSegmentWrite
+    reportAlert(
+      "Saving segments failed.",
+      error instanceof Error ? error.message : "Those segments could not be written."
+    );
   } finally {
     operation.finish();
   }
@@ -222,14 +244,19 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
     });
   } catch (error) {
     if (error instanceof SegmentLengthMismatch) {
-      reportProblem(
-        `${segmentLabel(piece.index)} is ${error.pieceLength.toLocaleString()} bytes and that ` +
-          `file is ${error.donorLength.toLocaleString()}. The file must be exactly the same ` +
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.replacePiece
+      reportAlert(
+        "File size does not match the segment",
+        `${segmentLabel(piece.index)} is ${friendlySize(error.pieceLength)} bytes, but the file ` +
+          `is ${friendlySize(error.donorLength)} bytes. The file must be exactly the same ` +
           "length to replace the piece."
       );
       return;
     }
-    reportProblem(error instanceof Error ? error.message : "That segment could not be replaced.");
+    reportAlert(
+      "Replacing the segment failed.",
+      error instanceof Error ? error.message : "That segment could not be replaced."
+    );
   }
 }
 

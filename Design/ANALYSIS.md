@@ -73,7 +73,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Feature | Verdict | Notes |
 | --- | --- | --- |
 | Overwrite typing, red until saved, per-pane undo/redo | Same | |
-| Insert mode, tail shifting, `OVR`/`INS` in the status bar | Same | |
+| Insert mode, tail shifting, `OVR`/`INS` in the pane's status line | Same | |
 | Segmented undo for typed runs | Same | Time-based grouping ports as-is. |
 | Paste Insert, Delete Bytes, Fill Selection | Same | |
 | New empty in-memory document | Same | |
@@ -285,9 +285,10 @@ are worth knowing rather than engineering around:
 **A fetch anybody is waiting on is shown, with a cancel.** On the desktop this
 was learned the hard way: the analysis stops mid-flight on `await
 data.database()`, and a bench reported it as a random pause before ME Analyzer
-produced anything — a silent 350 KB download. Here every wait on the network
-reports progress in the status bar, names what it is fetching, and can be
-cancelled into the tool's "databases unavailable" state.
+produced anything — a silent 350 KB download. Here the wait is shown where it is
+being waited on: the panel that wants the file shows an indeterminate progress
+bar and says what it is reading, and it can be cancelled into the tool's
+"databases unavailable" state.
 
 As on the desktop, each source sits behind an interface (`GuidsSource`,
 `MEADataSource`) so that tests install their own: a suite that reaches GitHub is
@@ -401,7 +402,8 @@ Each one ends with something a bench could actually use.
    glyph atlas and dirty-region repaint, chunked file reading, caret and
    selection, go-to-offset. Benchmark harness. One file, read-only.
 2. **Comparison.** Second slot, diff engine in a worker, orange fill, difference
-   navigation with grouping, status-bar summary, layout toggle and swap.
+   navigation with grouping, the panes' line carrying the counts, layout toggle
+   and swap.
 3. **Editing and saving.** Piece table, edit overlay, undo with typed-run
    grouping, insert mode, fill/delete/paste, save in place on Chromium and
    download elsewhere.

@@ -37,9 +37,10 @@ const GLYPH_LABEL: Record<NoticeGlyph, string> = {
  * underneath.
  *
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticePresenter.verticalFraction
- * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticePresenter.minimumBottomInset
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticePresenter.horizontalInset
- * @upstream-differs placed by CSS; a window too short for the lower third is not guarded against
+ * @upstream-differs placed by CSS; upstream also pushes the plate down when the
+ * lower third would hang off a short window's bottom edge, which CSS placement
+ * has no constraint to express
  */
 export function TransientNotice() {
   const { current, leaving } = useStore(noticeStore);
