@@ -185,7 +185,12 @@ export interface HexPaneProps {
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.scrollRowToTop
    */
   readonly revealRequest?:
-    | { offset: number; token: number; moveCaret?: boolean | undefined }
+    | {
+        offset: number;
+        token: number;
+        moveCaret?: boolean | undefined;
+        onlyIfOffScreen?: boolean | undefined;
+      }
     | undefined;
   /**
    * The document's editing state machine. It belongs to the document, not to
@@ -685,12 +690,25 @@ export function HexPane({
     const scroller = scrollerRef.current;
     const layout = layoutRef.current;
     if (scroller === null || layout === undefined) return;
+    // A tool focusing a zone is showing the user something, not sending them
+    // there: a zone already in front of them is left exactly where it is, and
+    // the rows do not move under someone who can already see them.
+    if (revealRequest.onlyIfOffScreen === true) {
+      const onScreen = scrollLink.visibleRange(paneId, BYTES_PER_ROW);
+      if (
+        onScreen !== undefined &&
+        revealRequest.offset >= onScreen.start &&
+        revealRequest.offset < onScreen.end
+      ) {
+        return;
+      }
+    }
 
     const rowTop = Math.floor(revealRequest.offset / BYTES_PER_ROW) * layout.rowHeight;
     // Centred, not merely brought inside the edge: a change the user asked to
     // be shown should have its surroundings visible too.
     scrollPaneTo(Math.max(0, rowTop - scroller.viewportHeight / 2 + layout.rowHeight));
-  }, [revealRequest, doc, scrollPaneTo]);
+  }, [revealRequest, doc, scrollPaneTo, paneId]);
 
   // Comparison locks the panes to the same offsets. With one file open the
   // link has nothing to mirror to and does nothing.

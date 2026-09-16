@@ -203,8 +203,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       setLoading((current) => new Set([...current].filter((key) => !arrived.includes(key))));
     }
     // A row left open over a branch that is not read any more — the image was
-    // read again after a fix — is read again, so coming back to the tree does
-    // not find it shut.
+    // read again after a fix, or an edit in the pane took that branch's
+    // children away — is read again, so coming back to the tree does not find
+    // it shut. The children come from the worker's reader as it now stands.
+    //
+    // @upstream-differs upstream's LazyUEFITree.invalidate collapses the branch
+    // an edit touched and its own test expects the row to be shut; here the row
+    // the user has open stays open and is filled in again. Same re-read, and
+    // the tree does not jump shut under the pointer that asked for it.
     for (const key of open) {
       const node = firmwareNodeAt(roots, pathOf(key));
       if (node?.isExpandable === true) expandFirmwareNode(context.pane, node.id);

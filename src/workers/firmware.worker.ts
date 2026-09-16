@@ -2,6 +2,7 @@
 
 import { assembleWord, type ByteSource } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
+import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
@@ -20,6 +21,7 @@ import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/u
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import { runSecondPass } from "@/firmware/uefi/secondPass";
+import { invalidating } from "@/firmware/uefi/treeInvalidation";
 import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -124,6 +126,12 @@ let reader: ImageReader | undefined;
 let roots: UEFINode[] = [];
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
+
+/** A range of the file as the main thread sends it — a pair over the wire. */
+const rangeOf = (range: readonly [number, number]): ImageRange => ({
+  start: range[0],
+  end: range[1],
+});
 
 const wireDiagnostics = (diagnostics: readonly UEFIDiagnostic[]): WireDiagnostic[] =>
   diagnostics.map((one) => ({
@@ -256,6 +264,27 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           size: reader.count,
           roots: roots.map(wireNode),
           diagnostics: wireDiagnostics(built.diagnostics),
+        });
+        return;
+      }
+
+      case "firmwareInvalidate": {
+        // The reader is swapped for one over the content as it now stands
+        // before the collapse, so whichever container the collapse dropped is
+        // read again — by a later `firmwareChildren` — from current bytes. This
+        // is the whole of what a live byte source buys upstream.
+        reader = new ImageReader(new BlobByteSource(request.content));
+        roots = invalidating(roots, rangeOf(request.range), request.sizeDelta);
+        // No diagnostics come back with this: what was found in the subtrees
+        // just dropped went with them, as it does upstream, and what is left is
+        // re-collected as those subtrees are read again. The panel's own list
+        // is replaced rather than added to, so a file that is no longer there
+        // stops being complained about.
+        post({
+          kind: "firmwareInvalidated",
+          id: request.id,
+          size: reader.count,
+          roots: roots.map(wireNode),
         });
         return;
       }

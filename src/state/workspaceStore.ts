@@ -2,6 +2,7 @@ import type { DiffEdit } from "@/core/diff/diffEngine";
 import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocument";
 import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
+import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
@@ -93,9 +94,16 @@ export interface PaneState {
  * Told what each edit changed, so the comparison can update without a rescan,
  * and asked before an edit that shifts every offset after it. Set once by the
  * app; absent under tests.
+ *
+ * `onContentChange` is the same news told to an observer rather than acted on,
+ * and it differs from `onEdit` in what it is *about*: an edit is one write,
+ * where this is a whole transaction — a checksum repair that writes six places
+ * is six edits and one change, and a shape that says where the damage starts is
+ * only true of the transaction.
  */
 export const editingHooks: {
   onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
+  onContentChange?: ((pane: PaneId, operations: readonly UndoOperation[]) => void) | undefined;
   confirmShift?: (() => boolean | Promise<boolean>) | undefined;
 } = {};
 
@@ -127,6 +135,9 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   // arrives; the commit that makes it dirty fires no content change. Anything
   // watching only one of them shows the wrong answer for a typed byte.
   document.onContentChanged(noteDocumentChanged);
+  // A tool's tree is told of the same change, whole: an undo of six writes is
+  // one transaction and one stretch of the file that is no longer what it read.
+  document.onContentChanged((change) => editingHooks.onContentChange?.(pane, change.ops));
   document.onTransactionCommitted(noteDocumentChanged);
   // The order the two histories are undone in — an edit and a cut are both
   // undoable and Cmd/Ctrl+Z has to take back whichever came last.

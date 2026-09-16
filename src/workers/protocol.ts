@@ -232,6 +232,26 @@ export interface FirmwareChildrenRequest {
 }
 
 /**
+ * An edit, told to the tree the worker already holds rather than to a fresh
+ * parse of it.
+ *
+ * The tree is the expensive part of opening a firmware image and almost none of
+ * it is about the byte that changed: a re-parse would throw away every branch
+ * the user has opened. So what crosses is the damage — the range the edit
+ * covered, and whether the file's length moved — and the worker drops only the
+ * containers that damage made stale. The fresh `Blob` comes with it, because
+ * the containers dropped are read again later and have to read current bytes.
+ */
+export interface FirmwareInvalidateRequest {
+  readonly kind: "firmwareInvalidate";
+  readonly id: JobId;
+  readonly content: Blob;
+  /** Half-open `[start, end)`, as the file stands after the edit. */
+  readonly range: readonly [number, number];
+  readonly sizeDelta: number;
+}
+
+/**
  * Where the image lands in memory, which needs the Volume Top File and so runs
  * only when something asks for an address.
  */
@@ -337,6 +357,7 @@ export type FirmwareWorkerRequest =
   | FirmwareDetailRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
+  | FirmwareInvalidateRequest
   | FirmwareAddressesRequest
   | FirmwareRepairRequest
   | FitReadRequest
@@ -395,6 +416,20 @@ export interface FirmwareChildrenResponse {
   readonly node: readonly number[];
   readonly children: readonly WireNode[];
   readonly diagnostics: readonly WireDiagnostic[];
+}
+
+/**
+ * The tree as it stands after an invalidation: the same nodes, with the
+ * containers the edit made stale back to closed. It is sent as the whole top
+ * level rather than as a list of what went, because the main thread holds the
+ * tree it drew and a path-addressed patch of it would be a second way to say
+ * the same thing.
+ */
+export interface FirmwareInvalidatedResponse {
+  readonly kind: "firmwareInvalidated";
+  readonly id: JobId;
+  readonly size: number;
+  readonly roots: readonly WireNode[];
 }
 
 export interface FirmwareAddressesResponse {
@@ -506,6 +541,7 @@ export type FirmwareWorkerResponse =
   | FitReportResponse
   | FirmwareRootsResponse
   | FirmwareChildrenResponse
+  | FirmwareInvalidatedResponse
   | FirmwareAddressesResponse
   | FirmwareDetailResponse
   | FirmwareNodeAtOffsetResponse

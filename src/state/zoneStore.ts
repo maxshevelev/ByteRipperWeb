@@ -22,19 +22,48 @@ export const zoneStore = createStore<ZoneState>({
 });
 
 /**
+ * What the shell does when a tool puts a zone in focus.
+ *
+ * A zone a tool has just focused is a range the user is being shown, so the
+ * dump goes to it — the scroll only, and only when it is not on screen
+ * already, since moving the rows under a reader who can already see them is
+ * worse than no scroll at all. Every tool gets this rather than each remembering
+ * to ask, and a republish that focuses the same zone scrolls nothing.
+ *
+ * Set once by the app; absent under tests.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showZoneStartForTool
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealOffsetIfOffScreen
+ */
+export const zoneHooks: {
+  onZoneFocused?: ((pane: PaneId, offset: number) => void) | undefined;
+} = {};
+
+/**
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.publish
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toolZonesChanged
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncMinimapZones
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setZones
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.publish
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.publish
  */
 export function publishZones(pane: PaneId, zones: ZoneMap): void {
   // Repaired against the file as it is now: the map is a re-read behind an
   // edit that may have shortened it.
   const size = workspaceStore.getSnapshot().panes[pane]?.document.size;
   const drawable = size === undefined ? zones : normalizedZones(zones, size);
+  const previousFocus = zonesFor(pane).focus;
   zoneStore.update((state) => ({ panes: { ...state.panes, [pane]: drawable } }));
+
+  // What the user is being shown, which is what the dump should be looking at.
+  // A focus naming nothing that survived the repair above is not one — nothing
+  // can be pointed at that the file no longer contains.
+  const focus = drawable.focus;
+  if (focus === undefined || focus === previousFocus) return;
+  const zone = drawable.zones.find((one) => one.id === focus);
+  if (zone === undefined) return;
+  zoneHooks.onZoneFocused?.(pane, zone.start);
 }
 
 export function clearZones(pane: PaneId): void {

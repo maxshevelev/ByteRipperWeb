@@ -340,7 +340,7 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/EFIGUIDTests.swift#*": "later — efiGuid.ts has no tests of its own yet",
         "Packages/UEFIImage/Tests/UEFIImageTests/NvramGuidsTests.swift#*": "later — nvramGuids.ts has no tests of its own yet",
         "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift#*": "later — ProgressSink has no tests of its own yet",
-        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#*": "later — the web tree is expanded in firmware.worker and firmwareStore, whose laziness has no tests of its own yet",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#*": "later — the expansion half: the web tree is expanded in firmware.worker and firmwareStore, and its laziness has no tests of its own yet. The invalidation half (the two testInvalidate cases, testAReExpandedNodeReadsCurrentBytes, testSizeChangingInvalidateCollapsesFromTheEditPointOnward) is in src/firmware/uefi/treeInvalidation.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/ByteSpaceTests.swift#*": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#*": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#*": "later — Boot Guard protected ranges are not ported",
@@ -1262,12 +1262,15 @@
         "src/tools/registry.ts"
       ],
       "status": "in-progress",
-      "note": "ToolController's session binding is src/state/toolController.ts: activate binds the active pane and never re-points, paneClosed ends the tool (the shell calls it before closePane, as performClosePane does), menuState drives the ☰ Tools rows and the toolbar picker. ToolPanelView is ToolPanel.tsx: icon, tool name, bound file name, ✕ as None. The content-change delivery is firmwareStore's re-parse after edits (anchored there, with its difference). Not yet: parked session state, reloads delivered as such, drops on the panel.",
+      "note": "ToolController's session binding is src/state/toolController.ts: activate binds the active pane and never re-points, paneClosed ends the tool (the shell calls it before closePane, as performClosePane does), menuState drives the ☰ Tools rows and the toolbar picker. ToolPanelView is ToolPanel.tsx: icon, tool name, bound file name, ✕ as None. The content-change delivery is firmwareStore's onContentChange, which holds a burst for 300 ms, merges it through src/tools/contentChange.ts, and sends the fresh content with the range and the size delta; a reload goes straight through. The stale-session guard is the reply's job id, bumped on every delivery. Not yet: parked session state, drops on the panel.",
       "files": {
         "ToolController.swift": "src/state/toolController.ts",
         "ToolPanelView.swift": "src/ui/toolPanel/ToolPanel.tsx",
         "ToolRegistry.swift": "src/tools/registry.ts",
-        "ByteRipperTests/ToolSessionTests.swift": "src/state/toolController.test.ts",
+        "ByteRipperTests/ToolSessionTests.swift": [
+          "src/state/toolController.test.ts",
+          "src/state/firmwareContentChange.test.ts"
+        ],
         "ByteRipperTests/ToolsMenuTests.swift": [
           "src/state/toolController.test.ts",
           "src/tools/registry.test.ts"
@@ -1278,7 +1281,6 @@
       "unported": {
         "ByteRipperApp/Tools/ToolController.swift#ToolController.ParkedSession*": "later — parked session state; a web tool starts afresh, and the parsed tree firmwareStore keeps is what survives a switch",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.parkedModuleIdentifiers": "later — parked session state",
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.paneReloaded": "later — a replaced content is not delivered as a reload; firmwareStore re-parses on the edit signal",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.flushPendingChangeForTesting": "n/a — test seam for the in-process delivery task, which the web does not have",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.clampPanelDivider": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.minContentWidth": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
@@ -1290,7 +1292,6 @@
         "ByteRipperApp/Tools/ToolController.swift#ToolController.panel": "n/a — AppKit ownership; the panel is a React component reading the store",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.paneDropTitle": "n/a — pane dragging; a browser has no pane dragging (notApplicable PaneDrag)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.paneLeft": "n/a — a pane leaving for another tab; one workspace per browser tab (D11)",
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.publish": "later — tools publish straight into src/state/zoneStore, with no stale-session guard and no scroll to a newly focused zone",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.zoneSelected": "later — a zone picked in the dump is not handed back to the tool",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.session": "n/a — the session is the mounted tool view; its lifetime is the component's",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.init": "n/a — AppKit layout; CSS lays the header out",
@@ -1314,11 +1315,7 @@
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.paneSelector": "n/a — test accessor of the AppKit view",
         "ByteRipperApp/Tools/ToolRegistry.swift#ToolRegistry.builtIn": "n/a — Zone Sketch, upstream's debug-only demonstration module, is not ported",
         "ByteRipperApp/Tools/ToolRegistry.swift#ToolRegistry.modules": "n/a — the test seam; web tests mock the registry module instead",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testEditsArriveAsOneChangeOverTheStretchTheyTouched": "later — content changes reach web tools through firmwareStore's re-parse",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAnEditInTheOtherPaneIsNotItsBusiness": "later — as the edit delivery",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAReplacedContentArrivesAsAReload": "later — reload delivery",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAReloadReachesTheSessionWithoutWaiting": "later — reload delivery",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAReloadSwallowsAnEditStillWaiting": "later — reload delivery",
+        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAnEditInTheOtherPaneIsNotItsBusiness": "later — needs two panes each hosting a tool; the port delivers to the pane's own tree, and no test has two tools open at once",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAPaneMovedIntoAnotherTabLeavesTheSessionBehind": "n/a — tabs (D11)",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAPaneTornOffTakesItsToolModuleToTheNewTab": "n/a — tabs (D11)",
         "ByteRipperTests/ToolsMenuTests.swift#ToolsMenuTests.testWithNothingInstalledTheMenuOffersOnlyNone": "n/a — the web edition has no Tools menu; the list is the toolbar's Tools pull-down",
@@ -3842,11 +3839,7 @@
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.file": "n/a — test scaffolding",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.makeController": "n/a — test scaffolding",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.activate": "n/a — test scaffolding",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testEditsArriveAsOneChangeOverTheStretchTheyTouched": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAnEditInTheOtherPaneIsNotItsBusiness": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAReplacedContentArrivesAsAReload": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAReloadReachesTheSessionWithoutWaiting": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAReloadSwallowsAnEditStillWaiting": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAnEditInTheOtherPaneIsNotItsBusiness": "later — needs two panes each hosting a tool, which no test has yet",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAPaneMovedIntoAnotherTabLeavesTheSessionBehind": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.testAPaneTornOffTakesItsToolModuleToTheNewTab": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog": "n/a — test support",
@@ -4563,7 +4556,6 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.parkedState": "later — only the ME tool keeps parked state, in its own module",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.restore": "later — as parkedState",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSessionState": "later — as parkedState",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolContentChange*": "later — content changes reach tools through firmwareStore's re-parse, not a delivered change",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.kind": "later — zones carry no kind",
@@ -4580,7 +4572,6 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelFont.swift#*": "n/a — the panel's type sizes are CSS",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#*": "n/a — AppKit table furniture",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolWrappingLabel.swift#*": "n/a — an NSTextField subclass",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ContentChangeTests.swift#*": "later — as ToolContentChange",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#*": "later — the seam has no web tests of its own yet",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#*": "later — row marks (tints, rails, badges, the legend) are not ported",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailScrollTests.swift#*": "later — no React component tests in this project yet",
@@ -4591,9 +4582,13 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift": "src/tools/toolTransaction.ts",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolTransactionTests.swift": "src/tools/toolTransaction.test.ts",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ZoneMapTests.swift": "src/tools/zone.test.ts",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ContentChangeTests.swift": "src/tools/contentChange.test.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift": "src/tools/toolModule.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift": "src/tools/toolModule.ts",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift": "src/tools/toolModule.ts",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift": [
+          "src/tools/toolModule.ts",
+          "src/tools/contentChange.ts"
+        ],
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift": "src/ui/toolPanel/ToolDetail.tsx"
       }
     },

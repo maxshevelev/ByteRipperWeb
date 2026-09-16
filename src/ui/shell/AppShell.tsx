@@ -13,6 +13,7 @@ import { bookmarksStore, noteVisited, restoreBookmarks } from "@/state/bookmarks
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { restoreFavorites } from "@/state/favoritesStore";
+import { noteFirmwareOperations } from "@/state/firmwareStore";
 import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
 import {
   closeSearch,
@@ -45,6 +46,7 @@ import {
   slotForNewFile,
   workspaceStore,
 } from "@/state/workspaceStore";
+import { zoneHooks } from "@/state/zoneStore";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
@@ -104,6 +106,15 @@ export interface RevealRequest {
    * Looking somewhere is not the same as putting the insertion point there.
    */
   readonly moveCaret?: boolean;
+  /**
+   * Scrolls only when the offset is not on screen already — what showing a zone
+   * a tool has just focused means. Something in front of the reader is left
+   * exactly where it is: a scroll that moves the rows under someone who can
+   * already see them is worse than no scroll at all.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealOffsetIfOffScreen
+   */
+  readonly onlyIfOffScreen?: boolean;
 }
 
 /**
@@ -187,8 +198,14 @@ export function AppShell() {
       noteSegmentEdit(pane, edit, size);
     };
     editingHooks.confirmShift = confirmInsertShift;
+    // The tree a tool is reading is told what became of the bytes — held for a
+    // moment and merged, so a burst of typing is one change rather than thirty,
+    // and so an undo of a repair is one stretch rather than the six places it
+    // wrote to.
+    editingHooks.onContentChange = noteFirmwareOperations;
     return () => {
       editingHooks.onEdit = undefined;
+      editingHooks.onContentChange = undefined;
       editingHooks.confirmShift = undefined;
     };
   }, [confirmInsertShift]);
@@ -652,6 +669,32 @@ export function AppShell() {
     setReveal({
       [pane]: { offset: document.selection.start, token: ++revealToken.current, moveCaret: false },
     });
+  }, []);
+
+  /**
+   * A tool has put a zone in focus — a FIT row the user picked, an MEA row, a
+   * node in the tree. That is a range the user is being shown, so the dump goes
+   * to its start: the scroll alone, and only when it is not on screen already.
+   * The caret and the selection are deliberately untouched, because looking
+   * somewhere is not the same as putting the insertion point there.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showZoneStartForTool
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealOffsetIfOffScreen
+   */
+  useEffect(() => {
+    zoneHooks.onZoneFocused = (pane: PaneId, offset: number) => {
+      setReveal({
+        [pane]: {
+          offset,
+          token: ++revealToken.current,
+          moveCaret: false,
+          onlyIfOffScreen: true,
+        },
+      });
+    };
+    return () => {
+      zoneHooks.onZoneFocused = undefined;
+    };
   }, []);
 
   /**
