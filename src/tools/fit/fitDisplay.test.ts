@@ -13,6 +13,7 @@ import {
   fitDisplay,
   focusingRow,
   focusingTarget,
+  keepingTheOutline,
   POINTER_ZONE_ID,
   ratingLatest,
   rowCommands,
@@ -242,6 +243,34 @@ describe("the zones", () => {
     const refocused = focusingRow(shown, 0);
     expect(refocused.zones.focus).toBe("fit.row.0");
     expect(refocused.rows).toEqual(shown.rows);
+  });
+
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAnEditLeavesTheOutlineOnTheComponentTheUserWasIn
+  it("keeps the outline where the user left it when the table is read again", () => {
+    // A re-read — an edit in the dump, the names landing, a catalogue arriving
+    // — builds its display from the row key, and the row key does not say the
+    // outline was on the component the row points at: read from it alone, the
+    // outline slides back to the row, two pages up the file.
+    const readAgain = display([microcodeRow], { focus: 1 });
+    const held = keepingTheOutline(readAgain, "fit.target.1");
+    expect(held.zones.focus).toBe("fit.target.1");
+    // The detail follows the outline, and the rows are the reading's own.
+    expect(held.detail).toEqual(focusingTarget(display([microcodeRow], { focus: 1 }), 1).detail);
+    expect(held.rows).toEqual(readAgain.rows);
+
+    // A click on the table's name survives one too.
+    expect(keepingTheOutline(readAgain, TABLE_ZONE_ID).zones.focus).toBe(TABLE_ZONE_ID);
+
+    // Nothing remembered: the reading is left exactly as it was read.
+    expect(keepingTheOutline(readAgain, undefined)).toBe(readAgain);
+
+    // A zone this reading does not have is not one to hold: the outline goes
+    // rather than pointing at whichever row took the zone's place. The caller
+    // keeps remembering it, so an undo that brings the row back brings the
+    // outline back with it.
+    const gone = keepingTheOutline(readAgain, "fit.target.9");
+    expect(gone.zones.focus).toBeUndefined();
+    expect(gone.detail.title).toBe("");
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAZoneIdSaysWhichRowItCameFrom

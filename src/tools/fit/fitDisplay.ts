@@ -415,6 +415,28 @@ export function focusingZone(display: FITDisplay, zoneId: string | undefined): F
 }
 
 /**
+ * The same display with the outline still where the user left it.
+ *
+ * Every re-read — an edit in the dump, the names landing, a catalogue arriving
+ * — builds its display from the row key, which is where the outline would go
+ * back to if this were not applied. Where the user was looking is not something
+ * a re-read gets to decide.
+ *
+ * A zone the reading no longer has is not one to hold: the table does not say
+ * what became of what it was pointing at, and pointing at the row that took its
+ * place would be picking a row the user never picked. The zone is handed in
+ * rather than remembered here, so the caller's memory of it stays and an undo
+ * that brings the row back brings the outline back with it.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.outline
+ */
+export function keepingTheOutline(display: FITDisplay, zone: string | undefined): FITDisplay {
+  if (zone === undefined) return display;
+  if (!display.zones.zones.some((one) => one.id === zone)) return focusingZone(display, undefined);
+  return focusingZone(display, zone);
+}
+
+/**
  * The same display with every microcode row's "latest" verdict decided against
  * the catalogue — the newest revision it lists for that row's processor and
  * platform, or nothing where there is no basis for one.

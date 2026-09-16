@@ -22,14 +22,14 @@ import {
   type FITRowCommand,
   fitCommandTitle,
   fitDisplay,
-  focusingTarget,
-  focusingZone,
+  keepingTheOutline,
   latestText,
   offsetToGoTo,
   ratingLatest,
   rowCommands,
   rowKey,
   TABLE_ZONE_ID,
+  zoneToFocus,
 } from "@/tools/fit/fitDisplay";
 import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeForm";
 import {
@@ -104,8 +104,23 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const catalogue = useStore(microcodeCatalogueStore);
   const [report, setReport] = useState<FITReport | undefined>(undefined);
   const [focus, setFocus] = useState<number | undefined>(undefined);
+  /**
+   * The zone the outline is on — the row the user picked, what that row points
+   * at, or the table itself.
+   *
+   * Kept beside `focus` because the row alone does not say which of them it is:
+   * "go to the offset" moves the outline from a row to the component it points
+   * at, and both are the same row's. Every display but the ones the three
+   * setters below build carries the *row* in focus, so a re-read read from the
+   * row key alone would slide the outline back — and the dump, which the shell
+   * keeps bringing to whatever is in focus, would follow it out of what the
+   * user was looking at.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.focusZone
+   */
+  const [focusZone, setFocusZone] = useState<string | undefined>(undefined);
   /** The whole table in focus, as a click on its name puts it. */
-  const [tableFocused, setTableFocused] = useState(false);
+  const tableFocused = focusZone === TABLE_ZONE_ID;
   const [busy, setBusy] = useState(false);
   const [tableShare, setTableShare] = useState(storedTableShare);
   /** The microcode form, and what it was opened for — or nothing when it is shut. */
@@ -163,12 +178,14 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   }, [roots, status, pane]);
 
   // The verdicts ride on top of the display rather than inside the read: a
-  // catalogue landing late must change the marks and nothing else.
+  // catalogue landing late must change the marks and nothing else. The outline
+  // is put back where the user left it last, since a display built from the row
+  // key alone would slide it back to the row on every re-read.
   const display: FITDisplay = useMemo(() => {
     if (report === undefined) return EMPTY_DISPLAY;
     const built = ratingLatest(fitDisplay(report, focus), catalogue.entries);
-    return tableFocused ? focusingZone(built, TABLE_ZONE_ID) : built;
-  }, [report, focus, tableFocused, catalogue.entries]);
+    return keepingTheOutline(built, focusZone);
+  }, [report, focus, focusZone, catalogue.entries]);
 
   // Whatever the panel has decided is worth drawing, handed to the shell.
   useEffect(() => {
@@ -305,9 +322,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           const range = row?.targetRange;
           context.reveal(command.offset, range?.end ?? command.offset + 16);
           if (row !== undefined) {
+            // Nothing is *selected*: an active outline says "this is what you
+            // asked for" without touching a selection the user may be
+            // part-way through. The publish that moves it is the effect's, off
+            // the display built from these two.
             setFocus(rowKey(row));
-            setTableFocused(false);
-            publishZones(context.pane, focusingTarget(display, rowKey(row)).zones);
+            setFocusZone(zoneToFocus(row));
           }
           return;
         }
@@ -350,7 +370,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const choose = useCallback(
     (row: FITDisplayRow) => {
       setFocus(rowKey(row));
-      setTableFocused(false);
+      setFocusZone(row.zoneId);
       // The row's own sixteen bytes: selecting a row is about the row, and
       // going to what it points at is the double-click and the menu's command.
       context.reveal(row.rowStart, row.rowStart + 16);
@@ -368,7 +388,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     const table = display.zones.zones.find((zone) => zone.id === TABLE_ZONE_ID);
     if (table === undefined) return;
     setFocus(undefined);
-    setTableFocused(true);
+    setFocusZone(TABLE_ZONE_ID);
     context.reveal(table.start, table.end);
   }, [display.zones, context]);
 
