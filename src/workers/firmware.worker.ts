@@ -155,6 +155,7 @@ const wireNode = (node: UEFINode): WireNode => ({
   tail: [node.tail.start, node.tail.end],
   isFixed: node.isFixed,
   isCompressed: node.isCompressed,
+  compression: node.compression,
   isErased: node.isErased,
   isExpandable: node.isExpandable,
   childDepth: node.childDepth,

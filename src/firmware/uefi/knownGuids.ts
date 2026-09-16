@@ -66,6 +66,18 @@ export const AMD_MICROCODE = guid("DE3E049C-A218-4891-8658-5FC0FA84C788");
 export const AMD_COMPRESSED_RAW_FILE = guid("20BC8AC9-94D1-4208-AB28-5D673FD73487");
 
 /**
+ * The vendor hash tables: files whose body lists ranges and the hash of each,
+ * which the firmware checks at boot. Named here rather than left in the table
+ * below because a panel badges the row that holds one
+ * (`Design/ROW_MARKS.md` §5.1).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.phoenixHashFile
+ */
+export const PHOENIX_HASH_FILE = guid("389CC6F2-1EA8-467B-AB8A-78E769AE2A15");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amiHashFile */
+export const AMI_HASH_FILE = guid("CBC91F44-A4BC-4A5B-8696-703451D0B053");
+
+/**
  * Names for the volumes, files and sections worth naming. Everything else is
  * shown by its type, which is more useful than a GUID nobody knows.
  *
@@ -97,8 +109,8 @@ const NAMES = new Map<string, string>(
       [guid("1B45CC0A-156A-428A-AF62-49864DA0E6E6"), "PEI apriori"],
       [guid("FC510EE7-FFDC-11D4-BD41-0080C73C8881"), "DXE apriori"],
       [guid("E4536585-7909-4A60-B5C6-ECDEA6EBFB54"), "AMI padding file"],
-      [guid("389CC6F2-1EA8-467B-AB8A-78E769AE2A15"), "Phoenix vendor hash file"],
-      [guid("CBC91F44-A4BC-4A5B-8696-703451D0B053"), "AMI vendor hash file"],
+      [PHOENIX_HASH_FILE, "Phoenix vendor hash file"],
+      [AMI_HASH_FILE, "AMI vendor hash file"],
       [AMD_COMPRESSED_RAW_FILE, "AMD compressed raw file"],
       [AMD_MICROCODE, "AMD microcode"],
     ] as const
@@ -116,6 +128,15 @@ const NAMES = new Map<string, string>(
 export interface GuidedSection {
   readonly name: string;
   readonly transformsBody: boolean;
+  /**
+   * The body holds compressed data — true for the algorithms, false for a
+   * section that only signs or checksums it. A signed body is not a run of
+   * sections either, which is why this is not the same question as
+   * `transformsBody`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/CompressedSection.swift#CompressedSection.compressedGUIDs
+   */
+  readonly compressed: boolean;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.guidedSection */
@@ -126,17 +147,21 @@ export function guidedSection(candidate: EFIGUID): GuidedSection | undefined {
 const GUIDED_SECTIONS = new Map<string, GuidedSection>(
   (
     [
-      ["FC1BCDB0-7D31-49AA-936A-A4600D9DD083", "CRC32", false],
-      ["A31280AD-481E-41B6-95E8-127F4C984779", "Tiano", true],
-      ["EE4E5898-3914-4259-9D6E-DC7BD79403CF", "LZMA", true],
-      ["0ED85E23-F253-413F-A03C-901987B04397", "LZMA (HP)", true],
-      ["BD9921EA-ED91-404A-8B2F-B4D724747C8C", "LZMA (Microsoft)", true],
-      ["D42AE6BD-1352-4BFB-909A-CA72A6EAE889", "LZMA with x86 filter", true],
-      ["1D301FE9-BE79-4353-91C2-D23BC959AE0C", "GZip", true],
-      ["CE3233F5-2CD6-4D87-9152-4A238BB6D1C4", "Zlib (AMD)", true],
-      ["991EFAC0-E260-416B-A4B8-3B153072B804", "Zlib (AMD, second)", true],
-      ["3D532050-5CDA-4FD0-879E-0F7F630D5AFB", "Brotli", true],
-      ["0F9D89E8-9259-4F76-A5AF-0C89E34023DF", "Signed contents", true],
+      // text, name, transformsBody, compressed
+      ["FC1BCDB0-7D31-49AA-936A-A4600D9DD083", "CRC32", false, false],
+      ["A31280AD-481E-41B6-95E8-127F4C984779", "Tiano", true, true],
+      ["EE4E5898-3914-4259-9D6E-DC7BD79403CF", "LZMA", true, true],
+      ["0ED85E23-F253-413F-A03C-901987B04397", "LZMA (HP)", true, true],
+      ["BD9921EA-ED91-404A-8B2F-B4D724747C8C", "LZMA (Microsoft)", true, true],
+      ["D42AE6BD-1352-4BFB-909A-CA72A6EAE889", "LZMA with x86 filter", true, true],
+      ["1D301FE9-BE79-4353-91C2-D23BC959AE0C", "GZip", true, true],
+      ["CE3233F5-2CD6-4D87-9152-4A238BB6D1C4", "Zlib (AMD)", true, true],
+      ["991EFAC0-E260-416B-A4B8-3B153072B804", "Zlib (AMD, second)", true, true],
+      ["3D532050-5CDA-4FD0-879E-0F7F630D5AFB", "Brotli", true, true],
+      ["0F9D89E8-9259-4F76-A5AF-0C89E34023DF", "Signed contents", true, false],
     ] as const
-  ).map(([text, name, transformsBody]) => [guidKey(guid(text)), { name, transformsBody }])
+  ).map(([text, name, transformsBody, compressed]) => [
+    guidKey(guid(text)),
+    { name, transformsBody, compressed },
+  ])
 );

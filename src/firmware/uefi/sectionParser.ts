@@ -3,7 +3,7 @@ import { alignUp } from "@/firmware/uefi/checksums";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
 import { guidedSection } from "@/firmware/uefi/knownGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
-import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
 
 /**
@@ -206,6 +206,7 @@ function parseSection(
   let guid: EFIGUID | undefined;
   let bodyStart = offset + headerSize;
   let readsBodyAsSections = false;
+  let compression: SectionCompression | undefined;
 
   switch (type) {
     case Section.disposable:
@@ -218,6 +219,9 @@ function parseSection(
       if (algorithm !== undefined) {
         readsBodyAsSections = algorithm === Section.notCompressed;
         name = compressionName(algorithm);
+        if (algorithm !== Section.notCompressed) {
+          compression = { algorithm: algorithmName(algorithm), decodes: false };
+        }
       }
       break;
     }
@@ -241,6 +245,9 @@ function parseSection(
       if (known !== undefined) {
         name = `${known.name} section`;
         readsBodyAsSections = !known.transformsBody;
+        // A signed or checksummed body is still a run of structures; a
+        // compressed one is not, and the badge says which algorithm it is.
+        if (known.compressed) compression = { algorithm: known.name, decodes: false };
       }
       break;
     }
@@ -274,8 +281,27 @@ function parseSection(
     guid,
     header: { start: offset, end: bodyStart },
     body,
+    compression,
     children,
   });
+}
+
+/**
+ * A compression section's algorithm by the name a panel shows.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/CompressedSection.swift#CompressedSection.algorithmName
+ */
+function algorithmName(algorithm: number): string {
+  switch (algorithm) {
+    case 0x01:
+      return "Tiano";
+    case 0x02:
+      return "LZMA";
+    case 0x86:
+      return "LZMA with x86 filter";
+    default:
+      return `Compression type 0x${algorithm.toString(16).toUpperCase().padStart(2, "0")}`;
+  }
 }
 
 function compressionName(algorithm: number): string {

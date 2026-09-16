@@ -73,6 +73,15 @@
   --difference-fill: rgb(255 149 0 / 0.35);
   --zone-focused: #59adc4;
   --zone-other: #dad554;
+
+  /* Ported from AppPalette.RowMarks: what a row is tinted for, and the one
+     solid colour a mark is drawn in (`Design/ROW_MARKS.md` §3). A tint is
+     translucent and never red, orange or green — those three already mean a
+     difference, a problem and a verdict, and a background that borrowed one
+     would say something the row does not. */
+  --row-mark-ibb: rgb(255 45 85 / 0.14);
+  --row-mark-firmware: rgb(50 173 230 / 0.14);
+  --row-mark-decompressed: rgb(88 86 214);
   --segment-0: #d6f0d6;
   --segment-1: #f7d9e0;
   --segment-2: #d6e6fa;
@@ -128,6 +137,9 @@
     --difference-fill: rgb(255 159 10 / 0.45);
     --zone-focused: #6ac4dc;
     --zone-other: #dad554;
+    --row-mark-ibb: rgb(255 55 95 / 0.24);
+    --row-mark-firmware: rgb(100 210 255 / 0.2);
+    --row-mark-decompressed: rgb(125 122 255);
     --segment-0: #29402b;
     --segment-1: #4a2b36;
     --segment-2: #29384d;
@@ -187,6 +199,9 @@
   --difference-fill: rgb(255 159 10 / 0.45);
   --zone-focused: #6ac4dc;
   --zone-other: #dad554;
+  --row-mark-ibb: rgb(255 55 95 / 0.24);
+  --row-mark-firmware: rgb(100 210 255 / 0.2);
+  --row-mark-decompressed: rgb(125 122 255);
   --segment-0: #29402b;
   --segment-1: #4a2b36;
   --segment-2: #29384d;

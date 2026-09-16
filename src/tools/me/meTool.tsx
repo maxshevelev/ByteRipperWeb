@@ -33,11 +33,14 @@ import {
   meaZones,
   presentMEA,
 } from "@/tools/me/meaTree";
+import { MEA_TREE_MARKS } from "@/tools/me/meaTreeMarks";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 
 /**
  * ME Analyzer: what the Intel Management Engine firmware in this image is.
@@ -90,6 +93,13 @@ const INDENT = 16;
 /** The tree's share of the split; upstream gives the detail a third. */
 const DEFAULT_TREE_SHARE = 2 / 3;
 const TREE_SHARE_KEY = "byteripper.meTreeShare";
+/**
+ * The panel's name in the legend's remembered states. Upstream's, so a reader
+ * who has made the same choice in both editions keeps it.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.legend
+ */
+const MEA_PANEL = "MEAnalyzer";
 /** How long a line about a copy stays up. */
 const NOTICE_DURATION = 4000;
 
@@ -157,6 +167,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const [busy, setBusy] = useState(false);
   const [checksums, setChecksums] = useState<MEAChecksums | undefined>(undefined);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
+  const [showsMarkings, setShowsMarkings] = useShowsMarkings(MEA_PANEL);
   const [notice, setNotice] = useState<string | undefined>(undefined);
   /** Which analysis a reply belongs to: a reply to a superseded one is dropped. */
   const request = useRef(0);
@@ -484,25 +495,38 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               gridTemplateRows: `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)`,
             }}
           >
-            <div
-              className="me-tree"
-              ref={treeRef}
-              role="tree"
-              tabIndex={0}
-              aria-label="ME firmware structure"
-              onKeyDown={onTreeKey}
-            >
-              {rows.map((row, index) => (
-                <MeTreeRow
-                  key={row.key}
-                  row={row}
-                  alternate={index % 2 === 1}
-                  isOpen={open.has(row.key)}
-                  isSelected={focus === row.key}
-                  onChoose={choose}
-                  onToggle={toggle}
-                />
-              ))}
+            {/* The tree and its legend are one pane of the split: the legend
+                takes its room at the pane's bottom edge and the tree gives it
+                up, so it never covers a row (`Design/ROW_MARKS.md` §6). */}
+            <div className="tool-marked-list">
+              <div
+                className="me-tree"
+                ref={treeRef}
+                role="tree"
+                tabIndex={0}
+                aria-label="ME firmware structure"
+                onKeyDown={onTreeKey}
+              >
+                {rows.map((row, index) => (
+                  <MeTreeRow
+                    key={row.key}
+                    row={row}
+                    alternate={index % 2 === 1}
+                    isOpen={open.has(row.key)}
+                    isSelected={focus === row.key}
+                    showsMarkings={showsMarkings}
+                    onChoose={choose}
+                    onToggle={toggle}
+                  />
+                ))}
+              </div>
+
+              <ToolRowMarksLegend
+                panel={MEA_PANEL}
+                marks={MEA_TREE_MARKS.legendMarks}
+                showsMarkings={showsMarkings}
+                onShowsMarkingsChange={setShowsMarkings}
+              />
             </div>
             <PaneDivider
               layout="stacked"
@@ -723,6 +747,7 @@ function MeTreeRow({
   alternate,
   isOpen,
   isSelected,
+  showsMarkings,
   onChoose,
   onToggle,
 }: {
@@ -730,6 +755,7 @@ function MeTreeRow({
   readonly alternate: boolean;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
+  readonly showsMarkings: boolean;
   readonly onChoose: (node: MEANode) => void;
   readonly onToggle: (node: MEANode) => void;
 }) {
@@ -740,7 +766,7 @@ function MeTreeRow({
     // pointer only.
     // biome-ignore lint/a11y/useKeyWithClickEvents: the tree handles the keys
     <div
-      className="me-row"
+      className="me-row tool-marked-row"
       role="treeitem"
       tabIndex={-1}
       aria-level={row.depth + 1}
@@ -750,6 +776,10 @@ function MeTreeRow({
       data-selected={isSelected ? "" : undefined}
       data-alt={alternate ? "" : undefined}
       data-empty={node.isEmptySection ? "" : undefined}
+      // The row's background and rail in words, so nothing it says is said by
+      // colour alone (`Design/ROW_MARKS.md` §2).
+      title={rowMarkTitle(node.marks)}
+      {...rowPaintAttrs(node.marks, showsMarkings)}
       onClick={() => onChoose(node)}
       onDoubleClick={() => {
         if (hasChildren) onToggle(node);
@@ -769,6 +799,7 @@ function MeTreeRow({
         >
           {hasChildren ? (isOpen ? "▾" : "▸") : ""}
         </button>
+        <RowMarksIcons marks={node.marks} />
         <span className="me-name-text" title={node.title}>
           {node.title}
         </span>

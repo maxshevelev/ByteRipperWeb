@@ -174,6 +174,15 @@ export const FIT = {
   tpmPolicyType: 0x08,
   /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.txtPolicyType */
   txtPolicyType: 0x0a,
+  /**
+   * The Boot Guard key manifest, and the boot policy that goes with it: rows a
+   * platform measures, which is why a panel badges them (§5.3).
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.keyManifestType
+   */
+  keyManifestType: 0x0b,
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.bootPolicyType */
+  bootPolicyType: 0x0c,
   /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.cseSecureBootType */
   cseSecureBootType: 0x10,
   /** @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.emptyType */

@@ -463,26 +463,6 @@ export function ratingLatest(
   };
 }
 
-/** What a "latest" verdict says, for the mark's own tooltip. */
-export function latestText(state: MicrocodeLatest): string | undefined {
-  switch (state.kind) {
-    case "latest":
-      return "The newest revision the catalogue lists for this processor and platform.";
-    case "outdated":
-      return `The catalogue has r.${hexDigits(state.newestRevision)} for this board.`;
-    case "undecided":
-      return (
-        `The catalogue has r.${hexDigits(state.newestRevision)} for this processor, ` +
-        "on platforms that overlap this one without covering it — whether it serves " +
-        "this board depends on which platform the board is, and the image does not say."
-      );
-    case "notRated":
-      return undefined;
-  }
-}
-
-const hexDigits = (value: number) => value.toString(16).toUpperCase();
-
 /**
  * What to show for a report. `focus` is the row the user has selected.
  *

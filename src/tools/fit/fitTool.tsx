@@ -23,7 +23,6 @@ import {
   fitCommandTitle,
   fitDisplay,
   keepingTheOutline,
-  latestText,
   offsetToGoTo,
   ratingLatest,
   rowCommands,
@@ -31,19 +30,19 @@ import {
   TABLE_ZONE_ID,
   zoneToFocus,
 } from "@/tools/fit/fitDisplay";
+import { FIT_ROW_MARKS, fitRowMarks, verdict } from "@/tools/fit/fitRowMarks";
 import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeForm";
-import {
-  entryFileName,
-  type MicrocodeCatalogueEntry,
-  type MicrocodeLatest,
-} from "@/tools/fit/microcodeCatalogue";
+import { entryFileName, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 import { cpuidsOf, type MicrocodeFormMode } from "@/tools/fit/microcodeFormModel";
 import { pickMicrocode } from "@/tools/fit/pickMicrocode";
 import type { NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 import type { FitEditRequest, WireNode } from "@/workers/protocol";
 
 type FitEdit = FitEditRequest["edit"];
@@ -81,6 +80,14 @@ const MAX_PROBLEM_ROWS = 8;
 
 const DEFAULT_TABLE_SHARE = 2 / 3;
 const TABLE_SHARE_KEY = "byteripper.fitTableShare";
+
+/**
+ * The panel's name in the legend's remembered states. Upstream's, so a reader
+ * who has made the same choice in both editions keeps it.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.legend
+ */
+const FIT_PANEL = "FIT";
 
 function storedTableShare(): number {
   try {
@@ -123,6 +130,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const tableFocused = focusZone === TABLE_ZONE_ID;
   const [busy, setBusy] = useState(false);
   const [tableShare, setTableShare] = useState(storedTableShare);
+  /**
+   * Whether the table paints its rows — the legend's Show Markings switch,
+   * which is remembered beside the legend's own state.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.legend
+   */
+  const [showsMarkings, setShowsMarkings] = useShowsMarkings(FIT_PANEL);
   /** The microcode form, and what it was opened for — or nothing when it is shut. */
   const [form, setForm] = useState<MicrocodeFormMode | undefined>(undefined);
   /** What the form's line says about a fetch the panel is making for it. */
@@ -480,6 +494,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     return <div className="tool-empty">{firmware?.problem ?? "That image could not be read."}</div>;
   }
 
+  /** What a row of this display wears, decided once for the table below. */
+  const marksOf = rowMarksOf(display);
+
   return (
     <div className="fit-tool">
       <button
@@ -498,92 +515,103 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           gridTemplateRows: `minmax(0, ${tableShare}fr) 6px minmax(0, ${1 - tableShare}fr)`,
         }}
       >
-        {/* biome-ignore lint/a11y/useSemanticElements: the grid role sits on the scroller that takes the keyboard; a <table> may not carry it */}
-        <div
-          className="fit-entries"
-          role="grid"
-          aria-label="FIT entries"
-          tabIndex={0}
-          onKeyDown={onKeyDown}
-        >
-          <table className="fit-table">
-            <colgroup>
-              {COLUMNS.map((column) => (
-                <col key={column.title} style={{ width: column.width }} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
+        {/* The entries and their legend are one pane of the split: the legend
+            takes its room at the pane's bottom edge and the table gives it up,
+            so it never covers a row (`Design/ROW_MARKS.md` §6). */}
+        <div className="tool-marked-list">
+          {/* biome-ignore lint/a11y/useSemanticElements: the grid role sits on the scroller that takes the keyboard; a <table> may not carry it */}
+          <div
+            className="fit-entries"
+            role="grid"
+            aria-label="FIT entries"
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+          >
+            <table className="fit-table">
+              <colgroup>
                 {COLUMNS.map((column) => (
-                  <th key={column.title} scope="col" className="fit-head">
-                    {column.title}
-                  </th>
+                  <col key={column.title} style={{ width: column.width }} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {display.rows.map((row, position) => (
-                <Fragment key={rowKey(row)}>
-                  {position === display.backupStart ? (
-                    // The Top Swap backup's copy of the table follows under a
-                    // heading of its own, which cannot be selected.
-                    <tr className="fit-backup-heading">
-                      <th colSpan={COLUMNS.length} scope="colgroup">
-                        {display.backupHeading}
-                      </th>
+              </colgroup>
+              <thead>
+                <tr>
+                  {COLUMNS.map((column) => (
+                    <th key={column.title} scope="col" className="fit-head">
+                      {column.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {display.rows.map((row, position) => (
+                  <Fragment key={rowKey(row)}>
+                    {position === display.backupStart ? (
+                      // The Top Swap backup's copy of the table follows under a
+                      // heading of its own, which cannot be selected.
+                      <tr className="fit-backup-heading">
+                        <th colSpan={COLUMNS.length} scope="colgroup">
+                          {display.backupHeading}
+                        </th>
+                      </tr>
+                    ) : null}
+                    <tr
+                      className="fit-row tool-marked-row"
+                      data-backup={row.isBackup ? "" : undefined}
+                      data-selected={!tableFocused && focus === rowKey(row) ? "" : undefined}
+                      // The row's background in words, so nothing it says is said
+                      // by colour alone (`Design/ROW_MARKS.md` §2). The Type cell
+                      // keeps the version, which is its own tooltip.
+                      title={rowMarkTitle(marksOf(row))}
+                      {...rowPaintAttrs(marksOf(row), showsMarkings)}
+                      onClick={() => choose(row)}
+                      onDoubleClick={() => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
+                      onContextMenu={(event) => {
+                        choose(row);
+                        openContextMenu(
+                          event,
+                          rowCommands(row).map((command) => ({
+                            label: fitCommandTitle(command),
+                            // A command that changes the table stands down while
+                            // an edit is being planned — greyed, not gone.
+                            disabled:
+                              busy &&
+                              (command.kind === "replaceMicrocode" ||
+                                command.kind === "removeMicrocode" ||
+                                command.kind === "fixChecksum"),
+                            onSelect: () => run(command),
+                          }))
+                        );
+                      }}
+                    >
+                      <td className="fit-number">{displayNumber(row)}</td>
+                      <td title={`Version ${row.versionText}`}>
+                        <span className="fit-type">
+                          <RowMarksIcons
+                            marks={marksOf(row)}
+                            verdict={verdict(row.latestState)}
+                            size={12}
+                          />
+                          <span className="fit-type-text">{row.typeText}</span>
+                        </span>
+                      </td>
+                      <td className="fit-number">{row.addressText}</td>
+                      <td className="fit-number">{row.sizeText}</td>
+                      <td title={row.targetText.length === 0 ? undefined : row.targetText}>
+                        {row.targetText}
+                      </td>
                     </tr>
-                  ) : null}
-                  <tr
-                    className="fit-row"
-                    data-backup={row.isBackup ? "" : undefined}
-                    data-selected={!tableFocused && focus === rowKey(row) ? "" : undefined}
-                    onClick={() => choose(row)}
-                    onDoubleClick={() => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
-                    onContextMenu={(event) => {
-                      choose(row);
-                      openContextMenu(
-                        event,
-                        rowCommands(row).map((command) => ({
-                          label: fitCommandTitle(command),
-                          // A command that changes the table stands down while
-                          // an edit is being planned — greyed, not gone.
-                          disabled:
-                            busy &&
-                            (command.kind === "replaceMicrocode" ||
-                              command.kind === "removeMicrocode" ||
-                              command.kind === "fixChecksum"),
-                          onSelect: () => run(command),
-                        }))
-                      );
-                    }}
-                  >
-                    <td className="fit-number">{displayNumber(row)}</td>
-                    <td title={`Version ${row.versionText}`}>
-                      <span className="fit-type">
-                        <LatestMark state={row.latestState} />
-                        {row.hasProblem ? (
-                          <span
-                            className="tool-problem"
-                            role="img"
-                            aria-label="Invalid"
-                            title={problemText(display, row)}
-                          >
-                            !
-                          </span>
-                        ) : null}
-                        <span className="fit-type-text">{row.typeText}</span>
-                      </span>
-                    </td>
-                    <td className="fit-number">{row.addressText}</td>
-                    <td className="fit-number">{row.sizeText}</td>
-                    <td title={row.targetText.length === 0 ? undefined : row.targetText}>
-                      {row.targetText}
-                    </td>
-                  </tr>
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <ToolRowMarksLegend
+            panel={FIT_PANEL}
+            marks={FIT_ROW_MARKS.legendMarks}
+            showsMarkings={showsMarkings}
+            onShowsMarkingsChange={setShowsMarkings}
+          />
         </div>
 
         <PaneDivider
@@ -692,50 +720,16 @@ function editFor(mode: MicrocodeFormMode, component: Uint8Array): FitEdit {
 }
 
 /**
- * How a row's microcode stands against the catalogue, ahead of its type:
- * upstream's green seal, orange triangle or orange question mark — a glyph *and*
- * a colour — and nothing where there is no basis for a verdict.
+ * What a row wears besides its text, decided in the pure marks of the table
+ * (`Design/ROW_MARKS.md` §5.2): the validator's problems for that row and the
+ * badge on a component the IBB is checked against. The verdict is the table's
+ * own and is passed to `RowMarksIcons` beside it, in the catalogue's order.
  *
- * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks
- * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.marks
- * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.verdict
- * @upstream-differs a row carries the latest verdict and the validator's problem; the Boot Guard tints and badges are not ported
- */
-function LatestMark({ state }: { readonly state: MicrocodeLatest }) {
-  if (state.kind === "notRated") return null;
-  const path =
-    state.kind === "latest"
-      ? "M8 1.5l1.6 1.2 2-.1.6 1.9 1.6 1.2-.7 1.9.7 1.9-1.6 1.2-.6 1.9-2-.1L8 12.5l-1.6-1.2-2 .1-.6-1.9L2.2 8.3l.7-1.9-.7-1.9 1.6-1.2.6-1.9 2 .1ZM5.6 7.4l1.7 1.7 3.2-3.3"
-      : state.kind === "outdated"
-        ? "M8 2 14.5 13.5h-13ZM8 6.2v3.6M8 11.6v.1"
-        : "M8 1.8a6.2 6.2 0 1 1 0 12.4A6.2 6.2 0 0 1 8 1.8ZM6.3 6.3a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.6-.7 1.1v.4M8 11.6v.1";
-  return (
-    <svg
-      className="fit-latest"
-      data-state={state.kind}
-      viewBox="0 0 16 16"
-      role="img"
-      aria-label={latestText(state)}
-    >
-      <title>{latestText(state)}</title>
-      <path d={path} />
-    </svg>
-  );
-}
-
-/**
- * What the list below says about one row, for the mark where the row sits.
- *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.marks(ofRow:)
  * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.marks
  */
-function problemText(display: FITDisplay, row: FITDisplayRow): string | undefined {
-  // A row wears its own copy's problems: the backup's rows the backup's.
-  const messages = display.problems
-    .filter(
-      (problem) => problem.entryIndex === row.index && (problem.inBackup === true) === row.isBackup
-    )
-    .map(fitProblemMessage);
-  return messages.length === 0 ? undefined : messages.join("\n");
+function rowMarksOf(display: FITDisplay): (row: FITDisplayRow) => ToolRowMarks {
+  return (row) => fitRowMarks(row, display.problems);
 }
 
 /** A problem is identified by what it is about, which is where it points. */

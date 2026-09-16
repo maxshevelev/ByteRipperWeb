@@ -21,6 +21,14 @@ import {
   titleText,
   yesNo,
 } from "@/tools/me/meaText";
+import {
+  codePartitionMarks,
+  manifestMarks,
+  metadataMarks,
+  moduleMarks,
+  tableMarks,
+} from "@/tools/me/meaTreeMarks";
+import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import type { ZoneMap } from "@/tools/zone";
 
 /**
@@ -87,6 +95,16 @@ export interface MEANode {
    * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isEmptySection
    */
   readonly isEmptySection: boolean;
+  /**
+   * What the row wears besides its text (`Design/ROW_MARKS.md` §5.3): the rail,
+   * a compressed or holds-checks badge, a problem — decided when the node is
+   * built (`MEATreeMarks`), since everything it is decided from is in the
+   * analysis the node comes out of.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.marks
+   * @upstream-differs absent reads as none
+   */
+  readonly marks: ToolRowMarks | undefined;
 }
 
 /** The region's digests, which the analysis leaves out until they are asked for. */
@@ -113,6 +131,7 @@ interface Draft {
   readonly fields?: readonly MEAField[];
   readonly children?: readonly Draft[];
   readonly isEmptySection?: boolean;
+  readonly marks?: ToolRowMarks;
 }
 
 /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.init */
@@ -172,6 +191,7 @@ function finish(draft: Draft, path: readonly number[]): MEANode {
     fields: draft.fields ?? [],
     children: (draft.children ?? []).map((child, index) => finish(child, [...path, index])),
     isEmptySection: draft.isEmptySection ?? false,
+    marks: draft.marks,
   };
 }
 
@@ -342,6 +362,7 @@ function cseLayout(a: FirmwareAnalysis): Draft | undefined {
         table.checksumValid === undefined ? "— (1.6 has none)" : yesNo(table.checksumValid)
       ).rows,
     children: rows,
+    marks: tableMarks("CSE Layout Table", table.checksumValid),
   };
 }
 
@@ -384,6 +405,7 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
       subtitle: countText(bpdt.entries.length, "entry"),
       fields: header.rows,
       children: entries,
+      marks: tableMarks("BPDT", bpdt.checksumValid),
     };
   });
   return {
@@ -421,6 +443,7 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
           .add("Size", sizeText(m.size))
           .add("Huffman", yesNo(m.isHuffman)).rows,
         isEmptySection: m.size === 0,
+        marks: moduleMarks(m, cp, a),
       })
     );
     children.push({ title: "Modules", subtitle: countText(rows.length, "module"), children: rows });
@@ -438,6 +461,7 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
     subtitle: `${cp.name} · ${cp.headerVersion === 1 ? "R1" : "R2"}`,
     fields: header.rows,
     children,
+    marks: codePartitionMarks(cp),
   };
 }
 
@@ -523,6 +547,7 @@ function manifest(a: FirmwareAnalysis): Draft | undefined {
         "Production Ready",
         m.productionReady === undefined ? undefined : yesNo(m.productionReady)
       ).rows,
+    marks: manifestMarks(a),
   };
 }
 
@@ -735,10 +760,14 @@ function oromGroup(a: FirmwareAnalysis): Draft | undefined {
 function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
   const rows = a.rbePmMetadata;
   if (rows === undefined || rows.length === 0) return undefined;
+  // Read out of the pm / rbe module's decompressed body: the rail, when that
+  // module is stored compressed, on the group and on every row.
+  const marks = metadataMarks(a);
   const children = rows.map(
     (row, index): Draft => ({
       title: `${row.variant.toUpperCase()} #${index}`,
       fields: valueFields(row),
+      marks,
     })
   );
   // Upstream's leftover report: what the rbe / pm tables list that no module of
@@ -768,7 +797,9 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
           title: `Hash ${index + 1}`,
           subtitle: `${hash.slice(0, 16)}…`,
           fields: [field("Hash", hash)],
+          marks,
         })),
+        marks,
       });
     }
   }
@@ -777,6 +808,7 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
     subtitle: countText(rows.length, "row"),
     fields,
     children: nodes,
+    marks,
   };
 }
 

@@ -2197,6 +2197,23 @@ button.uefi-title {
   background: transparent;
 }
 
+/* A pane of a split that carries a legend (`Design/ROW_MARKS.md` §6): the list
+   from the top, the legend under it, both as wide as the pane. The list gives
+   up the room — a legend that took it from the rows would be covering the
+   thing it explains. Upstream says the same with `install(below:in:)`. */
+.tool-marked-list {
+  grid-area: a;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tool-marked-list > :first-child {
+  flex: 1;
+  min-height: 0;
+}
+
 .tool-split > .pane-divider:hover,
 .tool-split > .pane-divider:focus-visible {
   background: linear-gradient(var(--accent), var(--accent)) center / 100% 1px no-repeat;
@@ -2303,24 +2320,167 @@ button.uefi-title {
   cursor: default;
 }
 
-/* A checksum that does not check out: the octagon upstream gives an error, in
-   the colour and the shape, so it survives a theme and colour blindness. */
-.tool-problem {
+.uefi-loading {
+  color: var(--text-muted);
+}
+
+/* A mark of the shared row-mark catalogue (`Design/ROW_MARKS.md` §3, §4): the
+   glyph drawn in the palette entry the catalogue gives it. One rule per mark,
+   so the colour is chosen in one place and the rows and the legend agree. */
+.tool-row-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.tool-row-mark[data-mark="error"] {
+  color: var(--semantic-bad);
+}
+
+.tool-row-mark[data-mark="caution"] {
+  color: var(--semantic-caution);
+}
+
+/* The verdicts, in the catalogue's three colours: the newest is good, and a
+   newer revision the catalogue lists is a caution whether or not it serves this
+   board — the shape says which of the two it is. */
+.tool-row-mark[data-mark="newest"] {
+  color: var(--semantic-good);
+}
+
+.tool-row-mark[data-mark="newerListed"],
+.tool-row-mark[data-mark="newerMaybe"] {
+  color: var(--semantic-caution);
+}
+
+.tool-row-mark[data-mark="compressed"] {
+  color: var(--row-mark-decompressed);
+}
+
+/* Everything the catalogue has no colour of its own for: the algorithm nothing
+   here opens, and the two badges. Grey, and none of them a problem. */
+.tool-row-mark[data-mark="compressedUndecoded"],
+.tool-row-mark[data-mark="holdsChecks"],
+.tool-row-mark[data-mark="partlyProtected"] {
+  color: var(--text-muted);
+}
+
+/* The legend (`ui/toolPanel/ToolRowMarksLegend`): a disclosure strip inside the
+   panel's own pane, under the list it explains. */
+.tool-row-marks-legend {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  padding-inline: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.tool-row-marks-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tool-row-marks-disclosure,
+.tool-row-marks-title {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tool-row-marks-disclosure {
+  width: 14px;
+  text-align: center;
+}
+
+/* Pushed to the trailing edge, and cut short rather than wrapped: a header
+   squeezed for a moment would otherwise be left one letter a line. */
+.tool-row-marks-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tool-row-marks-lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  /* Under the title, not under the chevron. */
+  padding-left: 20px;
+  list-style: none;
+}
+
+.tool-row-marks-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tool-row-marks-line[data-hidden] {
+  color: var(--text-faint);
+}
+
+/* The sample a line draws its mark in: as tall as the panel's body text plus a
+   point or two — upstream's `ToolPanelFont.size + 2` — and as wide as the glyph
+   plus its own margin, so a swatch and a symbol line up down the list. */
+.tool-row-marks-sample {
   flex: none;
   display: grid;
   place-items: center;
-  width: 13px;
-  height: 13px;
-  margin-right: 3px;
-  background: var(--semantic-bad);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  width: calc(var(--hex-font-size, 13px) + 6px);
+  height: calc(var(--hex-font-size, 13px) + 2px);
 }
 
-.uefi-loading {
-  color: var(--text-muted);
+.tool-row-marks-swatch {
+  width: 100%;
+  height: 100%;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--surface-raised);
+}
+
+/* The background: the tint over the control ground it is drawn on, exactly what
+   a row wears over the panel's. */
+.tool-row-marks-swatch[data-tint="protectedIBB"] {
+  background: var(--row-mark-ibb);
+}
+
+.tool-row-marks-swatch[data-tint="protectedFirmware"] {
+  background: var(--row-mark-firmware);
+}
+
+/* The rail: the same swatch with the bar at its leading edge. */
+.tool-row-marks-swatch[data-rail]::before {
+  content: "";
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px 0 0 2px;
+}
+
+.tool-row-marks-swatch[data-rail][data-tint="decompressed"]::before {
+  background: var(--row-mark-decompressed);
+}
+
+.tool-row-marks-line[data-hidden] .tool-row-marks-swatch {
+  opacity: 0.4;
+}
+
+.tool-row-marks-meaning {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tool-notice {
@@ -2965,6 +3125,63 @@ button.uefi-title {
 .me-notice-problem[data-kind="rateLimited"],
 .me-notice-problem[data-kind="offline"] {
   color: var(--semantic-caution);
+}
+
+/* MARK: - The paint a marked row wears (`ui/toolPanel/RowMarks`) */
+
+/* What a row's marks put *behind* it (`Design/ROW_MARKS.md` §1, §2), for every
+   panel that marks its rows: the Boot Guard tint as `data-tint`, the rail as
+   `data-rail`. The icons are elements and live with the cells.
+
+   The tint is a background *layer* rather than a child, because it has to
+   compose with the two backgrounds a row already has: the alternating row
+   colour under it, and the selection over it, which replaces it as on every
+   table. `background-color` is the bottom layer and `background-image` paints
+   over it, so the alternate colour stays the panel's own rule and the tint is
+   one image layer above it — and a selected row draws the panel's selection
+   colour with no tint layer at all.
+
+   These rules come after every panel's row rules on purpose, and not by
+   accident: they win over `.uefi-row[data-alt]`, `.me-row[data-alt]` and
+   `.fit-row:nth-child(even)` on equal specificity only by standing later, and
+   the selected rules carry one more attribute so that neither a later rule nor
+   an accident of ordering can put a tint back over a selection.
+
+   Nothing here sets `position` on the row. A UEFI row is absolutely positioned
+   — that is how the virtualised tree places it at `index * ROW_HEIGHT` — and a
+   rule of equal specificity standing later would turn it into a relatively
+   positioned one, leaving the inline `top` to offset it from where it then
+   flowed: every row lands twice as far down as the one before and the tree
+   shows a band of empty space between consecutive rows. So the rail is an
+   inset shadow rather than a pseudo-element, which needs no positioning
+   context from the row at all — and, like the tint, it is paint that composes
+   with the backgrounds already there instead of a child element taking room in
+   a grid the panels lay out. */
+.tool-marked-row[data-tint] {
+  background-image: linear-gradient(var(--row-mark-paint), var(--row-mark-paint));
+}
+
+/* The two tints the catalogue reserves (§3), named the way the legend's samples
+   name them, so a row and its legend line cannot pick different colours. */
+.tool-marked-row[data-tint="protectedIBB"] {
+  --row-mark-paint: var(--row-mark-ibb);
+}
+
+.tool-marked-row[data-tint="protectedFirmware"] {
+  --row-mark-paint: var(--row-mark-firmware);
+}
+
+.tool-marked-row[data-tint][data-selected] {
+  background-image: none;
+}
+
+/* The rail: three points at the leading edge, drawn over the selection too,
+   because where a row's bytes live does not stop being true when the row is
+   picked. An inset shadow paints above the backgrounds, so it needs no layer
+   of its own in the `background-image` list the tint occupies, and it is not
+   displaced by a scroll or a row's own padding. */
+.tool-marked-row[data-rail] {
+  box-shadow: inset 3px 0 0 var(--row-mark-decompressed);
 }
 
 /* MARK: - The microcode form (`tools/fit/MicrocodeForm`) */

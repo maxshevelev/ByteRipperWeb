@@ -19,6 +19,29 @@ import type { EFIGUID } from "@/firmware/uefi/efiGuid";
  */
 
 /**
+ * How a container's body is compressed, and whether this project opens it.
+ *
+ * The parser knows both at the moment it reads the algorithm byte or the
+ * section's GUID, which is the only moment they are cheap to work out — a
+ * panel that wants to say "LZMA, and not opened here" would otherwise have to
+ * find the byte again through the reader it may no longer have.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#SectionCompression
+ */
+export interface SectionCompression {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#SectionCompression.algorithm */
+  readonly algorithm: string;
+  /**
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#SectionCompression.decodes
+   * @upstream-differs false for every algorithm: this port decompresses no
+   * section at all (G1), so none of them is one it could open — and saying
+   * otherwise would put a "did not decompress" caution on every compressed
+   * section in the image.
+   */
+  readonly decodes: boolean;
+}
+
+/**
  * What an element *is*.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINodeKind
@@ -144,6 +167,15 @@ export interface UEFINode {
    */
   isCompressed: boolean;
   /**
+   * The algorithm a container's body is compressed with — nothing for a body
+   * that is not compressed, and for one whose algorithm the format does not
+   * name. Read by a panel's compressed badge, which says whether this project
+   * opens it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.compression
+   */
+  compression?: SectionCompression | undefined;
+  /**
    * Nothing but the erase byte: free space, or padding that was never used.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isErased
@@ -184,6 +216,7 @@ export interface NodeOptions {
   readonly tail?: ImageRange | undefined;
   readonly isFixed?: boolean;
   readonly isCompressed?: boolean;
+  readonly compression?: SectionCompression | undefined;
   readonly isErased?: boolean;
   readonly isExpandable?: boolean;
   readonly childDepth?: number;
@@ -203,6 +236,7 @@ export function makeNode(options: NodeOptions): UEFINode {
     tail: options.tail ?? { start: options.body.end, end: options.body.end },
     isFixed: options.isFixed ?? false,
     isCompressed: options.isCompressed ?? false,
+    compression: options.compression,
     isErased: options.isErased ?? false,
     isExpandable: options.isExpandable ?? false,
     childDepth: options.childDepth ?? 0,

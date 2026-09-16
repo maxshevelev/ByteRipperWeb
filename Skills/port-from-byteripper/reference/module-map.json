@@ -533,7 +533,7 @@
         "Packages/AppPalette/Sources/AppPalette/Palette+Generated.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SemanticColors*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#*.Sets": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#RowMarks*": "later — row marks (tints, rails, badges, the legend) are not ported",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#RowMarks*": "n/a — the three colours a row mark reserves are CSS custom properties (--row-mark-ibb, --row-mark-firmware, --row-mark-decompressed) in src/ui/theme/theme.css, which the anchor check does not read; src/tools/toolRowMarkStyle.ts says which mark takes which",
         "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read"
       },
       "files": {
@@ -550,7 +550,7 @@
         "src/workers/firmware.worker.ts"
       ],
       "status": "in-progress",
-      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is. Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), the tree has no row marks or legend (ROW_MARKS.md is not ported), column widths are fixed rather than draggable, and open rows are the panel's own rather than remembered per file. The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
+      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; UEFITreeMarks.swift, uefiTreeMarks.ts). Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), so no row wears the rail (G1) and no node is placed inside a protected range, so none is tinted (G3) — the legend lists neither, and the two vendor hash tables are the only holders of checks, the Insyde arm being unported (G6). Column widths are fixed rather than draggable, and open rows are the panel's own rather than remembered per file. The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
       "files": {
         "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "UEFIToolModule.swift": "src/tools/uefi/uefiStructureTool.tsx",
@@ -567,7 +567,8 @@
           "src/tools/uefi/uefiStructureTool.tsx",
           "src/workers/firmware.worker.ts"
         ],
-        "UEFITreeMarks.swift": "src/tools/uefi/uefiStructureTool.tsx",
+        "UEFITreeMarks.swift": "src/tools/uefi/uefiTreeMarks.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift": "src/tools/uefi/uefiTreeMarks.test.ts",
         "GuidsSource.swift": [
           "src/state/guidCatalogue.ts",
           "src/state/guidCatalogueSource.ts"
@@ -588,8 +589,6 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedExport": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.fileSource": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumField*": "n/a — a checksum problem is a sentence on the row, not a field set",
-        "Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.legendMarks": "later — the row-marks legend is not ported",
-        "Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.holdsChecks": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#GuidsSourceError*": "later — a failed catalogue fetch is worded by remoteFailureMessage, not a typed error",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.init": "n/a — the source is a module constant",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.settle": "n/a — a test seam for the actor's refresh",
@@ -621,7 +620,9 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.say": "n/a — the busy and notice lines are rendered from state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.init": "n/a — an object literal",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift#*": "later — the checksum check lives in the worker and the view, and has no tests of its own yet",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#*": "later — row marks beyond the problem mark are not ported",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testANodeInsideWearsTheRailAndSaysWhereFrom": "later — nothing is decompressed here, so no row comes out of compressed data (G1)",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testASectionStartsTheRailOnlyWhileItsRowIsOpen": "later — compressed sections are not opened, so no row starts a rail (G1)",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testASectionThatDidNotDecompressIsACaution": "later — compressed sections are not opened, so nothing fails to decompress (G1)",
         "Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#*": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Tests/UEFIToolTests/TestUEFI.swift#*": "n/a — the web UEFI tool tests build their images with src/firmware/testing"
@@ -638,7 +639,7 @@
         "src/ui/toolPanel/ToolDetail.tsx"
       ],
       "status": "ported",
-      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict and the problem mark sit ahead of the type, and a double-click goes where the row points. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after.",
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict, the problem mark and up to two role badges sit ahead of the type in that order (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after.",
       "files": {
         "FITToolViewController.swift": "src/tools/fit/fitTool.tsx",
         "FITAddMicrocodeViewController.swift": [
@@ -664,7 +665,8 @@
         ],
         "Modules/FITTool/Sources/FITTool/FITEditor.swift": "src/tools/fit/fitEditor.ts",
         "Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift": "src/tools/fit/microcodeCatalogue.ts",
-        "Modules/FITTool/Sources/FITTool/FITRowMarks.swift": "src/tools/fit/fitTool.tsx",
+        "Modules/FITTool/Sources/FITTool/FITRowMarks.swift": "src/tools/fit/fitRowMarks.ts",
+        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift": "src/tools/fit/fitRowMarks.test.ts",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift": "src/tools/fit/fitTool.tsx",
         "Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift": [
           "src/state/microcodeCatalogueSource.ts",
@@ -690,8 +692,6 @@
         "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.protectionWarnings": "later — Boot Guard protected ranges are not ported",
         "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITPlacement*": "later — the placement is not ported as a value of its own",
         "Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.id": "n/a — entries are keyed by their file name",
-        "Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.holdsChecks": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.legendMarks": "later — the row-marks legend is not ported",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.makeSession": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITParkedState*": "later — parked session state; a web tool starts afresh",
@@ -721,7 +721,7 @@
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.menuNeedsUpdate": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.numberOfRows": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableView": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
-        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.legend": "later — the row-marks legend is not ported",
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.legend": "n/a — the legend is a React component (ToolRowMarksLegend) that the panel places in its own pane; the panel key it is built with is FIT_PANEL (fitTool.tsx)",
         "Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.table": "n/a — AppKit table furniture; the form renders its list from state",
         "Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.show": "n/a — AppKit table furniture; the form renders its list from state",
         "Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.say": "n/a — AppKit table furniture; the form renders its list from state",
@@ -729,7 +729,10 @@
         "Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.tableView": "n/a — AppKit table furniture; the form renders its list from state",
         "Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.init": "n/a — the source is a module constant",
         "Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.settle": "n/a — a test seam for the actor's refresh",
-        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#*": "later — row marks beyond the problem and latest marks are not ported, and those two have no tests of their own",
+        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testARowPointingIntoTheIBBWearsItsBackground": "later — no row is placed inside a protected range, so none is tinted (G3)",
+        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testAPartlyCoveredComponentWearsTheBadgeNotTheTint": "later — no protected ranges, so nothing is partly covered (G3)",
+        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testNoRangesPlaceNothing": "later — no protected ranges at all (G3)",
+        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testTheHeaderIsPlacedByTheTablesBytes": "later — the display has no rowRange or tableRange field (see FITDisplay.swift)",
         "Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.Row.*": "n/a — the fields of the web fixture's TestRow",
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#BinaryWriter*": "n/a — the web fixtures write their bytes through local helpers of their own",
@@ -744,12 +747,13 @@
         "src/platform/clipboard/richClipboard.ts"
       ],
       "status": "in-progress",
-      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone, the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin.",
+      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone, the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
       "files": {
         "MEANode.swift": "src/tools/me/meaTree.ts",
         "MEACurator.swift": "src/tools/me/meaTree.ts",
         "MEAValueText.swift": "src/tools/me/meaTree.ts",
         "MEAZones.swift": "src/tools/me/meaTree.ts",
+        "MEATreeMarks.swift": "src/tools/me/meaTreeMarks.ts",
         "MEASummary.swift": "src/tools/me/meaSummary.ts",
         "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
         "MEAToolUI/MEAToolModule.swift": "src/tools/me/meTool.tsx",
@@ -757,15 +761,16 @@
         "MEAToolTests/MEACuratorTests.swift": "src/tools/me/meaTree.test.ts",
         "Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift": "src/tools/me/meaTree.test.ts",
         "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift": "src/tools/me/meaTree.test.ts"
+        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift": [
+          "src/tools/me/meaTree.test.ts",
+          "src/tools/me/meaTreeMarks.test.ts"
+        ]
       },
       "unported": {
-        "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.marks": "later — the tree's row marks (compression badges, rails, check results) are not ported",
         "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
         "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.init": "n/a — an object literal",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.init": "n/a — an object literal",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryBlock.init": "n/a — an object literal",
-        "Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#*": "later — the tree's row marks (compression badges, rails, check results) are not ported",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.makeSession": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.onDisplay": "n/a — the view is a React component: its render and effects are the session's lifecycle",
@@ -775,17 +780,11 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.contentChanged": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.stop": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.zoneSelected": "later — a zone picked in the dump is not handed back to the tool",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.legend": "later — the row-marks legend is not ported",
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.legend": "n/a — the legend is a React component (ToolRowMarksLegend) that the panel places in its own pane; the panel key it is built with is MEA_PANEL (meTool.tsx)",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showBusy": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.endBusy": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.say": "n/a — the busy, notice and retry lines are rendered from state",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testCompressedModulesWearTheBadge": "later — the tree's row marks (compression badges, rails, check results) are not ported",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testAFailedModuleCheckIsACautionOnItsRow": "later — the tree's row marks (compression badges, rails, check results) are not ported",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheMetadataRowsWearTheRailWhenTheirModuleIsCompressed": "later — the tree's row marks (compression badges, rails, check results) are not ported",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheManifestHoldsChecksAndSaysWhenItsSignatureFails": "later — the tree's row marks (compression badges, rails, check results) are not ported",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTablesWithAWrongChecksumAreErrors": "later — the tree's row marks (compression badges, rails, check results) are not ported",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheLegendListsNoBackground": "later — the tree's row marks (compression badges, rails, check results) are not ported"
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state"
       }
     },
     {
@@ -4533,10 +4532,15 @@
         "src/tools/toolModule.ts",
         "src/tools/zone.ts",
         "src/tools/toolTransaction.ts",
-        "src/ui/toolPanel/ToolDetail.tsx"
+        "src/ui/toolPanel/ToolDetail.tsx",
+        "src/tools/toolRowMarks.ts",
+        "src/tools/toolRowMarkStyle.ts",
+        "src/ui/toolPanel/RowMarks.tsx",
+        "src/ui/toolPanel/RowMarkIcon.tsx",
+        "src/ui/toolPanel/ToolRowMarksLegend.tsx"
       ],
       "status": "in-progress",
-      "note": "The tool seam: ToolModule and ToolSession are a module object and its View component; ToolHost is the ToolContext plus the stores a tool reads; transactions and zones are ported with their tests.",
+      "note": "The tool seam: ToolModule and ToolSession are a module object and its View component; ToolHost is the ToolContext plus the stores a tool reads; transactions and zones are ported with their tests. The row marks a firmware panel dresses its rows with, and the legend that explains them, are here too (ROW_MARKS.md): ToolRowMarks and ToolRowMarkStyle are the value, the catalogue and the symbols (toolRowMarks.ts, toolRowMarkStyle.ts), the legend is a React component that takes its room in the panel's own pane (ToolRowMarksLegend.tsx), and what upstream draws in ToolPanelRowView and ToolPanelTable becomes attributes on the row element and icons inside it (RowMarks.tsx, RowMarkIcon.tsx) read by the rules in src/app/app.css.",
       "unported": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.fileName": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.contentSize": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
@@ -4565,15 +4569,18 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.content": "n/a — AppKit stack view",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.placeholder": "n/a — AppKit label",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.init": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#*": "later — row marks (tints, rails, badges, the legend) are not ported",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarkStyle.swift#*": "later — row marks (tints, rails, badges, the legend) are not ported",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#*": "later — row marks (tints, rails, badges, the legend) are not ported",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelRowView.swift#*": "later — row marks (tints, rails, badges, the legend) are not ported",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.verdicts": "n/a — a panel's own extra legend lines; here every line comes from the shared catalogue (ToolRowMark), so a panel adds none",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelRowView.swift#*": "n/a — an AppKit row view; here the paint is attributes on the row element (rowPaintAttrs, src/ui/toolPanel/RowMarks.tsx) and the rules that read them are in src/app/app.css",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelFont.swift#*": "n/a — the panel's type sizes are CSS",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#*": "n/a — AppKit table furniture",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#*": "n/a — AppKit table furniture; the half that dresses a row is ported (rowMarksBadges and rowMarkTitle, src/ui/toolPanel/RowMarks.tsx)",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolWrappingLabel.swift#*": "n/a — an NSTextField subclass",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#*": "later — the seam has no web tests of its own yet",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#*": "later — row marks (tints, rails, badges, the legend) are not ported",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheOldWarningCallStillShowsAnError": "n/a — the deprecated call it covers has no counterpart here",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheVerdictCallDrawsTheCataloguesMark": "later — read back off a dressed AppKit cell; the verdict path itself is rowMarksBadges (RowMarks.test.ts)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheLegendStartsShutAndRemembersBeingOpened": "later — no React component tests in this project yet; the remembered-key names are checked (ToolRowMarksLegend.test.ts)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheShowMarkingsSwitchIsRememberedAndReported": "later — no React component tests in this project yet; the remembered-key names are checked (ToolRowMarksLegend.test.ts)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheLegendLaysOutWithoutAmbiguityShutOrOpen": "n/a — a layout pass over an AppKit stack view; here the browser lays the legend out from CSS",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheLegendLeavesRoomAroundAndBetweenHeaderAndList": "n/a — a layout pass over an AppKit stack view; here the legend's margins are CSS (src/app/app.css)",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailScrollTests.swift#*": "later — no React component tests in this project yet",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolPanelFontTests.swift#*": "n/a — the panel's type sizes are CSS"
       },
@@ -4589,7 +4596,19 @@
           "src/tools/toolModule.ts",
           "src/tools/contentChange.ts"
         ],
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift": "src/ui/toolPanel/ToolDetail.tsx"
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift": "src/ui/toolPanel/ToolDetail.tsx",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift": "src/tools/toolRowMarks.ts",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarkStyle.swift": "src/tools/toolRowMarkStyle.ts",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift": "src/ui/toolPanel/ToolRowMarksLegend.tsx",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend+Pane.swift": [
+          "src/ui/toolPanel/ToolRowMarksLegend.tsx",
+          "src/app/app.css"
+        ],
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift": [
+          "src/tools/toolRowMarks.test.ts",
+          "src/ui/toolPanel/RowMarks.test.ts",
+          "src/ui/toolPanel/ToolRowMarksLegend.test.ts"
+        ]
       }
     },
     {

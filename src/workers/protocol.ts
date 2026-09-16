@@ -383,6 +383,14 @@ export interface WireNode {
   readonly tail: readonly [number, number];
   readonly isFixed: boolean;
   readonly isCompressed: boolean;
+  /**
+   * The algorithm this node's body is compressed with, and whether the port
+   * opens it — what a panel's compressed badge is read from. Absent for a body
+   * that is not compressed.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.compression
+   */
+  readonly compression?: { readonly algorithm: string; readonly decodes: boolean } | undefined;
   readonly isErased: boolean;
   readonly isExpandable: boolean;
   readonly childDepth: number;

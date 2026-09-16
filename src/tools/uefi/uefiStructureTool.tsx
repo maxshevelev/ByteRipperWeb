@@ -16,11 +16,15 @@ import { workspaceStore } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { uefiZones } from "@/tools/uefi/uefiPresenter";
 import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
+import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 import type { WireNode } from "@/workers/protocol";
 
 /**
@@ -76,6 +80,14 @@ const LOADING_ROW_DELAY = 200;
 /** The tree's share of the split, which upstream starts at two thirds. */
 const DEFAULT_TREE_SHARE = 2 / 3;
 const TREE_SHARE_KEY = "byteripper.uefiTreeShare";
+
+/**
+ * The panel's name in the legend's remembered states. Upstream's, so a reader
+ * who has made the same choice in both editions keeps it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.legend
+ */
+const UEFI_PANEL = "UEFIStructure";
 
 function storedTreeShare(): number {
   try {
@@ -146,6 +158,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsEmptyPadding
    */
   const [showsEmptyPadding, setShowsEmptyPadding] = useState(storedShowsEmptyPadding);
+  /**
+   * Whether the tree paints its rows — the legend's Show Markings switch, which
+   * is remembered beside the legend's own state.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.legend
+   */
+  const [showsMarkings, setShowsMarkings] = useShowsMarkings(UEFI_PANEL);
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -318,24 +337,19 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   }, [rows, scrollTarget]);
 
   /**
-   * What is wrong with this node, when a checksum diagnostic is about it — by
-   * offset, because that is how a diagnostic locates itself.
+   * What a row wears besides its name, decided in the pure marks of the tree
+   * (`Design/ROW_MARKS.md` §5.1) — read off the node and the parse's
+   * diagnostics, which is where this port keeps the checksums.
    *
-   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck
-   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.badFields
-   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.fields
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.checksumProblems
-   * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.checksumText
-   * @upstream-differs one problem string per row, read from the worker's repairs, rather than a set of fields
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.marks
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.marks(for:)
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks
+   * @upstream-differs the protected ranges and the decompressed buffers are not
+   * read here yet (G3, G1), so no row wears a tint or a rail
    */
-  const problemOf = useCallback(
-    (node: WireNode) =>
-      (state?.diagnostics ?? []).find(
-        (one) =>
-          one.message.includes("checksum") &&
-          one.offset >= node.header[0] &&
-          one.offset < Math.max(node.header[1], node.body[1])
-      )?.message,
+  const marksOf = useCallback(
+    (node: WireNode): ToolRowMarks =>
+      uefiTreeMarks({ node, diagnostics: state?.diagnostics ?? [] }),
     [state?.diagnostics]
   );
 
@@ -498,70 +512,86 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         className="tool-split"
         style={{ gridTemplateRows: `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)` }}
       >
-        <div
-          className="uefi-tree"
-          ref={treeRef}
-          role="tree"
-          tabIndex={0}
-          aria-label="Firmware structure"
-          onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-          onKeyDown={onKeyDown}
-        >
-          <div className="uefi-tree-head" style={{ minWidth }} aria-hidden="true">
-            <span>Name</span>
-            <span>Type</span>
-            <span>Subtype</span>
-          </div>
-          <div className="uefi-tree-spacer" style={{ height: rows.length * ROW_HEIGHT, minWidth }}>
-            {rows.slice(first, last).map((row, offset) => (
-              <TreeRow
-                key={row.key}
-                row={row}
-                index={first + offset}
-                named={
-                  row.node === undefined
-                    ? ""
-                    : nodeName(
-                        {
-                          kind: row.node.kind,
-                          subtype: row.node.subtype,
-                          name: row.node.name,
-                          guid:
-                            row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
-                        },
-                        catalogue.catalogue
-                      )
-                }
-                problem={row.node === undefined ? undefined : problemOf(row.node)}
-                showsEmptyPadding={showsEmptyPadding}
-                isOpen={open.has(row.key)}
-                isSelected={selected === row.key}
-                onToggle={toggle}
-                onChoose={choose}
-                onMenu={(event, node) => {
-                  choose(node);
-                  // Upstream offers exactly one command here, and only on a node
-                  // whose checksum is wrong — a clean row gets no menu at all.
-                  openContextMenu(event, [
-                    problemOf(node) === undefined
-                      ? undefined
-                      : {
-                          label: "Fix Checksum",
-                          onSelect: () => {
-                            void fixFirmwareChecksum(
-                              context.pane,
-                              node.id,
-                              volumeRevisionFor(node.id)
-                            ).then((count) => {
-                              if (count === 0) context.report("There was nothing to put back.");
-                            });
+        {/* The tree and its legend are one pane of the split: the legend takes
+            its room at the pane's bottom edge and the tree gives it up, so it
+            never covers a row (`Design/ROW_MARKS.md` §6). */}
+        <div className="tool-marked-list">
+          <div
+            className="uefi-tree"
+            ref={treeRef}
+            role="tree"
+            tabIndex={0}
+            aria-label="Firmware structure"
+            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            onKeyDown={onKeyDown}
+          >
+            <div className="uefi-tree-head" style={{ minWidth }} aria-hidden="true">
+              <span>Name</span>
+              <span>Type</span>
+              <span>Subtype</span>
+            </div>
+            <div
+              className="uefi-tree-spacer"
+              style={{ height: rows.length * ROW_HEIGHT, minWidth }}
+            >
+              {rows.slice(first, last).map((row, offset) => (
+                <TreeRow
+                  key={row.key}
+                  row={row}
+                  index={first + offset}
+                  named={
+                    row.node === undefined
+                      ? ""
+                      : nodeName(
+                          {
+                            kind: row.node.kind,
+                            subtype: row.node.subtype,
+                            name: row.node.name,
+                            guid:
+                              row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
                           },
-                        },
-                  ]);
-                }}
-              />
-            ))}
+                          catalogue.catalogue
+                        )
+                  }
+                  marks={row.node === undefined ? undefined : marksOf(row.node)}
+                  showsMarkings={showsMarkings}
+                  showsEmptyPadding={showsEmptyPadding}
+                  isOpen={open.has(row.key)}
+                  isSelected={selected === row.key}
+                  onToggle={toggle}
+                  onChoose={choose}
+                  onMenu={(event, node) => {
+                    choose(node);
+                    // Upstream offers exactly one command here, and only on a node
+                    // whose checksum is wrong — a clean row gets no menu at all.
+                    openContextMenu(event, [
+                      marksOf(node).problem === undefined
+                        ? undefined
+                        : {
+                            label: "Fix Checksum",
+                            onSelect: () => {
+                              void fixFirmwareChecksum(
+                                context.pane,
+                                node.id,
+                                volumeRevisionFor(node.id)
+                              ).then((count) => {
+                                if (count === 0) context.report("There was nothing to put back.");
+                              });
+                            },
+                          },
+                    ]);
+                  }}
+                />
+              ))}
+            </div>
           </div>
+
+          <ToolRowMarksLegend
+            panel={UEFI_PANEL}
+            marks={UEFI_TREE_MARKS.legendMarks}
+            showsMarkings={showsMarkings}
+            onShowsMarkingsChange={setShowsMarkings}
+          />
         </div>
 
         <PaneDivider
@@ -599,16 +629,23 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 }
 
 /**
+ * One row of the tree: its name, the type and subtype beside it, and whatever
+ * `Design/ROW_MARKS.md` says it wears — the paint behind it and the icons ahead
+ * of its name.
+ *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.marks
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineView
- * @upstream-differs a row draws one problem mark; there are no rails or badges yet
+ * @upstream-differs the paint is attributes on the row and the icons are
+ * elements inside it, where upstream draws the first in a row view and dresses
+ * the second into the cell view
  */
 function TreeRow({
   row,
   index,
   named,
-  problem,
+  marks,
+  showsMarkings,
   showsEmptyPadding,
   isOpen,
   isSelected,
@@ -619,7 +656,8 @@ function TreeRow({
   readonly row: Row;
   readonly index: number;
   readonly named: string;
-  readonly problem: string | undefined;
+  readonly marks: ToolRowMarks | undefined;
+  readonly showsMarkings: boolean;
   readonly showsEmptyPadding: boolean;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
@@ -658,7 +696,7 @@ function TreeRow({
     // a row answers the pointer only.
     // biome-ignore lint/a11y/useKeyWithClickEvents: the tree handles the keys
     <div
-      className="uefi-row"
+      className="uefi-row tool-marked-row"
       role="treeitem"
       // Focusable, as a treeitem must be; -1 keeps the tab stop on the tree
       // rather than putting one on every one of a few thousand rows.
@@ -668,6 +706,10 @@ function TreeRow({
       {...(hasChildren ? { "aria-expanded": isOpen } : {})}
       data-selected={isSelected ? "" : undefined}
       data-alt={alternate}
+      // The row's background and rail in words, so nothing it says is said by
+      // colour alone (`Design/ROW_MARKS.md` §2).
+      title={rowMarkTitle(marks)}
+      {...rowPaintAttrs(marks, showsMarkings)}
       style={style}
       onClick={() => onChoose(node)}
       onContextMenu={(event) => onMenu(event, node)}
@@ -686,11 +728,7 @@ function TreeRow({
         >
           {hasChildren ? (isOpen ? "▾" : "▸") : ""}
         </button>
-        {problem === undefined ? null : (
-          <span className="tool-problem" role="img" aria-label="Invalid" title={problem}>
-            !
-          </span>
-        )}
+        <RowMarksIcons marks={marks} />
         <span className="uefi-name-text" title={node.guid ?? named}>
           {named}
         </span>
