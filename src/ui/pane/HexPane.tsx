@@ -4,8 +4,10 @@ import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
 import type { MatchSet } from "@/core/search/matchSet";
+import { segmentReadout } from "@/core/segments/segmentation";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
+import { statusLine } from "@/core/text/statusLine";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
 import { elementHeightLimit } from "@/platform/layout/elementHeightLimit";
 import { hexFontStack, measureFont } from "@/render/hexGrid/fontMetrics";
@@ -364,6 +366,23 @@ export function HexPane({
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
+  /**
+   * The selection's length, which the readout names when it is not a caret.
+   *
+   * Kept beside the caret rather than read off the document at render: a
+   * selection can change length without the caret moving — a range installed
+   * over bytes the caret already sits at — and the readout has to follow that.
+   */
+  const [selectionLength, setSelectionLength] = useState(0);
+  /**
+   * The file's size, which the readout reads the address width from.
+   *
+   * Also chrome state, and for the same reason as the two above: an edit that
+   * moves no edge of the selection — a replaced piece, a tool's bulk edit —
+   * changes the size without any listener above firing, and the readout would
+   * go on padding its addresses to the old file's width.
+   */
+  const [fileSize, setFileSize] = useState(doc.size);
   const [mode, setMode] = useState<"INS" | "OVR">("OVR");
   const [region, setRegion] = useState<InputRegion>("hex");
   const [dirty, setDirty] = useState(false);
@@ -668,6 +687,8 @@ export function HexPane({
       rendererRef.current?.setSelection({ start: current.start, end: current.end });
       rendererRef.current?.setCaret(rendererCaret(doc, typing));
       setCaret(current.start);
+      setSelectionLength(current.end - current.start);
+      setFileSize(doc.size);
       // Installing a selection resets the editing state, and one of the things
       // it resets is the column — so the readout is read back here rather than
       // only where this component's own keys changed it.
@@ -695,6 +716,7 @@ export function HexPane({
   useEffect(() => {
     const apply = () => {
       setDirty(doc.isDirty);
+      setFileSize(doc.size);
       const height = rendererRef.current?.contentHeight ?? 0;
       const moved = scrollerRef.current?.setContentHeight(height) === true;
       // A file that grew or shrank — an insert, a delete, a revert — fits itself
@@ -1715,14 +1737,31 @@ export function HexPane({
           onGo={onGoToMatch}
         />
       ) : null}
+      {/*
+        The status line (§21.3): the caret's offset, the selection's length, the
+        piece the caret is in, the file's size and the document's state, spelled
+        as upstream spells them and joined into one string. What is the web's
+        own is beside it rather than in it — the INS/OVR mode is upstream's
+        sibling label, and the input region and the operation strip are the
+        web's.
+
+        @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateTypingModeIndicator
+        @web-only the input region (Hex / Text) and the operation strip
+      */}
       <p className="hex-caret-readout" id={readoutId} aria-live="polite">
-        <span>Offset {caret.toString(16).toUpperCase().padStart(8, "0")}</span>
-        <span>{doc.size.toLocaleString()} bytes</span>
+        <span className="readout-line">
+          {statusLine({
+            fileSize,
+            cursorOffset: caret,
+            selectionLength,
+            isDirty: dirty,
+            segment: segmentReadout(partition, caret),
+          })}
+        </span>
         <span className="readout-mode" data-insert={mode === "INS" ? "" : undefined}>
           {mode}
         </span>
         <span className="readout-region">{region === "hex" ? "Hex" : "Text"}</span>
-        {dirty ? <span className="readout-dirty">Unsaved</span> : null}
         <OperationStrip pane={paneId} />
       </p>
     </div>

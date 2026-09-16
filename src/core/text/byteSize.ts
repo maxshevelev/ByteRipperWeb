@@ -7,8 +7,9 @@
  * read as "8 MB" rather than "8.39 MB".
  *
  * Rounded to a whole unit: "255 KB", not "255.5 KB". The exact figure belongs
- * where exactness is the point (the status bar says the byte count in full);
- * this is for the places that are naming a size in passing.
+ * where exactness is the point — the window's file summary, which says the byte
+ * count in full and groups its digits; this is for the places that are naming a
+ * size in passing, which is upstream's status line and the Segments form.
  */
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"] as const;

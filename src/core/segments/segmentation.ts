@@ -80,6 +80,49 @@ export function segmentLabel(index: number): string {
 }
 
 /**
+ * One piece as the status bar reads it (§21.3): the label the bar shows and the
+ * range it renders.
+ *
+ * A snapshot rather than a {@link Segment} because the bar holds it while the
+ * partition may move under it — there is no index to re-resolve and no name the
+ * bar does not show.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout
+ */
+export interface SegmentReadout {
+  /**
+   * Positional label: "S0", "S1", …
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout.label
+   */
+  readonly label: string;
+  /**
+   * The piece's half-open byte range.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout.range
+   */
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * The status bar's readout of the piece the caret is in — nothing when the pane
+ * is a single piece, where the readout's absence is the signal that the dump is
+ * not partitioned.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentReadout
+ */
+export function segmentReadout(
+  partition: Segmentation | undefined,
+  caret: number
+): SegmentReadout | undefined {
+  if (partition === undefined || partition.pieces.length <= 1) return undefined;
+  const piece = partition.containing(caret);
+  if (piece === undefined) return undefined;
+  return { label: segmentLabel(piece.index), start: piece.start, end: piece.end };
+}
+
+/**
  * The title for merging a piece into its neighbour.
  *
  * The one place the "into which" rule is written: the piece above absorbs it,

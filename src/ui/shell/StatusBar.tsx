@@ -50,7 +50,9 @@ export function StatusBar() {
 
 /**
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.friendlySize
- * @upstream-differs bytes, with digit grouping
+ * @upstream-differs bytes, with digit grouping — this summary is the window's, and
+ * exactness is what a summary of two files is for; the pane's own status line keeps
+ * upstream's abbreviation (src/core/text/statusLine.ts)
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.fileName
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.fileSize

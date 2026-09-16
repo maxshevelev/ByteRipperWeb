@@ -732,10 +732,9 @@ textarea,
   color: var(--semantic-caution);
 }
 
-.readout-dirty {
-  color: var(--byte-modified);
-  font-weight: 600;
-}
+/* An unsaved document says so in the line itself — upstream's "Modified" — and
+   is marked by form in the pane header's badge. The bytes it is about carry the
+   red, which is where the project's colour-and-form rule about state applies. */
 
 /* A long operation at the end of the status line: its name, a bar, a cross. */
 .operation-strip {

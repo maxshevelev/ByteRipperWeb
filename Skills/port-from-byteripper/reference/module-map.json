@@ -1082,12 +1082,17 @@
         "FilePaneView.swift": [
           "src/ui/pane/HexPane.tsx",
           "src/ui/pane/DocumentIcon.tsx",
-          "src/core/text/byteSize.ts"
+          "src/core/text/byteSize.ts",
+          "src/core/text/statusLine.ts"
         ],
         "ByteRipperApp/Pane/BackgroundOperation.swift": "",
         "ByteRipperApp/Pane/OperationStatusView.swift": "",
         "ByteRipperApp/Pane/PaneUEFIState.swift": "",
-        "ByteRipperApp/Pane/PaneViewModel.swift": "src/state/workspaceStore.ts"
+        "ByteRipperApp/Pane/PaneViewModel.swift": [
+          "src/state/workspaceStore.ts",
+          "src/core/text/statusLine.ts",
+          "src/core/segments/segmentation.ts"
+        ]
       },
       "unported": {
         "ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDoubleClick": "n/a — AppKit layout; CSS lays the panes out",
@@ -1130,18 +1135,11 @@
         "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysisRegion": "n/a — the UEFI panel keeps its own open rows",
         "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.hex": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.ascii": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout": "later — the status line does not name the piece under the caret",
-        "ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout.label": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#SegmentReadout.range": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.cursorOffset": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.selectionLength": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isDirty": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isReadOnly": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isUntitled": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.canUndo": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.canRedo": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isInsertMode": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.segment": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isReadOnly": "n/a — the web has no read-only document: an edit goes to an overlay and a save asks the platform for permission at the save, so there is never a file the pane may not write",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isUntitled": "n/a — the pane header's badge says a document was never saved (DocumentIcon)",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.canUndo": "n/a — the undo store's (src/state/undoRouter.ts), which the Edit menu reads",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.canRedo": "n/a — the undo store's (src/state/undoRouter.ts), which the Edit menu reads",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneStatus.isInsertMode": "n/a — the typing mode is the controller's (TypingController.modeLabel); the readout renders it beside the line, as upstream's sibling label (updateTypingModeIndicator) does",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneSaveError.requiresSaveAs": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.origin": "later — decompressed or copied parts opened as their own document, and Update in Parent",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.contentGeneration": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -1219,7 +1217,6 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexSelection": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexHasPendingInsert": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexMirroredSelection": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentReadout": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.caretOffset": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmFirstInsertModeEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.dropSelectionForInsert": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -3479,11 +3476,6 @@
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testSplitHereIsOfferedWheneverAFileIsOpen": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testRemoveSegmentMergesTheCaretPieceWithTheOneAbove": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testRemoveSegmentOnS0PromotesThePieceBelow": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testTheStatusBarNamesTheCaretsPiece": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testTheStatusBarIsSilentWithOnePiece": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testTheStatusBarRendersBareHexAndOneSegmentBlock": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testTheStatusBarPadsToTheFilesLargestAddressAndRoundsTheLength": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testTheStatusBarAbbreviatesTheSelectionLength": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentPaletteTests.swift#SegmentPaletteTests": "n/a — test scaffolding",
         "ByteRipperTests/SegmentPaletteTests.swift#SegmentPaletteTests.resolved": "n/a — test scaffolding",
         "ByteRipperTests/SegmentPaletteTests.swift#SegmentPaletteTests.distance": "n/a — test scaffolding",
