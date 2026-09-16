@@ -3210,6 +3210,13 @@ button.uefi-title {
   color: var(--text-faint);
 }
 
+/* A status-toned value (File System State) is bold as well as coloured — the
+   weight makes the state read at a glance among the rows around it, which is
+   why it is a step heavier than a block heading. */
+.me-summary-value[data-emphasis] {
+  font-weight: 700;
+}
+
 .me-summary-value[data-tone="good"] {
   color: var(--semantic-good);
 }

@@ -24,7 +24,12 @@ import {
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
-import { buildSummary, type MEASummaryBlock, type MEASummaryRow } from "@/tools/me/meaSummary";
+import {
+  buildSummary,
+  isEmphasized,
+  type MEASummaryBlock,
+  type MEASummaryRow,
+} from "@/tools/me/meaSummary";
 import {
   CHECKSUMS_TITLE,
   type MEAChecksums,
@@ -781,6 +786,7 @@ function SummaryView({
                   <span
                     className="me-summary-value"
                     data-tone={row.tone === "standard" ? undefined : row.tone}
+                    data-emphasis={isEmphasized(row) ? "" : undefined}
                     data-soon={row.value.kind === "comingSoon" ? "" : undefined}
                   >
                     {valueText(row)}
@@ -910,7 +916,9 @@ export function summaryHtml(blocks: readonly MEASummaryBlock[]): string {
 
 /**
  * The summary drawn as a picture: the rows as they read on screen, in the
- * panel's own face and colours, with a margin round them.
+ * panel's own face and colours, with a margin round them. A toned value keeps
+ * the weight the panel gives it — a picture that dropped it would not be the
+ * rows as they read.
  *
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryPicture
  */
@@ -922,7 +930,10 @@ function summaryPicture(
   const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
   const fontSize = Number.parseFloat(style.fontSize) || 13;
   const plain = `${fontSize}px ${style.fontFamily}`;
-  const bold = `600 ${plain}`;
+  const semibold = `600 ${plain}`;
+  // A status-toned value is drawn a step heavier than a heading, as upstream
+  // draws it in `.bold` where its titles are `.semibold`.
+  const bold = `700 ${plain}`;
   const margin = 10;
   const gap = 16;
   const lineHeight = Math.ceil(fontSize * 1.55);
@@ -943,13 +954,19 @@ function summaryPicture(
 
   draw.font = plain;
   let labelWidth = 0;
-  let valueWidth = 0;
   for (const line of lines) {
     if (line.kind !== "row") continue;
     labelWidth = Math.max(labelWidth, draw.measureText(line.row.label).width);
+  }
+  // Each value is measured in the face it will be drawn in: an emphasized one
+  // is wider than the plain measure, and the canvas is cut to the widest row.
+  let valueWidth = 0;
+  for (const line of lines) {
+    if (line.kind !== "row") continue;
+    draw.font = isEmphasized(line.row) ? bold : plain;
     valueWidth = Math.max(valueWidth, draw.measureText(valueText(line.row)).width);
   }
-  draw.font = bold;
+  draw.font = semibold;
   const titleWidth = Math.max(
     0,
     ...lines.map((line) => (line.kind === "title" ? draw.measureText(line.text).width : 0))
@@ -976,13 +993,16 @@ function summaryPicture(
   lines.forEach((line, index) => {
     if (line.kind === "title") {
       if (index > 0) y += lineHeight * 0.5;
-      draw.font = bold;
+      draw.font = semibold;
       draw.fillStyle = tones.standard;
       draw.fillText(line.text, margin, y + lineHeight / 2);
     } else {
       draw.font = plain;
       draw.fillStyle = token("--text-muted", "#6e6e73");
       draw.fillText(line.row.label, margin, y + lineHeight / 2);
+      // The value carries the weight and the colour the panel gives it; the
+      // label beside it is neither.
+      draw.font = isEmphasized(line.row) ? bold : plain;
       draw.fillStyle =
         line.row.value.kind === "comingSoon"
           ? token("--text-faint", "#8e8e93")

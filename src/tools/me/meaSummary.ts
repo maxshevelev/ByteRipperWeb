@@ -69,6 +69,26 @@ export interface MEASummaryBlock {
 export const shown = (text: string): MEASummaryValue => ({ kind: "value", text });
 export const COMING_SOON: MEASummaryValue = { kind: "comingSoon" };
 
+/**
+ * Whether a row's value is drawn emphasized — bold as well as coloured, so the
+ * state it names reads at a glance.
+ *
+ * Colour and weight are two answers to one question: is this row saying
+ * something the reader should notice. The rule is stated here once because the
+ * summary is drawn twice on this side of the port — the panel's rows and the
+ * picture taken of them — and both ask it rather than each deciding for itself.
+ *
+ * A promise is never emphasized, whatever tone its row carries: there is no
+ * fact behind it yet to draw attention to. Upstream says the same thing from
+ * the value's own side of the switch.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryRowView
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
+ */
+export function isEmphasized(row: MEASummaryRow): boolean {
+  return row.value.kind === "value" && row.tone !== "standard";
+}
+
 const nonEmpty = (text: string | undefined): text is string =>
   text !== undefined && text.length > 0;
 

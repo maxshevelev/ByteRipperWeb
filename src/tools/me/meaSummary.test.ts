@@ -3,6 +3,7 @@ import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
   buildSummary,
   COMING_SOON,
+  isEmphasized,
   type MEASummaryRow,
   type MEASummaryValue,
   shown,
@@ -22,6 +23,11 @@ const value = (label: string, rows: readonly MEASummaryRow[]): MEASummaryValue |
   rows.find((row) => row.label === label)?.value;
 const tone = (label: string, rows: readonly MEASummaryRow[]) =>
   rows.find((row) => row.label === label)?.tone;
+/** Whether the row's value is drawn bold as well as coloured. */
+const emphasis = (label: string, rows: readonly MEASummaryRow[]) => {
+  const row = rows.find((one) => one.label === label);
+  return row === undefined ? undefined : isEmphasized(row);
+};
 const identified = (overrides: Partial<FirmwareAnalysis> = {}) =>
   analysisWith({ manifest: manifestFixture(), ...overrides });
 const manifestOn = (year: number, month: number, day: number, productionReady?: boolean) => ({
@@ -155,6 +161,21 @@ describe("the primary table, filled in", () => {
     expect(value("File System State", state("error"))).toEqual(shown("Error"));
     expect(tone("File System State", state("error"))).toBe("bad");
     expect(tone("Family", state("configured"))).toBe("standard");
+  });
+
+  // A value drawn in colour is drawn bold with it: the weight and the colour
+  // answer the same question, so the panel's rows and the picture taken of them
+  // ask `isEmphasized` rather than each setting a weight of its own.
+  it("emphasizes the value of a row that carries a tone", () => {
+    const state = (mfsState: FirmwareAnalysis["mfsState"]) => tableRows(identified({ mfsState }));
+    expect(emphasis("File System State", state("initialized"))).toBe(true);
+    expect(emphasis("File System State", state("error"))).toBe(true);
+    expect(emphasis("Family", state("configured"))).toBe(false);
+    // A promise is never emphasized, whatever tone its row carries: there is no
+    // fact behind it yet to draw attention to.
+    expect(isEmphasized({ label: "File System State", value: COMING_SOON, tone: "caution" })).toBe(
+      false
+    );
   });
 
   // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testChipsetRowsWhenThereAreLettersOrNot
