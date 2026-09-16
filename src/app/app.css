@@ -76,6 +76,11 @@ textarea,
 }
 
 .toolbar {
+  /* The bar's controls stand one height, as a toolbar's items do upstream: left
+     to themselves a control stands a text line's height in one and a glyph's in
+     another, and the row reads as boxes of different sizes. The icon buttons and
+     the two pop-ups all read this. */
+  --toolbar-control-height: 26px;
   grid-row: 1;
   display: flex;
   align-items: center;
@@ -322,7 +327,7 @@ textarea,
   place-items: center;
   flex: none;
   width: 30px;
-  height: 26px;
+  height: var(--toolbar-control-height);
   padding: 0;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -415,22 +420,86 @@ textarea,
   padding: 0.4rem 1rem;
 }
 
-.toolbar-field {
+/*
+ * The word size: the bar's one native `<select>`, dressed as the buttons beside
+ * it. It stays a `<select>` because that is the one built-in single-choice list
+ * HTML has, and the same control upstream's `NSPopUpButton(pullsDown: false)`
+ * is — the option it shows *is* its selection. Only the bezel is drawn here:
+ * left to itself the platform puts its own arrow and inset on it, and the one
+ * popup in the bar then reads as a different family from the pull-down next to
+ * it. So the bezel is the pull-down's own — see the box the two pop-ups share,
+ * with `.menu-trigger` — and the arrow is the chevron every pull-down wears,
+ * drawn over the end of the field.
+ */
+.toolbar-word-size {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  color: var(--text-muted);
-  white-space: nowrap;
 }
 
-.toolbar-field select,
+.toolbar-word-size .menu-chevron {
+  position: absolute;
+  right: 0.5rem;
+  /* Centred by hand rather than left to the flex line: an absolutely positioned
+     child sits where the alignment would have put it in Chromium, and not
+     everywhere does the same. */
+  top: 50%;
+  transform: translateY(-50%);
+  /* The field below owns the whole box, arrow included: a tap on the arrow
+     opens the list, which an arrow of its own that swallowed the tap would
+     not do. */
+  pointer-events: none;
+}
+
 .toolbar-select {
   font: inherit;
-  padding: 0.15rem 0.3rem;
+  /* The buttons' padding, with room at the end for the arrow drawn over it, so
+     the field stands the same height and its text starts where theirs does. */
+  padding: 0.25rem 1.4rem 0.25rem 0.7rem;
+  appearance: none;
   border: 1px solid var(--border-strong);
   border-radius: 5px;
   background: var(--surface);
   color: var(--text);
+  cursor: pointer;
+}
+
+.toolbar-select:hover {
+  background: var(--surface-sunken);
+}
+
+/*
+ * A `<select>` is operated with the keyboard, so Chromium hands it the ring for
+ * a tap as well — which is the one ring in the bar that a pointer can draw. The
+ * field asks whether the keyboard was the last input instead, and wears one only
+ * then, as the panel header's file selector does. `:focus-visible` stays in the
+ * rule because it is what says the field is still the focused one: a `<select>`
+ * keeps focus after a choice, and the ring belongs to the focus, not to the
+ * moment of the click.
+ */
+.toolbar-select:focus {
+  outline: none;
+}
+
+.toolbar-word-size.is-keyboard .toolbar-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/*
+ * The bar's two pop-ups — the tool picker and the word size — are one control
+ * upstream, in one toolbar: an `NSPopUpButton` each, the first with a menu under
+ * it and the second one itself, drawn by the same system at the same size. Here
+ * one is a menu this side draws and the other is a native `<select>`, whose line
+ * box is its options' rather than a button's, so what they share is stated once,
+ * here: the height of the bar's controls. The 15px the glyphs are drawn at comes
+ * with it — the two are the only controls in the bar that carry a word.
+ */
+.menu-trigger,
+.toolbar-select {
+  font-size: 15px;
+  line-height: 1;
+  height: var(--toolbar-control-height);
 }
 
 /* ── The pane ─────────────────────────────────────────────────────────── */
@@ -1383,9 +1452,8 @@ textarea,
 
 .menu-trigger {
   /* A glyph, not a word: it sits at the head of the bar and has to stay square
-     at every font size. */
-  font-size: 15px;
-  line-height: 1;
+     at every font size. The size it stands at, which the word-size field shares,
+     is stated with the toolbar's own controls. */
   padding-inline: 0.55rem;
 }
 

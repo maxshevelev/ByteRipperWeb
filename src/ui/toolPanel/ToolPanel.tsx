@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { showNotice } from "@/state/noticeStore";
 import {
   activate,
@@ -17,7 +17,9 @@ import { useStore } from "@/state/useStore";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { CloseButton } from "@/ui/shell/CloseButton";
+import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
+import { useKeyboardInput } from "@/ui/shell/useKeyboardInput";
 
 /**
  * The tool panel's chrome: a header naming the tool and the file its session is
@@ -105,14 +107,13 @@ export function ToolPanel({
             height="5"
             viewBox="0 0 8 5"
             aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <path
-              d="M1 1l3 3 3-3"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-            />
+            <ChevronShapes />
           </svg>
           <select
             className="tool-panel-file-select"
@@ -155,33 +156,6 @@ export function ToolPanel({
       />
     </aside>
   );
-}
-
-/**
- * Whether the last input came from the keyboard.
- *
- * Every other ring in the app is `:focus-visible`, which is the browser saying
- * the same thing, and for a `<button>` it says it right — a click on one leaves
- * no ring. A `<select>` is where that stops being true: a select is operated
- * with the keyboard, so Chromium marks one focus-visible however it was focused,
- * and a tap on the header would draw a ring no other control in the app draws.
- * So the file selector asks here instead, and draws its ring only while the
- * answer is the keyboard's — alongside `:focus-visible`, which is what says the
- * control is still the focused one.
- */
-function useKeyboardInput(): boolean {
-  const [keyboard, setKeyboard] = useState(false);
-  useEffect(() => {
-    const fromKeyboard = () => setKeyboard(true);
-    const fromPointer = () => setKeyboard(false);
-    window.addEventListener("keydown", fromKeyboard, true);
-    window.addEventListener("pointerdown", fromPointer, true);
-    return () => {
-      window.removeEventListener("keydown", fromKeyboard, true);
-      window.removeEventListener("pointerdown", fromPointer, true);
-    };
-  }, []);
-  return keyboard;
 }
 
 /**

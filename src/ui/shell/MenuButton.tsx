@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { focusFirstItem, MenuItems, useMenuKeys } from "@/ui/shell/MenuItems";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
@@ -94,15 +95,19 @@ export function MenuButton({
       >
         {label}
         {pullDown === true ? (
-          <svg className="menu-chevron" width="8" height="5" viewBox="0 0 8 5" aria-hidden="true">
-            <path
-              d="M1 1l3 3 3-3"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+          <svg
+            className="menu-chevron"
+            width="8"
+            height="5"
+            viewBox="0 0 8 5"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <ChevronShapes />
           </svg>
         ) : null}
       </button>

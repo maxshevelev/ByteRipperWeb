@@ -23,6 +23,7 @@ import {
 import { TOOLS } from "@/tools/registry";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { wordSizeChoiceTitle } from "@/ui/settings/settingsText";
+import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
 import {
@@ -45,6 +46,7 @@ import {
   toolbarItemEnabled,
   toolbarItems,
 } from "@/ui/shell/toolbarModel";
+import { useKeyboardInput } from "@/ui/shell/useKeyboardInput";
 
 /**
  * A web page has no menu bar (D12), so the commands live behind one button at
@@ -340,11 +342,22 @@ export function Toolbar({
   const activeTool = TOOLS.find((tool) => tool.id === tools.activeIdentifier);
   const layoutOffer = paneLayoutOffer(state.layout);
   const insertOn = active?.typing.isInsertMode === true;
+  // The word size is the bar's one `<select>`, and a select takes a ring from a
+  // tap; the field asks here whether the keyboard was the last input, as the
+  // panel header's selector does.
+  const keyboardRing = useKeyboardInput();
 
   // The Tools pull-down: None, then every tool by name, as upstream's Tools menu
   // has them — a radio group where None closes the panel and stays available,
   // and a tool needs a file open in the active pane. The web edition has no
   // Tools menu besides it; the toolbar is where the list lives.
+  //
+  // The line between None and the modules is upstream's: None is not a tool, it
+  // is how the panel is closed, and the separator is what says so. Upstream
+  // draws it only when the registry holds something, which is what
+  // `compactEntries` does with a separator nothing follows.
+  //
+  // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeToolsMenu
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateTool
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateMenuItem
   const toolEntries = compactEntries([
@@ -354,6 +367,7 @@ export function Toolbar({
       exclusive: true,
       onSelect: () => activate(undefined),
     },
+    { kind: "separator" },
     ...TOOLS.map((tool) => {
       const row = menuState(tool.id, active !== undefined);
       return {
@@ -480,21 +494,44 @@ export function Toolbar({
           </IconButton>
         );
       case "wordSize":
+        // A native `<select>`, which is the one built-in single-choice list
+        // HTML has and is the same control upstream's `NSPopUpButton(pullsDown:
+        // false)` is — the option it shows *is* its selection, and the keyboard
+        // reaches it for free. Only the bezel is drawn here: the platform's own
+        // arrow and inset make the one popup in the bar look like a different
+        // family from the buttons beside it, and upstream's popup takes the
+        // toolbar's bezel too. So the bezel is `.toolbar-button`'s and the
+        // arrow is the chevron every pull-down here wears.
         return (
-          <select
-            key={key}
-            className="toolbar-select"
-            value={state.wordSize}
-            onChange={(event) => setWordSize(wordSizeFrom(Number(event.target.value)))}
-            aria-label="Word Size"
-            title="Bytes per word in the hex grid"
-          >
-            {WORD_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {wordSizeChoiceTitle(size)}
-              </option>
-            ))}
-          </select>
+          <span key={key} className={`toolbar-word-size${keyboardRing ? " is-keyboard" : ""}`}>
+            <select
+              className="toolbar-select"
+              value={state.wordSize}
+              onChange={(event) => setWordSize(wordSizeFrom(Number(event.target.value)))}
+              aria-label="Word Size"
+              title="Bytes per word in the hex grid"
+            >
+              {WORD_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {wordSizeChoiceTitle(size)}
+                </option>
+              ))}
+            </select>
+            <svg
+              className="menu-chevron"
+              width="8"
+              height="5"
+              viewBox="0 0 8 5"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <ChevronShapes />
+            </svg>
+          </span>
         );
       case "diffNavigation":
         return (
