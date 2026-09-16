@@ -25,7 +25,7 @@ import {
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { paneClosed, toolController } from "@/state/toolController";
-import { redoLast, undoLast } from "@/state/undoRouter";
+import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
@@ -669,6 +669,44 @@ export function AppShell() {
     setReveal({
       [pane]: { offset: document.selection.start, token: ++revealToken.current, moveCaret: false },
     });
+  }, []);
+
+  /**
+   * Brings back into view the caret an undo or a redo restored.
+   *
+   * The histories put the caret where the edit began — the top of the file for
+   * an undone join, the seam for a redone one — and a pane still showing the
+   * rows it was showing before has the place the step was about off screen.
+   *
+   * Upstream's `.center` is not "scroll to the caret": it centres **only if the
+   * caret landed outside the viewport**, which is `onlyIfOffScreen`. The
+   * document has already restored the caret, so this is the scroll alone.
+   *
+   * Registered rather than called, because all three doors onto undo — the
+   * keyboard, the pane's own handler and the Edit menu — reach the router, and
+   * none of them should have to remember to reveal; the router knows when a step
+   * was actually taken.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undo
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redo
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.SelectionReveal
+   */
+  useEffect(() => {
+    undoHooks.onCaretRestored = (pane: PaneId) => {
+      const document = workspaceStore.getSnapshot().panes[pane]?.document;
+      if (document === undefined) return;
+      setReveal({
+        [pane]: {
+          offset: document.selection.start,
+          token: ++revealToken.current,
+          moveCaret: false,
+          onlyIfOffScreen: true,
+        },
+      });
+    };
+    return () => {
+      undoHooks.onCaretRestored = undefined;
+    };
   }, []);
 
   /**

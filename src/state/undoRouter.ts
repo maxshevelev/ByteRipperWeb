@@ -225,6 +225,36 @@ function nextAct(
 }
 
 /**
+ * What the shell does about the caret an undo or a redo put back.
+ *
+ * A step restores the caret to where the edit it takes back began — the history
+ * remembers it — and that can be anywhere in the file: undoing a join returns it
+ * to the top, and redoing one puts it back at the seam. A viewport that stays
+ * where it was leaves the reader looking at rows the step did not touch, with
+ * the caret, the place the step was *about*, off screen.
+ *
+ * Upstream's `PaneViewModel.undo` and `.redo` both end with `notify(reveal:
+ * .center)`, and that mode is narrower than "scroll to the caret": **centre it
+ * only if it landed outside the viewport**, because moving the rows under
+ * someone who can already see the caret is worse than not scrolling at all — and
+ * wider than "the caret moved", because a step is a navigation command wherever
+ * the caret ends up.
+ *
+ * The shell registers this rather than the router scrolling: where the dump goes
+ * is the shell's (the pane's reveal requests), and which history a press took
+ * back is the router's. Registered once, so every press that reaches these
+ * functions — the keyboard, the pane's own handler, the Edit menu — is revealed
+ * the same way.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undo
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redo
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.SelectionReveal
+ */
+export const undoHooks: {
+  onCaretRestored?: ((pane: PaneId) => void) | undefined;
+} = {};
+
+/**
  * Takes back the last act on `pane`, whichever history it belongs to.
  *
  * Returns false when neither history has anything left, so the caller can leave
@@ -233,6 +263,16 @@ function nextAct(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undoEdit
  */
 export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
+  const taken = await undoStep(pane, batch);
+  // The one funnel every undo goes through, so the reveal cannot be left out at
+  // one of the three doors — and so a press that took nothing back reveals
+  // nothing either.
+  if (taken) undoHooks.onCaretRestored?.(pane);
+  return taken;
+}
+
+/** The step itself, without the reveal that follows a press. */
+async function undoStep(pane: PaneId, batch: boolean): Promise<boolean> {
   for (let index = past.length - 1; index >= 0; index--) {
     const act = past[index];
     if (act === undefined || act.pane !== pane) continue;
@@ -259,8 +299,20 @@ export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
   return false;
 }
 
-/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.redoEdit */
+/**
+ * Puts back the last act an undo took out of `pane`, and centres the caret it
+ * restores when that landed outside the viewport — see {@link undoHooks}.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.redoEdit
+ */
 export async function redoLast(pane: PaneId): Promise<boolean> {
+  const taken = await redoStep(pane);
+  if (taken) undoHooks.onCaretRestored?.(pane);
+  return taken;
+}
+
+/** The step itself, without the reveal that follows a press. */
+async function redoStep(pane: PaneId): Promise<boolean> {
   for (let index = future.length - 1; index >= 0; index--) {
     const act = future[index];
     if (act === undefined || act.pane !== pane) continue;

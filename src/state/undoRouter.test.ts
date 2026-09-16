@@ -6,7 +6,8 @@ import {
   resetSegments,
   segmentsFor,
 } from "@/state/segmentsStore";
-import { groupActs, redoLast, undoLast } from "@/state/undoRouter";
+import { groupActs, redoLast, undoHooks, undoLast } from "@/state/undoRouter";
+import type { PaneId } from "@/state/workspaceStore";
 
 /**
  * The partition across undo and redo: it comes back as it was, not as the
@@ -61,5 +62,44 @@ describe("a group", () => {
     await redoLast("a");
     expect(cuts()).toEqual([48]);
     expect(names()).toEqual(["bios.bin", "donor.bin"]);
+  });
+});
+
+/**
+ * Where the dump goes after a step is the shell's business — the pane's reveal
+ * requests — and which step was taken is the router's, so the router says when
+ * there is one to reveal rather than scrolling itself.
+ */
+describe("the caret a step restores", () => {
+  it("is handed over after every step, and not when there was nothing to take back", async () => {
+    // The stacks are the module's, and the cases above leave acts on them:
+    // drain to the state a freshly loaded page is in before listening.
+    undoHooks.onCaretRestored = undefined;
+    while (await undoLast("a", false)) {
+      // take back whatever the cases above left
+    }
+
+    const revealed: PaneId[] = [];
+    undoHooks.onCaretRestored = (pane) => revealed.push(pane);
+
+    // Nothing left in either history: no step, so nothing to reveal — and the
+    // key stays free for whatever else wants it.
+    expect(await undoLast("a", false)).toBe(false);
+    expect(revealed).toEqual([]);
+
+    applySegments("a", (partition) => partition.addCut(32));
+    expect(await undoLast("a", false)).toBe(true);
+    expect(revealed).toEqual(["a"]);
+
+    // A redo is a step too, even when the caret lands where the undo left it:
+    // it is a navigation command wherever the caret ends up.
+    expect(await redoLast("a")).toBe(true);
+    expect(revealed).toEqual(["a", "a"]);
+
+    // The reveal is the pane's own press, never the other pane's.
+    expect(await undoLast("b", false)).toBe(false);
+    expect(revealed).toEqual(["a", "a"]);
+
+    undoHooks.onCaretRestored = undefined;
   });
 });
