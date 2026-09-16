@@ -7,7 +7,7 @@ import {
   byteInk,
   type InkRole,
 } from "@/render/hexGrid/byteStyle";
-import { snapToDevicePixels } from "@/render/hexGrid/devicePixels";
+import { bandOnDeviceGrid, snapToDevicePixels } from "@/render/hexGrid/devicePixels";
 import { DirtyRows } from "@/render/hexGrid/dirtyRows";
 import { GlyphAtlas, type GlyphAtlasKey } from "@/render/hexGrid/glyphAtlas";
 import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
@@ -343,6 +343,23 @@ export class HexGridRenderer {
    * leaving the canvas a transform of a few rows at most.
    */
   private originY = 0;
+  /**
+   * The band the row now being painted covers, on the device grid.
+   *
+   * A row is a whole number of CSS pixels but not of device pixels, so its top
+   * and its height are put on that grid rather than merely computed from
+   * `rowHeight` — otherwise the row and its neighbour each cover the pixel they
+   * meet in partly, and a line the colour of the canvas shows between them
+   * ({@link bandOnDeviceGrid}). It is one band per row, and everything that
+   * paints in the row reads it: the paper, the washes, the clip the contours are
+   * stroked inside, the glyphs. Two rows sharing an edge is then not a
+   * coincidence of arithmetic but the same number, and a row's outline is not
+   * cut at its neighbour's boundary.
+   *
+   * Set by {@link beginRowBand} before the row is painted, like `originY` above.
+   */
+  private rowBandTop = 0;
+  private rowBandHeight = 0;
 
   private prefetching: Promise<void> | undefined;
   private onBytesArrived: (() => void) | undefined;
@@ -708,7 +725,14 @@ export class HexGridRenderer {
       0,
       scale,
       -this.viewport.scrollLeft * scale,
-      (this.originY - this.viewport.scrollTop) * scale
+      // On a whole device pixel, like the scroll offset above and for the same
+      // reason one step further on: a row's band is put on the device grid
+      // relative to *this*, so a fraction here would put every band back between
+      // two pixels however carefully it was rounded. Nothing else notices — the
+      // blit shifts by a whole number of device pixels, and rounding commutes
+      // with a whole-number shift, so rows copied from the last frame and rows
+      // painted in this one still land on the same pixel.
+      Math.round((this.originY - this.viewport.scrollTop) * scale)
     );
 
     let missedBytes = false;
@@ -737,6 +761,30 @@ export class HexGridRenderer {
   }
 
   // MARK: - Internals
+
+  /** A row's top, in the coordinates the current transform draws in. */
+  private rowTop(row: number): number {
+    const layout = this.config?.layout;
+    return layout === undefined ? 0 : row * layout.rowHeight - this.originY;
+  }
+
+  /**
+   * Puts the row's band on the device grid, for everything that paints in it.
+   *
+   * The band's bottom is the top of the row below, worked out by the same call,
+   * so the two rows agree on the edge they share rather than the second one
+   * arriving at it by its own arithmetic. Passed as that top rather than as a
+   * height for exactly that reason.
+   *
+   * @web-only see `bandOnDeviceGrid`
+   */
+  private beginRowBand(row: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    const band = bandOnDeviceGrid(this.rowTop(row), this.rowTop(row + 1), config.devicePixelRatio);
+    this.rowBandTop = band.top;
+    this.rowBandHeight = band.height;
+  }
 
   /**
    * Moves what is already painted rather than repainting it.
@@ -791,7 +839,8 @@ export class HexGridRenderer {
     if (config === undefined || atlas === undefined) return true;
 
     const { layout, colors } = config;
-    const y = row * layout.rowHeight - this.originY;
+    this.beginRowBand(row);
+    const y = this.rowBandTop;
     const rowStart = layout.byteOffset(row, 0);
     const available = Math.max(0, Math.min(BYTES_PER_ROW, size - rowStart));
 
@@ -802,7 +851,7 @@ export class HexGridRenderer {
       this.viewport.scrollLeft,
       y,
       Math.max(layout.contentWidth, this.viewport.widthCss),
-      layout.rowHeight
+      this.rowBandHeight
     );
 
     // The segment tint is the paper the row is printed on: under everything,
@@ -896,16 +945,21 @@ export class HexGridRenderer {
     if (config === undefined) return;
 
     const { layout, colors } = config;
-    const contentBottom = rowCount * layout.rowHeight;
+    // The ground starts where the last row ends, so it takes the top the row
+    // *after* it would have had rather than the row height added up by hand: the
+    // two have to be the same edge, or the last row and the ground show a line
+    // between them wherever the row height is not a whole number of pixels.
+    this.beginRowBand(rowCount);
+    const top = this.rowBandTop;
     const viewportBottom = this.viewport.scrollTop + this.viewport.heightCss;
-    if (contentBottom >= viewportBottom) return;
+    if (top + this.originY >= viewportBottom) return;
 
     this.context.fillStyle = colors.background;
     this.context.fillRect(
       this.viewport.scrollLeft,
-      contentBottom - this.originY,
+      top,
       Math.max(layout.contentWidth, this.viewport.widthCss),
-      viewportBottom - contentBottom
+      viewportBottom - top - this.originY
     );
   }
 
@@ -937,7 +991,11 @@ export class HexGridRenderer {
     const row = Math.floor(caret.offset / BYTES_PER_ROW);
     if (row < firstRow || row >= endRow) return;
     const rowStart = row * BYTES_PER_ROW;
-    const y = row * layout.rowHeight - this.originY;
+    // The caret is painted after the rows, not with them, so it takes the band
+    // of its own row here — the same band that row was painted with, since the
+    // row's number is the only input.
+    this.beginRowBand(row);
+    const y = this.rowBandTop;
     const column = caret.offset - rowStart;
 
     // The link to the same byte in the column the caret is not in.
@@ -950,14 +1008,14 @@ export class HexGridRenderer {
         layout.textX(column) + 0.5,
         y + 0.5,
         layout.charWidth - 1,
-        layout.rowHeight - 1
+        this.rowBandHeight - 1
       );
     } else {
       this.context.strokeRect(
         layout.hexByteX(column) + 0.5,
         y + 0.5,
         layout.hexByteWidth - 1,
-        layout.rowHeight - 1
+        this.rowBandHeight - 1
       );
     }
     this.context.restore();
@@ -971,7 +1029,7 @@ export class HexGridRenderer {
           ? layout.textX(column)
           : layout.hexByteX(column) + (caret.nibble === 1 ? layout.charWidth : 0);
       this.context.fillStyle = colors.insertCaret;
-      this.context.fillRect(x, y, 1, layout.rowHeight);
+      this.context.fillRect(x, y, 1, this.rowBandHeight);
       return;
     }
 
@@ -982,7 +1040,7 @@ export class HexGridRenderer {
     this.context.fillStyle = colors.caret;
     this.context.fillRect(
       x,
-      y + layout.rowHeight - CARET_BAR_HEIGHT,
+      y + this.rowBandHeight - CARET_BAR_HEIGHT,
       layout.charWidth,
       CARET_BAR_HEIGHT + CARET_BAR_OVERHANG
     );
@@ -1103,7 +1161,7 @@ export class HexGridRenderer {
       context.fillStyle = span.tint;
       const from = first === 0 ? left : midGap(first);
       const to = last === BYTES_PER_ROW - 1 ? right : midGap(last + 1);
-      context.fillRect(from, y, to - from, layout.rowHeight);
+      context.fillRect(from, y, to - from, this.rowBandHeight);
     }
   }
 
@@ -1134,7 +1192,7 @@ export class HexGridRenderer {
     const { layout, colors } = config;
 
     const top = y;
-    const height = layout.rowHeight;
+    const height = this.rowBandHeight;
     const left = layout.leftPadding - BOOKMARK_PADDING;
     const right = layout.leftPadding + layout.offsetColumnWidth + BOOKMARK_PADDING;
     // Each of the tip's edges rises over half the height, so the reach that
@@ -1207,13 +1265,13 @@ export class HexGridRenderer {
         layout.hexByteX(from),
         y,
         layout.hexByteX(to - 1) + layout.hexByteWidth - layout.hexByteX(from),
-        layout.rowHeight
+        this.rowBandHeight
       );
       this.context.fillRect(
         layout.textX(from),
         y,
         (to - from) * layout.charWidth,
-        layout.rowHeight
+        this.rowBandHeight
       );
     }
   }
@@ -1241,8 +1299,8 @@ export class HexGridRenderer {
       const from = Math.max(block.start, rowStart) - rowStart;
       const to = Math.min(block.end, rowStart + BYTES_PER_ROW) - rowStart;
       for (let column = from; column < to; column++) {
-        this.context.fillRect(layout.hexByteX(column), y, layout.hexByteWidth, layout.rowHeight);
-        this.context.fillRect(layout.textX(column), y, layout.charWidth, layout.rowHeight);
+        this.context.fillRect(layout.hexByteX(column), y, layout.hexByteWidth, this.rowBandHeight);
+        this.context.fillRect(layout.textX(column), y, layout.charWidth, this.rowBandHeight);
       }
     }
   }
@@ -1474,6 +1532,13 @@ export class HexGridRenderer {
     context.restore();
   }
 
+  /**
+   * Clips to the row's band, which the outlines rely on being exact: each row
+   * strokes its own slice of one path and the slices have to add up to the path
+   * ({@link strokeContours}). On the device grid the two rows' clips meet on a
+   * pixel, so they do; a fraction between them would leave the outline's
+   * horizontal edges cut or drawn twice.
+   */
   private clipToRow(y: number): void {
     const config = this.config;
     if (config === undefined) return;
@@ -1483,7 +1548,7 @@ export class HexGridRenderer {
       this.viewport.scrollLeft,
       y,
       Math.max(layout.contentWidth, this.viewport.widthCss),
-      layout.rowHeight
+      this.rowBandHeight
     );
     this.context.clip();
   }
@@ -1545,8 +1610,13 @@ export class HexGridRenderer {
     // two characters rather than against the first and last glyph — and the
     // decoded characters beside them, whose cells already touch.
     const left = layout.hexRunStart(from);
-    this.context.fillRect(left, y, layout.hexRunEnd(to - 1) - left, layout.rowHeight);
-    this.context.fillRect(layout.textX(from), y, (to - from) * layout.charWidth, layout.rowHeight);
+    this.context.fillRect(left, y, layout.hexRunEnd(to - 1) - left, this.rowBandHeight);
+    this.context.fillRect(
+      layout.textX(from),
+      y,
+      (to - from) * layout.charWidth,
+      this.rowBandHeight
+    );
   }
 
   /**
@@ -1569,7 +1639,7 @@ export class HexGridRenderer {
     for (const [x, width] of bands) {
       this.context.save();
       this.context.beginPath();
-      this.context.rect(x, y, width, layout.rowHeight);
+      this.context.rect(x, y, width, this.rowBandHeight);
       this.context.clip();
 
       this.context.globalAlpha = alpha;
@@ -1578,15 +1648,23 @@ export class HexGridRenderer {
       this.context.beginPath();
       // Diagonals at 45°, spaced so the band reads as hatched at any row
       // height. They run past the band's edges and the clip trims them.
-      for (let offset = 0; offset < width + layout.rowHeight; offset += 6) {
-        this.context.moveTo(x + offset, y + layout.rowHeight);
-        this.context.lineTo(x + offset - layout.rowHeight, y);
+      for (let offset = 0; offset < width + this.rowBandHeight; offset += 6) {
+        this.context.moveTo(x + offset, y + this.rowBandHeight);
+        this.context.lineTo(x + offset - this.rowBandHeight, y);
       }
       this.context.stroke();
       this.context.restore();
     }
   }
 
+  /**
+   * Copies one glyph out of the atlas.
+   *
+   * The tile is drawn into the row's band, not into `rowHeight`: the band is
+   * the row's pixels, and a glyph whose box disagreed with them would hang over
+   * its neighbour's paper, which the neighbour paints after this row and so
+   * erases. At a whole-number scale the two are the same number to the pixel.
+   */
   private blit(
     tile: { x: number; y: number; width: number; height: number },
     x: number,
@@ -1605,7 +1683,7 @@ export class HexGridRenderer {
       x,
       y,
       cssWidth,
-      config.layout.rowHeight
+      this.rowBandHeight
     );
   }
 
