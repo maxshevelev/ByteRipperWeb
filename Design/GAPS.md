@@ -161,6 +161,7 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| G36 — The tool panel's file selector: the name in the header is the control, offering both panes in pane order, ticking the one the tool reads, keeping a closed pane as a disabled entry and staying off with one file open; choosing a pane moves the tool through the same door a drop would, so a session is never re-pointed underneath itself. A transparent `<select>` over the drawn name and chevron, whose shown option is its tick, and the nine upstream tests come with it | 2026-09-16 |
 | Redo of a join, and ⇧⌘Z: redo restores the partition as the join left it — the seam cut and both names — and detaches the pane from its file again; ⇧⌘Z is Redo where a Mac's browser reports the key as a lower-case `z`; undo and redo keep the dump mounted and focused, and take ⌘Z / ⇧⌘Z / Ctrl+Y for the active pane wherever the keyboard is | 2026-09-16 |
 | A join shows its seam: after Append File or Insert File at Start, from the menu or a drop band, the caret stays at the start of the added part and the pane that took the file centres it, where the view used to jump to the top and take both carets there | 2026-09-15 |
 | G22 — Fill Selection starts from the last pattern used, `FF` until one has been, kept in `localStorage` | 2026-09-15 |

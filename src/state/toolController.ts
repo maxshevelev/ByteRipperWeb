@@ -1,6 +1,6 @@
 import { closeFirmware } from "@/state/firmwareStore";
 import { createStore } from "@/state/store";
-import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { PANE_IDS, type PaneId, type PaneState, workspaceStore } from "@/state/workspaceStore";
 import { clearZones } from "@/state/zoneStore";
 import { toolById } from "@/tools/registry";
 
@@ -156,6 +156,32 @@ export function panesSwapped(): void {
 }
 
 /**
+ * Moves the running tool-module onto `pane` — what choosing that pane in the
+ * header's selector means.
+ *
+ * The session is never re-pointed underneath itself: the old one ends — its
+ * zones going with it, since nothing else draws them — and a new one starts on
+ * the chosen pane, which on this side of the port is the tool's view re-mounting
+ * on its new binding. A closed pane is not somewhere the tool can go, and
+ * neither is the pane it already reads: a change that changes nothing is a
+ * gesture that looks broken.
+ *
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.selectPane
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.rebind
+ * @upstream-differs one function rather than two: upstream's `rebind` is the door a choice and a drop share, and a browser has no pane dragging, so choosing is the only way in
+ * @web-only the parsed tree the session was reading is dropped with it: it is the largest thing this application holds, and no tool shows that pane any more — as with `activate`.
+ */
+export function selectPane(pane: PaneId): void {
+  const { activeIdentifier, boundPane } = toolController.getSnapshot();
+  if (activeIdentifier === undefined || boundPane === undefined || boundPane === pane) return;
+  if (workspaceStore.getSnapshot().panes[pane] === undefined) return;
+
+  endSession(boundPane);
+  closeFirmware(boundPane);
+  toolController.update((current) => ({ ...current, boundPane: pane }));
+}
+
+/**
  * Whether the menu row for `identifier` is available, and whether it is the
  * checked one. A tool reads and writes the open file, so it needs one; None
  * stays available always, since it is how the panel is closed.
@@ -171,6 +197,77 @@ export function menuState(
     checked: identifier === toolController.getSnapshot().activeIdentifier,
   };
 }
+
+/**
+ * One entry of the header's file selector: a pane, the file it holds, whether
+ * the session is reading that file, and whether it is somewhere the session can
+ * be moved to.
+ *
+ * The pane an entry stands for is its position, as it is upstream: the selector
+ * offers the two panes in pane order and nothing else, so an entry needs no name
+ * of its own.
+ *
+ * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.PaneChoice
+ */
+export interface PaneChoice {
+  /**
+   * The name the entry shows — the file's, or "No file" for a pane that holds
+   * none. A closed pane keeps its entry rather than losing it, so a position
+   * always means the same pane.
+   *
+   * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.PaneChoice.fileName
+   */
+  readonly fileName: string;
+  /**
+   * Whether the session is bound to this pane — which is the tick, and so also
+   * the name the closed selector shows.
+   *
+   * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.PaneChoice.isBound
+   */
+  readonly isBound: boolean;
+  /**
+   * Whether the tool may be moved here.
+   *
+   * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.PaneChoice.isEnabled
+   */
+  readonly isEnabled: boolean;
+}
+
+/**
+ * What the header's selector offers: one entry per pane, in pane order, naming
+ * the file that pane holds.
+ *
+ * The tick is on the pane the session is *bound* to, not the active one: the
+ * header names the file the tool reads and writes, and clicking into the other
+ * pane does not take the session there.
+ *
+ * Upstream reads this whenever either half can have moved — a file opened,
+ * closed or renamed, the session started, ended or re-bound. Here it is read
+ * where it is drawn, which is the whole of that list: the component re-renders
+ * on every one of those, so there is nothing to keep in step.
+ *
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.refreshPanelHeader
+ */
+export function paneChoices(
+  panes: Readonly<Record<PaneId, PaneState | undefined>>
+): readonly PaneChoice[] {
+  const { boundPane } = toolController.getSnapshot();
+  return PANE_IDS.map((pane) => ({
+    fileName: panes[pane]?.name ?? "No file",
+    isBound: boundPane === pane,
+    isEnabled: panes[pane] !== undefined,
+  }));
+}
+
+/**
+ * Whether the selector is worth opening at all: with one file open there is
+ * nowhere to move the tool, and a control that can do nothing is worse than a
+ * name. The ✕ beside it stays live either way.
+ *
+ * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setSelectorEnabled
+ */
+export const selectorEnabled = (choices: readonly PaneChoice[]): boolean =>
+  choices.filter((choice) => choice.isEnabled).length > 1;
 
 /**
  * Resizes the panel, clamped and remembered.

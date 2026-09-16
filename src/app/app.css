@@ -1990,6 +1990,12 @@ textarea,
   fill: var(--text-muted);
 }
 
+/* The ✕ is the header's trailing edge, where the selector's own width no longer
+   pushes it: the file control is only as wide as the name it shows. */
+.tool-panel-head > .close-button {
+  margin-left: auto;
+}
+
 .tool-panel-title {
   flex: 0 1 auto;
   min-width: 0;
@@ -1999,13 +2005,75 @@ textarea,
   font-weight: 600;
 }
 
+/*
+ * The header's file selector: the name of the file the session reads and
+ * writes, and the way to move the tool to the other pane.
+ *
+ * The name and the chevron are the whole of what a user sees, and a `<select>`
+ * stretched over them both (below) is the control. The name is drawn by the
+ * page rather than by the field so that it keeps the header's ellipsis and the
+ * chevron stays the toolbar's own; the field draws nothing at all, which is why
+ * it can be invisible and still be the thing that opens, focuses and answers
+ * the keyboard. Both parts are deliberately still there when the selector is
+ * off — with one file open there is nowhere to go, and the header still has to
+ * name the file.
+ */
 .tool-panel-file {
-  flex: 1 100 auto;
+  position: relative;
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.tool-panel-file-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-muted);
+}
+
+/*
+ * Invisible but present: opaque to nothing and to no one, it covers the name
+ * and the chevron alike, so a tap on the arrow opens the menu as a tap on the
+ * name does, and one ring is drawn around the two together.
+ */
+.tool-panel-file-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* A disabled selector is not offered, but the name it shows is still the
+   header's answer to its one question, so it stays readable. */
+.tool-panel-file-select:disabled {
+  cursor: default;
+}
+
+/*
+ * The ring is the page's own, on the wrapper, because the field inside it draws
+ * nothing: it is drawn for the keyboard, as every other ring here is, and it
+ * encloses the name and the chevron as one control.
+ */
+.tool-panel-file:has(.tool-panel-file-select:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+.tool-panel-file-chevron.is-off {
+  opacity: 0.3;
 }
 
 .tool-panel-body {

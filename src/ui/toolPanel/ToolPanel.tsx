@@ -6,11 +6,14 @@ import {
   DEFAULT_TOOL_PANEL_WIDTH,
   MAX_TOOL_PANEL_WIDTH,
   MIN_TOOL_PANEL_WIDTH,
+  paneChoices,
+  selectorEnabled,
+  selectPane,
   setToolPanelWidth,
   toolController,
 } from "@/state/toolController";
 import { useStore } from "@/state/useStore";
-import { reportProblem, workspaceStore } from "@/state/workspaceStore";
+import { PANE_IDS, type PaneId, reportProblem, workspaceStore } from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
@@ -20,10 +23,11 @@ import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
  * bound to, a close button, and the tool's own view below.
  *
  * The header answers the one question the panel would otherwise leave open —
- * which file this is. A session is bound to the pane it was opened for and does
- * not follow the active pane, so in a comparison the panel and the pane being
- * typed in can be different files, and what the header names is where the
- * tool's writes go.
+ * which file this is — and is where that file is changed. A session is bound to
+ * the pane it was opened for and does not follow the active pane, so in a
+ * comparison the panel and the pane being typed in can be different files, and
+ * what the header names is where the tool's writes go. Choosing the other pane
+ * in its selector moves the tool there; clicking into that pane does not.
  *
  * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView
  */
@@ -37,6 +41,8 @@ export function ToolPanel({
   const { boundPane, width } = tools;
   const tool = activeModule(tools);
   const slot = boundPane === undefined ? undefined : workspace.panes[boundPane];
+  const choices = paneChoices(workspace.panes);
+  const switchable = selectorEnabled(choices);
 
   const reveal = useCallback(
     (start: number, end: number) => {
@@ -62,8 +68,60 @@ export function ToolPanel({
       <header className="tool-panel-head">
         <ToolsIcon />
         <span className="tool-panel-title">{tool.title}</span>
-        <span className="tool-panel-file" title={slot.name}>
-          {slot.name}
+        {/* The header answers the panel's open question — which file the tool
+            reads and writes — and is where that file is changed: in a
+            comparison, choosing the other pane here is how the tool is moved
+            to it. The name and the chevron are one control, and it goes through
+            `selectPane`, the door a pane dropped on the panel would use, so a
+            session is never re-pointed underneath itself.
+            The control is a native `<select>` doing the job upstream's
+            `NSPopUpButton` does: the option it shows *is* its selection, which
+            is the rule upstream has to re-assert by hand after every title
+            change, and the keyboard reaches it for free. It is stretched
+            invisibly over the name and the chevron — the two are drawn by this
+            side — so a tap on either opens it, which a `<select>` whose box
+            ended at the text would not do, and so the focus ring is drawn
+            around the whole control rather than around the words alone.
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setPanes
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onSelectPane
+            @upstream-differs one control whose shown option is its tick, rather than a menu whose items each carry a tick state
+            @web-only the tooltip and the accessible name — "Link to file panel": upstream's popup carries neither, and a control with no visible label of its own needs one here */}
+        <span className="tool-panel-file" title="Link to file panel">
+          <span className="tool-panel-file-name">{slot.name}</span>
+          <svg
+            className={`menu-chevron tool-panel-file-chevron${switchable ? "" : " is-off"}`}
+            width="8"
+            height="5"
+            viewBox="0 0 8 5"
+            aria-hidden="true"
+          >
+            <path
+              d="M1 1l3 3 3-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+          </svg>
+          <select
+            className="tool-panel-file-select"
+            aria-label="Link to file panel"
+            value={boundPane}
+            disabled={!switchable}
+            onChange={(event) => selectPane(event.target.value as PaneId)}
+          >
+            {choices.map((choice, index) => {
+              const pane = PANE_IDS[index];
+              // One entry per pane, so neither of these can be missing: the
+              // guard is here for the type checker, not for a real case.
+              if (pane === undefined) return null;
+              return (
+                <option key={pane} value={pane} disabled={!choice.isEnabled}>
+                  {choice.fileName}
+                </option>
+              );
+            })}
+          </select>
         </span>
         {/* The panel's ✕ is Tools ▸ None by another route.
             @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onClose */}

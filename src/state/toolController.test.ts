@@ -3,8 +3,11 @@ import {
   activate,
   isPanelVisible,
   menuState,
+  paneChoices,
   paneClosed,
   panesSwapped,
+  selectorEnabled,
+  selectPane,
   toolController,
 } from "@/state/toolController";
 import {
@@ -13,6 +16,7 @@ import {
   PANE_IDS,
   setActivePane,
   swapPanes,
+  workspaceStore,
 } from "@/state/workspaceStore";
 
 /**
@@ -32,6 +36,16 @@ const STUB_A = "dev.maxik.tool.stubA";
 const STUB_B = "dev.maxik.tool.stubB";
 
 const state = () => toolController.getSnapshot();
+
+/** The header's selector, as the panel reads it. */
+const choices = () => paneChoices(workspaceStore.getSnapshot().panes);
+/** The names the entries carry, in pane order. */
+const names = () => choices().map((choice) => choice.fileName);
+/** The entry the selector draws while it is shut — nil when nothing is bound. */
+const ticked = () => {
+  const index = choices().findIndex((choice) => choice.isBound);
+  return index === -1 ? undefined : index;
+};
 
 beforeEach(() => {
   activate(undefined);
@@ -143,6 +157,121 @@ describe("the panel", () => {
     activate(undefined);
 
     expect(isPanelVisible(state())).toBe(false);
+  });
+});
+
+describe("the header's selector", () => {
+  /** Two files open with the session started on the first pane — where the user was. */
+  function twoFilesAndATool(): void {
+    openEmptyInPane("a", "works.bin");
+    openEmptyInPane("b", "fails.bin");
+    setActivePane("a");
+    activate(STUB_A);
+  }
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testTheSelectorOffersBothPanesAndTicksTheBoundOne
+  it("offers both panes, in pane order, and ticks the bound one", () => {
+    twoFilesAndATool();
+
+    expect(names()).toEqual(["works.bin", "fails.bin"]);
+    expect(ticked()).toBe(0);
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testTheEntriesNameTheirOwnPanesAndTheHeaderNamesTheTickedOne
+  it("names each pane's own file, and ticks the one the tool reads", () => {
+    twoFilesAndATool();
+    setActivePane("b");
+
+    // The entry under the pointer is somewhere to send the tool, so it has to
+    // say where that is — pane order, one name each.
+    expect(names()).toEqual(["works.bin", "fails.bin"]);
+
+    // And the ticked entry — the one the header draws while the menu is shut —
+    // is the pane the tool is reading, not the pane the user is in.
+    expect(ticked()).toBe(0);
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testTheHeaderKeepsNamingTheBoundFileWhenTheOtherPaneIsActivated
+  it("goes on naming the bound file when the other pane is activated", () => {
+    twoFilesAndATool();
+
+    setActivePane("b");
+
+    expect(workspaceStore.getSnapshot().activePane).toBe("b");
+    expect(state().boundPane).toBe("a");
+    expect(names()[ticked() ?? 0]).toBe("works.bin");
+    expect(names()).toEqual(["works.bin", "fails.bin"]);
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testChoosingTheOtherPaneMovesTheSessionToIt
+  it("moves the session to the pane chosen, and leaves the user where they were", () => {
+    twoFilesAndATool();
+
+    selectPane("b");
+
+    expect(state().boundPane).toBe("b");
+    expect(ticked()).toBe(1);
+    expect(names()[1]).toBe("fails.bin");
+    expect(workspaceStore.getSnapshot().activePane).toBe("a");
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testSwappingThePanesMovesTheTickWithTheSession
+  it("moves the tick with the session when the panes swap", () => {
+    twoFilesAndATool();
+
+    panesSwapped();
+    swapPanes();
+
+    expect(state().boundPane).toBe("b");
+    expect(ticked()).toBe(1);
+    // The list is in pane order, so without the tick moving too it would sit on
+    // the file the tool is *not* reading — the one thing the header exists to say.
+    expect(names()[1]).toBe("works.bin");
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testTheSelectorIsDisabledWithOneFileOpen
+  it("is disabled with one file open", () => {
+    openEmptyInPane("a");
+    activate(STUB_A);
+
+    expect(selectorEnabled(choices())).toBe(false);
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testTheSelectorIsEnabledWithTwoFilesOpen
+  it("is enabled with two files open", () => {
+    twoFilesAndATool();
+
+    expect(selectorEnabled(choices())).toBe(true);
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testAClosedPaneKeepsADisabledEntry
+  it("keeps a disabled entry for a closed pane", () => {
+    twoFilesAndATool();
+
+    closePane("b");
+
+    expect(choices().length).toBe(2);
+    expect(choices()[1]?.isEnabled).toBe(false);
+    expect(choices()[1]?.fileName).toBe("No file");
+  });
+
+  // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.rebind
+  it("will not move the session to a closed pane", () => {
+    twoFilesAndATool();
+    closePane("b");
+
+    selectPane("b");
+
+    expect(state().boundPane).toBe("a");
+  });
+
+  // @upstream ByteRipperTests/ToolPanelTests.swift#ToolPanelTests.testNoneLeavesNoPaneTicked
+  it("leaves no pane ticked with None", () => {
+    twoFilesAndATool();
+
+    activate(undefined);
+
+    expect(ticked()).toBeUndefined();
   });
 });
 
