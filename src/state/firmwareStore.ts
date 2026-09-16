@@ -1,5 +1,6 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { FITReport } from "@/firmware/fit/fitTable";
+import { discardParkedStateFor } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import { applyTransaction } from "@/state/toolEdits";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
@@ -506,6 +507,14 @@ const pendingChanges = new Map<PaneId, PendingChange>();
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.schedule
  */
 export function noteFirmwareContentChange(pane: PaneId, change: ToolContentChange): void {
+  // Whatever any tool-module parked against this pane described the file as it
+  // was. The running one is told and re-reads; the parked ones have no way to
+  // hear it, so they go — and before the guard below, because a parked state
+  // outlives the session that left it and there may be nobody reading at all.
+  //
+  // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneReloaded
+  // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.discardParkedState
+  if (change.kind === "reloaded") discardParkedStateFor(pane);
   // Nothing is reading this pane's tree, so there is nothing to tell — and a
   // tree opened later is read from the content as it is then. Without this the
   // map below would hold a change for every pane anyone has ever edited.

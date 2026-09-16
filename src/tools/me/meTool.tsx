@@ -21,8 +21,8 @@ import {
   meDatabaseMessage,
   meDatabaseStore,
 } from "@/state/meDatabaseStore";
+import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
-import type { PaneId } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { buildSummary, type MEASummaryBlock, type MEASummaryRow } from "@/tools/me/meaSummary";
 import {
@@ -36,6 +36,7 @@ import {
 import { MEA_TREE_MARKS } from "@/tools/me/meaTreeMarks";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useParkedToolState } from "@/tools/toolParkedState";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
@@ -73,11 +74,19 @@ interface Parked {
 }
 
 /**
- * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.parkedState
+ * The state handed back by a previous session of this tool, as this tool keeps
+ * it — or nothing, when there is none of that shape.
+ *
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.restore
- * @upstream-differs kept per pane in a module map rather than handed to the host
  */
-const parked = new Map<PaneId, Parked>();
+function restoredParked(state: ToolSessionState | undefined): Parked | undefined {
+  const held = state as Partial<Parked> | undefined;
+  if (held === undefined) return undefined;
+  if (held.tab !== "summary" && held.tab !== "tree") return undefined;
+  if (!(held.open instanceof Set)) return undefined;
+  if (held.focus !== undefined && typeof held.focus !== "string") return undefined;
+  return { tab: held.tab, open: held.open, focus: held.focus };
+}
 
 type Result =
   | { readonly phase: "waiting" }
@@ -160,7 +169,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const firmware = useStore(firmwareStore).panes[pane];
   const database = useStore(meDatabaseStore);
   const huffman = useStore(huffmanDictionaryStore);
-  const park = parked.get(pane);
+  const park = restoredParked(context.restored);
   const [tab, setTab] = useState<Tab>(park?.tab ?? "summary");
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
   const [focus, setFocus] = useState<string | undefined>(park?.focus);
@@ -184,9 +193,14 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     return () => clearZones(pane);
   }, [pane]);
 
-  useEffect(() => {
-    parked.set(pane, { tab, open, focus });
-  }, [pane, tab, open, focus]);
+  /**
+   * What this session would hand back if it ended now: the tab that was up, the
+   * rows that were open and the row in focus.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.parkedState
+   * @upstream-differs it keeps the open rows too
+   */
+  useParkedToolState(pane, () => ({ tab, open, focus }));
 
   const databaseText = database.text;
   const huffmanText = huffman.text;

@@ -56,6 +56,10 @@ export function ToolPanel({
   if (tool === undefined || boundPane === undefined || slot === undefined) return null;
   const context: ToolContext = {
     pane: boundPane,
+    // What the session was handed as it started, from the same place the pane
+    // and the width come from: it is the host that took it out of the box, and
+    // the panel draws the session it belongs to.
+    restored: tools.restored,
     reveal,
     // What the panel just did, in the line of the pane it is about — the same
     // two seconds and the same restore the window's own messages get.

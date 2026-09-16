@@ -11,11 +11,13 @@ import {
   pathKey,
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
+import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { nodeIDOfZone, uefiZones } from "@/tools/uefi/uefiPresenter";
@@ -114,6 +116,37 @@ function storedShowsEmptyPadding(): boolean {
 
 const pathOf = (key: string): number[] => (key.length === 0 ? [] : key.split(".").map(Number));
 
+/**
+ * What a parked session hands back: the node the user was looking at, and the
+ * rows that were open above it. The tree itself is the pane's, not the
+ * session's — parking costs it nothing and coming back finds it as it was left.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIParkedState
+ * @upstream-differs it keeps the open rows too: upstream's open rows live on the
+ * pane (`PaneUEFIState.openUEFIRows`) and outlive the session, and this port
+ * materializes a branch only when a row is opened, so the rows the reader had
+ * open are the list's own state and travel with it
+ */
+interface Parked {
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIParkedState.focus */
+  readonly focus: string | undefined;
+  readonly open: ReadonlySet<string>;
+}
+
+/**
+ * The state handed back by a previous session of this tool, as this tool keeps
+ * it — or nothing, when there is none of that shape.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.restore
+ */
+function restoredParked(state: ToolSessionState | undefined): Parked | undefined {
+  const held = state as Partial<Parked> | undefined;
+  if (held === undefined) return undefined;
+  if (held.focus !== undefined && typeof held.focus !== "string") return undefined;
+  if (!(held.open instanceof Set)) return undefined;
+  return { focus: held.focus, open: held.open };
+}
+
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.show */
 function rowsOf(
   nodes: readonly WireNode[],
@@ -144,12 +177,13 @@ function rowsOf(
 function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const state = useStore(firmwareStore).panes[context.pane];
   const catalogue = useStore(catalogueStore);
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const park = restoredParked(context.restored);
+  const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
   /** Branches slow enough to have earned a "Loading…" row. */
   const [loading, setLoading] = useState<ReadonlySet<string>>(new Set());
   /** Branches the reader asked to open whose children have not arrived. */
   const wanted = useRef(new Set<string>());
-  const [selected, setSelected] = useState<string | undefined>(undefined);
+  const [selected, setSelected] = useState<string | undefined>(park?.focus);
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
@@ -185,6 +219,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     loadGuidCatalogue();
   }, []);
+
+  /**
+   * What this session would hand back if it ended now: the node in focus and
+   * the rows that were open. Coming back re-materializes the branches on the
+   * way — the effect above the render asks for any open row's children that
+   * have not arrived — so a tree put away open comes back open.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.parkedState
+   * @upstream-differs the open rows travel with the state, where upstream keeps them on the pane
+   */
+  useParkedToolState(context.pane, () => ({ focus: selected, open }));
 
   /**
    * The tree's viewport height, watched through a callback ref.

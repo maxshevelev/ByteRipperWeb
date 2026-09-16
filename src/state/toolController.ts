@@ -1,4 +1,12 @@
 import { closeFirmware } from "@/state/firmwareStore";
+import {
+  discardParkedStateFor,
+  forgetSessionParkedState,
+  parkToolState,
+  type ToolSessionState,
+  takeParkedToolState,
+  takeSessionParkedState,
+} from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import { PANE_IDS, type PaneId, type PaneState, workspaceStore } from "@/state/workspaceStore";
 import { clearZones } from "@/state/zoneStore";
@@ -60,6 +68,18 @@ export interface ToolControllerState {
    * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.boundPane
    */
   readonly boundPane: PaneId | undefined;
+  /**
+   * What the session was handed as it started: whatever the last session of the
+   * same tool left behind for this file, or nothing.
+   *
+   * Opaque — the host stores it and hands it on, and the tool is the only side
+   * that knows what it holds. It is read once, where the panel seeds the state
+   * it is about to draw with, and it belongs to the session: a session that
+   * ends replaces it with what the next one is handed.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.restore
+   */
+  readonly restored: ToolSessionState | undefined;
   /** The panel's width in CSS pixels. */
   readonly width: number;
 }
@@ -75,6 +95,7 @@ export const activeModule = (state: ToolControllerState) =>
 export const toolController = createStore<ToolControllerState>({
   activeIdentifier: undefined,
   boundPane: undefined,
+  restored: undefined,
   width: storedWidth(),
 });
 
@@ -158,10 +179,18 @@ export function activate(identifier: string | undefined): void {
   endSession(state.boundPane);
   const { panes, activePane } = workspaceStore.getSnapshot();
   const pane = resolved !== undefined && panes[activePane] !== undefined ? activePane : undefined;
+  // Consumed rather than copied: from here the session owns it, and what comes
+  // back next time is whatever this session decides to leave.
+  const restored =
+    resolved === undefined || pane === undefined ? undefined : takeParkedToolState(resolved, pane);
+  // Nothing was said about it yet, so nothing standing from an earlier session
+  // can be mistaken for this one's answer.
+  forgetSessionParkedState();
   toolController.update((current) => ({
     ...current,
     activeIdentifier: pane === undefined ? undefined : resolved,
     boundPane: pane,
+    restored,
   }));
 
   // @web-only The parsed tree is the largest thing this application holds; it is kept while any tool shows it and dropped with None.
@@ -175,9 +204,27 @@ export function activate(identifier: string | undefined): void {
  * that authored it: nothing else draws zones, so a dump left carrying them
  * would be showing a tool's reading of a file after that tool has gone.
  *
+ * The session's own state is parked here, against the pane it was bound to, and
+ * before the panel that holds it unmounts — the moment upstream reads
+ * `parkedState`. A file that is closing parks nothing, not by a check here but
+ * because the close drops it again a moment later, which is one rule instead of
+ * two saying the same thing.
+ *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.endSession
  */
 function endSession(boundPane: PaneId | undefined): void {
+  // The identifier the session is *running* under, which is the one that is
+  // about to end: this is called before the choice is assigned below.
+  //
+  // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.runningIdentifier
+  // @upstream-differs upstream holds it in a field because its `activate` assigns
+  // the new choice first and ends the old session after; here the assignment is
+  // the last thing `activate` does, so the store's current value is the running one.
+  const running = toolController.getSnapshot().activeIdentifier;
+  if (running !== undefined && boundPane !== undefined) {
+    const handing = takeSessionParkedState(boundPane);
+    if (handing !== undefined) parkToolState(running, boundPane, handing);
+  }
   // A request aimed at the session that is ending is nothing the next one
   // should act on: the panel it was for is about to unmount, and a panel that
   // mounts in its place has not been handed anything.
@@ -193,9 +240,13 @@ function endSession(boundPane: PaneId | undefined): void {
  * file it held.
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneClosed
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneLeft
  */
 export function paneClosed(pane: PaneId): void {
+  // The session ends first — parking what it hands back — and the parked state
+  // goes after, so what the stopping session just left is dropped with the rest.
   if (toolController.getSnapshot().boundPane === pane) activate(undefined);
+  discardParkedStateFor(pane);
 }
 
 /**
@@ -236,7 +287,12 @@ export function selectPane(pane: PaneId): void {
 
   endSession(boundPane);
   closeFirmware(boundPane);
-  toolController.update((current) => ({ ...current, boundPane: pane }));
+  // What this tool left on its own file is a state about a file it is no longer
+  // reading, so it is taken and refused rather than left standing — and what
+  // the new pane held for this tool, if anything, is this session's.
+  const restored = takeParkedToolState(activeIdentifier, pane);
+  forgetSessionParkedState();
+  toolController.update((current) => ({ ...current, boundPane: pane, restored }));
 }
 
 /**

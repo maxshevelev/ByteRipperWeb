@@ -1,4 +1,5 @@
 import type { NoticeGlyph } from "@/state/noticeStore";
+import type { ToolSessionState } from "@/state/parkedToolState";
 import type { PaneId } from "@/state/workspaceStore";
 
 /**
@@ -29,6 +30,18 @@ import type { PaneId } from "@/state/workspaceStore";
 export interface ToolContext {
   /** The pane this instance of the tool is about. */
   readonly pane: PaneId;
+  /**
+   * What this session was handed as it started: what the last session of this
+   * tool, on this file, decided was worth keeping — or nothing, which is what a
+   * tool that keeps nothing is handed, and what a file that has just been
+   * opened has.
+   *
+   * Opaque, and read once: the panel seeds the state it is about to draw with,
+   * and what it leaves behind when it closes is what the next session gets.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.restore
+   */
+  readonly restored: ToolSessionState | undefined;
   /**
    * Shows a range in the dump, and selects it.
    *

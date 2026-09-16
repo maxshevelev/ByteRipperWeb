@@ -547,10 +547,11 @@
         "src/tools/toolDetail.ts",
         "src/tools/uefi",
         "src/ui/toolPanel",
-        "src/workers/firmware.worker.ts"
+        "src/workers/firmware.worker.ts",
+        "src/tools/toolParkedState.ts"
       ],
       "status": "in-progress",
-      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; UEFITreeMarks.swift, uefiTreeMarks.ts). Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), so no row wears the rail (G1) and no node is placed inside a protected range, so none is tinted (G3) — the legend lists neither, and the two vendor hash tables are the only holders of checks, the Insyde arm being unported (G6). Column widths are fixed rather than draggable, and open rows are the panel's own rather than remembered per file. The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
+      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; UEFITreeMarks.swift, uefiTreeMarks.ts). Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), so no row wears the rail (G1) and no node is placed inside a protected range, so none is tinted (G3) — the legend lists neither, and the two vendor hash tables are the only holders of checks, the Insyde arm being unported (G6). Column widths are fixed rather than draggable, and the rows the reader had open travel in the panel's parked session state rather than in the pane (G12). The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
       "files": {
         "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "UEFIToolModule.swift": "src/tools/uefi/uefiStructureTool.tsx",
@@ -591,9 +592,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.markStale": "later — the catalogue cannot be marked stale by hand",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.makeSession": "n/a — the view is a React component: its render and effects are the session's lifecycle",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIParkedState*": "later — parked session state; a web tool starts afresh",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.parkedState": "later — parked session state; a web tool starts afresh",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.restore": "later — parked session state; a web tool starts afresh",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.onDisplay": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.onChecksums": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.init": "n/a — the view is a React component: its render and effects are the session's lifecycle",
@@ -607,9 +605,9 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelectTop": "later — selecting the folded title row is not ported",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onExportDecompressed": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenDecompressed": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenRowsChanged": "later — parked session state; a web tool starts afresh",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openRows": "later — parked session state; a web tool starts afresh",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.restoreOpenRows": "later — parked session state; a web tool starts afresh",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenRowsChanged": "n/a — the open rows are the panel's own and travel in its parked session state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openRows": "n/a — as onOpenRowsChanged: upstream keeps them on the pane, and here they belong to the panel",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.restoreOpenRows": "n/a — as onOpenRowsChanged: the panel seeds its open rows from the state it was handed",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showBusy": "n/a — the busy and notice lines are rendered from state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.endBusy": "n/a — the busy and notice lines are rendered from state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.say": "n/a — the busy and notice lines are rendered from state",
@@ -631,10 +629,11 @@
         "src/state/microcodeCatalogueSource.ts",
         "src/state/microcodeCatalogueStore.ts",
         "src/tools/fit",
-        "src/ui/toolPanel/ToolDetail.tsx"
+        "src/ui/toolPanel/ToolDetail.tsx",
+        "src/tools/toolParkedState.ts"
       ],
       "status": "ported",
-      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict, the problem mark and up to two role badges sit ahead of the type in that order (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after.",
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict, the problem mark and up to two role badges sit ahead of the type in that order (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
       "files": {
         "FITToolViewController.swift": "src/tools/fit/fitTool.tsx",
         "FITAddMicrocodeViewController.swift": [
@@ -689,9 +688,6 @@
         "Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.id": "n/a — entries are keyed by their file name",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.makeSession": "n/a — the view is a React component: its render and effects are the session's lifecycle",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITParkedState*": "later — parked session state; a web tool starts afresh",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.parkedState": "later — parked session state; a web tool starts afresh",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.restore": "later — parked session state; a web tool starts afresh",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.display": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onDisplay": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onTargetsNamed": "n/a — the view is a React component: its render and effects are the session's lifecycle",
@@ -1121,7 +1117,7 @@
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.layout": "n/a — CSS lays it out",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHeaderChanged": "n/a — the header re-renders with its props",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.renameFieldForTesting": "n/a — a test seam",
-        "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.openUEFIRows": "n/a — the UEFI panel keeps its own open rows",
+        "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.openUEFIRows": "n/a — the UEFI panel keeps its own open rows, and they travel in its parked session state",
         "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysis": "n/a — the UEFI panel keeps its own open rows",
         "ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysisRegion": "n/a — the UEFI panel keeps its own open rows",
         "ByteRipperApp/Pane/PaneViewModel.swift#HexInputRegion.hex": "ported as the `\"hex\"` member of `InputRegion` (src/core/edit/typingController.ts) — a case of the union, so there is no declaration of its own; nothing renders it in either edition",
@@ -1237,12 +1233,16 @@
       "web": [
         "src/state/toolController.ts",
         "src/ui/toolPanel/ToolPanel.tsx",
-        "src/tools/registry.ts"
+        "src/tools/registry.ts",
+        "src/state/parkedToolState.ts"
       ],
       "status": "in-progress",
-      "note": "ToolController's session binding is src/state/toolController.ts: activate binds the active pane and never re-points, paneClosed ends the tool (the shell calls it before closePane, as performClosePane does), menuState drives the ☰ Tools rows and the toolbar picker. ToolPanelView is ToolPanel.tsx: icon, tool name, bound file name, ✕ as None. The content-change delivery is firmwareStore's onContentChange, which holds a burst for 300 ms, merges it through src/tools/contentChange.ts, and sends the fresh content with the range and the size delta; a reload goes straight through. The stale-session guard is the reply's job id, bumped on every delivery. Not yet: parked session state, drops on the panel.",
+      "note": "ToolController's session binding is src/state/toolController.ts: activate binds the active pane and never re-points, paneClosed ends the tool (the shell calls it before closePane, as performClosePane does), menuState drives the ☰ Tools rows and the toolbar picker. ToolPanelView is ToolPanel.tsx: icon, tool name, bound file name, ✕ as None. The content-change delivery is firmwareStore's onContentChange, which holds a burst for 300 ms, merges it through src/tools/contentChange.ts, and sends the fresh content with the range and the size delta; a reload goes straight through. The stale-session guard is the reply's job id, bumped on every delivery. Not yet: drops on the panel.",
       "files": {
-        "ToolController.swift": "src/state/toolController.ts",
+        "ToolController.swift": [
+          "src/state/toolController.ts",
+          "src/state/parkedToolState.ts"
+        ],
         "ToolPanelView.swift": "src/ui/toolPanel/ToolPanel.tsx",
         "ToolRegistry.swift": "src/tools/registry.ts",
         "ByteRipperTests/ToolSessionTests.swift": [
@@ -1254,11 +1254,10 @@
           "src/tools/registry.test.ts"
         ],
         "ByteRipperTests/ToolPanelTests.swift": "src/state/toolController.test.ts",
-        "ByteRipperApp/Tools/PaneToolHost.swift": ""
+        "ByteRipperApp/Tools/PaneToolHost.swift": "",
+        "ByteRipperTests/ToolParkedStateTests.swift": "src/state/parkedToolState.test.ts"
       },
       "unported": {
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.ParkedSession*": "later — parked session state; a web tool starts afresh, and the parsed tree firmwareStore keeps is what survives a switch",
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.parkedModuleIdentifiers": "later — parked session state",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.flushPendingChangeForTesting": "n/a — test seam for the in-process delivery task, which the web does not have",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.clampPanelDivider": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.minContentWidth": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
@@ -1269,7 +1268,6 @@
         "ByteRipperApp/Tools/ToolController.swift#ToolController.owner": "n/a — AppKit ownership; the controller is a module-level store",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.panel": "n/a — AppKit ownership; the panel is a React component reading the store",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.paneDropTitle": "n/a — the port links the panel to a pane through the panel's own control (\"Link to file panel\") rather than by dropping a pane on it",
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.paneLeft": "n/a — a pane leaving for another tab; one workspace per browser tab (D11)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.session": "n/a — the session is the mounted tool view; its lifetime is the component's",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.init": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.bodyFloor": "n/a — AppKit layout; CSS lays the header out",
@@ -3621,15 +3619,7 @@
         "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.makeController": "n/a — test scaffolding",
         "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.activate": "n/a — test scaffolding",
         "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.park": "n/a — test scaffolding",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testComingBackToAToolModuleHandsItsStateBack": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testEachToolModuleKeepsItsOwnPlace": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testAToolModuleThatKeepsNothingIsHandedNothing": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testTheStateIsHandedOverOnlyOnce": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testClosingTheFileForgetsWhatWasParked": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testReplacingTheContentForgetsWhatWasParked": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testAnEditDoesNotForgetWhatWasParked": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testStateParkedOnOnePaneIsNotHandedToTheOther": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testAPaneLeavingForgetsWhatWasParked": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/ToolParkedStateTests.swift#ToolParkedStateTests.testAPaneLeavingForgetsWhatWasParked": "n/a — a pane leaves for another window, and one workspace per browser tab has nowhere to leave to (D11)",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.files": "n/a — test scaffolding",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.controllers": "n/a — test scaffolding",
         "ByteRipperTests/ToolSessionTests.swift#ToolSessionTests.defaultsName": "n/a — test scaffolding",
@@ -3643,7 +3633,7 @@
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.started": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.stopped": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.changes": "n/a — test support",
-        "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.restored": "n/a — test support",
+        "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.restored": "n/a — test support; the web test says what a panel would hand back (noteSessionParkedState) and reads the value the session was handed",
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.selectedZones": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.session": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#ToolStubLog.reset": "n/a — test support",
@@ -3659,9 +3649,9 @@
         "ByteRipperTests/ToolTestSupport.swift#StubToolSession.contentChanged": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#StubToolSession.stop": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#StubToolSession.zoneSelected": "n/a — test support",
-        "ByteRipperTests/ToolTestSupport.swift#StubToolSession.stateToPark": "n/a — test support",
-        "ByteRipperTests/ToolTestSupport.swift#StubToolSession.parkedState": "n/a — test support",
-        "ByteRipperTests/ToolTestSupport.swift#StubToolSession.restore": "n/a — test support",
+        "ByteRipperTests/ToolTestSupport.swift#StubToolSession.stateToPark": "n/a — test support; a React panel is not an object to set one on, so a stub answers through noteSessionParkedState",
+        "ByteRipperTests/ToolTestSupport.swift#StubToolSession.parkedState": "n/a — test support; a panel's answer is what noteSessionParkedState files",
+        "ByteRipperTests/ToolTestSupport.swift#StubToolSession.restore": "n/a — test support; a session seeds itself from the context's restored value",
         "ByteRipperTests/ToolTestSupport.swift#StubToolA": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#StubToolA.identifier": "n/a — test support",
         "ByteRipperTests/ToolTestSupport.swift#StubToolA.title": "n/a — test support",
@@ -4334,7 +4324,9 @@
         "src/ui/toolPanel/RowMarks.tsx",
         "src/ui/toolPanel/RowMarkIcon.tsx",
         "src/ui/toolPanel/ToolRowMarksLegend.tsx",
-        "src/tools/toolZoneSelection.ts"
+        "src/tools/toolZoneSelection.ts",
+        "src/state/parkedToolState.ts",
+        "src/tools/toolParkedState.ts"
       ],
       "status": "in-progress",
       "note": "The tool seam: ToolModule and ToolSession are a module object and its View component; ToolHost is the ToolContext plus the stores a tool reads; transactions and zones are ported with their tests, and the seam is both ways — `ToolSession.zoneSelected` comes back as a request left in a store (toolZoneSelection.ts) because a React panel cannot be called. The row marks a firmware panel dresses its rows with, and the legend that explains them, are here too (ROW_MARKS.md): ToolRowMarks and ToolRowMarkStyle are the value, the catalogue and the symbols (toolRowMarks.ts, toolRowMarkStyle.ts), the legend is a React component that takes its room in the panel's own pane (ToolRowMarksLegend.tsx), and what upstream draws in ToolPanelRowView and ToolPanelTable becomes attributes on the row element and icons inside it (RowMarks.tsx, RowMarkIcon.tsx) read by the rules in src/app/app.css.",
@@ -4353,9 +4345,6 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.start": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.contentChanged": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.stop": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.parkedState": "later — only the ME tool keeps parked state, in its own module",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.restore": "later — as parkedState",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSessionState": "later — as parkedState",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.init": "n/a — an object literal; there is nothing to construct",
@@ -4389,7 +4378,9 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift": [
           "src/tools/toolModule.ts",
           "src/tools/contentChange.ts",
-          "src/tools/toolZoneSelection.ts"
+          "src/tools/toolZoneSelection.ts",
+          "src/tools/toolParkedState.ts",
+          "src/state/parkedToolState.ts"
         ],
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift": "src/ui/toolPanel/ToolDetail.tsx",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift": "src/tools/toolRowMarks.ts",

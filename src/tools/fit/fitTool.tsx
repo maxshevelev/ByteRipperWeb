@@ -11,6 +11,7 @@ import {
   microcodeCatalogueStore,
   microcodeDownloadMessage,
 } from "@/state/microcodeCatalogueStore";
+import type { ToolSessionState } from "@/state/parkedToolState";
 import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
@@ -38,6 +39,7 @@ import { cpuidsOf, type MicrocodeFormMode } from "@/tools/fit/microcodeFormModel
 import { pickMicrocode } from "@/tools/fit/pickMicrocode";
 import type { NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -102,6 +104,36 @@ function storedTableShare(): number {
 }
 
 /**
+ * What a parked session hands back: the row the user was looking at, and which
+ * zone of it was in front — the row itself, what it points at, or the table.
+ * The reading is worth doing again — it is a handful of lookups over the pane's
+ * own tree — and a tree of thousands of nodes per parked tool-module is how an
+ * app comes to hold four copies of an image it is not showing.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITParkedState
+ */
+interface Parked {
+  /** @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITParkedState.focus */
+  readonly focus: number | undefined;
+  /** @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITParkedState.focusZone */
+  readonly focusZone: string | undefined;
+}
+
+/**
+ * The state handed back by a previous session of this tool, as this tool keeps
+ * it — or nothing, when there is none of that shape.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.restore
+ */
+function restoredParked(state: ToolSessionState | undefined): Parked | undefined {
+  const held = state as Partial<Parked> | undefined;
+  if (held === undefined) return undefined;
+  if (held.focus !== undefined && typeof held.focus !== "number") return undefined;
+  if (held.focusZone !== undefined && typeof held.focusZone !== "string") return undefined;
+  return { focus: held.focus, focusZone: held.focusZone };
+}
+
+/**
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.loadView
@@ -111,8 +143,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
   const catalogue = useStore(microcodeCatalogueStore);
+  const park = restoredParked(context.restored);
   const [report, setReport] = useState<FITReport | undefined>(undefined);
-  const [focus, setFocus] = useState<number | undefined>(undefined);
+  const [focus, setFocus] = useState<number | undefined>(park?.focus);
   /**
    * The zone the outline is on — the row the user picked, what that row points
    * at, or the table itself.
@@ -127,7 +160,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    *
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.focusZone
    */
-  const [focusZone, setFocusZone] = useState<string | undefined>(undefined);
+  const [focusZone, setFocusZone] = useState<string | undefined>(park?.focusZone);
   /** The whole table in focus, as a click on its name puts it. */
   const tableFocused = focusZone === TABLE_ZONE_ID;
   const [busy, setBusy] = useState(false);
@@ -162,6 +195,14 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     loadMicrocodeCatalogue();
   }, []);
+
+  /**
+   * What this session would hand back if it ended now: the row in focus and
+   * which zone of it was in front.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.parkedState
+   */
+  useParkedToolState(pane, () => ({ focus, focusZone }));
 
   // Read the table whenever the tree changes. It changes twice for the ordinary
   // reason — the parse lands, then a branch somebody opened arrives — and a
