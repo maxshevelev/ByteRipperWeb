@@ -140,6 +140,7 @@ describe("column geometry", () => {
     expect(l.caretX(2, 1)).toBe(148);
   });
 
+  // @upstream ByteRipperTests/HexLayoutTests.swift#HexLayoutTests.testDeadZoneMidlines
   it("spans the dead zone from one nibble's middle to the other's", () => {
     const l = layout();
     expect(l.highNibbleMidX(2)).toBe(144);

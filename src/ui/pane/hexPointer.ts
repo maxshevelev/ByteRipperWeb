@@ -160,6 +160,43 @@ function anchorFor(
   }
 }
 
+/** A point in content coordinates — the dump's own, not the element's. */
+export interface GridPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * Whether a drag that began at `origin` has moved far enough to extend the
+ * selection, both points in content coordinates.
+ *
+ * A hex press that lands inside a byte's dead zone — from the middle of the
+ * high-nibble character to the middle of the low-nibble one (§3.3) — sits on
+ * the drag boundary `dragEndOffset` measures from, so a 1 px tremor there would
+ * select the byte by accident. The selection is held back until the pointer
+ * leaves the zone. The zone spans the pressed row, so vertical movement
+ * engages too; a press outside it — a byte's outer quarters, or the offset and
+ * text columns — is a clear position and engages at once.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.dragHasLeftDeadZone
+ */
+export function dragHasLeftDeadZone(
+  layout: HexLayout,
+  origin: GridPoint,
+  point: GridPoint,
+  rowCount: number
+): boolean {
+  const hit = layout.hitTest(origin.x, origin.y, rowCount);
+  if (hit === undefined || hit.column.kind !== "hex") return true;
+  const minX = layout.highNibbleMidX(hit.column.column);
+  const maxX = layout.lowNibbleMidX(hit.column.column);
+  const frame = layout.rowFrame(hit.row);
+  const inZone = (p: GridPoint) =>
+    p.x >= minX && p.x <= maxX && p.y >= frame.y && p.y <= frame.y + frame.height;
+  if (!inZone(origin)) return true;
+  return !inZone(point);
+}
+
 /** Where a left click puts the caret, and which column it types into. */
 export interface PointerTarget {
   readonly offset: number;

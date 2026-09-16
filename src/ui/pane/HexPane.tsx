@@ -50,7 +50,13 @@ import {
   resolveHexKey,
   resolveTarget,
 } from "@/ui/pane/hexKeys";
-import { type ContextMenuAnchor, contextMenuAnchor, pointerTarget } from "@/ui/pane/hexPointer";
+import {
+  type ContextMenuAnchor,
+  contextMenuAnchor,
+  dragHasLeftDeadZone,
+  type GridPoint,
+  pointerTarget,
+} from "@/ui/pane/hexPointer";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { PaneStatusLine } from "@/ui/pane/PaneStatusLine";
 import { PaneScroller } from "@/ui/pane/paneScroller";
@@ -341,13 +347,23 @@ export function HexPane({
   const headerRuleRef = useRef("");
   const viewportHeightRef = useRef(0);
   /**
-   * Whether a selection drag is in progress. The selection's fixed end is not
-   * kept here: the press anchors it in the controller, which is where the
-   * anchor survives a remount and where a test can reach it.
+   * Whether a selection drag is *engaged* — a press that has left the byte's
+   * dead zone, or a Shift-press, which extends from the moment it lands. The
+   * selection's fixed end is not kept here: the press anchors it in the
+   * controller, which is where the anchor survives a remount and where a test
+   * can reach it.
    *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.dragEngaged
    */
   const dragRef = useRef(false);
+  /**
+   * Where a press landed, in content coordinates, while its button is down. The
+   * dead zone is measured from it on every move, and it goes on the release —
+   * so a pane the pointer merely hovers over has no press to answer for.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDownLocation
+   */
+  const pressRef = useRef<GridPoint | undefined>(undefined);
   /** The row a bookmark is being dragged from, while that drag is happening. */
   const markDragRef = useRef<number | undefined>(undefined);
   /**
@@ -1373,7 +1389,12 @@ export function HexPane({
       // the click's only when it is not extending — with Shift the gesture is
       // about the range, and a caret move zeroes the nibble on its own, exactly
       // as it does for an arrow (§3.3).
-      dragRef.current = true;
+      //
+      // An unmodified press does not engage yet: a click between a byte's
+      // nibbles would otherwise turn the smallest tremor into a selection, so
+      // the drag waits for the pointer to leave the byte's dead zone (§3.3).
+      pressRef.current = point;
+      dragRef.current = event.shiftKey;
       event.currentTarget.setPointerCapture(event.pointerId);
       void typing
         .clickAt(target.offset, target.nibble, target.region, event.shiftKey)
@@ -1505,6 +1526,7 @@ export function HexPane({
 
   /**
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDragged
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.dragHasLeftDeadZone
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onBookmarkDrag
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.lastDragPoint
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.updateDragAutoscrollTimer
@@ -1512,7 +1534,18 @@ export function HexPane({
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       trackMarkTip(event);
-      if (markDragRef.current === undefined && !dragRef.current) return;
+      // A mark's drag engages the moment it starts (§20.6); a selection's waits
+      // for the pointer to leave the dead zone, which is why a press that has
+      // not engaged yet still has to be answered here rather than ignored.
+      if (markDragRef.current === undefined && pressRef.current === undefined) return;
+      if (markDragRef.current === undefined && !dragRef.current) {
+        const layout = layoutRef.current;
+        const press = pressRef.current;
+        const point = contentPoint(event);
+        if (layout === undefined || press === undefined || point === undefined) return;
+        if (!dragHasLeftDeadZone(layout, press, point, layout.rowCount(doc.size))) return;
+        dragRef.current = true;
+      }
       dragPointerRef.current = { x: event.clientX, y: event.clientY };
       if (!dragTo(event.clientX, event.clientY)) {
         stopAutoscroll();
@@ -1526,7 +1559,7 @@ export function HexPane({
         if (pointer === undefined || !dragTo(pointer.x, pointer.y)) stopAutoscroll();
       }, AUTOSCROLL_INTERVAL_MS);
     },
-    [trackMarkTip, dragTo, stopAutoscroll]
+    [trackMarkTip, contentPoint, dragTo, stopAutoscroll, doc]
   );
 
   /**
@@ -1640,6 +1673,7 @@ export function HexPane({
   const endDrag = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       dragRef.current = false;
+      pressRef.current = undefined;
       markDragRef.current = undefined;
       markDragPointerRowRef.current = undefined;
       dragPointerRef.current = undefined;

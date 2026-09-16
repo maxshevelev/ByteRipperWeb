@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { HexLayout } from "@/render/hexGrid/hexLayout";
-import { contextMenuAnchor, hexClickPlacement, pointerTarget } from "@/ui/pane/hexPointer";
+import {
+  contextMenuAnchor,
+  dragHasLeftDeadZone,
+  hexClickPlacement,
+  pointerTarget,
+} from "@/ui/pane/hexPointer";
 
 /**
  * Ported from `CaretPlacementTests` and `OffsetContextMenuTests`, which drive
@@ -175,5 +180,74 @@ describe("the placement rule on its own", () => {
   it("reads the nibble off the pointer's x within the byte", () => {
     expect(hexClickPlacement(layout, inByte(5, 0.75), 5, false)).toEqual({ column: 5, nibble: 0 });
     expect(hexClickPlacement(layout, inByte(5, 0.75), 5, true)).toEqual({ column: 5, nibble: 1 });
+  });
+});
+
+/**
+ * The dead zone a drag waits to leave (§3.3), tested where the pointer's own x
+ * and y go straight to the rule — the same standing-in for the event the tests
+ * above do. `MouseSelectionTests` drives the real view for these; what is
+ * checked here is the decision, which is all the pane asks for.
+ *
+ * A press mid-byte sits on the boundary `dragEndOffset` measures from, so the
+ * zone is what keeps a 1 px tremor from selecting the byte.
+ */
+describe("the drag dead zone", () => {
+  /** A point on row `row` of a 32-byte file, `x` px into the content. */
+  const at = (x: number, row = 0) => ({ x, y: row * layout.rowHeight + layout.rowHeight / 2 });
+  const size = 32;
+  const rows = layout.rowCount(size);
+  const left = (origin: { x: number; y: number }, point: { x: number; y: number }) =>
+    dragHasLeftDeadZone(layout, origin, point, rows);
+
+  // @upstream ByteRipperTests/MouseSelectionTests.swift#MouseSelectionTests.testJitterInDeadZoneDoesNotSelect
+  it("holds the selection back while the pointer stays inside it", () => {
+    // Byte 0's nibble boundary: the place a click between the two digits puts
+    // the caret. A quarter of a character either way is hand tremor.
+    const boundary = inByte(0, 1);
+    const jitter = layout.charWidth * 0.25;
+    expect(left(at(boundary), at(boundary + jitter))).toBe(false);
+    expect(left(at(boundary), at(boundary - jitter))).toBe(false);
+    // And the zone's own edges belong to it, as upstream's inclusive test says.
+    expect(left(at(boundary), at(layout.highNibbleMidX(0)))).toBe(false);
+    expect(left(at(boundary), at(layout.lowNibbleMidX(0)))).toBe(false);
+  });
+
+  // @upstream ByteRipperTests/MouseSelectionTests.swift#MouseSelectionTests.testDragOutOfDeadZoneSelectsFromClick
+  it("lets the drag through the moment the pointer leaves", () => {
+    const boundary = inByte(0, 1);
+    expect(left(at(boundary), at(layout.lowNibbleMidX(0) + 1))).toBe(true);
+    expect(left(at(boundary), at(layout.highNibbleMidX(0) - 1))).toBe(true);
+    // A character to the right, which is byte 0's own outer quarter.
+    expect(left(at(boundary), at(layout.lowNibbleMidX(0) + layout.charWidth))).toBe(true);
+  });
+
+  // @upstream ByteRipperApp/Hex/HexView.swift#HexView.dragHasLeftDeadZone
+  it("spans the pressed row, so vertical movement engages it", () => {
+    const boundary = inByte(0, 1);
+    // The same x, one row down: outside the zone's frame.
+    expect(left(at(boundary), at(boundary, 1))).toBe(true);
+    // The row above is outside it too, and so is a y below the pressed row.
+    expect(left(at(boundary, 1), at(boundary))).toBe(true);
+  });
+
+  it("engages at once for a press that is not in the hex column", () => {
+    // A byte's outer quarter, the offset column and the text column are all
+    // clear positions: nothing there sits on the drag boundary.
+    expect(left(at(inByte(0, 0.25)), at(inByte(0, 0.5)))).toBe(true);
+    expect(left(at(layout.leftPadding + 4), at(layout.leftPadding + 6))).toBe(true);
+    expect(left(at(layout.textX(3)), at(layout.textX(3) + 2))).toBe(true);
+    // A click in the gap before byte 0's cell — the region's left edge.
+    expect(left(at(layout.hexByteX(0) - 2), at(layout.hexByteX(0) + 4))).toBe(true);
+  });
+
+  // @upstream ByteRipperApp/Hex/HexView.swift#HexView.dragHasLeftDeadZone
+  it("engages for a press the layout cannot place in a row", () => {
+    // 32 bytes is two data rows and the trailing caret row; the press lands
+    // past even that, and above the first row, where there is no zone to sit in
+    // — the rule answers `true` rather than trapping the drag forever.
+    const boundary = inByte(0, 1);
+    expect(left(at(boundary, 3), at(boundary, 3))).toBe(true);
+    expect(left(at(boundary, -1), at(boundary, -1))).toBe(true);
   });
 });
