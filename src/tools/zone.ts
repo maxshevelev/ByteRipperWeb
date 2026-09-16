@@ -11,6 +11,16 @@
  * edit, and the focus still names the same thing.
  */
 
+/**
+ * What a zone *is*, as opposed to what it is called.
+ *
+ * One case for now, on purpose: see `Zone.kind`. A union of string tags rather
+ * than a TypeScript `enum`, as the other ported Swift enums here are.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#ZoneKind
+ */
+export type ZoneKind = "plain";
+
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone */
 export interface Zone {
   /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.id */
@@ -24,6 +34,16 @@ export interface Zone {
    */
   readonly start: number;
   readonly end: number;
+  /**
+   * Reserved. The uses are real — protected by Boot Guard, padding, an empty
+   * slot, a region open for editing — and each of them wants a tool that has
+   * something to say first. Nothing reads it yet, which is why every zone
+   * published today is `plain` and the default keeps a construction site from
+   * having to say so.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.kind
+   */
+  readonly kind?: ZoneKind;
 }
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#ZoneMap */

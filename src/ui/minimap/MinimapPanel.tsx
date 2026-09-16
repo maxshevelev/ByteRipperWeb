@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Segment } from "@/core/segments/segmentation";
+import { hexAddress } from "@/core/text/hexText";
 import {
   type MapMark,
   nearestBookmarkMark,
   segmentStripClick,
+  type ZoneBracketBox,
+  zoneBracket,
+  zoneBracketClick,
 } from "@/render/minimap/minimapClick";
 import {
   BYTES_PER_ROW,
@@ -43,6 +47,7 @@ import {
   setMinimapWidth,
 } from "@/state/minimapStore";
 import { segmentsStore } from "@/state/segmentsStore";
+import { zoneSelected } from "@/state/toolController";
 import { useStore } from "@/state/useStore";
 import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
@@ -639,7 +644,7 @@ function MinimapCanvas({
   const zoneBrackets = (() => {
     if (zones.zones.length === 0) return undefined;
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
-    const brackets: (ZoneBracket & { id: string })[] = [];
+    const brackets: (ZoneBracket & ZoneBracketBox)[] = [];
     for (const zone of zones.zones) {
       const top = yOfOffset({ ...shared, offset: zone.start });
       const bottom = yOfOffset({ ...shared, offset: zone.end });
@@ -649,6 +654,10 @@ function MinimapCanvas({
       ).length;
       brackets.push({
         id: zone.id,
+        // The range is carried besides the painted box so a click near a
+        // bracket's end can name the byte it stands for.
+        start: zone.start,
+        end: zone.end,
         top: Math.max(0, top),
         height: Math.min(size.height, bottom) - Math.max(0, top),
         depth,
@@ -800,6 +809,25 @@ function MinimapCanvas({
         return;
       }
 
+      // And a click on a zone's own end goes to that end, for the same reason
+      // and ahead of the band for the same one (§19.4.5). Only the two ends:
+      // the middle of a bracket is a byte like any other on the map.
+      const onBracket = zoneBracketClick({
+        layout,
+        brackets: zoneBrackets ?? [],
+        x,
+        y,
+        mode,
+        areaHeight: box.height,
+        topRow,
+        extent: state.extent,
+        fileSize: slot?.document.size ?? 0,
+      });
+      if (onBracket !== undefined) {
+        scrollLink.scrollToOffset(pane, onBracket.offset, BYTES_PER_ROW, { centre: true });
+        return;
+      }
+
       if (band !== undefined && y >= band.top && y <= band.top + band.height) {
         // On the band: this press is the start of a scroll, so it must not also
         // be read as a "take me here" jump.
@@ -831,6 +859,7 @@ function MinimapCanvas({
       state.extent,
       state.pictures,
       slot,
+      zoneBrackets,
     ]
   );
 
@@ -841,7 +870,12 @@ function MinimapCanvas({
   /**
    * The zone whose bracket is under the pointer, if the pointer is in the gutter.
    *
+   * The same hit-test the click uses, asked the same question — the lane nearest
+   * the pointer answers first and the shortest bracket in it wins — so pointing
+   * at a bracket and pressing on one cannot disagree about which it is.
+   *
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracket
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHit
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketMenu
    * @upstream-differs the menu opens from the canvas's onContextMenu
    */
@@ -849,17 +883,13 @@ function MinimapCanvas({
     (event: { clientX: number; clientY: number }): Zone | undefined => {
       const canvas = canvasRef.current;
       if (canvas === null || zoneBrackets === undefined) return undefined;
-      const gutter = layout.zoneGutterRect;
-      if (gutter === undefined) return undefined;
       const box = canvas.getBoundingClientRect();
-      const x = event.clientX - box.left;
-      if (x < gutter.x || x > gutter.x + gutter.width) return undefined;
-      const y = event.clientY - box.top;
-      // Innermost first: the deepest bracket under the pointer is the one being
-      // aimed at, the way the dump's own zone menu orders them.
-      const hit = [...zoneBrackets]
-        .sort((left, right) => right.depth - left.depth)
-        .find((bracket) => y >= bracket.top - 2 && y <= bracket.top + bracket.height + 2);
+      const hit = zoneBracket(
+        layout,
+        zoneBrackets,
+        event.clientX - box.left,
+        event.clientY - box.top
+      );
       return hit === undefined ? undefined : zones.zones.find((one) => one.id === hit.id);
     },
     [zoneBrackets, zones.zones, layout]
@@ -961,15 +991,24 @@ function MinimapCanvas({
           const zone = zoneUnder(event);
           if (zone !== undefined) {
             // The gutter's own menu: the commands that act on the zone under
-            // the pointer (§19.4.5).
+            // the pointer (§19.4.5). The zone's name is in the title, so the
+            // menu says what it will act on; an unnamed zone is named by where
+            // it starts, which is all there is.
+            const named =
+              zone.name.length === 0 ? `at ${hexAddress(zone.start)}` : `“${zone.name}”`;
             openContextMenu(event, [
               {
-                label: `Select Zone “${zone.name}”`,
+                label: `Select Zone ${named}`,
                 onSelect: () => {
                   const slot = workspaceStore.getSnapshot().panes[pane];
                   if (slot === undefined) return;
                   void slot.typing.setSelection(zone.start, zone.end);
-                  scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW);
+                  scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW, { centre: true });
+                  // The bytes are the host's half; telling the tool that
+                  // published the zone is the other one, and it is the only
+                  // side that knows what the zone stands for.
+                  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectZone
+                  zoneSelected(pane, zone.id);
                 },
               },
             ]);

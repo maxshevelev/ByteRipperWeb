@@ -17,7 +17,8 @@ import { clearZones, publishZones } from "@/state/zoneStore";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
-import { uefiZones } from "@/tools/uefi/uefiPresenter";
+import { useZoneSelection } from "@/tools/toolZoneSelection";
+import { nodeIDOfZone, uefiZones } from "@/tools/uefi/uefiPresenter";
 import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -335,6 +336,41 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       element.scrollTop = HEADER_HEIGHT + top + ROW_HEIGHT - element.clientHeight;
     }
   }, [rows, scrollTarget]);
+
+  /**
+   * The zone the user picked in the dump, brought to the front: the branches on
+   * the way to its node opened, its row selected, its detail up, and the map
+   * published again so the outline over the dump and in the gutter moves with
+   * it.
+   *
+   * Only the tree moves — the bytes are already selected, and the dump is where
+   * the reader is standing. A zone naming no node of this image is nothing to
+   * say, and a zone whose node has gone with a re-read leaves the panel with
+   * nothing published, which is what upstream's own `show(publish:)` does with a
+   * focus that resolves to nil.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.zoneSelected
+   */
+  const zonePicked = useCallback(
+    (zoneId: string) => {
+      const path = nodeIDOfZone(zoneId);
+      if (path === undefined) return;
+      setOpen((current) => {
+        const next = new Set(current);
+        for (let length = 1; length < path.length; length++) {
+          next.add(pathKey(path.slice(0, length)));
+        }
+        return next;
+      });
+      const key = pathKey(path);
+      setSelected(key);
+      askFirmwareDetail(context.pane, path);
+      setScrollTarget(key);
+      publishZones(context.pane, uefiZones(firmwareNodeAt(roots ?? [], path)));
+    },
+    [context.pane, roots]
+  );
+  useZoneSelection(context.pane, zonePicked);
 
   /**
    * What a row wears besides its name, decided in the pure marks of the tree

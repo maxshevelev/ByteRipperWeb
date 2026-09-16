@@ -10,9 +10,11 @@ import {
   nearestBookmarkMark,
   nearestCut,
   segmentStripClick,
+  type ZoneBracketBox,
+  zoneBracketClick,
 } from "@/render/minimap/minimapClick";
 import { offsetAtY, yOfOffset } from "@/render/minimap/minimapGeometry";
-import { MinimapLayout } from "@/render/minimap/minimapLayout";
+import { MinimapLayout, ZONE_LANE_STEP } from "@/render/minimap/minimapLayout";
 
 const plain = new MinimapLayout({
   width: 60,
@@ -116,5 +118,88 @@ describe("a click on the segment strip", () => {
       fileSize: 256,
     });
     expect(unstriped).toBeUndefined();
+  });
+});
+
+describe("a click on a zone's bracket", () => {
+  const zoned = new MinimapLayout({
+    width: 60,
+    placement: "single",
+    segmentStripVisible: false,
+    zoneLaneCount: 1,
+  });
+  const nested = new MinimapLayout({
+    width: 60,
+    placement: "single",
+    segmentStripVisible: false,
+    zoneLaneCount: 2,
+  });
+  const gutter = zoned.zoneGutterRect;
+  const nestedGutter = nested.zoneGutterRect;
+  if (gutter === undefined || nestedGutter === undefined) {
+    throw new Error("premise: the map has a gutter");
+  }
+  const detail = {
+    mode: "detail" as const,
+    areaHeight: 300,
+    topRow: 0,
+    extent: 0,
+  };
+  const yOf = (offset: number) => yOfOffset({ ...detail, offset });
+  const bracket = (id: string, start: number, end: number, depth = 0): ZoneBracketBox => ({
+    id,
+    start,
+    end,
+    depth,
+    top: yOf(start),
+    height: yOf(end) - yOf(start),
+  });
+  const click = (
+    x: number,
+    y: number,
+    brackets: readonly ZoneBracketBox[],
+    fileSize = 0x400,
+    layout = zoned
+  ) => zoneBracketClick({ ...detail, fileSize, layout, brackets, x, y });
+
+  // @upstream ByteRipperTests/MinimapZoneTests.swift#MinimapZoneTests.testAClickOnAZonesEndsSnapsToThem
+  test("goes to the end it is near, and to the start of the same zone", () => {
+    const bios = [bracket("bios", 0x100, 0x300)];
+    expect(click(gutter.x, yOf(0x100), bios)).toEqual({ id: "bios", offset: 0x100 });
+    expect(click(gutter.x, yOf(0x300), bios)).toEqual({
+      id: "bios",
+      // The end is the zone's last byte, not the byte after it.
+      offset: 0x2ff,
+    });
+  });
+
+  test("means nothing in the middle of a bracket, or off every bracket", () => {
+    const bios = [bracket("bios", 0x100, 0x300)];
+    expect(click(gutter.x, yOf(0x200), bios)).toBeUndefined();
+    expect(click(gutter.x, yOf(0x380), bios)).toBeUndefined();
+    // And nothing outside the gutter, however near an end the height is.
+    expect(
+      click(gutter.x + gutter.width + BOOKMARK_SNAP_DISTANCE + 1, yOf(0x100), bios)
+    ).toBeUndefined();
+  });
+
+  test("stops at the file's end when the zone runs past it", () => {
+    const tail = [bracket("tail", 0x100, 0x400)];
+    expect(click(gutter.x, yOf(0x400), tail, 0x300)?.offset).toBe(0x2ff);
+  });
+
+  test("takes the shortest bracket in the lane the pointer is in", () => {
+    const zones = [bracket("outer", 0x000, 0x400, 0), bracket("inner", 0x100, 0x200, 1)];
+    // Lane 1's column, at the inner zone's end: the inner bracket is the one
+    // the pointer is on, and the outer's end is nowhere near.
+    expect(click(nestedGutter.x + ZONE_LANE_STEP, yOf(0x200), zones)).toEqual({
+      id: "inner",
+      offset: 0x1ff,
+    });
+    // A lane with no bracket at that height falls back to the one beside it.
+    expect(click(nestedGutter.x + ZONE_LANE_STEP, yOf(0x400), zones)).toEqual({
+      id: "outer",
+      offset: 0x3ff,
+    });
   });
 });

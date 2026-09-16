@@ -576,15 +576,11 @@
         "Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift": "src/tools/uefi/uefiTreeDisplay.test.ts"
       },
       "unported": {
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIPresenterTests.testZoneIdsRoundTripToNodePaths": "later — a zone picked in the dump is not handed back to the tool, so zone ids are not parsed back into paths",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIPresenterTests.testAPartsZoneIdLeadsToItsNode": "later — a zone picked in the dump is not handed back to the tool, so zone ids are not parsed back into paths",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIPresenterTests.testAZoneIdThatIsNotAPathIsRejected": "later — a zone picked in the dump is not handed back to the tool, so zone ids are not parsed back into paths",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectionCaveat": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectedByTable": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage.init": "n/a — an object literal",
-        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeID": "later — a zone picked in the dump is not handed back to the tool, so zone ids are not parsed back into paths",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport*": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedExport": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.fileSource": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
@@ -606,7 +602,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.stop": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.contentChanged": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showTopNode": "later — selecting the folded title row is not ported",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.zoneSelected": "later — a zone picked in the dump is not handed back to the tool, so zone ids are not parsed back into paths",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.exportDecompressed": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecompressedInNewTab": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelectTop": "later — selecting the folded title row is not ported",
@@ -708,7 +703,6 @@
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.contentChanged": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.stop": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.zoneSelected": "later — a zone picked in the dump is not handed back to the tool",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.alert": "n/a — an AppKit alert seam for tests",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.pasteboard": "n/a — an NSPasteboard seam for tests",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.display": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
@@ -779,7 +773,6 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.start": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.contentChanged": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.stop": "n/a — the view is a React component: its render and effects are the session's lifecycle",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.zoneSelected": "later — a zone picked in the dump is not handed back to the tool",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.legend": "n/a — the legend is a React component (ToolRowMarksLegend) that the panel places in its own pane; the panel key it is built with is MEA_PANEL (meTool.tsx)",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showBusy": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.endBusy": "n/a — the busy, notice and retry lines are rendered from state",
@@ -856,7 +849,10 @@
       "note": "The geometry is split in two, as upstream's own MINIMAP_LAYERS_IDEA.md recommends building first: minimapGeometry.ts is the byte-to-pixel axis and minimapLayout.ts the horizontal one — the margins, the strip, the gutter and what is left for the dump, per map. Every layer reads the layout rather than deriving its own margins.",
       "files": {
         "OverviewBinning.swift": "src/render/minimap/overviewBinning.ts",
-        "MinimapView.swift": "src/render/minimap/minimapRenderer.ts",
+        "MinimapView.swift": [
+          "src/render/minimap/minimapRenderer.ts",
+          "src/render/minimap/minimapClick.ts"
+        ],
         "MinimapPanelView.swift": "src/ui/minimap/MinimapPanel.tsx",
         "ByteRipperApp/Minimap/OverviewBinning.swift": "src/render/minimap/overviewBinning.ts"
       },
@@ -877,7 +873,6 @@
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.geometrySettleDelay": "n/a — the old picture is stretched by CSS; there is no settle timer",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.accessibility*": "later — the map's canvas carries only an aria-label",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.isAccessibilityElement": "later — the map's canvas carries only an aria-label",
-        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketClick": "later — a click near a bracket's end does not go to that end",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.init": "n/a — a component",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.layout": "n/a — CSS lays the panel out",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.minimumMapHeight": "n/a — CSS lays the panel out",
@@ -1275,7 +1270,6 @@
         "ByteRipperApp/Tools/ToolController.swift#ToolController.panel": "n/a — AppKit ownership; the panel is a React component reading the store",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.paneDropTitle": "n/a — the port links the panel to a pane through the panel's own control (\"Link to file panel\") rather than by dropping a pane on it",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.paneLeft": "n/a — a pane leaving for another tab; one workspace per browser tab (D11)",
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.zoneSelected": "later — a zone picked in the dump is not handed back to the tool",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.session": "n/a — the session is the mounted tool view; its lifetime is the component's",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.init": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.bodyFloor": "n/a — AppKit layout; CSS lays the header out",
@@ -4214,10 +4208,8 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.pane": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.filePaneView": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.selectAllBytes": "n/a — window controller plumbing; the shell's components read the stores",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.saveZone": "later — a zone cannot be saved as its own file",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openZoneInNewTab": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openZone": "n/a — one workspace per browser tab (D11): no tabs or windows",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.zoneExportName": "later — a zone cannot be saved as its own file",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.pane": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.prefillOffset": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
@@ -4279,7 +4271,7 @@
         "src/state/zoneStore.ts"
       ],
       "status": "ported",
-      "note": "The named ranges a tool asks the shell to draw. The web draws them in the minimap's gutter and offers them in the dump's right-click menu."
+      "note": "The named ranges a tool asks the shell to draw. The web draws them in the minimap's gutter and offers them in the dump's right-click menu, and a zone picked in either place is handed back to the tool that published it. `Zone.kind` is here with its one case, `.plain`: nothing reads it on either side yet, as upstream reserves it."
     },
     {
       "swift": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift",
@@ -4341,10 +4333,11 @@
         "src/tools/toolRowMarkStyle.ts",
         "src/ui/toolPanel/RowMarks.tsx",
         "src/ui/toolPanel/RowMarkIcon.tsx",
-        "src/ui/toolPanel/ToolRowMarksLegend.tsx"
+        "src/ui/toolPanel/ToolRowMarksLegend.tsx",
+        "src/tools/toolZoneSelection.ts"
       ],
       "status": "in-progress",
-      "note": "The tool seam: ToolModule and ToolSession are a module object and its View component; ToolHost is the ToolContext plus the stores a tool reads; transactions and zones are ported with their tests. The row marks a firmware panel dresses its rows with, and the legend that explains them, are here too (ROW_MARKS.md): ToolRowMarks and ToolRowMarkStyle are the value, the catalogue and the symbols (toolRowMarks.ts, toolRowMarkStyle.ts), the legend is a React component that takes its room in the panel's own pane (ToolRowMarksLegend.tsx), and what upstream draws in ToolPanelRowView and ToolPanelTable becomes attributes on the row element and icons inside it (RowMarks.tsx, RowMarkIcon.tsx) read by the rules in src/app/app.css.",
+      "note": "The tool seam: ToolModule and ToolSession are a module object and its View component; ToolHost is the ToolContext plus the stores a tool reads; transactions and zones are ported with their tests, and the seam is both ways — `ToolSession.zoneSelected` comes back as a request left in a store (toolZoneSelection.ts) because a React panel cannot be called. The row marks a firmware panel dresses its rows with, and the legend that explains them, are here too (ROW_MARKS.md): ToolRowMarks and ToolRowMarkStyle are the value, the catalogue and the symbols (toolRowMarks.ts, toolRowMarkStyle.ts), the legend is a React component that takes its room in the panel's own pane (ToolRowMarksLegend.tsx), and what upstream draws in ToolPanelRowView and ToolPanelTable becomes attributes on the row element and icons inside it (RowMarks.tsx, RowMarkIcon.tsx) read by the rules in src/app/app.css.",
       "unported": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.fileName": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.contentSize": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
@@ -4360,14 +4353,11 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.start": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.contentChanged": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.stop": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.zoneSelected": "later — a zone picked in the dump is not handed back to the tool",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.parkedState": "later — only the ME tool keeps parked state, in its own module",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.restore": "later — as parkedState",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSessionState": "later — as parkedState",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.kind": "later — zones carry no kind",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#ZoneKind*": "later — zones carry no kind",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#ZoneMap.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.content": "n/a — AppKit stack view",
@@ -4398,7 +4388,8 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift": "src/tools/toolModule.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift": [
           "src/tools/toolModule.ts",
-          "src/tools/contentChange.ts"
+          "src/tools/contentChange.ts",
+          "src/tools/toolZoneSelection.ts"
         ],
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift": "src/ui/toolPanel/ToolDetail.tsx",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift": "src/tools/toolRowMarks.ts",

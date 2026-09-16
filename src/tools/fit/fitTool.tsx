@@ -26,6 +26,7 @@ import {
   offsetToGoTo,
   ratingLatest,
   rowCommands,
+  rowIndexOfZone,
   rowKey,
   TABLE_ZONE_ID,
   zoneToFocus,
@@ -38,6 +39,7 @@ import { pickMicrocode } from "@/tools/fit/pickMicrocode";
 import type { NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
+import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
@@ -408,6 +410,23 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     setFocusZone(TABLE_ZONE_ID);
     context.reveal(table.start, table.end);
   }, [display.zones, context]);
+
+  /**
+   * The zone the user picked in the dump, brought to the front: the row it
+   * stands for selected, and the description beside it following.
+   *
+   * The zone id is kept as it arrived rather than resolved to a row, since the
+   * outline sits on what the row points at as often as on the row — and both
+   * are the same row's. Only the panel moves: the bytes are already selected,
+   * and the dump is where the reader is standing.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.zoneSelected
+   */
+  const zonePicked = useCallback((zoneId: string) => {
+    setFocus(rowIndexOfZone(zoneId));
+    setFocusZone(zoneId);
+  }, []);
+  useZoneSelection(pane, zonePicked);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {

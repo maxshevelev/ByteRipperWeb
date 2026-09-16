@@ -66,3 +66,31 @@ export function uefiZones(node: ZonedNode | undefined): ZoneMap {
   // what the node holds, and what is in front of it is the header.
   return { zones: [whole, body], focus: body.id };
 }
+
+/**
+ * The trip back: the user picked a zone in the dump and the panel has to expand
+ * to the node it came from. Undefined for an id this tool did not make.
+ *
+ * A part's zone leads to the same node as the whole of it — the reader picked
+ * "MyDriver body" in the dump and the row they want is MyDriver.
+ *
+ * The path is digits and dots, so the `#` separator can never be confused with
+ * anything in one; a field that is not a number is a refusal rather than a zero,
+ * which is what keeps an id from anywhere else out of the tree.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeID
+ */
+export function nodeIDOfZone(id: string): readonly number[] | undefined {
+  // `split` on a string that does not contain the separator answers one empty
+  // field, which the emptiness guard below turns into a refusal — the same as
+  // upstream's `split(omittingEmptySubsequences: false)[0]`.
+  const path = id.split(PART_SEPARATOR)[0] ?? "";
+  if (path.length === 0) return undefined;
+  const fields = path.split(".");
+  // `Number` alone would read `1e3` and `0x10` as numbers, where Swift's
+  // `Int(_:)` reads only an optionally signed run of digits; a field it refuses
+  // is a refusal for the whole id.
+  const numbers = fields.filter((field) => /^[+-]?\d+$/.test(field)).map(Number);
+  if (numbers.length !== fields.length) return undefined;
+  return numbers;
+}

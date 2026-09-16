@@ -25,7 +25,7 @@ import {
   setSearchPane,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import { paneClosed, toolController } from "@/state/toolController";
+import { paneClosed, toolController, zoneSelected } from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
@@ -1192,6 +1192,11 @@ export function AppShell() {
         if (slot === undefined) return;
         void slot.typing.setSelection(zone.start, zone.end);
         revealInBoth(zone.start);
+        // The bytes are the host's half; telling the tool that published the
+        // zone is the other one, and it is the only side that knows what the
+        // zone stands for.
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectZone
+        zoneSelected(pane, zone.id);
       },
       onJoin: (pane, position) => void doJoin(pane, position),
       onSegments: (pane) => setSegmentsPane(pane),

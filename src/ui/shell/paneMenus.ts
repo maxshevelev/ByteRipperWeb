@@ -147,7 +147,7 @@ export function dumpMenu(
     // The zone block: a right-click inside a range the open tool published
     // offers that range by name. Nothing at all where there are no zones —
     // which is most files, most of the time.
-    ...zoneItems(pane, offset, actions),
+    ...zoneItems(slot, pane, offset, actions),
     // The segment block (§21.3): the commands that shape the file's partition,
     // set off from the address-scoped commands above and the bookmark commands
     // below by their own separators.
@@ -165,12 +165,23 @@ export function dumpMenu(
  * the microcode a row points at. All of them are offered, innermost first,
  * because the smallest zone under the pointer is the one being aimed at.
  *
+ * Selecting is what tells the tool that published the zone which of its own it
+ * is about; saving is the same read-only export Save Selection as… makes, the
+ * source file never written.
+ *
+ * Open Zone in a New Tab is not here: a zone taken out into a document of its
+ * own is a tab of the window it came from, and one workspace per browser tab
+ * (D11) leaves it nowhere to go.
+ *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addZoneMenuItems
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectZone
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveZone
  * @upstream ByteRipperApp/Window/MainViewController.swift#ZoneContextTarget
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectZone
+ * @web-only several zones become one item per zone rather than a submenu: this menu has no submenus, and a command that has to be named twice beats one that cannot be reached
  */
 function zoneItems(
+  slot: PaneState,
   pane: PaneId,
   offset: number,
   actions: PaneMenuActions
@@ -182,6 +193,19 @@ function zoneItems(
     ...zones.map((zone) => ({
       label: `Select Zone “${zone.name}”`,
       onSelect: () => actions.onSelectZone(pane, zone),
+    })),
+    ...zones.map((zone) => ({
+      label: `Save Zone “${zone.name}” as…`,
+      onSelect: () =>
+        saveRangeAs(
+          slot,
+          pane,
+          zone.start,
+          zone.end,
+          zoneFileName(slot.name, zone.name, zone.start, zone.end),
+          "zone",
+          actions
+        ),
     })),
   ];
 }
@@ -261,32 +285,98 @@ function selectionItems(
     },
     {
       label: "Save Selection as…",
-      onSelect: () => {
-        void saveRange(slot.document.storage, start, end, selectionFileName(slot.name, start, end))
-          .then((outcome) => {
-            if (outcome === "downloaded") {
-              actions.onMessage(
-                pane,
-                "This browser cannot write to a chosen file, so a copy was downloaded."
-              );
-            }
-          })
-          .catch((error: unknown) =>
-            actions.onProblem(
-              "Save failed.",
-              error instanceof Error ? error.message : "That selection could not be saved."
-            )
-          );
-      },
+      onSelect: () =>
+        saveRangeAs(
+          slot,
+          pane,
+          start,
+          end,
+          selectionFileName(slot.name, start, end),
+          "selection",
+          actions
+        ),
     },
     { label: "Fill Selection with…", onSelect: () => actions.onFill(pane) },
     { label: "Delete Bytes…", onSelect: () => actions.onDeleteBytes(pane), destructive: true },
   ];
 }
 
-/** `bios.bin_00001000-000010FF.bin` — what upstream names a saved selection. */
+/**
+ * The tail Save Selection as… and Save Zone as… share: reads a range out of the
+ * pane's document and offers the bytes as a file to save. `purpose` — "the
+ * selection", "the zone" — names the range in what goes wrong.
+ *
+ * A read only: the pane's file is never written by this, so it is offered
+ * whether or not the pane is writable, and what is saved is what is shown,
+ * edits and all.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveRange
+ * @upstream-differs the picker is the browser's, and a browser without one — or without
+ * somewhere to put what the picker would return — hands the bytes to the download flow (D7)
+ */
+function saveRangeAs(
+  slot: PaneState,
+  pane: PaneId,
+  start: number,
+  end: number,
+  suggestedName: string,
+  purpose: string,
+  actions: PaneMenuActions
+): void {
+  void saveRange(slot.document.storage, start, end, suggestedName)
+    .then((outcome) => {
+      if (outcome === "downloaded") {
+        actions.onMessage(
+          pane,
+          "This browser cannot write to a chosen file, so a copy was downloaded."
+        );
+      }
+    })
+    .catch((error: unknown) =>
+      actions.onProblem(
+        "Save failed.",
+        error instanceof Error ? error.message : `That ${purpose} could not be saved.`
+      )
+    );
+}
+
+/**
+ * The name a saved selection is offered under: the source file's stem with the
+ * exported range appended, so a save of even the whole file cannot silently
+ * land on the file that is open.
+ *
+ * The bounds are the range's own — half-open, so the second number is the byte
+ * *after* the last one — because that is what upstream writes and what a size
+ * can be read off at a glance.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.exportName
+ */
 export function selectionFileName(base: string, start: number, end: number): string {
-  return `${base}_${hexAddress(start)}-${hexAddress(Math.max(start, end - 1))}.bin`;
+  return `${fileStem(base)}_${hexAddress(start)}-${hexAddress(end)}.bin`;
+}
+
+/**
+ * The name a saved zone is offered under: the source file's stem with the
+ * zone's own name appended — that is what the reader is looking for, where the
+ * offsets are not. A nameless zone falls back to its range, so the export still
+ * cannot silently land on the file that is open.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.zoneExportName
+ */
+export function zoneFileName(base: string, zoneName: string, start: number, end: number): string {
+  if (zoneName.length === 0) return selectionFileName(base, start, end);
+  return `${fileStem(base)}_${zoneName}.bin`;
+}
+
+/**
+ * A file's name without its extension — up to the **last** dot, as upstream's
+ * `deletingPathExtension` reads it, and the whole of a dotless name.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.exportName
+ */
+function fileStem(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? name : name.slice(0, dot);
 }
 
 /**

@@ -79,6 +79,58 @@ export const toolController = createStore<ToolControllerState>({
 });
 
 /**
+ * A zone the user picked in the dump or on the minimap's gutter, on its way to
+ * the open panel.
+ *
+ * The request is a value with a fresh identity per pick, so a zone picked twice
+ * is handed back twice, and cleared when the session ends so a panel that
+ * mounts later cannot act on one that was aimed at a session that has gone.
+ */
+export interface ZoneSelectionRequest {
+  /** The pane whose map the zone came out of; only the bound one is ever asked. */
+  readonly pane: PaneId;
+  /** The zone's id, as the tool published it. */
+  readonly zoneId: string;
+}
+
+export const zoneSelectionStore = createStore<{ request: ZoneSelectionRequest | undefined }>({
+  request: undefined,
+});
+
+/**
+ * The user picked a zone in the dump. The bytes are the host's to select; this
+ * is the other half — telling the tool, which is the only side that knows what
+ * the zone stands for.
+ *
+ * Only for the pane the session is bound to: a zone map belongs to one pane,
+ * and a right-click in the other one is about somebody else's bytes.
+ *
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.zoneSelected
+ * @upstream-differs upstream calls the session; a React panel cannot be called, so the request is left in a store the mounted panel reads
+ * @web-only the panel is a component rather than an object with a lifetime, so a request is the only way to reach it from the shell
+ */
+export function zoneSelected(pane: PaneId, zoneId: string): void {
+  const { activeIdentifier, boundPane } = toolController.getSnapshot();
+  if (activeIdentifier === undefined || boundPane === undefined || pane !== boundPane) return;
+  // A new object each time: picking the same zone again is a second request,
+  // and an identity-compared store would otherwise swallow it.
+  zoneSelectionStore.update(() => ({ request: { pane, zoneId } }));
+}
+
+/**
+ * The request a panel has still to act on, cleared as it is read.
+ *
+ * Read from an effect, so clearing it is what keeps the act from happening
+ * twice: the store notifies on the read as well as on the write, and a request
+ * left standing would be handled again by any later render.
+ */
+export function takeZoneSelection(): ZoneSelectionRequest | undefined {
+  const { request } = zoneSelectionStore.getSnapshot();
+  if (request !== undefined) zoneSelectionStore.update(() => ({ request: undefined }));
+  return request;
+}
+
+/**
  * Whether the panel is open: exactly when a session is running.
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.isPanelVisible
@@ -126,6 +178,12 @@ export function activate(identifier: string | undefined): void {
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.endSession
  */
 function endSession(boundPane: PaneId | undefined): void {
+  // A request aimed at the session that is ending is nothing the next one
+  // should act on: the panel it was for is about to unmount, and a panel that
+  // mounts in its place has not been handed anything.
+  zoneSelectionStore.update((current) =>
+    current.request === undefined ? current : { request: undefined }
+  );
   if (boundPane !== undefined) clearZones(boundPane);
 }
 

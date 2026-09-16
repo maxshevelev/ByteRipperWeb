@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { uefiZones, type ZonedNode } from "@/tools/uefi/uefiPresenter";
+import { nodeIDOfZone, uefiZones, type ZonedNode } from "@/tools/uefi/uefiPresenter";
 import { normalizedZones, zonesContaining } from "@/tools/zone";
 
 /** Ported from upstream's `UEFIToolTests` — the zones a selected node publishes. */
@@ -83,5 +83,45 @@ describe("the zones as the dump draws them", () => {
     // A byte in the header is in the node's zone and no other.
     expect(zonesContaining(drawable, 0x10).map((zone) => zone.id)).toEqual(["0"]);
     expect(zonesContaining(drawable, 0x48).map((zone) => zone.id)).toEqual(["0", "0#body"]);
+  });
+});
+
+describe("a zone id read back into a node's path", () => {
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIPresenterTests.testZoneIdsRoundTripToNodePaths
+  it("round-trips the ids the panel publishes", () => {
+    expect(
+      nodeIDOfZone(uefiZones(node({ id: [1, 2, 0], header: [0, 8], body: [8, 16] })).focus ?? "")
+    ).toEqual([1, 2, 0]);
+    expect(nodeIDOfZone("0")).toEqual([0]);
+    expect(nodeIDOfZone("3.1")).toEqual([3, 1]);
+  });
+
+  // A part's zone leads to the node it is part of: the reader picked "VTF body"
+  // in the dump and the row they want is VTF. Any part, not only the one
+  // published today — the suffix is not what identifies the node.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIPresenterTests.testAPartsZoneIdLeadsToItsNode
+  it("sends a part's zone to the node the part is of", () => {
+    expect(nodeIDOfZone("1.2.0#body")).toEqual([1, 2, 0]);
+    expect(nodeIDOfZone("1.2.0#header")).toEqual([1, 2, 0]);
+    expect(nodeIDOfZone("0#body")).toEqual([0]);
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIPresenterTests.testAZoneIdThatIsNotAPathIsRejected
+  it("refuses an id that is not a path", () => {
+    expect(nodeIDOfZone("")).toBeUndefined();
+    expect(nodeIDOfZone("root")).toBeUndefined();
+    expect(nodeIDOfZone("1.x")).toBeUndefined();
+    expect(nodeIDOfZone("1..2")).toBeUndefined();
+    expect(nodeIDOfZone("#body")).toBeUndefined();
+    expect(nodeIDOfZone("1.x#body")).toBeUndefined();
+  });
+
+  // A field Swift's `Int(_:)` would refuse is a refusal for the whole id, where
+  // JavaScript's looser numeric readers would take all three of these.
+  it("reads a field the way Swift's Int does, not the way Number does", () => {
+    expect(nodeIDOfZone("1e3")).toBeUndefined();
+    expect(nodeIDOfZone("0x10")).toBeUndefined();
+    expect(nodeIDOfZone(" ")).toBeUndefined();
+    expect(nodeIDOfZone("+1.2")).toEqual([1, 2]);
   });
 });

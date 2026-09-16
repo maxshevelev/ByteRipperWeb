@@ -36,6 +36,7 @@ import {
 import { MEA_TREE_MARKS } from "@/tools/me/meaTreeMarks";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
@@ -306,6 +307,45 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         ?.scrollIntoView({ block: "nearest" });
     });
   }, []);
+
+  /**
+   * The zone the user picked in the dump, brought to the front: every ancestor
+   * of the row opened, the row scrolled to and taken in focus — the whole of
+   * what upstream's `show` does with a path.
+   *
+   * Only the tree moves: the bytes are already selected, and the dump is where
+   * the reader is standing. A path that names no node of this analysis is
+   * nothing to say, which is the check upstream makes before it moves anything;
+   * and the row's own description follows the focus by itself, as does the map
+   * that goes back out to the dump.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.zoneSelected
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.expandPath
+   */
+  const zonePicked = useCallback(
+    (zoneId: string) => {
+      // Upstream reads the fields one by one and keeps the ones that are
+      // numbers, so an id that is not one of ours comes back as a path that
+      // finds nothing rather than as a refusal here.
+      const path = zoneId
+        .split("/")
+        .filter((field) => /^[+-]?\d+$/.test(field))
+        .map(Number);
+      if (path.length === 0 || meaNodeAt(tree, path) === undefined) return;
+      setOpen((current) => {
+        const next = new Set(current);
+        // The last step is the row itself; its ancestors above it are opened.
+        for (let depth = 0; depth < path.length - 1; depth++) {
+          next.add(keyOf(path.slice(0, depth + 1)));
+        }
+        return next;
+      });
+      setFocus(zoneId);
+      showRow(zoneId);
+    },
+    [tree, showRow]
+  );
+  useZoneSelection(pane, zonePicked);
 
   /** The keyboard, for the tree as a whole: a row is not a tab stop of its own. */
   const onTreeKey = useCallback(
