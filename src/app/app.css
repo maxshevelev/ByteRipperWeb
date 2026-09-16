@@ -2063,10 +2063,11 @@ textarea,
 
 /*
  * The ring is the page's own, on the wrapper, because the field inside it draws
- * nothing: it is drawn for the keyboard, as every other ring here is, and it
- * encloses the name and the chevron as one control.
+ * nothing. It is drawn for the keyboard, as every other ring here is, and it
+ * encloses the name and the chevron as one control — see `useKeyboardInput` for
+ * why `:focus-visible` alone is not enough for a `<select>`.
  */
-.tool-panel-file:has(.tool-panel-file-select:focus-visible) {
+.tool-panel-file.is-keyboard:has(.tool-panel-file-select:focus-visible) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
   border-radius: 3px;

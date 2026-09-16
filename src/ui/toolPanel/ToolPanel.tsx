@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { showNotice } from "@/state/noticeStore";
 import {
   activate,
@@ -43,6 +43,7 @@ export function ToolPanel({
   const slot = boundPane === undefined ? undefined : workspace.panes[boundPane];
   const choices = paneChoices(workspace.panes);
   const switchable = selectorEnabled(choices);
+  const keyboardRing = useKeyboardInput();
 
   const reveal = useCallback(
     (start: number, end: number) => {
@@ -86,7 +87,10 @@ export function ToolPanel({
             @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onSelectPane
             @upstream-differs one control whose shown option is its tick, rather than a menu whose items each carry a tick state
             @web-only the tooltip and the accessible name — "Link to file panel": upstream's popup carries neither, and a control with no visible label of its own needs one here */}
-        <span className="tool-panel-file" title="Link to file panel">
+        <span
+          className={`tool-panel-file${keyboardRing ? " is-keyboard" : ""}`}
+          title="Link to file panel"
+        >
           <span className="tool-panel-file-name">{slot.name}</span>
           <svg
             className={`menu-chevron tool-panel-file-chevron${switchable ? "" : " is-off"}`}
@@ -144,6 +148,33 @@ export function ToolPanel({
       />
     </aside>
   );
+}
+
+/**
+ * Whether the last input came from the keyboard.
+ *
+ * Every other ring in the app is `:focus-visible`, which is the browser saying
+ * the same thing, and for a `<button>` it says it right — a click on one leaves
+ * no ring. A `<select>` is where that stops being true: a select is operated
+ * with the keyboard, so Chromium marks one focus-visible however it was focused,
+ * and a tap on the header would draw a ring no other control in the app draws.
+ * So the file selector asks here instead, and draws its ring only while the
+ * answer is the keyboard's — alongside `:focus-visible`, which is what says the
+ * control is still the focused one.
+ */
+function useKeyboardInput(): boolean {
+  const [keyboard, setKeyboard] = useState(false);
+  useEffect(() => {
+    const fromKeyboard = () => setKeyboard(true);
+    const fromPointer = () => setKeyboard(false);
+    window.addEventListener("keydown", fromKeyboard, true);
+    window.addEventListener("pointerdown", fromPointer, true);
+    return () => {
+      window.removeEventListener("keydown", fromKeyboard, true);
+      window.removeEventListener("pointerdown", fromPointer, true);
+    };
+  }, []);
+  return keyboard;
 }
 
 /**
