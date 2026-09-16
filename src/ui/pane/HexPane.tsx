@@ -11,6 +11,7 @@ import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipbo
 import { elementHeightLimit } from "@/platform/layout/elementHeightLimit";
 import { hexFontStack, measureFont } from "@/render/hexGrid/fontMetrics";
 import {
+  type HexGridCaret,
   type HexGridColors,
   HexGridRenderer,
   type MatchLookup,
@@ -24,7 +25,7 @@ import {
   handleOffsetDoubleClick,
   toggleBookmarkInPane,
 } from "@/state/bookmarkEditStore";
-import { bookmarkAt, bookmarksStore, moveBookmark } from "@/state/bookmarksStore";
+import { bookmarkAt, bookmarksStore, moveBookmark, pointerRow } from "@/state/bookmarksStore";
 import { editStore } from "@/state/editStore";
 import { toggleMinimap } from "@/state/minimapStore";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
@@ -241,6 +242,31 @@ const platform = detectKeyboardPlatform();
 const COPY_LIMIT = 1024 * 1024;
 
 /**
+ * The renderer's view of the caret, from the document and the typing state.
+ *
+ * One function because the caret is repainted from two places — a selection
+ * change and a change of mode, column or nibble — and a field added to one of
+ * them and forgotten in the other is a caret that lies about half its state.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexCaretNibble
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexHasPendingInsert
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexCaretVisible
+ */
+function rendererCaret(doc: BinaryDocument, typing: TypingController): HexGridCaret {
+  const current = doc.selection;
+  return {
+    offset: current.start,
+    nibble: typing.nibble,
+    region: typing.inputRegion,
+    insertMode: typing.isInsertMode,
+    pendingInsert: typing.hasPendingInsert,
+    // A standing selection shows the active region on its own; the caret
+    // reappears at its start the moment typing begins to consume it.
+    visible: current.end === current.start || typing.nibble === 1,
+  };
+}
+
+/**
  * @upstream ByteRipperApp/Hex/HexView.swift#HexView
  * @upstream-differs the event half; the drawing half is HexGridRenderer
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView
@@ -303,6 +329,20 @@ export function HexPane({
   const dragAnchorRef = useRef<number | undefined>(undefined);
   /** The row a bookmark is being dragged from, while that drag is happening. */
   const markDragRef = useRef<number | undefined>(undefined);
+  /**
+   * The row the pointer was last resolved to during a mark's drag. A step is
+   * taken only when this changes — the mark answers the pointer *crossing* a
+   * row, not the row the pointer happens to be over (§20.6).
+   *
+   * This is what stops a mark that has just jumped over another from shuffling
+   * back and forth: after the jump the mark sits past the obstacle while the
+   * pointer is still on the obstacle's row, so re-reading that row would
+   * compute the jump again — in the other direction, since the mark is now on
+   * the far side of it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.draggingBookmarkPointerRow
+   */
+  const markDragPointerRowRef = useRef<number | undefined>(undefined);
   /** Which join band a dragged file is currently over, if either (§22.4). */
   const [overBand, setOverBand] = useState<"start" | "end" | undefined>(undefined);
   /**
@@ -583,15 +623,7 @@ export function HexPane({
     const apply = () => {
       const current = doc.selection;
       rendererRef.current?.setSelection({ start: current.start, end: current.end });
-      rendererRef.current?.setCaret({
-        offset: current.start,
-        nibble: typing.nibble,
-        region: typing.inputRegion,
-        insertMode: typing.isInsertMode,
-        // A standing selection shows the active region on its own; the caret
-        // reappears at its start the moment typing begins to consume it.
-        visible: current.end === current.start || typing.nibble === 1,
-      });
+      rendererRef.current?.setCaret(rendererCaret(doc, typing));
       setCaret(current.start);
       onSelectionChanged?.({ start: current.start, end: current.end });
       scheduleDraw();
@@ -893,14 +925,7 @@ export function HexPane({
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.redrawCaret
    */
   const refreshCaret = useCallback(() => {
-    const current = doc.selection;
-    rendererRef.current?.setCaret({
-      offset: current.start,
-      nibble: typing.nibble,
-      region: typing.inputRegion,
-      insertMode: typing.isInsertMode,
-      visible: current.end === current.start || typing.nibble === 1,
-    });
+    rendererRef.current?.setCaret(rendererCaret(doc, typing));
     scheduleDraw();
   }, [doc, typing, scheduleDraw]);
 
@@ -1208,6 +1233,9 @@ export function HexPane({
       // another row is how §20.3 says a mark is moved.
       if (hit.column.kind === "offset" && bookmarkAt(offset) !== undefined) {
         markDragRef.current = rowContaining(offset);
+        // The gesture starts on the mark's own row, so the first step comes
+        // when the pointer leaves it.
+        markDragPointerRowRef.current = rowContaining(offset);
         event.currentTarget.setPointerCapture(event.pointerId);
         event.preventDefault();
         return;
@@ -1316,12 +1344,23 @@ export function HexPane({
       const y = step.pointerY + scroller.top;
 
       if (dragging !== undefined) {
-        const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
-        // The last row this pane draws is the limit, not a size held elsewhere:
-        // a mark may not be dragged out of the file.
-        const lastRow = rowContaining(Math.max(0, doc.size - 1));
-        const landed = moveBookmark(dragging, Math.min(row, lastRow), lastRow);
-        if (landed !== undefined) markDragRef.current = landed;
+        // A step happens when the pointer CROSSES into another row, and only
+        // then: the mark follows the crossing rather than the row the pointer
+        // is over, so a mark that has just jumped over another stays jumped
+        // (§20.6). And a crossing counts only once the pointer is a couple of
+        // points inside the new row, so a hand resting on a boundary does not
+        // step the mark to and fro.
+        const from = markDragPointerRowRef.current ?? rowContaining(dragging);
+        const row = pointerRow(y, from, layout.rowHeight);
+        if (row !== from) {
+          markDragPointerRowRef.current = row;
+          // The last row this pane draws is the limit, not a size held
+          // elsewhere: a mark may not be dragged out of the file.
+          const lastRow = rowContaining(Math.max(0, doc.size - 1));
+          const target = row * BYTES_PER_ROW;
+          const landed = moveBookmark(dragging, Math.min(target, lastRow), lastRow);
+          if (landed !== undefined) markDragRef.current = landed;
+        }
       } else if (anchor !== undefined) {
         const x = clientX - bounds.left + host.scrollLeft;
         const end = layout.dragEndOffset(x, y, layout.rowCount(doc.size));
@@ -1437,6 +1476,7 @@ export function HexPane({
     (event: React.PointerEvent<HTMLDivElement>) => {
       dragAnchorRef.current = undefined;
       markDragRef.current = undefined;
+      markDragPointerRowRef.current = undefined;
       dragPointerRef.current = undefined;
       stopAutoscroll();
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {

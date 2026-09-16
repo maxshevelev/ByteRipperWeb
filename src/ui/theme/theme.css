@@ -67,6 +67,9 @@
   /* Ported from AppPalette */
   --bookmark: #8a4fd0;
   --bookmark-text: #ffffff;
+  /* An address on a mark dims its leading zeros, as it does on the page, so on
+     a filled mark the mark's own ink is dimmed: white at 40 %. */
+  --bookmark-text-muted: rgb(255 255 255 / 0.4);
   --semantic-bad: #e41f1f;
   --semantic-caution: #da8600;
   --semantic-good: #12af1f;
@@ -131,6 +134,7 @@
 
     --bookmark: #a97ae0;
     --bookmark-text: #16121c;
+    --bookmark-text-muted: rgb(22 18 28 / 0.4);
     --semantic-bad: #ff6b66;
     --semantic-caution: #dba85c;
     --semantic-good: #8cd166;
@@ -193,6 +197,7 @@
 
   --bookmark: #a97ae0;
   --bookmark-text: #16121c;
+  --bookmark-text-muted: rgb(22 18 28 / 0.4);
   --semantic-bad: #ff6b66;
   --semantic-caution: #dba85c;
   --semantic-good: #8cd166;

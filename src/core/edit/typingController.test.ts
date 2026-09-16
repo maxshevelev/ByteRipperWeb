@@ -275,6 +275,147 @@ describe("insert mode", () => {
   });
 });
 
+describe("a half-typed insert byte", () => {
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testInsertModeBackspaceRollsBackFirstNibble
+  it("is rolled back by backspace, as if the first nibble was never entered", async () => {
+    const t = setUp([0x11, 0x22, 0x33]);
+    await t.typing.setInsertMode(true);
+
+    await t.typing.typeHexDigit(0xa);
+    expect(await t.content()).toEqual([0xa0, 0x11, 0x22, 0x33]);
+    expect(t.doc.caret).toBe(0);
+    expect(t.typing.nibble).toBe(1);
+    expect(t.typing.hasPendingInsert).toBe(true);
+    t.edits.length = 0;
+
+    await t.typing.deleteBackward();
+
+    expect(await t.content()).toEqual([0x11, 0x22, 0x33]);
+    expect(t.doc.size).toBe(3);
+    expect(t.doc.caret).toBe(0);
+    expect(t.typing.nibble).toBe(0);
+    expect(t.typing.hasPendingInsert).toBe(false);
+    expect(t.doc.canUndo).toBe(false); // the cancelled group records nothing
+    // The tail moved back, so the comparison hears about it as a delete.
+    expect(t.edits).toEqual([{ kind: "delete", start: 0, end: 1 }]);
+  });
+
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testInsertModeBackspaceAfterClickIsNormal
+  it("leaves a mid-byte caret a click placed alone", async () => {
+    // The offset alone is not enough to tell the two apart: a click in the
+    // second half of a byte leaves a nibble-1 caret too, and blanking that byte
+    // would be a lie about bytes the user never touched. The recorded offset is
+    // what says which one this is.
+    const t = setUp([0x11, 0x22, 0x33]);
+    await t.typing.setInsertMode(true);
+    await t.typing.typeHexDigit(0xa);
+    // A click places the caret without ending the run — it changes the
+    // selection and nothing else, which is what the pane's pointer handler does.
+    t.doc.setSelection(caretAt(2, t.doc.size));
+    expect(t.typing.nibble).toBe(1);
+    expect(t.typing.hasPendingInsert).toBe(false);
+
+    await t.typing.deleteBackward();
+
+    expect(t.doc.size).toBe(3); // one byte gone, not the two a rollback would take
+    expect(await t.content()).toEqual([0xa0, 0x22, 0x33]);
+    expect(t.doc.caret).toBe(1);
+    expect(t.doc.canUndo).toBe(true);
+    // The byte typed before the click was committed by the caret move, not
+    // reverted: two undo steps bring the document back, in order — the delete
+    // first, then the insert the click committed.
+    await t.doc.undo();
+    expect(await t.content()).toEqual([0xa0, 0x11, 0x22, 0x33]);
+    await t.doc.undo();
+    expect(await t.content()).toEqual([0x11, 0x22, 0x33]);
+  });
+
+  it("follows the caret, so moving away and back does not revive it", async () => {
+    const t = setUp([0x11, 0x22, 0x33]);
+    await t.typing.setInsertMode(true);
+    await t.typing.typeHexDigit(0xa);
+    expect(t.typing.hasPendingInsert).toBe(true);
+
+    await t.typing.breakRun();
+    expect(t.typing.hasPendingInsert).toBe(false);
+
+    // Back on the byte it started on, and still not pending: the run ended and
+    // the inserted byte is a committed edit. Backspace here is a plain delete.
+    t.doc.setSelection(caretAt(0, t.doc.size));
+    expect(t.typing.hasPendingInsert).toBe(false);
+  });
+
+  it("stops being pending once the low nibble is typed", async () => {
+    const t = setUp([0x11, 0x22]);
+    await t.typing.setInsertMode(true);
+    await t.typing.typeHexDigit(0xa);
+    expect(t.typing.hasPendingInsert).toBe(true);
+
+    await t.typing.typeHexDigit(0x5);
+    expect(await t.content()).toEqual([0xa5, 0x11, 0x22]);
+    expect(t.typing.hasPendingInsert).toBe(false);
+  });
+
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testRollbackLeavesEarlierCommittedEditsAlone
+  it("takes back only itself, not what was committed before it", async () => {
+    const t = setUp([0x11, 0x22, 0x33]);
+    await t.typing.setInsertMode(true);
+
+    await t.typing.typeHexDigit(0xa); // insert 0xA0 at 0 → [A0 11 22 33]
+    await t.typing.breakRun();
+    t.doc.setSelection(caretAt(3, t.doc.size));
+    await t.typing.typeHexDigit(0xb); // insert 0xB0 at 3 → [A0 11 22 B0 33]
+    expect(t.doc.size).toBe(5);
+
+    await t.typing.deleteBackward(); // roll the pending byte back
+
+    expect(t.doc.size).toBe(4);
+    expect(await t.content()).toEqual([0xa0, 0x11, 0x22, 0x33]);
+    expect(t.doc.canUndo).toBe(true); // the earlier insert is still on the stack
+    await t.doc.undo();
+    expect(await t.content()).toEqual([0x11, 0x22, 0x33]);
+  });
+
+  it("leaves an overwrite-mode edit from before the mode switch alone", async () => {
+    const t = setUp([0x11, 0x22, 0x33]);
+    await t.typing.typeHexDigit(0xa); // overwrite mode: 0x11 → 0xA1
+    await t.typing.typeHexDigit(0x1);
+    expect(await t.content()).toEqual([0xa1, 0x22, 0x33]);
+
+    await t.typing.setInsertMode(true);
+    await t.typing.typeHexDigit(0xb); // insert 0xB0 at 1
+    expect(await t.content()).toEqual([0xa1, 0xb0, 0x22, 0x33]);
+
+    await t.typing.deleteBackward();
+
+    expect(await t.content()).toEqual([0xa1, 0x22, 0x33]);
+    expect(t.doc.size).toBe(3);
+  });
+
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testTypingStillCoalescesAfterARollback
+  it("leaves the document and the controller agreeing that no group is open", async () => {
+    // When they disagree, every later byte's two nibbles land as two separate
+    // undo steps — in both modes, for the rest of the document's life.
+    const t = setUp([0x11, 0x22, 0x33]);
+    await t.typing.setInsertMode(true);
+    await t.typing.typeHexDigit(0xa); // half-typed insert
+    await t.typing.deleteBackward(); // rollback
+
+    await t.hex("cd"); // a whole byte, insert mode
+    expect(await t.content()).toEqual([0xcd, 0x11, 0x22, 0x33]);
+    await t.doc.undo();
+    expect(await t.content()).toEqual([0x11, 0x22, 0x33]); // one step, both nibbles
+
+    // And in overwrite mode, on the same document.
+    await t.typing.setInsertMode(false);
+    t.doc.setSelection(caretAt(0, t.doc.size));
+    await t.hex("cd");
+    expect(await t.content()).toEqual([0xcd, 0x22, 0x33]);
+    await t.doc.undo();
+    expect(await t.content()).toEqual([0x11, 0x22, 0x33]);
+  });
+});
+
 describe("delete and backspace", () => {
   // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testOverwriteModeBackspaceStillFillsTheSelection
   it("fills with zero in overwrite mode, leaving the length alone", async () => {

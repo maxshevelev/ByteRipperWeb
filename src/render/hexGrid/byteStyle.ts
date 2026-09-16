@@ -25,6 +25,11 @@ export type InkRole =
   /** An address standing on a bookmark's mark, which is a filled shape. */
   | "bookmarkAddress"
   /**
+   * The leading zeros of an address standing on a mark — the mark's ink dimmed,
+   * so the significant part of the address stands out there too.
+   */
+  | "mutedBookmarkAddress"
+  /**
    * A byte on the find indicator's yellow plate: black in either theme, since
    * the plate is the same yellow in both.
    */
@@ -37,6 +42,7 @@ export const INK_ROLES: readonly InkRole[] = [
   "address",
   "mutedAddress",
   "bookmarkAddress",
+  "mutedBookmarkAddress",
   "indicator",
 ];
 
@@ -73,4 +79,23 @@ export function byteInk(byte: number, isModified: boolean, onIndicator = false):
 export function addressSignificantFrom(text: string): number {
   const index = text.split("").findIndex((character) => character !== "0");
   return index === -1 ? text.length : index;
+}
+
+/**
+ * The ink for one digit of an address.
+ *
+ * Two things decide it, and they are independent. The leading zeros stand back
+ * — they say which row this is, but the eye is looking for the part that
+ * changes — and a digit on a bookmark's mark is read against a filled shape
+ * rather than against the paper, so it takes the mark's ink. Both at once: the
+ * zeros of a marked address are dimmed *in the mark's ink* (§6, §20.4), which
+ * is what keeps the significant part of the address findable on a purple bar as
+ * well as on the page.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetAddress
+ */
+export function addressDigitInk(index: number, significantFrom: number, marked: boolean): InkRole {
+  const leading = index < significantFrom;
+  if (marked) return leading ? "mutedBookmarkAddress" : "bookmarkAddress";
+  return leading ? "mutedAddress" : "address";
 }

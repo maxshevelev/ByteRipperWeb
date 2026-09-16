@@ -181,6 +181,38 @@ export function moveBookmark(from: number, to: number, lastRow: number): number 
   return bookmarks.move(from, to, lastRow);
 }
 
+/**
+ * How far past a row's edge the pointer must travel before a dragged mark
+ * counts it as being on the next row (§20.6).
+ *
+ * A hand resting on a mouse jitters by about a pixel, and on a row boundary
+ * that jitter would step the mark to and fro; two points of hysteresis costs
+ * nothing at the speed a drag actually moves and makes the boundary hold still.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkDragHysteresis
+ */
+export const BOOKMARK_DRAG_HYSTERESIS = 2;
+
+/**
+ * The row a mark's drag counts the pointer as being on, given the row it was
+ * last counted on: a new row is taken only once the pointer is
+ * {@link BOOKMARK_DRAG_HYSTERESIS} points inside it, so a pointer resting on a
+ * row boundary stays on the row it came from (§20.6).
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.pointerRow
+ */
+export function pointerRow(y: number, comingFrom: number, rowHeight: number): number {
+  if (rowHeight <= 0) return comingFrom;
+  const raw = Math.max(0, Math.floor(y / rowHeight));
+  if (raw === comingFrom) return comingFrom;
+  if (raw > comingFrom) {
+    // Downwards: far enough below the new row's top edge.
+    return y >= raw * rowHeight + BOOKMARK_DRAG_HYSTERESIS ? raw : comingFrom;
+  }
+  // Upwards: far enough above the new row's bottom edge.
+  return y <= (raw + 1) * rowHeight - BOOKMARK_DRAG_HYSTERESIS ? raw : comingFrom;
+}
+
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkRowBytes */
 export function bookmarkAt(offset: number): Bookmark | undefined {
   return bookmarks.at(offset);

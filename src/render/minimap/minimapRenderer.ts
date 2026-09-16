@@ -111,9 +111,12 @@ export interface SegmentBandStrip {
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.SegmentBlock.range */
   readonly top: number;
   readonly height: number;
-  /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.SegmentBlock.colorIndex */
+  /**
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.SegmentBlock.colorIndex
+   * @upstream-differs the tint is resolved by the panel, including the louder
+   * shade a hovered block takes, so the renderer paints one colour per band
+   */
   readonly tint: string;
-  readonly hovered?: boolean | undefined;
 }
 
 /**
@@ -390,22 +393,23 @@ export class MinimapRenderer {
    * The segment strip: one band per piece, from one cut to the next, at the y
    * the map's own rows use.
    *
-   * The piece under the pointer is painted at full strength and the rest are
-   * given a little air, so the strip says which piece is being asked about
-   * without changing which colour it is.
+   * Each band's tint arrives already resolved for whether the piece under the
+   * pointer is the one it belongs to — a louder shade of its own hue, which is
+   * the panel's to work out, since that is where the hover is known. So this
+   * paints what it is given, at full strength: the strip is the same paper the
+   * dump's own rows are, and paper is opaque.
    *
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setSegmentBlocks
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.drawSegmentStrip
    */
   private drawSegmentStrip(bands: readonly SegmentBandStrip[]): void {
     const strip = this.layout.segmentStripRect;
     if (strip === undefined) return;
     const context = this.context;
     for (const band of bands) {
-      context.globalAlpha = band.hovered === true ? 1 : 0.75;
       context.fillStyle = band.tint;
       context.fillRect(strip.x, band.top, strip.width, Math.max(1, band.height));
     }
-    context.globalAlpha = 1;
   }
 
   /**

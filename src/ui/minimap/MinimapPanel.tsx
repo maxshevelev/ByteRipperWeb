@@ -53,7 +53,12 @@ import { scrollLink } from "@/ui/pane/scrollLink";
 import { pieceMenu, selectPiece } from "@/ui/segments/segmentMenu";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
-import { observeHexColors, readSegmentTints } from "@/ui/theme/hexColors";
+import {
+  isDarkTheme,
+  observeHexColors,
+  readSegmentTints,
+  saturatedHighlight,
+} from "@/ui/theme/hexColors";
 import { readMinimapColors } from "@/ui/theme/minimapColors";
 
 /**
@@ -591,15 +596,19 @@ function MinimapCanvas({
   const segmentBands = (() => {
     if (pieces.length < 2) return undefined;
     const tints = readSegmentTints();
+    const dark = isDarkTheme();
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
     return pieces.map((piece) => {
       const top = Math.max(0, yOfOffset({ ...shared, offset: piece.start }));
       const bottom = Math.min(size.height, yOfOffset({ ...shared, offset: piece.end }));
+      const tint = tints[piece.index % tints.length] ?? "";
       return {
         top,
         height: bottom - top,
-        tint: tints[piece.index % tints.length] ?? "",
-        hovered: hoveredPiece === piece.index,
+        // The block under the pointer is a louder shade of its own tint — the
+        // same colour, just louder, so the hovered piece reads as "the one
+        // under the cursor" without its identity changing (§19.4.4).
+        tint: hoveredPiece === piece.index ? saturatedHighlight(tint, dark) : tint,
       };
     });
   })();

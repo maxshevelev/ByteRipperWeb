@@ -106,6 +106,15 @@ export class TypingController {
   /** The selection being consumed by overwrite typing, while one is. */
   private consuming: Selection | undefined;
 
+  /**
+   * The byte an insert-mode high nibble just created and whose low nibble is
+   * still to come — the only state in which a `nibbleIndex` of 1 means "half a
+   * byte" rather than "inside a byte".
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.pendingInsertOffset
+   */
+  private pendingInsertOffset: number | undefined;
+
   private groupOpen = false;
   private seriesOpen = false;
   private seriesCounter = 0;
@@ -155,6 +164,24 @@ export class TypingController {
     return this.region;
   }
 
+  /**
+   * Whether the caret sits on a byte whose high nibble was just inserted in
+   * insert mode and whose low nibble is still pending — a genuine half-typed
+   * byte, as opposed to a mid-byte caret a click placed. The view draws the dim
+   * `_` placeholder in the low-nibble slot only in this state (§7): a click
+   * merely places the caret, it does not blank the byte.
+   *
+   * The comparison is what makes it a question rather than a flag: an offset
+   * recorded earlier says nothing once the caret has moved off it, and moving
+   * back onto it is a different gesture.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexHasPendingInsert
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexHasPendingInsert
+   */
+  get hasPendingInsert(): boolean {
+    return this.pendingInsertOffset === this.doc.selection.start;
+  }
+
   setInsertMode(on: boolean): Promise<void> {
     if (this.insertMode === on) return Promise.resolve();
     this.insertMode = on;
@@ -182,6 +209,12 @@ export class TypingController {
   /**
    * Ends the current run without flushing a half-typed byte's group — what a
    * caret move does. The next typed byte starts a fresh series.
+   *
+   * Moving off a half-typed byte detaches it: the inserted byte stays — now as
+   * a committed undo step of its own, because the group closes above — and
+   * Backspace no longer rolls it back from the new position. Undo does.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.moveCaret
    */
   breakRun(): Promise<void> {
     return this.run(async () => {
@@ -189,6 +222,7 @@ export class TypingController {
       this.closeSeries();
       this.nibbleIndex = 0;
       this.consuming = undefined;
+      this.pendingInsertOffset = undefined;
     });
   }
 
@@ -452,9 +486,21 @@ export class TypingController {
   /**
    * Backspace: the same, one byte earlier when there is no selection.
    *
+   * With one exception, and it comes first because it is not a delete at all: a
+   * half-typed insert-mode byte is rolled back rather than removed from a file
+   * that never should have grown.
+   *
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.deleteBackward
    */
   deleteBackward(): Promise<void> {
+    // Insert mode, caret on a half-typed byte (high nibble just inserted, low
+    // nibble still pending): Backspace rolls the first nibble back. It is not
+    // put through the confirmation the rest of the mode goes through — this
+    // takes back the user's own keystroke, and shifts nothing that was not just
+    // shifted by it.
+    if (this.insertMode && this.nibbleIndex === 1 && this.hasPendingInsert) {
+      return this.rollbackPendingInsert();
+    }
     return this.deleting(false);
   }
 
@@ -470,6 +516,7 @@ export class TypingController {
       if (this.insertMode) {
         await this.doc.delete(range.start, range.end);
         this.doc.setSelection(caretAt(range.start, this.doc.size));
+        this.pendingInsertOffset = undefined;
         this.options.onEdit?.({ kind: "delete", start: range.start, end: range.end });
       } else {
         await this.doc.fillZero(range.start, range.end, range.start);
@@ -479,6 +526,30 @@ export class TypingController {
       this.doc.noteSelectionAfterEdit();
       this.nibbleIndex = 0;
       this.consuming = undefined;
+    });
+  }
+
+  /**
+   * Rolls back a half-typed insert-mode byte — Backspace on the pending first
+   * nibble. The high-nibble insert is reverted (the byte disappears and the
+   * tail shifts left) and the open edit group is cancelled, so nothing lands on
+   * the undo stack: as if the first nibble had never been entered, which is
+   * what the user asked for and not something they should have to undo twice.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.rollbackPendingInsert
+   */
+  private rollbackPendingInsert(): Promise<void> {
+    return this.run(async () => {
+      const offset = this.doc.selection.start;
+      await this.doc.cancelEditGroup();
+      // The document has closed the group; this has to agree, or the next
+      // `openGroup` skips `beginEditGroup` (it still thinks a group is open)
+      // and the following `closeGroup` takes the document's group depth below
+      // zero — after which no byte's two nibbles ever coalesce again.
+      this.groupOpen = false;
+      this.pendingInsertOffset = undefined;
+      this.nibbleIndex = 0;
+      this.options.onEdit?.({ kind: "delete", start: offset, end: offset + 1 });
     });
   }
 
@@ -532,16 +603,20 @@ export class TypingController {
     await this.doc.insert(at, new Uint8Array([(digit << 4) & 0xff]));
     // `insert` leaves the caret on the new byte, so the next digit fills it.
     this.nibbleIndex = 1;
+    this.pendingInsertOffset = at;
     this.lastTypedAt = this.now();
     this.options.onEdit?.({ kind: "insert", at, length: 1 });
   }
 
-  /** Low nibble in insert mode: an overwrite of the byte just inserted. */
+  /**
+   * Low nibble in insert mode: an overwrite of the byte just inserted.
+   */
   private async fillLowNibble(digit: number): Promise<void> {
     const at = this.typingOffset();
     const old = (await this.byteAt(at)) ?? 0;
     await this.doc.overwrite(at, new Uint8Array([((old & 0xf0) | digit) & 0xff]));
     this.nibbleIndex = 0;
+    this.pendingInsertOffset = undefined;
     await this.closeGroup();
     this.advanceAfterByte();
     this.lastTypedAt = this.now();

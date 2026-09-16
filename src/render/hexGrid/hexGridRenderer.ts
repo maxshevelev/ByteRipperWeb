@@ -1,7 +1,12 @@
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { addressString } from "@/core/text/offsetParser";
-import { addressSignificantFrom, byteInk, type InkRole } from "@/render/hexGrid/byteStyle";
+import {
+  addressDigitInk,
+  addressSignificantFrom,
+  byteInk,
+  type InkRole,
+} from "@/render/hexGrid/byteStyle";
 import { snapToDevicePixels } from "@/render/hexGrid/devicePixels";
 import { DirtyRows } from "@/render/hexGrid/dirtyRows";
 import { GlyphAtlas, type GlyphAtlasKey } from "@/render/hexGrid/glyphAtlas";
@@ -67,6 +72,15 @@ export interface HexGridCaret {
   readonly nibble: 0 | 1;
   readonly region: "hex" | "text";
   readonly insertMode: boolean;
+  /**
+   * The caret sits on a byte whose high nibble was just inserted in insert mode
+   * and whose low nibble is still to come — a genuinely half-typed byte, as
+   * opposed to a nibble-1 caret a click placed. Only then is the low nibble an
+   * empty slot and drawn as a dim `_` (§7).
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexHasPendingInsert
+   */
+  readonly pendingInsert: boolean;
   /**
    * False while a selection stands and typing is not consuming it — the
    * selection fill already shows the active region, and a caret inside it would
@@ -798,6 +812,7 @@ export class HexGridRenderer {
 
     const savedSize = this.savedSource?.size ?? 0;
     const indicator = this.currentMatch;
+    const pending = this.pendingLowNibbleColumn(rowStart, size);
     for (let column = 0; column < bytes.length; column++) {
       const byte = bytes[column] ?? 0;
       const offset = rowStart + column;
@@ -809,7 +824,23 @@ export class HexGridRenderer {
       const onIndicator =
         indicator !== undefined && offset >= indicator.start && offset < indicator.end;
       const role = byteInk(byte, modified, onIndicator);
-      this.blit(atlas.hexPair(byte, role), layout.hexByteX(column), y, 2 * layout.charWidth);
+      if (column === pending) {
+        // Insert mode, byte half typed: the low nibble is not a zero the user
+        // entered, it is an empty slot waiting for the second digit — so the
+        // high nibble is drawn in the byte's own ink and the slot as a dim `_`
+        // in the placeholder ink (§7). Both come from the atlas: the `_` is the
+        // tile the text column already has for byte 0x5F.
+        const high = (byte >> 4) & 0x0f;
+        this.blit(atlas.digit(high, role), layout.hexByteX(column), y, layout.charWidth);
+        this.blit(
+          atlas.character(0x5f, "mutedAddress"),
+          layout.hexByteX(column) + layout.charWidth,
+          y,
+          layout.charWidth
+        );
+      } else {
+        this.blit(atlas.hexPair(byte, role), layout.hexByteX(column), y, 2 * layout.charWidth);
+      }
       this.blit(atlas.character(byte, role), layout.textX(column), y, layout.charWidth);
     }
     if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
@@ -922,6 +953,29 @@ export class HexGridRenderer {
   }
 
   /**
+   * The column of this row whose low nibble is an empty slot: the byte a
+   * half-typed insert-mode entry has opened, whose high nibble has landed and
+   * whose second digit is still to come. `undefined` on every other row and in
+   * every other state.
+   *
+   * Guarded on the *active* pane, insert mode, and a genuinely pending insert:
+   * a nibble-1 caret that a click placed shows the byte's own low nibble, and
+   * the pane the user is not typing into shows no caret at all.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.pendingLowNibbleColumn
+   */
+  private pendingLowNibbleColumn(rowStart: number, size: number): number | undefined {
+    const caret = this.caret;
+    if (!this.active || caret === undefined) return undefined;
+    if (!caret.insertMode || !caret.pendingInsert || caret.nibble !== 1) return undefined;
+    const { offset } = caret;
+    if (offset < rowStart || offset >= rowStart + BYTES_PER_ROW || offset >= size) {
+      return undefined;
+    }
+    return offset - rowStart;
+  }
+
+  /**
    * The address, with its leading zeros muted — or standing on its mark.
    *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetAddress
@@ -939,14 +993,10 @@ export class HexGridRenderer {
 
     for (let index = 0; index < text.length; index++) {
       const digit = Number.parseInt(text[index] ?? "0", 16);
-      // On a mark the address is read against a filled shape, so every digit
-      // takes the mark's own text colour — the leading zeros included, because
-      // muting them there would sink them into the fill.
-      const role: InkRole = marked
-        ? "bookmarkAddress"
-        : index < significant
-          ? "mutedAddress"
-          : "address";
+      // The mark decides the ink — an address standing on a filled shape is not
+      // read against the paper — and the leading zeros decide their share of
+      // it, dimmed in that ink rather than in the page's own (§6, §20.4).
+      const role = addressDigitInk(index, significant, marked);
       this.blit(
         atlas.digit(digit, role),
         layout.leftPadding + index * layout.charWidth,
