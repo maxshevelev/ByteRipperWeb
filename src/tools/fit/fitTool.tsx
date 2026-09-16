@@ -44,7 +44,7 @@ import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
-import type { FitEditRequest } from "@/workers/protocol";
+import type { FitEditRequest, WireNode } from "@/workers/protocol";
 
 type FitEdit = FitEditRequest["edit"];
 
@@ -103,7 +103,6 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const firmware = useStore(firmwareStore).panes[pane];
   const catalogue = useStore(microcodeCatalogueStore);
   const [report, setReport] = useState<FITReport | undefined>(undefined);
-  const [reading, setReading] = useState(true);
   const [focus, setFocus] = useState<number | undefined>(undefined);
   /** The whole table in focus, as a click on its name puts it. */
   const [tableFocused, setTableFocused] = useState(false);
@@ -138,14 +137,25 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   // row's name follows it.
   const roots = firmware?.roots;
   const status = firmware?.status;
+  /**
+   * Which tree the report in hand was read against.
+   *
+   * The tree is the table's other half — a row is named by whatever node covers
+   * the address it points at — so a report read against the tree before is not
+   * an older table, it is a wrong one. Keeping the tree rather than a flag is
+   * what lets the render below tell the two apart without waiting for an
+   * effect: the effect that re-reads runs *after* the render that first carries
+   * the new tree, and a flag set there would leave that one render painting the
+   * table of the bytes before.
+   */
+  const readAgainst = useRef<readonly WireNode[] | undefined>(undefined);
   useEffect(() => {
     if (status !== "ready" || roots === undefined) return;
     let current = true;
-    setReading(true);
     void readPaneFit(pane).then((found) => {
       if (!current) return;
+      readAgainst.current = roots;
       setReport(found);
-      setReading(false);
     });
     return () => {
       current = false;
@@ -427,13 +437,16 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   // Two waits wear the one line upstream gives them: the pane's parse of the
   // image, and the table's own read against the tree that parse left. Both are
   // asked about, since either can be the one running — and the first is the one
-  // with something to measure, `fraction` being the parse's own count. A panel
-  // that held its table while the pane was being parsed underneath it would be
-  // showing a reading of bytes the tree was not built from; today only the
-  // session's own start re-parses the pane this way, and G13 is the content
-  // change that will do it in place.
+  // with something to measure, `fraction` being the parse's own count.
+  //
+  // The second is asked as provenance rather than as a flag: the table in hand
+  // is the table of this tree or it is nothing, which is the one test that also
+  // covers a tree that arrived without the read having started — the edit that
+  // re-parses the pane does exactly that, and the render in between would
+  // otherwise paint the table of the bytes before.
   const readingImage = imageStatus !== "ready";
-  if (readingImage || reading) {
+  const readingTable = report === undefined || readAgainst.current !== roots;
+  if (readingImage || readingTable) {
     return (
       <div className="tool-empty">
         <p>Reading…</p>
