@@ -25,6 +25,7 @@ import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { ScopeShapes } from "@/ui/shell/scopeGlyph";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -582,9 +583,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           aria-label="Reveal the node at the caret"
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="5" />
-            <circle cx="8" cy="8" r="1.2" />
-            <path d="M8 1v2.2M8 12.8V15M1 8h2.2M12.8 8H15" />
+            <ScopeShapes />
           </svg>
         </button>
       </div>

@@ -6,6 +6,8 @@
  * @upstream-differs inline SVG shaped after the named SF Symbols
  */
 
+import { ScopeShapes } from "@/ui/shell/scopeGlyph";
+
 const stroke = {
   fill: "none",
   stroke: "currentColor",
@@ -34,12 +36,13 @@ export function ToolsGlyph() {
   );
 }
 
-/** `dot.scope`. */
+/** `dot.scope`, drawn once for this button and the UEFI panel's reveal. */
 export function GoToGlyph() {
   return (
     <Glyph>
-      <circle cx="8" cy="8" r="5.5" {...stroke} />
-      <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+      <g {...stroke}>
+        <ScopeShapes />
+      </g>
     </Glyph>
   );
 }
