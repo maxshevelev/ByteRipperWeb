@@ -2,6 +2,8 @@ node_modules/
 dist/
 dist-ssr/
 coverage/
+# Per-machine files, and never anything else: `.env.local` is where this
+# machine's dev-server address lives (its keys are in `.env.local.example`).
 *.local
 .vite/
 .DS_Store

@@ -28,6 +28,17 @@ Stack:
 - Long-running work in Web Workers, always cancellable, always with progress.
 - No dependency is added without a reason worth writing down.
 
+Running it:
+- Start the dev server as plain `npm run dev`, with no flags. Which names it
+  answers to, and on which port, is this machine's business rather than the
+  repository's, and lives in the untracked `.env.local` — `vite.config.ts`
+  reads it on every start, and `.env.local.example` says which keys it holds.
+  A `--host` or `--port` on the command line overrides all of it and takes the
+  address away from whichever machine was using it: leave the flags to the
+  config. Never commit an address into `vite.config.ts`.
+- The server binds every interface on purpose — one on loopback alone is one no
+  other machine on the bench's network can open, whatever names it answers to.
+
 Architecture:
 - `src/core/` — pure TS: chunked storage, piece table, diff, search, segments,
   bookmarks, undo. No DOM, no React. This is the unit-tested half.
