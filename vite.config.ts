@@ -10,9 +10,13 @@ export default defineConfig({
   base: "/ByteRipperWeb/",
   plugins: [react()],
   server: {
-    // The dev server answers only the hosts it knows by name, which is Vite's
-    // guard against DNS rebinding. The bench machines on the local network reach
-    // it by these.
+    // Two settings, and both are needed for the bench machines to reach this:
+    // `host` is the interfaces it listens on — without it Vite binds localhost
+    // alone, and the name resolves past that to nowhere — and `allowedHosts` is
+    // who it answers, Vite's guard against DNS rebinding. The guard alone binds
+    // nothing, so a server that has only the names is a server nobody off this
+    // machine can open, whatever `npm run dev` says.
+    host: true,
     allowedHosts: ["admins-imac", "admins-imac.local"],
   },
   build: {
