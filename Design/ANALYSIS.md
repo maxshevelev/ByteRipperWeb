@@ -63,7 +63,7 @@ How every part of the desktop app lands here. Four verdicts:
 | 16 bytes per row, two 8-byte groups, address / hex / decoded text columns | Same | |
 | Word size 1/2/4/8 | Same | |
 | Muted `0x00`/`0xFF`, hatching past EOF | Same | Colour *and* form, as on the desktop. |
-| Keyboard navigation: arrows, Home/End, PageUp/Down, direct hex typing | Same | The keys and what they move are the same, including ⇧-extension and where a plain arrow collapses a selection. One reveal mode is not: upstream centres a caret an arrow brings back from off screen, and the web edition's reveal is a minimum scroll only (GAPS.md G37). A click places the caret where the pointer is, mid-byte included, and the web edition has no nibble to place it on yet (G19). |
+| Keyboard navigation: arrows, Home/End, PageUp/Down, direct hex typing | Same | The keys and what they move are the same, including ⇧-extension and where a plain arrow collapses a selection. So are the two reveal modes: an arrow pressed while the caret is off screen centres it, and a step that merely pushes it past an edge follows with the minimum scroll. A click places the caret where the pointer is, mid-byte included, and the web edition has no nibble to place it on yet (G19). |
 | Editing in the decoded-text column | Same | |
 | Zoom In / Zoom Out (font size stepping) | Dropped | The browser's page zoom (`Ctrl/Cmd +` / `−`) is the zoom. It scales the whole interface and the canvas re-measures on it, so the web edition has no zoom commands of its own: two zooms side by side would not agree about what "bigger" means. The hex font's size stays a setting (Settings, below). |
 | Text decoding tables (Windows-1252 default, live 256-value grid) | Same | Pure table lookup, ports directly. |

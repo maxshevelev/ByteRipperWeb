@@ -17,12 +17,12 @@ function setUp(bytes: number[]) {
   const doc = new BinaryDocument(new EditOverlayStorage(storageOver(new Uint8Array(bytes))));
   let clock = 1000;
   const edits: DiffEdit[] = [];
-  const reveals: number[] = [];
+  const reveals: { offset: number; centre: boolean }[] = [];
 
   const typing = new TypingController(doc, {
     now: () => clock,
     onEdit: (edit) => edits.push(edit),
-    onReveal: (offset) => reveals.push(offset),
+    onReveal: (offset, centre) => reveals.push({ offset, centre }),
   });
 
   return {
@@ -119,7 +119,7 @@ describe("typing into a selection", () => {
     const t = setUp([1, 2, 3, 4, 5]);
     t.doc.setSelection(selection(3, 5, t.doc.size));
     await t.typing.typeHexDigit(0xf);
-    expect(t.reveals).toEqual([3]);
+    expect(t.reveals).toEqual([{ offset: 3, centre: true }]);
   });
 
   it("undoes the whole consumed run when it was one gesture", async () => {
@@ -852,13 +852,18 @@ describe("the byte a selection's reveal follows", () => {
 
   it("walks out with the edge being dragged, and asks the pane for it", async () => {
     // One reveal per step, at the edge that moved — the pane scrolls to what
-    // the pointer is dragging, not to where the selection started.
+    // the pointer is dragging, not to where the selection started. A step is
+    // incremental: it follows with the minimum scroll, never a jump to the
+    // middle.
     const t = blank(64);
     await t.typing.moveCaretTo(5);
     t.reveals.length = 0;
     await t.typing.moveCaretBy(1, true);
     await t.typing.moveCaretBy(1, true);
-    expect(t.reveals).toEqual([5, 6]);
+    expect(t.reveals).toEqual([
+      { offset: 5, centre: false },
+      { offset: 6, centre: false },
+    ]);
   });
 
   it("follows the start of a range installed wholesale", async () => {
@@ -866,6 +871,66 @@ describe("the byte a selection's reveal follows", () => {
     const t = blank(32);
     await t.typing.setSelection(9, 12);
     expect(t.typing.hexCaretRevealOffset()).toBe(9);
+  });
+});
+
+// @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testArrowCentresCaretWhenOffScreen
+// @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testArrowDoesNotCentreWhenCaretOnScreen
+/**
+ * How the pane is asked to bring the caret back.
+ *
+ * The decision itself is the view's — `HexView.keyDown` tests whether the
+ * caret's row is on screen *before* the move, since a step that lands on the
+ * edge must still autoscroll — and the pane makes it here (`HexPane`, through
+ * `isRowVisible`). What the controller owes it is the mode, carried through to
+ * the reveal request rather than flattened to a scroll: the two upstream tests
+ * assert the viewport's own origin, which needs a component test this port does
+ * not have, so what is checked here is the half the controller owns.
+ */
+describe("centring the caret an arrow brings back", () => {
+  it("passes the mode through, so an off-screen caret can be centred", async () => {
+    const t = blank(4096);
+    await t.typing.moveCaretTo(2048);
+    t.reveals.length = 0;
+
+    // The pane's `centre`: the caret's row is not on screen, so this move
+    // centres it rather than nudging it to the nearer edge.
+    await t.typing.moveCaretBy(16, false, true);
+    expect(t.doc.caret).toBe(2064);
+    expect(t.reveals).toEqual([{ offset: 2064, centre: true }]);
+  });
+
+  it("centres a caret a command moved, and only then", async () => {
+    // A command's move is centred when it landed off screen and leaves the view
+    // alone when it is already visible: both cases are one request, and which
+    // one it is is the pane's call — not the controller's, which cannot see the
+    // viewport.
+    const t = blank(32);
+    t.reveals.length = 0;
+    await t.typing.moveCaretTo(0);
+    expect(t.reveals).toEqual([{ offset: 0, centre: true }]);
+  });
+
+  it("does not centre an incremental move", async () => {
+    // The default, and what an arrow that merely pushes the caret past an edge
+    // asks for: the minimum scroll that keeps it on screen, no jump to the
+    // middle — which on every step would disorient (§10.4).
+    const t = blank(32);
+    t.reveals.length = 0;
+    await t.typing.moveCaretBy(16);
+    expect(t.reveals).toEqual([{ offset: 16, centre: false }]);
+  });
+
+  it("keeps the mode through the collapse to a selection's active edge", async () => {
+    // The first arrow after a selection is a step *and* a collapse; the collapse
+    // must not lose the mode the press carried.
+    const t = blank(64);
+    await t.typing.moveCaretTo(5);
+    await t.typing.moveCaretBy(4, true); // (5,9)
+    t.reveals.length = 0;
+    await t.typing.moveCaretBy(-1, false, true);
+    expect(t.doc.selection).toEqual(caretAt(8, 64));
+    expect(t.reveals).toEqual([{ offset: 8, centre: true }]);
   });
 });
 

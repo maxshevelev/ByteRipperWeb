@@ -68,11 +68,13 @@ export interface TypingControllerOptions {
   /** Announces what changed, so a comparison can update without re-scanning. */
   readonly onEdit?: (edit: DiffEdit) => void;
   /**
-   * Asks the pane to bring an offset into view. Typing into a selection made
-   * elsewhere writes at its start, which may be nowhere near what is on
-   * screen — without this the first byte is typed blind.
+   * Asks the pane to bring an offset into view — centred when it landed off
+   * screen if `centre` is so, and brought just inside the edge otherwise.
+   * Typing into a selection made elsewhere writes at its start, which may be
+   * nowhere near what is on screen — without this the first byte is typed
+   * blind.
    */
-  readonly onReveal?: (offset: number) => void;
+  readonly onReveal?: (offset: number, centre: boolean) => void;
   /**
    * Asked once, before the first edit that shifts the file's offsets. Answering
    * no swallows the keystroke. Absent means no confirmation is wanted.
@@ -100,7 +102,7 @@ export class TypingController {
    * of which should survive a component remounting — while the scrolling
    * belongs to whichever pane is showing that document.
    */
-  revealHandler: ((offset: number) => void) | undefined;
+  revealHandler: ((offset: number, centre: boolean) => void) | undefined;
 
   private readonly doc: BinaryDocument;
   private readonly now: () => number;
@@ -280,14 +282,15 @@ export class TypingController {
    * it and its end when the move goes backward. A move that does not extend
    * drops the anchor and leaves a bare caret.
    *
+   * `centre` (default `true`) marks it a navigation command: the pane centres
+   * the caret when it landed outside the viewport, and leaves the view put when
+   * it is already on screen. Incremental callers — arrow keys, mouse, Home/End —
+   * send `false` and get the minimum scroll that keeps the caret on screen.
+   *
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.moveCaret
-   * @upstream-differs no `center:` parameter — the centring of a caret that
-   * landed outside the viewport is the pane's, asked for as `onlyIfOffScreen`
-   * on its reveal request (HexPane, via AppShell); everything that calls this
-   * is an incremental move, which upstream sends with `center: false` too
    */
-  moveCaretTo(offset: number, extendSelection = false): Promise<void> {
-    return this.run(() => this.moveCaretInQueue(offset, extendSelection));
+  moveCaretTo(offset: number, extendSelection = false, centre = true): Promise<void> {
+    return this.run(() => this.moveCaretInQueue(offset, extendSelection, centre));
   }
 
   /**
@@ -298,10 +301,16 @@ export class TypingController {
    * growing from, so the first arrow after a selection continues from where the
    * selection *ended* rather than stepping from the edge the arrow points at.
    *
+   * `centre` (default `false`) is the callee's, not the step's: an arrow key
+   * carries whether the caret was already off screen when it was pressed, so a
+   * step that merely pushes the caret past an edge still follows it with the
+   * minimum scroll while a press that finds it off screen brings it back to the
+   * middle (§10.4).
+   *
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.moveCaret
    */
-  moveCaretBy(delta: number, extendSelection = false): Promise<void> {
-    return this.run(() => this.stepCaretInQueue(delta, extendSelection));
+  moveCaretBy(delta: number, extendSelection = false, centre = false): Promise<void> {
+    return this.run(() => this.stepCaretInQueue(delta, extendSelection, centre));
   }
 
   /**
@@ -344,7 +353,11 @@ export class TypingController {
    * `moveCaretTo` share one body rather than one queueing the other, which
    * would wait on the operation it was called from.
    */
-  private async moveCaretInQueue(offset: number, extendSelection: boolean): Promise<void> {
+  private async moveCaretInQueue(
+    offset: number,
+    extendSelection: boolean,
+    centre: boolean
+  ): Promise<void> {
     // Caret movement ends the byte being typed: it breaks the typing series
     // *and* closes the nibble group, so a half-typed byte left behind is
     // recorded as its own undo step rather than glued to whatever is typed next
@@ -362,14 +375,18 @@ export class TypingController {
       this.doc.setSelection(caretAt(clamped, this.doc.size));
     }
     this.dropHalfTypedByte();
-    this.revealCaret();
+    this.revealCaret(centre);
   }
 
   /** One step of a caret move, resolved where the caret actually is. */
-  private async stepCaretInQueue(delta: number, extendSelection: boolean): Promise<void> {
+  private async stepCaretInQueue(
+    delta: number,
+    extendSelection: boolean,
+    centre: boolean
+  ): Promise<void> {
     const selection = this.doc.selection;
     if (!extendSelection && selection.end > selection.start) {
-      return this.moveCaretInQueue(this.hexCaretRevealOffset(), false);
+      return this.moveCaretInQueue(this.hexCaretRevealOffset(), false, centre);
     }
     // The caret's live position is the selection's *moving* end, not its
     // normalized start: extending right keeps the left edge fixed while the end
@@ -385,12 +402,16 @@ export class TypingController {
         : selection.start;
     const target =
       delta >= 0 ? Math.min(this.doc.size, current + delta) : Math.max(0, current + delta);
-    return this.moveCaretInQueue(target, extendSelection);
+    return this.moveCaretInQueue(target, extendSelection, centre);
   }
 
-  /** Asks the pane to bring the caret's own edge into view. */
-  private revealCaret(): void {
-    (this.options.onReveal ?? this.revealHandler)?.(this.hexCaretRevealOffset());
+  /**
+   * Asks the pane to bring the caret's own edge into view, `centre` selecting
+   * how: centred when it landed outside the viewport, the minimum scroll that
+   * keeps it on screen otherwise.
+   */
+  private revealCaret(centre: boolean): void {
+    (this.options.onReveal ?? this.revealHandler)?.(this.hexCaretRevealOffset(), centre);
   }
 
   /** Closes the open undo group and the typing series. */
@@ -832,7 +853,10 @@ export class TypingController {
 
     this.consuming = selection;
     this.nibbleIndex = 0;
-    (this.options.onReveal ?? this.revealHandler)?.(selection.start);
+    // Centred when it is off screen, left alone when it is already visible: the
+    // bytes land at the selection's start, which after Select All or any
+    // selection scrolled away from can be nowhere near what the view is showing.
+    (this.options.onReveal ?? this.revealHandler)?.(selection.start, true);
   }
 
   /**

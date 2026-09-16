@@ -471,6 +471,43 @@ export function HexPane({
     [scrolled]
   );
 
+  /**
+   * Whether the row containing `offset` is already inside the viewport — the
+   * test that decides a centred reveal is needed at all. A command that lands
+   * the caret on screen leaves the view where it is.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.isRowVisible
+   */
+  const isRowVisible = useCallback((offset: number): boolean => {
+    const scroller = scrollerRef.current;
+    const layout = layoutRef.current;
+    if (scroller === null || layout === undefined) return true;
+    const rowTop = Math.floor(offset / BYTES_PER_ROW) * layout.rowHeight;
+    return (
+      rowTop + layout.rowHeight > scroller.top && rowTop < scroller.top + scroller.viewportHeight
+    );
+  }, []);
+
+  /**
+   * The pane's single "centre an offset" primitive: scrolls so the row
+   * containing `offset` is at the vertical middle of the visible area, clamped
+   * to the file's edges — so the byte is shown mid-pane rather than at its top
+   * or bottom edge. Shared by the reveal a "go to" asks for and the caret an
+   * arrow brings back from off screen.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.centerRow
+   */
+  const centreRow = useCallback(
+    (offset: number) => {
+      const scroller = scrollerRef.current;
+      const layout = layoutRef.current;
+      if (scroller === null || layout === undefined) return;
+      const rowMid = Math.floor(offset / BYTES_PER_ROW) * layout.rowHeight + layout.rowHeight / 2;
+      scrollPaneTo(Math.min(Math.max(0, rowMid - scroller.viewportHeight / 2), scroller.maxTop));
+    },
+    [scrollPaneTo]
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const host = scrollRef.current;
@@ -730,9 +767,6 @@ export function HexPane({
     if (revealRequest.moveCaret !== false) {
       void typing.moveCaretTo(revealRequest.offset, false);
     }
-    const scroller = scrollerRef.current;
-    const layout = layoutRef.current;
-    if (scroller === null || layout === undefined) return;
     // A tool focusing a zone is showing the user something, not sending them
     // there: a zone already in front of them is left exactly where it is, and
     // the rows do not move under someone who can already see them.
@@ -747,11 +781,10 @@ export function HexPane({
       }
     }
 
-    const rowTop = Math.floor(revealRequest.offset / BYTES_PER_ROW) * layout.rowHeight;
     // Centred, not merely brought inside the edge: a change the user asked to
     // be shown should have its surroundings visible too.
-    scrollPaneTo(Math.max(0, rowTop - scroller.viewportHeight / 2 + layout.rowHeight));
-  }, [revealRequest, typing, scrollPaneTo, paneId]);
+    centreRow(revealRequest.offset);
+  }, [revealRequest, typing, centreRow, paneId]);
 
   // Comparison locks the panes to the same offsets. With one file open the
   // link has nothing to mirror to and does nothing.
@@ -826,7 +859,11 @@ export function HexPane({
   }, [scrolled]);
 
   /**
-   * Brings an offset into view with the least scrolling that will do it.
+   * Brings an offset into view. `centre` selects how: a navigation command
+   * (`centre`) centres the caret when it landed outside the viewport and leaves
+   * the view put when it is already on screen, while the incremental reveal
+   * takes the minimum scroll that keeps it on screen — no jump to the middle,
+   * which would disorient (§10.4).
    *
    * While a mouse drag is in progress the pane is driven by the pointer, not
    * the caret: the drag's anchor may legitimately scroll out of view, and
@@ -836,11 +873,16 @@ export function HexPane({
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealCaret
    */
   const reveal = useCallback(
-    (offset: number) => {
+    (offset: number, centre = false) => {
       if (dragRef.current) return;
       const scroller = scrollerRef.current;
       const layout = layoutRef.current;
       if (scroller === null || layout === undefined) return;
+
+      if (centre) {
+        if (!isRowVisible(offset)) centreRow(offset);
+        return;
+      }
 
       const rowTop = Math.floor(offset / BYTES_PER_ROW) * layout.rowHeight;
       const rowBottom = rowTop + layout.rowHeight;
@@ -849,7 +891,7 @@ export function HexPane({
         scrollPaneTo(rowBottom - scroller.viewportHeight);
       }
     },
-    [scrollPaneTo]
+    [scrollPaneTo, centreRow, isRowVisible]
   );
 
   /**
@@ -974,16 +1016,25 @@ export function HexPane({
         Math.floor(viewportHeightRef.current / (layout?.rowHeight ?? 17))
       );
 
+      // Whether this move centres the caret: only when it is *already* out of
+      // view. An arrow pressed while the caret is off screen brings the view
+      // back to it (centred); an arrow that merely pushes it past an edge keeps
+      // the minimum-scroll follow (§10.4). Read before the move, since a step
+      // that lands on the edge must still autoscroll — and read off the
+      // controller, whose caret the queued move will not have applied yet.
+      const centre = !isRowVisible(typing.hexCaretRevealOffset());
+
       switch (command.kind) {
         case "moveBy":
           // The controller resolves the step against where the caret actually
           // is, and collapses a standing selection to its active edge first.
-          void typing.moveCaretBy(command.delta, command.extend);
+          void typing.moveCaretBy(command.delta, command.extend, centre);
           break;
         case "moveTo":
           void typing.moveCaretTo(
             resolveTarget(command.target, doc.caret, doc.size, rowsPerPage, command.extend),
-            command.extend
+            command.extend,
+            centre
           );
           break;
         case "scrollByPage":
@@ -1103,6 +1154,7 @@ export function HexPane({
       typing,
       refreshCaret,
       scrollPaneTo,
+      isRowVisible,
     ]
   );
 
@@ -1273,7 +1325,7 @@ export function HexPane({
       // shift-click that is not followed by one.
       dragRef.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
-      void typing.moveCaretTo(offset, event.shiftKey);
+      void typing.moveCaretTo(offset, event.shiftKey, false);
       event.preventDefault();
     },
     [contentPoint, doc, region, typing, refreshCaret]
@@ -1389,7 +1441,7 @@ export function HexPane({
           // Extending: the fixed end is the anchor the press set, which the
           // controller keeps — so the selection's other end follows the pointer
           // even when this pane re-renders mid-drag.
-          void typing.moveCaretTo(Math.min(end, doc.size), true);
+          void typing.moveCaretTo(Math.min(end, doc.size), true, false);
         }
       }
 
@@ -1492,7 +1544,7 @@ export function HexPane({
       // A press on the selection keeps it — the menu is about those bytes. A
       // press outside it places the caret, which is what the commands that act
       // on "here" then mean.
-      if (!inSelection) void typing.moveCaretTo(offset, false);
+      if (!inSelection) void typing.moveCaretTo(offset, false, false);
       onDumpMenu(event, offset);
     },
     [doc, onDumpMenu, typing]
