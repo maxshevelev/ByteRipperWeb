@@ -99,7 +99,9 @@ export interface PaneState {
  * and it differs from `onEdit` in what it is *about*: an edit is one write,
  * where this is a whole transaction — a checksum repair that writes six places
  * is six edits and one change, and a shape that says where the damage starts is
- * only true of the transaction.
+ * only true of the transaction. It also carries the news that there is no
+ * transaction: a content replaced wholesale arrives with no operations at all,
+ * which is what {@link signalFullInvalidation} sends.
  */
 export const editingHooks: {
   onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
@@ -147,6 +149,30 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
     undoneJoins[pane].length = 0;
   });
   return { document, typing };
+}
+
+/**
+ * The pane's bytes are not the bytes it held: whatever was read from it is
+ * worth nothing now.
+ *
+ * Every path that replaces a pane's storage wholesale says so here — a file
+ * opened into the pane, a New, a duplicate — because nothing about the change
+ * can be told precisely: no operation describes it, and there is no stretch of
+ * the file it left alone. A tool's tree is read from the file the pane *had*,
+ * so a panel that kept its reading would be showing the dump that was in the
+ * pane before, under the name of the one that is.
+ *
+ * It rides on the channel an edit uses, with no operations, which is the shape
+ * a full invalidation takes on this side of the port (see
+ * `noteFirmwareContentChange`: a change with nothing to be precise about is a
+ * reload of the whole tree). A revert takes the same road from the other end —
+ * the document reports it with an empty operation list.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.signalFullInvalidation
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onFullInvalidation
+ */
+function signalFullInvalidation(pane: PaneId): void {
+  editingHooks.onContentChange?.(pane, []);
 }
 
 /**
@@ -331,6 +357,9 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
     // A file arrives as one piece covering it, whatever the pane held before.
     forgetJoins(pane);
     resetSegments(pane, document.size);
+    // Opening replaces the storage wholesale, so anything read from the file
+    // this pane was showing is about a file that is no longer here.
+    signalFullInvalidation(pane);
   } catch (error) {
     reportAlert(
       "Could not open file.",
@@ -643,6 +672,10 @@ export async function duplicatePane(from: PaneId): Promise<void> {
   forgetJoins(into);
   resetSegments(into, document.size);
   noteDocumentChanged();
+  // The pane the copy lands in is showing bytes that were not there a moment
+  // ago, whatever it was reading before. The source pane is untouched, and has
+  // nothing to be told.
+  signalFullInvalidation(into);
 }
 
 /**
@@ -681,6 +714,9 @@ export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
   }));
   forgetJoins(pane);
   resetSegments(pane, 0);
+  // A new document replaces the storage wholesale, exactly as an open does:
+  // the pane's file is gone from under whatever was reading it.
+  signalFullInvalidation(pane);
 }
 
 /**

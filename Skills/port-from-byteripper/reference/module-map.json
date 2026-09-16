@@ -1151,10 +1151,8 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.pendingSegmentSnapshot": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.signalEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.signalFullInvalidation": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.contentDidChangeNotification": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.announceContentChange": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onFullInvalidation": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onSavedStateChanged": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onMirroredSelectionChanged": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onChange": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -1237,7 +1235,7 @@
         "src/state/parkedToolState.ts"
       ],
       "status": "in-progress",
-      "note": "ToolController's session binding is src/state/toolController.ts: activate binds the active pane and never re-points, paneClosed ends the tool (the shell calls it before closePane, as performClosePane does), menuState drives the ☰ Tools rows and the toolbar picker. ToolPanelView is ToolPanel.tsx: icon, tool name, bound file name, ✕ as None. The content-change delivery is firmwareStore's onContentChange, which holds a burst for 300 ms, merges it through src/tools/contentChange.ts, and sends the fresh content with the range and the size delta; a reload goes straight through. The stale-session guard is the reply's job id, bumped on every delivery. Not yet: drops on the panel.",
+      "note": "ToolController's session binding is src/state/toolController.ts: activate binds the active pane and never re-points, paneClosed ends the tool (the shell calls it before closePane, as performClosePane does), menuState drives the ☰ Tools rows and the toolbar picker. ToolPanelView is ToolPanel.tsx: icon, tool name, bound file name, ✕ as None. The content-change delivery is firmwareStore's onContentChange, which holds a burst for 300 ms, merges it through src/tools/contentChange.ts, and sends the fresh content with the range and the size delta; a reload goes straight through. The stale-session guard is the reply's job id, bumped on every delivery. The delivery is told of a replacement as an operation list with nothing in it: a workspace open, a New, a duplicate and a revert all arrive as the reload that reads the pane's tree again from the top, which is the web's side of PaneViewModel.signalFullInvalidation → ToolController.paneReloaded. Not yet: drops on the panel.",
       "files": {
         "ToolController.swift": [
           "src/state/toolController.ts",
