@@ -32,7 +32,7 @@ cannot engineer around.
 | UI framework | **React 19 + Vite** | The bytes are drawn on canvas, so the framework's runtime is not on the hot path. What it has to supply is desktop chrome — virtualised trees, splitters, accessible menus and dialogs — and React's ecosystem supplies the most of it. |
 | Browser support | **Chromium first-class; Firefox and Safari usable, saving via download** | The File System Access API is what makes *Save* mean *save*, and only Chromium has it. Elsewhere the app works fully but writes a copy through the download flow, and says so in the UI rather than pretending. |
 | Offline | **Plain web page, no service worker for now** | The shop has network. A PWA is a later decision, and the one feature it would unlock (file-type association) is noted where it belongs. |
-| Workspace | **One workspace per browser tab. No in-app tabs, no window management.** | The desktop app's tabs, pane dragging and multi-window handling are its single most expensive UI subsystem. The browser already has tabs; a second comparison is a second browser tab. |
+| Workspace | **One workspace per browser tab. No in-app tabs, no window management.** | The desktop app's tabs and multi-window handling are its single most expensive UI subsystem. The browser already has tabs; a second comparison is a second browser tab. Dragging a pane by its header is ported, but only within the workspace the tab holds — a pane cannot be carried out of the window it was picked up in. |
 | MVP scope | **Core plus all three firmware tools** | Parity with the desktop, including UEFI, FIT and ME Analyzer. Longest path, chosen deliberately. |
 
 ## Feature inventory
@@ -125,7 +125,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Save All as Separate Files into a folder | Adapted | Chromium: `showDirectoryPicker()` and one write per segment. Elsewhere: a ZIP download, because a browser cannot be handed a folder. |
 | Replace Segment from File | Same | |
 | Append File / Insert File at Start, with the seam becoming a cut | Same | |
-| Joining one **pane** into another by dragging its header | Reduced | The operation stays, as a command in the pane header menu (*Insert at Start* / *Append at End*), not as a header drag. Pane dragging is the desktop UX we agreed not to rebuild. |
+| Joining one **pane** into another by dragging its header | Same | The drag, as upstream's: the pane's header is the handle, and the two end bands join it into the pane under them. The pane header menu's *Insert at Start* / *Append at End* stay, which is the keyboard's route. |
 | Drop a file on a pane's top/bottom band to insert or append | Same | HTML5 drag-and-drop handles this well. |
 
 ### Tabs, windows, panes
@@ -136,8 +136,8 @@ How every part of the desktop app lands here. Four verdicts:
 | Multiple windows, dragging a tab out | Dropped | Same reason. |
 | ⌘W stepping down pane → tab → window | Dropped | Replaced by an explicit Close Pane control. |
 | "This file is already open" arbitration, moving a pane between tabs | Dropped | Meaningless once there is one workspace per tab. Two browser tabs holding the same dump are two independent workspaces, and the app cannot know. **This is a real loss** — the desktop guarantees a file is open in one place at a time, and we cannot make that guarantee. |
-| Pane header drag: swap, join, move | Reduced | Swap stays as a toolbar command. Join stays as a menu command. The drag itself goes. |
-| Duplicate Here in the free half in single-file mode | Same | As a button in the empty pane. |
+| Pane header drag: swap, join, move | Same | As upstream's: the header is the handle, the bands swap or join, and **Option** turns either into a duplicate. Within its own workspace only — a pane cannot be carried into another window, and the strip along the top of the overlay, which is how upstream tears one off, is left out by the owner's decision. Swap and join stay as toolbar and menu commands, for the keyboard. |
+| Duplicate Here in the free half in single-file mode | Same | Now the gesture as well as the command: the workspace splits for the drag and its free half takes the pane as a copy. `Duplicate` stays in the pane's menu. |
 
 ### The tool panel
 
@@ -424,8 +424,8 @@ Each one ends with something a bench could actually use.
 
 Rough size, for expectation-setting rather than estimation: ~41k lines of pure
 Swift become perhaps 30k lines of TypeScript, and 35k lines of AppKit become
-perhaps 12k lines of React and canvas, since the tab, window and pane-drag
-subsystems are not coming.
+perhaps 12k lines of React and canvas, since the tab and window subsystems are
+not coming.
 
 ## Open questions
 

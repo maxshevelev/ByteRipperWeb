@@ -28,6 +28,9 @@ import {
 import { bookmarkAt, bookmarksStore, moveBookmark, pointerRow } from "@/state/bookmarksStore";
 import { editStore } from "@/state/editStore";
 import { toggleMinimap } from "@/state/minimapStore";
+// Both aliased: this pane already has a `beginDrag`/`endDrag` pair of its own
+// for a selection, and the two must not be confused for each other.
+import { endDrag as endPaneDrag, beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
@@ -36,6 +39,9 @@ import { useStore } from "@/state/useStore";
 import { activeDecoder, decoderFor, type PaneId } from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
+import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
+import { PaneDropBands, type PaneDropRegion } from "@/ui/drag/PaneDropBands";
+import { setPaneDragImage } from "@/ui/drag/paneDragImage";
 import { DocumentIcon } from "@/ui/pane/DocumentIcon";
 import {
   AUTOSCROLL_INTERVAL_MS,
@@ -166,34 +172,22 @@ export interface HexPaneProps {
   /** The field closed, with what was typed and whether to take it. */
   readonly onRenameEnd?: ((typed: string, commit: boolean) => void) | undefined;
   /**
-   * True while files are being dragged over the window (§22.4).
+   * The pane's drop region: its three bands, and what each would do (§22.4).
+   *
+   * One overlay serves files and panes both, and it belongs to the element that
+   * owns the drop — this pane in comparison mode. A single-file workspace leaves
+   * it out entirely: there the container owns the drop and draws the bands
+   * itself, *beside* the pane, because in that view they divide the half the
+   * file already occupies rather than the dump.
    *
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.enableFileDrop
-   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingEntered
-   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingExited
-   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingEnded
    * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.dragActive
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.setDragActive
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.showBands
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.hideBands
-   */
-  readonly dragActive?: boolean | undefined;
-  /**
-   * A drop on one of this pane's bands: the file joins at that end rather than
-   * replacing what the pane holds.
-   *
    * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands1
    * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands2
-   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget
-   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget.isJoin
-   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget.title
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onDrop
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.insertTarget
-   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.appendTarget
-   * @upstream-differs a pane offers its start and end bands for a join; a drop elsewhere opens
+   * @upstream-differs the bands and the handlers are one value handed in, rather than a view
+   * built around the pane by the window
    */
-  readonly onJoinDrop?: ((event: React.DragEvent, where: "start" | "end") => void) | undefined;
+  readonly dropRegion?: PaneDropRegion | undefined;
   /** Called when this pane's selection moves, so the other pane can outline it. */
   readonly onSelectionChanged?: ((selection: { start: number; end: number }) => void) | undefined;
   /**
@@ -251,6 +245,35 @@ export interface HexPaneProps {
 }
 
 const platform = detectKeyboardPlatform();
+
+/**
+ * Picks the pane up: writes its identity onto the drag, gives it the pill it is
+ * carried by, and tells the workspace what is in flight (§22.4).
+ *
+ * A press on the close button or in the rename field is not a pane drag — both
+ * keep their own clicks, which is what upstream's `hitTest` says in code.
+ *
+ * The session's own three questions are answered here: the mask the drag offers,
+ * and the two ends of the gesture that raise and lower it.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.beginPaneDrag
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.draggingSession
+ * @upstream-differs the identity travels on the drag's own private type and in the store, since a
+ * browser will not hand a drag's data to a destination before the drop; the pill is an element
+ * the browser snapshots rather than an image drawn to a frame
+ */
+function beginPaneDragFromEvent(event: React.DragEvent, paneId: PaneId, name: string): void {
+  if ((event.target as Element).closest("input, button") !== null) {
+    event.preventDefault();
+    return;
+  }
+  event.dataTransfer.setData(PANE_DRAG_TYPE, paneId);
+  // Both, because the modifier's two meanings are both offered: a drop that
+  // joins or duplicates copies, one that swaps or moves does not (§22.4).
+  event.dataTransfer.effectAllowed = "copyMove";
+  setPaneDragImage(event.dataTransfer, name, event.currentTarget);
+  startPaneDrag(paneId);
+}
 
 /**
  * How many bytes one copy will produce, at most.
@@ -311,8 +334,7 @@ export function HexPane({
   onHeaderMenu,
   renaming,
   onRenameEnd,
-  dragActive,
-  onJoinDrop,
+  dropRegion,
   onSelectionChanged,
   revealRequest,
   typing,
@@ -380,8 +402,6 @@ export function HexPane({
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.draggingBookmarkPointerRow
    */
   const markDragPointerRowRef = useRef<number | undefined>(undefined);
-  /** Which join band a dragged file is currently over, if either (§22.4). */
-  const [overBand, setOverBand] = useState<"start" | "end" | undefined>(undefined);
   /**
    * The named bookmark the pointer is resting on, and where to show its name.
    *
@@ -1689,65 +1709,32 @@ export function HexPane({
     // Clicking anywhere in a pane makes it the active one — that is the whole
     // gesture. The keyboard route is the grid's own focus, which fires the same
     // handler through onFocusCapture.
+    //
+    // A drag over a pane is the one thing that is not the pane's own: it is the
+    // region's, and the region is the element that owns the drop (§22.4). Every
+    // act it offers has a command in the menus, which is the keyboard's route.
+    // biome-ignore lint/a11y/noStaticElementInteractions: a drop region is not interactivity of its own.
     <div
       className="hex-pane"
       data-active={isActive ? "" : undefined}
       onPointerDownCapture={onActivate}
       onFocusCapture={onActivate}
+      onDragOver={dropRegion?.onDragOver}
+      onDragLeave={dropRegion?.onDragLeave}
+      onDrop={dropRegion?.onDrop}
     >
-      {/*
-        The two join bands (§22.4): a file dropped at the top goes in before
-        what the pane holds, one dropped at the bottom after it. Only while
-        something is actually being dragged, and only when the pane has content
-        for a join to be relative to.
-      */}
-      {dragActive === true && onJoinDrop !== undefined ? (
-        <>
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: see above. */}
-          <div
-            className="join-band is-start"
-            data-over={overBand === "start" ? "" : undefined}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOverBand("start");
-            }}
-            onDragLeave={() => setOverBand(undefined)}
-            onDrop={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOverBand(undefined);
-              onJoinDrop(event, "start");
-            }}
-          >
-            Insert at the start
-          </div>
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: see above. */}
-          <div
-            className="join-band is-end"
-            data-over={overBand === "end" ? "" : undefined}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOverBand("end");
-            }}
-            onDragLeave={() => setOverBand(undefined)}
-            onDrop={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOverBand(undefined);
-              onJoinDrop(event, "end");
-            }}
-          >
-            Append at the end
-          </div>
-        </>
-      ) : null}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu is
           not interactivity of its own — the keyboard reaches the same commands
           through the toolbar's menu, and the dump below answers Shift+F10. */}
       <header
         className="pane-header"
+        // The pane is taken by its header and carried (§22.4). The press that
+        // starts it is the browser's own: a drag begins after the pointer has
+        // moved far enough and does not begin on a double click, which is the
+        // threshold and the one-drag-per-press rule upstream keeps in code.
+        draggable
+        onDragStart={(event) => beginPaneDragFromEvent(event, paneId, name)}
+        onDragEnd={endPaneDrag}
         onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
       >
         <DocumentIcon slot={label} dirty={dirty} untitled={saved === undefined} />
@@ -1866,6 +1853,12 @@ export function HexPane({
         </span>
         <OperationStrip pane={paneId} />
       </p>
+      {/*
+        The three bands a drop on this pane lands in (§22.4), over everything the
+        pane draws and only for the drag's lifetime. Plates and nothing else: the
+        drop belongs to the pane, which is what the pointer is over.
+      */}
+      {dropRegion === undefined ? null : <PaneDropBands outcomeFor={dropRegion.outcomeFor} />}
     </div>
   );
 }

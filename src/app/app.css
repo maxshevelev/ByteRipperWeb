@@ -490,21 +490,6 @@ textarea,
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Dropping a file ──────────────────────────────────────────────────── */
-
-.drop-veil {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  outline: 3px dashed var(--accent);
-  outline-offset: -12px;
-  color: var(--text);
-  font-size: 1.1rem;
-  pointer-events: none;
-}
-
 /* ── The pane's own header ────────────────────────────────────────────── */
 
 .pane-header {
@@ -515,6 +500,18 @@ textarea,
   border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
   min-width: 0;
+}
+
+/* The header is the pane's drag handle (§22.4), so a press on it must not start
+   a text selection instead: the browser would carry the name's letters out of
+   the window rather than the pane. The rename field takes the selection back —
+   it is a place where selecting the text is the point. */
+.pane-header {
+  user-select: none;
+}
+
+.pane-header input {
+  user-select: text;
 }
 
 /* The pane's document glyph (`ui/pane/DocumentIcon`): outline for a file as it
@@ -546,6 +543,34 @@ textarea,
 
 .pane-document[data-dirty] .pane-document-badge path {
   stroke: var(--surface-raised);
+}
+
+/*
+ * The pill a pane is carried by (§22.4): the header's own glyph and name on a
+ * plate of their own. It is built off screen for the single frame the browser
+ * needs it to snapshot the drag image, and taken down again — so it is never
+ * seen in place, and its size, gap and radius are set from the measured metrics
+ * at that moment. It hangs off the body rather than inside a pane, which is why
+ * its rules sit here with the header's: it is the header in the hand.
+ */
+.pane-drag-pill {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* The glyph is the header's own, so the pill reads as that pane rather than as
+   a detached label — and at the header's contrast, not the pill's muted one. */
+.pane-drag-pill .pane-document {
+  color: var(--text);
 }
 
 /* A cross that closes something (`ui/shell/CloseButton`). */
@@ -614,7 +639,7 @@ textarea,
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
   border-top: 2px solid transparent;
-  /* The join bands hang off this box. */
+  /* The drop overlay's bands hang off this box. */
   position: relative;
 }
 
@@ -958,37 +983,170 @@ textarea,
   font-size: 11px;
 }
 
-/* The join bands (§22.4): a file dropped at a pane's top goes in before what it
-   holds, one dropped at the bottom after it. */
-.join-band {
+/* ── Dropping onto a pane (§4.3, §22.4) ───────────────────────────────── */
+
+/*
+ * A pane's drop overlay: the three bands a file — or a pane carried by its
+ * header — lands in. Purely visual, so it takes no pointer: the pane's own
+ * element is what receives the drag, and the plates never stand between it and
+ * the hand. It is mounted only while a session is in flight, so idle panes have
+ * no transparent sheet over the dump at all.
+ */
+.pane-drop-bands {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+/*
+ * One band, placed from the ported geometry rather than by flex: the strips at
+ * either end are the joins and the middle is the replacement, and how tall each
+ * is comes from the pane's own measured height.
+ */
+.pane-drop-band {
   position: absolute;
   left: 0;
   right: 0;
-  z-index: 6;
-  height: 3.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-  border: 2px dashed var(--accent);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/*
+ * The zone itself: the whole of the box a drop lands in — a pane's band, or the
+ * free half of a single-file window. The fill and the border span all of it, as
+ * upstream's do, where they are painted on the zone view's own layer; only the
+ * caption in the middle keeps a plate of its own, below.
+ *
+ * The idle fill is the sunken grey rather than the surface the pane is drawn on:
+ * upstream resolves `windowBackgroundColor`, which is the window's own backdrop
+ * and never the content's white, and a zone that went white over a white dump
+ * would read as a hole in the pane rather than a target over it. The caption's
+ * frosted plate is the lighter of the two, standing out of it.
+ *
+ * The border is drawn inside the box, so thickening it on hover moves nothing:
+ * the zone is the band, and the band is where the ported geometry put it.
+ */
+.drop-target {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-sunken) 90%, transparent);
+}
+
+/* Hover is also signalled by the accent border and a thicker stroke. */
+.drop-target[data-hovered] {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/*
+ * The caption's frosted plate over the zone's fill — the popover material
+ * upstream uses, which changes with the theme on its own. It hugs the words, so
+ * neither the milky fill nor the accent one ever bleeds into the text, and it is
+ * squared for a refusal, whose symbol stands in the words' place.
+ *
+ * It takes the surface the zone gave up, one step above it: the two are a pair,
+ * and the plate has to stay the lighter of them for the caption to read as
+ * something laid on the target rather than printed into it.
+ */
+.drop-plate {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 5px 10px;
   border-radius: 6px;
-  opacity: 0.75;
-  pointer-events: auto;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--text);
 }
 
-.join-band.is-start {
-  top: 0;
+.drop-caption {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.join-band.is-end {
-  bottom: 0;
+/* Nothing to offer, so nothing is said: the symbol is the muted one, and the
+   zone behind it never lights up for it. */
+.drop-refusal {
+  width: 30px;
+  height: 30px;
+  color: var(--text-muted);
 }
 
-.join-band[data-over] {
-  opacity: 1;
-  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+/*
+ * The "second file" half of a single-file window: one target filling the half,
+ * and the same pass-through the bands have.
+ */
+.drop-zone {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/*
+ * Single-file mode's content view (§4.3): the pane, and the two halves a drag
+ * divides it into.
+ *
+ * One track each way by default — written out rather than left implicit, so the
+ * `-1` end lines the pane is placed against below are definite even when there
+ * is no second half to split off.
+ */
+.single-file-drop {
+  position: relative;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * The pane keeps the whole view, and the halves lie over it rather than beside
+ * it — as upstream's does. Nothing the pointer crosses is then a hole it can
+ * fall through, and the dump does not resize under a gesture.
+ */
+.single-file-drop > .hex-pane {
+  grid-area: 1 / 1 / -1 / -1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The container is the drop target for the whole view, so both halves pass the
+   pointer through to it — and to the dump behind them. Each sits in the first
+   half's cell by default; the second half moves to its own below. */
+.single-file-drop-bands,
+.single-file-drop-second {
+  position: relative;
+  grid-area: 1 / 1;
+  pointer-events: none;
+}
+
+/*
+ * The second half is split off only while a drag has something to put there,
+ * and it is a share of the view rather than a box kept in reserve: with nothing
+ * on offer, the bands get the room instead of an empty space.
+ */
+.single-file-drop[data-second-half][data-layout="sideBySide"] {
+  grid-template: 1fr / 1fr 1fr;
+}
+
+.single-file-drop[data-second-half][data-layout="stacked"] {
+  grid-template: 1fr 1fr / 1fr;
+}
+
+.single-file-drop[data-second-half][data-layout="sideBySide"] .single-file-drop-second {
+  grid-area: 1 / 2;
+}
+
+.single-file-drop[data-second-half][data-layout="stacked"] .single-file-drop-second {
+  grid-area: 2 / 1;
 }
 
 /* The segments table. */

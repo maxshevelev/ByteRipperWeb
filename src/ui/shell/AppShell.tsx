@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
-import { JoinEmpty } from "@/core/document/binaryDocument";
+import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
+import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
@@ -14,6 +15,7 @@ import { editStore } from "@/state/editStore";
 import { restoreFavorites } from "@/state/favoritesStore";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
 import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
+import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
   closeSearch,
   noteSearchEdit,
@@ -45,6 +47,7 @@ import {
   setConfirmShiftingEdits,
   setSplitFraction,
   slotForNewFile,
+  swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
@@ -55,6 +58,20 @@ import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
+import {
+  isJoin,
+  PANE_DROP_NONE,
+  type PaneDropOutcome,
+  paneDropOutcome,
+  type SingleFileDropTarget,
+  singleFilePaneDrop,
+} from "@/ui/drag/dragDrop";
+import {
+  type PaneDropOutcomeResolver,
+  type PaneDropRegion,
+  paneDropRegion,
+} from "@/ui/drag/PaneDropBands";
+import { SingleFileDrop } from "@/ui/drag/SingleFileDrop";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
@@ -270,25 +287,37 @@ export function AppShell() {
     const onDragOver = (event: DragEvent) => {
       if (!dragCarriesFiles(event.dataTransfer)) return;
       event.preventDefault();
+      // The session is raised here as well as from a pane's own region, because
+      // this is the only thing that hears a file coming in where no band is —
+      // the toolbar, the divider, or a window with no panes at all.
+      beginFileDrag();
       setDragging(true);
     };
     const onDragLeave = (event: DragEvent) => {
       // Leaving for a child element is not leaving the window.
       if (event.relatedTarget !== null) return;
       setDragging(false);
+      endDrag();
     };
     /**
-     * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.prepareForDragOperation
-     * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.performDragOperation
-     * @upstream-differs the window takes the drop, and a pane's bands take joins
+     * The window's own drop: what takes a file let go where no band is — the
+     * toolbar, the divider, the tool panel — and the whole of it on an empty
+     * workspace, where there are no panes to aim at.
+     *
+     * A pane in flight is not this handler's business: it is let go over a pane
+     * or nowhere, and the browser refuses the rest for us.
+     *
      * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleEmptyDrop
-     * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleSingleFileDrop
-     * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonDrop
+     * @upstream-differs upstream registers no drop target on the window at all, and a file let go
+     * where no band lies is simply not accepted; the web has opened a file there since before there
+     * were bands, and a drop that silently did nothing would be a regression rather than a port
      */
     const onDrop = (event: DragEvent) => {
       if (event.dataTransfer === null) return;
       event.preventDefault();
       setDragging(false);
+      endDrag();
+      if (!dragCarriesFiles(event.dataTransfer)) return;
       filesFromDrop(event.dataTransfer)
         .then((files) => accept(files))
         .catch(() => reportAlert("Could not read file.", "That file could not be read."));
@@ -763,34 +792,26 @@ export function AppShell() {
   }, []);
 
   /**
-   * Append File… / Insert File at Start… (§22).
+   * Joins bytes into a pane's content, wherever they came from (§22).
    *
-   * A join copies: the file that is picked is not consumed, and neither is the
-   * pane's own content — what changes is this pane, which stops being the file
-   * it was opened from and says so in its header.
+   * One function for the three doors onto a join — the menu's file picker, a
+   * file dropped on a band, and another pane dropped on one — because all three
+   * end in `joinIntoPane` with a source; only the source differs, and a join
+   * already copies, which is what makes a pane-to-pane join the same act as a
+   * file's rather than a second operation.
    *
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.appendFile
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.insertFileAtStart
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.join
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.joinFile
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.appendFileInPane
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.insertFileAtStartInPane
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.joinFile
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.join
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateJoinedPane
+   * @upstream-differs upstream asks before a self-join and before a join into a dirty pane; the web
+   * joins without asking, as its menu's Append File… already does
    */
-  const doJoin = useCallback(
-    async (pane: PaneId, position: "start" | "end") => {
+  const joinInto = useCallback(
+    async (pane: PaneId, position: JoinPosition, source: ByteStorage, sourceName: string) => {
       try {
-        const [picked] = await openFiles({
-          multiple: false,
-          capabilities: workspaceStore.getSnapshot().capabilities,
-        });
-        if (picked === undefined) return;
-        await joinIntoPane({
-          pane,
-          source: new FileBackedStorage(picked.source, new ChunkCache()),
-          sourceName: picked.name,
-          position,
-        });
+        await joinIntoPane({ pane, source, sourceName, position });
         revealSeam(pane);
       } catch (error) {
         if (error instanceof JoinEmpty) {
@@ -807,44 +828,274 @@ export function AppShell() {
   );
 
   /**
-   * A file dropped on a pane's band joins there rather than replacing it.
+   * Append File… / Insert File at Start… (§22).
    *
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonBandDrop
+   * A join copies: the file that is picked is not consumed, and neither is the
+   * pane's own content — what changes is this pane, which stops being the file
+   * it was opened from and says so in its header.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.appendFile
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.insertFileAtStart
    */
-  const doJoinDrop = useCallback(
-    async (event: React.DragEvent, pane: PaneId, where: "start" | "end") => {
-      setDragging(false);
-      if (event.dataTransfer === null) return;
+  const doJoin = useCallback(
+    async (pane: PaneId, position: JoinPosition) => {
       try {
-        const [picked, ...extra] = await filesFromDrop(event.dataTransfer);
-        // A join takes one file: the rest are not joined, and saying so is the
-        // whole of what happens to them.
-        if (extra.length > 0) {
-          const ignored = ignoredFilesAlert(extra.length, "join");
-          reportAlert(ignored.title, ignored.message);
-        }
-        if (picked !== undefined) {
-          await joinIntoPane({
-            pane,
-            source: new FileBackedStorage(picked.source, new ChunkCache()),
-            sourceName: picked.name,
-            position: where,
-          });
-          // The same seam the menu's join centres (§22.5): a drop is the same act.
-          revealSeam(pane);
-        }
+        const [picked] = await openFiles({
+          multiple: false,
+          capabilities: workspaceStore.getSnapshot().capabilities,
+        });
+        if (picked === undefined) return;
+        await joinInto(
+          pane,
+          position,
+          new FileBackedStorage(picked.source, new ChunkCache()),
+          picked.name
+        );
       } catch (error) {
-        if (error instanceof JoinEmpty) {
-          reportAlert("Nothing was joined.", `${error.message} Nothing was joined.`);
-          return;
-        }
         reportAlert(
           "Could not join the pane.",
           error instanceof Error ? error.message : "That file could not be joined."
         );
       }
     },
-    [revealSeam]
+    [joinInto]
+  );
+
+  /**
+   * The pane a band on a single-file workspace acts on, and in which band's
+   * sense: the three bands over the file act on the file's own pane, the free
+   * half acts on the empty one.
+   *
+   * The one open pane is read from the workspace rather than assumed to be `a`:
+   * open two files and close the first, and the lone file is in `b`.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.singleFilePaneDrop
+   */
+  const singleFileBandTarget = useCallback((band: SingleFileDropTarget): PaneId => {
+    const { panes } = workspaceStore.getSnapshot();
+    const lone = panes.a === undefined ? "b" : "a";
+    return singleFilePaneDrop(band, { open: lone, free: lone === "a" ? "b" : "a" }).pane;
+  }, []);
+
+  /**
+   * What letting the pane in flight go on `target`'s `band` would mean, or the
+   * refusal when it would mean nothing.
+   *
+   * The decision is `PaneDrop`'s and is pure. What this adds is where the
+   * dragged pane lives — the store's own record, since a browser hides a drag's
+   * payload from every `dragover` — and the three guards the pure rule cannot
+   * see because they are about the workspace rather than about the drop: a
+   * target that must be open, a source with bytes to copy, and a free half that
+   * must really be free.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.paneDropOutcome
+   * @upstream-differs every drop is in its origin window: one workspace per browser tab (D11), so
+   * `inOriginWindow` is always true and `Outcome.move` is unreachable from the app
+   */
+  const paneDropOutcomeFor = useCallback(
+    (
+      dragging: PaneId,
+      target: PaneId,
+      band: SingleFileDropTarget,
+      copying: boolean
+    ): PaneDropOutcome => {
+      const { panes } = workspaceStore.getSnapshot();
+      const source = panes[dragging];
+      if (source === undefined) return PANE_DROP_NONE;
+      const outcome = paneDropOutcome(
+        dragging,
+        { kind: "pane", index: target, inOriginWindow: true, band },
+        copying
+      );
+      // A join needs somewhere to land: the target's own emptiness is the only
+      // case the pure rule cannot see.
+      if (outcome.kind === "join" && panes[target] === undefined) return PANE_DROP_NONE;
+      // A copy needs bytes to copy, and that is all it needs: where it lands is
+      // the drop's business. `canDuplicate` is deliberately not asked — it
+      // speaks for the menu command, whose copy has to find a *free* pane, while
+      // a drop names the pane itself and may replace an occupied one.
+      if (outcome.kind === "duplicate") {
+        if (source.document.size === 0) return PANE_DROP_NONE;
+        // One exception: the free half of a single-file workspace *is* the
+        // empty pane. If that pane is occupied the half is not on screen, and a
+        // copy aimed at it has nowhere to go.
+        if (band === "addSecond" && panes[target] !== undefined) return PANE_DROP_NONE;
+      }
+      return outcome;
+    },
+    []
+  );
+
+  /**
+   * The answer a region asks for, for the pane it stands for.
+   *
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.paneDropOutcome
+   */
+  const outcomeResolverFor = useCallback(
+    (target: PaneId) => (band: SingleFileDropTarget, copying: boolean) => {
+      const dragging = draggedPaneId();
+      if (dragging === undefined) return PANE_DROP_NONE;
+      return paneDropOutcomeFor(dragging, target, band, copying);
+    },
+    [paneDropOutcomeFor]
+  );
+
+  /**
+   * Performs whatever the drop means. Nothing here is a new operation — each
+   * case is a command that already exists, with its own tests.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performPaneDrop
+   */
+  const performPaneDrop = useCallback(
+    (dragging: PaneId, target: PaneId, band: SingleFileDropTarget, copying: boolean) => {
+      const outcome = paneDropOutcomeFor(dragging, target, band, copying);
+      const { panes } = workspaceStore.getSnapshot();
+      switch (outcome.kind) {
+        case "swap":
+          // Two panes of one workspace trade places. Which file is on the left
+          // is how a person keeps "the one that works" apart from the other, so
+          // the pair moves together.
+          swapPanes();
+          return;
+        case "join": {
+          const source = panes[dragging];
+          if (source === undefined) return;
+          void joinInto(target, outcome.at, source.document.storage, source.name);
+          return;
+        }
+        case "duplicate": {
+          const occupant = panes[target];
+          // Replacing an occupied pane throws away whatever is unsaved in it,
+          // and the drop named that pane. A free one — the single-file half —
+          // has nothing to lose and is not asked about.
+          //
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copyPane
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
+          // @upstream-differs upstream offers Save and Replace / Replace Without Saving / Cancel;
+          // the web asks a plain confirm and replaces, as closing a dirty pane does
+          if (occupant?.document.isDirty === true) {
+            const from = panes[dragging]?.name ?? "the pane";
+            if (!window.confirm(`${occupant.name} has unsaved edits. Replace it with ${from}?`))
+              return;
+          }
+          void duplicatePane(dragging).catch((error: unknown) =>
+            reportAlert(
+              "Could not duplicate the file.",
+              error instanceof Error ? error.message : "That copy could not be made."
+            )
+          );
+          return;
+        }
+        case "move":
+          // A pane arriving from another window, which one workspace per browser
+          // tab cannot produce (D11).
+          return;
+        case "none":
+          return;
+      }
+    },
+    [joinInto, paneDropOutcomeFor]
+  );
+
+  /**
+   * Says what became of the files a gesture could not take.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.notifyIgnored
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.notifyJoinIgnored
+   */
+  const noteIgnored = useCallback((count: number, gesture: "open" | "join") => {
+    if (count <= 0) return;
+    const alert = ignoredFilesAlert(count, gesture);
+    reportAlert(alert.title, alert.message);
+  }, []);
+
+  /**
+   * The first file takes `target`; a second takes the other pane when that one
+   * is free, and is ignored with the rest when it is not.
+   *
+   * One file per call, because that is what the opener takes into a named slot —
+   * and the pane the drop landed on is the one left active, whatever the second
+   * file does.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonDrop
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openIntoPane
+   */
+  const openFilesAt = useCallback(
+    (target: PaneId, first: OpenedFile, extra: OpenedFile[], plusSecond: boolean) => {
+      accept([first], target);
+      const other: PaneId = target === "a" ? "b" : "a";
+      const second = extra[0];
+      const takesSecond =
+        plusSecond &&
+        second !== undefined &&
+        workspaceStore.getSnapshot().panes[other] === undefined;
+      if (takesSecond) {
+        accept([second], other);
+        setActivePane(target);
+      }
+      noteIgnored(extra.length - (takesSecond ? 1 : 0), "open");
+    },
+    [accept, noteIgnored]
+  );
+
+  /**
+   * A file dropped on a comparison pane's band (§4.3, §22.4): the two ends join
+   * it into that pane, the middle replaces what the pane holds.
+   *
+   * The join takes one file: a list joined in one gesture is deliberately not
+   * this, and saying what became of the rest is the whole of what happens to
+   * them. The replace band takes two — the first into the pane it landed on, the
+   * second into the other one when that one is free, which is how a comparison
+   * is opened with a drag — and ignores the rest.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonBandDrop
+   */
+  const handleComparisonBandDrop = useCallback(
+    (target: PaneId, band: SingleFileDropTarget, files: OpenedFile[]) => {
+      const [first, ...extra] = files;
+      if (first === undefined) return;
+      if (isJoin(band)) {
+        void joinInto(
+          target,
+          band === "insertAtStart" ? "start" : "end",
+          new FileBackedStorage(first.source, new ChunkCache()),
+          first.name
+        );
+        noteIgnored(extra.length, "join");
+        return;
+      }
+      openFilesAt(target, first, extra, true);
+    },
+    [joinInto, noteIgnored, openFilesAt]
+  );
+
+  /**
+   * A file dropped on a single-file workspace's zone (§4.3, §22.4). The zone
+   * says which pane it acts on: the three bands over the open file act on that
+   * file, the free half opens the drop as the second one.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleSingleFileDrop
+   */
+  const handleSingleFileDrop = useCallback(
+    (band: SingleFileDropTarget, files: OpenedFile[]) => {
+      const [first, ...extra] = files;
+      if (first === undefined) return;
+      const target = singleFileBandTarget(band);
+      if (isJoin(band)) {
+        void joinInto(
+          target,
+          band === "insertAtStart" ? "start" : "end",
+          new FileBackedStorage(first.source, new ChunkCache()),
+          first.name
+        );
+        noteIgnored(extra.length, "join");
+        return;
+      }
+      // The free half takes one file and only one: the pane beside the open file
+      // is what it is for, and there is nowhere else for the rest to go.
+      openFilesAt(target, first, extra, band === "replace");
+    },
+    [joinInto, noteIgnored, openFilesAt, singleFileBandTarget]
   );
 
   /**
@@ -951,6 +1202,117 @@ export function AppShell() {
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
+  /** The one open pane of a single-file workspace, when there is exactly one. */
+  const lone = panes.length === 1 ? panes[0] : undefined;
+
+  /**
+   * Hands the files of a drop to whoever asked for them, or says the drop could
+   * not be read.
+   *
+   * Called synchronously from the drop handler, because a `DataTransfer` is
+   * emptied the moment the event returns and the reading starts inside here.
+   */
+  const acceptDroppedFiles = useCallback(
+    (transfer: DataTransfer, into: (files: OpenedFile[]) => void) => {
+      filesFromDrop(transfer)
+        .then(into)
+        .catch(() => reportAlert("Could not read file.", "That file could not be read."));
+    },
+    []
+  );
+
+  /**
+   * A comparison pane's drop region (§22.4): its three bands, and the acts they
+   * stand for in this pane.
+   *
+   * The pane is the region's element — it is what the pointer is over and what
+   * the bands divide — so the geometry needs no element of its own.
+   *
+   * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands1
+   * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands2
+   */
+  const comparisonRegionFor = (id: PaneId): PaneDropRegion =>
+    paneDropRegion({
+      outcomeFor: outcomeResolverFor(id),
+      onPaneDropped: (paneId, band, copying) => performPaneDrop(paneId, id, band, copying),
+      onFilesDropped: (band, event) => {
+        if (event.dataTransfer === null) return;
+        acceptDroppedFiles(event.dataTransfer, (files) =>
+          handleComparisonBandDrop(id, band, files)
+        );
+      },
+    });
+
+  /**
+   * A single-file workspace's bands, in the sense of the pane each one acts on:
+   * the free half is the empty pane, the three bands over the file are its own.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.singleFilePaneDrop
+   */
+  const singleFileOutcomeFor: PaneDropOutcomeResolver = (band, copying) =>
+    outcomeResolverFor(singleFileBandTarget(band))(band, copying);
+
+  /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleSingleFileDrop */
+  const handleSingleFileFilesDrop = (band: SingleFileDropTarget, event: React.DragEvent) => {
+    if (event.dataTransfer === null) return;
+    acceptDroppedFiles(event.dataTransfer, (files) => handleSingleFileDrop(band, files));
+  };
+
+  /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performPaneDrop */
+  const handleSingleFilePaneDrop = (paneId: PaneId, band: SingleFileDropTarget, copying: boolean) =>
+    performPaneDrop(paneId, singleFileBandTarget(band), band, copying);
+
+  /**
+   * One pane, with whatever drop region it wears — nothing in single-file mode,
+   * where the workspace's container owns the drop and draws the bands.
+   */
+  const paneElement = (id: PaneId, dropRegion?: PaneDropRegion) => {
+    const pane = state.panes[id];
+    if (pane === undefined) return null;
+    const other = id === "a" ? "b" : "a";
+    return (
+      <HexPane
+        // The document, not the file: a join's undo and redo put a different
+        // file under the same document, and remounting the dump for it lost the
+        // keyboard and the scroll with it.
+        key={`${id}:${documentKey(pane.document)}`}
+        paneId={id}
+        label={id === "a" ? "File A" : "File B"}
+        name={pane.name}
+        document={pane.document}
+        wordSize={state.wordSize}
+        isActive={state.activePane === id}
+        onActivate={() => setActivePane(id)}
+        onClose={() => closeWithWarning(id)}
+        differences={diff.index}
+        companionSize={state.panes[other]?.document.size}
+        peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
+        onSelectionChanged={onSelectionChanged[id]}
+        revealRequest={reveal[id]}
+        typing={pane.typing}
+        saved={pane.saved}
+        onSave={() => void doSave(false)}
+        onSaveAs={() => void doSave(true)}
+        onGoTo={() => setGoTo("offset")}
+        onFind={openFind}
+        matches={resultsFor(search, id).matches}
+        currentMatch={resultsFor(search, id).current}
+        resultsShown={resultsFor(search, id).resultsShown}
+        searchStatus={resultsFor(search, id).status}
+        onGoToMatch={revealInBoth}
+        onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, id, menuActions))}
+        renaming={renamingPane === id}
+        onRenameEnd={(typed, commit) => {
+          setRenamingPane(undefined);
+          if (commit) renamePane(id, typed);
+        }}
+        onDumpMenu={(event, anchor, onClose) =>
+          openContextMenu(event, dumpMenu(state, id, anchor.offset, menuActions), onClose)
+        }
+        dropRegion={dropRegion}
+      />
+    );
+  };
 
   // Whether each difference arrow has somewhere to go from the active caret —
   // the rule the navigation itself uses, so a lit arrow always moves.
@@ -1037,57 +1399,20 @@ export function AppShell() {
       >
         {panes.length === 0 ? (
           <EmptyState onOpen={() => void open()} />
+        ) : lone !== undefined ? (
+          // One file open: the workspace's own drop zones, and the pane behind
+          // them wearing none — the bands a drop lands in belong to the halves,
+          // not to the dump view (§22.4).
+          <SingleFileDrop
+            layout={state.layout}
+            outcomeFor={singleFileOutcomeFor}
+            onPaneDropped={handleSingleFilePaneDrop}
+            onFilesDropped={handleSingleFileFilesDrop}
+          >
+            {paneElement(lone)}
+          </SingleFileDrop>
         ) : (
-          panes.map((id) => {
-            const pane = state.panes[id];
-            if (pane === undefined) return null;
-            const other = id === "a" ? "b" : "a";
-            return (
-              <HexPane
-                // The document, not the file: a join's undo and redo put a
-                // different file under the same document, and remounting the
-                // dump for it lost the keyboard and the scroll with it.
-                key={`${id}:${documentKey(pane.document)}`}
-                paneId={id}
-                label={id === "a" ? "File A" : "File B"}
-                name={pane.name}
-                document={pane.document}
-                wordSize={state.wordSize}
-                isActive={state.activePane === id}
-                onActivate={() => setActivePane(id)}
-                onClose={() => closeWithWarning(id)}
-                differences={diff.index}
-                companionSize={state.panes[other]?.document.size}
-                peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
-                onSelectionChanged={onSelectionChanged[id]}
-                revealRequest={reveal[id]}
-                typing={pane.typing}
-                saved={pane.saved}
-                onSave={() => void doSave(false)}
-                onSaveAs={() => void doSave(true)}
-                onGoTo={() => setGoTo("offset")}
-                onFind={openFind}
-                matches={resultsFor(search, id).matches}
-                currentMatch={resultsFor(search, id).current}
-                resultsShown={resultsFor(search, id).resultsShown}
-                searchStatus={resultsFor(search, id).status}
-                onGoToMatch={revealInBoth}
-                onHeaderMenu={(event) =>
-                  openContextMenu(event, paneFileMenu(state, id, menuActions))
-                }
-                renaming={renamingPane === id}
-                onRenameEnd={(typed, commit) => {
-                  setRenamingPane(undefined);
-                  if (commit) renamePane(id, typed);
-                }}
-                onDumpMenu={(event, anchor, onClose) =>
-                  openContextMenu(event, dumpMenu(state, id, anchor.offset, menuActions), onClose)
-                }
-                dragActive={dragging}
-                onJoinDrop={(event, where) => void doJoinDrop(event, id, where)}
-              />
-            );
-          })
+          panes.map((id) => paneElement(id, comparisonRegionFor(id)))
         )}
         {panes.length === 2 ? (
           <PaneDivider
@@ -1102,8 +1427,6 @@ export function AppShell() {
         onActivate={setActivePane}
         stacked={state.layout === "stacked"}
       />
-      {dragging ? <div className="drop-veil">Drop to open</div> : null}
-
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
