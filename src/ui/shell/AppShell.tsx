@@ -1029,8 +1029,8 @@ export function AppShell() {
                   setRenamingPane(undefined);
                   if (commit) renamePane(id, typed);
                 }}
-                onDumpMenu={(event, offset) =>
-                  openContextMenu(event, dumpMenu(state, id, offset, menuActions))
+                onDumpMenu={(event, anchor, onClose) =>
+                  openContextMenu(event, dumpMenu(state, id, anchor.offset, menuActions), onClose)
                 }
                 dragActive={dragging}
                 onJoinDrop={(event, where) => void doJoinDrop(event, id, where)}

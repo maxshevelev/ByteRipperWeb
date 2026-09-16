@@ -32,18 +32,20 @@ export interface ContextMenuRequest {
 const contextMenuStore = createStore<ContextMenuRequest | undefined>(undefined);
 
 /**
- * Opens the menu at the pointer.
+ * Opens the menu at the pointer, and says whether one appeared.
  *
  * A menu with nothing in it is not opened at all: the browser's own menu is
- * better than an empty box, so the event is left alone.
+ * better than an empty box, so the event is left alone. The answer is what a
+ * caller needs to know before it does anything around the menu — the pane
+ * frames the right-clicked byte only while a menu is really up (§10.2).
  */
 export function openContextMenu(
   event: { clientX: number; clientY: number; preventDefault: () => void },
   entries: readonly (MenuEntry | undefined)[],
   onClose?: () => void
-): void {
+): boolean {
   const compacted = compactEntries(entries);
-  if (compacted.length === 0) return;
+  if (compacted.length === 0) return false;
   event.preventDefault();
   contextMenuStore.getSnapshot()?.onClose?.();
   contextMenuStore.update(() => ({
@@ -52,6 +54,7 @@ export function openContextMenu(
     y: event.clientY,
     onClose,
   }));
+  return true;
 }
 
 export function closeContextMenu(): void {

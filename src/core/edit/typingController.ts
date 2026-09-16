@@ -314,6 +314,38 @@ export class TypingController {
   }
 
   /**
+   * A click in the dump: where in the file it landed, which nibble of the byte
+   * the pointer was over, and which column it is now typing into.
+   *
+   * The nibble is set *after* the move, never before: moving the caret drops a
+   * half-typed byte, and that drop is what zeroes the nibble — so a click's
+   * nibble would be wiped by its own caret move if it were applied first. A
+   * Shift-click extends the selection and leaves the nibble alone, exactly as
+   * upstream: what is being extended is a selection, and the caret's nibble
+   * within a byte is not what the gesture is about.
+   *
+   * The region is assigned rather than routed through `setInputRegion`, which
+   * queues its work and would wait on the operation that is calling it. The
+   * break that `setInputRegion` also does is not lost: the caret move above
+   * already ended the run, which is the same reset a region switch wants —
+   * a click is a gesture boundary whether or not the column changed.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexEditor(_:didClickAt:region:extendSelection:nibble:)
+   */
+  clickAt(
+    offset: number,
+    nibble: 0 | 1,
+    region: InputRegion,
+    extendSelection: boolean
+  ): Promise<void> {
+    return this.run(async () => {
+      await this.moveCaretInQueue(offset, extendSelection, false);
+      if (!extendSelection) this.nibbleIndex = nibble;
+      this.region = region;
+    });
+  }
+
+  /**
    * Selects the whole file, anchored at its start.
    *
    * Anchored at the start, so the selection reads as extended forward and its

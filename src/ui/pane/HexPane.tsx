@@ -51,6 +51,7 @@ import {
   resolveHexKey,
   resolveTarget,
 } from "@/ui/pane/hexKeys";
+import { type ContextMenuAnchor, contextMenuAnchor, pointerTarget } from "@/ui/pane/hexPointer";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
@@ -123,14 +124,26 @@ export interface HexPaneProps {
    */
   readonly onGoToMatch?: ((offset: number) => void) | undefined;
   /**
-   * A right-click on the dump, with the byte under the pointer. The caret has
-   * already been placed there — see {@link placeContextCaret} — so the menu's
-   * offset-scoped commands and the caret agree about what was aimed at.
+   * A right-click on the dump, with what the menu is about: the whole
+   * `ContextMenuAnchor`, not just its offset, because the pane frames the
+   * anchored byte or row while the menu is up (§10.2).
+   *
+   * The caret has already been placed there, unless the click landed inside the
+   * selection — see {@link placeContextCaret} — so the menu's offset-scoped
+   * commands and the caret agree about what was aimed at.
+   *
+   * `onClose` runs when the menu goes away, whether or not a command was
+   * chosen, and the frame goes with it. The callback returns whether a menu
+   * really opened: an empty one is not opened at all.
    *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetMenuProvider
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.offsetMenuProvider
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.beginContextMenu
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.endContextMenu
    */
-  readonly onDumpMenu?: ((event: React.MouseEvent, offset: number) => void) | undefined;
+  readonly onDumpMenu?:
+    | ((event: React.MouseEvent, anchor: ContextMenuAnchor, onClose: () => void) => boolean)
+    | undefined;
   /**
    * A right-click on the pane's header: this pane's File menu.
    *
@@ -1136,21 +1149,38 @@ export function HexPane({
           break;
         case "contextMenu": {
           // Shift+F10 and the Menu key are the platform's own way of asking for
-          // a context menu, and the caret is what they aim at.
+          // a context menu, and the caret is what they aim at. The caret is
+          // already on a byte, so there is nothing to place; the nibble comes
+          // from the caret's own, and the anchor frames the caret's byte (§10.2).
+          //
+          // @web-only upstream reaches a dump menu through `NSMenu` and
+          // `menu(for:)`, so Shift+F10 is not a path it has — both the key and
+          // the frame it carries are the web's.
           const host = scrollRef.current;
           const layout = layoutRef.current;
           if (host !== null && layout !== undefined && onDumpMenu !== undefined) {
             const box = host.getBoundingClientRect();
             const row = Math.floor(doc.caret / BYTES_PER_ROW);
             const y = row * layout.rowHeight - (scrollerRef.current?.top ?? 0) + layout.rowHeight;
-            onDumpMenu(
-              {
-                clientX: box.left + 80,
-                clientY: box.top + Math.min(Math.max(y, 0), box.height),
-                preventDefault: () => undefined,
-              } as unknown as React.MouseEvent,
-              doc.caret
-            );
+            const anchor: ContextMenuAnchor = {
+              offset: doc.caret,
+              framesByte: true,
+              nibble: typing.nibble,
+            };
+            const endContextMenu = () => rendererRef.current?.setContextMenuAnchor(undefined);
+            if (
+              onDumpMenu(
+                {
+                  clientX: box.left + 80,
+                  clientY: box.top + Math.min(Math.max(y, 0), box.height),
+                  preventDefault: () => undefined,
+                } as unknown as React.MouseEvent,
+                anchor,
+                endContextMenu
+              )
+            ) {
+              rendererRef.current?.setContextMenuAnchor(anchor);
+            }
           }
           break;
         }
@@ -1318,39 +1348,39 @@ export function HexPane({
       const hit = layout.hitTest(point.x, point.y, layout.rowCount(doc.size));
       if (hit === undefined) return;
 
-      const column = hit.column.kind === "offset" ? 0 : hit.column.column;
-      const offset = Math.min(layout.byteOffset(hit.row, column), doc.size);
+      // The press places the caret where the user pointed — follow, not centre
+      // — and anchors a selection there when Shift is down. Where in a byte the
+      // pointer was decides the nibble, and which column it landed in decides
+      // what is typed next (§3.3); both are `hexPointer`'s to answer.
+      const target = pointerTarget(layout, hit, point.x, typing.isInsertMode);
 
       // A press on a marked address picks the mark up rather than starting a
       // selection: the offset column is where marks live, and dragging one to
       // another row is how §20.3 says a mark is moved.
-      if (hit.column.kind === "offset" && bookmarkAt(offset) !== undefined) {
-        markDragRef.current = rowContaining(offset);
+      if (hit.column.kind === "offset" && bookmarkAt(target.offset) !== undefined) {
+        markDragRef.current = rowContaining(target.offset);
         // The gesture starts on the mark's own row, so the first step comes
         // when the pointer leaves it.
-        markDragPointerRowRef.current = rowContaining(offset);
+        markDragPointerRowRef.current = rowContaining(target.offset);
         event.currentTarget.setPointerCapture(event.pointerId);
         event.preventDefault();
         return;
       }
       // Clicking in a column is how you choose which one you are typing into.
-      if (hit.column.kind === "hex" || hit.column.kind === "text") {
-        const clicked: InputRegion = hit.column.kind === "hex" ? "hex" : "text";
-        if (clicked !== region) {
-          setRegion(clicked);
-          void typing.setInputRegion(clicked).then(refreshCaret);
-        }
-      }
-      // The press places the caret where the user pointed — follow, not centre
-      // — and anchors a selection there when Shift is down. The anchor is the
-      // controller's: the drag that follows extends from it, and so does a
-      // shift-click that is not followed by one.
+      if (target.region !== region) setRegion(target.region);
+      // A Shift-click extends from the selection's fixed end: the caret move
+      // sets the anchor, and a drag that follows extends from it. The nibble is
+      // the click's only when it is not extending — with Shift the gesture is
+      // about the range, and a caret move zeroes the nibble on its own, exactly
+      // as it does for an arrow (§3.3).
       dragRef.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
-      void typing.moveCaretTo(offset, event.shiftKey, false);
+      void typing
+        .clickAt(target.offset, target.nibble, target.region, event.shiftKey)
+        .then(syncTypingReadout);
       event.preventDefault();
     },
-    [contentPoint, doc, region, typing, refreshCaret]
+    [contentPoint, doc, region, typing, syncTypingReadout]
   );
 
   /**
@@ -1530,6 +1560,30 @@ export function HexPane({
   );
 
   /**
+   * Moves the caret to the byte a context menu anchors to (§10.2), so the caret
+   * tracks the right-clicked byte exactly as a left-click would place it.
+   * Skipped when the right-click lands inside the current selection: placing the
+   * caret clears the selection, and the menu's selection-scoped items operate on
+   * it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.placeContextMenuCaret
+   */
+  const placeContextCaret = useCallback(
+    (anchor: ContextMenuAnchor) => {
+      const selection = doc.selection;
+      if (
+        selection.end > selection.start &&
+        anchor.offset >= selection.start &&
+        anchor.offset < selection.end
+      ) {
+        return;
+      }
+      void typing.clickAt(anchor.offset, anchor.nibble, "hex", false).then(syncTypingReadout);
+    },
+    [doc, typing, syncTypingReadout]
+  );
+
+  /**
    * A right-click on a byte or on its address.
    *
    * The caret moves to the byte the menu will act on, exactly as a left-click
@@ -1537,13 +1591,23 @@ export function HexPane({
    * placing the caret would clear it and the menu's selection-scoped commands
    * (Copy, Fill Selection…, Delete Bytes…) are about that selection.
    *
+   * While the menu is up the anchored byte — or the anchored row's address —
+   * carries the focus ring, and the ring goes when the menu does (§10.2).
+   * Upstream gets that from the blocking `popUpContextMenu` that follows
+   * `beginContextMenu`: nothing blocks here, so the frame is tied to the menu's
+   * own lifetime through `onClose`. A menu that never opened — the byte has no
+   * commands — frames nothing, which is why the anchor is set from the answer.
+   *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.rightMouseDown
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.placeContextMenuCaret
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.rightClickedOffset
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.beginContextMenu
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.endContextMenu
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contextMenuOffset
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contextMenuAnchor
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.ContextMenuAnchor
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.ContextMenuAnchor.offset
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.ContextMenuAnchor.framesByte
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.ContextMenuAnchor.nibble
    */
   const onContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1551,25 +1615,25 @@ export function HexPane({
       const host = scrollRef.current;
       if (layout === undefined || host === null || onDumpMenu === undefined) return;
       const bounds = host.getBoundingClientRect();
+      const x = event.clientX - bounds.left + host.scrollLeft;
       const hit = layout.hitTest(
-        event.clientX - bounds.left + host.scrollLeft,
+        x,
         event.clientY - bounds.top + (scrollerRef.current?.top ?? 0),
         layout.rowCount(doc.size)
       );
       if (hit === undefined) return;
-      const column = hit.column.kind === "offset" ? 0 : hit.column.column;
-      const offset = Math.min(layout.byteOffset(hit.row, column), doc.size);
+      const anchor = contextMenuAnchor(layout, hit, x, doc.size, typing.isInsertMode);
+      // The text column and anything past EOF have nothing to anchor to: the
+      // browser's own menu is what the user gets.
+      if (anchor === undefined) return;
 
-      const selection = doc.selection;
-      const inSelection =
-        selection.end > selection.start && offset >= selection.start && offset < selection.end;
-      // A press on the selection keeps it — the menu is about those bytes. A
-      // press outside it places the caret, which is what the commands that act
-      // on "here" then mean.
-      if (!inSelection) void typing.moveCaretTo(offset, false, false);
-      onDumpMenu(event, offset);
+      placeContextCaret(anchor);
+      const endContextMenu = () => rendererRef.current?.setContextMenuAnchor(undefined);
+      if (onDumpMenu(event, anchor, endContextMenu)) {
+        rendererRef.current?.setContextMenuAnchor(anchor);
+      }
     },
-    [doc, onDumpMenu, typing]
+    [doc, onDumpMenu, typing, placeContextCaret]
   );
 
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseUp */

@@ -135,6 +135,13 @@ const BOOKMARK_PADDING = 2;
  * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTipAngle
  */
 const BOOKMARK_TIP_ANGLE = Math.PI / 2;
+/**
+ * The mark's outline, while a context menu is about the row it is on: dash
+ * pattern in CSS pixels.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkOutlineDashes
+ */
+const BOOKMARK_OUTLINE_DASHES: number[] = [3, 2];
 
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourPadding */
 const PEER_CONTOUR_PADDING = 2;
@@ -303,6 +310,8 @@ export class HexGridRenderer {
   private active = false;
   /** The bookmarked rows, by the offset each row opens at (§20.4). */
   private bookmarkRows: ReadonlySet<number> = new Set();
+  /** What the open context menu is about, while one is up (§10.2). */
+  private contextMenuAnchor: { readonly offset: number; readonly framesByte: boolean } | undefined;
   /** The pieces and the paper each is printed on, in file order (§21.3). */
   private segments: readonly SegmentBand[] = [];
   /**
@@ -580,6 +589,33 @@ export class HexGridRenderer {
       const rows = contourRowSpan(range.start, range.end);
       this.dirty.invalidate(rows.first, rows.end);
     }
+  }
+
+  /**
+   * What the open context menu is about, while one is up — `undefined` once it
+   * is dismissed. The pane sets it when a menu really opened and clears it when
+   * that menu closes.
+   *
+   * Repaints the rows the frame reaches, old and new. Upstream invalidates
+   * through `invalidateContextMenuFrame(for:)`, whose whole point is that the
+   * clearing call passes the anchor's row explicitly — the offset is already
+   * gone by then, and a clear that read it would leave the ring on screen. Here
+   * the previous anchor is the argument itself.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.beginContextMenu
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.endContextMenu
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.invalidateContextMenuFrame
+   */
+  setContextMenuAnchor(
+    anchor: { readonly offset: number; readonly framesByte: boolean } | undefined
+  ): void {
+    if (sameContextMenuAnchor(this.contextMenuAnchor, anchor)) return;
+    for (const one of [this.contextMenuAnchor, anchor]) {
+      if (one === undefined) continue;
+      const rows = contextMenuFrameRows(this.config?.layout, one.offset);
+      if (rows !== undefined) this.dirty.invalidate(rows.first, rows.end);
+    }
+    this.contextMenuAnchor = anchor;
   }
 
   /** The file as it was last saved. `undefined` means nothing is an edit yet. */
@@ -978,7 +1014,12 @@ export class HexGridRenderer {
   /**
    * The address, with its leading zeros muted — or standing on its mark.
    *
+   * A row whose address is what the open context menu is about shows no ring:
+   * the mark already occupies that rect, so the mark itself is outlined instead
+   * and the address keeps the ink it has when nothing is marked (§20.4).
+   *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetAddress
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawBookmarkMark(in:row:outlined:)
    */
   private paintAddress(rowStart: number, y: number): void {
     const config = this.config;
@@ -989,14 +1030,17 @@ export class HexGridRenderer {
     const text = addressString(rowStart, layout.offsetColumnChars);
     const significant = addressSignificantFrom(text);
     const marked = this.bookmarkRows.has(rowStart);
-    if (marked) this.paintBookmarkMark(y);
+    const outlined = marked && this.contextMenuOutlinesMark(rowStart);
+    if (marked) this.paintBookmarkMark(y, outlined);
 
     for (let index = 0; index < text.length; index++) {
       const digit = Number.parseInt(text[index] ?? "0", 16);
       // The mark decides the ink — an address standing on a filled shape is not
       // read against the paper — and the leading zeros decide their share of
-      // it, dimmed in that ink rather than in the page's own (§6, §20.4).
-      const role = addressDigitInk(index, significant, marked);
+      // it, dimmed in that ink rather than in the page's own (§6, §20.4). An
+      // outlined mark is not something to be read against: it is a ring round
+      // the address, and the address keeps its ordinary ink.
+      const role = addressDigitInk(index, significant, marked && !outlined);
       this.blit(
         atlas.digit(digit, role),
         layout.leftPadding + index * layout.charWidth,
@@ -1004,6 +1048,25 @@ export class HexGridRenderer {
         layout.charWidth
       );
     }
+  }
+
+  /**
+   * Whether the open context menu makes a marked row's own mark the thing it
+   * frames — true only for a menu opened on that row's *address*: a menu opened
+   * on a byte in the hex column frames that byte and leaves the mark filled.
+   *
+   * Upstream computes the same answer once per draw, into a local called
+   * `contextMenuRowAddress`; here it is asked per row, because the web repaints
+   * rows rather than the whole view.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contextMenuOffset
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.contextMenuFramesByte
+   */
+  private contextMenuOutlinesMark(rowStart: number): boolean {
+    const config = this.config;
+    const anchor = this.contextMenuAnchor;
+    if (config === undefined || anchor === undefined || anchor.framesByte) return false;
+    return config.layout.rowColumn(anchor.offset).row === Math.floor(rowStart / BYTES_PER_ROW);
   }
 
   /**
@@ -1045,17 +1108,27 @@ export class HexGridRenderer {
   }
 
   /**
-   * A bookmark's mark: the row's address on a filled tag pointing at the bytes.
+   * A bookmark's mark: the row's address on a tag pointing at the bytes.
    *
    * Upstream's pentagon (§20.4) — the offset column's own box with a triangular
    * tip growing out of its right edge, at a fixed apex angle so the shape holds
    * at every font size. The tip is clamped to the gap before the hex column,
    * because a mark that touched the bytes would read as a highlight on them.
    *
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkPath
+   * `outlined` is the marked row the open context menu is about: the ring would
+   * land on top of the fill, so the shape the user already reads as "this row is
+   * marked" is stroked instead of filled. Dashed, not solid — at the ring's line
+   * width a closed purple loop round an address reads as a heavy slab, heavier
+   * than the fill it replaces (§20.4).
+   *
+   * The fill and the stroke are one shape at one size, traced through the same
+   * call, so the ring is the mark and the mark is the ring.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawBookmarkMark(in:row:outlined:)
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkPath(body:tipReach:)
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkRect
    */
-  private paintBookmarkMark(y: number): void {
+  private paintBookmarkMark(y: number, outlined: boolean): void {
     const config = this.config;
     if (config === undefined) return;
     const { layout, colors } = config;
@@ -1076,15 +1149,28 @@ export class HexGridRenderer {
 
     const context = this.context;
     context.save();
-    context.fillStyle = colors.bookmark;
     context.beginPath();
-    context.moveTo(left, top);
-    context.lineTo(right, top);
-    context.lineTo(right + reach, top + height / 2);
-    context.lineTo(right, top + height);
-    context.lineTo(left, top + height);
-    context.closePath();
-    context.fill();
+    traceContour(
+      context,
+      [
+        { x: left, y: top },
+        { x: right, y: top },
+        { x: right + reach, y: top + height / 2 },
+        { x: right, y: top + height },
+        { x: left, y: top + height },
+      ],
+      PEER_CONTOUR_RADIUS
+    );
+    if (outlined) {
+      context.strokeStyle = colors.bookmark;
+      context.lineWidth = PEER_CONTOUR_LINE_WIDTH;
+      context.setLineDash(BOOKMARK_OUTLINE_DASHES);
+      context.lineJoin = "round";
+      context.stroke();
+    } else {
+      context.fillStyle = colors.bookmark;
+      context.fill();
+    }
     context.restore();
   }
 
@@ -1222,12 +1308,79 @@ export class HexGridRenderer {
   }
 
   /**
+   * The frame around what the open context menu is about (§10.2): the Offset
+   * column's row, or the single byte it was opened on in the hex column.
+   *
+   * Drawn on the anchor's row and one either side, each row its own clipped
+   * slice of one path, for the reason {@link strokeContours} gives: the ring's
+   * horizontal edges sit on the row boundaries and their stroke straddles them,
+   * so the neighbours have to put their half of the line down or a row repainted
+   * later would erase it.
+   *
+   * A bookmarked row's address is the exception, and it is handled where the
+   * mark is: the mark occupies exactly the rect the ring would, so the mark is
+   * outlined in the bookmark colour instead of being buried under the ring
+   * (§20.4).
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawContextMenuFrame
+   */
+  private paintContextMenuFrame(rowStart: number, y: number): void {
+    const config = this.config;
+    const anchor = this.contextMenuAnchor;
+    if (config === undefined || anchor === undefined) return;
+
+    const { layout, colors } = config;
+    // Past the file's end there is nothing to frame: a menu the user deleted
+    // the last bytes out from under leaves its anchor behind, and the ring goes
+    // with the bytes (§10.2).
+    if (anchor.offset >= (this.source?.size ?? 0)) return;
+    const anchored = layout.rowColumn(anchor.offset);
+    const rows = contextMenuFrameRows(layout, anchor.offset);
+    if (rows === undefined) return;
+    const row = Math.floor(rowStart / BYTES_PER_ROW);
+    if (row < rows.first || row >= rows.end) return;
+    // A marked row's address is where its mark is, so the mark takes the ring's
+    // place (§20.4) — the same test on the same row the frame is drawn around,
+    // not on whichever row happens to be painting its slice.
+    if (!anchor.framesByte && this.bookmarkRows.has(layout.byteOffset(anchored.row, 0))) return;
+
+    // The *anchor's* rect for every row in the window: each row draws its own
+    // clipped slice of one shape, so the neighbours only contribute the ~1px of
+    // stroke that straddles their boundary. Drawing each row's own frame here
+    // would ring two addresses.
+    const frame = anchor.framesByte
+      ? layout.hexByteFrame(anchored.row, anchored.column)
+      : layout.offsetColumnFrame(anchored.row);
+    const left = frame.x - PEER_CONTOUR_PADDING;
+    const right = frame.x + frame.width + PEER_CONTOUR_PADDING;
+    const top = frame.y;
+    const bottom = frame.y + frame.height;
+
+    this.strokeContours(
+      y,
+      [
+        [
+          { x: left, y: top },
+          { x: right, y: top },
+          { x: right, y: bottom },
+          { x: left, y: bottom },
+        ],
+      ],
+      colors.peerSelection,
+      PEER_CONTOUR_LINE_WIDTH,
+      1
+    );
+  }
+
+  /**
    * Everything that is drawn over the bytes rather than under them, in
-   * upstream's order: the zones' outlines, then the other pane's selection.
+   * upstream's order: the zones' outlines, then the other pane's selection,
+   * then the open context menu's frame.
    */
   private paintOutlines(rowStart: number, y: number): void {
     this.paintZoneOutlines(rowStart, y);
     this.paintPeerSelection(rowStart, y);
+    this.paintContextMenuFrame(rowStart, y);
   }
 
   /** The zones whose outline reaches this row, each with its contour. */
@@ -1498,6 +1651,32 @@ function sameRows(left: ReadonlySet<number>, right: ReadonlySet<number>): boolea
   if (left.size !== right.size) return false;
   for (const row of left) if (!right.has(row)) return false;
   return true;
+}
+
+function sameContextMenuAnchor(
+  left: { readonly offset: number; readonly framesByte: boolean } | undefined,
+  right: { readonly offset: number; readonly framesByte: boolean } | undefined
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.offset === right.offset && left.framesByte === right.framesByte;
+}
+
+/**
+ * The rows a context-menu frame around `offset` is drawn on: the anchor's own
+ * row and one either side, because the ring's horizontal edges sit exactly on
+ * the row boundaries and their stroke straddles them. The same reach the
+ * invalidation uses, from the same function — a row drawn but not repainted
+ * leaves a line behind (§10.2).
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.invalidateContextMenuFrame
+ */
+function contextMenuFrameRows(
+  layout: HexLayout | undefined,
+  offset: number
+): { readonly first: number; readonly end: number } | undefined {
+  if (layout === undefined) return undefined;
+  const row = layout.rowColumn(offset).row;
+  return { first: Math.max(0, row - 1), end: row + 2 };
 }
 
 function sameZones(left: readonly DrawnZone[], right: readonly DrawnZone[]): boolean {

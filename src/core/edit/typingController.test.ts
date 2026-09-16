@@ -1001,3 +1001,88 @@ describe("a caret move and the byte being typed", () => {
     expect(t.doc.caret).toBe(1);
   });
 });
+
+// @upstream ByteRipperTests/CaretPlacementTests.swift#CaretPlacementTests.testTypingFromMidByteEditsLowNibble
+describe("a click that lands mid-byte", () => {
+  it("edits the low nibble first, then advances to the next byte", async () => {
+    // The existing typing semantics, reachable now by click: the caret the
+    // pointer left mid-byte is at nibble 1, so the first digit writes the low
+    // nibble, keeps the high one, and the finished byte moves the caret on.
+    const t = blank(8);
+    await t.typing.clickAt(0, 1, "hex", false);
+    await t.typing.typeHexDigit(0xa);
+
+    expect(await t.content()).toEqual([0x1a, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11]);
+    expect(t.doc.caret).toBe(1);
+    expect(t.typing.nibble).toBe(0);
+  });
+
+  // @upstream ByteRipperTests/CaretPlacementTests.swift#CaretPlacementTests.testArrowsMoveByteWiseFromMidByte
+  it("leaves an arrow to move byte-wise from it, at nibble 0", async () => {
+    const t = blank(8);
+    await t.typing.clickAt(5, 1, "hex", false);
+    expect(t.typing.nibble).toBe(1);
+
+    // Right: the next byte's left boundary.
+    await t.typing.moveCaretBy(1, false);
+    expect(t.doc.caret).toBe(6);
+    // An arrow lands on a byte's left boundary, never mid-byte.
+    expect(t.typing.nibble).toBe(0);
+
+    // Left: back to byte 5's left boundary, not the nibble the click left.
+    await t.typing.moveCaretBy(-1, false);
+    expect(t.doc.caret).toBe(5);
+    expect(t.typing.nibble).toBe(0);
+
+    await t.typing.moveCaretBy(-1, false);
+    expect(t.doc.caret).toBe(4);
+    expect(t.typing.nibble).toBe(0);
+  });
+
+  // @upstream ByteRipperTests/CaretPlacementTests.swift#CaretPlacementTests.testAsciiClickResetsNibble
+  it("is reset by a click in the text column, which types there", async () => {
+    const t = blank(8);
+    await t.typing.clickAt(5, 1, "hex", false);
+    expect(t.typing.nibble).toBe(1);
+
+    await t.typing.clickAt(5, 0, "text", false);
+
+    expect(t.doc.caret).toBe(5);
+    expect(t.typing.nibble).toBe(0);
+    expect(t.typing.inputRegion).toBe("text");
+  });
+
+  // @upstream ByteRipperTests/CaretPlacementTests.swift#CaretPlacementTests.testInsertModeClickMidByteKeepsLowNibble
+  it("is a caret position, not a half-typed byte", async () => {
+    // Upstream reads this off the pixels — the low-nibble slot keeps the byte's
+    // own digit rather than the dim placeholder a genuine half-typed insert
+    // shows. What the renderer draws from is exactly this flag.
+    const t = blank(8);
+    await t.typing.setInsertMode(true);
+    await t.typing.clickAt(0, 1, "hex", false);
+
+    expect(t.typing.nibble).toBe(1);
+    expect(t.typing.hasPendingInsert).toBe(false);
+    // And it is not a half-typed byte in any other sense either: the byte is
+    // untouched, so there is nothing to take back.
+    expect(await t.content()).toEqual([0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11]);
+    expect(t.doc.canUndo).toBe(false);
+  });
+
+  // @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexEditor(_:didClickAt:region:extendSelection:nibble:)
+  it("does not take the clicked nibble when it extends a selection", async () => {
+    // A Shift-click is about the range, not about a digit: upstream's
+    // `hexEditor(_:didClickAt:…)` sets the nibble only in the non-extending
+    // branch. A caret move zeroes the nibble on its own — the same reset an
+    // arrow key does — so a shift-click lands at nibble 0 rather than where in
+    // the byte the pointer was.
+    const t = blank(16);
+    await t.typing.clickAt(5, 1, "hex", false);
+    expect(t.typing.nibble).toBe(1);
+
+    await t.typing.clickAt(9, 1, "hex", true);
+
+    expect(t.doc.selection).toEqual(selection(5, 9, 16));
+    expect(t.typing.nibble).toBe(0);
+  });
+});
