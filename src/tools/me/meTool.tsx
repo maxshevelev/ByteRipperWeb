@@ -209,7 +209,19 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       setResult({ phase: "failed", problem: firmwareProblem ?? "That image could not be read." });
       return;
     }
-    if (status !== "ready" || roots === undefined) return;
+    if (status !== "ready" || roots === undefined) {
+      // The image is being read, and whatever the panel holds was read against
+      // the bytes before — an analysis of a file that is no longer the one on
+      // screen. It goes back to the placeholder rather than standing there
+      // unmarked: upstream puts its own back for the same reason, where any
+      // content change is a `reparse` and every reparse begins with the busy
+      // display and the wait.
+      // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.contentChanged
+      request.current++;
+      setBusy(false);
+      setResult({ phase: "waiting" });
+      return;
+    }
     analyze();
   }, [roots, status, firmwareProblem, analyze]);
 
@@ -433,10 +445,23 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         aria-label={tab === "summary" ? "Summary" : "Full Tree"}
       >
         {result.phase === "waiting" ? (
+          // Two waits wear one placeholder upstream, because upstream's own is
+          // the shorter of the two: the tree it reads against is already being
+          // built for the UEFI panel. Here the parse is this panel's first wait
+          // and can be a long one, so the caption names the wait that is
+          // actually running and the bar measures it.
+          // @upstream-differs upstream's caption reads "Reading the region and
+          // its partitions." from the moment the panel opens, while the file
+          // behind it is still being parsed
           <Placeholder
             symbol="cpu"
             title="Analyzing the ME firmware…"
-            detail="Reading the region and its partitions."
+            detail={
+              firmware?.status === "ready"
+                ? "Reading the region and its partitions."
+                : "Reading the file first: the region is found in its tree."
+            }
+            fraction={firmware?.status === "ready" ? undefined : (firmware?.fraction ?? 0)}
           />
         ) : result.phase === "failed" ? (
           <Placeholder
@@ -599,10 +624,17 @@ function Placeholder({
   symbol,
   title,
   detail,
+  fraction,
 }: {
   readonly symbol: "cpu" | "question" | "failed";
   readonly title: string;
   readonly detail: string;
+  /**
+   * How far the wait the caption names has got, where it has something to
+   * measure — nothing while the analysis itself is the wait, which has no
+   * steps to count.
+   */
+  readonly fraction?: number | undefined;
 }) {
   return (
     <div className="me-placeholder" data-symbol={symbol}>
@@ -629,6 +661,7 @@ function Placeholder({
       </svg>
       <p className="me-placeholder-title">{title}</p>
       <p className="me-placeholder-detail">{detail}</p>
+      {fraction === undefined ? null : <progress value={fraction} max={1} />}
     </div>
   );
 }

@@ -408,7 +408,41 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     tables: [],
   };
 
-  if (reading) return <div className="tool-empty">Reading…</div>;
+  // The image the table is read against is the pane's, and it may never
+  // arrive: a parse can fail, and a panel that waited for a tree that is not
+  // coming would wait for ever while its own reason for stopping sat unread
+  // one branch below. So the failure is asked about first, and the wait after
+  // it — which is upstream's order too, where a tree that cannot be got ends
+  // the reading, empties the display and says so.
+  // @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.reparse
+  // @upstream-differs upstream's "Reading…" is a line in the notice row with an
+  // indeterminate bar beside it, and the table's own empty display stays
+  // standing behind them; here the panel has nothing to lay out until the table
+  // is read, so the wait is the panel — and it carries the parse's fraction,
+  // the line the UEFI panel shows while it reads.
+  const imageStatus = firmware?.status;
+  if (imageStatus === "failed") {
+    return <div className="tool-empty">{firmware?.problem ?? "Could not read the file."}</div>;
+  }
+  // Two waits wear the one line upstream gives them: the pane's parse of the
+  // image, and the table's own read against the tree that parse left. Both are
+  // asked about, since either can be the one running — and the first is the one
+  // with something to measure, `fraction` being the parse's own count. A panel
+  // that held its table while the pane was being parsed underneath it would be
+  // showing a reading of bytes the tree was not built from; today only the
+  // session's own start re-parses the pane this way, and G13 is the content
+  // change that will do it in place.
+  const readingImage = imageStatus !== "ready";
+  if (readingImage || reading) {
+    return (
+      <div className="tool-empty">
+        <p>Reading…</p>
+        {/* Only while the image is coming: once it is in hand the fraction is
+            spent, and the table's own read is the few lookups below. */}
+        {readingImage ? <progress value={firmware?.fraction ?? 0} max={1} /> : null}
+      </div>
+    );
+  }
   if (report === undefined) {
     return <div className="tool-empty">{firmware?.problem ?? "That image could not be read."}</div>;
   }
