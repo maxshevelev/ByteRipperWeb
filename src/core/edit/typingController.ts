@@ -25,6 +25,14 @@ import {
  *   remainder stays visible.
  * - **Insert mode never consumes a selection.** It drops it instead: a
  *   highlight left standing would name bytes that have since shifted right.
+ * - **A selection has a fixed end and a moving one.** The anchor is the byte
+ *   the caret was on when the selection started; extending moves the caret's
+ *   end and leaves the anchor alone, so Shift+Right walks the right edge out
+ *   and Shift+Left afterwards walks it back rather than re-anchoring.
+ * - **The caret collapses to the moving edge.** An arrow with no Shift while a
+ *   selection stands puts the caret on the byte the selection is *growing
+ *   from* — its last byte when it was extended forward, its first when
+ *   backward — and the move is that collapse, not a step.
  *
  * **Every edit is asynchronous here, and that is the divergence.** Upstream's
  * document writes synchronously, so a keystroke is finished before the next one
@@ -105,6 +113,17 @@ export class TypingController {
 
   /** The selection being consumed by overwrite typing, while one is. */
   private consuming: Selection | undefined;
+
+  /**
+   * The fixed end of an extended selection: the byte the caret was on when the
+   * Shift+arrow (or the shift-click, or the drag) started. Kept while the
+   * selection is extended, and dropped by any move that does not extend,
+   * because the next extension starts a new selection rather than continuing
+   * this one.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.selectionAnchor
+   */
+  private selectionAnchor: number | undefined;
 
   /**
    * The byte an insert-mode high nibble just created and whose low nibble is
@@ -214,16 +233,195 @@ export class TypingController {
    * a committed undo step of its own, because the group closes above — and
    * Backspace no longer rolls it back from the new position. Undo does.
    *
-   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.moveCaret
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.breakTypingSeries
    */
   breakRun(): Promise<void> {
     return this.run(async () => {
-      await this.closeGroup();
-      this.closeSeries();
-      this.nibbleIndex = 0;
-      this.consuming = undefined;
-      this.pendingInsertOffset = undefined;
+      await this.endRun();
+      this.dropHalfTypedByte();
     });
+  }
+
+  // MARK: - Caret and selection
+
+  /**
+   * The byte the caret logically occupies for reveal purposes: the *moving*
+   * edge of the selection — its last byte when the selection was extended
+   * forward, its first when it was extended backward. A bare caret is its own
+   * edge. The pane keeps this byte on screen, so extending a selection follows
+   * the edge being dragged rather than the fixed anchor.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexCaretRevealOffset
+   */
+  hexCaretRevealOffset(): number {
+    const selection = this.doc.selection;
+    // Typing over a selection consumes it from the start, one byte at a time,
+    // so while that is running the byte worth keeping on screen is the one
+    // about to be written — not the selection's far edge.
+    if (this.consuming !== undefined) return this.consuming.start;
+    if (selection.end <= selection.start) return selection.start;
+    // Extended backward: the anchor is the selection's end and the first byte
+    // is the one being dragged.
+    if (this.selectionAnchor === selection.end) return selection.start;
+    if (this.selectionAnchor === undefined) {
+      // Installed wholesale rather than dragged out — a zone, a block, Select
+      // All before its anchor is set: there is no moving edge, so the block's
+      // start is the byte worth showing.
+      return selection.start;
+    }
+    return selection.end - 1;
+  }
+
+  /**
+   * Moves the caret to `offset`.
+   *
+   * `extendSelection` keeps the selection's fixed end where it is and moves the
+   * other: the anchor is the selection's start when the move goes forward from
+   * it and its end when the move goes backward. A move that does not extend
+   * drops the anchor and leaves a bare caret.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.moveCaret
+   * @upstream-differs no `center:` parameter — the centring of a caret that
+   * landed outside the viewport is the pane's, asked for as `onlyIfOffScreen`
+   * on its reveal request (HexPane, via AppShell); everything that calls this
+   * is an incremental move, which upstream sends with `center: false` too
+   */
+  moveCaretTo(offset: number, extendSelection = false): Promise<void> {
+    return this.run(() => this.moveCaretInQueue(offset, extendSelection));
+  }
+
+  /**
+   * Moves the caret by `delta` bytes — an arrow key's step.
+   *
+   * With a selection standing and no extension, the move is the collapse to its
+   * active edge and nothing else: the caret lands on the byte the selection was
+   * growing from, so the first arrow after a selection continues from where the
+   * selection *ended* rather than stepping from the edge the arrow points at.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.moveCaret
+   */
+  moveCaretBy(delta: number, extendSelection = false): Promise<void> {
+    return this.run(() => this.stepCaretInQueue(delta, extendSelection));
+  }
+
+  /**
+   * Selects the whole file, anchored at its start.
+   *
+   * Anchored at the start, so the selection reads as extended forward and its
+   * active edge is the file's last byte — a following Shift+Left shortens it
+   * from the end, the way a text editor's Select All behaves. Nothing is
+   * revealed: everything is selected, so there is nothing to go and look at,
+   * and dragging a large dump's viewport to its end would only cost the user
+   * their place.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.selectAll
+   */
+  selectAll(): Promise<void> {
+    return this.run(async () => {
+      this.doc.setSelection(makeSelection(0, this.doc.size, this.doc.size));
+      await this.resetEditingState();
+      // Set after the reset, which clears the anchor.
+      this.selectionAnchor = 0;
+    });
+  }
+
+  /**
+   * Installs a range wholesale — a zone from the minimap, a piece from the
+   * segment form, a block from the dialog. No reveal: every caller is looking
+   * at the range already, and each follows with its own scroll.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setSelection
+   */
+  setSelection(start: number, end: number): Promise<void> {
+    return this.run(async () => {
+      this.doc.setSelection(makeSelection(start, end, this.doc.size));
+      await this.resetEditingState();
+    });
+  }
+
+  /**
+   * Moves the caret, already inside the queue — so `moveCaretBy` and
+   * `moveCaretTo` share one body rather than one queueing the other, which
+   * would wait on the operation it was called from.
+   */
+  private async moveCaretInQueue(offset: number, extendSelection: boolean): Promise<void> {
+    // Caret movement ends the byte being typed: it breaks the typing series
+    // *and* closes the nibble group, so a half-typed byte left behind is
+    // recorded as its own undo step rather than glued to whatever is typed next
+    // at a different offset.
+    await this.endRun();
+    const clamped = Math.min(Math.max(offset, 0), this.doc.size);
+    const selection = this.doc.selection;
+    if (extendSelection) {
+      const anchor =
+        this.selectionAnchor ?? (clamped >= selection.start ? selection.start : selection.end);
+      this.selectionAnchor = anchor;
+      this.doc.setSelection(makeSelection(anchor, clamped, this.doc.size));
+    } else {
+      this.selectionAnchor = undefined;
+      this.doc.setSelection(caretAt(clamped, this.doc.size));
+    }
+    this.dropHalfTypedByte();
+    this.revealCaret();
+  }
+
+  /** One step of a caret move, resolved where the caret actually is. */
+  private async stepCaretInQueue(delta: number, extendSelection: boolean): Promise<void> {
+    const selection = this.doc.selection;
+    if (!extendSelection && selection.end > selection.start) {
+      return this.moveCaretInQueue(this.hexCaretRevealOffset(), false);
+    }
+    // The caret's live position is the selection's *moving* end, not its
+    // normalized start: extending right keeps the left edge fixed while the end
+    // moves, and extending left keeps the right edge fixed while the start
+    // moves. Starting from `selection.start` in both directions froze a forward
+    // extension at anchor + 1 — repeated Shift+Right went nowhere. A bare caret
+    // has start == end, so either edge is fine.
+    const current =
+      extendSelection && this.selectionAnchor !== undefined && selection.end > selection.start
+        ? this.selectionAnchor === selection.end
+          ? selection.start
+          : selection.end
+        : selection.start;
+    const target =
+      delta >= 0 ? Math.min(this.doc.size, current + delta) : Math.max(0, current + delta);
+    return this.moveCaretInQueue(target, extendSelection);
+  }
+
+  /** Asks the pane to bring the caret's own edge into view. */
+  private revealCaret(): void {
+    (this.options.onReveal ?? this.revealHandler)?.(this.hexCaretRevealOffset());
+  }
+
+  /** Closes the open undo group and the typing series. */
+  private async endRun(): Promise<void> {
+    await this.closeGroup();
+    this.closeSeries();
+  }
+
+  /**
+   * The half-typed byte a caret move drops. Moving off one detaches it: the
+   * inserted byte stays — now as a committed undo step of its own, thanks to
+   * the group closing above — and Backspace no longer rolls it back from the
+   * new position. Undo does.
+   */
+  private dropHalfTypedByte(): void {
+    this.nibbleIndex = 0;
+    this.consuming = undefined;
+    this.pendingInsertOffset = undefined;
+  }
+
+  /**
+   * Back to the state a fresh pane is in: nothing half-typed, no nibble, the
+   * hex column, no anchor. What installing a selection wholesale leaves behind.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.resetEditingState
+   */
+  private async resetEditingState(): Promise<void> {
+    await this.endRun();
+    this.dropHalfTypedByte();
+    this.region = "hex";
+    this.selectionAnchor = undefined;
   }
 
   /** Waits for every queued edit — for tests, and for saving. */

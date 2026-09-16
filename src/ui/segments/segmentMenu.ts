@@ -1,4 +1,3 @@
-import { selection as makeSelection } from "@/core/document/selectionModel";
 import { mergeTitle, type Segment, segmentLabel } from "@/core/segments/segmentation";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 import { mergePiece, replacePieceFromFile, savePiece } from "@/ui/segments/segmentCommands";
@@ -54,5 +53,5 @@ export function pieceMenu(options: {
 export function selectPiece(pane: PaneId, piece: Segment): void {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
-  slot.document.setSelection(makeSelection(piece.start, piece.end, slot.document.size));
+  void slot.typing.setSelection(piece.start, piece.end);
 }

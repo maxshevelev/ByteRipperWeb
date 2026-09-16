@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { JoinEmpty } from "@/core/document/binaryDocument";
-import { selection as makeSelection } from "@/core/document/selectionModel";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
@@ -890,7 +889,7 @@ export function AppShell() {
       onSelectZone: (pane, zone) => {
         const slot = workspaceStore.getSnapshot().panes[pane];
         if (slot === undefined) return;
-        slot.document.setSelection(makeSelection(zone.start, zone.end, slot.document.size));
+        void slot.typing.setSelection(zone.start, zone.end);
         revealInBoth(zone.start);
       },
       onJoin: (pane, position) => void doJoin(pane, position),
@@ -965,7 +964,7 @@ export function AppShell() {
           onReveal={(pane, start, end) => {
             const slot = workspaceStore.getSnapshot().panes[pane];
             if (slot !== undefined) {
-              slot.document.setSelection(makeSelection(start, end, slot.document.size));
+              void slot.typing.setSelection(start, end);
             }
             setActivePane(pane);
             revealInBoth(start);
@@ -1075,9 +1074,7 @@ export function AppShell() {
         presetStart={selectBlock?.start}
         onSelect={(start, end) => {
           const pane = selectBlock?.pane ?? activePane;
-          state.panes[pane]?.document.setSelection(
-            makeSelection(start, end, state.panes[pane]?.document.size ?? 0)
-          );
+          void state.panes[pane]?.typing.setSelection(start, end);
           revealInBoth(start);
         }}
         onClose={() => setSelectBlock(undefined)}
@@ -1120,7 +1117,7 @@ export function AppShell() {
           const pane = segmentsPane ?? activePane;
           const slot = state.panes[pane];
           if (slot === undefined) return;
-          slot.document.setSelection(makeSelection(piece.start, piece.end, slot.document.size));
+          void slot.typing.setSelection(piece.start, piece.end);
           revealInBoth(piece.start);
         }}
         onClose={() => setSegmentsPane(undefined)}

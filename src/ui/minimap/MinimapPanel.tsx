@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { selection as makeSelection } from "@/core/document/selectionModel";
 import type { Segment } from "@/core/segments/segmentation";
 import {
   type MapMark,
@@ -969,9 +968,7 @@ function MinimapCanvas({
                 onSelect: () => {
                   const slot = workspaceStore.getSnapshot().panes[pane];
                   if (slot === undefined) return;
-                  slot.document.setSelection(
-                    makeSelection(zone.start, zone.end, slot.document.size)
-                  );
+                  void slot.typing.setSelection(zone.start, zone.end);
                   scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW);
                 },
               },

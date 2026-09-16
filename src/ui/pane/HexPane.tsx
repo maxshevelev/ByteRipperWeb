@@ -2,7 +2,6 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
-import { caretAt, selection as makeSelection } from "@/core/document/selectionModel";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
 import type { MatchSet } from "@/core/search/matchSet";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -326,7 +325,14 @@ export function HexPane({
   const colorsRef = useRef<HexGridColors | undefined>(undefined);
   const headerRuleRef = useRef("");
   const viewportHeightRef = useRef(0);
-  const dragAnchorRef = useRef<number | undefined>(undefined);
+  /**
+   * Whether a selection drag is in progress. The selection's fixed end is not
+   * kept here: the press anchors it in the controller, which is where the
+   * anchor survives a remount and where a test can reach it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.dragEngaged
+   */
+  const dragRef = useRef(false);
   /** The row a bookmark is being dragged from, while that drag is happening. */
   const markDragRef = useRef<number | undefined>(undefined);
   /**
@@ -625,6 +631,11 @@ export function HexPane({
       rendererRef.current?.setSelection({ start: current.start, end: current.end });
       rendererRef.current?.setCaret(rendererCaret(doc, typing));
       setCaret(current.start);
+      // Installing a selection resets the editing state, and one of the things
+      // it resets is the column — so the readout is read back here rather than
+      // only where this component's own keys changed it.
+      setMode(typing.modeLabel);
+      setRegion(typing.inputRegion);
       onSelectionChanged?.({ start: current.start, end: current.end });
       scheduleDraw();
     };
@@ -717,7 +728,7 @@ export function HexPane({
     // A minimap click moves neither: it is a way of *looking* somewhere, and
     // taking the caret along would lose the place the user was editing.
     if (revealRequest.moveCaret !== false) {
-      doc.setSelection(caretAt(revealRequest.offset, doc.size));
+      void typing.moveCaretTo(revealRequest.offset, false);
     }
     const scroller = scrollerRef.current;
     const layout = layoutRef.current;
@@ -740,7 +751,7 @@ export function HexPane({
     // Centred, not merely brought inside the edge: a change the user asked to
     // be shown should have its surroundings visible too.
     scrollPaneTo(Math.max(0, rowTop - scroller.viewportHeight / 2 + layout.rowHeight));
-  }, [revealRequest, doc, scrollPaneTo, paneId]);
+  }, [revealRequest, typing, scrollPaneTo, paneId]);
 
   // Comparison locks the panes to the same offsets. With one file open the
   // link has nothing to mirror to and does nothing.
@@ -817,10 +828,16 @@ export function HexPane({
   /**
    * Brings an offset into view with the least scrolling that will do it.
    *
+   * While a mouse drag is in progress the pane is driven by the pointer, not
+   * the caret: the drag's anchor may legitimately scroll out of view, and
+   * yanking it back would fight the drag-selection autoscroll. So the caret is
+   * revealed only outside a drag.
+   *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealCaret
    */
   const reveal = useCallback(
     (offset: number) => {
+      if (dragRef.current) return;
       const scroller = scrollerRef.current;
       const layout = layoutRef.current;
       if (scroller === null || layout === undefined) return;
@@ -833,18 +850,6 @@ export function HexPane({
       }
     },
     [scrollPaneTo]
-  );
-
-  const moveCaret = useCallback(
-    (target: number, extend: boolean) => {
-      const clamped = Math.min(Math.max(target, 0), doc.size);
-      const anchor = extend ? (doc.hasSelection ? doc.selection.start : doc.caret) : clamped;
-      doc.setSelection(
-        extend ? makeSelection(anchor, clamped, doc.size) : caretAt(clamped, doc.size)
-      );
-      reveal(clamped);
-    },
-    [doc, reveal]
   );
 
   /**
@@ -893,9 +898,9 @@ export function HexPane({
    */
   const onBookmarkCommitted = useCallback(
     (session: BookmarkEditSession, row: number) => {
-      if (session.existingName === undefined) moveCaret(row, false);
+      if (session.existingName === undefined) void typing.moveCaretTo(row, false);
     },
-    [moveCaret]
+    [typing]
   );
   const focusDump = useCallback(() => scrollRef.current?.focus({ preventScroll: true }), []);
 
@@ -929,6 +934,20 @@ export function HexPane({
     scheduleDraw();
   }, [doc, typing, scheduleDraw]);
 
+  /**
+   * Reads the mode, the column and the caret back off the controller.
+   *
+   * All three live there, and a command that changes one of them *without*
+   * going through this component's own key handler — the toolbar's mode
+   * toggle, Select All resetting the column to hex, a range installed from a
+   * tool — leaves the readout saying what used to be true.
+   */
+  const syncTypingReadout = useCallback(() => {
+    setMode(typing.modeLabel);
+    setRegion(typing.inputRegion);
+    refreshCaret();
+  }, [typing, refreshCaret]);
+
   // The typing mode can be switched from outside the pane — the toolbar's
   // toggle — so the readout and the caret follow the controller, not only this
   // pane's own key.
@@ -957,12 +976,12 @@ export function HexPane({
 
       switch (command.kind) {
         case "moveBy":
-          void typing.breakRun();
-          moveCaret(doc.caret + command.delta, command.extend);
+          // The controller resolves the step against where the caret actually
+          // is, and collapses a standing selection to its active edge first.
+          void typing.moveCaretBy(command.delta, command.extend);
           break;
         case "moveTo":
-          void typing.breakRun();
-          moveCaret(
+          void typing.moveCaretTo(
             resolveTarget(command.target, doc.caret, doc.size, rowsPerPage, command.extend),
             command.extend
           );
@@ -978,7 +997,10 @@ export function HexPane({
           if (scroller !== null) scrollPaneTo(command.edge === "top" ? 0 : scroller.maxTop);
           break;
         case "selectAll":
-          doc.setSelection(makeSelection(0, doc.size, doc.size));
+          // Through the controller, which anchors the selection at the file's
+          // start and resets the editing state — so a following Shift+Left
+          // shortens the selection from its end.
+          void typing.selectAll().then(syncTypingReadout);
           break;
         case "toggleMinimap":
           toggleMinimap();
@@ -1011,10 +1033,7 @@ export function HexPane({
           void (command.forward ? typing.deleteForward() : typing.deleteBackward());
           break;
         case "toggleInsertMode":
-          void typing.toggleInsertMode().then(() => {
-            setMode(typing.modeLabel);
-            refreshCaret();
-          });
+          void typing.toggleInsertMode().then(syncTypingReadout);
           break;
         case "switchColumn": {
           const next: InputRegion = region === "hex" ? "text" : "hex";
@@ -1073,7 +1092,7 @@ export function HexPane({
     },
     [
       doc,
-      moveCaret,
+      syncTypingReadout,
       region,
       onSave,
       onSaveAs,
@@ -1248,11 +1267,13 @@ export function HexPane({
           void typing.setInputRegion(clicked).then(refreshCaret);
         }
       }
-      dragAnchorRef.current = offset;
+      // The press places the caret where the user pointed — follow, not centre
+      // — and anchors a selection there when Shift is down. The anchor is the
+      // controller's: the drag that follows extends from it, and so does a
+      // shift-click that is not followed by one.
+      dragRef.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
-      doc.setSelection(
-        event.shiftKey ? makeSelection(doc.caret, offset, doc.size) : caretAt(offset, doc.size)
-      );
+      void typing.moveCaretTo(offset, event.shiftKey);
       event.preventDefault();
     },
     [contentPoint, doc, region, typing, refreshCaret]
@@ -1328,9 +1349,9 @@ export function HexPane({
       const host = scrollRef.current;
       const scroller = scrollerRef.current;
       const dragging = markDragRef.current;
-      const anchor = dragAnchorRef.current;
+      const selecting = dragRef.current;
       if (layout === undefined || host === null || scroller === null) return false;
-      if (dragging === undefined && anchor === undefined) return false;
+      if (dragging === undefined && !selecting) return false;
 
       const bounds = host.getBoundingClientRect();
       const pointerY = clientY - bounds.top;
@@ -1361,18 +1382,21 @@ export function HexPane({
           const landed = moveBookmark(dragging, Math.min(target, lastRow), lastRow);
           if (landed !== undefined) markDragRef.current = landed;
         }
-      } else if (anchor !== undefined) {
+      } else if (selecting) {
         const x = clientX - bounds.left + host.scrollLeft;
         const end = layout.dragEndOffset(x, y, layout.rowCount(doc.size));
         if (end !== undefined) {
-          doc.setSelection(makeSelection(anchor, Math.min(end, doc.size), doc.size));
+          // Extending: the fixed end is the anchor the press set, which the
+          // controller keeps — so the selection's other end follows the pointer
+          // even when this pane re-renders mid-drag.
+          void typing.moveCaretTo(Math.min(end, doc.size), true);
         }
       }
 
       const after = { ...before, top: scroller.top };
       return isBeyondVisibleEdge(pointerY, after) && canAutoscrollToward(pointerY, after);
     },
-    [doc, scrollPaneTo]
+    [doc, scrollPaneTo, typing]
   );
 
   /**
@@ -1384,7 +1408,7 @@ export function HexPane({
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       trackMarkTip(event);
-      if (markDragRef.current === undefined && dragAnchorRef.current === undefined) return;
+      if (markDragRef.current === undefined && !dragRef.current) return;
       dragPointerRef.current = { x: event.clientX, y: event.clientY };
       if (!dragTo(event.clientX, event.clientY)) {
         stopAutoscroll();
@@ -1465,16 +1489,19 @@ export function HexPane({
       const selection = doc.selection;
       const inSelection =
         selection.end > selection.start && offset >= selection.start && offset < selection.end;
-      if (!inSelection) doc.setSelection(caretAt(offset, doc.size));
+      // A press on the selection keeps it — the menu is about those bytes. A
+      // press outside it places the caret, which is what the commands that act
+      // on "here" then mean.
+      if (!inSelection) void typing.moveCaretTo(offset, false);
       onDumpMenu(event, offset);
     },
-    [doc, onDumpMenu]
+    [doc, onDumpMenu, typing]
   );
 
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseUp */
   const endDrag = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      dragAnchorRef.current = undefined;
+      dragRef.current = false;
       markDragRef.current = undefined;
       markDragPointerRowRef.current = undefined;
       dragPointerRef.current = undefined;

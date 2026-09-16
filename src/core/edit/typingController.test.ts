@@ -739,3 +739,200 @@ describe("an asynchronous confirmation", () => {
     expect(asArray(await readAll(doc.storage))).toEqual([0xa0, 1, 2]);
   });
 });
+
+/**
+ * A file of `count` identical bytes. The movement tests are about where the
+ * caret lands, and what is under it never changes the answer.
+ */
+function blank(count: number) {
+  return setUp(Array.from({ length: count }, () => 0x11));
+}
+
+// @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testShiftArrowsGrowAndShrinkFromTheMovingEnd
+describe("extending a selection with Shift", () => {
+  it("grows and shrinks from the moving end", async () => {
+    const t = blank(16);
+    await t.typing.moveCaretTo(5);
+
+    await t.typing.moveCaretBy(1, true); // (5,6)
+    await t.typing.moveCaretBy(1, true); // (5,7)
+    await t.typing.moveCaretBy(1, true); // (5,8)
+    expect(t.doc.selection.start).toBe(5);
+    expect(t.doc.selection.end).toBe(8);
+
+    // The flip shrinks the end that was moving, rather than re-anchoring on it.
+    await t.typing.moveCaretBy(-1, true); // (5,7)
+    expect(t.doc.selection.start).toBe(5);
+    expect(t.doc.selection.end).toBe(7);
+
+    // Backward, with the anchor fixed on the right.
+    await t.typing.moveCaretTo(5);
+    await t.typing.moveCaretBy(-1, true); // (4,5)
+    await t.typing.moveCaretBy(-1, true); // (3,5)
+    await t.typing.moveCaretBy(-1, true); // (2,5)
+    expect(t.doc.selection.start).toBe(2);
+    expect(t.doc.selection.end).toBe(5);
+
+    await t.typing.moveCaretBy(1, true); // shrink back to (3,5)
+    expect(t.doc.selection.start).toBe(3);
+    expect(t.doc.selection.end).toBe(5);
+  });
+
+  it("anchors a shift-step on a range installed wholesale", async () => {
+    // A zone from the minimap, a piece from the form: nothing dragged them out,
+    // so there is no anchor to continue from — and none left over from an
+    // earlier extension either.
+    const t = blank(16);
+    await t.typing.moveCaretTo(4);
+    await t.typing.moveCaretBy(2, true); // (4,6), anchored at 4
+    await t.typing.setSelection(9, 12);
+
+    await t.typing.moveCaretBy(1, true);
+    expect(t.doc.selection.start).toBe(9);
+    expect(t.doc.selection.end).toBe(10);
+  });
+});
+
+// @upstream ByteRipperTests/CaretPlacementTests.swift#CaretPlacementTests.testPlainArrowFromSelectionLandsAtActiveEnd
+describe("an arrow with no Shift while a selection stands", () => {
+  it("collapses the caret to the selection's active edge", async () => {
+    const t = blank(32);
+    await t.typing.moveCaretTo(2);
+    await t.typing.moveCaretBy(4, true); // (2,6), extended forward
+    expect(t.doc.selection.start).toBe(2);
+    expect(t.doc.selection.end).toBe(6);
+
+    // Down: the caret lands on the last byte of the selection — 5, not the 6
+    // that is one past it — and the selection goes.
+    await t.typing.moveCaretBy(16, false);
+    expect(t.doc.selection.start).toBe(5);
+    expect(t.doc.selection.end).toBe(5);
+
+    // And the next Down continues from there: 5 + 16.
+    await t.typing.moveCaretBy(16, false);
+    expect(t.doc.selection.start).toBe(21);
+
+    // Extending backward puts the active edge on the first byte instead.
+    await t.typing.moveCaretTo(6);
+    await t.typing.moveCaretBy(-4, true); // (2,6), extended backward
+    expect(t.doc.selection.start).toBe(2);
+    expect(t.doc.selection.end).toBe(6);
+
+    await t.typing.moveCaretBy(-16, false);
+    expect(t.doc.selection.start).toBe(2);
+    expect(t.doc.selection.end).toBe(2);
+  });
+});
+
+describe("the byte a selection's reveal follows", () => {
+  // @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testRevealOffsetIsCaretWhenBare
+  it("is the caret when there is no selection", async () => {
+    const t = blank(32);
+    await t.typing.moveCaretTo(5);
+    expect(t.typing.hexCaretRevealOffset()).toBe(5);
+  });
+
+  // @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testRevealOffsetTracksForwardEdge
+  it("is the selection's last byte when it was extended forward", async () => {
+    const t = blank(32);
+    await t.typing.moveCaretTo(5);
+    await t.typing.moveCaretBy(1, true); // (5,6)
+    expect(t.doc.selection).toEqual(selection(5, 6, 32));
+    expect(t.typing.hexCaretRevealOffset()).toBe(5);
+  });
+
+  // @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testRevealOffsetTracksBackwardEdge
+  it("is the selection's first byte when it was extended backward", async () => {
+    const t = blank(32);
+    await t.typing.moveCaretTo(5);
+    await t.typing.moveCaretBy(-1, true); // (4,5)
+    expect(t.doc.selection).toEqual(selection(4, 5, 32));
+    expect(t.typing.hexCaretRevealOffset()).toBe(4);
+  });
+
+  it("walks out with the edge being dragged, and asks the pane for it", async () => {
+    // One reveal per step, at the edge that moved — the pane scrolls to what
+    // the pointer is dragging, not to where the selection started.
+    const t = blank(64);
+    await t.typing.moveCaretTo(5);
+    t.reveals.length = 0;
+    await t.typing.moveCaretBy(1, true);
+    await t.typing.moveCaretBy(1, true);
+    expect(t.reveals).toEqual([5, 6]);
+  });
+
+  it("follows the start of a range installed wholesale", async () => {
+    // Nothing was dragged out, so there is no moving edge to follow.
+    const t = blank(32);
+    await t.typing.setSelection(9, 12);
+    expect(t.typing.hexCaretRevealOffset()).toBe(9);
+  });
+});
+
+// @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testSelectAllLeavesTheActiveEdgeAtTheLastByte
+describe("Select All", () => {
+  it("leaves the active edge at the last byte", async () => {
+    const t = blank(64);
+    await t.typing.selectAll();
+    expect(t.doc.selection).toEqual(selection(0, 64, 64));
+    expect(t.typing.hexCaretRevealOffset()).toBe(63);
+
+    // Which is what makes a following Shift+Left shorten it from the end.
+    await t.typing.moveCaretBy(-1, true);
+    expect(t.doc.selection).toEqual(selection(0, 63, 64));
+  });
+
+  // @upstream ByteRipperTests/KeyboardNavigationTests.swift#KeyboardNavigationTests.testSelectAllDoesNotMoveTheViewport
+  it("scrolls nothing", async () => {
+    // Everything is selected, so there is nothing to go and look at — and on a
+    // large dump, dragging the viewport to its end costs the reader their place.
+    const t = blank(4096);
+    await t.typing.moveCaretTo(2048);
+    t.reveals.length = 0;
+    await t.typing.selectAll();
+    expect(t.reveals).toEqual([]);
+  });
+
+  it("drops the half-typed byte and the column with the rest of the state", async () => {
+    const t = blank(4);
+    await t.typing.setInputRegion("text");
+    await t.typing.typeHexDigit(0xa); // a half-typed byte at the caret
+    await t.typing.selectAll();
+
+    expect(t.typing.nibble).toBe(0);
+    expect(t.typing.inputRegion).toBe("hex");
+  });
+});
+
+describe("a caret move and the byte being typed", () => {
+  it("closes the half-typed byte's undo group rather than gluing it to the next", async () => {
+    const t = setUp([0x00, 0x00]);
+    await t.typing.typeHexDigit(0xa); // 0xa0, group open
+    await t.typing.moveCaretBy(1, false);
+    await t.typing.typeHexDigit(0xb); // a group of its own
+    await t.typing.typeHexDigit(0x0);
+
+    // One undo takes back the byte typed after the move, and only that one.
+    await t.doc.undo(false);
+    expect(await t.content()).toEqual([0xa0, 0x00]);
+    // The half-typed byte the move walked away from is its own step: had the
+    // group stayed open it would have been glued to the byte at offset 1, and
+    // this second undo would have nothing left to take back.
+    await t.doc.undo(false);
+    expect(await t.content()).toEqual([0x00, 0x00]);
+  });
+
+  // @web-only upstream's document writes synchronously, so a caret move can never overtake a keystroke; the port's queue is what has to hold that order
+  it("is ordered after a keystroke that is still landing", async () => {
+    // The browser divergence: the digit's write awaits a read, so the arrow can
+    // arrive before it lands. The digit belongs where the caret *was* when it
+    // was pressed — and its nibble is the one it was going to fill.
+    const t = setUp([0x00, 0x00]);
+    const digit = t.typing.typeHexDigit(0xa);
+    const move = t.typing.moveCaretBy(1, false);
+    await Promise.all([digit, move]);
+
+    expect(await t.content()).toEqual([0xa0, 0x00]);
+    expect(t.doc.caret).toBe(1);
+  });
+});
