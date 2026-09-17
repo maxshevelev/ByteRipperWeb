@@ -28,7 +28,12 @@ import {
   protectedRangeKindName,
   readProtectedRanges,
 } from "@/firmware/uefi/protectedRanges";
-import { runSecondPass } from "@/firmware/uefi/secondPass";
+import {
+  runSecondPass,
+  type SecondPass,
+  secondPassAnchoredOn,
+  volumeTopFileInTail,
+} from "@/firmware/uefi/secondPass";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import { invalidating } from "@/firmware/uefi/treeInvalidation";
 import { childrenOf, materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
@@ -160,6 +165,11 @@ let buffers = new DecompressedBuffers();
  * an edit makes it stale.
  */
 let protectedRanges: ProtectedRanges | undefined;
+/**
+ * Where the image is mapped, once something has asked: the same reading the
+ * ranges need, and an edit makes it stale the same way.
+ */
+let addresses: SecondPass | undefined;
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
 
@@ -225,6 +235,40 @@ function readerFor(node: UEFINode): ImageReader | undefined {
   if (reader === undefined) return undefined;
   const read = buffers.readerFor(node.space, reader, DEFAULT_LIMITS.maxDecompressedSize);
   return read.ok ? read.reader : undefined;
+}
+
+/**
+ * Where this image is mapped, worked out once.
+ *
+ * The anchor is the last Volume Top File, and finding it by walking means
+ * opening every container down to the last node — which the lazily built tree
+ * has not done, so a walk over `roots` as they stand answers "unknown" for an
+ * image that plainly has one. Upstream looks in the tail first, where the
+ * format says the file has to be: a couple of reads instead of a parse of the
+ * whole BIOS region. Only when the tail says nothing does it descend.
+ *
+ * The descent here is a materialized **copy**, for the reason `readRanges` uses
+ * one: a branch the reader opened meanwhile is not thrown away when this lands.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveAddresses
+ */
+function addressing(): SecondPass {
+  if (addresses !== undefined) return addresses;
+  if (reader === undefined) return { addressDiff: undefined, resetVector: undefined };
+  const parser = new Parser(reader, DEFAULT_LIMITS);
+  const tail = volumeTopFileInTail(parser);
+  if (tail !== undefined) {
+    const second = secondPassAnchoredOn(parser, tail);
+    if (second.addressDiff !== undefined) {
+      addresses = second;
+      return second;
+    }
+  }
+  const copy = structuredClone(roots) as UEFINode[];
+  const discarded: UEFIDiagnostic[] = [];
+  materializeAll(copy, reader, DEFAULT_LIMITS, buffers, discarded, { opensCompressed: false });
+  addresses = runSecondPass(parser, copy);
+  return addresses;
 }
 
 /**
@@ -359,6 +403,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         reader = new ImageReader(new BlobByteSource(request.content));
         buffers = new DecompressedBuffers();
         protectedRanges = undefined;
+        addresses = undefined;
         const sink = new ProgressSink(reader.count, (fraction) =>
           post({ kind: "firmwareProgress", id: request.id, fraction })
         );
@@ -390,6 +435,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // The ranges were read off bytes that may have just been typed over,
         // and their digests over bytes that certainly were.
         protectedRanges = undefined;
+        addresses = undefined;
         roots = invalidating(roots, edited, request.sizeDelta);
         // No diagnostics come back with this: what was found in the subtrees
         // just dropped went with them, as it does upstream, and what is left is
@@ -463,9 +509,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           post({ kind: "firmwareAddresses", id: request.id, addressDiff: undefined });
           return;
         }
-        const parser = new Parser(reader, DEFAULT_LIMITS);
-        const second = runSecondPass(parser, roots);
-        post({ kind: "firmwareAddresses", id: request.id, addressDiff: second.addressDiff });
+        post({ kind: "firmwareAddresses", id: request.id, addressDiff: addressing().addressDiff });
         return;
       }
 
@@ -520,13 +564,11 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           return;
         }
         // The mapping is worked out here rather than asked for separately: the
-        // Address row wants it, and the anchor is already in hand once the tree
-        // is.
-        const parser = new Parser(reader, DEFAULT_LIMITS);
+        // Address row wants it, and `addressing` keeps it once it is found.
         const image = new UEFIImage({
           size: reader.count,
           roots,
-          addressDiff: runSecondPass(parser, roots).addressDiff,
+          addressDiff: addressing().addressDiff,
           // Whatever has been read so far: the detail says what protects a node
           // once something has asked for the ranges, and reads nothing itself.
           protectedRanges,
@@ -553,11 +595,10 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // The tree as it stands, which is what names what a row points at. A
         // branch nobody has opened names nothing, and the reader says so rather
         // than guessing — see `targetOf` in fitTable.
-        const parser = new Parser(reader, DEFAULT_LIMITS);
         const image = new UEFIImage({
           size: reader.count,
           roots,
-          addressDiff: runSecondPass(parser, roots).addressDiff,
+          addressDiff: addressing().addressDiff,
           // Whatever has been read so far: the detail says what protects a node
           // once something has asked for the ranges, and reads nothing itself.
           protectedRanges,
@@ -571,8 +612,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           post({ ...NO_EDIT, id: request.id, problem: "No image is open." });
           return;
         }
-        const parser = new Parser(reader, DEFAULT_LIMITS);
-        const diff = runSecondPass(parser, roots).addressDiff;
+        const diff = addressing().addressDiff;
         const image = new UEFIImage({ size: reader.count, roots, addressDiff: diff });
         const report = readFitTable(reader, image);
         if (report.table === undefined) {
