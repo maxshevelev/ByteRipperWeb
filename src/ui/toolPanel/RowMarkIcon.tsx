@@ -119,28 +119,35 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
     // measured lobe repeated, where twenty hand-written vertices could only
     // lean.
     //
-    // Measured, it is a wave and not a scallop: the radius falls from 7 to 5.81
-    // and back as a cosine of eight times the angle, with no corner anywhere on
-    // the outline. Sixteen cubics — one shape and its mirror, eight times over —
-    // follow it to within 0.7% of the radius, which is four hundredths of a
-    // pixel at the 13 the panels draw it at. Arcs meeting in points, which is
-    // what stood here, read as a flower and a little square.
+    // Measured, it is a wave and not a scallop: the radius falls from 7.5 to
+    // 6.22 and back as a cosine of eight times the angle, with no corner
+    // anywhere on the outline. Sixteen cubics — one shape and its mirror, eight
+    // times over — follow it to within 0.7% of the radius, which is four
+    // hundredths of a pixel at the 13 the panels draw it at. Arcs meeting in
+    // points, which is what stood here, read as a flower and a little square.
     //
-    // The tick is the hole SF Symbols leaves, measured from the same render: its
-    // box spans 0.29 to 0.70 of the seal's width, and the stroke below is what
-    // those numbers come to — 0.97 wide, round caps, round join.
+    // It reaches 7.5 where the circles reach 7, because cutting eight bays out
+    // of a disc costs it more than it costs them: the octagon above takes the
+    // same licence at its corners, which are 7.47 out on the diagonals. At 7.5
+    // the bays land at 6.22 and the mean reach is 6.9, so the seal reads the
+    // same size as the circle beside it, which is what it is judged against.
+    //
+    // The tick is the hole SF Symbols leaves, measured from the same render, and
+    // scaled with the seal: its box spans 0.29 to 0.70 of the seal's width, and
+    // the stroke below is what those numbers come to — 1.04 wide, round caps,
+    // round join.
     case "newest":
       return (
         <>
           <path
             fill="currentColor"
-            d="M15 8C15 6.9 13.66 6.47 13.38 5.77C13.09 5.08 13.73 3.83 12.95 3.05C12.17 2.27 10.92 2.91 10.23 2.62C9.53 2.34 9.1 1 8 1C6.9 1 6.47 2.34 5.77 2.62C5.08 2.91 3.83 2.27 3.05 3.05C2.27 3.83 2.91 5.08 2.62 5.77C2.34 6.47 1 6.9 1 8C1 9.1 2.34 9.53 2.62 10.23C2.91 10.92 2.27 12.17 3.05 12.95C3.83 13.73 5.08 13.09 5.77 13.38C6.47 13.66 6.9 15 8 15C9.1 15 9.53 13.66 10.23 13.38C10.92 13.09 12.17 13.73 12.95 12.95C13.73 12.17 13.09 10.92 13.38 10.23C13.66 9.53 15 9.1 15 8z"
+            d="M15.5 8C15.5 6.82 14.07 6.36 13.76 5.61C13.45 4.87 14.14 3.53 13.3 2.7C12.47 1.86 11.13 2.55 10.39 2.24C9.64 1.93 9.18 0.5 8 0.5C6.82 0.5 6.36 1.93 5.61 2.24C4.87 2.55 3.53 1.86 2.7 2.7C1.86 3.53 2.55 4.87 2.24 5.61C1.93 6.36 0.5 6.82 0.5 8C0.5 9.18 1.93 9.64 2.24 10.39C2.55 11.13 1.86 12.47 2.7 13.3C3.53 14.14 4.87 13.45 5.61 13.76C6.36 14.07 6.82 15.5 8 15.5C9.18 15.5 9.64 14.07 10.39 13.76C11.13 13.45 12.47 14.14 13.3 13.3C14.14 12.47 13.45 11.13 13.76 10.39C14.07 9.64 15.5 9.18 15.5 8z"
           />
           <path
-            d="M5.55 8.35 7.28 10.5l3.06-4.73"
+            d="M5.38 8.38 7.23 10.68l3.28-5.07"
             fill="none"
             style={KNOCKOUT_STROKE}
-            strokeWidth="0.97"
+            strokeWidth="1.04"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
