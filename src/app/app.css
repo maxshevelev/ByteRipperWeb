@@ -827,13 +827,16 @@ textarea,
    is marked by form in the pane header's badge. The bytes it is about carry the
    red, which is where the project's colour-and-form rule about state applies. */
 
-/* A long operation at the end of the status line: its name, a bar, a cross. */
+/* A long operation in the status line, between the readout and the mode box:
+   its name, a bar, a cross. That is upstream's order — its strip sits before
+   the indicator, which holds the bar's right corner (`b660189`) — and the
+   readout is the row's only growing item, so nothing here is right-aligned:
+   whatever the strip takes, the mode box is still the row's last item. */
 .operation-strip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  margin-left: auto;
   align-self: center;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }

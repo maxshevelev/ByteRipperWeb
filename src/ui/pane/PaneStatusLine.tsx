@@ -94,8 +94,17 @@ export function PaneStatusLine({
   // question is asked of the layout the browser has just produced, before it
   // paints — the cut-off form is never on screen.
   //
+  // The room is what the row leaves: the line is the row's only growing item,
+  // and the mode indicator and the operation strip have taken their width out
+  // before it is asked. Upstream subtracts the same things by hand — the bar's
+  // two insets, the gap and the indicator's own frame — which is the arithmetic
+  // that moved with the indicator when it was pinned to the bar's right corner
+  // (`b660189`); here nothing has to be, because the flex row has already done
+  // it and the line is measured against the box it ended up with.
+  //
   // @upstream ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.setExpanded
   // @upstream ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.canExpand
+  // @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.statusRoom
   useLayoutEffect(() => {
     if (!shown) return;
     const box = line.current;

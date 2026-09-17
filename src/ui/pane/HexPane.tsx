@@ -1865,6 +1865,15 @@ export function HexPane({
           segment={segmentReadout(partition, caret)}
         />
         {/*
+          The strip stands before the indicator, as upstream's does — the order
+          is the one upstream has had since the indicator was pinned to the
+          bar's right corner (`b660189`), where it had to lift the indicator out
+          of its stack to reach the edge. The readout is the row's only growing
+          item and the strip keeps its own width, so the corner is the mode's
+          whether an operation is running or not.
+        */}
+        <OperationStrip pane={paneId} />
+        {/*
           The indicator is a control as well as a readout: a click flips THIS
           pane's mode. The press has already made the pane active on its way in
           (the pane's own capture handler), so the mode that flips is the one
@@ -1872,6 +1881,15 @@ export function HexPane({
           The focus then goes back to the dump, which is where the Insert key
           is heard: a click on a button would otherwise leave the keyboard on
           the button.
+
+          The box is the row's last item and holds the bar's right corner, which
+          is where upstream pinned its own indicator in `b660189`. Upstream had
+          to take it out of its stack and add a constraint against the bar's
+          trailing inset; here the readout is the row's only growing item and
+          the box keeps its width, so leaving it last is the whole of it. The
+          dot upstream dropped in the same commit was never drawn here: the
+          bar's own ` · ` joins the readout's parts, and nothing joins the
+          readout to this.
 
           @upstream ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel
           @upstream ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.mouseDown
@@ -1893,7 +1911,6 @@ export function HexPane({
         >
           {mode}
         </button>
-        <OperationStrip pane={paneId} />
       </p>
       {/*
         The three bands a drop on this pane lands in (§22.4), over everything the
