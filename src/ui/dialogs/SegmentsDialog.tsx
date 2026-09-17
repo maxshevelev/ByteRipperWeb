@@ -10,7 +10,7 @@ import { Dialog } from "@/ui/dialogs/Dialog";
 import { mergeAll, mergePiece, renamePiece } from "@/ui/segments/segmentCommands";
 import { pieceMenu } from "@/ui/segments/segmentMenu";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
-import { readSegmentTints } from "@/ui/theme/hexColors";
+import { observeHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 
 /**
  * The segments form (§21.4): the partition as a table, and what acts on it.
@@ -75,7 +75,15 @@ export function SegmentsDialog({
   const pieces = partition?.segments ?? [];
   const [selected, setSelected] = useState(0);
   const [renaming, setRenaming] = useState<number | undefined>(undefined);
-  const tints = readSegmentTints();
+  /**
+   * The swatches, read out of the theme and read again when it moves.
+   *
+   * A tint here is the same tint the pane's bands wear (§21.3), so a form left
+   * open across an appearance change has to follow it: the row would otherwise
+   * keep the colour the piece was not cut in.
+   */
+  const [tints, setTints] = useState(() => readSegmentTints());
+  useEffect(() => observeHexColors(() => setTints(readSegmentTints())), []);
 
   useEffect(() => {
     if (open) setRenaming(undefined);

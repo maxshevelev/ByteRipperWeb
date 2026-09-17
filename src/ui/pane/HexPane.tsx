@@ -369,6 +369,18 @@ export function HexPane({
   const headerRuleRef = useRef("");
   const viewportHeightRef = useRef(0);
   /**
+   * Counts the palette's own changes, so anything drawing in a colour the
+   * theme owns can be read again when it moves.
+   *
+   * The canvas cannot hold a CSS variable: `configure` resolves the palette for
+   * the bytes and the header, and whatever else the renderer was handed a
+   * colour for has to be handed it again. The segment tints are the one such
+   * thing, and a theme switch does not move a cut — so a bands effect keyed on
+   * the partition alone would keep the pastels of the theme that was on when
+   * the file was cut (§21.3, §19.4).
+   */
+  const [themeRevision, setThemeRevision] = useState(0);
+  /**
    * Whether a selection drag is *engaged* — a press that has left the byte's
    * dead zone, or a Shift-press, which extends from the moment it lands. The
    * selection's fixed end is not kept here: the press anchors it in the
@@ -667,7 +679,14 @@ export function HexPane({
     };
 
     configure();
-    const stopWatchingColors = observeHexColors(configure);
+    // A palette change is a re-read of everything the theme owns, and the bands
+    // are one of those: `configure` resolves the bytes and the header, and the
+    // revision carries the same news to the effect that stamps the tints. One
+    // observer, so the two cannot disagree about when the theme moved.
+    const stopWatchingColors = observeHexColors(() => {
+      setThemeRevision((revision) => revision + 1);
+      configure();
+    });
     const stopWatchingScale = observeDevicePixelRatio(configure);
     return () => {
       stopWatchingColors();
@@ -1349,8 +1368,14 @@ export function HexPane({
    * A file that has not been cut is one piece and is given no bands at all —
    * tinting the whole dump one colour would say something about it that is not
    * true of any part of it.
+   *
+   * The tints are read here rather than taken from the palette the renderer was
+   * configured with, because they are not part of it: `HexTheme.segmentTints`
+   * is a second list, and a cut does not move when the theme does. So the effect
+   * hears about both — the partition, and `themeRevision`.
    */
   const partition = useStore(segmentsStore).panes[paneId]?.partition;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `themeRevision` is the reason to look again, not something the body reads — the tints the effect stamps are the theme's, and the revision is how it hears that they moved
   useEffect(() => {
     const pieces = partition?.segments ?? [];
     const tints = readSegmentTints();
@@ -1364,7 +1389,7 @@ export function HexPane({
           }))
     );
     scheduleDraw();
-  }, [partition, scheduleDraw]);
+  }, [partition, themeRevision, scheduleDraw]);
 
   /** Where a pointer is, in the grid's own content coordinates. */
   const contentPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
