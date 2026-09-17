@@ -571,6 +571,94 @@ export function reservedIntegrity(options: {
 }
 
 /**
+ * One FTBL-mode low-level file split into its content and its trailing
+ * `MFS_Integrity_Table`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit
+ */
+export interface MFSFileIntegritySplit {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.fileIndex */
+  readonly fileIndex: number;
+  /**
+   * The file's own bytes, with the Integrity table taken off the end.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.contentSize
+   */
+  readonly contentSize: number;
+  /**
+   * How long that table turned out to be — 0x28, 0x34, or the 0x38 the
+   * `arCounter` workaround below finds.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.tableSize
+   */
+  readonly tableSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.integrity */
+  readonly integrity: MFSIntegrityTable;
+}
+
+/**
+ * Splits the Integrity table off the end of every file an FTBL-mode volume's
+ * file table flags as Integrity-protected.
+ *
+ * **Which files carry one cannot be seen in the bytes.** A legacy volume's
+ * reserved files are known by index (`reservedIntegrity` above), and its home
+ * directory carries an Integrity bit per row; an FTBL volume has neither — its
+ * files are a numbered inventory whose flags live in `FileTable.dat`. So
+ * `protectedIndices` is handed in by the caller, which is the one place that has
+ * the table, and this stays a byte decode: what comes out is the tail's own
+ * HMAC, nonce, counters and flags.
+ *
+ * `secHeaderSize` picks 0x28 or 0x34 as it does for a legacy volume. The 0x28
+ * case has one wrinkle, and it is upstream's, comment and all: some files carry
+ * an extra 0x10 of unknown data after the table (0x38 in all), with nothing in
+ * FTBL or the volume to say which. Upstream's workaround — "stupid AF but should
+ * work until the proper indicator can be found" — is to read the table, and if
+ * its Anti-Replay counter comes out absurdly large (> 0xFFFF), re-split 0x10
+ * further back. It is ported as written, because a wrong split is a wrong file:
+ * on `CSME 15.bin` it is the difference between 233 files that end at 0x28 and
+ * 132 that end at 0x38.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.ftblFileIntegrity
+ */
+export function ftblFileIntegrity(options: {
+  readonly files: readonly MFSLowLevelFile[];
+  readonly protectedIndices: ReadonlySet<number>;
+  readonly variant: string;
+  readonly major: number;
+  readonly minor: number;
+  readonly platform: number;
+}): MFSFileIntegritySplit[] {
+  const { files, protectedIndices, variant, major, minor, platform } = options;
+  const sec = secHeaderSize(variant, major, minor, platform);
+  const result: MFSFileIntegritySplit[] = [];
+  for (const file of files) {
+    if (!protectedIndices.has(file.index)) continue;
+    if (file.content.length < sec) continue;
+    let table = integrityTable(file.content.subarray(file.content.length - sec));
+    if (table === undefined) continue;
+    let size = sec;
+    if (sec === 0x28 && table.arCounter > 0xffff && file.content.length >= 0x38) {
+      const wider = integrityTable(
+        file.content.subarray(file.content.length - 0x38, file.content.length - 0x10)
+      );
+      if (wider !== undefined) {
+        // The table sits 0x10 earlier than it looked: re-read it there and count
+        // the extra bytes as part of what the file ends with.
+        size = 0x38;
+        table = wider;
+      }
+    }
+    result.push({
+      fileIndex: file.index,
+      contentSize: file.content.length - size,
+      tableSize: size,
+      integrity: table,
+    });
+  }
+  return result.sort((a, b) => a.fileIndex - b.fileIndex);
+}
+
+/**
  * The home record size, from the first two `.`/`..` marker rows — upstream's
  * `\x2E[\x00\xAA]{10}`. The `..` row's first dot is followed by a dot, which is
  * not in the set, so its *second* dot is the second match and the distance less

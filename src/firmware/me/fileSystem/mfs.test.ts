@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { crc16_14 } from "@/firmware/me/crypto/checksum";
 import {
   decodeConfigRecords,
+  ftblFileIntegrity,
   homeDirectory,
   homeRecordSize,
   integrityTable,
@@ -569,6 +570,91 @@ describe("the reserved files' integrity", () => {
 });
 
 const csme12 = { variant: "CSME", major: 12, minor: 0, platform: 0 };
+
+describe("an FTBL volume's file integrity", () => {
+  const csme15 = { variant: "CSME", major: 15, minor: 0, platform: 4 };
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheFTBLSplitFollowsTheTablesFlag
+  it("follows the table's flag", () => {
+    const table = integrityFixture({
+      size: 0x28,
+      flags: 0x2,
+      hmac: filled(0xaa, 16),
+      nonce: filled(0xbb, 12),
+      arRandom: 0x1234,
+      arCounter: 7,
+    });
+    const splits = ftblFileIntegrity({
+      files: [file(5, concat(filled(0x55, 0x100), table)), file(6, filled(0x66, 0x100))],
+      protectedIndices: new Set([5]),
+      ...csme15,
+    });
+
+    expect(splits.map((one) => one.fileIndex)).toEqual([5]);
+    expect(splits[0]?.contentSize).toBe(0x100);
+    expect(splits[0]?.tableSize).toBe(0x28);
+    expect(splits[0]?.integrity.size).toBe(0x28);
+    expect(splits[0]?.integrity.arCounter).toBe(7);
+    expect(splits[0]?.integrity.antiReplayProtection).toBe(true);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAnAbsurdCounterMeansTheTableSitsTenBytesEarlier
+  it("reads the table 0x10 earlier when the counter is absurd", () => {
+    const real = integrityFixture({
+      size: 0x28,
+      flags: 0x2,
+      hmac: filled(0xcc, 16),
+      nonce: filled(0xdd, 12),
+      arRandom: 0x99,
+      arCounter: 3,
+    });
+    // The file ends with the table *and* 0x10 of unknown bytes, so a plain 0x28
+    // read off the end lands in the middle of both and comes out with a counter
+    // no Anti-Replay index would ever hold.
+    const splits = ftblFileIntegrity({
+      files: [file(9, concat(filled(0x77, 0x80), real, filled(0xee, 0x10)))],
+      protectedIndices: new Set([9]),
+      ...csme15,
+    });
+
+    expect(splits[0]?.tableSize).toBe(0x38);
+    expect(splits[0]?.contentSize).toBe(0x80);
+    expect(splits[0]?.integrity.arCounter).toBe(3);
+    expect(splits[0]?.integrity.hmacHex.slice(0, 4)).toBe("CCCC");
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testThe0x34LayoutIsSplitAtItsOwnSize
+  it("splits the 0x34 layout at its own size", () => {
+    const table = integrityFixture({
+      size: 0x34,
+      flags: 0x2,
+      hmac: filled(0x11, 32),
+      nonce: filled(0x22, 16),
+      arRandom: 0xffffff,
+      arCounter: 0xffffff,
+    });
+    const splits = ftblFileIntegrity({
+      files: [file(3, concat(filled(0x33, 0x40), table))],
+      protectedIndices: new Set([3]),
+      variant: "CSME",
+      major: 14,
+      minor: 5,
+      platform: 4,
+    });
+    expect(splits[0]?.tableSize).toBe(0x34);
+    expect(splits[0]?.contentSize).toBe(0x40);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAFileTooShortForItsTableIsNotSplit
+  it("does not split a file too short for its table", () => {
+    const splits = ftblFileIntegrity({
+      files: [file(2, filled(0x22, 0x10))],
+      protectedIndices: new Set([2]),
+      ...csme15,
+    });
+    expect(splits).toEqual([]);
+  });
+});
 
 describe("the home directory", () => {
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testHomeDirectoryRecursesIntoFolderFiles

@@ -3,7 +3,7 @@ import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
 import { downloadBlob } from "@/platform/files/download";
-import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
+import { fileTableOf, fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import {
   analyzePaneMe,
   checksumPaneMe,
@@ -215,11 +215,12 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
 
   const databaseText = database.text;
   const huffmanText = huffman.text;
+  const fileTableText = fileTable.body?.text;
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onRetry */
   const analyze = useCallback(() => {
     const job = ++request.current;
     setBusy(true);
-    void analyzePaneMe(pane, databaseText, huffmanText).then((found) => {
+    void analyzePaneMe(pane, databaseText, huffmanText, fileTableText).then((found) => {
       if (job !== request.current) return;
       setBusy(false);
       if (found === undefined) return;
@@ -231,7 +232,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           : { phase: "failed", problem: found.problem }
       );
     });
-  }, [pane, databaseText, huffmanText]);
+  }, [pane, databaseText, huffmanText, fileTableText]);
 
   // Read again when the image changes and when a database lands: MEA.dat turns a
   // structure into an identity, Huffman.dat lets the modules be checked, and
@@ -292,12 +293,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   // The names belong to the volume they were looked up for; `MFSFileNames.none`
   // is a volume the table does not describe, and every legacy volume, whose
   // rows keep the numbers their own bytes carry.
+  const table = fileTableOf(fileTable);
   const names = useMemo(
     () =>
       analysis?.mfsVolume === undefined
         ? MFSFileNames.none
-        : MFSFileNames.forVolume(fileTable.table, analysis.mfsVolume),
-    [analysis, fileTable.table]
+        : MFSFileNames.forVolume(table, analysis.mfsVolume),
+    [analysis, table]
   );
   const tree = useMemo(
     () => (analysis === undefined ? [] : presentMEA(analysis, checksums, names)),

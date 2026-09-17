@@ -357,6 +357,14 @@ export interface MeAnalyzeRequest {
    * panel fetches it only for an analysis that says it wants one.
    */
   readonly huffmanText: string | undefined;
+  /**
+   * `FileTable.dat`, likewise as text, for the two splits that wait on it: an
+   * FTBL volume's files from the Integrity table they end with, and an EFS
+   * volume's out of its data area. The panel fetches it only for a volume that
+   * cannot name its own files — the same table names its rows, and the store
+   * holds the parsed half for that.
+   */
+  readonly fileTableText: string | undefined;
 }
 
 /** The ME region's digests — three passes over it, so only when somebody asks. */

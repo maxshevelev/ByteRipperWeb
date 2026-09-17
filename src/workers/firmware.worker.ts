@@ -4,6 +4,7 @@ import { assembleWord, type ByteSource, sourceOver } from "@/firmware/byteSource
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
+import { FileTable } from "@/firmware/me/data/fileTable";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
   type HuffmanDictionaries,
@@ -395,6 +396,15 @@ function parsedDictionaries(text: string): HuffmanDictionaries | undefined {
   }
 }
 
+/** The table, or nothing — a body that is not one is not a reason to fail an analysis. */
+function parsedFileTable(text: string): FileTable | undefined {
+  try {
+    return FileTable.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
 scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
   const request = event.data;
   try {
@@ -709,6 +719,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         }
         const dictionaries =
           request.huffmanText === undefined ? undefined : parsedDictionaries(request.huffmanText);
+        const table =
+          request.fileTableText === undefined ? undefined : parsedFileTable(request.fileTableText);
         post({
           kind: "meAnalyze",
           id: request.id,
@@ -720,6 +732,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               ? {}
               : { database: MEADatabase.parse(request.databaseText) }),
             ...(dictionaries === undefined ? {} : { huffmanDictionaries: dictionaries }),
+            ...(table === undefined ? {} : { fileTable: table }),
           }),
           problem: undefined,
         });

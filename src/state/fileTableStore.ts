@@ -13,25 +13,42 @@ import { createStore } from "@/state/store";
  * files. At ~5 MB it is the largest of the three, and a dump without such a
  * volume never pays for it.
  *
- * Unlike the other two the parsed table is held here rather than crossed to the
- * worker as text: what reads it is the panel, building rows on this side, and
- * upstream hands the tool a parsed `FileTable` for the same reason.
+ * Unlike the other two, what is held is both halves of the body: the text, which
+ * is what crosses to the worker (the split the table's Integrity flags unlock is
+ * byte work, and the bytes are there), and the parsed table, which is what the
+ * panel reads (upstream hands its tool a parsed `FileTable` for the same
+ * reason). One parse of ~5 MB on this side, one in the worker, and neither
+ * side parses what the other already has.
  */
+
+/** The table as it arrives: the text the worker parses, and the value the panel reads. */
+export interface FileTableBody {
+  readonly text: string;
+  readonly table: FileTable;
+}
 
 export interface FileTableState {
   readonly status: "idle" | "loading" | "ready" | "failed";
-  /** Nothing held reads as `FileTable.empty`, which names nothing and says so. */
-  readonly table: FileTable;
+  /** The body as fetched, or `undefined` before anything arrived. */
+  readonly body: FileTableBody | undefined;
   readonly fetchedAt: number | undefined;
   readonly failure: RemoteFailure | undefined;
 }
 
 export const fileTableStore = createStore<FileTableState>({
   status: "idle",
-  table: FileTable.empty,
+  body: undefined,
   fetchedAt: undefined,
   failure: undefined,
 });
+
+/**
+ * The parsed table, or the empty one — which names nothing and says so. What a
+ * caller reads when it wants names and does not care whether there are any.
+ */
+export function fileTableOf(state: FileTableState): FileTable {
+  return state.body?.table ?? FileTable.empty;
+}
 
 export const FILE_TABLE_DAT_URL =
   "https://raw.githubusercontent.com/platomav/MEAnalyzer/master/FileTable.dat";
@@ -39,7 +56,7 @@ export const FILE_TABLE_DAT_URL =
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource */
 export interface FileTableSource {
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fileTable */
-  load(signal?: AbortSignal): Promise<FileTable>;
+  load(signal?: AbortSignal): Promise<FileTableBody>;
 
   /**
    * Emits when a background check has replaced the table with a newer one, so
@@ -52,7 +69,7 @@ export interface FileTableSource {
    * standing against records that no longer exist, and the same subscription the
    * database has settles it.
    */
-  changes(listener: (table: FileTable) => void): () => void;
+  changes(listener: (body: FileTableBody) => void): () => void;
 
   /**
    * When the table last changed, or `undefined` if nothing has been fetched.
@@ -74,7 +91,7 @@ export interface FileTableSource {
 
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository */
 function liveFileTable(): FileTableSource {
-  const held = new Freshened<FileTable>();
+  const held = new Freshened<FileTableBody>();
   const remote = remoteSource(FILE_TABLE_DAT_URL);
 
   let seeded: Promise<void> | undefined;
@@ -83,7 +100,7 @@ function liveFileTable(): FileTableSource {
       try {
         const stored = await remote.stored();
         if (stored === undefined) return;
-        held.adopt(FileTable.parse(stored.text), stored.validator, {
+        held.adopt({ text: stored.text, table: FileTable.parse(stored.text) }, stored.validator, {
           changedAt: stored.changedAt,
           checkedAt: stored.checkedAt,
         });
@@ -105,7 +122,7 @@ function liveFileTable(): FileTableSource {
           ? { kind: "unchanged" }
           : {
               kind: "fresh",
-              value: FileTable.parse(answer.text),
+              value: { text: answer.text, table: FileTable.parse(answer.text) },
               validator: answer.validator,
             };
       });
@@ -123,9 +140,9 @@ export const liveFileTableSource: FileTableSource = liveFileTable();
 /** A table over text already in hand — what a test installs. */
 export const fixedFileTableSource = (text: string): FileTableSource => {
   const at = Date.now();
-  const table = FileTable.parse(text);
+  const body = { text, table: FileTable.parse(text) };
   return {
-    load: async () => table,
+    load: async () => body,
     changes: () => () => undefined,
     freshness: () => ({ changedAt: at, checkedAt: at }),
     markStale: () => undefined,
@@ -146,11 +163,11 @@ export function loadFileTable(source: FileTableSource = liveFileTableSource): vo
 
   if (!watched.has(source)) {
     watched.add(source);
-    source.changes((table) =>
+    source.changes((body) =>
       fileTableStore.update((current) => ({
         ...current,
         status: "ready",
-        table,
+        body,
         fetchedAt: source.freshness()?.changedAt,
         failure: undefined,
       }))
@@ -171,11 +188,11 @@ export function loadFileTable(source: FileTableSource = liveFileTableSource): vo
   const signal = waiting ? controller?.signal : undefined;
 
   void source.load(signal).then(
-    (table) =>
+    (body) =>
       fileTableStore.update((current) => ({
         ...current,
         status: "ready",
-        table,
+        body,
         fetchedAt: source.freshness()?.changedAt,
         failure: undefined,
       })),

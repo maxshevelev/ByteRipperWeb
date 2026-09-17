@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
-import type { MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type { MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import { analysisWith } from "@/tools/me/meaTesting";
 import { type MEANode, presentMEA } from "@/tools/me/meaTree";
 import { MFSFileNames } from "@/tools/me/mfsFileNames";
@@ -35,11 +35,16 @@ const tableJson = `{
 
 const table = (): FileTable => FileTable.parse(tableJson);
 
-/** An FTBL-mode volume with the files the table can speak about. */
+/**
+ * An FTBL-mode volume with the files the table can speak about. `split` indices
+ * carry an Integrity table the engine took off the end, the way an FTBL volume's
+ * flagged files arrive.
+ */
 function volume(
   platform = 4,
   dictionary = 0x0a,
-  indices: readonly number[] = [6, 7, 63, 99]
+  indices: readonly number[] = [6, 7, 63, 99],
+  split: ReadonlySet<number> = new Set()
 ): MFSVolume {
   return {
     offset: 0x1f_f000,
@@ -58,7 +63,11 @@ function volume(
     usesFTBL: true,
     presentFileCount: indices.length,
     fileBytes: 0x100 * indices.length,
-    files: indices.map((index) => ({ index, size: 0x100 })),
+    files: indices.map((index) =>
+      split.has(index)
+        ? { index, size: 0x100, contentSize: 0x100 - 0x28, integrity: integrityFixture() }
+        : { index, size: 0x100 }
+    ),
     configurations: [],
     homeDirectory: undefined,
     reservedIntegrity: [],
@@ -67,6 +76,20 @@ function volume(
 }
 
 const analysis = (vol: MFSVolume) => analysisWith({ mfsVolume: vol });
+
+/** The tail an FTBL volume's flagged files end with, as the engine reads it. */
+const integrityFixture = (): MFSIntegrityTable => ({
+  size: 0x28,
+  hmacHex: "AABB",
+  flagsRaw: 2,
+  antiReplayProtection: true,
+  encryptionProtection: false,
+  antiReplayIndex: 3,
+  securityVersion: 0,
+  arRandom: 0x99,
+  arCounter: 7,
+  nonceHex: "CCDD",
+});
 
 const field = (label: string, node: MEANode): string | undefined =>
   node.fields.find((one) => one.label === label)?.value;
@@ -189,6 +212,32 @@ describe("MFSFileNames rows", () => {
     const row = branch.children.find((one) => one.title === "File 99");
     expect(row?.subtitle).toBe("0x100 (256 bytes)");
     expect(row === undefined ? undefined : field("Path", row)).toBeUndefined();
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testASplitFileShowsItsContentSizeAndItsTable
+  it("shows a split file's content size and its table", () => {
+    const vol = volume(4, 0x0a, undefined, new Set([63]));
+    const names = MFSFileNames.forVolume(table(), vol);
+    const branch = files(presentMEA(analysis(vol), undefined, names));
+    const row = branch.children.find((one) => one.title === "/home/mca/manuf_ver");
+
+    expect(row === undefined ? undefined : field("Size", row)).toBe("0xD8 (216 bytes)");
+    expect(row === undefined ? undefined : field("Chain Size", row)).toBe("0x100 (256 bytes)");
+    expect(row?.subtitle).toBe("#63 · 0xD8 (216 bytes)");
+    const integrity = row?.children.find((one) => one.title === "Integrity");
+    expect(integrity?.subtitle).toBe("0x28 (40 bytes)");
+    expect(integrity?.fields.length).toBeGreaterThan(0);
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAFileWithNoTableShowsOneSize
+  it("shows one size for a file with no table", () => {
+    const vol = volume();
+    const names = MFSFileNames.forVolume(table(), vol);
+    const branch = files(presentMEA(analysis(vol), undefined, names));
+    const row = branch.children.find((one) => one.title === "/home/mca/manuf_ver");
+    expect(row === undefined ? undefined : field("Size", row)).toBe("0x100 (256 bytes)");
+    expect(row === undefined ? undefined : field("Chain Size", row)).toBeUndefined();
+    expect(row?.children).toEqual([]);
   });
 
   // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheVolumeSaysWhichTableNamedItsFiles

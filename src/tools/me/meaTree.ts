@@ -656,7 +656,12 @@ function mfsVolume(a: FirmwareAnalysis, names: MFSFileNames): Draft | undefined 
  */
 function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
   const record = names.record(file.index);
-  const fields = new Fields().add("Index", file.index).add("Size", sizeText(file.size));
+  const fields = new Fields().add("Index", file.index);
+  // The file's own bytes where the Integrity table has been taken off the end,
+  // which is the size upstream prints — with the whole chain beside it, because
+  // that is what the volume spent on the file.
+  fields.add("Size", sizeText(file.contentSize ?? file.size));
+  if (file.contentSize !== undefined) fields.add("Chain Size", sizeText(file.size));
   if (record !== undefined) {
     fields
       .add("Path", record.path)
@@ -667,11 +672,23 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
       .add("Group ID", hex(record.groupID))
       .add("User ID", hex(record.userID));
   }
+  // The table that came off the end, as its own row under the file: it is a
+  // structure with a dozen fields of its own, and the file's own facts would be
+  // lost among them.
+  const children: Draft[] = [];
+  if (file.integrity !== undefined) {
+    children.push({
+      title: "Integrity",
+      subtitle: sizeText(file.integrity.size),
+      fields: valueFields(file.integrity),
+    });
+  }
   return {
     title: record?.path ?? `File ${file.index}`,
     subtitle: mfsFileSubtitle(file, record !== undefined),
     // A present file's position is the FAT chain walk, which is not exposed.
     fields: fields.rows,
+    children,
     isEmptySection: file.size === 0,
   };
 }
@@ -684,7 +701,8 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
  * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.mfsFileSubtitle
  */
 function mfsFileSubtitle(file: MFSFile, named: boolean): string {
-  return named ? `#${file.index} · ${sizeText(file.size)}` : sizeText(file.size);
+  const size = sizeText(file.contentSize ?? file.size);
+  return named ? `#${file.index} · ${size}` : size;
 }
 
 function homeRow(record: MFSHomeRecord): Draft {

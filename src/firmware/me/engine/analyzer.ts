@@ -1,6 +1,7 @@
 import { crc32 } from "@/firmware/me/crypto/checksum";
 import { hex, sha256, sha384 } from "@/firmware/me/crypto/digest";
 import { validateSignature } from "@/firmware/me/crypto/rsa";
+import type { FileTable } from "@/firmware/me/data/fileTable";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
   decompressHuffman,
@@ -26,6 +27,7 @@ import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelectio
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
 import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 import {
+  ftblFileIntegrity,
   homeDirectory,
   type MFSVolumeInfo,
   mfsState,
@@ -125,14 +127,74 @@ export function analyzeMeRegion(options: {
    * are skipped rather than failed — see `huffmanDictionariesWanted`.
    */
   readonly huffmanDictionaries?: HuffmanDictionaries;
+  /**
+   * `FileTable.dat`, for the two readings that wait on it: which of an FTBL
+   * volume's files end with an `MFS_Integrity_Table`, and which of an EFS
+   * volume's carry one. Absent, both splits are skipped rather than failed —
+   * see `fileTableWanted` — because a missing database is not a finding about
+   * the firmware, and a file that was not split keeps its whole chain as its
+   * size, which is what the flash says.
+   */
+  readonly fileTable?: FileTable;
 }): FirmwareAnalysis {
   return analyze(
     options.bytes,
     options.baseOffset ?? 0,
     options.database ?? MEADatabase.empty,
     options.huffmanDictionaries,
+    options.fileTable,
     true
   );
+}
+
+/**
+ * An FTBL-mode volume's files, split from the `MFS_Integrity_Table` they end
+ * with — the one decode that waits for a database.
+ *
+ * **Which** of them end with one is not in the bytes: upstream reads the flag
+ * out of `FTBL` before it splits a file (`mfs_home13_anl`), and an FTBL volume
+ * has no home directory to carry the bit instead. So the flags are looked up,
+ * the split is byte work, and what lands in the model is the tail's own numbers
+ * plus the content length without it.
+ *
+ * Best-effort in every direction: no table — offline, rate-limited, a volume the
+ * table does not describe — leaves every `contentSize` undefined and `size` the
+ * whole chain, which is what the flash says. No Issue is raised, because a
+ * missing database is not a finding about the firmware.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer
+ */
+function ftblFiles(
+  volume: MFSVolume,
+  info: MFSVolumeInfo,
+  table: FileTable | undefined,
+  identity: { readonly variant: string; readonly major: number; readonly minor: number }
+): MFSVolume {
+  if (table === undefined || table.isEmpty || info.files.length === 0) return volume;
+  const resolution = table.resolve(info.ftblPlatform, info.ftblDictionary);
+  const protectedIndices = new Set<number>();
+  for (const file of info.files) {
+    const record = table.recordForFileIndex(file.index, resolution.platform, resolution.dictionary);
+    if (record?.integrity === true) protectedIndices.add(file.index);
+  }
+  const splits = ftblFileIntegrity({
+    files: info.files,
+    protectedIndices,
+    variant: identity.variant,
+    major: identity.major,
+    minor: identity.minor,
+    platform: info.ftblPlatform,
+  });
+  const byIndex = new Map(splits.map((one) => [one.fileIndex, one]));
+  return {
+    ...volume,
+    files: volume.files.map((file) => {
+      const split = byIndex.get(file.index);
+      return split === undefined
+        ? file
+        : { ...file, contentSize: split.contentSize, integrity: split.integrity };
+    }),
+  };
 }
 
 /**
@@ -145,6 +207,7 @@ function analyze(
   baseOffset: number,
   database: MEADatabase,
   dictionaries: HuffmanDictionaries | undefined,
+  fileTable: FileTable | undefined,
   findsIndependentFirmware: boolean
 ): FirmwareAnalysis {
   const issues: Issue[] = [];
@@ -654,6 +717,9 @@ function analyze(
   // not start at 0; the tables on any legacy volume.
   const mfsInfo = fileSystems.mfsInfo;
   let mfsVolume = fileSystems.mfsVolume;
+  if (mfsVolume !== undefined && mfsInfo !== undefined && mfsVolume.usesFTBL) {
+    mfsVolume = ftblFiles(mfsVolume, mfsInfo, fileTable, identity);
+  }
   if (mfsVolume !== undefined && mfsInfo !== undefined && !mfsVolume.usesFTBL) {
     const { variant, major, minor } = identity;
     if (!vfsStartsAtZero(variant, major, minor)) {
@@ -714,6 +780,7 @@ function analyze(
         baseOffset + slot.start,
         database,
         dictionaries,
+        fileTable,
         false
       );
       if (one.manifest === undefined) continue;
