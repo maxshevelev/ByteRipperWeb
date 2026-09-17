@@ -110,19 +110,37 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
         </>
       );
 
-    // `checkmark.seal.fill`: a rosette with a tick on it.
+    // `checkmark.seal.fill`: the seal, with a tick cut out of it.
+    //
+    // The outline is SF Symbols' own, measured rather than drawn by eye: the
+    // symbol was rendered by AppKit at 900 points, its silhouette walked along
+    // 1440 rays from the centre, and that walk folded onto one eighth and
+    // averaged. The folding is what makes it a seal — the eight lobes are one
+    // measured lobe repeated, where twenty hand-written vertices could only
+    // lean.
+    //
+    // Measured, it is a wave and not a scallop: the radius falls from 7 to 5.81
+    // and back as a cosine of eight times the angle, with no corner anywhere on
+    // the outline. Sixteen cubics — one shape and its mirror, eight times over —
+    // follow it to within 0.7% of the radius, which is four hundredths of a
+    // pixel at the 13 the panels draw it at. Arcs meeting in points, which is
+    // what stood here, read as a flower and a little square.
+    //
+    // The tick is the hole SF Symbols leaves, measured from the same render: its
+    // box spans 0.29 to 0.70 of the seal's width, and the stroke below is what
+    // those numbers come to — 0.97 wide, round caps, round join.
     case "newest":
       return (
         <>
           <path
             fill="currentColor"
-            d="M8 1 9.6 2.2l2 .1.6 1.9 1.7 1.1-.7 1.9.7 1.9-1.7 1.1-.6 1.9-2 .1L8 15l-1.6-1.2-2-.1-.6-1.9L2.1 10.7l.7-1.9-.7-1.9 1.7-1.1.6-1.9 2-.1z"
+            d="M15 8C15 6.9 13.66 6.47 13.38 5.77C13.09 5.08 13.73 3.83 12.95 3.05C12.17 2.27 10.92 2.91 10.23 2.62C9.53 2.34 9.1 1 8 1C6.9 1 6.47 2.34 5.77 2.62C5.08 2.91 3.83 2.27 3.05 3.05C2.27 3.83 2.91 5.08 2.62 5.77C2.34 6.47 1 6.9 1 8C1 9.1 2.34 9.53 2.62 10.23C2.91 10.92 2.27 12.17 3.05 12.95C3.83 13.73 5.08 13.09 5.77 13.38C6.47 13.66 6.9 15 8 15C9.1 15 9.53 13.66 10.23 13.38C10.92 13.09 12.17 13.73 12.95 12.95C13.73 12.17 13.09 10.92 13.38 10.23C13.66 9.53 15 9.1 15 8z"
           />
           <path
-            d="M5.5 8.1 7.2 9.9l3.4-3.8"
+            d="M5.55 8.35 7.28 10.5l3.06-4.73"
             fill="none"
             style={KNOCKOUT_STROKE}
-            strokeWidth="1.7"
+            strokeWidth="0.97"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
