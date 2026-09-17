@@ -3,6 +3,7 @@ import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
 import { downloadBlob } from "@/platform/files/download";
+import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import {
   analyzePaneMe,
   checksumPaneMe,
@@ -39,6 +40,7 @@ import {
   presentMEA,
 } from "@/tools/me/meaTree";
 import { MEA_TREE_MARKS } from "@/tools/me/meaTreeMarks";
+import { fileTableWanted, MFSFileNames } from "@/tools/me/mfsFileNames";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
@@ -174,6 +176,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const firmware = useStore(firmwareStore).panes[pane];
   const database = useStore(meDatabaseStore);
   const huffman = useStore(huffmanDictionaryStore);
+  const fileTable = useStore(fileTableStore);
   const park = restoredParked(context.restored);
   const [tab, setTab] = useState<Tab>(park?.tab ?? "summary");
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
@@ -276,9 +279,29 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     // makes a dictionary that has since changed arrive without a reload.
     if (wantsDictionaries) loadHuffmanDictionaries();
   }, [wantsDictionaries]);
+
+  // FileTable.dat only for a volume that cannot name its own files, and asked
+  // for *after* the analysis, which is what says so — most dumps never need it,
+  // and it is the largest of the three databases. Asked once per analysis: what
+  // is held answers at once with the day's check behind it.
+  const wantsNames = analysis !== undefined && fileTableWanted(analysis);
+  useEffect(() => {
+    if (wantsNames) loadFileTable();
+  }, [wantsNames]);
+
+  // The names belong to the volume they were looked up for; `MFSFileNames.none`
+  // is a volume the table does not describe, and every legacy volume, whose
+  // rows keep the numbers their own bytes carry.
+  const names = useMemo(
+    () =>
+      analysis?.mfsVolume === undefined
+        ? MFSFileNames.none
+        : MFSFileNames.forVolume(fileTable.table, analysis.mfsVolume),
+    [analysis, fileTable.table]
+  );
   const tree = useMemo(
-    () => (analysis === undefined ? [] : presentMEA(analysis, checksums)),
-    [analysis, checksums]
+    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, names)),
+    [analysis, checksums, names]
   );
   const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);

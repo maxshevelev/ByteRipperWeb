@@ -1,4 +1,4 @@
-import type { MFSHomeRecord } from "@/firmware/me/models/fileSystemFacts";
+import type { MFSFile, MFSHomeRecord } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
@@ -28,6 +28,7 @@ import {
   moduleMarks,
   tableMarks,
 } from "@/tools/me/meaTreeMarks";
+import { MFSFileNames } from "@/tools/me/mfsFileNames";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import type { ZoneMap } from "@/tools/zone";
 
@@ -153,12 +154,19 @@ class Fields {
 /**
  * The tree's roots, in reading order.
  *
+ * `names` is the one thing here that does not come out of the analysis: an
+ * FTBL-mode MFS volume's low-level files have no name in their bytes, so the
+ * panel looks theirs up in `FileTable.dat` and hands the answer in
+ * (`MFSFileNames`). `.none` — the default — is the tree as it reads before the
+ * table arrives, and on every volume that names its own files.
+ *
  * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator
  * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.present
  */
 export function presentMEA(
   analysis: FirmwareAnalysis,
-  checksums: MEAChecksums | undefined
+  checksums: MEAChecksums | undefined,
+  names: MFSFileNames = MFSFileNames.none
 ): MEANode[] {
   const drafts = [
     firmware(analysis),
@@ -167,7 +175,7 @@ export function presentMEA(
     bootPartitions(analysis),
     codePartition(analysis),
     manifest(analysis),
-    mfsVolume(analysis),
+    mfsVolume(analysis, names),
     // The fact groups — everything else a dump carried, each only when present.
     backupGroup(analysis),
     efsGroup(analysis),
@@ -553,7 +561,7 @@ function manifest(a: FirmwareAnalysis): Draft | undefined {
 
 // MARK: - File System (MFS)
 
-function mfsVolume(a: FirmwareAnalysis): Draft | undefined {
+function mfsVolume(a: FirmwareAnalysis, names: MFSFileNames): Draft | undefined {
   const vol = a.mfsVolume;
   if (vol === undefined) return undefined;
   const header = new Fields()
@@ -570,19 +578,15 @@ function mfsVolume(a: FirmwareAnalysis): Draft | undefined {
     .add("File Bytes", sizeText(vol.fileBytes))
     .add("FTBL Dictionary", hex(vol.ftblDictionary))
     .add("FTBL Platform", hex(vol.ftblPlatform))
-    .add("Uses FileTable.dat", yesNo(vol.usesFTBL));
+    .add("Uses FileTable.dat", yesNo(vol.usesFTBL))
+    // Where the names on the file rows came from — and whether either half of
+    // the table was assumed rather than named by the volume. Only when a lookup
+    // was actually made: a legacy volume names its own files.
+    .add("File Table", names.tableLabel);
 
   const children: Draft[] = [];
   if (vol.files.length > 0) {
-    const rows = vol.files.map(
-      (f): Draft => ({
-        title: `File ${f.index}`,
-        subtitle: sizeText(f.size),
-        // A present file's position is the FAT chain walk, which is not exposed.
-        fields: new Fields().add("Index", f.index).add("Size", sizeText(f.size)).rows,
-        isEmptySection: f.size === 0,
-      })
-    );
+    const rows = vol.files.map((f): Draft => mfsFileRow(f, names));
     children.push({ title: "Files", subtitle: countText(rows.length, "file"), children: rows });
   }
   if (vol.configurations.length > 0) {
@@ -637,6 +641,50 @@ function mfsVolume(a: FirmwareAnalysis): Draft | undefined {
     fields: header.rows,
     children,
   };
+}
+
+/**
+ * One present low-level file. Numbered where nothing names it — which is every
+ * legacy volume's rows, and an FTBL volume's before its table arrives — and
+ * named where `FileTable.dat` does.
+ *
+ * The fields describe the record the title came from, which is why the File ID
+ * is among them: a reader checking the panel against upstream's console is
+ * looking at that number.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.mfsFileRow
+ */
+function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
+  const record = names.record(file.index);
+  const fields = new Fields().add("Index", file.index).add("Size", sizeText(file.size));
+  if (record !== undefined) {
+    fields
+      .add("Path", record.path)
+      .add("File ID", `0x${record.fileID}`)
+      .add("Integrity", yesNo(record.integrity))
+      .add("Encryption", yesNo(record.encryption))
+      .add("Anti-Replay", yesNo(record.antiReplay))
+      .add("Group ID", hex(record.groupID))
+      .add("User ID", hex(record.userID));
+  }
+  return {
+    title: record?.path ?? `File ${file.index}`,
+    subtitle: mfsFileSubtitle(file, record !== undefined),
+    // A present file's position is the FAT chain walk, which is not exposed.
+    fields: fields.rows,
+    isEmptySection: file.size === 0,
+  };
+}
+
+/**
+ * A named row's subtitle keeps the number the flash actually carries: the index
+ * is what the volume says about the file, and a reader comparing the panel with
+ * a dump — or with upstream's own `path (0063)` — needs it.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.mfsFileSubtitle
+ */
+function mfsFileSubtitle(file: MFSFile, named: boolean): string {
+  return named ? `#${file.index} · ${sizeText(file.size)}` : sizeText(file.size);
 }
 
 function homeRow(record: MFSHomeRecord): Draft {

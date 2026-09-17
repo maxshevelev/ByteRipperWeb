@@ -386,7 +386,8 @@
       "web": [
         "src/firmware/me",
         "src/state/meDatabaseStore.ts",
-        "src/state/huffmanDictionaryStore.ts"
+        "src/state/huffmanDictionaryStore.ts",
+        "src/state/fileTableStore.ts"
       ],
       "status": "in-progress",
       "note": "The compute-bound half, the layout spine, the CSE extension chain and an analysis end to end, now with upstream's whole model bar the LZMA module check: the SKU (SKU.swift, pre-CSE $SKU), IUP descriptor facts and platform names, firmware end (FirmwareEnd.swift), FWUpdate support, OEM configuration, the pre-CSE $MME directory, production-ready bit and ME 7 blacklist, the independent firmware analysed in its own right, the MFS volume with its legacy configuration, home tree, reserved integrity tables and PCH-init tables, the MFS backup, EFS and FITC, the File System State, GSC INFO, OROM images, the pm/rbe metadata table, .met module chains, and the Huffman module check. Huffman.dat is fetched (D10, like MEA.dat) only for an analysis that says it wants it — the web's form of upstream fetching it mid-analysis. Both are held in a `Freshened` value and re-checked once a day: the check is the browser revalidating the copy it holds with the validator it stored, because this host lets no script read the `ETag` (`cache: \"no-cache\"`, and `cachedSource.ts` carries the measurement). A copy a day old answers at once with the check running behind it, a database that has changed is announced so the panel identifies again, and a check that could not be made keeps what is held (G16). Module offsets in CodePartition are absolute, where upstream's count from the $CPD. The LZMA module check (LZMAModule.swift) runs over the shared LZMA decoder in src/firmware/compression. Not yet: FileTable.dat naming, which upstream has not ported either.",
@@ -407,7 +408,8 @@
         "Partition/RBEPM.swift": "src/firmware/me/partition/rbePm.ts",
         "Data/MEAGitHubDataRepository.swift": [
           "src/state/meDatabaseStore.ts",
-          "src/state/huffmanDictionaryStore.ts"
+          "src/state/huffmanDictionaryStore.ts",
+          "src/state/fileTableStore.ts"
         ],
         "Decompress/LZMAModule.swift": "src/firmware/me/decompress/lzmaModule.ts",
         "Crypto/Checksum.swift": "src/firmware/me/crypto/checksum.ts",
@@ -416,7 +418,8 @@
         "Data/MEADatabase.swift": "src/firmware/me/data/meaDatabase.ts",
         "Data/MEADataSource.swift": [
           "src/state/meDatabaseStore.ts",
-          "src/state/huffmanDictionaryStore.ts"
+          "src/state/huffmanDictionaryStore.ts",
+          "src/state/fileTableStore.ts"
         ],
         "Decompress/Huffman.swift": "src/firmware/me/decompress/huffman.ts",
         "Engine/FirmwareTypeClassifier.swift": "src/firmware/me/engine/firmwareTypeClassifier.ts",
@@ -489,7 +492,9 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/RealManifests.swift": "src/firmware/me/testing/realManifests.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift": "src/firmware/me/fileSystem/mfs.test.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift": "src/firmware/me/engine/moduleIssue.test.ts",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/IndependentCopiesTests.swift": "src/firmware/me/engine/independentCopies.test.ts"
+        "Packages/MEFirmware/Tests/MEFirmwareTests/IndependentCopiesTests.swift": "src/firmware/me/engine/independentCopies.test.ts",
+        "Data/FileTable.swift": "src/firmware/me/data/fileTable.ts",
+        "Tests/MEFirmwareTests/FileTableTests.swift": "src/firmware/me/data/fileTable.test.ts"
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
@@ -505,8 +510,6 @@
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.pad": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.montgomeryProduct": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.raw": "n/a — callers pick SHA-256 or SHA-384 by the stored hash's length themselves",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fileTable": "later — FileTable.dat naming, which upstream has not ported either",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#FileTable*": "later — FileTable.dat naming, which upstream has not ported either",
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.init": "n/a — the sources are module constants; there is nothing to construct",
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.settle": "n/a — a test seam for the actor's background refresh",
         "Packages/MEFirmware/Sources/MEFirmware/MEAAnalysisProviding.swift#*": "n/a — the analysis is kept on the pane's firmware state in src/state/firmwareStore.ts, not behind a protocol",
@@ -778,7 +781,9 @@
         "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift": [
           "src/tools/me/meaTree.test.ts",
           "src/tools/me/meaTreeMarks.test.ts"
-        ]
+        ],
+        "MFSFileNames.swift": "src/tools/me/mfsFileNames.ts",
+        "Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts"
       },
       "unported": {
         "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
@@ -848,7 +853,7 @@
         "ByteRipperApp/Hex/HexView.swift#HexView.viewDidMoveToSuperview": "n/a — AppKit view plumbing",
         "ByteRipperApp/Hex/HexView.swift#HexView.viewDidMoveToWindow": "n/a — AppKit view plumbing",
         "ByteRipperApp/Hex/HexView.swift#HexView.outsetContour": "n/a — the plate it pushes outward is the hopping one, and this edition's find indicator does not hop: no lift, bounce or shadow (GAPS.md G9)",
-      "ByteRipperApp/Hex/HexView.swift#HexView.indicator*": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
+        "ByteRipperApp/Hex/HexView.swift#HexView.indicator*": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.IndicatorShadow*": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.bounceFindIndicator": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.isBouncingFindIndicatorForTests": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
