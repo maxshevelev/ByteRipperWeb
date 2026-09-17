@@ -296,12 +296,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     [analysis]
   );
 
-  // FileTable.dat only for a volume that cannot name its own files, or for
-  // ID-keyed Configuration records that need the same table to be named from,
-  // and asked for *after* the analysis, which is what says so — most dumps never
-  // need it, and it is the largest of the three databases. Asked once per
-  // analysis: what is held answers at once with the day's check behind it.
-  const wantsNames = analysis !== undefined && (fileTableWanted(analysis) || configIDs.length > 0);
+  // FileTable.dat only for an analysis that needs it — a volume that cannot
+  // name its own files, an EFS volume (which lists nothing without it), or
+  // ID-keyed Configuration records that need it for a path — and asked for
+  // *after* the analysis, which is what says so. Most dumps never need it, and
+  // it is the largest of the three databases. Asked once per analysis: what is
+  // held answers at once with the day's check behind it.
+  const wantsNames = analysis !== undefined && fileTableWanted(analysis, configIDs);
   useEffect(() => {
     if (wantsNames) loadFileTable();
   }, [wantsNames]);

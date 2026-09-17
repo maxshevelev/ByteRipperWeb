@@ -125,20 +125,30 @@ export class MFSFileNames {
 }
 
 /**
- * Whether this analysis has a volume that cannot name its own files — the one
- * reading that makes the panel ask for `FileTable.dat` at all.
+ * Whether this analysis has anything that needs `FileTable.dat` — the one
+ * reading that makes the panel ask for it at all.
  *
- * A legacy volume names its files through the home directory, and an empty file
- * list has nothing to put a name on; neither is worth 5 MB. Asked after the
- * analysis rather than with it, and only once per analysis, because the answer
- * is what the analysis itself carries.
+ * Three things do, and they are the three the table exists for. An FTBL-mode
+ * MFS volume cannot name its own files. An **EFS** volume is the sharper case:
+ * its pages carry no directory, so without the table it lists nothing at all —
+ * the fetch is not about a name there but about the file list existing. And an
+ * ID-keyed Configuration record has no path without it. A legacy MFS volume
+ * names its files through the home directory, and an empty file list has
+ * nothing to put a name on; neither is worth 5 MB.
+ *
+ * Asked after the analysis rather than with it, and only once per analysis,
+ * because the answer is what the analysis itself carries.
  *
  * Upstream asks the same question in `MEAParkedState.loadFileNames` — a private
  * function, so no anchor names it, and the guard is spelled out here as
- * `huffmanDictionariesWanted` spells out its own.
+ * `huffmanDictionariesWanted` spells out its own. The Configuration half is not
+ * in that function's own guard: there the file IDs come from the analysis the
+ * caller has already gathered, and here they are passed in for the same reason.
  */
-export function fileTableWanted(analysis: FirmwareAnalysis): boolean {
-  return analysis.mfsVolume?.usesFTBL === true && analysis.mfsVolume.files.length > 0;
+export function fileTableWanted(analysis: FirmwareAnalysis, configIDs: readonly number[]): boolean {
+  const mfs = analysis.mfsVolume;
+  const wantsMFS = mfs?.usesFTBL === true && mfs.files.length > 0;
+  return wantsMFS || analysis.efsVolume !== undefined || configIDs.length > 0;
 }
 
 /** Two upper-case hex digits — the form the file keys platform and dictionary by. */

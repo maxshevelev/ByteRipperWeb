@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
-import type { MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type { EFSVolume, MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import { analysisWith } from "@/tools/me/meaTesting";
 import { type MEANode, presentMEA } from "@/tools/me/meaTree";
-import { MFSFileNames } from "@/tools/me/mfsFileNames";
+import { fileTableWanted, MFSFileNames } from "@/tools/me/mfsFileNames";
 
 /**
  * `MFSFileNames` + the file rows it names — the panel's half of upstream's
@@ -76,6 +76,31 @@ function volume(
 }
 
 const analysis = (vol: MFSVolume) => analysisWith({ mfsVolume: vol });
+
+/** The least an EFS volume can be and still be one — only its presence matters here. */
+const efsVolumeFixture = (): EFSVolume => ({
+  offset: 0x46_3000,
+  pageSize: 0x1000,
+  systemPageCount: 1,
+  dataPageCount: 14,
+  scratchPageCount: 1,
+  scratchPagesEmpty: true,
+  dataPageCountMatchesSystem: true,
+  dictionary: 0x0b,
+  revision: 1,
+  unknown1: 2,
+  dictionaryRevision: 1,
+  dataPagesCommitted: 10,
+  dataPagesReserved: 4,
+  systemHeaderCRCValid: true,
+  indexesCRCValid: true,
+  firstIndexPaddingEmpty: true,
+  dataPageOrder: [],
+  dataPageHeaderCRCsValid: true,
+  dataPageFooterCRCsValid: true,
+  matchesMFSDictionary: undefined,
+  files: [],
+});
 
 /** The tail an FTBL volume's flagged files end with, as the engine reads it. */
 const integrityFixture = (): MFSIntegrityTable => ({
@@ -238,6 +263,25 @@ describe("MFSFileNames rows", () => {
     expect(row === undefined ? undefined : field("Size", row)).toBe("0x100 (256 bytes)");
     expect(row === undefined ? undefined : field("Chain Size", row)).toBeUndefined();
     expect(row?.children).toEqual([]);
+  });
+
+  // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.loadFileNames
+  it("is asked for exactly the analyses that need it", () => {
+    // An FTBL volume with files cannot name them.
+    expect(fileTableWanted(analysis(volume()), [])).toBe(true);
+    // A legacy volume names its own through the home directory.
+    const legacy = analysisWith({ mfsVolume: { ...volume(), usesFTBL: false } });
+    expect(fileTableWanted(legacy, [])).toBe(false);
+    // An FTBL volume with no present files has nothing to name.
+    expect(fileTableWanted(analysis(volume(4, 0x0a, [])), [])).toBe(false);
+    // An EFS volume is the sharper case: without the table it lists nothing at
+    // all, so this is not about a name.
+    const withEfs = analysisWith({ efsVolume: efsVolumeFixture() });
+    expect(fileTableWanted(withEfs, [])).toBe(true);
+    // And an ID-keyed Configuration record needs it for a path.
+    expect(fileTableWanted(analysisWith(), [0x1008_0a00])).toBe(true);
+    // Nothing at all in the image: no reason to spend 5 MB.
+    expect(fileTableWanted(analysisWith(), [])).toBe(false);
   });
 
   // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheVolumeSaysWhichTableNamedItsFiles
