@@ -245,6 +245,11 @@ def swift_symbols(text: str) -> list[Symbol]:
 
 
 C_FUNCTION = re.compile(r"^[A-Za-z_][\w\s\*]*?\b(?P<name>[A-Za-z_]\w*)\s*\([^;]*$")
+# EDK2 writes a definition down the page — `STATIC`, `VOID`, then the name on a
+# line of its own — so the name is the whole of its line and the pattern above,
+# which wants a return type in front of it, cannot see it. Every function of the
+# Tiano decompressor is written that way.
+C_FUNCTION_ALONE = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*\([^;]*$")
 C_NOT_NAMES = {"if", "for", "while", "switch", "return", "sizeof"}
 
 
@@ -261,6 +266,14 @@ def c_symbols(text: str) -> list[Symbol]:
     for number, line in enumerate(code, 1):
         if depth == 0 and not line.startswith(("#", " ", "\t")):
             match = C_FUNCTION.match(line)
+            if match is None:
+                alone = C_FUNCTION_ALONE.match(line)
+                # A name in capitals alone on a line is a macro being invoked,
+                # not a function being defined — the SDK's
+                # Z7_BRANCH_CONV_ST_FUNC_IMP and its kind. EDK2's own names are
+                # CamelCase, so the case tells the two apart.
+                if alone is not None and not alone["name"].isupper():
+                    match = alone
             if match is not None and match["name"] not in C_NOT_NAMES:
                 if symbols and symbols[-1].end == symbols[-1].decl:
                     symbols[-1].end = max(symbols[-1].decl, number - 1)
