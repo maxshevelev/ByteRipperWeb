@@ -110,6 +110,10 @@ import {
   extensionFamily,
 } from "@/firmware/me/partition/extensions";
 import { decodeRbePmMetadata } from "@/firmware/me/partition/rbePm";
+import {
+  UNLOCK_TOKEN_PARTITION_NAMES,
+  unlockTokenFlags,
+} from "@/firmware/me/partition/unlockToken";
 
 /**
  * Analyses one engine region.
@@ -611,6 +615,8 @@ function analyze(
       mfsBackup: fileSystems.mfsBackup,
       efsVolume: fileSystems.efsVolume,
       oemConfiguration: fileSystems.oemConfiguration,
+      // Read in phase 9, which this path — no manifest — never reaches.
+      unlockTokenFlags: undefined,
       mfsState: undefined,
       gscInfo,
       oromImages: undefined,
@@ -945,6 +951,24 @@ function analyze(
     };
   }
 
+  // The Unlock Token Flags. An image may carry a debug unlock token as an FPT
+  // partition named "UTOK" or "STKN", and such a partition may *end* with a
+  // 0x20-byte `UTFL` structure (upstream reads it at the partition's tail,
+  // MEA.py 6637/6650). It is optional there and optional here: a token without
+  // the tag is not a finding, and the list simply has no row for it.
+  const unlockTokenFlagRows = regions
+    .filter((one) => UNLOCK_TOKEN_PARTITION_NAMES.includes(one.name))
+    .flatMap((one) => {
+      const flags = unlockTokenFlags({
+        region: bytes,
+        offset: one.offset - baseOffset,
+        size: one.size,
+        absoluteOffset: one.offset,
+        partition: one.name,
+      });
+      return flags === undefined ? [] : [flags];
+    });
+
   // The four things that raise the File System State to Configured: the Flash
   // Image Tool's own configuration module, and the three configuration
   // partitions.
@@ -1054,6 +1078,7 @@ function analyze(
     mfsBackup: fileSystems.mfsBackup,
     efsVolume: efsVolumeForWalk,
     oemConfiguration: oemConfiguration,
+    unlockTokenFlags: unlockTokenFlagRows.length === 0 ? undefined : unlockTokenFlagRows,
     mfsState: fileSystemState,
     gscInfo,
     oromImages,

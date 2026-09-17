@@ -17,6 +17,7 @@ import type {
 } from "@/firmware/me/models/firmwareFacts";
 import type { GSCInfo, GSCOROMImage, RBEPMMetadata } from "@/firmware/me/models/independentFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
+import type { UnlockTokenFlags } from "@/firmware/me/partition/unlockToken";
 
 /**
  * What an ME analysis reports.
@@ -509,6 +510,14 @@ export interface FirmwareAnalysis {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.oemConfiguration
    */
   readonly oemConfiguration: OEMConfiguration | undefined;
+  /**
+   * The `UTFL` flags a `UTOK`/`STKN` partition ends with — undefined where no
+   * such partition carries them, which is the format's own optional case and
+   * not a row saying so.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.unlockTokenFlags
+   */
+  readonly unlockTokenFlags: readonly UnlockTokenFlags[] | undefined;
   /**
    * File System State: what the file system says about itself, raised by any
    * configuration partition. Answered for every identified image; which families

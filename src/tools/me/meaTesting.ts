@@ -34,6 +34,7 @@ export function analysisWith(overrides: Partial<FirmwareAnalysis> = {}): Firmwar
     databaseName: undefined,
     rsaSignatureValid: undefined,
     regions: [],
+    unlockTokenFlags: undefined,
     manifest: undefined,
     codePartition: undefined,
     cseLayoutTable: undefined,

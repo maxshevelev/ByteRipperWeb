@@ -414,3 +414,68 @@ describe("the RBE/PM metadata table", () => {
     expect(find("Unmatched Hashes", accounted?.children)).toBeUndefined();
   });
 });
+
+describe("the unlock token", () => {
+  const RESERVED_FF = "FF".repeat(0x1b);
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTheUnlockTokenNodeCarriesItsFactsAndItsBytes
+  it("carries its facts and its bytes on one node", () => {
+    const roots = presentMEA(
+      analysisWith({
+        unlockTokenFlags: [
+          { partition: "UTOK", offset: 0x461_fe0, delayedAuthMode: 0, reservedHex: RESERVED_FF },
+        ],
+      }),
+      undefined
+    );
+    const node = find("Unlock Token", roots);
+    expect(node?.subtitle).toBe("0x461FE0");
+    expect(node?.range).toEqual({ start: 0x461_fe0, end: 0x462_000 });
+    expect(node === undefined ? undefined : field("Partition", node)).toBe("UTOK");
+    expect(node === undefined ? undefined : field("Offset", node)).toBe("0x461FE0");
+    expect(node === undefined ? undefined : field("Delayed Authentication Mode", node)).toBe("No");
+    expect(node === undefined ? undefined : field("Reserved", node)).toBe(`0x${RESERVED_FF}`);
+    expect(node?.children).toEqual([]);
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTheDelayedAuthenticationModeIsWordedNotRounded
+  it("words the delayed authentication mode rather than rounding it", () => {
+    const mode = (raw: number) => {
+      const roots = presentMEA(
+        analysisWith({
+          unlockTokenFlags: [
+            { partition: "UTOK", offset: 0x1000, delayedAuthMode: raw, reservedHex: "00" },
+          ],
+        }),
+        undefined
+      );
+      const node = find("Unlock Token", roots);
+      return node === undefined ? undefined : field("Delayed Authentication Mode", node);
+    };
+    expect(mode(0)).toBe("No");
+    expect(mode(1)).toBe("Yes");
+    expect(mode(3)).toBe("Unknown (3)");
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTwoTokensAreNamedByTheirPartitions
+  it("names two tokens by their partitions", () => {
+    const roots = presentMEA(
+      analysisWith({
+        unlockTokenFlags: [
+          { partition: "UTOK", offset: 0x1000, delayedAuthMode: 0, reservedHex: "00" },
+          { partition: "STKN", offset: 0x9000, delayedAuthMode: 1, reservedHex: "00" },
+        ],
+      }),
+      undefined
+    );
+    expect(find("Unlock Token", roots)).toBeUndefined();
+    expect(find("Unlock Token (UTOK)", roots)).toBeDefined();
+    const stkn = find("Unlock Token (STKN)", roots);
+    expect(stkn === undefined ? undefined : field("Delayed Authentication Mode", stkn)).toBe("Yes");
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testAnImageWithoutTheFlagsHasNoNode
+  it("has no node for an image without the flags", () => {
+    expect(find("Unlock Token", presentMEA(analysisWith(), undefined))).toBeUndefined();
+  });
+});

@@ -7,6 +7,7 @@ import type {
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
+import { UNLOCK_TOKEN_FLAGS_SIZE } from "@/firmware/me/partition/unlockToken";
 import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
 import { EFSFileNames } from "@/tools/me/efsFileNames";
 import type { MEASummaryTone } from "@/tools/me/meaSummary";
@@ -191,6 +192,7 @@ export function presentMEA(
     backupGroup(analysis),
     efsGroup(analysis, efsNames),
     oemGroup(analysis, configPaths),
+    ...unlockTokenGroups(analysis),
     mmeGroup(analysis),
     gscGroup(analysis),
     oromGroup(analysis),
@@ -925,6 +927,51 @@ function oemGroup(
     fields,
     children,
   };
+}
+
+/**
+ * The Unlock Token Flags an unlock-token partition ends with, one node per
+ * partition that has them (`UTOK`, `STKN`). Nothing at all when no such
+ * partition carries the structure — it is optional in the format, so its
+ * absence is not a row saying so.
+ *
+ * A flat node rather than a group with one child: it is four facts, and a reader
+ * should not have to open a folder to see three of them.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.unlockTokenGroups
+ */
+function unlockTokenGroups(a: FirmwareAnalysis): Draft[] {
+  const tokens = a.unlockTokenFlags ?? [];
+  return tokens.map(
+    (token): Draft => ({
+      title: tokens.length === 1 ? "Unlock Token" : `Unlock Token (${token.partition})`,
+      subtitle: offsetText(token.offset),
+      range: rangeValue(token.offset, UNLOCK_TOKEN_FLAGS_SIZE),
+      fields: new Fields()
+        .add("Partition", token.partition)
+        .add("Offset", offsetText(token.offset))
+        .add("Delayed Authentication Mode", delayedAuthenticationMode(token.delayedAuthMode))
+        .add("Reserved", `0x${token.reservedHex}`).rows,
+    })
+  );
+}
+
+/**
+ * Upstream's own wording for the one byte that means something: 0 and 1 are No
+ * and Yes, and anything else is a value nobody has seen — said as such rather
+ * than rounded to Yes.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.delayedAuthenticationMode
+ */
+function delayedAuthenticationMode(raw: number): string {
+  switch (raw) {
+    case 0:
+      return "No";
+    case 1:
+      return "Yes";
+    default:
+      return `Unknown (${raw})`;
+  }
 }
 
 /**
