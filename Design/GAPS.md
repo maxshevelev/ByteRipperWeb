@@ -57,7 +57,6 @@ Columns:
 | ID | Gap | Upstream | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|---|
 | G4 | **A decompressed or copied part opened as its own document, and Update in Parent.** | `DocumentOrigin.swift`, `RootLayout.swift`, `UEFIRebuild.swift`, `PaneViewModel.swift` | ~78 | Upstream: **postponed** by the owner (2026-09-17) until upstream settles where a part opens without in-app tabs. G5, the compressors it needed, is closed. | P2 | postponed |
-| G30 | **ME FileTable.dat naming** of MFS files. Upstream has not ported it either, so it waits on upstream first. | `MEADataSource.swift` | 2 | Upstream | P3 | open |
 
 ### 1.2 Search
 
@@ -208,3 +207,4 @@ Gaps closed since this file was started, newest first.
 | Search runs in the background without holding the interface | 2026-09-15 |
 | A drag across a value a panel shows selects it again — the window's focus guard cancelled every press outside the dump, and with it the gesture | 2026-09-17 |
 | Selectable text — a detail's value, an ME summary's, a dialog's preview — offers Copy on right-click, dimmed until something is selected, as AppKit's menu does over a value there | 2026-09-17 |
+| G30 — **ME FileTable.dat naming**: `src/firmware/me/data/fileTable.ts` is upstream's `FileTable.swift` (the two lookups, the two fallbacks, the file grammar), `src/tools/me/mfsFileNames.ts` is `MFSFileNames.swift`, and `src/state/fileTableStore.ts` fetches the file lazily and re-checks it daily. An FTBL-mode MFS volume's rows are called what the table calls them and carry the record that named them; the volume's own row says which table the names came from and whether either half was assumed. The row was waiting on upstream, which has since built it | 2026-09-17 |
