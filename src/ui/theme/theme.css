@@ -27,7 +27,18 @@
   --text-muted: #6a6a73;
   --text-faint: #97979f;
   --accent: #2b6cb0;
+  /* The ink a filled accent takes. The light theme's blue is dark and takes
+     white; the dark theme's is light and takes near-black, the same pair
+     `--bookmark-text` wears. White on the dark theme's blue is 2.5:1, which is
+     a button whose label is not there. */
+  --accent-ink: #ffffff;
   --focus-ring: #2b6cb0;
+  /* What a knocked-out mark shows. A filled glyph — an SF Symbol's `.fill`
+     variant — is drawn with its mark cut out of it, so what stands in the hole
+     is whatever the glyph sits on: the panel behind. Stated as the surface
+     rather than as a second copy of its value, so a mark on another ground can
+     say so and neither can drift from the other. */
+  --knockout: var(--surface);
 
   /* Hex grid: the bytes themselves */
   --byte-text: #1b1b1f;
@@ -117,7 +128,9 @@
     --text-muted: #9a9aa2;
     --text-faint: #6a6a73;
     --accent: #6aa9e9;
+    --accent-ink: #16121c;
     --focus-ring: #6aa9e9;
+    --knockout: var(--surface);
 
     --byte-text: #ececee;
     --byte-text-muted: #63636b;
@@ -184,7 +197,9 @@
   --text-muted: #9a9aa2;
   --text-faint: #6a6a73;
   --accent: #6aa9e9;
+  --accent-ink: #16121c;
   --focus-ring: #6aa9e9;
+  --knockout: var(--surface);
 
   --byte-text: #ececee;
   --byte-text-muted: #63636b;

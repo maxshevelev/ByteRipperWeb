@@ -16,6 +16,22 @@ const stroke = {
   strokeLinejoin: "round",
 } as const;
 
+/**
+ * The mark cut out of a filled glyph, in the ground's colour.
+ *
+ * An SF Symbol's `.fill` variant draws its mark as a hole in the shape, so what
+ * stands in the hole is whatever the glyph sits on. `--knockout` is that
+ * ground: white where the light theme's panels are white, and the panel itself
+ * in the dark theme, where a white mark over a light-filled shape would not be
+ * there at all.
+ *
+ * A declaration in `style` rather than a `stroke` attribute: a presentation
+ * attribute holding a `var()` is SVG2's reading of it, and an engine that has
+ * not caught up drops it outright — a mark that vanishes being worse than a
+ * mark in the wrong colour.
+ */
+const knockout = { stroke: "var(--knockout)" } as const;
+
 function Glyph({ children }: { readonly children: React.ReactNode }) {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
@@ -94,7 +110,7 @@ export function IdenticalGlyph() {
       <path
         d="M4.8 8.2 7 10.4l4.2-4.6"
         fill="none"
-        stroke="#fff"
+        style={knockout}
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"

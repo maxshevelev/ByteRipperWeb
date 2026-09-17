@@ -19,11 +19,24 @@ import type { ToolRowMark } from "@/tools/toolRowMarks";
  */
 
 /**
- * What an SF Symbol leaves out of a filled shape. A browser draws the shape and
- * the mark over it instead, in the colour the hex view already puts on a filled
- * glyph (`ToolbarIcons`), so a filled mark reads the same here as there.
+ * What an SF Symbol leaves out of a filled shape: the mark is a hole in it, and
+ * what stands in the hole is the ground the mark is drawn on. A browser draws
+ * the shape and the mark over it instead, so the hole is a colour — `--knockout`,
+ * the same name `ToolbarIcons` punches its own marks through with. In the light
+ * theme that is the white the mark used to be fixed at; in the dark theme it is
+ * the panel, which is the point: a mark whose shape goes light takes its hole
+ * with it, or the mark inside it is a white shape on a pale fill.
+ *
+ * Two objects rather than one, because a path takes either the stroke or the
+ * fill and a mark that got both would be painted where it should be cut.
+ *
+ * They are `style`, not attributes: `stroke="var(--knockout)"` is a
+ * presentation attribute, which SVG2 reads as a declaration and an engine that
+ * has not caught up simply drops — and a mark that vanishes is worse than a
+ * mark in the wrong colour. A declaration in `style` is read everywhere.
  */
-const KNOCKOUT = "#fff";
+const KNOCKOUT_STROKE = { stroke: "var(--knockout)" } as const;
+const KNOCKOUT_FILL = { fill: "var(--knockout)" } as const;
 
 /**
  * `size` is in pixels, because every panel here sizes its marks in pixels: the
@@ -73,11 +86,11 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
           <path
             d="M8 4.1v5.3"
             fill="none"
-            stroke={KNOCKOUT}
+            style={KNOCKOUT_STROKE}
             strokeWidth="1.9"
             strokeLinecap="round"
           />
-          <circle cx="8" cy="12" r="1.05" fill={KNOCKOUT} />
+          <circle cx="8" cy="12" r="1.05" style={KNOCKOUT_FILL} />
         </>
       );
 
@@ -89,11 +102,11 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
           <path
             d="M8 3.8v4.9"
             fill="none"
-            stroke={KNOCKOUT}
+            style={KNOCKOUT_STROKE}
             strokeWidth="1.8"
             strokeLinecap="round"
           />
-          <circle cx="8" cy="11.7" r="1" fill={KNOCKOUT} />
+          <circle cx="8" cy="11.7" r="1" style={KNOCKOUT_FILL} />
         </>
       );
 
@@ -108,7 +121,7 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
           <path
             d="M5.5 8.1 7.2 9.9l3.4-3.8"
             fill="none"
-            stroke={KNOCKOUT}
+            style={KNOCKOUT_STROKE}
             strokeWidth="1.7"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -158,7 +171,7 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
           <path
             d="M5.2 3.4h1.8M5.2 5.6h1.8M5.2 7.8h1.8M5.2 10h1.8M5.2 12.2h1.8"
             fill="none"
-            stroke={KNOCKOUT}
+            style={KNOCKOUT_STROKE}
             strokeWidth="1.2"
             strokeLinecap="butt"
           />
@@ -173,7 +186,10 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
             fill="currentColor"
             d="M8 1.2 14 3.4v4.4c0 3.3-2.4 5.9-6 7-3.6-1.1-6-3.7-6-7V3.4z"
           />
-          <path d="M8 5.3a1.8 1.8 0 0 0-.9 3.3v2.1h1.8V8.6A1.8 1.8 0 0 0 8 5.3" fill={KNOCKOUT} />
+          <path
+            d="M8 5.3a1.8 1.8 0 0 0-.9 3.3v2.1h1.8V8.6A1.8 1.8 0 0 0 8 5.3"
+            style={KNOCKOUT_FILL}
+          />
         </>
       );
 

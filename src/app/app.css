@@ -2808,8 +2808,9 @@ button.uefi-title {
   color: var(--semantic-bad);
 }
 
-/* A check that passed: a filled green circle with a white tick, sat on the
-   text's baseline. */
+/* A check that passed: a filled green circle with a tick knocked out of it,
+   sat on the text's baseline. The tick is the ground showing through, as an SF
+   Symbol's `.fill` variant draws it — a hole, not a white mark. */
 .tool-detail-done {
   width: 1em;
   height: 1em;
@@ -2823,7 +2824,7 @@ button.uefi-title {
 
 .tool-detail-done path {
   fill: none;
-  stroke: #fff;
+  stroke: var(--knockout);
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -3197,12 +3198,12 @@ button.uefi-title {
 }
 
 .me-placeholder .me-placeholder-mark {
-  stroke: #fff;
+  stroke: var(--knockout);
   stroke-width: 2.6;
 }
 
 .me-placeholder .me-placeholder-mark-dot {
-  fill: #fff;
+  fill: var(--knockout);
   stroke: none;
 }
 
@@ -3545,10 +3546,13 @@ button.uefi-title {
   }
 }
 
+/* The form's primary action: the accent fill with the ink that belongs to it.
+   The accent flips from a dark blue to a light one, so a label fixed at white
+   would be a quarter of the contrast it needs in the dark theme. */
 .microcode-buttons .is-primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .microcode-buttons .is-primary:disabled {
