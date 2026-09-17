@@ -90,6 +90,7 @@ How every part of the desktop app lands here. Four verdicts:
 | First match before the full index; background indexing with cancel | Same | Worker with a cancellation token. |
 | Search Results panel, live excerpts, refusal past 1000 matches | Same | |
 | Recent queries and named favourites | Same | Stored in IndexedDB. |
+| Use Selection for Find (⌘E) | Adapted | No action of its own and no Edit menu item: ⌘F takes the selection as the pattern before it opens the bar. The column the selection was made in decides bytes or text, and the 1024-byte limit with its refusal are upstream's. |
 | Pattern library synced through a cloud folder | Reduced, then restored | **Chromium syncs in the Mac app's own folder**: `showDirectoryPicker()` plus a handle kept in IndexedDB gives the one-file-per-machine merge model, in upstream's file format, so a browser and a Mac share one library. Firefox and Safari can take what is in a folder (a read-only merge from a picked folder) and export the other way. Plan: `Design/FAVORITES_SYNC_WEB.md`. |
 
 ### Minimap

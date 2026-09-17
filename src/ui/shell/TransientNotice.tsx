@@ -28,6 +28,7 @@ const GLYPH_LABEL: Record<NoticeGlyph, string> = {
   addedToFavorites: "Added to Favorites",
   copySummary: "Summary copied",
   copyScreenshot: "Screenshot copied",
+  warning: "The selection is too long to search for",
 };
 
 /**
@@ -113,10 +114,12 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
  * A wrap is an arrow round a capsule whose head says which end the search came
  * round — top right for one that ran off the end, bottom left for one that ran
  * off the start. A Smart Search that found nothing is a wand, and a pattern just
- * kept is a star. A copy wears the sign of the button that made it, drawn from
- * the same shapes the button is, in their own 16-unit box.
+ * kept is a star. A refusal is `exclamationmark.triangle`: a warning triangle
+ * with the mark in it. A copy wears the sign of the button that made it, drawn
+ * from the same shapes the button is, in their own 16-unit box.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.symbolName
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.useSelectionForFind
  * @upstream-differs inline SVG in place of named system symbols, so there is no fallback to choose
  */
 function Glyph({ glyph, size }: { readonly glyph: NoticeGlyph; readonly size: number }) {
@@ -144,6 +147,14 @@ function Glyph({ glyph, size }: { readonly glyph: NoticeGlyph; readonly size: nu
           d="M12 3.2l2.7 5.5 6 .9-4.35 4.25 1.03 6-5.38-2.83-5.38 2.83 1.03-6L3.3 9.6l6-.9z"
           fill="currentColor"
         />
+      ) : glyph === "warning" ? (
+        // The symbol is drawn in the plate's own grey, like every other: a
+        // refusal is a statement about the operation, not a red alert on it.
+        <>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <path d="M12 9v4" />
+          <path d="M12 17h.01" />
+        </>
       ) : glyph === "smartSearch" ? (
         <>
           <path d="M4 20 15 9" />

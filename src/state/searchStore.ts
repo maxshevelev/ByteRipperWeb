@@ -10,6 +10,7 @@ import {
   type SearchEncoding,
   type SearchFailure,
 } from "@/core/search/searchPattern";
+import { forBytes, forText, type SelectionFindPattern } from "@/core/search/selectionFindPattern";
 import { type Attempt, attemptEncoding, attemptsFor } from "@/core/search/smartSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { dismissNotice, showNotice, showWrapNotice } from "@/state/noticeStore";
@@ -111,6 +112,15 @@ export interface SearchState {
    */
   readonly history: readonly FindHistoryEntry[];
   readonly results: Readonly<Record<PaneId, PaneResults>>;
+  /**
+   * The pattern a selection was put into, kept so the *next* open offers it
+   * (§11, Use Selection for Find). Dropped by the next keystroke in the field
+   * and by a search — from then on the field's own text, or the history, is the
+   * newer statement of what to look for.
+   *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.stagedPattern
+   */
+  readonly stagedPattern: SelectionFindPattern | undefined;
 }
 
 /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartSearchKey */
@@ -255,6 +265,7 @@ const IDLE: SearchState = {
   problem: undefined,
   history: storedHistory(),
   results: { a: NO_RESULTS, b: NO_RESULTS },
+  stagedPattern: undefined,
 };
 
 /**
@@ -479,6 +490,13 @@ export function startSearch(options: {
 }): void {
   // A plate reports a search, so it goes the moment another one starts.
   dismissNotice();
+  // A search supersedes a staged pattern: what it finds goes into the history,
+  // which is what the next open offers (§11). Cleared here rather than at the
+  // end because a picked row is a search too, and every arm below is one.
+  searchStore.update((current) =>
+    current.stagedPattern === undefined ? current : { ...current, stagedPattern: undefined }
+  );
+
   const state = searchStore.getSnapshot();
   const query = options.query;
   const encoding = options.encoding ?? state.encoding;
@@ -1008,14 +1026,19 @@ function recordFoundSearch(): void {
 }
 
 /**
- * Typing in the pattern field ends the search that was running — the count
- * clears and the matches go, so nothing on screen describes a pattern that is
- * no longer in the field. It starts nothing: a search starts on Return.
+ * The field's text has changed without being searched for — a keystroke, or a
+ * selection staged into it. Either way what was on screen a moment ago was a
+ * count or a complaint about the text that was there, and the search it
+ * described is no longer the one the field names (§11).
+ *
+ * The staged pattern goes with it, which is why both callers pass one: after
+ * this the text in front of the user, or the history, is the newer statement of
+ * what to look for. It starts nothing — a search starts on Return.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.controlTextDidChange
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onPatternEdited
  */
-export function editQuery(query: string): void {
+function patternReplaced(query: string, patch: Partial<SearchState>): void {
   dismissNotice();
   cancelRunning();
   finishSearchOperation();
@@ -1028,7 +1051,93 @@ export function editQuery(query: string): void {
     wrapped: false,
     resultsShown: false,
   });
-  searchStore.update((state) => ({ ...state, query, problem: undefined }));
+  searchStore.update((state) => ({ ...state, query, problem: undefined, ...patch }));
+}
+
+/**
+ * Typing in the pattern field ends the search that was running — the count
+ * clears and the matches go, so nothing on screen describes a pattern that is
+ * no longer in the field. It starts nothing: a search starts on Return.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.controlTextDidChange
+ */
+export function editQuery(query: string): void {
+  // Typed over: a pattern a selection staged is not about this text — the text
+  // in front of the user is theirs now, and the next open offers what they left
+  // in the field (§11). The encoding is left as it is: upstream clears the
+  // preferred encoding a picked row brought, but the popup keeps showing the
+  // one it was set to, and that is still what the field is read in.
+  patternReplaced(query, { stagedPattern: undefined });
+}
+
+/**
+ * A selection becomes the pattern to search for, and nothing else happens — the
+ * bar is not opened, no search is run, and the focus stays where the user is
+ * (§11, Use Selection for Find).
+ *
+ * The write lands in the field whether the bar is showing or not: a bar on
+ * screen must say what it will search for, and a closed one is offered it when
+ * it opens (`openSearch`).
+ *
+ * The case toggle is left alone. It is the user's own preference, persisted
+ * across searches, and taking a pattern out of the dump says nothing about how
+ * they want it matched.
+ *
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.stage
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.applyStaged
+ * @upstream-differs `applyStaged` is folded in: the web field reads the store,
+ * so writing the text and the encoding is the same one update
+ */
+export function stageFindPattern(pattern: SelectionFindPattern): void {
+  patternReplaced(pattern.text, { encoding: pattern.encoding, stagedPattern: pattern });
+}
+
+/**
+ * How long a selection may be to be used as a pattern.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.maxSelectionFindBytes
+ */
+export const MAX_SELECTION_FIND_BYTES = 1024;
+
+/**
+ * The selection in the active pane becomes the pattern the find bar will
+ * search for (§11, Use Selection for Find).
+ *
+ * Everything that can say no says it here rather than at the bar: nothing
+ * selected is nothing to take, and a selection past the limit is refused with
+ * the two lines upstream refuses it with — the plate is the same one, and the
+ * number in it is the same number, so a user who has read one edition has read
+ * the other.
+ *
+ * Where the caret was typing is where the selection was made (§7): the hex
+ * column asks about bytes, the decoded-text column about text.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.useSelectionForFind
+ * @upstream-differs the web has no action of its own for this: the command is
+ * folded into ⌘F (`AppShell`), which takes the selection before it opens the
+ * bar. The refusal plate and the region rule are upstream's.
+ */
+export async function useSelectionForFind(): Promise<void> {
+  const workspace = workspaceStore.getSnapshot();
+  const slot = workspace.panes[workspace.activePane];
+  if (slot === undefined) return;
+  const { start, end } = slot.document.selection;
+  if (end <= start) return;
+  if (end - start > MAX_SELECTION_FIND_BYTES) {
+    showNotice("warning", [
+      "Selection too long to search for",
+      `Up to ${MAX_SELECTION_FIND_BYTES} bytes can be used as a find pattern.`,
+    ]);
+    return;
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = await slot.document.read(start, end - start);
+  } catch {
+    // Nothing to take; the bar still opens on what it last searched for.
+    return;
+  }
+  stageFindPattern(slot.typing.inputRegion === "text" ? forText(bytes) : forBytes(bytes));
 }
 
 /**
@@ -1081,17 +1190,26 @@ export function setSmartSearch(smart: boolean): void {
  * was found in — so repeating yesterday's search is ⌘F, Return. The field
  * arrives with that text selected, so typing replaces it.
  *
+ * A pattern a selection was staged into outranks it: it is the newer statement
+ * of what to look for, and what it was searched for is not yet in the history
+ * to be offered back.
+ *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.prepareForShow
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.mostRecent
  */
 export function openSearch(): boolean {
-  const wasOpen = searchStore.getSnapshot().open;
+  const state = searchStore.getSnapshot();
+  const wasOpen = state.open;
   if (!wasOpen) {
-    searchStore.update((state) => {
-      const last = state.history[0];
+    searchStore.update((current) => {
+      const staged = current.stagedPattern;
+      if (staged !== undefined) {
+        return { ...current, open: true, query: staged.text, encoding: staged.encoding };
+      }
+      const last = current.history[0];
       return last === undefined
-        ? { ...state, open: true }
-        : { ...state, open: true, query: last.pattern, encoding: last.encoding };
+        ? { ...current, open: true }
+        : { ...current, open: true, query: last.pattern, encoding: last.encoding };
     });
   }
   return wasOpen;
@@ -1128,14 +1246,16 @@ export function closeSearch(): void {
   dismissNotice();
   cancelRunning();
   finishSearchOperation();
-  // What is remembered between visits outlives the bar: the history, and the
-  // choices the user made about how to search.
+  // What is remembered between visits outlives the bar: the history, the
+  // choices the user made about how to search, and a pattern a selection was
+  // staged into, which the next open offers (§11).
   searchStore.update((state) => ({
     ...IDLE,
     history: state.history,
     encoding: state.encoding,
     smart: state.smart,
     caseSensitive: state.caseSensitive,
+    stagedPattern: state.stagedPattern,
   }));
 }
 

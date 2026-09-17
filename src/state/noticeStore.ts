@@ -36,7 +36,13 @@ export type NoticeGlyph =
   /** A panel's summary went to the clipboard as text: the Copy Summary button's sign. */
   | "copySummary"
   /** And as a picture: the Copy Screenshot button's. */
-  | "copyScreenshot";
+  | "copyScreenshot"
+  /**
+   * Something was asked for that cannot be done — a selection too long to be a
+   * search pattern, so far (§11). Upstream's `exclamationmark.triangle`, which
+   * it passes as the `symbol:` of a plate rather than naming in a type.
+   */
+  | "warning";
 
 export interface Notice {
   /** New for every plate, so a replacement is a new element rather than a changed one. */

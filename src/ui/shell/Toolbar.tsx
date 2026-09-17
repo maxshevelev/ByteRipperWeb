@@ -85,6 +85,7 @@ export function Toolbar({
   onSaveAllSegments,
   onDuplicate,
   onFind,
+  onToggleFind,
   onClose,
   onSettings,
   navigation,
@@ -106,6 +107,14 @@ export function Toolbar({
   readonly onSaveAllSegments: () => void;
   readonly onDuplicate: () => void;
   readonly onFind: () => void;
+  /**
+   * The Find button's own command, which is not {@link onFind}: the button is a
+   * switch that opens the bar and takes nothing from the dump, where the menu
+   * item and ⌘F take the selection for a pattern (§11).
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleFindBar
+   */
+  readonly onToggleFind: () => void;
   readonly onClose: () => void;
   readonly onSettings: () => void;
   /** Where difference navigation has somewhere to go from the active caret. */
@@ -449,7 +458,9 @@ export function Toolbar({
           </IconButton>
         );
       case "find":
-        // A switch, not the menu's command: pressing it again closes the bar.
+        // A switch, not the menu's command: pressing it again closes the bar,
+        // and opening it takes nothing from the dump (§11, Use Selection for
+        // Find — the command that does is ⌘F and the menu item above it).
         return (
           <IconButton
             key={key}
@@ -457,7 +468,7 @@ export function Toolbar({
             title="Find a byte pattern"
             pressed={search.open}
             disabled={disabled}
-            onClick={() => (search.open ? closeSearch() : onFind())}
+            onClick={() => (search.open ? closeSearch() : onToggleFind())}
           >
             <FindGlyph />
           </IconButton>

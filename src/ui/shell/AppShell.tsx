@@ -24,6 +24,7 @@ import {
   resultsFor,
   searchStore,
   setSearchPane,
+  useSelectionForFind,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { paneClosed, toolController, zoneSelected } from "@/state/toolController";
@@ -601,14 +602,44 @@ export function AppShell() {
   }, []);
 
   /**
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.findPattern
+   * Opens the bar on what it last searched for — or on the pattern a selection
+   * was staged into, which the store prefers because it is newer (`openSearch`).
+   *
+   * This is the toolbar button's command as much as the bar's: upstream's
+   * `toggleFindBar` is a switch that opens the bar and takes nothing from the
+   * dump.
+   *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleFindBar
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showFindBar
    */
-  const openFind = useCallback(() => {
+  const showFindBar = useCallback(() => {
     openSearch();
     focusFindInput();
   }, []);
+
+  /**
+   * Find: the selection becomes the pattern, and the bar opens on it (§11, Use
+   * Selection for Find).
+   *
+   * This is where the web edition's ⌘F and the desktop's part company. Upstream
+   * takes the selection under a command of its own, ⌘E, and its ⌘F only shows
+   * the bar; the web has no separate action, so ⌘F carries both meanings — with
+   * a selection it is "search for this", without one it is the Find it has
+   * always been. The rules for what a selection becomes, and the limit on its
+   * size, are upstream's (`useSelectionForFind`).
+   *
+   * The read of the selection is asynchronous — a file is read in chunks — so
+   * the bar opens a read after the key, at most a kilobyte of one. Nothing else
+   * waits on it: the refusal plate, where there is one, is shown by the command
+   * itself.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.findPattern
+   * @upstream-differs ⌘E is folded into ⌘F rather than ported as an action of its own; the toolbar's Find button is not this command, but the switch above
+   */
+  const openFind = useCallback(() => {
+    // biome-ignore lint/correctness/useHookAtTopLevel: not a hook — it takes the selection out of the dump, which is what upstream calls the command
+    void useSelectionForFind().then(showFindBar);
+  }, [showFindBar]);
 
   /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fillSelectionWithBytes
@@ -1365,6 +1396,7 @@ export function AppShell() {
         }}
         onDuplicate={doDuplicate}
         onFind={openFind}
+        onToggleFind={showFindBar}
         onClose={() => closeWithWarning(activePane)}
         onSettings={() => {
           setSettingsTab(undefined);

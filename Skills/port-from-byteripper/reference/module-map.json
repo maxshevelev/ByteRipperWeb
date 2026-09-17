@@ -168,6 +168,7 @@
         "ContentSnapshot.swift": "src/core/storage/editOverlayStorage.ts",
         "TemporaryFileStore.swift": "src/platform/files/opfsScratchStore.ts",
         "MatchSet.swift": "src/core/search/matchSet.ts",
+        "SelectionFindPattern.swift": "src/core/search/selectionFindPattern.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ChunkCacheTests.swift": "src/core/storage/chunkCache.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift": "src/core/storage/fileBackedStorage.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PieceTableTests.swift": "src/core/storage/pieceTable.test.ts",
@@ -185,6 +186,7 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift": "src/core/search/matchSet.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchEngineTests.swift": "src/core/search/searchEngine.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SmartSearchTests.swift": "src/core/search/smartSearch.test.ts",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SelectionFindPatternTests.swift": "src/core/search/selectionFindPattern.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift": "src/core/segments/segmentReplacer.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentWriterTests.swift": "src/core/segments/segmentWriter.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift": "src/core/text/byteDecoder.test.ts",
@@ -214,6 +216,7 @@
         "Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.differenceBlocks": "n/a — nothing in the web edition lists the blocks of one kind; navigation walks the columns (nextOfKind)",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.sameBlocks": "n/a — as differenceBlocks",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/SelectionFindPattern.swift#SelectionFindPattern.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.MatchBatch.*": "n/a — the batch is scanAll's onMatches(starts) and onWindow(indexedUpTo)",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.defaultBatchSize": "n/a — scanAll hands over each window's matches as one batch, so there is no batch size to choose",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.init": "n/a — an object literal; there is nothing to construct",
@@ -1897,6 +1900,7 @@
         "ByteRipperTests/UEFIToolFlowTests.swift": "tests/e2e",
         "ByteRipperTests/UEFITreeCollapseTests.swift": "tests/e2e",
         "ByteRipperTests/UntitledFileTests.swift": "tests/e2e",
+        "ByteRipperTests/UseSelectionForFindTests.swift": "tests/e2e",
         "ByteRipperTests/ViewportAnchorTests.swift": "tests/e2e",
         "ByteRipperTests/WordSizeTests.swift": "tests/e2e",
         "ByteRipperTests/ZoneSketchFlowTests.swift": "tests/e2e",
@@ -4002,7 +4006,9 @@
         "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheGlyphIsDrawnInTheNoticeColourAtItsOwnSize": "n/a — it measures an NSView's drawing in a bitmap to read the tint's alpha back; the glyph is inline SVG stroked with currentColor, in the grey the stylesheet gives the plate",
         "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheWordsAreTheSignsColour": "n/a — the plate is one colour by construction here: .transient-notice-glyph and the two line rules read the same --notice-icon (src/app/app.css), so there is no second place to set it and nothing to come apart",
         "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testAGlyphOnlyPlateHoldsTheGlyphInTheMiddle": "n/a — CSS centres the plate's content",
-        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheNoticeAndTheLandingScreenAreDifferentColours": "later — an app flow test: the two greys are CSS custom properties in src/ui/theme/theme.css, and reading them back needs a browser"
+        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheNoticeAndTheLandingScreenAreDifferentColours": "later — an app flow test: the two greys are CSS custom properties in src/ui/theme/theme.css, and reading them back needs a browser",
+        "ByteRipperTests/UseSelectionForFindTests.swift#UseSelectionForFindTests.testTheMenuItemNeedsASelection": "n/a — the web edition has no Edit menu and no action of its own for this: the command is ⌘F's, taken from the selection before the bar opens (G45)",
+        "ByteRipperTests/UseSelectionForFindTests.swift#UseSelectionForFindTests.testTheEditMenuCarriesTheCommand": "n/a — as the item it tests: the web has no Edit menu, and the toolbar's Find button is the switch, not this command (G45)"
       }
     },
     {
@@ -4370,7 +4376,8 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.releases": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.flipInsertMode": "ported — the flip is TypingController.toggleInsertMode, and the alert it puts in front of the first insert-mode keystroke is the insert sentence of src/core/text/shiftWarning.ts, asked through AppShell's editing hooks (src/core/edit/typingController.ts, src/ui/shell/AppShell.tsx)",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.wireStatusBar": "ported — a React status line wires its own parts where it draws them: the size and the offset open paneMenus.statusSizeMenu / statusOffsetMenu, and the mode box's click toggles the mode (src/ui/pane/PaneStatusLine.tsx, src/ui/shell/paneMenus.ts)"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.wireStatusBar": "ported — a React status line wires its own parts where it draws them: the size and the offset open paneMenus.statusSizeMenu / statusOffsetMenu, and the mode box's click toggles the mode (src/ui/pane/PaneStatusLine.tsx, src/ui/shell/paneMenus.ts)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.stagedFindPatternForTests": "n/a — a test seam: what a selection staged for the next find is `searchStore`'s `stagedPattern`, which the tests read directly"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
