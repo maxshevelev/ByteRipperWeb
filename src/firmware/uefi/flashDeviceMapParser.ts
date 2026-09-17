@@ -17,24 +17,51 @@ import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap */
 export const FlashDeviceMap = {
-  /** `HFDM`. */
+  /**
+   * `HFDM`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.signature
+   */
   signature: 0x4d44_4648,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.headerSize */
   headerSize: 0x1c,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.checksumOffset */
   checksumOffset: 0x13,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.baseAddressOffset */
   baseAddressOffset: 0x14,
-  /** The one entry layout known: `INSYDE_FLASH_DEVICE_MAP_ENTRY`. */
+  /**
+   * The one entry layout known: `INSYDE_FLASH_DEVICE_MAP_ENTRY`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.entrySize
+   */
   entrySize: 0x54,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.entryFormat */
   entryFormat: 0,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.maxRevision */
   maxRevision: 4,
-  /** The region's hash is not checked. */
+  /**
+   * The region's hash is not checked.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.modifiable
+   */
   modifiable: 0x1,
-  /** The entry is not valid — which UEFITool does not look at. */
+  /**
+   * The entry is not valid — which UEFITool does not look at.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.ignored
+   */
   ignored: 0x2,
-
-  /** Offsets inside an entry. */
+  /**
+   * Offsets inside an entry.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.regionOffsetOffset
+   */
   regionOffsetOffset: 0x20,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.regionSizeOffset */
   regionSizeOffset: 0x28,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.attributesOffset */
   attributesOffset: 0x30,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.hashOffset */
   hashOffset: 0x34,
 } as const;
 

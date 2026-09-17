@@ -341,22 +341,16 @@
         "UEFIImage/SpaceReaders.swift": "src/firmware/uefi/spaceReaders.ts",
         "UEFIImageTests/ByteSpaceTests.swift": "src/firmware/uefi/byteSpace.test.ts",
         "UEFIImageTests/CompressedSectionTests.swift": "src/firmware/uefi/compressedSection.test.ts",
-        "UEFIImage/FlashDeviceMapParser.swift": "src/firmware/uefi/flashDeviceMapParser.ts"
+        "UEFIImage/FlashDeviceMapParser.swift": "src/firmware/uefi/flashDeviceMapParser.ts",
+        "UEFIImage/ProtectedRanges.swift": "src/firmware/uefi/protectedRanges.ts",
+        "UEFIImageTests/ProtectedRangesTests.swift": "src/firmware/uefi/protectedRanges.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.Patch.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/OverlayByteSource.swift#OverlayByteSource.Patch.range": "n/a — offset + bytes.length where it is needed",
-        "Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.protectedRanges": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.protectedRanges": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.adding": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.firstNode": "n/a — allNodes().find where it is needed",
-        "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.dxeCore": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amiDxeCore": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.phoenixHashFile": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amiHashFile": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#*": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
         "Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#*": "later — Update in Parent is not ported",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#*": "later — Update in Parent is not ported",
         "Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#*": "n/a — tools reach the shared tree through src/state/firmwareStore.ts, not through a protocol",
@@ -369,14 +363,21 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/NvramGuidsTests.swift#*": "later — nvramGuids.ts has no tests of its own yet",
         "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift#*": "later — ProgressSink has no tests of its own yet",
         "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#*": "later — the expansion half: the web tree is expanded in firmware.worker and firmwareStore, and its laziness has no tests of its own yet. The invalidation half (the two testInvalidate cases, testAReExpandedNodeReadsCurrentBytes, testSizeChangingInvalidateCollapsesFromTheEditPointOnward) is in src/firmware/uefi/treeInvalidation.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Packages/UEFIImage/Tests/UEFIImageTests/RootLayoutTests.swift#*": "later — Update in Parent is not ported",
         "Packages/UEFIImage/Tests/UEFIImageTests/UEFIRebuildTests.swift#*": "later — Update in Parent is not ported",
         "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#*": "later — the invalidation rules are ported (src/firmware/uefi/treeInvalidation.ts); the lazy expansion itself is not: the web builds the tree whole as it is parsed, in firmware.worker and firmwareStore",
         "Packages/UEFIImage/Sources/UEFIImage/DecompressedBuffers.swift#DecompressedBuffers.lock": "n/a — a worker is one thread; there is nothing to take a lock against",
         "Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#LazyCompressedSectionTests*": "later — the lazy tree's own driver has no test harness here (G24); the cache's drop rules are covered in compressedSection.test.ts",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.InnerLocation.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#SectionCompression.init": "n/a — an object literal; there is nothing to construct"
+        "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#SectionCompression.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.rebuildRanges": "later — the rebuild planner (UEFIRebuild) is G4's; there is nothing here to hand the ranges to",
+        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRange.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRange.Digest.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#ProtectedRangesTests.testThePlannerIsHandedTheIBBToRefuseAndTheRestToWarnAbout": "later — rebuildRanges is G4's, and so is its case",
+        "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.adding": "n/a — the parse builds the image with its ranges rather than copying one to add them",
+        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRangeReading.init": "n/a — the reading's constructor takes the same two values the class holds",
+        "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRange.Digest.algorithmName": "n/a — the name of an algorithm id is tcgHashName, read where a panel shows it rather than off the digest"
       }
     },
     {
@@ -519,7 +520,7 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareTypeClassifierTests.swift#*": "later — firmwareTypeClassifier.ts has no tests of its own yet",
         "Packages/MEFirmware/Tests/MEFirmwareTests/SelectionTests.swift#*": "later — manifestSelection.ts has no tests of its own yet",
         "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift#*": "later — the database stores have no tests of their own yet; revalidation is the Cache API's",
-        "Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.r1HeaderSize": "later — not named as a constant on the web",
+        "Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.r1HeaderSize": "n/a — a constant upstream declares and neither side reads: an R1 header's length comes from the header itself",
         "Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CodePartition.entryCount": "n/a — modules.length where it is needed",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Params.*": "n/a — the fields of the web fixture's options object",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Format": "n/a — TestManifest.format takes the model's ManifestFormat",
@@ -609,13 +610,12 @@
           "src/state/guidCatalogue.ts",
           "src/state/guidCatalogueSource.ts"
         ],
-        "Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift": "src/tools/uefi/uefiTreeDisplay.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift": "src/tools/uefi/uefiTreeDisplay.test.ts",
+        "UEFIToolTests/ProtectionMarksTests.swift": "src/tools/uefi/uefiTreeMarks.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.init": "n/a — an object literal",
-        "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectionCaveat": "later — Boot Guard protected ranges are not ported",
-        "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectedByTable": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport*": "later — exporting a decompressed part, or opening it as its own document, is G4",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedExport": "later — exporting a decompressed part, or opening it as its own document, is G4",
@@ -647,7 +647,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.init": "n/a — an object literal",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift#*": "later — the checksum check lives in the worker and the view, and has no tests of its own yet",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testANodeInsideWearsTheRailAndSaysWhereFrom": "later — nothing is decompressed here, so no row comes out of compressed data (G1)",
-        "Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#*": "later — G4: the export and the new tab are the part of that file this port has no counterpart for; its zones, detail and checksum cases are ported in src/tools/uefi/compressedNode.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/TestUEFI.swift#*": "n/a — the web UEFI tool tests build their images with src/firmware/testing",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.fields": "n/a — a checksum problem is a sentence on the row, not a field set (UEFIChecksumField* above)",
@@ -704,21 +703,13 @@
         "Modules/FITTool/Sources/FITTool/FITTopSwap.swift": [
           "src/firmware/fit/fitTopSwap.ts",
           "src/tools/fit/fitEditor.ts"
-        ]
+        ],
+        "FITToolTests/FITProtectionTests.swift": "src/tools/fit/fitEditor.test.ts"
       },
       "unported": {
         "Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.init": "n/a — an object literal; there is nothing to construct",
-        "Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.keyManifestType": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.bootPolicyType": "later — Boot Guard protected ranges are not ported",
         "Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetailField.init": "n/a — an object literal; there is nothing to construct",
-        "Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.protection": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.protecting": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.rowRange": "later — not ported as a field of the row",
-        "Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.tableRange": "later — not ported as a field of the display",
-        "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.Kind": "later — not ported as a kind of outcome",
-        "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.protectionWarnings": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.protectionWarnings": "later — Boot Guard protected ranges are not ported",
-        "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITPlacement*": "later — the placement is not ported as a value of its own",
+        "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITPlacement*": "n/a — a value upstream declares and neither side uses: nothing asks where a component would go before it is put there",
         "Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.id": "n/a — entries are keyed by their file name",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.makeSession": "n/a — the view is a React component: its render and effects are the session's lifecycle",
@@ -732,7 +723,6 @@
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.start": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.contentChanged": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.stop": "n/a — the view is a React component: its render and effects are the session's lifecycle",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "later — Boot Guard protected ranges are not ported",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.alert": "n/a — an AppKit alert seam for tests",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.pasteboard": "n/a — an NSPasteboard seam for tests",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.display": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
@@ -753,14 +743,11 @@
         "Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.tableView": "n/a — AppKit table furniture; the form renders its list from state",
         "Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.init": "n/a — the source is a module constant",
         "Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.settle": "n/a — a test seam for the actor's refresh",
-        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testARowPointingIntoTheIBBWearsItsBackground": "later — no row is placed inside a protected range, so none is tinted (G3)",
-        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testAPartlyCoveredComponentWearsTheBadgeNotTheTint": "later — no protected ranges, so nothing is partly covered (G3)",
-        "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testNoRangesPlaceNothing": "later — no protected ranges at all (G3)",
         "Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testTheHeaderIsPlacedByTheTablesBytes": "later — the display has no rowRange or tableRange field (see FITDisplay.swift)",
-        "Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.Row.*": "n/a — the fields of the web fixture's TestRow",
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#BinaryWriter*": "n/a — the web fixtures write their bytes through local helpers of their own",
-        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewColumnDidResize": "n/a — AppKit table column resizing"
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewColumnDidResize": "n/a — AppKit table column resizing",
+        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "n/a — upstream's tree calls the session back when the ranges land; the panel here reads them from the firmware store, which re-renders on its own"
       }
     },
     {

@@ -3,6 +3,7 @@ import { ImageReader } from "@/firmware/imageReader";
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import type { UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { DEFAULT_LIMITS, type Limits, Parser, ProgressSink } from "@/firmware/uefi/parserState";
+import { type ProtectedRanges, readProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import { type ResetVector, runSecondPass } from "@/firmware/uefi/secondPass";
 import { materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import {
@@ -51,6 +52,13 @@ export class UEFIImage {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.resetVector
    */
   readonly resetVector: ResetVector | undefined;
+  /**
+   * The Boot Guard and vendor ranges this image names, once something has read
+   * them. Nothing means "not read yet", which is not the same as "none".
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.protectedRanges
+   */
+  readonly protectedRanges: ProtectedRanges | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.init */
   constructor(options: {
@@ -59,6 +67,7 @@ export class UEFIImage {
     readonly diagnostics?: readonly UEFIDiagnostic[];
     readonly addressDiff?: number | undefined;
     readonly resetVector?: ResetVector | undefined;
+    readonly protectedRanges?: ProtectedRanges | undefined;
   }) {
     this.size = options.size;
     // Ids are stamped here, at the end, rather than threaded through the
@@ -68,6 +77,7 @@ export class UEFIImage {
     this.roots = stampIds(options.roots, ROOT_ID);
     this.diagnostics = options.diagnostics ?? [];
     this.addressDiff = options.addressDiff;
+    this.protectedRanges = options.protectedRanges;
     this.resetVector = options.resetVector;
   }
 
@@ -180,6 +190,13 @@ export function parseUefiImage(
      * compressed section held after the parse — a test, most often.
      */
     readonly buffers?: DecompressedBuffers;
+    /**
+     * Reads the Boot Guard and vendor protected ranges and hashes them, which
+     * hashes megabytes — so a caller with no use for them says so.
+     *
+     * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.parse
+     */
+    readonly readsProtectedRanges?: boolean;
   } = {}
 ): UEFIImage {
   const limits = options.limits ?? DEFAULT_LIMITS;
@@ -203,11 +220,24 @@ export function parseUefiImage(
     roots.length === 0
       ? { addressDiff: undefined, resetVector: undefined }
       : runSecondPass(parser, roots);
-  return new UEFIImage({
+  const image = new UEFIImage({
     size: reader.count,
     roots,
     diagnostics: [...diagnostics, ...parser.diagnostics],
     addressDiff: second.addressDiff,
     resetVector: second.resetVector,
+  });
+  if (options.readsProtectedRanges === false) return image;
+  // The ranges are read over the finished tree, and their own complaints join
+  // the image's: what the lists say is as much a part of reading an image as
+  // what its headers say.
+  const ranges = readProtectedRanges(image, reader);
+  return new UEFIImage({
+    size: image.size,
+    roots: image.roots,
+    diagnostics: [...image.diagnostics, ...ranges.diagnostics],
+    addressDiff: image.addressDiff,
+    resetVector: image.resetVector,
+    protectedRanges: ranges,
   });
 }

@@ -274,6 +274,21 @@ export interface FirmwareRepairRequest {
   readonly volumeRevision: number;
 }
 
+/**
+ * The Boot Guard and vendor protected ranges, read over a copy of the tree
+ * opened as far as the lists need — every volume's files, and the compressed
+ * sections only when a range cannot be placed without them.
+ *
+ * Its own request rather than part of the roots, because reading them hashes
+ * megabytes and a panel nobody has opened should pay for none of it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveProtectedRanges
+ */
+export interface FirmwareProtectedRangesRequest {
+  readonly kind: "firmwareProtectedRanges";
+  readonly id: JobId;
+}
+
 /** Everything the detail panel shows about one node, read once. */
 export interface FirmwareDetailRequest {
   readonly kind: "firmwareDetail";
@@ -354,6 +369,7 @@ export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | MeChecksumsRequest
   | FirmwareDetailRequest
+  | FirmwareProtectedRangesRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
   | FirmwareInvalidateRequest
@@ -459,6 +475,31 @@ export interface FirmwareAddressesResponse {
   readonly kind: "firmwareAddresses";
   readonly id: JobId;
   readonly addressDiff: number | undefined;
+}
+
+/** A protected range as it crosses the wire: the ranges flattened to pairs. */
+export interface WireProtectedRange {
+  readonly kind: string;
+  readonly range?: readonly [number, number] | undefined;
+  readonly source: readonly [number, number];
+  /** The algorithms the digests are stored by, in their display names. */
+  readonly algorithms: readonly string[];
+  readonly verdict: "matches" | "mismatch" | "unsupported" | "unchecked";
+  /** The algorithm an `unsupported` verdict names, by its display name. */
+  readonly unsupported?: string | undefined;
+  /** What a panel calls the range. */
+  readonly name: string;
+  /** The one kind the ACM checks before the firmware runs. */
+  readonly isIbb: boolean;
+}
+
+export interface FirmwareProtectedRangesResponse {
+  readonly kind: "firmwareProtectedRanges";
+  readonly id: JobId;
+  readonly ranges: readonly WireProtectedRange[];
+  /** OBB digests the manifest names and does not place, by their algorithms. */
+  readonly obbDigests: readonly string[];
+  readonly diagnostics: readonly WireDiagnostic[];
 }
 
 export interface FirmwareProgress {
@@ -567,6 +608,7 @@ export type FirmwareWorkerResponse =
   | FirmwareInvalidatedResponse
   | FirmwareAddressesResponse
   | FirmwareDetailResponse
+  | FirmwareProtectedRangesResponse
   | FirmwareNodeAtOffsetResponse
   | FirmwareRepairResponse
   | FirmwareProgress

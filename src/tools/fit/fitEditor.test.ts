@@ -9,6 +9,7 @@ import {
   tableEntries,
   tableHeader,
 } from "@/firmware/fit/fitTable";
+import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
 import {
   assumedAddressDiff,
@@ -16,6 +17,7 @@ import {
   fitMicrocode,
   type TestRow,
 } from "@/firmware/testing/testFit";
+import type { ProtectedRangeKind, ProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode } from "@/firmware/uefi/uefiNode";
 import {
@@ -23,6 +25,7 @@ import {
   type FITEdit,
   type FITEditOutcome,
   type FITRemovalOutcome,
+  fitEditProblemMessage,
   readPickedMicrocode,
   removeMicrocodeAt,
   replaceMicrocodeAt,
@@ -743,5 +746,117 @@ describe("removing", () => {
     expect([...back]).toEqual([...bytes]); // byte for byte what it was
     expect(tableHeader(report.table ?? tableOf(back))?.size).toBe(2);
     expect(report.problems).toEqual([]);
+  });
+});
+
+/**
+ * Edits to the table checked against the image's protected ranges. Ported from
+ * upstream's `FITProtectionTests`.
+ */
+describe("an edit against the protected ranges", () => {
+  const ranges = (kind: ProtectedRangeKind, span: ImageRange): ProtectedRanges => ({
+    ranges: [
+      {
+        kind,
+        range: span,
+        digests: [],
+        source: { start: 0, end: 0 },
+        verdict: { kind: "unchecked" },
+      },
+    ],
+    obbDigests: [],
+    diagnostics: [],
+  });
+
+  const addProtected = (
+    bytes: Uint8Array,
+    protectedRanges: ProtectedRanges | undefined
+  ): FITEdit<FITEditOutcome> =>
+    addOrReplaceMicrocode(
+      newMicrocode(),
+      tableOf(bytes),
+      undefined,
+      readerOver(bytes),
+      assumedAddressDiff(bytes.length),
+      protectedRanges
+    );
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#FITProtectionTests.testAComponentThatWouldLandInTheIBBIsRefused
+  it("refuses a component that would land in the IBB", () => {
+    const edit = addProtected(image(), ranges("ibb", { start: 0x2180, end: 0x2400 }));
+
+    expect(edit.ok).toBe(false);
+    if (edit.ok) return;
+    expect(edit.problem).toEqual({
+      kind: "insideProtectedRange",
+      name: "Boot Guard IBB segment",
+      at: 0x2180,
+    });
+    expect(fitEditProblemMessage(edit.problem)).toContain("Nothing was changed");
+  });
+
+  /**
+   * A range the firmware checks is the firmware's call: the edit is made, and
+   * what it breaks is said.
+   *
+   * @upstream Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#FITProtectionTests.testAComponentInAVendorRangeIsWrittenAndSaid
+   */
+  it("writes into a vendor range, and says so", () => {
+    const edit = addProtected(image(), ranges("amiV2", { start: 0x2100, end: 0x2200 }));
+
+    expect(edit.ok).toBe(true);
+    if (!edit.ok) return;
+    expect(edit.outcome.range).toEqual({ start: 0x2100, end: 0x2200 });
+    expect(edit.outcome.protectionWarnings?.length).toBe(1);
+    expect(edit.outcome.protectionWarnings?.[0]).toContain("AMI");
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#FITProtectionTests.testRangesTheEditDoesNotTouchSayNothing
+  it("says nothing about ranges the edit does not touch", () => {
+    const edit = addProtected(image(), ranges("ibb", { start: 0x8000, end: 0x9000 }));
+
+    expect(edit.ok).toBe(true);
+    if (!edit.ok) return;
+    expect(edit.outcome.protectionWarnings).toEqual([]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#FITProtectionTests.testWithoutRangesTheOutcomeSaysTheyWereNotChecked
+  it("says the ranges were not checked when there are none to check", () => {
+    const edit = addProtected(image(), undefined);
+
+    expect(edit.ok).toBe(true);
+    if (!edit.ok) return;
+    expect(edit.outcome.protectionWarnings).toBeUndefined();
+  });
+
+  /**
+   * A removal moves the microcode behind it up — here into the IBB.
+   *
+   * @upstream Modules/FITTool/Tests/FITToolTests/FITProtectionTests.swift#FITProtectionTests.testARemovalThatMovesMicrocodeIntoTheIBBIsRefused
+   */
+  it("refuses a removal that would move microcode into the IBB", () => {
+    const bytes = fitImage({
+      rows: [
+        { type: FIT.microcodeType, target: 0x2000 },
+        { type: FIT.microcodeType, target: 0x2100 },
+      ],
+      contents: new Map([
+        [0x2000, fitMicrocode({ totalSize: 0x100 })],
+        [0x2100, fitMicrocode({ signature: 0x0009_06ea, totalSize: 0x100 })],
+      ]),
+    });
+
+    const edit = removeMicrocodeAt(
+      1,
+      tableOf(bytes),
+      undefined,
+      readerOver(bytes),
+      assumedAddressDiff(bytes.length),
+      ranges("ibb", { start: 0x2000, end: 0x2100 })
+    );
+
+    expect(edit.ok).toBe(false);
+    if (edit.ok) return;
+    expect(edit.problem.kind).toBe("insideProtectedRange");
   });
 });

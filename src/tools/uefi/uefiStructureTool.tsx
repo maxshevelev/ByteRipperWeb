@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import {
   askFirmwareDetail,
+  askFirmwareProtectedRanges,
   expandFirmwareNode,
   findFirmwareNodeAt,
   firmwareNodeAt,
@@ -254,6 +255,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
   const roots = state?.roots;
   const status = state?.status;
+
+  // The protected ranges, once the tree is there to read them over: the reading
+  // opens every volume's files and hashes megabytes, so a panel nobody has
+  // opened pays for none of it.
+  useEffect(() => {
+    if (status === "ready") askFirmwareProtectedRanges(context.pane);
+  }, [status, context.pane]);
   useEffect(() => {
     if (roots === undefined || status !== "ready") return;
     // A branch the reader asked for has arrived: the row opens now, once, with
@@ -431,8 +439,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.marks
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.marks(for:)
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks
-   * @upstream-differs the protected ranges are not read here yet (G3), so no
-   * row wears a tint
    */
   const marksOf = useCallback(
     (node: WireNode): ToolRowMarks =>
@@ -441,8 +447,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         diagnostics: state?.diagnostics ?? [],
         roots: roots ?? [],
         isOpen: open.has(pathKey(node.id)),
+        protectedRanges: state?.protectedRanges?.ranges,
       }),
-    [state?.diagnostics, roots, open]
+    [state?.diagnostics, state?.protectedRanges, roots, open]
   );
 
   /**
@@ -560,7 +567,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     <div className="uefi-tool">
       <div className="uefi-title-row">
         {title === undefined ? (
-          <span className="uefi-title">{summary(state.roots)}</span>
+          <span className="uefi-title">
+            {summary(state.roots, state.protectedRanges?.ranges.length ?? 0)}
+          </span>
         ) : (
           // The title names the image, and the root it stands for is selected
           // by a click on it exactly as its row would be: its zone, its detail.
@@ -582,7 +591,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             title="Show the whole image in the dump"
             onClick={() => choose(title)}
           >
-            {summary(state.roots)}
+            {summary(state.roots, state.protectedRanges?.ranges.length ?? 0)}
           </button>
         )}
         <label

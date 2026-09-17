@@ -118,3 +118,10 @@ export const NESTED_OUTER_LZMA: readonly string[] = [
   "ac79a453101fb24ac6b0787ec0c100a6b1d4a0c38716121846f3e7fbc6abde9e7870fe2c643008cc459a549aab93",
   "21bc28c46f7062e4b8c59ffa5aca00",
 ];
+
+/** LZMA, over a volume image section holding the DXE Core — the protected-range fixture's. */
+export const DXE_CORE_VOLUME_LZMA: readonly string[] = [
+  "5d00000100040400000000000000025ffc3311eb19957b27e539b918d59f6a6918b4f975a6928998131f193e4535",
+  "7605b5f19750c144c638cc8a183a1abb3bd9058383f10496bcef14876d06376bc6a9e38a67b033a9ebb4f793d26c",
+  "5e8756edeec15946c47ffbcc6200",
+];

@@ -293,8 +293,46 @@ const MASK64 = 0xffff_ffff_ffff_ffffn;
 const rotr64 = (value: bigint, by: bigint) =>
   ((value >> by) | ((value << (64n - by)) & MASK64)) & MASK64;
 
+/**
+ * SHA-512: the same rounds as SHA-384 over a state of its own, and none of it
+ * thrown away.
+ *
+ * @web-only upstream reaches CryptoKit's `SHA512` for a Boot Guard digest stored
+ * with that algorithm id; here the 64-bit family is written out once and both
+ * lengths are the same function.
+ */
+export function sha512(message: Uint8Array): Uint8Array {
+  return sha512Family(message, [
+    0x6a09e667f3bcc908n,
+    0xbb67ae8584caa73bn,
+    0x3c6ef372fe94f82bn,
+    0xa54ff53a5f1d36f1n,
+    0x510e527fade682d1n,
+    0x9b05688c2b3e6c1fn,
+    0x1f83d9abfb41bd6bn,
+    0x5be0cd19137e2179n,
+  ]).subarray(0, 64);
+}
+
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.sha384 */
 export function sha384(message: Uint8Array): Uint8Array {
+  // SHA-384's initial state: the fractional parts of the square roots of the
+  // ninth through sixteenth primes, which is what makes it more than a
+  // truncated SHA-512.
+  return sha512Family(message, [
+    0xcbbb9d5dc1059ed8n,
+    0x629a292a367cd507n,
+    0x9159015a3070dd17n,
+    0x152fecd8f70e5939n,
+    0x67332667ffc00b31n,
+    0x8eb44a8768581511n,
+    0xdb0c2e0d64f98fa7n,
+    0x47b5481dbefa4fa4n,
+  ]).subarray(0, 48);
+}
+
+/** The 64-bit family's rounds: SHA-512 and SHA-384 differ only in where they start. */
+function sha512Family(message: Uint8Array, initial: readonly bigint[]): Uint8Array {
   // The 64-bit family pads to 128 bytes with a 128-bit length. The high half of
   // that length is always zero here: it would need a message of 2^64 bits.
   const withMarker = message.length + 1;
@@ -307,19 +345,7 @@ export function sha384(message: Uint8Array): Uint8Array {
   view.setBigUint64(data.length - 16, (bits >> 64n) & MASK64, false);
   view.setBigUint64(data.length - 8, bits & MASK64, false);
 
-  // SHA-384's initial state: the fractional parts of the square roots of the
-  // ninth through sixteenth primes, which is what makes it more than a
-  // truncated SHA-512.
-  const h = [
-    0xcbbb9d5dc1059ed8n,
-    0x629a292a367cd507n,
-    0x9159015a3070dd17n,
-    0x152fecd8f70e5939n,
-    0x67332667ffc00b31n,
-    0x8eb44a8768581511n,
-    0xdb0c2e0d64f98fa7n,
-    0x47b5481dbefa4fa4n,
-  ];
+  const h = [...initial];
   const w = new Array<bigint>(80);
 
   for (let at = 0; at < data.length; at += 128) {
@@ -363,9 +389,9 @@ export function sha384(message: Uint8Array): Uint8Array {
     }
   }
 
-  // SHA-384 is SHA-512's state truncated to its first six words.
-  const out = new Uint8Array(48);
+  // The whole state; SHA-384 is this truncated to its first six words.
+  const out = new Uint8Array(64);
   const result = new DataView(out.buffer);
-  for (let index = 0; index < 6; index++) result.setBigUint64(index * 8, h[index] ?? 0n, false);
+  for (let index = 0; index < 8; index++) result.setBigUint64(index * 8, h[index] ?? 0n, false);
   return out;
 }

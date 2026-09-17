@@ -350,7 +350,9 @@ export function volume(
   if (options.lastFile !== undefined) {
     // Flush against the end of the volume, the way a Volume Top File is — with
     // a pad file covering the space in front of it, which is how a real volume
-    // reaches one.
+    // reaches one. The pad file sits on the eight-byte boundary a file walk
+    // looks for it at.
+    writer.pad(alignUp(writer.count, 8) ?? writer.count, emptyByte);
     const start = length - options.lastFile.length;
     const gap = start - writer.count;
     if (gap >= FFS.headerSize) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hex, sameBytes, sha1, sha256, sha384 } from "@/firmware/me/crypto/digest";
+import { hex, sameBytes, sha1, sha256, sha384, sha512 } from "@/firmware/me/crypto/digest";
 
 /**
  * The three digests against the vectors FIPS 180-4 and NIST's CAVP publish.
@@ -53,6 +53,37 @@ describe("sha256", () => {
     );
     expect(hex(sha256(repeated("a", 64)))).toBe(
       "FFE054FE7AE0CB6DC65C3AF9B61D5209F439851DB43D0BA5997337DF154668EB"
+    );
+  });
+});
+
+describe("sha512", () => {
+  it("matches the published vectors", () => {
+    expect(hex(sha512(new Uint8Array(0)))).toBe(
+      "CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE" +
+        "47D0D13C5D85F2B0FF8318D2877EEC2F63B931BD47417A81A538327AF927DA3E"
+    );
+    expect(hex(sha512(ascii("abc")))).toBe(
+      "DDAF35A193617ABACC417349AE20413112E6FA4E89A97EA20A9EEEE64B55D39A" +
+        "2192992A274FC1A836BA3C23A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F"
+    );
+    // 112 bytes: the 1024-bit block's own straddling case.
+    expect(
+      hex(
+        sha512(
+          ascii(
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn" +
+              "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"
+          )
+        )
+      )
+    ).toBe(
+      "8E959B75DAE313DA8CF4F72814FC143F8F7779C6EB9F7FA17299AEADB6889018" +
+        "501D289E4900F7E4331B99DEC4B5433AC7D329EEB6DD26545E96E55B874BE909"
+    );
+    expect(hex(sha512(repeated("a", 1_000_000)))).toBe(
+      "E718483D0CE769644E2E42C7BC15B4638E1F98B13B2044285632A803AFA973EB" +
+        "DE0FF244877EA60A4CB0432CE577C31BEB009C5C2C49AA2E4EADB217AD8CC09B"
     );
   });
 });

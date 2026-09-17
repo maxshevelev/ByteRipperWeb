@@ -7,6 +7,7 @@ import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/contentChange";
 import type {
   FirmwareDetailResponse,
+  FirmwareProtectedRangesResponse,
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
   FitEditRequest,
@@ -47,6 +48,11 @@ export interface PaneFirmware {
   readonly expanding: ReadonlySet<string>;
   /** What the detail panel shows about the node it was last asked about. */
   readonly detail: FirmwareDetailResponse | undefined;
+  /**
+   * The Boot Guard and vendor ranges, once the panel has asked for them.
+   * Nothing means "not read yet", which is not the same as "none".
+   */
+  readonly protectedRanges: FirmwareProtectedRangesResponse | undefined;
 }
 
 export interface FirmwareState {
@@ -63,6 +69,7 @@ const empty: PaneFirmware = {
   problem: undefined,
   expanding: new Set(),
   detail: undefined,
+  protectedRanges: undefined,
 };
 
 export const firmwareStore = createStore<FirmwareState>({ panes: { a: undefined, b: undefined } });
@@ -183,6 +190,14 @@ function ensureWorker(pane: PaneId): PaneWorker {
         return;
       case "firmwareDetail":
         update(pane, { detail: response });
+        return;
+      case "firmwareProtectedRanges":
+        // The reading's own complaints join the panel's list: what the lists
+        // say is as much a part of reading an image as what its headers say.
+        update(pane, {
+          protectedRanges: response,
+          diagnostics: [...(firmwareFor(pane)?.diagnostics ?? []), ...response.diagnostics],
+        });
         return;
       case "firmwareRepair": {
         const waiting = repairWaiters.get(pathKey(response.node));
@@ -318,6 +333,20 @@ export function findFirmwareNodeAt(
 }
 
 /** Asks for everything the detail panel shows about one node. */
+/**
+ * Reads the protected ranges, once. The worker hashes megabytes for them, so a
+ * panel asks when it is opened and not before, and the answer is kept until an
+ * edit makes it stale.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.show
+ */
+export function askFirmwareProtectedRanges(pane: PaneId): void {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return;
+  if (current.protectedRanges !== undefined) return;
+  send(pane, { kind: "firmwareProtectedRanges", id: workers[pane]?.job ?? 0 });
+}
+
 export function askFirmwareDetail(pane: PaneId, path: readonly number[]): void {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return;

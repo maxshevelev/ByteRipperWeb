@@ -78,6 +78,16 @@ export const PHOENIX_HASH_FILE = guid("389CC6F2-1EA8-467B-AB8A-78E769AE2A15");
 export const AMI_HASH_FILE = guid("CBC91F44-A4BC-4A5B-8696-703451D0B053");
 
 /**
+ * The DXE Core, in either spelling: the file that says which volume the DXE root
+ * is, and so where a range with no address of its own starts.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.dxeCore
+ */
+export const DXE_CORE = guid("D6A2CB7F-6A18-4E2F-B43B-9920A733700A");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amiDxeCore */
+export const AMI_DXE_CORE = guid("5AE3F37E-4EAE-41AE-8240-35465B5E81EB");
+
+/**
  * Names for the volumes, files and sections worth naming. Everything else is
  * shown by its type, which is more useful than a GUID nobody knows.
  *
@@ -104,8 +114,8 @@ const NAMES = new Map<string, string>(
       [guid("00504624-8A59-4EEB-BD0F-6B36E96128E0"), "NVRAM additional store"],
 
       [VOLUME_TOP_FILE, "Volume Top File"],
-      [guid("D6A2CB7F-6A18-4E2F-B43B-9920A733700A"), "DXE Core"],
-      [guid("5AE3F37E-4EAE-41AE-8240-35465B5E81EB"), "AMI DXE Core"],
+      [DXE_CORE, "DXE Core"],
+      [AMI_DXE_CORE, "AMI DXE Core"],
       [guid("1B45CC0A-156A-428A-AF62-49864DA0E6E6"), "PEI apriori"],
       [guid("FC510EE7-FFDC-11D4-BD41-0080C73C8881"), "DXE apriori"],
       [guid("E4536585-7909-4A60-B5C6-ECDEA6EBFB54"), "AMI padding file"],

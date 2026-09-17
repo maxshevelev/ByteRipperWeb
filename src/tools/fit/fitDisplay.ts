@@ -21,7 +21,13 @@ import {
   type FITTopSwapBackup,
   topSwapSize,
 } from "@/firmware/fit/fitTopSwap";
+import type { ImageRange } from "@/firmware/imageReader";
 import { microcodeDate, microcodeRange } from "@/firmware/uefi/microcodeParser";
+import {
+  type ProtectedRanges,
+  type Protection,
+  protectionOfRange,
+} from "@/firmware/uefi/protectedRanges";
 import { buildDetail, EMPTY_DETAIL, type FITRowDetail } from "@/tools/fit/fitDetail";
 import { cpuidText, fitHex as hex } from "@/tools/fit/fitText";
 import {
@@ -135,8 +141,12 @@ export interface FITDisplayRow {
   readonly hasProblem: boolean;
   /** The zone for the row itself — sixteen bytes of the table. */
   readonly zoneId: string;
-  /** Those sixteen bytes. */
-  readonly rowStart: number;
+  /**
+   * Those sixteen bytes.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.rowRange
+   */
+  readonly rowRange: ImageRange;
   /**
    * Where the row points, when it points into the image.
    *
@@ -180,6 +190,15 @@ export interface FITDisplayRow {
    */
   readonly latestState: MicrocodeLatest;
   /**
+   * How the bytes the row stands for — the component it points at, or the table
+   * itself for the header — lie against the image's Boot Guard and vendor
+   * protected ranges. Nothing until the ranges are read, and where none of them
+   * touches those bytes.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.protection
+   */
+  readonly protection?: Protection | undefined;
+  /**
    * The row as the table read it — entry and what it points at — kept so the
    * detail can be rebuilt for whatever row comes into focus.
    *
@@ -220,7 +239,7 @@ export const displayNumber = (row: FITDisplayRow): number => row.index + 1;
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.offsetToGoTo
  */
-export const offsetToGoTo = (row: FITDisplayRow): number => row.targetRange?.start ?? row.rowStart;
+export const offsetToGoTo = (row: FITDisplayRow): number => (row.targetRange ?? row.rowRange).start;
 
 /**
  * The zone that "go to the offset" brings to the front.
@@ -464,6 +483,44 @@ export function ratingLatest(
 }
 
 /**
+ * The same display with every row placed against the image's protected ranges: a
+ * row by the component it points at, the header by the table's own bytes, and a
+ * row that points nowhere not at all. Ranges not read yet leave the display as
+ * it is.
+ *
+ * Like the verdicts, it changes the marks and never the map.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.protecting
+ */
+export function protecting(display: FITDisplay, ranges: ProtectedRanges | undefined): FITDisplay {
+  if (ranges === undefined) return display;
+  const table = tableRange(display, false);
+  const backupTable = tableRange(display, true);
+  return {
+    ...display,
+    rows: display.rows.map((row) => {
+      const bytes = row.index === 0 ? (row.isBackup ? backupTable : table) : row.targetRange;
+      const protection = bytes === undefined ? undefined : protectionOfRange(ranges, bytes);
+      return protection === undefined ? row : { ...row, protection };
+    }),
+  };
+}
+
+/**
+ * A table's own bytes: from the header's sixteen to the last row's — the
+ * table's, or the Top Swap backup's copy of it.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.tableRange
+ */
+function tableRange(display: FITDisplay, backup: boolean): ImageRange | undefined {
+  const own = display.rows.filter((row) => row.isBackup === backup);
+  const first = own[0];
+  const last = own[own.length - 1];
+  if (first === undefined || last === undefined) return undefined;
+  return { start: first.rowRange.start, end: last.rowRange.end };
+}
+
+/**
  * What to show for a report. `focus` is the row the user has selected.
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.display
@@ -553,7 +610,7 @@ function displayRows(
           : undefined,
       hasProblem: problemRows.has(row.entry.index),
       zoneId: rowZoneId(isBackup ? backupKey(row.entry.index) : row.entry.index),
-      rowStart: row.entry.offset,
+      rowRange: { start: row.entry.offset, end: row.entry.offset + FIT_ENTRY_SIZE },
       targetRange: target,
       canRemove: !isBackup && row.entry.type === FIT.microcodeType && microcodeCount > 1,
       canReplace: !isBackup && row.entry.type === FIT.microcodeType,
@@ -787,8 +844,8 @@ function zonesOf(
     zones.push({
       id: row.zoneId,
       name: `${prefix}#${displayNumber(row)} ${row.typeText}`,
-      start: row.rowStart,
-      end: row.rowStart + FIT_ENTRY_SIZE,
+      start: row.rowRange.start,
+      end: row.rowRange.end,
     });
     if (row.targetRange === undefined) continue;
     // Named by CPUID where there is one: that is what a bench is looking for

@@ -3,13 +3,16 @@ import { sourceOver } from "@/firmware/byteSource";
 import { FIT } from "@/firmware/fit/fitEntry";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { readFitTable } from "@/firmware/fit/fitTable";
+import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
 import { fitImage, fitMicrocode, type TestRow } from "@/firmware/testing/testFit";
+import type { ProtectedRangeKind, ProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import {
   type FITDisplay,
   type FITDisplayRow,
   fitDisplay,
+  protecting,
   ratingLatest,
 } from "@/tools/fit/fitDisplay";
 import { FIT_ROW_MARKS, fitRowMarks, holdsChecks, verdict } from "@/tools/fit/fitRowMarks";
@@ -35,6 +38,23 @@ function display(rows: readonly TestRow[], microcodeBytes?: Uint8Array): FITDisp
   const image = new UEFIImage({ size: 0x1_0000, roots: [], addressDiff: 0xffff_0000 });
   return fitDisplay(readFitTable(new ImageReader(sourceOver(bytes)), image));
 }
+
+/**
+ * @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.ranges
+ */
+const protectedBy = (
+  list: readonly (readonly [ProtectedRangeKind, ImageRange])[]
+): ProtectedRanges => ({
+  ranges: list.map(([kind, range]) => ({
+    kind,
+    range,
+    digests: [],
+    source: { start: 0xf000, end: 0xf010 },
+    verdict: { kind: "unchecked" as const },
+  })),
+  obbDigests: [],
+  diagnostics: [],
+});
 
 function rowAt(rows: readonly FITDisplayRow[], index: number): FITDisplayRow {
   const row = rows[index];
@@ -103,20 +123,75 @@ describe("what a row wears", () => {
     expect(FIT_ROW_MARKS.legendMarks).toContain("holdsChecks");
   });
 
-  // @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testAPartlyCoveredComponentWearsTheBadgeNotTheTint
-  // @upstream-differs G3 is not ported: no row is ever placed inside a
-  // protected range, so no row is tinted and none wears `partlyProtected`
-  it("draws no background and no partly-protected badge, because G3 is not ported", () => {
-    const shown = display([{ type: FIT.microcodeType, target: MICROCODE }]);
+  /**
+   * A row wholly inside the IBB wears the IBB background; the header, whose
+   * table lies outside it, wears none.
+   *
+   * @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testARowPointingIntoTheIBBWearsItsBackground
+   */
+  it("tints a row pointing into the IBB", () => {
+    const shown = protecting(
+      display([{ type: FIT.microcodeType, target: MICROCODE }]),
+      protectedBy([["ibb", { start: 0x2000, end: 0x3000 }]])
+    );
 
-    for (const row of shown.rows) {
-      expect(fitRowMarks(row, shown.problems).protection).toBeUndefined();
-      expect(fitRowMarks(row, shown.problems).decompressedFrom).toBeUndefined();
-    }
-    expect(FIT_ROW_MARKS.legendMarks).not.toContain("protectedIBB");
-    expect(FIT_ROW_MARKS.legendMarks).not.toContain("protectedFirmware");
-    expect(FIT_ROW_MARKS.legendMarks).not.toContain("partlyProtected");
-    expect(FIT_ROW_MARKS.legendMarks).not.toContain("decompressed");
+    expect(fitRowMarks(rowAt(shown.rows, 1), shown.problems).protection).toBe("ibb");
+    expect(fitRowMarks(rowAt(shown.rows, 0), shown.problems).protection).toBeUndefined();
+  });
+
+  /**
+   * The header is placed by the table's own bytes.
+   *
+   * @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testTheHeaderIsPlacedByTheTablesBytes
+   */
+  it("places the header by the table's own bytes", () => {
+    const shown = protecting(
+      display([{ type: FIT.microcodeType, target: MICROCODE }]),
+      protectedBy([["phoenix", { start: 0x1000, end: 0x1100 }]])
+    );
+
+    expect(fitRowMarks(rowAt(shown.rows, 0), shown.problems).protection).toBe("firmware");
+    expect(fitRowMarks(rowAt(shown.rows, 1), shown.problems).protection).toBeUndefined();
+  });
+
+  /**
+   * A component only partly covered gets no tint and the partly-protected
+   * badge, after the badge it may already wear.
+   *
+   * @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testAPartlyCoveredComponentWearsTheBadgeNotTheTint
+   */
+  it("badges a partly covered component rather than tinting it", () => {
+    const shown = protecting(
+      display([
+        { type: FIT.microcodeType, target: MICROCODE },
+        { type: FIT.bootPolicyType, target: 0x4000 },
+      ]),
+      protectedBy([
+        ["ibb", { start: 0x2100, end: 0x2200 }],
+        ["ibb", { start: 0x4000, end: 0x4004 }],
+      ])
+    );
+
+    const first = fitRowMarks(rowAt(shown.rows, 1), shown.problems);
+    expect(first.protection).toBeUndefined();
+    expect(first.roles).toEqual([{ kind: "partlyProtected" }]);
+    const second = fitRowMarks(rowAt(shown.rows, 2), shown.problems);
+    expect(second.roles?.at(-1)).toEqual({ kind: "partlyProtected" });
+    // The holds-checks badge first.
+    expect(second.roles?.length).toBe(2);
+  });
+
+  /**
+   * Before the ranges are read nothing is placed, and nothing is tinted.
+   *
+   * @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testNoRangesPlaceNothing
+   */
+  it("places nothing before the ranges are read", () => {
+    const plain = display([{ type: FIT.microcodeType, target: MICROCODE }]);
+
+    expect(protecting(plain, undefined)).toEqual(plain);
+    const none = protecting(plain, { ranges: [], obbDigests: [], diagnostics: [] });
+    expect(none.rows.map((row) => row.protection)).toEqual([undefined, undefined]);
   });
 
   // @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.marks
@@ -194,18 +269,21 @@ describe("the verdict", () => {
 
 describe("the legend", () => {
   // @upstream Modules/FITTool/Tests/FITToolTests/FITRowMarksTests.swift#FITRowMarksTests.testTheLatestStatesAreTheCataloguesVerdicts
-  it("lists the verdicts and the problems, and neither paint nor a rail", () => {
+  it("lists the paint, the verdicts and the problems, and no rail", () => {
     expect(FIT_ROW_MARKS.legendMarks).toEqual([
+      "protectedIBB",
+      "protectedFirmware",
       "newest",
       "newerListed",
       "newerMaybe",
       "error",
       "caution",
       "holdsChecks",
+      "partlyProtected",
     ]);
     for (const mark of FIT_ROW_MARKS.legendMarks) {
       const channel = rowMarkChannel(mark);
-      expect(["verdict", "problem", "role"]).toContain(channel);
+      expect(["background", "verdict", "problem", "role"]).toContain(channel);
     }
   });
 });

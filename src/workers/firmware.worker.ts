@@ -21,9 +21,17 @@ import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
+import {
+  isIbbKind,
+  type ProtectedRange,
+  type ProtectedRanges,
+  protectedRangeKindName,
+  readProtectedRanges,
+} from "@/firmware/uefi/protectedRanges";
 import { runSecondPass } from "@/firmware/uefi/secondPass";
+import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import { invalidating } from "@/firmware/uefi/treeInvalidation";
-import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
+import { childrenOf, materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import {
@@ -42,6 +50,7 @@ import type {
   FirmwareWorkerResponse,
   WireDiagnostic,
   WireNode,
+  WireProtectedRange,
 } from "@/workers/protocol";
 
 /**
@@ -105,6 +114,7 @@ const NO_EDIT = {
 /** What the edit came to, in the sentence the panel says afterwards. */
 function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
   const moved = outcome.moved === 0 ? "" : `, and ${outcome.moved} behind it moved up to suit`;
+  const protection = protectionNote(outcome.protectionWarnings);
   // That the Top Swap backup of the boot block got the same change is said,
   // because it is a second place in the file the edit wrote to.
   const backup = outcome.topSwapBackup;
@@ -113,12 +123,26 @@ function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
       ? ""
       : ` The Top Swap backup at 0x${backup.start.toString(16).toUpperCase()} got the same change.`;
   if (!("range" in outcome)) {
-    return `The microcode is out of the table${moved}.${topSwap}`;
+    return `The microcode is out of the table${moved}.${topSwap}${protection}`;
   }
   const where = `0x${outcome.range.start.toString(16).toUpperCase()}`;
   return outcome.kind === "added"
-    ? `The microcode went in at ${where}${moved}.${topSwap}`
-    : `The microcode at ${where} was replaced${moved}.${topSwap}`;
+    ? `The microcode went in at ${where}${moved}.${topSwap}${protection}`
+    : `The microcode at ${where} was replaced${moved}.${topSwap}${protection}`;
+}
+
+/**
+ * What the protected ranges said about the edit — and, where they were not read
+ * at all, that they were not.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.protectionNote
+ */
+function protectionNote(warnings: readonly string[] | undefined): string {
+  if (warnings === undefined) return " Boot Guard and vendor protected ranges were not checked.";
+  if (warnings.length === 0) {
+    return " Nothing was written inside a Boot Guard or vendor protected range.";
+  }
+  return ` ${warnings.join(" ")}`;
 }
 
 /** The image currently open. One per worker, as one worker serves one pane. */
@@ -130,6 +154,12 @@ let roots: UEFINode[] = [];
  * and opened again is decoded once.
  */
 let buffers = new DecompressedBuffers();
+/**
+ * The protected ranges, once something has asked for them: reading them opens
+ * every volume's files and hashes megabytes, so it is done once and kept until
+ * an edit makes it stale.
+ */
+let protectedRanges: ProtectedRanges | undefined;
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
 
@@ -196,6 +226,57 @@ function readerFor(node: UEFINode): ImageReader | undefined {
   const read = buffers.readerFor(node.space, reader, DEFAULT_LIMITS.maxDecompressedSize);
   return read.ok ? read.reader : undefined;
 }
+
+/**
+ * The protected ranges, read over a **copy** of the tree opened as far as the
+ * lists need: every volume's files, and the compressed sections only when a
+ * range that starts at the DXE root volume could not be placed without them,
+ * since decoding one is megabytes of work.
+ *
+ * The copy is dropped rather than written back, so a branch the reader opened
+ * meanwhile survives; what it decoded stays in the buffers.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.protectedRanges
+ */
+function readRanges(): ProtectedRanges {
+  if (protectedRanges !== undefined) return protectedRanges;
+  if (reader === undefined) return { ranges: [], obbDigests: [], diagnostics: [] };
+  const copy = structuredClone(roots) as UEFINode[];
+  const discarded: UEFIDiagnostic[] = [];
+  materializeAll(copy, reader, DEFAULT_LIMITS, buffers, discarded, { opensCompressed: false });
+  const parser = new Parser(reader, DEFAULT_LIMITS);
+  const second = runSecondPass(parser, copy);
+  const imageOf = () =>
+    new UEFIImage({
+      size: reader?.count ?? 0,
+      roots: copy,
+      addressDiff: second.addressDiff,
+      resetVector: second.resetVector,
+    });
+  let found = readProtectedRanges(imageOf(), reader);
+  const needsTheDxeCore = found.ranges.some(
+    (one) => (one.kind === "postIbb" || one.kind === "amiV1") && one.range === undefined
+  );
+  if (needsTheDxeCore) {
+    materializeAll(copy, reader, DEFAULT_LIMITS, buffers, discarded);
+    found = readProtectedRanges(imageOf(), reader);
+  }
+  protectedRanges = found;
+  return found;
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.show */
+const wireProtectedRange = (range: ProtectedRange): WireProtectedRange => ({
+  kind: range.kind,
+  range: range.range === undefined ? undefined : [range.range.start, range.range.end],
+  source: [range.source.start, range.source.end],
+  algorithms: range.digests.map((one) => tcgHashName(one.algorithm)),
+  verdict: range.verdict.kind,
+  unsupported:
+    range.verdict.kind === "unsupported" ? tcgHashName(range.verdict.algorithm) : undefined,
+  name: protectedRangeKindName(range.kind),
+  isIbb: isIbbKind(range.kind),
+});
 
 /** Opens one collapsed node where it stands, keeping its children for later asks. */
 function open(node: UEFINode, into: UEFIDiagnostic[]): void {
@@ -277,6 +358,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
       case "openFirmware": {
         reader = new ImageReader(new BlobByteSource(request.content));
         buffers = new DecompressedBuffers();
+        protectedRanges = undefined;
         const sink = new ProgressSink(reader.count, (fraction) =>
           post({ kind: "firmwareProgress", id: request.id, fraction })
         );
@@ -305,6 +387,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         const edited = rangeOf(request.range);
         if (request.sizeDelta === 0) buffers.dropOverlapping(edited);
         else buffers.dropFrom(edited.start);
+        // The ranges were read off bytes that may have just been typed over,
+        // and their digests over bytes that certainly were.
+        protectedRanges = undefined;
         roots = invalidating(roots, edited, request.sizeDelta);
         // No diagnostics come back with this: what was found in the subtrees
         // just dropped went with them, as it does upstream, and what is left is
@@ -384,6 +469,18 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      case "firmwareProtectedRanges": {
+        const ranges = readRanges();
+        post({
+          kind: "firmwareProtectedRanges",
+          id: request.id,
+          ranges: ranges.ranges.map(wireProtectedRange),
+          obbDigests: ranges.obbDigests.map((one) => tcgHashName(one.algorithm)),
+          diagnostics: wireDiagnostics(ranges.diagnostics),
+        });
+        return;
+      }
+
       case "firmwareRepair": {
         const node = nodeAt(request.node);
         if (reader === undefined || node === undefined) {
@@ -430,6 +527,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           size: reader.count,
           roots,
           addressDiff: runSecondPass(parser, roots).addressDiff,
+          // Whatever has been read so far: the detail says what protects a node
+          // once something has asked for the ranges, and reads nothing itself.
+          protectedRanges,
         });
         post({
           kind: "firmwareDetail",
@@ -458,6 +558,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           size: reader.count,
           roots,
           addressDiff: runSecondPass(parser, roots).addressDiff,
+          // Whatever has been read so far: the detail says what protects a node
+          // once something has asked for the ranges, and reads nothing itself.
+          protectedRanges,
         });
         post({ kind: "fitReport", id: request.id, report: readFitTable(reader, image) });
         return;
@@ -481,9 +584,12 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // will look for it.
         const addressDiff = report.addressDiff;
         const edit = request.edit;
+        // The ranges, if the panel has read them: a write inside the IBB is
+        // refused, one inside a range the firmware checks is made and said.
+        const ranges = readRanges();
         const result =
           edit.kind === "remove"
-            ? removeMicrocodeAt(edit.index, report.table, image, reader, addressDiff)
+            ? removeMicrocodeAt(edit.index, report.table, image, reader, addressDiff, ranges)
             : edit.kind === "replaceAt"
               ? replaceMicrocodeAt(
                   edit.index,
@@ -491,9 +597,17 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                   report.table,
                   image,
                   reader,
-                  addressDiff
+                  addressDiff,
+                  ranges
                 )
-              : addOrReplaceMicrocode(edit.component, report.table, image, reader, addressDiff);
+              : addOrReplaceMicrocode(
+                  edit.component,
+                  report.table,
+                  image,
+                  reader,
+                  addressDiff,
+                  ranges
+                );
         if (!result.ok) {
           post({ ...NO_EDIT, id: request.id, problem: fitEditProblemMessage(result.problem) });
           return;

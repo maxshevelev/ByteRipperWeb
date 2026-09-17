@@ -5,7 +5,9 @@ import * as Test from "@/firmware/testing/testImage";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 import { jedecName } from "@/firmware/uefi/jedecIds";
-import { FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
+import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
+import type { ProtectedRange } from "@/firmware/uefi/protectedRanges";
+import { TCGHash } from "@/firmware/uefi/tcgHash";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
@@ -838,5 +840,68 @@ describe("the NVRAM stores and entries", () => {
     expect(value(detail, "Size")).toBe("0x1000 (4096)");
     expect(value(detail, "Offset")).toBe("0x40");
     expect(value(detail, "Physical address")).toBe("0xFFF00000");
+  });
+});
+
+/**
+ * What the detail says about a node a protected range covers. Ported from
+ * upstream's `ProtectionMarksTests`, whose detail case belongs with the detail.
+ */
+describe("a node a protected range covers", () => {
+  const driver = () =>
+    makeNode({ kind: "file", name: "Driver", header: r(0x48, 0x60), body: r(0x60, 0x200) });
+  const hashes = () =>
+    makeNode({
+      kind: "file",
+      name: "Hashes",
+      guid: AMI_HASH_FILE,
+      header: r(0x200, 0x218),
+      body: r(0x218, 0x280),
+    });
+
+  const imageWith = (ranges: readonly ProtectedRange[]) =>
+    new UEFIImage({
+      size: 0x1000,
+      roots: [
+        makeNode({
+          kind: "volume",
+          name: "FFSv2",
+          header: r(0, 0x48),
+          body: r(0x48, 0x1000),
+          children: [driver(), hashes()],
+        }),
+      ],
+      protectedRanges: { ranges, obbDigests: [], diagnostics: [] },
+    });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testTheDetailSaysWhatProtectsANode
+  it("says what protects it", () => {
+    const image = imageWith([
+      {
+        kind: "ibb",
+        range: r(0x48, 0x200),
+        digests: [{ algorithm: TCGHash.sha256, bytes: Uint8Array.of(1, 2, 3) }],
+        source: r(0x900, 0x940),
+        verdict: { kind: "matches" },
+      },
+    ]);
+    const bytes = new Uint8Array(0x1000);
+    const node = image.roots[0]?.children[0] as UEFINode;
+
+    const detail = buildNodeDetail(node, image, readerOver(bytes), []);
+    const table = detail.tables.find((one) => one.title === "Protected by");
+    expect(table).toBeDefined();
+    const row = table?.rows[0]?.map((one) => one.text);
+    expect(row?.[1]).toBe("Boot Guard IBB segment");
+    expect(row?.[3]).toBe("SHA-256 matches");
+    expect(detail.fields.some((one) => one.label === "Protection")).toBe(true);
+
+    const untouched = buildNodeDetail(
+      image.roots[0]?.children[1] as UEFINode,
+      image,
+      readerOver(bytes),
+      []
+    );
+    expect(untouched.tables.some((one) => one.title === "Protected by")).toBe(false);
   });
 });

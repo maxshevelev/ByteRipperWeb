@@ -15,12 +15,20 @@ import {
   microcodeProcessorText,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
+import {
+  isIbbKind,
+  type ProtectedRange,
+  protectedRangeKindName,
+  rangesTouchingNode,
+} from "@/firmware/uefi/protectedRanges";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
+import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub, subtypeName } from "@/firmware/uefi/uefiTypes";
 import {
   cell,
+  type DetailCell,
   type DetailField,
   type DetailTable,
   field,
@@ -56,18 +64,33 @@ export function buildNodeDetail(
   const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
   const title = node.name.length === 0 ? kindLabel(node.kind) : node.name;
 
+  // Every range that shares a byte with the node, once something has read them.
+  const protectedBy =
+    image.protectedRanges === undefined
+      ? []
+      : rangesTouchingNode(image.protectedRanges, node, image);
+  const protection: { fields: DetailField[]; tables: DetailTable[] } =
+    protectedBy.length === 0
+      ? { fields: [], tables: [] }
+      : {
+          fields: [field("Protection", PROTECTION_CAVEAT)],
+          tables: [protectedByTable(protectedBy)],
+        };
+  fields.push(...protection.fields);
+
   // An update for more than one processor lists the others in a table of its
   // own, which reads as the grid it is.
   if (node.kind === "microcode") {
     const extended = readMicrocodeHeader(node.header.start, reader)?.extendedTable;
     if (extended === undefined || extended.signatures.length === 0) {
-      return { title, fields, tables: [] };
+      return { title, fields, tables: protection.tables };
     }
     const cell = (text: string) => ({ text, tone: "plain" as const });
     return {
       title,
       fields,
       tables: [
+        ...protection.tables,
         {
           title: "Extended signatures",
           symbol: "cpu",
@@ -85,14 +108,73 @@ export function buildNodeDetail(
 
   // A descriptor says more about itself than a header's worth of fields, and
   // two of the things it says are grids.
-  if (node.kind !== "flashDescriptor") return { title, fields, tables: [] };
+  if (node.kind !== "flashDescriptor") return { title, fields, tables: protection.tables };
   const descriptor = readDescriptorInfo(node.header.start, reader);
-  if (descriptor === undefined) return { title, fields, tables: [] };
+  if (descriptor === undefined) return { title, fields, tables: protection.tables };
   return {
     title,
     fields: [...fields, ...descriptorFields(descriptor)],
-    tables: descriptorTables(descriptor),
+    tables: [...protection.tables, ...descriptorTables(descriptor)],
   };
+}
+
+// MARK: - Protected ranges
+
+/**
+ * What the image cannot say: the Boot Guard profile is in the PCH's fuses, not
+ * in the BIOS region.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectionCaveat
+ */
+export const PROTECTION_CAVEAT =
+  "Whether Boot Guard is enforced is set in the chipset's fuses, not in this image: " +
+  "the marks say what an edit would break if it is. Vendor hashes are checked by the firmware itself.";
+
+/**
+ * Every range that shares a byte with the node: what it is, where it is, where
+ * the list naming it is, and what hashing it found.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectedByTable
+ */
+function protectedByTable(ranges: readonly ProtectedRange[]): DetailTable {
+  return {
+    title: "Protected by",
+    symbol: "lock.shield",
+    columns: ["Range", "Kind", "Listed at", "Hash"],
+    rows: ranges.map((range) => [
+      {
+        text:
+          range.range === undefined
+            ? "Not placed"
+            : `${hex(range.range.start)}–${hex(range.range.end)}`,
+        tone: "plain" as const,
+      },
+      { text: protectedRangeKindName(range.kind), tone: "plain" as const },
+      { text: hex(range.source.start), tone: "plain" as const },
+      verdictCell(range),
+    ]),
+  };
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.verdictCell */
+function verdictCell(range: ProtectedRange): DetailCell {
+  const algorithms = range.digests.map((one) => tcgHashName(one.algorithm)).join(", ");
+  switch (range.verdict.kind) {
+    case "matches":
+      return { text: `${algorithms} matches`, tone: "yes" };
+    case "mismatch":
+      // An IBB mismatch is not a verdict yet.
+      return {
+        text: isIbbKind(range.kind)
+          ? `${algorithms} differs (unconfirmed)`
+          : `${algorithms} differs`,
+        tone: "no",
+      };
+    case "unsupported":
+      return { text: `${tcgHashName(range.verdict.algorithm)} not computed`, tone: "plain" };
+    case "unchecked":
+      return { text: "Not checked", tone: "plain" };
+  }
 }
 
 // MARK: - The fields every node has

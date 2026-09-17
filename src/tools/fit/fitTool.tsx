@@ -2,7 +2,14 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
-import { editPaneFit, firmwareStore, parsePaneFirmware, readPaneFit } from "@/state/firmwareStore";
+import type { ProtectedRangeKind, ProtectedRanges } from "@/firmware/uefi/protectedRanges";
+import {
+  askFirmwareProtectedRanges,
+  editPaneFit,
+  firmwareStore,
+  parsePaneFirmware,
+  readPaneFit,
+} from "@/state/firmwareStore";
 import {
   cancelMicrocodeCatalogue,
   downloadMicrocode,
@@ -25,6 +32,7 @@ import {
   fitDisplay,
   keepingTheOutline,
   offsetToGoTo,
+  protecting,
   ratingLatest,
   rowCommands,
   rowIndexOfZone,
@@ -47,7 +55,7 @@ import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
-import type { FitEditRequest, WireNode } from "@/workers/protocol";
+import type { FitEditRequest, WireNode, WireProtectedRange } from "@/workers/protocol";
 
 type FitEdit = FitEditRequest["edit"];
 
@@ -139,6 +147,30 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.loadView
  * @upstream-differs a React component: its render and effects are the session and its view controller
  */
+/**
+ * The ranges as the marks want them: the wire carries what a panel shows, and
+ * the placement rule wants the ranges and their kinds.
+ *
+ * @web-only the ranges are read in the worker and crossed as a message; upstream
+ * hands the display the value itself.
+ */
+function domainRanges(
+  ranges: readonly WireProtectedRange[] | undefined
+): ProtectedRanges | undefined {
+  if (ranges === undefined) return undefined;
+  return {
+    ranges: ranges.map((one) => ({
+      kind: one.kind as ProtectedRangeKind,
+      range: one.range === undefined ? undefined : { start: one.range[0], end: one.range[1] },
+      digests: [],
+      source: { start: one.source[0], end: one.source[1] },
+      verdict: { kind: "unchecked" as const },
+    })),
+    obbDigests: [],
+    diagnostics: [],
+  };
+}
+
 function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
@@ -234,15 +266,24 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     };
   }, [roots, status, pane]);
 
+  // The protected ranges are read once, when the panel opens: a row is marked
+  // by the bytes it points at, and the table's own rows by the table's.
+  useEffect(() => {
+    if (firmware?.status === "ready") askFirmwareProtectedRanges(pane);
+  }, [firmware?.status, pane]);
+
   // The verdicts ride on top of the display rather than inside the read: a
   // catalogue landing late must change the marks and nothing else. The outline
   // is put back where the user left it last, since a display built from the row
   // key alone would slide it back to the row on every re-read.
   const display: FITDisplay = useMemo(() => {
     if (report === undefined) return EMPTY_DISPLAY;
-    const built = ratingLatest(fitDisplay(report, focus), catalogue.entries);
+    const rated = ratingLatest(fitDisplay(report, focus), catalogue.entries);
+    // The protected ranges ride on top the same way: a reading landing late
+    // changes the marks and leaves the map where it is.
+    const built = protecting(rated, domainRanges(firmware?.protectedRanges?.ranges));
     return keepingTheOutline(built, focusZone);
-  }, [report, focus, focusZone, catalogue.entries]);
+  }, [report, focus, focusZone, catalogue.entries, firmware?.protectedRanges]);
 
   // Whatever the panel has decided is worth drawing, handed to the shell.
   useEffect(() => {
@@ -433,7 +474,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       setFocusZone(row.zoneId);
       // The row's own sixteen bytes: selecting a row is about the row, and
       // going to what it points at is the double-click and the menu's command.
-      context.reveal(row.rowStart, row.rowStart + 16);
+      context.reveal(row.rowRange.start, row.rowRange.end);
     },
     [context]
   );

@@ -3,6 +3,7 @@ import { type FITProblem, fitProblemMessage, fitSeverity } from "@/firmware/fit/
 import type { FITDisplayRow } from "@/tools/fit/fitDisplay";
 import type { MicrocodeLatest } from "@/tools/fit/microcodeCatalogue";
 import {
+  type RowProtection,
   type RowRole,
   type ToolRowMark,
   type ToolRowMarks,
@@ -20,9 +21,7 @@ import {
  * with the row, and a microcode image whose own checksum does not add up. A row
  * can wear both: a microcode that is not the newest *and* is broken.
  *
- * Not drawn in this port: the background and the partly-protected badge, which
- * need the Boot Guard ranges (G3). A FIT row has no rail either: nothing here
- * decompresses (G1), and a table row is not inside a container the way a tree
+ * A FIT row has no rail: a table row is not inside a container the way a tree
  * row is.
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks
@@ -32,17 +31,17 @@ export const FIT_ROW_MARKS = {
    * Every mark this table draws — what its legend lists.
    *
    * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.legendMarks
-   * @upstream-differs the two Boot Guard backgrounds and `partlyProtected` are
-   * not listed: this table draws none of them (G3), and a mark the panel never
-   * draws is not in the legend (`Design/ROW_MARKS.md` §6)
    */
   legendMarks: [
+    "protectedIBB",
+    "protectedFirmware",
     "newest",
     "newerListed",
     "newerMaybe",
     "error",
     "caution",
     "holdsChecks",
+    "partlyProtected",
   ] as readonly ToolRowMark[],
 } as const;
 
@@ -68,8 +67,6 @@ export function holdsChecks(type: number): string | undefined {
  * The row's marks, from its own problems in `problems` and what it points at.
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.marks
- * @upstream-differs no background and no partly-protected badge: a row's
- * protection is G3's, and `FITDisplayRow` carries none
  */
 export function fitRowMarks(row: FITDisplayRow, problems: readonly FITProblem[]): ToolRowMarks {
   const errors: string[] = [];
@@ -99,7 +96,16 @@ export function fitRowMarks(row: FITDisplayRow, problems: readonly FITProblem[])
   const holds = holdsChecks(row.model.entry.type);
   if (holds !== undefined) roles.push({ kind: "holdsChecks", words: holds });
 
+  // The background by the same rule as the UEFI tree's: wholly inside the IBB,
+  // wholly inside what the firmware checks, or — for bytes only partly covered
+  // — no tint and the badge.
+  let protection: RowProtection | undefined;
+  if (row.protection === "ibb") protection = "ibb";
+  else if (row.protection === "protected") protection = "firmware";
+  else if (row.protection === "partial") roles.push({ kind: "partlyProtected" });
+
   return {
+    ...(protection === undefined ? {} : { protection }),
     problem: worstProblem(errors, cautions),
     roles,
   };

@@ -288,6 +288,15 @@ describe("the hidden top row", () => {
   it("is the folded root's name alone", () => {
     expect(summary([shown(wrapper([volume()]))])).toBe("UEFI image");
   });
+
+  // The one count it does make: that the image names protected ranges at all,
+  // which is what says some edits are not free.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testTheSummarySaysTheImageNamesProtectedRanges
+  it("says when the image names protected ranges", () => {
+    const roots = [shown(wrapper([volume()]))];
+    expect(summary(roots, 1)).toBe("UEFI image · 1 protected range");
+    expect(summary(roots, 3)).toBe("UEFI image · 3 protected ranges");
+  });
 });
 
 /** Ported from upstream's `EmptyPaddingTests.swift`: which rows the tree leaves out. */

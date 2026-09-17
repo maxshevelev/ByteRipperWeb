@@ -1,5 +1,6 @@
 import { type ByteSpace, outermostSection } from "@/firmware/uefi/byteSpace";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
+import { tcgHashName } from "@/firmware/uefi/tcgHash";
 
 /**
  * Something wrong with the image, reported rather than thrown.
@@ -42,6 +43,10 @@ export type Structure =
   | "resetVector"
   /** An NVRAM store: the VSS / VSS2 / FTW and the rest of an NVRAM volume. */
   | "nvramStore"
+  /** The Boot Policy Manifest the FIT points at. */
+  | "bootPolicy"
+  /** A Phoenix or AMI vendor hash table. */
+  | "vendorHashFile"
   /** The Insyde H2O flash device map, and its entries. */
   | "flashDeviceMap";
 
@@ -101,6 +106,26 @@ export type DiagnosticKind =
     }
   /** A compressed GUID-defined section without `PROCESSING_REQUIRED` in its attributes. */
   | { readonly kind: "processingRequiredNotSet" }
+  /**
+   * A protected range, or the manifest naming it, is not in this image. Dropped,
+   * never used unconverted.
+   */
+  | { readonly kind: "protectedRangeOutsideImage"; readonly name: string }
+  /**
+   * A list names a range the image cannot place: a physical address with no
+   * Volume Top File, or no DXE Core volume to start from.
+   */
+  | { readonly kind: "protectedRangeNotPlaced"; readonly name: string }
+  /**
+   * The bytes of a protected range do not hash to the stored digest. A warning
+   * for every kind: for the IBB the reference implementation never makes the
+   * comparison.
+   */
+  | { readonly kind: "protectedRangeHashMismatch"; readonly name: string }
+  /** A digest stored with an algorithm this tool does not compute. */
+  | { readonly kind: "unsupportedHashAlgorithm"; readonly algorithm: number }
+  /** An AMI hash table of a size no known version has. */
+  | { readonly kind: "unknownVendorHashFileSize"; readonly size: number }
   /** A structure of a revision later than any this parser reads; it is skipped. */
   | { readonly kind: "unknownRevision"; readonly structure: Structure; readonly revision: number }
   /**
@@ -192,7 +217,9 @@ const LABELS: Readonly<Record<Structure, string>> = {
   microcodeHeader: "microcode header",
   resetVector: "reset vector",
   nvramStore: "NVRAM store",
-  flashDeviceMap: "flash device map",
+  bootPolicy: "Boot Policy Manifest",
+  vendorHashFile: "vendor hash table",
+  flashDeviceMap: "Insyde flash device map",
 };
 
 const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
@@ -252,6 +279,22 @@ function kindMessage(detail: DiagnosticKind): string {
       );
     case "processingRequiredNotSet":
       return "compressed GUID-defined section does not have PROCESSING_REQUIRED set";
+    case "protectedRangeOutsideImage":
+      return `${detail.name} lies outside the image`;
+    case "protectedRangeNotPlaced":
+      return (
+        `${detail.name} cannot be placed: the image has no volume top file to map its ` +
+        "address, or no DXE Core volume for it to start at"
+      );
+    case "protectedRangeHashMismatch":
+      return (
+        `${detail.name} does not match its hash: with the protection active, the image ` +
+        "may refuse to boot"
+      );
+    case "unsupportedHashAlgorithm":
+      return `${tcgHashName(detail.algorithm)} digests are not computed by this tool`;
+    case "unknownVendorHashFileSize":
+      return `AMI vendor hash table of ${hex(detail.size)} bytes is of no known version`;
     case "unknownRevision":
       return `${LABELS[detail.structure]} revision ${hex(detail.revision)} is later than any this parser reads`;
     case "unknownFlashDeviceMapEntries":

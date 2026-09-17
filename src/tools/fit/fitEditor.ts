@@ -17,6 +17,11 @@ import {
   microcodeRange,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
+import {
+  isIbbKind,
+  type ProtectedRanges,
+  protectedRangeKindName,
+} from "@/firmware/uefi/protectedRanges";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import type { ToolTransaction, ToolWrite } from "@/tools/toolTransaction";
@@ -79,6 +84,13 @@ export type FITEditProblem =
   /** Nothing to add to. */
   | { readonly kind: "noTable" }
   /**
+   * The change writes inside the Boot Guard IBB, which the processor checks
+   * before the firmware runs.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.insideProtectedRange
+   */
+  | { readonly kind: "insideProtectedRange"; readonly name: string; readonly at: number }
+  /**
    * The image keeps a Top Swap backup of the block the FIT is in, and the two
    * copies are not the same bytes, so one change cannot be right for both.
    *
@@ -122,6 +134,12 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
       return "That entry is no longer in the table.";
     case "noTable":
       return "There is no FIT table in this file to change.";
+    case "insideProtectedRange":
+      return (
+        `The change writes at 0x${problem.at.toString(16).toUpperCase()} inside a ` +
+        `${problem.name}: the processor checks it before the firmware runs, and with ` +
+        "Boot Guard enforced the platform would not start. Nothing was changed."
+      );
     case "topSwapCopiesDiffer":
       return (
         "This image keeps a Top Swap backup of the boot block at " +
@@ -142,13 +160,22 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome
  */
+/**
+ * What an addition came to: a new row, for a CPUID the table did not name, or a
+ * replacement of one it already named — where the new component goes exactly
+ * where the old one was and what follows it in the run moves to suit.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.Kind
+ */
+export type FITEditOutcomeKind = "added" | "replaced";
+
 export interface FITEditOutcome {
   /**
    * A new row for a CPUID the table did not name, or one it already named.
    *
    * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.kind
    */
-  readonly kind: "added" | "replaced";
+  readonly kind: FITEditOutcomeKind;
   /**
    * Where the component went.
    *
@@ -174,6 +201,14 @@ export interface FITEditOutcome {
    * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.moved
    */
   readonly moved: number;
+  /**
+   * What the change breaks in the firmware-checked ranges it writes into.
+   * Nothing when no ranges were given to check against; empty when it writes
+   * into none.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditOutcome.protectionWarnings
+   */
+  readonly protectionWarnings?: readonly string[] | undefined;
   /**
    * The Top Swap backup block the change was made in as well, when the image
    * keeps one.
@@ -203,6 +238,8 @@ export interface FITRemovalOutcome {
    * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.erased
    */
   readonly erased: ImageRange | undefined;
+  /** @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.protectionWarnings */
+  readonly protectionWarnings?: readonly string[] | undefined;
   /** @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITRemovalOutcome.topSwapBackup */
   readonly topSwapBackup?: ImageRange | undefined;
 }
@@ -432,12 +469,17 @@ export function addOrReplaceMicrocode(
   table: FITTable,
   image: UEFIImage | undefined,
   reader: ImageReader,
-  addressDiff: number
+  addressDiff: number,
+  protectedRanges?: ProtectedRanges | undefined
 ): FITEdit<FITEditOutcome> {
-  return mirroredIntoTopSwap(
-    addOrReplaceMicrocodeInTheTopBlock(component, table, image, reader, addressDiff),
-    table,
-    reader
+  return checkingProtection(
+    mirroredIntoTopSwap(
+      addOrReplaceMicrocodeInTheTopBlock(component, table, image, reader, addressDiff),
+      table,
+      reader
+    ),
+    reader,
+    protectedRanges
   );
 }
 
@@ -453,12 +495,17 @@ export function replaceMicrocodeAt(
   table: FITTable,
   image: UEFIImage | undefined,
   reader: ImageReader,
-  addressDiff: number
+  addressDiff: number,
+  protectedRanges?: ProtectedRanges | undefined
 ): FITEdit<FITEditOutcome> {
-  return mirroredIntoTopSwap(
-    replaceMicrocodeInTheTopBlock(index, component, table, image, reader, addressDiff),
-    table,
-    reader
+  return checkingProtection(
+    mirroredIntoTopSwap(
+      replaceMicrocodeInTheTopBlock(index, component, table, image, reader, addressDiff),
+      table,
+      reader
+    ),
+    reader,
+    protectedRanges
   );
 }
 
@@ -473,13 +520,90 @@ export function removeMicrocodeAt(
   table: FITTable,
   image: UEFIImage | undefined,
   reader: ImageReader,
-  addressDiff: number
+  addressDiff: number,
+  protectedRanges?: ProtectedRanges | undefined
 ): FITEdit<FITRemovalOutcome> {
-  return mirroredIntoTopSwap(
-    removeMicrocodeFromTheTopBlock(index, table, image, reader, addressDiff),
-    table,
-    reader
+  return checkingProtection(
+    mirroredIntoTopSwap(
+      removeMicrocodeFromTheTopBlock(index, table, image, reader, addressDiff),
+      table,
+      reader
+    ),
+    reader,
+    protectedRanges
   );
+}
+
+// MARK: - Protected ranges
+
+/**
+ * A finished edit, checked against the image's protected ranges by the bytes it
+ * actually changes — the component's new place, the run moved behind it, the
+ * table's rows, a grown file's header — which is every candidate the placement
+ * could have picked. A change inside the IBB is refused; one inside a range the
+ * firmware checks is carried out and said, since whether that breaks a boot is
+ * the firmware's call.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.checkingProtection
+ */
+function checkingProtection<Outcome extends { protectionWarnings?: readonly string[] | undefined }>(
+  result: FITEdit<Outcome>,
+  reader: ImageReader,
+  protectedRanges: ProtectedRanges | undefined
+): FITEdit<Outcome> {
+  if (protectedRanges === undefined || !result.ok) return result;
+  const changed = changedRuns(result.transaction, reader);
+  const warnings: string[] = [];
+  for (const range of protectedRanges.ranges) {
+    const span = range.range;
+    if (span === undefined) continue;
+    const hit = changed.find((run) => run.start < span.end && span.start < run.end);
+    if (hit === undefined) continue;
+    const at = Math.max(hit.start, span.start);
+    if (isIbbKind(range.kind)) {
+      return refuse({
+        kind: "insideProtectedRange",
+        name: protectedRangeKindName(range.kind),
+        at,
+      });
+    }
+    const warning =
+      `It writes at 0x${at.toString(16).toUpperCase()} inside a ` +
+      `${protectedRangeKindName(range.kind)}: the hash the firmware checks it against no longer matches.`;
+    if (!warnings.includes(warning)) warnings.push(warning);
+  }
+  return {
+    ok: true,
+    transaction: result.transaction,
+    outcome: { ...result.outcome, protectionWarnings: warnings },
+  };
+}
+
+/**
+ * The runs of bytes a transaction changes, against the file as it is.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.changedRuns
+ */
+function changedRuns(transaction: ToolTransaction, reader: ImageReader): ImageRange[] {
+  const runs: ImageRange[] = [];
+  for (const write of transaction.writes) {
+    const current =
+      reader.bytes({ start: write.offset, end: write.offset + write.bytes.length }) ??
+      new Uint8Array(0);
+    let start: number | undefined;
+    for (let index = 0; index < write.bytes.length; index++) {
+      const differs = index >= current.length || write.bytes[index] !== current[index];
+      if (differs && start === undefined) start = index;
+      if (!differs && start !== undefined) {
+        runs.push({ start: write.offset + start, end: write.offset + index });
+        start = undefined;
+      }
+    }
+    if (start !== undefined) {
+      runs.push({ start: write.offset + start, end: write.offset + write.bytes.length });
+    }
+  }
+  return runs;
 }
 
 const overlaps = (left: ImageRange, right: ImageRange) =>

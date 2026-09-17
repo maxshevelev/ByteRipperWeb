@@ -8,7 +8,7 @@ import {
   UEFI_TREE_MARKS,
   uefiTreeMarks,
 } from "@/tools/uefi/uefiTreeMarks";
-import type { WireDiagnostic, WireNode } from "@/workers/protocol";
+import type { WireDiagnostic, WireNode, WireProtectedRange } from "@/workers/protocol";
 
 /**
  * The UEFI tree's row marks (`Design/ROW_MARKS.md` §5.1), decided without a
@@ -192,19 +192,15 @@ describe("what a row wears", () => {
     expect(marks.problem).toBeUndefined();
   });
 
-  // @upstream-differs G3 is not ported, so no row wears a Boot Guard background
-  it("draws no background, because G3 is not ported", () => {
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testRangesNotReadYetMarkNothing
+  it("marks nothing while the ranges have not been read", () => {
     const marks = uefiTreeMarks({
       node: wire({ kind: "file", name: "Driver", compression: undefined }),
       diagnostics: [],
     });
 
     expect(marks.protection).toBeUndefined();
-    // And so the legend says nothing it cannot draw.
-    expect(UEFI_TREE_MARKS.legendMarks).toContain("decompressed");
-    expect(UEFI_TREE_MARKS.legendMarks).not.toContain("protectedIBB");
-    expect(UEFI_TREE_MARKS.legendMarks).not.toContain("protectedFirmware");
-    expect(UEFI_TREE_MARKS.legendMarks).not.toContain("partlyProtected");
+    expect(marks.roles).toEqual([]);
   });
 });
 
@@ -287,15 +283,113 @@ describe("the legend", () => {
   // @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.legendMarks
   it("lists exactly the marks this tree draws", () => {
     expect(UEFI_TREE_MARKS.legendMarks).toEqual([
+      "protectedIBB",
+      "protectedFirmware",
       "decompressed",
       "error",
       "caution",
       "compressed",
       "compressedUndecoded",
       "holdsChecks",
+      "partlyProtected",
     ]);
     for (const mark of UEFI_TREE_MARKS.legendMarks) {
-      expect(["problem", "role", "rail"]).toContain(rowMarkChannel(mark));
+      expect(["background", "problem", "role", "rail"]).toContain(rowMarkChannel(mark));
     }
+  });
+});
+
+/**
+ * The Boot Guard marks of the UEFI tree. Ported from upstream's
+ * `ProtectionMarksTests`, which hands `marks(for:in:)` an image; this port hands
+ * the panel's own nodes and the ranges as the worker wired them.
+ */
+describe("what the protected ranges mark", () => {
+  const driver = () =>
+    wire({ id: [0, 0], kind: "file", name: "Driver", header: [0x48, 0x60], body: [0x60, 0x200] });
+  const hashes = () =>
+    wire({
+      id: [0, 1],
+      kind: "file",
+      name: "Hashes",
+      guid: AMI_HASH_TEXT,
+      header: [0x200, 0x218],
+      body: [0x218, 0x280],
+    });
+  const volume = () =>
+    wire({
+      id: [0],
+      kind: "volume",
+      name: "FFSv2",
+      header: [0, 0x48],
+      body: [0x48, 0x1000],
+      children: [driver(), hashes()],
+    });
+
+  const range = (options: {
+    kind: string;
+    range?: readonly [number, number];
+    source: readonly [number, number];
+    verdict?: WireProtectedRange["verdict"];
+    isIbb?: boolean;
+  }): WireProtectedRange => ({
+    kind: options.kind,
+    range: options.range,
+    source: options.source,
+    algorithms: ["SHA-256"],
+    verdict: options.verdict ?? "matches",
+    name: options.kind === "ibb" ? "Boot Guard IBB segment" : "AMI vendor hash range (v2)",
+    isIbb: options.isIbb ?? options.kind === "ibb",
+  });
+
+  const marksOf = (node: WireNode, ranges: readonly WireProtectedRange[]) =>
+    uefiTreeMarks({ node, diagnostics: [], roots: [volume()], protectedRanges: ranges });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testANodeInsideTheIBBIsTintedAndAVolumePartlyInsideWearsTheBadge
+  it("tints a node inside the IBB, and badges a volume only partly inside", () => {
+    const ranges = [range({ kind: "ibb", range: [0x48, 0x200], source: [0x900, 0x940] })];
+
+    expect(marksOf(driver(), ranges).protection).toBe("ibb");
+    // A volume is not tinted for bytes it mostly is not.
+    expect(marksOf(volume(), ranges).protection).toBeUndefined();
+    expect(marksOf(volume(), ranges).roles).toEqual([{ kind: "partlyProtected" }]);
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testAFirmwareCheckedRangeIsTheOtherTint
+  it("gives a firmware-checked range the other tint", () => {
+    const ranges = [range({ kind: "amiV2", range: [0x48, 0x200], source: [0x218, 0x240] })];
+
+    expect(marksOf(driver(), ranges).protection).toBe("firmware");
+  });
+
+  /**
+   * The hash file wears the badge of what it holds, and the mismatch of a range
+   * it names — as does the node the range starts at.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testTheHashFileHoldsChecksAndAMismatchIsAnError
+   */
+  it("badges the hash file and makes a mismatch an error", () => {
+    const ranges = [
+      range({ kind: "amiV2", range: [0x48, 0x200], source: [0x218, 0x240], verdict: "mismatch" }),
+    ];
+
+    const hashFile = marksOf(hashes(), ranges);
+    expect(hashFile.roles?.some((role) => role.kind === "holdsChecks")).toBe(true);
+    expect(hashFile.problem?.isError).toBe(true);
+    expect(marksOf(driver(), ranges).problem?.isError).toBe(true);
+  });
+
+  /**
+   * The reference never compares the IBB digest, so a mismatch here is a caution
+   * until boards known to boot confirm it.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#ProtectionMarksTests.testAnIBBThatDoesNotMatchIsACaution
+   */
+  it("makes an IBB that does not match a caution", () => {
+    const ranges = [
+      range({ kind: "ibb", range: [0x48, 0x200], source: [0x900, 0x940], verdict: "mismatch" }),
+    ];
+
+    expect(marksOf(driver(), ranges).problem?.isError).toBe(false);
   });
 });

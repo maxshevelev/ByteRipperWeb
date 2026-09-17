@@ -138,8 +138,20 @@ export function imageType<T extends DisplayNode<T>>(roots: readonly T[]): string
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.summary
  */
-export function summary<T extends DisplayNode<T>>(roots: readonly T[]): string {
+export function summary<T extends DisplayNode<T>>(
+  roots: readonly T[],
+  protectedRangeCount = 0
+): string {
   if (roots.length === 0) return "Nothing here looks like a firmware image.";
+  const lead = titleLead(roots);
+  // The image names protected ranges at all: the one thing about it that says
+  // some edits are not free.
+  if (protectedRangeCount === 0) return lead;
+  return `${lead} · ${protectedRangeCount} protected range${protectedRangeCount === 1 ? "" : "s"}`;
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.titleLead */
+function titleLead<T extends DisplayNode<T>>(roots: readonly T[]): string {
   const title = present(roots).title;
   if (title !== undefined && (title.kind === "intelImage" || title.kind === "uefiImage")) {
     return title.name.length === 0 ? imageType(roots) : title.name;

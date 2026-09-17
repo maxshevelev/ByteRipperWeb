@@ -1,12 +1,13 @@
 import { guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
 import { AMI_HASH_FILE, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
 import {
+  type RowProtection,
   type RowRole,
   type ToolRowMark,
   type ToolRowMarks,
   worstProblem,
 } from "@/tools/toolRowMarks";
-import type { WireDiagnostic, WireNode } from "@/workers/protocol";
+import type { WireDiagnostic, WireNode, WireProtectedRange } from "@/workers/protocol";
 
 /**
  * What a row of the UEFI tree wears besides its name
@@ -17,31 +18,28 @@ import type { WireDiagnostic, WireNode } from "@/workers/protocol";
  * on what holds a list of protected ranges, and the problem icon for a wrong
  * checksum or a section that did not decompress.
  *
- * **Not drawn in this port yet:** the Boot Guard background, the
- * partly-protected badge, the badge on a protected range whose hash does not
- * match, and the range-holder's own words (G3). Without the ranges there is no
- * protection to tint a row for.
+ * Once the panel has read the protected ranges, the Boot Guard background, the
+ * partly-protected badge, the badge on what holds a list of ranges, and a
+ * protected range whose hash does not match.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks
- * @upstream-differs no Boot Guard background and no protected-range marks: G3
- * is not ported
  */
 export const UEFI_TREE_MARKS = {
   /**
    * Every mark this tree draws — what its legend lists.
    *
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.legendMarks
-   * @upstream-differs the Boot Guard marks are not listed: this tree draws none
-   * of them, and a mark the panel never draws is not in the legend
-   * (`Design/ROW_MARKS.md` §6)
    */
   legendMarks: [
+    "protectedIBB",
+    "protectedFirmware",
     "decompressed",
     "error",
     "caution",
     "compressed",
     "compressedUndecoded",
     "holdsChecks",
+    "partlyProtected",
   ] as readonly ToolRowMark[],
 } as const;
 
@@ -67,6 +65,8 @@ export function uefiTreeMarks(options: {
    * which keeps a branch it has read after the row shuts.
    */
   readonly isOpen?: boolean | undefined;
+  /** The protected ranges, once the panel has read them. */
+  readonly protectedRanges?: readonly WireProtectedRange[] | undefined;
 }): ToolRowMarks {
   const { node, diagnostics } = options;
   const errors = checksumProblems(node, diagnostics);
@@ -102,13 +102,141 @@ export function uefiTreeMarks(options: {
   const holds = holdsChecks(node);
   if (holds !== undefined) roles.push({ kind: "holdsChecks", words: holds });
 
+  let protection: RowProtection | undefined;
+  if (options.protectedRanges !== undefined) {
+    const ranges = options.protectedRanges;
+    const covered = nodeProtection(node, ranges, options.roots ?? []);
+    if (covered === "ibb") protection = "ibb";
+    else if (covered === "protected") protection = "firmware";
+    // Tinting a container for bytes it mostly is not would say the wrong thing;
+    // the badge says "some of this".
+    else if (covered === "partial") roles.push({ kind: "partlyProtected" });
+    const hashes = hashProblems(node, ranges, holds !== undefined, options.roots ?? []);
+    errors.push(...hashes.errors);
+    cautions.push(...hashes.cautions);
+  }
+
   const from = decompressedFrom(node, options.roots ?? []);
   return {
+    ...(protection === undefined ? {} : { protection }),
     ...(from === undefined ? {} : { decompressedFrom: from }),
     ...(opens ? { opensDecompressed: true } : {}),
     problem: worstProblem(errors, cautions),
     roles,
   };
+}
+
+/**
+ * The file bytes a node's protection is decided by: its own, or — for a node
+ * inside a compressed section, whose offsets mean nothing in the file — those of
+ * the outermost compressed section that holds it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.fileRange
+ */
+function fileRangeHolding(
+  node: WireNode,
+  roots: readonly WireNode[]
+): readonly [number, number] | undefined {
+  const outermost = node.space[0];
+  if (outermost === undefined) {
+    return [node.header[0], Math.max(node.header[1], node.body[1], node.tail[1])];
+  }
+  const section = sectionAtOffset(roots, outermost);
+  return section === undefined
+    ? undefined
+    : [section.header[0], Math.max(section.header[1], section.body[1], section.tail[1])];
+}
+
+/**
+ * Against the union of the ranges, so that neither their order nor a node
+ * spanning two adjacent segments changes the answer.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.protection
+ */
+function nodeProtection(
+  node: WireNode,
+  ranges: readonly WireProtectedRange[],
+  roots: readonly WireNode[]
+): "ibb" | "protected" | "partial" | undefined {
+  const own = fileRangeHolding(node, roots);
+  if (own === undefined || own[1] <= own[0]) return undefined;
+  const placed = ranges.flatMap((one) => (one.range === undefined ? [] : [one.range]));
+  if (!placed.some((one) => one[0] < own[1] && own[0] < one[1])) return undefined;
+  const ibb = ranges.flatMap((one) => (one.isIbb && one.range !== undefined ? [one.range] : []));
+  if (union(ibb).some((one) => one[0] <= own[0] && own[1] <= one[1])) return "ibb";
+  if (union(placed).some((one) => one[0] <= own[0] && own[1] <= one[1])) return "protected";
+  return "partial";
+}
+
+/** Sorted, disjoint, with touching ranges joined. */
+function union(ranges: readonly (readonly [number, number])[]): (readonly [number, number])[] {
+  const merged: [number, number][] = [];
+  for (const range of [...ranges].filter((one) => one[1] > one[0]).sort((a, b) => a[0] - b[0])) {
+    const last = merged[merged.length - 1];
+    if (last !== undefined && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([range[0], range[1]]);
+  }
+  return merged;
+}
+
+/**
+ * A protected range whose hash does not check out, on the node it starts at and
+ * on the node holding the list that names it. An IBB that does not match is a
+ * caution, not an error: the reference implementation never makes that
+ * comparison, and until it is confirmed against boards known to boot it is not a
+ * verdict.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.hashProblems
+ */
+function hashProblems(
+  node: WireNode,
+  ranges: readonly WireProtectedRange[],
+  holdsList: boolean,
+  roots: readonly WireNode[]
+): { errors: string[]; cautions: string[] } {
+  const errors: string[] = [];
+  const cautions: string[] = [];
+  if (node.space.length !== 0) return { errors, cautions };
+  const own = fileRangeHolding(node, roots);
+  if (own === undefined || own[1] <= own[0]) return { errors, cautions };
+  for (const range of ranges) {
+    const startsHere =
+      range.range !== undefined && range.range[0] === own[0] && own[1] <= range.range[1];
+    const namesIt = holdsList && own[0] <= range.source[0] && range.source[0] < own[1];
+    if (!startsHere && !namesIt) continue;
+    if (range.verdict === "mismatch") {
+      const where = range.range === undefined ? "" : ` at ${hex(range.range[0])}`;
+      const text = `${range.name}${where} does not match its hash`;
+      if (range.isIbb) cautions.push(text);
+      else errors.push(text);
+    } else if (range.verdict === "unsupported") {
+      const where = range.range === undefined ? "" : ` at ${hex(range.range[0])}`;
+      cautions.push(
+        `${range.name}${where} could not be checked: ${range.unsupported ?? "that algorithm"} is not computed here`
+      );
+    }
+  }
+  return { errors: unique(errors), cautions: unique(cautions) };
+}
+
+const unique = (lines: readonly string[]) => [...new Set(lines)];
+
+/** The file-space node whose header starts at `offset`. */
+function sectionAtOffset(roots: readonly WireNode[], offset: number): WireNode | undefined {
+  let nodes = roots;
+  let innermost: WireNode | undefined;
+  for (;;) {
+    const found = nodes.find(
+      (one) =>
+        one.space.length === 0 &&
+        offset >= one.header[0] &&
+        offset < Math.max(one.header[1], one.body[1], one.tail[1])
+    );
+    if (found === undefined) break;
+    innermost = found;
+    nodes = found.children;
+  }
+  return innermost?.header[0] === offset ? innermost : undefined;
 }
 
 /**
@@ -125,22 +253,8 @@ function decompressedFrom(node: WireNode, roots: readonly WireNode[]): string | 
 }
 
 /** The name of the file-space node whose header starts at `offset`. */
-function sectionNamed(roots: readonly WireNode[], offset: number): string | undefined {
-  let nodes = roots;
-  let innermost: WireNode | undefined;
-  for (;;) {
-    const found = nodes.find(
-      (one) =>
-        one.space.length === 0 &&
-        offset >= one.header[0] &&
-        offset < Math.max(one.header[1], one.body[1], one.tail[1])
-    );
-    if (found === undefined) break;
-    innermost = found;
-    nodes = found.children;
-  }
-  return innermost?.header[0] === offset ? innermost.name : undefined;
-}
+const sectionNamed = (roots: readonly WireNode[], offset: number): string | undefined =>
+  sectionAtOffset(roots, offset)?.name;
 
 /**
  * What the parse said when this section did not decompress, found where the
