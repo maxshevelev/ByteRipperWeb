@@ -4,7 +4,9 @@ import {
   type DecompressionFailure,
   decompressLzma,
   decompressLzmaX86,
+  decompressTiano,
   LZMA_PROPERTIES_SIZE,
+  TIANO_HEADER_SIZE,
 } from "@/firmware/compression/firmwareDecompression";
 import {
   fixtureBytes,
@@ -12,6 +14,11 @@ import {
   LZMA_X86_SAMPLE_STREAM,
   lzmaSample,
 } from "@/firmware/compression/testing/lzmaFixtures";
+import {
+  EFI11_SAMPLE_STREAM,
+  TIANO_SAMPLE_STREAM,
+  tianoSample,
+} from "@/firmware/compression/testing/tianoFixtures";
 import { x86BranchConvert } from "@/firmware/compression/x86BranchConverter";
 
 /**
@@ -131,5 +138,61 @@ describe("decompressLzmaX86", () => {
     expect(equalBytes(copy, original)).toBe(false);
     x86BranchConvert(copy, false);
     expect(equalBytes(copy, original)).toBe(true);
+  });
+});
+
+/**
+ * Tiano and EFI 1.1, over buffers EDK2's own compressor wrote. Ported from
+ * upstream's `TianoTests`.
+ */
+describe("decompressTiano", () => {
+  const tianoStream = () => fixtureBytes(TIANO_SAMPLE_STREAM);
+  const efi11Stream = () => fixtureBytes(EFI11_SAMPLE_STREAM);
+
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#TianoTests.testTianoAndEFI11EachDecodeToWhatWentIn
+  it("decodes each algorithm to what went in", () => {
+    const original = tianoSample();
+
+    const tiano = decompressTiano(tianoStream(), LIMIT);
+    expect(tiano.tiano && equalBytes(tiano.tiano, original)).toBe(true);
+    expect(tiano.efi11 !== undefined && equalBytes(tiano.efi11, original)).toBe(false);
+
+    const efi11 = decompressTiano(efi11Stream(), LIMIT);
+    expect(efi11.efi11 && equalBytes(efi11.efi11, original)).toBe(true);
+    expect(efi11.tiano !== undefined && equalBytes(efi11.tiano, original)).toBe(false);
+  });
+
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#TianoTests.testLessThanTheHeaderSaysIsTruncated
+  it("calls less than the header says truncated", () => {
+    const stream = tianoStream();
+    expect(failure(() => decompressTiano(stream.subarray(0, stream.length - 1), LIMIT))).toEqual({
+      kind: "truncated",
+    });
+    expect(failure(() => decompressTiano(Uint8Array.of(1, 2, 3), LIMIT))).toEqual({
+      kind: "truncated",
+    });
+  });
+
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#TianoTests.testMoreThanTheHeaderSaysIsCorrupt
+  it("calls more than the header says corrupt", () => {
+    const stream = tianoStream();
+    const padded = new Uint8Array(stream.length + 4);
+    padded.set(stream);
+    expect(failure(() => decompressTiano(padded, LIMIT))).toEqual({ kind: "corrupt" });
+  });
+
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#TianoTests.testAnOriginalSizeOverTheLimitIsRefused
+  it("refuses an original size over the limit", () => {
+    expect(failure(() => decompressTiano(efi11Stream(), 1000))).toEqual({
+      kind: "tooLarge",
+      declared: 8000,
+    });
+  });
+
+  // @upstream Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#TianoTests.testAStreamNeitherAlgorithmReadsIsCorrupt
+  it("calls a stream neither algorithm reads corrupt", () => {
+    const stream = tianoStream();
+    stream.fill(0xff, TIANO_HEADER_SIZE);
+    expect(failure(() => decompressTiano(stream, LIMIT))).toEqual({ kind: "corrupt" });
   });
 });

@@ -4430,18 +4430,18 @@
         "src/firmware/compression"
       ],
       "status": "in-progress",
-      "note": "The LZMA half: LzmaDec.c ported path for path (the range coder, the dummy look-ahead, the temporary buffer and the strict finish) and Bra86.c's x86 branch converter, behind FirmwareDecompression's lzma / lzmaX86 with its header rules, the Intel legacy prefix, the allocation limit and the truncated / corrupt / tooLarge failures. The tests' streams were encoded once with Python's lzma module into src/firmware/compression/testing/lzmaFixtures.ts, so no encoder is part of the project. Not yet: the Tiano / EFI 1.1 decoder and the compressors (FirmwareCompression.swift, CLZMAEncoder, CTianoEncoder).",
+      "note": "The decoders, both halves. LZMA: LzmaDec.c ported path for path (the range coder, the dummy look-ahead, the temporary buffer and the strict finish) and Bra86.c's x86 branch converter. Tiano / EFI 1.1: EfiTianoDecompress.c ported routine for routine, with the C's names — the two algorithms differ only in the width of the block header's position-set field, so a buffer is decoded both ways and the caller tells them apart. Both sit behind FirmwareDecompression's lzma / lzmaX86 / tiano with their header rules, the Intel legacy prefix, the allocation limit and the truncated / corrupt / tooLarge failures. The tests' streams were encoded once and checked in — LZMA's with Python's lzma module, Tiano's and EFI 1.1's with EDK2's own compressor from CTianoEncoder — so no encoder is part of the project. Not yet: the compressors themselves (FirmwareCompression.swift, CLZMAEncoder, CTianoEncoder), which only a rebuild needs (GAPS.md G5).",
       "files": {
         "CLZMA/SDK/LzmaDec.c": "src/firmware/compression/lzmaDecoder.ts",
         "CLZMA/SDK/Bra86.c": "src/firmware/compression/x86BranchConverter.ts",
         "FirmwareCompression/FirmwareDecompression.swift": "src/firmware/compression/firmwareDecompression.ts",
         "FirmwareCompressionTests/LZMATests.swift": "src/firmware/compression/firmwareDecompression.test.ts",
-        "CLZMA/CLZMA.c": "src/firmware/compression/lzmaDecoder.ts"
+        "CLZMA/CLZMA.c": "src/firmware/compression/lzmaDecoder.ts",
+        "CTiano/Tiano/EfiTianoDecompress.c": "src/firmware/compression/tianoDecoder.ts",
+        "CTiano/CTiano.c": "src/firmware/compression/tianoDecoder.ts",
+        "FirmwareCompressionTests/TianoTests.swift": "src/firmware/compression/firmwareDecompression.test.ts"
       },
       "unported": {
-        "Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.tiano": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
-        "Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.TianoDecoded*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
-        "Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.tianoHeaderSize": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
         "Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded.init": "n/a — an object literal; there is nothing to construct",
         "Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_DecodeToBuf": "n/a — the decode writes straight into the output buffer as its dictionary",
         "Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.c#LzmaDec_Free*": "n/a — a whole-buffer decode allocates its probabilities once and lets the garbage collector have them",
@@ -4454,14 +4454,10 @@
         "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/LzmaEnc.c#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/LzFind.c#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/CpuArch.c#*": "later — the compressors are not ported; the web edition decompresses only",
-        "Packages/FirmwareCompression/Sources/CTiano/CTiano.c#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
-        "Packages/FirmwareCompression/Sources/CTiano/Tiano/EfiTianoDecompress.c#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
         "Packages/FirmwareCompression/Sources/CTianoEncoder/CTianoEncoder.c#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Sources/CTianoEncoder/Tiano/EfiTianoCompress.c#*": "later — the compressors are not ported; the web edition decompresses only",
-        "Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
         "Packages/FirmwareCompression/Tests/FirmwareCompressionTests/CompressionTests.swift#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Tests/FirmwareCompressionTestSupport/LZMATestEncoder.swift#*": "n/a — the web test streams were encoded once with Python's lzma (testing/lzmaFixtures.ts), so no encoder is part of the project",
-        "Packages/FirmwareCompression/Tests/FirmwareCompressionTestSupport/TianoTestEncoder.swift#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
         "Packages/FirmwareCompression/Sources/CLZMA/SDK/7zTypes.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
         "Packages/FirmwareCompression/Sources/CLZMA/SDK/Bra.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
         "Packages/FirmwareCompression/Sources/CLZMA/SDK/Compiler.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
@@ -4477,12 +4473,16 @@
         "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/LzmaEnc.h#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/Precomp.h#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Sources/CLZMAEncoder/include/CLZMAEncoder.h#*": "later — the compressors are not ported; the web edition decompresses only",
-        "Packages/FirmwareCompression/Sources/CTiano/Tiano/EfiTianoDecompress.h#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
-        "Packages/FirmwareCompression/Sources/CTiano/basetypes.h#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
-        "Packages/FirmwareCompression/Sources/CTiano/include/CTiano.h#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
         "Packages/FirmwareCompression/Sources/CTianoEncoder/Tiano/EfiTianoCompress.h#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Sources/CTianoEncoder/basetypes.h#*": "later — the compressors are not ported; the web edition decompresses only",
-        "Packages/FirmwareCompression/Sources/CTianoEncoder/include/CTianoEncoder.h#*": "later — the compressors are not ported; the web edition decompresses only"
+        "Packages/FirmwareCompression/Sources/CTianoEncoder/include/CTianoEncoder.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CTiano/Tiano/EfiTianoDecompress.c#LShiftU64": "n/a — a 64-bit shift so the C can truncate it back to 32; the port says outright that a shift of 32 leaves nothing",
+        "Packages/FirmwareCompression/Sources/CTiano/Tiano/EfiTianoDecompress.c#SetMem*": "n/a — memset over an array, which is Uint8Array.fill",
+        "Packages/FirmwareCompression/Sources/CTiano/Tiano/EfiTianoDecompress.h#*": "n/a — the C header of a file that is ported; TypeScript has no separate declarations",
+        "Packages/FirmwareCompression/Sources/CTiano/basetypes.h#*": "n/a — UEFITool's EDK2 porting header: the UINT32 and EFI_STATUS the decompressor is written in",
+        "Packages/FirmwareCompression/Sources/CTiano/include/CTiano.h#*": "n/a — the two plain-C functions Swift calls the decompressor through; the port is called directly",
+        "Packages/FirmwareCompression/Tests/FirmwareCompressionTestSupport/TianoTestEncoder.swift#*": "n/a — test support over the compressor, which is not ported: the streams are checked in as fixtures instead",
+        "Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.TianoDecoded.init": "n/a — an object literal; there is nothing to construct"
       }
     },
     {

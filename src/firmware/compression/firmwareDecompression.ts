@@ -1,4 +1,5 @@
 import { lzmaDecodeWhole, SZ_ERROR_INPUT_EOF, SZ_OK } from "@/firmware/compression/lzmaDecoder";
+import { TIANO_HEADER_SIZE, tianoDecode, tianoInfo } from "@/firmware/compression/tianoDecoder";
 import { x86BranchConvert } from "@/firmware/compression/x86BranchConverter";
 
 /**
@@ -10,8 +11,6 @@ import { x86BranchConvert } from "@/firmware/compression/x86BranchConverter";
  * stops early is a failure, not a shorter buffer, because a parser reading a
  * short buffer finds structures cut off in the middle and blames the image for a
  * decode that did not finish.
- *
- * Tiano and EFI 1.1 are not ported yet; the ME's modules are LZMA.
  *
  * Ported from `Packages/FirmwareCompression/FirmwareDecompression.swift`.
  */
@@ -42,6 +41,9 @@ export class DecompressionError extends Error {
 /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Variant */
 export type LzmaVariant = "LZMA" | "LZMA (Intel legacy)" | "LZMA with x86 filter";
 
+/** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Variant */
+export type TianoVariant = "Tiano" | "EFI 1.1";
+
 /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded */
 export interface LzmaDecoded {
   /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded.bytes */
@@ -55,6 +57,32 @@ export interface LzmaDecoded {
    */
   readonly dictionarySize: number;
 }
+
+/**
+ * What a Tiano-or-EFI-1.1 buffer decoded to, each way it decoded.
+ *
+ * The two algorithms share a header and differ in one field width inside the
+ * stream, so the stream alone does not always say which one it is: both can
+ * succeed, and then only what the bytes are meant to be — a run of sections, for
+ * a UEFI image — tells them apart. That is the caller's to decide, so both
+ * results come back.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.TianoDecoded
+ */
+export interface TianoDecoded {
+  /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.TianoDecoded.tiano */
+  readonly tiano: Uint8Array | undefined;
+  /** @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.TianoDecoded.efi11 */
+  readonly efi11: Uint8Array | undefined;
+}
+
+/**
+ * Compressed size, then original size, each 32 bits — the decoder's own
+ * constant, handed on from here because this is where a caller looks for it.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.tianoHeaderSize
+ */
+export { TIANO_HEADER_SIZE } from "@/firmware/compression/tianoDecoder";
 
 /**
  * Properties, then the uncompressed size as a 64-bit number.
@@ -114,6 +142,57 @@ export function decompressLzmaX86(data: Uint8Array, limit: number): LzmaDecoded 
   const bytes = decode(data, 0, declared, limit);
   x86BranchConvert(bytes, false);
   return { bytes, variant: "LZMA with x86 filter", dictionarySize: dictionarySize(data, 0) };
+}
+
+/**
+ * A Tiano or EFI 1.1 buffer decoded both ways.
+ *
+ * The header has to account for the data exactly, the way UEFITool checks it:
+ * compressed size plus the header is the length of what was handed in. It fails
+ * only when neither algorithm decodes.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.tiano
+ */
+export function decompressTiano(data: Uint8Array, limit: number): TianoDecoded {
+  if (data.length < TIANO_HEADER_SIZE) throw new DecompressionError({ kind: "truncated" });
+  const compressed = littleEndian32(data, 0);
+  const original = littleEndian32(data, 4);
+  if (compressed + TIANO_HEADER_SIZE > data.length) {
+    throw new DecompressionError({ kind: "truncated" });
+  }
+  if (compressed + TIANO_HEADER_SIZE !== data.length) {
+    throw new DecompressionError({ kind: "corrupt" });
+  }
+  if (original > limit) throw new DecompressionError({ kind: "tooLarge", declared: original });
+
+  const declared = tianoInfo(data);
+  if (declared === undefined || declared !== original) {
+    throw new DecompressionError({ kind: "corrupt" });
+  }
+  if (declared === 0) return { tiano: new Uint8Array(0), efi11: new Uint8Array(0) };
+
+  const attempt = (tiano: boolean): Uint8Array | undefined => {
+    const bytes = new Uint8Array(declared);
+    return tianoDecode(data, bytes, tiano) ? bytes : undefined;
+  };
+  const decoded: TianoDecoded = { tiano: attempt(true), efi11: attempt(false) };
+  if (decoded.tiano === undefined && decoded.efi11 === undefined) {
+    throw new DecompressionError({ kind: "corrupt" });
+  }
+  return decoded;
+}
+
+/**
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.littleEndian32
+ */
+function littleEndian32(data: Uint8Array, offset: number): number {
+  return (
+    ((data[offset] ?? 0) |
+      ((data[offset + 1] ?? 0) << 8) |
+      ((data[offset + 2] ?? 0) << 16) |
+      ((data[offset + 3] ?? 0) << 24)) >>>
+    0
+  );
 }
 
 /**
