@@ -553,7 +553,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           <span className="uefi-title">{summary(state.roots)}</span>
         ) : (
           // The title names the image, and the root it stands for is selected
-          // by a click on it exactly as its row would be.
+          // by a click on it exactly as its row would be: its zone, its detail.
+          // The title reads as selected while that root is the focus, which is
+          // `data-selected` below.
+          //
+          // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.summaryClicked
+          // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelectTop
+          // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showTopNode
+          // @upstream-differs upstream's label carries the click either way and
+          // `showTopNode` returns early when the tree folded nothing into it;
+          // here the element that carries the click is the one that exists only
+          // when there is a root to select, so the same rule is said once, by
+          // the rendering that already knows the answer.
           <button
             type="button"
             className="uefi-title"
