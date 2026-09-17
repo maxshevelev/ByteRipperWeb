@@ -1,6 +1,7 @@
 import type { ImageRange } from "@/firmware/imageReader";
 import { parseCapsule } from "@/firmware/uefi/capsuleParser";
 import { hasDescriptorSignature, parseIntelImage } from "@/firmware/uefi/descriptorParser";
+import { FlashDeviceMap, parseFlashDeviceMap } from "@/firmware/uefi/flashDeviceMapParser";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -108,16 +109,29 @@ export function scanRawArea(
     // The two searches are merged rather than run one after the other: a
     // structure claims the bytes after it, so candidates have to be considered
     // in the order they lie in the file.
-    let fvAt = bytes.indexOf(FV_FIRST_BYTE);
-    let microcodeAt = bytes.indexOf(MICROCODE_FIRST_BYTE);
+    const at = [
+      bytes.indexOf(FV_FIRST_BYTE),
+      bytes.indexOf(MICROCODE_FIRST_BYTE),
+      bytes.indexOf(FDM_FIRST_BYTE),
+    ];
+    const first = [FV_FIRST_BYTE, MICROCODE_FIRST_BYTE, FDM_FIRST_BYTE];
     const limit = bytes.length - 4;
 
     for (;;) {
-      if (fvAt > limit) fvAt = -1;
-      if (microcodeAt > limit) microcodeAt = -1;
-      if (fvAt < 0 && microcodeAt < 0) break;
-      const isFv = microcodeAt < 0 || (fvAt >= 0 && fvAt <= microcodeAt);
-      const index = isFv ? fvAt : microcodeAt;
+      for (let which = 0; which < at.length; which++) {
+        if ((at[which] ?? -1) > limit) at[which] = -1;
+      }
+      // The searches are considered together rather than one after the other:
+      // a structure claims the bytes after it, so candidates have to be taken
+      // in the order they lie in the file.
+      let which = -1;
+      for (let candidate = 0; candidate < at.length; candidate++) {
+        const found = at[candidate] ?? -1;
+        if (found < 0) continue;
+        if (which < 0 || found < (at[which] ?? 0)) which = candidate;
+      }
+      if (which < 0) break;
+      const index = at[which] ?? 0;
 
       const dword =
         ((bytes[index] ?? 0) |
@@ -125,7 +139,11 @@ export function scanRawArea(
           ((bytes[index + 2] ?? 0) << 16) |
           ((bytes[index + 3] ?? 0) << 24)) >>>
         0;
-      if (dword === FV.signature || dword === Microcode.headerType) {
+      if (
+        dword === FV.signature ||
+        dword === Microcode.headerType ||
+        dword === FlashDeviceMap.signature
+      ) {
         const found = elementAtSignature(parser, dword, offset + index, range, depth);
         if (found !== undefined) {
           nodes.push(...parser.padding(claimed, nodeRange(found).start, emptyByte));
@@ -135,8 +153,7 @@ export function scanRawArea(
           continue scan;
         }
       }
-      if (isFv) fvAt = bytes.indexOf(FV_FIRST_BYTE, index + 1);
-      else microcodeAt = bytes.indexOf(MICROCODE_FIRST_BYTE, index + 1);
+      at[which] = bytes.indexOf(first[which] ?? 0, index + 1);
     }
 
     if (end === range.end) break;
@@ -155,6 +172,8 @@ export function scanRawArea(
 const FV_FIRST_BYTE = FV.signature & 0xff;
 /** `0x01` — the first byte of a microcode header's `HeaderType`. */
 const MICROCODE_FIRST_BYTE = Microcode.headerType & 0xff;
+/** `H` — the first byte of the flash device map's `HFDM`. */
+const FDM_FIRST_BYTE = FlashDeviceMap.signature & 0xff;
 
 /**
  * A signature is a candidate, not a find: the four bytes turn up inside
@@ -180,5 +199,6 @@ function elementAtSignature(
     });
   }
   if (dword === Microcode.headerType) return parseMicrocode(parser, offset, range.end);
+  if (dword === FlashDeviceMap.signature) return parseFlashDeviceMap(parser, offset, range.end);
   return undefined;
 }

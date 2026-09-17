@@ -37,6 +37,8 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   sysFEntry: ItemType.sysFEntry,
   evsaEntry: ItemType.evsaEntry,
   flashMapEntry: ItemType.phoenixFlashMapEntry,
+  flashDeviceMapStore: ItemType.insydeFlashDeviceMapStore,
+  flashDeviceMapEntry: ItemType.insydeFlashDeviceMapEntry,
   padding: ItemType.padding,
   freeSpace: ItemType.freeSpace,
   // Data nobody claimed is a run of bytes with a type, not a structure, so it

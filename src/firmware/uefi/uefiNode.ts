@@ -85,6 +85,12 @@ export type UEFINodeKind =
   | "sysFEntry"
   | "evsaEntry"
   | "flashMapEntry"
+  /**
+   * An Insyde H2O Flash Device Map, found by the raw-area scan, and one of its
+   * entries — the ranges it names are protected.
+   */
+  | "flashDeviceMapStore"
+  | "flashDeviceMapEntry"
   /** Space between elements that belongs to no structure. */
   | "padding"
   /** The unused tail of a volume's body. */

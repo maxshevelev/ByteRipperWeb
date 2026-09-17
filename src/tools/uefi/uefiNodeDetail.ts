@@ -1,7 +1,7 @@
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
-import { checksumText, crc32, sum8Of } from "@/firmware/uefi/checksums";
+import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
@@ -303,6 +303,54 @@ function headerFields(
           );
         }
       }
+      break;
+    }
+
+    case "flashDeviceMapStore": {
+      // `INSYDE_FLASH_DEVICE_MAP_HEADER`.
+      add("Size", reader.uint32(h + 4), sizeText);
+      add("Data offset", reader.uint32(h + 8), hex);
+      add("Entry size", reader.uint32(h + 12), sizeText);
+      add("Entry format", reader.uint8(h + 16), hex);
+      add("Revision", reader.uint8(h + 17), hex);
+      add("Extensions", reader.uint8(h + 18), (value) => `${value}`);
+      const stored = reader.uint8(h + 19);
+      const header = reader.bytes({ start: h, end: h + 0x1c });
+      if (stored !== undefined && header !== undefined) {
+        const expected = (0x100 - ((sum8(header) - stored) & 0xff)) & 0xff;
+        fields.push(
+          field(
+            "Checksum",
+            expected === stored
+              ? `${hex(stored)}, valid`
+              : `${hex(stored)}, should be ${hex(expected)}`
+          )
+        );
+      }
+      add("Flash device base address", reader.uint64(h + 20), hex);
+      break;
+    }
+
+    case "flashDeviceMapEntry": {
+      // The region type GUID is the common "GUID" field.
+      const regionId = reader.bytes({ start: h + 16, end: h + 32 });
+      if (regionId !== undefined) fields.push(field("Region ID", hexBytes(regionId)));
+      add("Region offset", reader.uint64(h + 32), hex);
+      add("Region size", reader.uint64(h + 40), hex);
+      const attributes = reader.uint32(h + 48);
+      if (attributes !== undefined) {
+        const words: string[] = [];
+        if ((attributes & 0x1) !== 0) words.push("modifiable");
+        if ((attributes & 0x2) !== 0) words.push("ignored");
+        fields.push(
+          field(
+            "Attributes",
+            words.length === 0 ? hex(attributes) : `${hex(attributes)} (${words.join(", ")})`
+          )
+        );
+      }
+      const hash = reader.bytes({ start: h + 52, end: h + 84 });
+      if (hash !== undefined) fields.push(field("Hash", hexBytes(hash)));
       break;
     }
 

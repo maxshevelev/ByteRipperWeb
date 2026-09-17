@@ -340,7 +340,8 @@
         "UEFIImage/DecompressedBuffers.swift": "src/firmware/uefi/decompressedBuffers.ts",
         "UEFIImage/SpaceReaders.swift": "src/firmware/uefi/spaceReaders.ts",
         "UEFIImageTests/ByteSpaceTests.swift": "src/firmware/uefi/byteSpace.test.ts",
-        "UEFIImageTests/CompressedSectionTests.swift": "src/firmware/uefi/compressedSection.test.ts"
+        "UEFIImageTests/CompressedSectionTests.swift": "src/firmware/uefi/compressedSection.test.ts",
+        "UEFIImage/FlashDeviceMapParser.swift": "src/firmware/uefi/flashDeviceMapParser.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -355,7 +356,6 @@
         "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amiDxeCore": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
         "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.phoenixHashFile": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
         "Packages/UEFIImage/Sources/UEFIImage/KnownGUIDs.swift#KnownGUIDs.amiHashFile": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
-        "Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#*": "later — Insyde flash device map stores are typed but not parsed",
         "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#*": "later — Boot Guard protected ranges (ProtectedRanges.swift) are not ported",
         "Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#*": "later — Update in Parent is not ported",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#*": "later — Update in Parent is not ported",

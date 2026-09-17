@@ -202,6 +202,8 @@ const KIND_LABELS: Readonly<Record<UEFINodeKind, string>> = {
   sysFEntry: typeName(ItemType.sysFEntry),
   evsaEntry: typeName(ItemType.evsaEntry),
   flashMapEntry: typeName(ItemType.phoenixFlashMapEntry),
+  flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
+  flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
   padding: "Padding",
   freeSpace: "Free space",
   nonUEFIData: "Non-UEFI data",

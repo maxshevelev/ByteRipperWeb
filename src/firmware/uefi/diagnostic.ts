@@ -41,7 +41,9 @@ export type Structure =
   | "microcodeHeader"
   | "resetVector"
   /** An NVRAM store: the VSS / VSS2 / FTW and the rest of an NVRAM volume. */
-  | "nvramStore";
+  | "nvramStore"
+  /** The Insyde H2O flash device map, and its entries. */
+  | "flashDeviceMap";
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.Kind */
 export type DiagnosticKind =
@@ -98,7 +100,18 @@ export type DiagnosticKind =
       readonly computed: number;
     }
   /** A compressed GUID-defined section without `PROCESSING_REQUIRED` in its attributes. */
-  | { readonly kind: "processingRequiredNotSet" };
+  | { readonly kind: "processingRequiredNotSet" }
+  /** A structure of a revision later than any this parser reads; it is skipped. */
+  | { readonly kind: "unknownRevision"; readonly structure: Structure; readonly revision: number }
+  /**
+   * A flash device map whose entries are of a size or format nobody has
+   * described; the store is kept whole.
+   */
+  | {
+      readonly kind: "unknownFlashDeviceMapEntries";
+      readonly size: number;
+      readonly format: number;
+    };
 
 /**
  * Where a diagnostic raised inside a compressed section really is: an offset in
@@ -179,6 +192,7 @@ const LABELS: Readonly<Record<Structure, string>> = {
   microcodeHeader: "microcode header",
   resetVector: "reset vector",
   nvramStore: "NVRAM store",
+  flashDeviceMap: "flash device map",
 };
 
 const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
@@ -238,5 +252,12 @@ function kindMessage(detail: DiagnosticKind): string {
       );
     case "processingRequiredNotSet":
       return "compressed GUID-defined section does not have PROCESSING_REQUIRED set";
+    case "unknownRevision":
+      return `${LABELS[detail.structure]} revision ${hex(detail.revision)} is later than any this parser reads`;
+    case "unknownFlashDeviceMapEntries":
+      return (
+        `Insyde flash device map entries of ${hex(detail.size)} bytes in format ` +
+        `${hex(detail.format)} are of no known layout`
+      );
   }
 }
