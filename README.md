@@ -49,9 +49,9 @@ Safari can take what such a folder holds, and every browser can export and
 import the library as one file.
 
 The domain half is checked against the macOS app's own unit tests, ported with
-the code they cover. What is still left to port — Boot Guard
-protected ranges, the compressors a rebuild would need, and a list of smaller
-details — is tabled with priorities in **[Design/GAPS.md](Design/GAPS.md)**.
+the code they cover. What is still left to port — opening a decompressed part as
+its own document, and a list of smaller details — is tabled with priorities in
+**[Design/GAPS.md](Design/GAPS.md)**.
 Milestone by milestone, the plan is
 **[Design/IMPLEMENTATION_PLAN.md](Design/IMPLEMENTATION_PLAN.md)**; what is in
 scope at all, and what the browser takes away, is
