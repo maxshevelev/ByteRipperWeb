@@ -175,16 +175,22 @@ export class DiffBlockIndex {
     return true;
   }
 
-  /** How many bytes differ, and how many match — the panes' line summary. */
-  get summary(): { differing: number; same: number } {
+  /**
+   * How many offsets differ between the two files, an EOF-only tail included —
+   * the figure the panes' readout takes its share out of (§14.4).
+   *
+   * @web-only upstream writes the same sum as the reduce in
+   * `ComparisonSummary.init(index:)`, over `index.blocks`; the index holds its
+   * three columns flat, so it is one pass here and builds no block objects.
+   * The share itself is `comparisonSummary()` in
+   * `src/core/diff/comparisonSummary.ts`.
+   */
+  get differingBytes(): number {
     let differing = 0;
-    let same = 0;
     for (let i = 0; i < this.kinds.length; i++) {
-      const length = (this.ends[i] ?? 0) - (this.starts[i] ?? 0);
-      if (this.kinds[i] === DIFFERENT) differing += length;
-      else same += length;
+      if (this.kinds[i] === DIFFERENT) differing += (this.ends[i] ?? 0) - (this.starts[i] ?? 0);
     }
-    return { differing, same };
+    return differing;
   }
 
   block(index: number): DiffBlock | undefined {

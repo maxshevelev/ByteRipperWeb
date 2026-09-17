@@ -68,16 +68,6 @@ export function SegmentsGlyph() {
   );
 }
 
-/** `character.cursor.ibeam`. */
-export function InsertModeGlyph() {
-  return (
-    <Glyph>
-      <path d="M2 13 5 4l3 9M3.1 10h3.8" {...stroke} />
-      <path d="M12 3v10M10.5 3h3M10.5 13h3" {...stroke} />
-    </Glyph>
-  );
-}
-
 /** `backward`. */
 export function BackwardGlyph() {
   return (

@@ -11,7 +11,6 @@ import type { PaneLayout } from "@/state/workspaceStore";
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.goTo
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.find
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.segments
- * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.insertMode
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.wordSize
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.diffNavigation
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.previousDifference
@@ -25,7 +24,6 @@ export type ToolbarItemId =
   | "goTo"
   | "find"
   | "segments"
-  | "insertMode"
   | "wordSize"
   | "diffNavigation"
   | "filesIdentical"
@@ -37,8 +35,11 @@ export type ToolbarItemId =
 /**
  * Two groups, and the flexible space between them pins the right-hand one to
  * the edge. Left: Tools, on the side its panel opens from; the commands that
- * act on the dump in the active pane; the two controls that carry a state.
- * Right: the difference plaque, the pane arrangement, the minimap.
+ * act on the dump in the active pane; the one control that carries a state —
+ * the word size. Right: the difference plaque, the pane arrangement, the
+ * minimap. No insert-mode toggle: a pane's status line already says which mode
+ * it is in and is what flips it, and a second control in the window chrome
+ * could only ever speak for the active pane (§24.2).
  *
  * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolbarDefaultItemIdentifiers
  */
@@ -49,7 +50,6 @@ export const TOOLBAR_DEFAULT_ITEMS: readonly ToolbarItemId[] = [
   "find",
   "segments",
   "space",
-  "insertMode",
   "wordSize",
   "flexibleSpace",
   "diffNavigation",
@@ -126,7 +126,6 @@ export interface ToolbarContext {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateToolbarItem
  * @upstream ByteRipperApp/App/MainWindowController.swift#ControlToolbarItem
  * @upstream ByteRipperApp/App/MainWindowController.swift#ControlToolbarItem.validate
- * @upstream-differs the insert-mode toggle needs an open pane, since the typing mode is its controller's
  */
 export function toolbarItemEnabled(
   id: ToolbarItemId | "previousDifference" | "nextDifference",
@@ -137,7 +136,6 @@ export function toolbarItemEnabled(
     case "goTo":
     case "find":
     case "segments":
-    case "insertMode":
       return context.activeOpen;
     case "previousDifference":
       return context.navigation.previousDifference;

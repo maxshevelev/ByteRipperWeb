@@ -5,6 +5,7 @@ import { caretAt, selection } from "@/core/document/selectionModel";
 import { SERIES_BREAK_MS, TypingController } from "@/core/edit/typingController";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { asArray, readAll, storageOver } from "@/core/testing/support";
+import type { ShiftingEdit } from "@/core/text/shiftWarning";
 
 /**
  * Ported from the editing half of `PaneViewModel` and its app-level tests.
@@ -249,11 +250,11 @@ describe("insert mode", () => {
   });
 
   it("asks once before the first edit that shifts the file", async () => {
-    let asked = 0;
+    const asked: ShiftingEdit[] = [];
     const doc = new BinaryDocument(new EditOverlayStorage(storageOver(new Uint8Array([1, 2]))));
     const typing = new TypingController(doc, {
-      confirmInsertShift: () => {
-        asked++;
+      confirmInsertShift: (edit) => {
+        asked.push(edit);
         return true;
       },
     });
@@ -261,7 +262,8 @@ describe("insert mode", () => {
     await typing.typeHexDigit(0xa);
     await typing.typeHexDigit(0x5);
     await typing.typeHexDigit(0xb);
-    expect(asked).toBe(1);
+    // Once, and about the byte the first digit puts in at the caret.
+    expect(asked).toEqual([{ kind: "insert", at: 0, count: 1 }]);
   });
 
   it("swallows the keystroke when the answer is no", async () => {
@@ -272,6 +274,83 @@ describe("insert mode", () => {
 
     expect(asArray(await readAll(doc.storage))).toEqual([1, 2]);
     expect(doc.isDirty).toBe(false);
+  });
+});
+
+/**
+ * What a shifting edit hands to the warning (§7.2).
+ *
+ * The three sentences upstream shows are chosen from this: which command is
+ * asking, where the shift starts and how many bytes move. A dialog cannot check
+ * it — it shows whatever it is given — so the payload is asserted here.
+ */
+describe("what a shifting edit asks about", () => {
+  /** A controller that records what it was asked, and answers `answer`. */
+  function asker(bytes: number[], answer = true) {
+    const doc = new BinaryDocument(new EditOverlayStorage(storageOver(new Uint8Array(bytes))));
+    const asked: ShiftingEdit[] = [];
+    const typing = new TypingController(doc, {
+      confirmInsertShift: (edit) => {
+        asked.push(edit);
+        return answer;
+      },
+    });
+    return { doc, typing, asked };
+  }
+
+  it("names the bytes a paste puts in", async () => {
+    const t = asker([1, 2, 3]);
+    await t.typing.setInsertMode(true);
+    await t.typing.pasteBytes(new Uint8Array([0xaa, 0xbb]));
+
+    // A paste into an insert-mode pane is upstream's Paste Insert, and the
+    // count is the paste's own.
+    expect(t.asked).toEqual([{ kind: "paste", at: 0, count: 2 }]);
+    expect(await asArray(await readAll(t.doc.storage))).toEqual([0xaa, 0xbb, 1, 2, 3]);
+  });
+
+  it("names the range Delete Bytes takes out", async () => {
+    const t = asker([1, 2, 3, 4]);
+    t.doc.setSelection(selection(1, 3, t.doc.size));
+    // Asked whatever the mode, as upstream asks it: the tail moves left either
+    // way, and the warning counts what leaves.
+    await t.typing.deleteBytes();
+
+    expect(t.asked).toEqual([{ kind: "delete", at: 1, count: 2 }]);
+  });
+
+  it("names the byte an insert-mode backspace removes", async () => {
+    const t = asker([1, 2, 3]);
+    await t.typing.setInsertMode(true);
+    t.doc.setSelection(caretAt(2, 3));
+    await t.typing.deleteBackward();
+
+    // Backspace has no selection, so its range is the byte before the caret.
+    expect(t.asked).toEqual([{ kind: "delete", at: 1, count: 1 }]);
+    expect(await asArray(await readAll(t.doc.storage))).toEqual([1, 3]);
+  });
+
+  it("asks nothing for a delete with nothing to remove", async () => {
+    // The caret is at EOF, so nothing moves — and a warning about nothing is
+    // what teaches people to dismiss the dialog without reading it.
+    const t = asker([1, 2, 3]);
+    await t.typing.setInsertMode(true);
+    t.doc.setSelection(caretAt(3, 3));
+    await t.typing.deleteForward();
+
+    expect(t.asked).toEqual([]);
+    expect(await asArray(await readAll(t.doc.storage))).toEqual([1, 2, 3]);
+  });
+
+  it("asks nothing in overwrite mode, where a delete moves nothing", async () => {
+    // Overwrite mode fills the byte with zero rather than removing it, so the
+    // file keeps every offset it had.
+    const t = asker([1, 2, 3]);
+    t.doc.setSelection(caretAt(1, 3));
+    await t.typing.deleteForward();
+
+    expect(t.asked).toEqual([]);
+    expect(await asArray(await readAll(t.doc.storage))).toEqual([1, 0, 3]);
   });
 });
 

@@ -53,8 +53,13 @@ export const MEA_TREE_MARKS = {
  * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.Storage
  */
 export interface MEAStorage {
-  /** "Huffman" or "LZMA"; nothing for a module stored as it is. */
+  /**
+   * "Huffman" or "LZMA"; nothing for a module stored as it is.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.Storage.compression
+   */
   readonly compression: string | undefined;
+  /** @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.Storage.isEncrypted */
   readonly isEncrypted: boolean;
 }
 

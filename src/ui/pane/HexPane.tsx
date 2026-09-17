@@ -1051,9 +1051,9 @@ export function HexPane({
    * Reads the mode, the column and the caret back off the controller.
    *
    * All three live there, and a command that changes one of them *without*
-   * going through this component's own key handler — the toolbar's mode
-   * toggle, Select All resetting the column to hex, a range installed from a
-   * tool — leaves the readout saying what used to be true.
+   * going through this component's own key handler — Select All resetting the
+   * column to hex, a range installed from a tool — leaves the readout saying
+   * what used to be true.
    */
   const syncTypingReadout = useCallback(() => {
     setMode(typing.modeLabel);
@@ -1061,9 +1061,25 @@ export function HexPane({
     refreshCaret();
   }, [typing, refreshCaret]);
 
-  // The typing mode can be switched from outside the pane — the toolbar's
-  // toggle — so the readout and the caret follow the controller, not only this
-  // pane's own key.
+  /**
+   * The readout is a control: a click on it flips this pane's mode (§7.6).
+   *
+   * The press that got here has already made this pane the active one — the
+   * pane's own capture handler, which is the whole of the click-to-activate
+   * gesture — so the mode that flips is the one the keys are about to go to.
+   * The focus then goes back to the dump, which is where the typing keys are
+   * heard; upstream does the same, for the same reason.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.toggleTypingModeFromStatusBar
+   */
+  const flipTypingModeFromReadout = useCallback(() => {
+    scrollRef.current?.focus();
+    void typing.toggleInsertMode().then(syncTypingReadout);
+  }, [typing, syncTypingReadout]);
+
+  // A tool's edit, or a range installed from outside, moves the caret and can
+  // change the column, so the readout and the caret are re-read whenever the
+  // document changes and not only on this pane's own keys.
   const editVersion = useStore(editStore).version;
   useEffect(() => {
     void editVersion;
@@ -1826,8 +1842,8 @@ export function HexPane({
         The status line (§21.3): the caret's offset, the selection's length, the
         piece the caret is in, the file's size, the document's state and the
         comparison's counts, spelled as upstream spells them and joined into one
-        string. What is the web's own is beside it rather than in it: the
-        INS/OVR mode, which is upstream's sibling label, and the operation strip.
+        string. Beside it, outside that line, stand upstream's two siblings: the
+        INS/OVR indicator and the operation strip.
 
         The input region is not written out here, though the state is ported
         (`InputRegion` in `src/core/edit/typingController.ts`). Upstream never
@@ -1848,9 +1864,35 @@ export function HexPane({
           isDirty={dirty}
           segment={segmentReadout(partition, caret)}
         />
-        <span className="readout-mode" data-insert={mode === "INS" ? "" : undefined}>
+        {/*
+          The indicator is a control as well as a readout: a click flips THIS
+          pane's mode. The press has already made the pane active on its way in
+          (the pane's own capture handler), so the mode that flips is the one
+          the keys are about to go to — which is what the click plainly means.
+          The focus then goes back to the dump, which is where the Insert key
+          is heard: a click on a button would otherwise leave the keyboard on
+          the button.
+
+          @upstream ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel
+          @upstream ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.mouseDown
+          @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.toggleTypingModeFromStatusBar
+          @upstream-differs the box is the element's own border and padding rather than a frame the label
+          draws inside itself, and it keeps the line's border token in both modes and its 600 weight:
+          the web colours the word alone, where upstream colours the box with it and sets the word bold
+          (the owner's call — G41 in Design/GAPS.md)
+          @upstream-differs the tooltip is the one the toolbar's insert-mode item wore, kept because the
+          web has no Edit ▸ Insert Mode to discover the control from (upstream's own box has none)
+        */}
+        <button
+          type="button"
+          className="readout-mode"
+          data-insert={mode === "INS" ? "" : undefined}
+          aria-pressed={mode === "INS"}
+          title="Insert mode: typing shifts the rest of the file"
+          onClick={flipTypingModeFromReadout}
+        >
           {mode}
-        </span>
+        </button>
         <OperationStrip pane={paneId} />
       </p>
       {/*

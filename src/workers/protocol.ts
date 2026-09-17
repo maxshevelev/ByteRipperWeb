@@ -74,7 +74,6 @@ export interface DiffDone {
   readonly hunks: Float64Array;
   readonly gap: number;
   readonly differingBytes: number;
-  readonly sameBytes: number;
 }
 
 export interface DiffCancelledResponse {

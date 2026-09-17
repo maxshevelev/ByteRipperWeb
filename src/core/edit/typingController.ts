@@ -5,6 +5,7 @@ import {
   selection as makeSelection,
   type Selection,
 } from "@/core/document/selectionModel";
+import type { ShiftingEdit } from "@/core/text/shiftWarning";
 
 /**
  * Typing into a dump.
@@ -84,11 +85,15 @@ export interface TypingControllerOptions {
    * Asked once, before the first edit that shifts the file's offsets. Answering
    * no swallows the keystroke. Absent means no confirmation is wanted.
    *
+   * The edit is handed over because the warning names it — which command is
+   * shifting, where, and by how many bytes (§7.2), in the three sentences
+   * upstream asks them with. This is the only place that knows.
+   *
    * May answer asynchronously, because a real dialog does. That is safe here
    * and nowhere else: every edit already goes through one queue, so the
    * keystrokes behind this one wait rather than racing past it.
    */
-  readonly confirmInsertShift?: () => boolean | Promise<boolean>;
+  readonly confirmInsertShift?: (edit: ShiftingEdit) => boolean | Promise<boolean>;
 }
 
 /**
@@ -146,6 +151,13 @@ export class TypingController {
   private seriesCounter = 0;
   private lastTypedAt = Number.NEGATIVE_INFINITY;
   private lastRegion: InputRegion | undefined;
+  /**
+   * Whether this file has been warned about shifting edits already. The
+   * controller belongs to the document, so a new file starts unanswered, as
+   * upstream's per-open reset leaves it.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hasWarnedInsertShift
+   */
   private warnedAboutShift = false;
 
   /** Edits run in the order the keys were pressed — see the class comment. */
@@ -503,7 +515,9 @@ export class TypingController {
   typeHexDigit(digit: number): Promise<void> {
     if (!Number.isInteger(digit) || digit < 0 || digit > 15) return Promise.resolve();
     return this.run(async () => {
-      if (!(await this.allowShift())) return;
+      // The warning names the caret's offset, as upstream's does — and it is
+      // read before the region changes, because that is where the byte lands.
+      if (!(await this.allowShift(insertAt(this.typingOffset())))) return;
       this.region = "hex";
 
       if (this.insertMode) {
@@ -544,7 +558,7 @@ export class TypingController {
    */
   typeByte(byte: number): Promise<void> {
     return this.run(async () => {
-      if (!(await this.allowShift())) return;
+      if (!(await this.allowShift(insertAt(this.typingOffset())))) return;
       this.region = "text";
       await this.closeGroup();
 
@@ -632,7 +646,17 @@ export class TypingController {
   pasteBytes(bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return Promise.resolve();
     return this.run(async () => {
-      if (!(await this.allowShift())) return;
+      // A paste into an insert-mode pane is upstream's Paste Insert, and its
+      // warning counts the bytes going in.
+      if (
+        !(await this.allowShift({
+          kind: "paste",
+          at: this.doc.selection.start,
+          count: bytes.length,
+        }))
+      ) {
+        return;
+      }
       await this.closeGroup();
       this.closeSeries();
       this.nibbleIndex = 0;
@@ -712,7 +736,11 @@ export class TypingController {
     return this.run(async () => {
       const { start, end } = this.doc.selection;
       if (end <= start) return;
-      if (!(await this.confirmShiftOnce())) return;
+      // Upstream asks this one whatever the mode — a delete moves the tail left
+      // in both — and its warning counts the bytes leaving.
+      if (!(await this.confirmShiftOnce({ kind: "delete", at: start, count: end - start }))) {
+        return;
+      }
 
       await this.closeGroup();
       this.closeSeries();
@@ -762,12 +790,28 @@ export class TypingController {
 
   private deleting(forward: boolean): Promise<void> {
     return this.run(async () => {
-      if (!(await this.allowShift())) return;
+      // The warning names the range the delete will use, so the range is read
+      // first: it is a read of the selection, and closing the group below does
+      // not move the caret. Nothing to remove is nothing to warn about — but
+      // what an open group left standing still has to be closed, so that case
+      // closes it and stops, exactly as it did when the warning came first.
+      const range = this.deletionRange(forward);
+      if (range === undefined) {
+        await this.closeGroup();
+        this.closeSeries();
+        return;
+      }
+      if (
+        !(await this.allowShift({
+          kind: "delete",
+          at: range.start,
+          count: range.end - range.start,
+        }))
+      ) {
+        return;
+      }
       await this.closeGroup();
       this.closeSeries();
-
-      const range = this.deletionRange(forward);
-      if (range === undefined) return;
 
       if (this.insertMode) {
         await this.doc.delete(range.start, range.end);
@@ -834,18 +878,32 @@ export class TypingController {
   /**
    * The one-time warning before an edit that shifts every offset after it.
    * Answering no swallows the keystroke.
+   *
+   * Only insert mode asks here: overwrite mode writes in place and moves
+   * nothing, so its edits are handed the answer upstream hands them. The
+   * commands that shift whatever the mode ask {@link confirmShiftOnce} directly.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmFirstInsertModeEdit
    */
-  private async allowShift(): Promise<boolean> {
+  private async allowShift(edit: ShiftingEdit): Promise<boolean> {
     if (!this.insertMode) return true;
-    return await this.confirmShiftOnce();
+    return await this.confirmShiftOnce(edit);
   }
 
-  /** The warning itself, for the commands that shift whatever the mode. */
-  private async confirmShiftOnce(): Promise<boolean> {
+  /**
+   * The warning itself, for the commands that shift whatever the mode.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmFirstInsertModeEdit
+   * @upstream-differs one answer per open file covers every shifting edit, where upstream asks only the
+   * insert-mode one once and puts a fresh Paste Insert / Delete Bytes alert in front of every
+   * later one; the dialog's "Do not ask again" and Settings ▸ Editing are the way out of both, and
+   * a second dialog about a second range is what teaches people to dismiss it unread
+   */
+  private async confirmShiftOnce(edit: ShiftingEdit): Promise<boolean> {
     if (this.warnedAboutShift) return true;
     const confirm = this.options.confirmInsertShift;
     if (confirm === undefined) return true;
-    if (!(await confirm())) return false;
+    if (!(await confirm(edit))) return false;
     this.warnedAboutShift = true;
     return true;
   }
@@ -978,4 +1036,16 @@ export class TypingController {
     }
     this.doc.noteSelectionAfterEdit();
   }
+}
+
+/**
+ * What an insert-mode keystroke asks about: one byte going in at the caret,
+ * which is the offset upstream's sentence for it names. Whether the byte is a
+ * hex digit's high nibble or a character from the decoded column makes no
+ * difference to the warning — both are the same edit, one byte wide.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmFirstInsertModeEdit
+ */
+function insertAt(at: number): ShiftingEdit {
+  return { kind: "insert", at, count: 1 };
 }

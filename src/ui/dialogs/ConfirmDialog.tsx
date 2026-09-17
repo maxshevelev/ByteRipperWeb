@@ -13,23 +13,40 @@ export interface ConfirmDialogProps {
   readonly open: boolean;
   readonly title: string;
   readonly message: string;
-  readonly confirmLabel?: string;
+  readonly confirmLabel?: string | undefined;
+  /**
+   * Marks the confirming button as the one that does the damage — what upstream
+   * sets on the three shifting-edit alerts' first button
+   * (`hasDestructiveAction`).
+   */
+  readonly destructive?: boolean | undefined;
   /** Offers the "don't ask again" checkbox when given. */
-  readonly rememberLabel?: string;
+  readonly rememberLabel?: string | undefined;
   readonly onConfirm: (remember: boolean) => void;
-  readonly onCancel: () => void;
+  /**
+   * The answer when the question is declined — by Cancel, by Escape, or by a
+   * click outside the box.
+   *
+   * The checkbox comes with it because upstream reads it after *any* response
+   * (`applySuppression`, which runs whichever button dismissed the alert):
+   * ticking "Do not ask again" and then cancelling still means "stop asking me",
+   * and a port that only read the box on the confirming path would ask again.
+   */
+  readonly onCancel: (remember: boolean) => void;
 }
 
 /**
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmAlert
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentModal
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.modalResponder
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applySuppression
  */
 export function ConfirmDialog({
   open,
   title,
   message,
   confirmLabel = "Continue",
+  destructive = false,
   rememberLabel,
   onConfirm,
   onCancel,
@@ -41,7 +58,7 @@ export function ConfirmDialog({
   }, [open]);
 
   return (
-    <Dialog open={open} title={title} onClose={onCancel}>
+    <Dialog open={open} title={title} onClose={() => onCancel(remember)}>
       <div className="dialog-body">
         <p className="dialog-message">{message}</p>
         {rememberLabel === undefined ? null : (
@@ -55,7 +72,7 @@ export function ConfirmDialog({
           </label>
         )}
         <div className="dialog-actions">
-          <button type="button" className="toolbar-button" onClick={onCancel}>
+          <button type="button" className="toolbar-button" onClick={() => onCancel(remember)}>
             Cancel
           </button>
           {/*
@@ -64,7 +81,11 @@ export function ConfirmDialog({
             since a Return pressed out of habit should not be the one that says
             yes.
           */}
-          <button type="button" className="toolbar-button" onClick={() => onConfirm(remember)}>
+          <button
+            type="button"
+            className={destructive ? "toolbar-button is-destructive" : "toolbar-button"}
+            onClick={() => onConfirm(remember)}
+          >
             {confirmLabel}
           </button>
         </div>

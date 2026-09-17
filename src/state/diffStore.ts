@@ -42,7 +42,6 @@ export interface DiffState {
   /** @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.hunkIndex */
   readonly hunks: DiffHunkIndex | undefined;
   readonly differingBytes: number;
-  readonly sameBytes: number;
 }
 
 const IDLE: DiffState = {
@@ -51,7 +50,6 @@ const IDLE: DiffState = {
   index: undefined,
   hunks: undefined,
   differingBytes: 0,
-  sameBytes: 0,
 };
 
 /**
@@ -103,7 +101,6 @@ function ensureWorker(): Worker {
           index,
           hunks: new DiffHunkIndex(hunks, response.gap, index.maxSize),
           differingBytes: response.differingBytes,
-          sameBytes: response.sameBytes,
         }));
         currentJobId = undefined;
         endBuildOperation();
@@ -319,14 +316,12 @@ function blobOf(source: unknown): Blob | undefined {
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffIndexBuilder.hunks
  */
 function publishIndex(index: DiffBlockIndex, gap: number): void {
-  const summary = index.summary;
   diffStore.update(() => ({
     status: "ready",
     progress: 1,
     index,
     hunks: DiffHunkIndex.from(index, gap),
-    differingBytes: summary.differing,
-    sameBytes: summary.same,
+    differingBytes: index.differingBytes,
     problem: undefined,
   }));
 }

@@ -159,9 +159,9 @@ describe("looking things up", () => {
     expect(index.stateAt(3)).toBeUndefined(); // past EOF
   });
 
-  it("counts the bytes on each side for the panes' line", async () => {
+  it("counts the differing bytes for the panes' line", async () => {
     const index = await scan([0, 0, 1, 0, 0], [0, 0, 2, 0, 0]);
-    expect(index.summary).toEqual({ differing: 1, same: 4 });
+    expect(index.differingBytes).toBe(1);
   });
 
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testHasDifferences

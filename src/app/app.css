@@ -776,11 +776,45 @@ textarea,
   align-items: baseline;
 }
 
+/* The line itself — every part of it, and the box the size is unfolded into.
+   It is the flex item that gives way when the pane narrows (the mode and the
+   operation strip keep their width), and it cuts its tail the way upstream's
+   label does: `pre` so the separator's spacing survives being drawn as its own
+   text node, `overflow: hidden` so the line can be measured against the room it
+   really has, which is what tells the size whether the exact count fits. */
+.readout-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
+}
+
+/* The two parts of the line that answer a pointer (§3.4). The size unfolds the
+   exact count under the pointer, and both it and the caret's address carry a
+   right-click menu — so neither is selectable text, and neither is a control
+   that a keyboard could reach: upstream's are mouse-only too. */
+.readout-size {
+  cursor: default;
+}
+
+.readout-address {
+  cursor: default;
+}
+
+/* The readout the mode wears: a hairline box around three characters, and the
+   one part of the bar that a click acts on. It is a control as well as a
+   readout, so it is a real `<button>`, reset here to look like the label it
+   reads as. */
 .readout-mode {
+  font: inherit;
   padding: 0 0.3rem;
   border: 1px solid var(--border-strong);
   border-radius: 3px;
+  background: none;
+  color: inherit;
   font-weight: 600;
+  cursor: pointer;
 }
 
 /* Insert mode shifts every byte after the caret, so it does not look ordinary. */
@@ -1441,6 +1475,14 @@ textarea,
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.3rem;
+}
+
+/* The button that does the damage says so, as the menu's destructive items do:
+   the same colour, on the one control that carries the warning's answer
+   (upstream sets `hasDestructiveAction` on the alert's first button). */
+.dialog-actions .toolbar-button.is-destructive {
+  border-color: var(--semantic-bad);
+  color: var(--semantic-bad);
 }
 
 /* ── The commands menu ────────────────────────────────────────────────── */

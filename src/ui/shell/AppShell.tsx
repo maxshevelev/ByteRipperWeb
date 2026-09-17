@@ -4,6 +4,7 @@ import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
+import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
@@ -172,21 +173,27 @@ export function AppShell() {
    * behind it wait rather than racing past the answer — and it can be turned
    * off from its own checkbox, because asking every session teaches people to
    * dismiss the dialog without reading it.
+   *
+   * The edit that asked is kept beside the answer: it is what the dialog's
+   * words are spelled from (§7.2), and re-spelling them while it is open would
+   * name an edit the user is no longer looking at.
    */
   const shiftAnswer = useRef<((allowed: boolean) => void) | undefined>(undefined);
-  const [shiftAsking, setShiftAsking] = useState(false);
+  const [shiftAsk, setShiftAsk] = useState<
+    { readonly edit: ShiftingEdit; readonly warning: ShiftWarning } | undefined
+  >(undefined);
 
   /** @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmInsertModeWarning */
-  const confirmInsertShift = useCallback(() => {
+  const confirmInsertShift = useCallback((edit: ShiftingEdit) => {
     if (!workspaceStore.getSnapshot().confirmShiftingEdits) return true;
-    setShiftAsking(true);
+    setShiftAsk({ edit, warning: shiftWarning(edit) });
     return new Promise<boolean>((resolve) => {
       shiftAnswer.current = resolve;
     });
   }, []);
 
   const answerShift = useCallback((allowed: boolean, remember = false) => {
-    setShiftAsking(false);
+    setShiftAsk(undefined);
     if (remember) setConfirmShiftingEdits(false);
     shiftAnswer.current?.(allowed);
     shiftAnswer.current = undefined;
@@ -1468,16 +1475,14 @@ export function AppShell() {
         onClose={() => setSettingsOpen(false)}
       />
       <ConfirmDialog
-        open={shiftAsking}
-        title="This edit shifts the file"
-        message={
-          "Every byte after this point will move, so every offset past it changes. " +
-          "That is what insert mode does, and it is undoable."
-        }
-        confirmLabel="Carry on"
+        open={shiftAsk !== undefined}
+        title={shiftAsk?.warning.title ?? ""}
+        message={shiftAsk?.warning.message ?? ""}
+        confirmLabel={shiftAsk?.warning.confirmLabel}
+        destructive
         rememberLabel="Do not ask again"
         onConfirm={(remember) => answerShift(true, remember)}
-        onCancel={() => answerShift(false)}
+        onCancel={(remember) => answerShift(false, remember)}
       />
       <CutDialog
         open={cutAt !== undefined}

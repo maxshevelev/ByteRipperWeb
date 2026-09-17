@@ -10,6 +10,7 @@ import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { makeByteDecoder } from "@/core/text/byteDecoderRegistry";
+import type { ShiftingEdit } from "@/core/text/shiftWarning";
 import { detectFileCapabilities, type FileCapabilities } from "@/platform/files/capabilities";
 import {
   type SaveOutcome,
@@ -106,7 +107,11 @@ export interface PaneState {
 export const editingHooks: {
   onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
   onContentChange?: ((pane: PaneId, operations: readonly UndoOperation[]) => void) | undefined;
-  confirmShift?: (() => boolean | Promise<boolean>) | undefined;
+  /**
+   * The shell's answer to a shifting edit's warning (§7.2). The edit is handed
+   * over because the warning names it — see {@link ShiftingEdit}.
+   */
+  confirmShift?: ((edit: ShiftingEdit) => boolean | Promise<boolean>) | undefined;
 } = {};
 
 /**
@@ -130,7 +135,7 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   const document = new BinaryDocument(storage);
   const typing = new TypingController(document, {
     onEdit: (edit) => editingHooks.onEdit?.(pane, edit),
-    confirmInsertShift: () => editingHooks.confirmShift?.() ?? true,
+    confirmInsertShift: (edit) => editingHooks.confirmShift?.(edit) ?? true,
   });
   // Both signals, because neither alone is enough. A content change fires while
   // an edit group is still open, so the document is not yet dirty when it

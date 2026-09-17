@@ -1,6 +1,7 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { mergeTitle } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
+import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
@@ -106,6 +107,41 @@ export function paneFileMenu(
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen ? { label: "Swap Panes", onSelect: swapPanes } : undefined,
   ];
+}
+
+/**
+ * The status bar's right-click menu on the file size (§3.4): copying the half
+ * of the exact form the click landed on, in that half's own format.
+ *
+ * One item, titled with the value it will copy — the write happens when it is
+ * chosen, from the string the item was titled with, and never from the pane
+ * read again at click time, which a running scan may have changed under the
+ * open menu.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makeSizeMenu
+ * @upstream-differs the payload is the closure's rather than a menu item's
+ * `representedObject`, and what reaches the clipboard is the same string either way
+ */
+export function statusSizeMenu(size: number, form: SizeForm): MenuEntry[] {
+  const named = form === "hex" ? "Copy hex size" : "Copy size";
+  const text = sizeCopyText(size, form);
+  return [{ label: `${named} ${text}`, onSelect: () => void copyText(text) }];
+}
+
+/**
+ * The status bar's right-click menu on the caret's offset: copying the address
+ * as the bar draws it (§3.4).
+ *
+ * The bar pads the address to the width of the file's largest address so that
+ * the offsets in the line read as aligned columns (§21.3), and what it copies
+ * is those digits — the ones the user read — rather than a second formatting of
+ * the same number. The padding is harmless where the value goes next: an offset
+ * field takes `0x` followed by hex, and leading zeros are hex.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makeStatusOffsetMenu
+ */
+export function statusOffsetMenu(digits: string): MenuEntry[] {
+  return [{ label: `Copy offset ${digits}`, onSelect: () => void copyText(digits) }];
 }
 
 /**
@@ -408,6 +444,19 @@ async function copySelection(slot: PaneState, actions: PaneMenuActions): Promise
   }
 }
 
+/**
+ * Puts a string on the clipboard — the one path every menu that copies text
+ * goes through: the status bar's two items and the pane's Copy File Name.
+ *
+ * What reaches it is the string the item was **titled** with, closed over when
+ * the menu was built, rather than a value read again at click time, which a
+ * running scan may have changed under the open menu (§3.4).
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copyStatusValue
+ * @upstream-differs one helper for every string a menu copies, where upstream's action reads
+ * the payload out of the item's `representedObject`; the item's own closure carries it here,
+ * and it is the same string either way
+ */
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

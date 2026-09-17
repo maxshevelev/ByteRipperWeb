@@ -66,7 +66,6 @@ async function run(request: Extract<DiffWorkerRequest, { kind: "diff" }>): Promi
       flattened[i * 2 + 1] = hunk.end;
     }
 
-    const summary = index.summary;
     const done: DiffDone = {
       kind: "done",
       id: request.id,
@@ -75,8 +74,7 @@ async function run(request: Extract<DiffWorkerRequest, { kind: "diff" }>): Promi
       ...columnsOf(index),
       hunks: flattened,
       gap: request.gap,
-      differingBytes: summary.differing,
-      sameBytes: summary.same,
+      differingBytes: index.differingBytes,
     };
     post(done, transferablesOf(done));
   } catch (error) {

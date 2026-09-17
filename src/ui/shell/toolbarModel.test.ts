@@ -28,7 +28,6 @@ describe("the toolbar's items", () => {
       "find",
       "segments",
       "space",
-      "insertMode",
       "wordSize",
       "flexibleSpace",
       "diffNavigation",
@@ -44,7 +43,6 @@ describe("the toolbar's items", () => {
       "find",
       "segments",
       "space",
-      "insertMode",
       "wordSize",
       "flexibleSpace",
       "space",
@@ -52,6 +50,19 @@ describe("the toolbar's items", () => {
       "space",
       "toggleMinimap",
     ]);
+  });
+
+  // The insert-mode toggle is gone from the toolbar (§24.2): the mode is the one
+  // readout a pane's status line carries in a box of its own, and a click on it
+  // flips the mode of the pane it is drawn in — a second control in the window
+  // chrome showing the same state, and changing it for the active pane rather
+  // than the clicked one, is one place too many to look.
+  // @upstream ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheToolbarCarriesNoInsertModeButton
+  it("carry no insert-mode button", () => {
+    // Neither shown nor offered: the web has no customization sheet, so the
+    // allowed list is TOOLBAR_DEFAULT_ITEMS and the assertion is over both.
+    const ids: readonly string[] = [...TOOLBAR_DEFAULT_ITEMS, ...toolbarItems(true, false)];
+    expect(ids).not.toContain("insertMode");
   });
 
   // @upstream ByteRipperTests/ToolsToolbarTests.swift#ToolsToolbarTests.testToolsIsTheLeftmostItem

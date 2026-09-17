@@ -9,9 +9,17 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { comparisonInfo } from "@/core/diff/comparisonInfo";
+import { comparisonInfo } from "@/core/diff/comparisonSummary";
+import { DiffBlockIndex } from "@/core/diff/diffBlock";
 import { type Segmentation, segmentReadout, wholeFile } from "@/core/segments/segmentation";
-import { type PaneStatus, statusLine } from "@/core/text/statusLine";
+import {
+  exactSizeText,
+  hexSizeText,
+  type PaneStatus,
+  sizeCopyText,
+  statusLine,
+  statusParts,
+} from "@/core/text/statusLine";
 
 /** A 16-byte file with a cut at 8, which is upstream's usual fixture. */
 const cutAt8 = (): Segmentation => {
@@ -105,16 +113,21 @@ describe("the status line", () => {
   });
 
   // @upstream ByteRipperTests/DiffNavigationTests.swift#DiffNavigationTests.waitForIndex
-  it("carries the comparison's counts as its last part", () => {
+  it("carries the comparison's share as its last part", () => {
+    // 12 bytes out of 2048 is 0.585…%, which rounds up to the tenth above it.
+    const index = DiffBlockIndex.of(2048, 2048, [
+      { kind: "different", start: 0, end: 12 },
+      { kind: "same", start: 12, end: 2048 },
+    ]);
     const status: PaneStatus = {
       fileSize: 2048,
       cursorOffset: 4,
       selectionLength: 0,
       isDirty: false,
       segment: undefined,
-      comparison: comparisonInfo({ ready: true, differingBytes: 12, sameBytes: 2048 }),
+      comparison: comparisonInfo(index),
     };
-    expect(statusLine(status)).toBe("Offset 004  ·  2 KB  ·  12 differing · 2048 same");
+    expect(statusLine(status)).toBe("Offset 004  ·  2 KB  ·  differing 0.6%");
   });
 
   it("does not leave a separator standing for a comparison with nothing to say", () => {
@@ -135,5 +148,96 @@ describe("the status line", () => {
   // is one digit — and the line says so rather than printing nothing.
   it("spells an empty file", () => {
     expect(line(wholeFile(0), 0)).toBe("Offset 0  ·  0 B");
+  });
+});
+
+describe("the parts of the line the pointer acts on", () => {
+  /** @upstream ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testTheExactSizeIsHexAndDecimal */
+  it("writes the exact size as hex and decimal", () => {
+    // The 64-bit case is the point of upstream's format string: a 32-bit one
+    // would print the low half of a file over 2 GB.
+    expect(exactSizeText(0)).toBe("0x0 (0 bytes)");
+    expect(exactSizeText(2 * 1024 * 1024)).toBe("0x200000 (2097152 bytes)");
+    expect(exactSizeText(0x100000001)).toBe("0x100000001 (4294967297 bytes)");
+    expect(hexSizeText(0x100000001)).toBe("0x100000001");
+  });
+
+  /** @upstream ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testEachHalfOfTheExactFormIsCopiedInItsOwnFormat */
+  it("copies each half of the exact form in its own format", () => {
+    // What each half puts on the clipboard: that half on its own — the hex
+    // address without the `0x` prefix the readout beside it wears, the decimal
+    // count without the word that follows it in the bar. The prefix belongs to
+    // the field the value is pasted into, which adds it.
+    const size = 2 * 1024 * 1024;
+    expect(sizeCopyText(size, "hex")).toBe("200000");
+    expect(sizeCopyText(size, "decimal")).toBe("2097152");
+    expect(sizeCopyText(0x100000001, "hex")).toBe("100000001");
+    expect(sizeCopyText(0x100000001, "decimal")).toBe("4294967297");
+  });
+
+  /** @upstream ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testTheRegionCoversTheSizeAndNothingElse */
+  it("marks the size's part and no other", () => {
+    // 800 points of room, where the bar draws "Offset 0000  ·  2 MB  ·  Modified":
+    // the size is the part between the separators and nothing either side of it.
+    const parts = statusParts({
+      fileSize: 2 * 1024 * 1024,
+      cursorOffset: 0,
+      selectionLength: 0,
+      isDirty: true,
+      segment: undefined,
+      comparison: "",
+    });
+    expect(parts.parts).toEqual(["Offset 000000", "2 MB", "Modified"]);
+    expect(parts.parts[parts.sizeIndex]).toBe("2 MB");
+  });
+
+  /** @upstream ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testTheRegionCoversTheAddressAndNothingElse */
+  it("marks the address as the tail of its part", () => {
+    // The line draws "Offset 0002E6" with the digits last, so the word in front
+    // of them is not part of what a right-click on the address copies.
+    const parts = statusParts({
+      fileSize: 0x400000,
+      cursorOffset: 0x2e6,
+      selectionLength: 0,
+      isDirty: false,
+      segment: undefined,
+      comparison: "",
+    });
+    expect(parts.offset.index).toBe(0);
+    expect(parts.offset.digits).toBe("0002E6");
+    expect(parts.parts[parts.offset.index]?.endsWith(parts.offset.digits)).toBe(true);
+  });
+
+  /** @upstream ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testTheRegionCoversTheAddressAndNothingElse */
+  it("pads the address to the file's largest address", () => {
+    // Three hundred bytes is three hex digits, so the caret at zero is drawn
+    // "000" — and those digits, not a second formatting of the offset, are what
+    // the line hands over.
+    const parts = statusParts({
+      fileSize: 300,
+      cursorOffset: 0,
+      selectionLength: 0,
+      isDirty: false,
+      segment: undefined,
+      comparison: "",
+    });
+    expect(parts.offset.digits).toBe("000");
+    expect(parts.parts[0]).toBe("Offset 000");
+  });
+
+  it("says where the size is when the line has the other parts before it", () => {
+    // A selection and a piece move the size to the right, and the index is what
+    // the readout unfolds: the pointer has to be on the part that is drawn.
+    const split = cutAt8();
+    const parts = statusParts({
+      fileSize: 16,
+      cursorOffset: 12,
+      selectionLength: 8,
+      isDirty: false,
+      segment: segmentReadout(split, 12),
+      comparison: "",
+    });
+    expect(parts.parts).toEqual(["Offset 0C", "8 B selected", "S1: 08-0F (8 B)", "16 B"]);
+    expect(parts.parts[parts.sizeIndex]).toBe("16 B");
   });
 });

@@ -3,7 +3,7 @@ import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
-import { editStore, noteDocumentChanged } from "@/state/editStore";
+import { editStore } from "@/state/editStore";
 import { minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
@@ -32,7 +32,6 @@ import {
   ForwardGlyph,
   GoToGlyph,
   IdenticalGlyph,
-  InsertModeGlyph,
   MinimapGlyph,
   PaneLayoutGlyph,
   SegmentsGlyph,
@@ -341,7 +340,6 @@ export function Toolbar({
   };
   const activeTool = TOOLS.find((tool) => tool.id === tools.activeIdentifier);
   const layoutOffer = paneLayoutOffer(state.layout);
-  const insertOn = active?.typing.isInsertMode === true;
   // The word size is the bar's one `<select>`, and a select takes a ring from a
   // tap; the field asks here whether the keyboard was the last input, as the
   // panel header's selector does.
@@ -399,14 +397,12 @@ export function Toolbar({
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.goToItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.findItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.segmentsItem
-   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.insertModeItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.wordSizeItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.paneLayoutItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.toolsItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeDiffNavigationGroup
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeFilesIdenticalItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeFilesIdenticalBadgeView
-   * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeInsertModeItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeWordSizeItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeToolsItem
    * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.noToolTitle
@@ -476,21 +472,6 @@ export function Toolbar({
             onClick={onSegments}
           >
             <SegmentsGlyph />
-          </IconButton>
-        );
-      case "insertMode":
-        // The active pane's typing mode, readable from the chrome and not only
-        // as OVR / INS in the pane's status line.
-        return (
-          <IconButton
-            key={key}
-            label="Insert Mode"
-            title="Insert mode: typing shifts the rest of the file"
-            pressed={insertOn}
-            disabled={disabled}
-            onClick={() => void active?.typing.toggleInsertMode().then(noteDocumentChanged)}
-          >
-            <InsertModeGlyph />
           </IconButton>
         );
       case "wordSize":

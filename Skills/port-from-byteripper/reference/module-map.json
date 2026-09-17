@@ -99,6 +99,38 @@
     {
       "prefix": "Packages/ToolModuleKit/Package.swift",
       "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Modules/FITTool/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Modules/MEATool/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Modules/UEFITool/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Packages/FirmwareCompression/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Packages/FreshData/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Packages/MEFirmware/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Packages/UEFIImage/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "CLAUDE.md",
+      "why": "The upstream repository's own instructions to its contributors, not code."
     }
   ],
   "modules": [
@@ -345,7 +377,8 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#*": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
         "Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Packages/UEFIImage/Tests/UEFIImageTests/RootLayoutTests.swift#*": "later — Update in Parent is not ported",
-        "Packages/UEFIImage/Tests/UEFIImageTests/UEFIRebuildTests.swift#*": "later — Update in Parent is not ported"
+        "Packages/UEFIImage/Tests/UEFIImageTests/UEFIRebuildTests.swift#*": "later — Update in Parent is not ported",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#*": "later — the invalidation rules are ported (src/firmware/uefi/treeInvalidation.ts); the lazy expansion itself is not: the web builds the tree whole as it is parsed, in firmware.worker and firmwareStore"
       }
     },
     {
@@ -534,7 +567,11 @@
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SemanticColors*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#*.Sets": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#RowMarks*": "n/a — the three colours a row mark reserves are CSS custom properties (--row-mark-ibb, --row-mark-firmware, --row-mark-decompressed) in src/ui/theme/theme.css, which the anchor check does not read; src/tools/toolRowMarkStyle.ts says which mark takes which",
-        "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read"
+        "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors": "later — G42: the notice plate's sign is painted in the body text colour, where upstream tints it the palette's NoticeIcon grey",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors.icon": "later — G42: as above, the sign's own grey",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors": "later — G42: the landing screen's icon is the one --text-faint token, where upstream names an EmptyStateIcon grey, deliberately fainter than a notice's",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors.icon": "later — G42: as above, the landing icon's own grey"
       },
       "files": {
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift": "src/ui/theme/hexColors.ts"
@@ -618,7 +655,10 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testASectionThatDidNotDecompressIsACaution": "later — compressed sections are not opened, so nothing fails to decompress (G1)",
         "Modules/UEFITool/Tests/UEFIToolTests/ProtectionMarksTests.swift#*": "later — Boot Guard protected ranges are not ported",
         "Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#*": "later — compressed sections are not opened yet (COMPRESSED_SECTIONS)",
-        "Modules/UEFITool/Tests/UEFIToolTests/TestUEFI.swift#*": "n/a — the web UEFI tool tests build their images with src/firmware/testing"
+        "Modules/UEFITool/Tests/UEFIToolTests/TestUEFI.swift#*": "n/a — the web UEFI tool tests build their images with src/firmware/testing",
+        "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.fields": "n/a — a checksum problem is a sentence on the row, not a field set (UEFIChecksumField* above)",
+        "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.badFields": "n/a — as above: the panel reads the problem off the row",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.checksumProblems": "n/a — the problems reach the panel as the rows' own sentences (src/tools/uefi/uefiStructureTool.tsx), not as a list the session keeps"
       }
     },
     {
@@ -1082,6 +1122,11 @@
           "src/state/workspaceStore.ts",
           "src/core/text/statusLine.ts",
           "src/core/segments/segmentation.ts"
+        ],
+        "ByteRipperApp/Pane/StatusBarLabels.swift": [
+          "src/ui/pane/PaneStatusLine.tsx",
+          "src/core/text/statusLine.ts",
+          "src/ui/pane/HexPane.tsx"
         ]
       },
       "unported": {
@@ -1134,7 +1179,7 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.contentGeneration": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.savedStorage": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.isUntitled": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hasWarnedInsertShift": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hasWarnedInsertShift": "ported — TypingController.warnedAboutShift (src/core/edit/typingController.ts, anchored); the controller belongs to the document, so a newly opened file starts unanswered, as upstream resets it per open",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.overwriteSelection": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.typingGroupOpen": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.pendingInsertOffset": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -1205,7 +1250,7 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexHasPendingInsert": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexMirroredSelection": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.caretOffset": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmFirstInsertModeEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.confirmFirstInsertModeEdit": "ported — TypingController.allowShift asks it and confirmShiftOnce holds the answer (src/core/edit/typingController.ts, anchored); the dialog and its suppression live in AppShell and ConfirmDialog, and the three sentences are src/core/text/shiftWarning.ts",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.dropSelectionForInsert": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.deletionRange": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.deleteShiftingTail": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -1223,7 +1268,33 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.notify": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.notifyAfterEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.notifyCompanionContentFullyChanged": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.notifyCompanionContentChanged": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores"
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.notifyCompanionContentChanged": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onTypingModeToggle": "n/a — the web's box calls the pane's own toggle directly (src/ui/pane/HexPane.tsx, flipTypingModeFromReadout): a typing controller belongs to its pane, so there is no window controller to fire a callback at",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.statusSizeMenuProvider": "n/a — AppKit view plumbing; the React status line draws the size as its own spans and builds the menu where the click lands on them (src/ui/pane/PaneStatusLine.tsx, src/ui/shell/paneMenus.ts#statusSizeMenu)",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.statusOffsetMenuProvider": "n/a — AppKit view plumbing; the offset is a span and opens paneMenus.statusOffsetMenu on the digits it drew (src/ui/pane/PaneStatusLine.tsx)",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.statusSeparatorLabel": "n/a — the separator is what statusLine joins its parts with (src/core/text/statusLine.ts)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.hitSlack": "n/a — AppKit hit-region slack: a web part is a span, so its box is the text's box and needs no padding",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.roomProvider": "n/a — CSS decides how much room a part gets and the line truncates from the tail; whether the exact form fits is asked of the laid-out line (src/ui/pane/PaneStatusLine.tsx)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.Geometry": "n/a — a line whose parts are spans has no geometry to recover: each part is the element the pointer and the right-click act on",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.sizeMenuProvider": "n/a — a seam for upstream's tests: the readout calls statusSizeMenu (src/ui/shell/paneMenus.ts) where it handles the right-click, so no menu is injected into a label",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.offsetMenuProvider": "n/a — as the size's: the readout calls statusOffsetMenu where it handles the right-click",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.layout": "n/a — CSS lays the line out",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.render": "n/a — the readout re-renders from its own state: the parts and the exact form are the same JSX (src/ui/pane/PaneStatusLine.tsx)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.resolveGeometry": "n/a — as Geometry: nothing is recovered from character positions, so there is no arithmetic to resolve",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.updateTrackingAreas": "n/a — AppKit tracking areas; the browser reports the pointer over the spans itself (StatusLabel.pointerIsAt)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.mouse*": "n/a — AppKit mouse events: the pointer is the browser's own (StatusLabel.pointerIsAt) and a click on the line belongs to the pane (§3.3), which focuses the dump",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.hitTest": "n/a — the browser routes its own events, and the line takes no click of its own: the pane's handler has it (§3.3)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.rightMouseDown": "n/a — AppKit's event; the browser's contextmenu is the counterpart, on the readout's two spans (StatusLabel.sizeMenu, StatusLabel.offsetMenu)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.onToggle": "n/a — the click is the element's own onClick (src/ui/pane/HexPane.tsx, FilePaneView.toggleTypingModeFromStatusBar)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.framePadding": "n/a — AppKit: the box is the element's own border and padding, so its frame measurements are the stylesheet's (`.readout-mode` in src/app/app.css)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.frameInset": "n/a — as above: nothing has to be drawn inside a field's own bounds",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.frameLineWidth": "n/a — the stylesheet's 1px border",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.frameCornerRadius": "n/a — the stylesheet's border-radius",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.frameColor": "n/a — a deliberate difference: the web keeps the line's border token in both modes and colours only the word, where upstream colours the box with it (the same call keeps the word at 600 where upstream widened it to bold; the owner's call; @upstream-differs in src/ui/pane/HexPane.tsx, G41)",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.intrinsicContentSize": "n/a — AppKit measurement; the box is sized by its text and its padding",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.draw": "n/a — AppKit drawing; CSS draws the box",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.drawCentredText": "n/a — AppKit drawing; the word is centred in its box by the line box",
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.resetCursorRects": "n/a — AppKit cursor rects; `cursor: pointer` in the stylesheet"
       }
     },
     {
@@ -3709,9 +3780,6 @@
         "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.item": "n/a — test scaffolding",
         "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheCommandsTargetTheController": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheWholeToolbarFitsTheLaunchWidth": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.insertButton": "n/a — test scaffolding",
-        "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheInsertModeToggleCarriesTheActivePanesMode": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testClickingTheInsertModeButtonTogglesTheMode": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.wordSizeButton": "n/a — test scaffolding",
         "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheWordSizeButtonNamesAndSetsTheSize": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests": "n/a — test scaffolding",
@@ -3735,8 +3803,14 @@
         "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests": "n/a — test scaffolding",
         "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.makePane": "n/a — test scaffolding",
         "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.redness": "n/a — test scaffolding",
+        "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.render": "n/a — test scaffolding",
+        "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.scale": "n/a — test scaffolding",
         "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testTheStatusBarShowsOVRInGreyAndINSInRed": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testAPaneOpenedWhileInsertModeIsOnStartsAsINS": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testTheIndicatorIsBoldInBothStates": "later — an app flow test; the port has no component or end-to-end test for it yet (the weight itself is a deliberate difference: the web keeps its 600, where upstream made the word bold in G41)",
+        "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testTheIndicatorIsDrawnInABox": "later — an app flow test; the port has no component or end-to-end test for it yet (the box is the stylesheet's border and padding, so there is no drawing to read back)",
+        "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testTheTextIsNotUpsideDown": "n/a — a flipped AppKit view drawn with CoreText mirrors the word about its baseline; a browser lays out and draws its own text, so there is no upside-down to guard against",
+        "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testTheBoxWearsTheModeColour": "n/a — a deliberate difference: the web keeps the line's border token in both modes and colours only the word, where upstream paints the box in the mode's colour (the owner's call; @upstream-differs in src/ui/pane/HexPane.tsx, G41)",
         "ByteRipperTests/TypingModeIndicatorTests.swift#TypingModeIndicatorTests.testTheEditMenuToggleFlipsOnlyTheActivePane": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIChecksumFlowTests.swift#UEFIChecksumFlowTests": "n/a — test scaffolding",
         "ByteRipperTests/UEFIChecksumFlowTests.swift#UEFIChecksumFlowTests.files": "n/a — test scaffolding",
@@ -3892,7 +3966,40 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testATopSwapBackupIsListedUnderItsHeading": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testResizingThePanelMovesOnlyPointsAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTableKeepsInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowKeepsTheTreeInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowKeepsTheTreeInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AppVersionTests.swift#*": "later — the version line is not ported (G34 in Design/GAPS.md), so its test is not either",
+        "ByteRipperTests/ReleaseCheckTests.swift#*": "later — the newer-build check is not ported (G34 in Design/GAPS.md), so its test is not either",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.font": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.makeLabel": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.advance": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testThePointerTurnsTheSizeIntoTheExactCountInPlace": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testAPointerOffTheSizeLeavesItAbbreviated": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testOnlyTheSizeIsHitAndTheRestOfTheBarPassesThrough": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testATruncatedSizeIsNotAimedAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testALabelWithNoWidthHasNothingToAimAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testAnExactFormThatWouldNotFitIsNotOffered": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testANarrowingBarTakesTheExactFormAway": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testATransientMessageLeavesNothingToAimAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testATransientMessageSurvivesALayoutPass": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testTheRightClickCopiesTheHalfItLandedOn": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testThePanePublishesTheSizesRegionRoomAndMenu": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testASingleFilePaneStillOffersItsSize": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testClickingTheIndicatorFlipsTheModeOfItsOwnPane": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.font": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.makeLabel": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.line": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.advance": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.covered": "n/a — test scaffolding",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testTheAddressIsNotAHoverReadout": "n/a — the size is the only part that unfolds, and the web readout turns its pointer off the same way every other readout does (src/ui/pane/PaneStatusLine.tsx)",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testATruncatedAddressIsNotAimedAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testAnOffsetTheLineDoesNotHoldIsNotAimedAt": "n/a — the digits and the part they are drawn in come from one status in the web, so a line cannot hold an address it is not drawing (src/core/text/statusLine.ts)",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testOnlyTheAddressIsHitAndTheRestOfTheBarPassesThrough": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testTheRightClickAsksForTheDigitsTheBarDraws": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testATransientMessageLeavesNoAddressToAimAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testThePanePublishesTheAddressRegionAndMenu": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/TransientNoticeViewTests.swift#*": "later — an app flow test; the port has no component or end-to-end test for it yet (G24 in Design/GAPS.md)"
       }
     },
     {
@@ -3951,7 +4058,33 @@
         "ByteRipperApp/Window/ComparisonView.swift#ComparisonView.activePaneView": "n/a — AppKit layout; CSS lays the panes out"
       },
       "files": {
-        "ByteRipperApp/Window/ComparisonView.swift": "src/core/diff/comparisonInfo.ts"
+        "ByteRipperApp/Window/ComparisonView.swift": "src/core/diff/comparisonSummary.ts"
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Window/ComparisonSummary",
+      "web": [
+        "src/core/diff/comparisonSummary.ts"
+      ],
+      "status": "ported",
+      "note": "The comparison readout as a share of the longer file: the extent, the differing bytes, and \"differing 12.3%\" rounded up to a tenth of a percent — empty when nothing differs, because 0.0% would read as a comparison that is not running. The value and the line it goes into live in one web file, where upstream keeps the struct beside the labels `ComparisonView.refreshComparisonInfo` writes onto; the pane asks for the text as it draws (`comparisonInfo`). The sum upstream writes as a reduce over `index.blocks` is `DiffBlockIndex.differingBytes`, which walks the index's flat columns.",
+      "files": {
+        "ByteRipperApp/Window/ComparisonSummary.swift": "src/core/diff/comparisonSummary.ts"
+      },
+      "unported": {}
+    },
+    {
+      "swift": "ByteRipperApp/Window/BlockingOperationSheet",
+      "web": [
+        "src/ui/pane/OperationStrip.tsx"
+      ],
+      "status": "planned",
+      "note": "The sheet an operation that blocks its pane runs under: the same BackgroundOperation the pane's status strip shows, presented over the window with Cancel as its button and Esc as its key equivalent, and closed by the operation finishing. Update in Parent is not ported (G4), and the web edition shows a running operation in the pane's own strip — src/ui/pane/OperationStrip.tsx — which has no modal sheet.",
+      "files": {
+        "ByteRipperApp/Window/BlockingOperationSheet.swift": ""
+      },
+      "unported": {
+        "ByteRipperApp/Window/BlockingOperationSheet.swift#*": "later — an operation that blocks its pane runs under a sheet upstream; the web edition shows it in the pane's own strip (src/ui/pane/OperationStrip.tsx), which has no sheet and no Esc. Update in Parent, the operation that uses it today, is not ported (G4 in Design/GAPS.md)"
       }
     },
     {
@@ -3974,9 +4107,7 @@
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneOperation": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.appNameAndVersion": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.showAvailableRelease": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Updates/AppVersion.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Updates/GitHubReleases.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.showAvailableRelease": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
@@ -4207,7 +4338,7 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.show": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.searchAppearanceChanged": "n/a — the find bar and the minimap subscribe to the search store and redraw from it",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.isRunningTests": "n/a — a test seam",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.applySuppression": "n/a — AppKit panels and alerts; the browser's file pickers and the port's dialogs",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.applySuppression": "ported — ConfirmDialog.onCancel(remember) reads the checkbox after any response, whichever button dismissed the box (src/ui/dialogs/ConfirmDialog.tsx, anchored); the setting it writes is the one the Editing tab shows (warnsBeforeShiftingEdits, src/state/settingsStore.ts, read as workspaceStore.confirmShiftingEdits)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.lastAlertTitle": "n/a — a test seam",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSheetAlert": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.isSandboxAccessDenied": "n/a — a browser cannot reveal, name the path of, or watch a file on disk",
@@ -4234,13 +4365,28 @@
         "ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.adopt": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkEditPresenter": "n/a — a test seam",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releases": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releases": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.flipInsertMode": "ported — the flip is TypingController.toggleInsertMode, and the alert it puts in front of the first insert-mode keystroke is the insert sentence of src/core/text/shiftWarning.ts, asked through AppShell's editing hooks (src/core/edit/typingController.ts, src/ui/shell/AppShell.tsx)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.wireStatusBar": "ported — a React status line wires its own parts where it draws them: the size and the offset open paneMenus.statusSizeMenu / statusOffsetMenu, and the mode box's click toggles the mode (src/ui/pane/PaneStatusLine.tsx, src/ui/shell/paneMenus.ts)"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
         "ByteRipperApp/Window/WindowMode.swift": "",
-        "ByteRipperApp/Window/WindowViewModel.swift": "",
-        "ByteRipperApp/Window/BlockingOperationSheet.swift": ""
+        "ByteRipperApp/Window/WindowViewModel.swift": ""
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Updates",
+      "web": [],
+      "status": "planned",
+      "note": "The version line and the newer-build notice: the app's version read from the bundle and compared part by part, and the GitHub releases check that answers with a newer one — a fetch freshened for a day, and everything that can go wrong answering nothing. Postponed by the owner (G34): the web edition will do it its own way, not as a port.",
+      "files": {
+        "ByteRipperApp/Updates/AppVersion.swift": "",
+        "ByteRipperApp/Updates/GitHubReleases.swift": ""
+      },
+      "unported": {
+        "ByteRipperApp/Updates/AppVersion.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
+        "ByteRipperApp/Updates/GitHubReleases.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
       }
     },
     {
@@ -4307,7 +4453,28 @@
         "Packages/FirmwareCompression/Tests/FirmwareCompressionTests/TianoTests.swift#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
         "Packages/FirmwareCompression/Tests/FirmwareCompressionTests/CompressionTests.swift#*": "later — the compressors are not ported; the web edition decompresses only",
         "Packages/FirmwareCompression/Tests/FirmwareCompressionTestSupport/LZMATestEncoder.swift#*": "n/a — the web test streams were encoded once with Python's lzma (testing/lzmaFixtures.ts), so no encoder is part of the project",
-        "Packages/FirmwareCompression/Tests/FirmwareCompressionTestSupport/TianoTestEncoder.swift#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA"
+        "Packages/FirmwareCompression/Tests/FirmwareCompressionTestSupport/TianoTestEncoder.swift#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
+        "Packages/FirmwareCompression/Sources/CLZMA/SDK/7zTypes.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
+        "Packages/FirmwareCompression/Sources/CLZMA/SDK/Bra.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
+        "Packages/FirmwareCompression/Sources/CLZMA/SDK/Compiler.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
+        "Packages/FirmwareCompression/Sources/CLZMA/SDK/CpuArch.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
+        "Packages/FirmwareCompression/Sources/CLZMA/SDK/Precomp.h#*": "n/a — a header of the vendored decoder: the types and portability switches its sources are built with, read as the specification",
+        "Packages/FirmwareCompression/Sources/CLZMA/SDK/LzmaDec.h#*": "n/a — the vendored C's own prototypes, which src/firmware/compression/lzmaDecoder.ts answers",
+        "Packages/FirmwareCompression/Sources/CLZMA/include/CLZMA.h#*": "n/a — the vendored C's own prototypes, which src/firmware/compression/lzmaDecoder.ts answers",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/7zTypes.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/Compiler.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/CpuArch.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/LzFind.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/LzHash.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/LzmaEnc.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/SDK/Precomp.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CLZMAEncoder/include/CLZMAEncoder.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CTiano/Tiano/EfiTianoDecompress.h#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
+        "Packages/FirmwareCompression/Sources/CTiano/basetypes.h#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
+        "Packages/FirmwareCompression/Sources/CTiano/include/CTiano.h#*": "later — the Tiano / EFI 1.1 decoder is not ported; the ME's modules are LZMA",
+        "Packages/FirmwareCompression/Sources/CTianoEncoder/Tiano/EfiTianoCompress.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CTianoEncoder/basetypes.h#*": "later — the compressors are not ported; the web edition decompresses only",
+        "Packages/FirmwareCompression/Sources/CTianoEncoder/include/CTianoEncoder.h#*": "later — the compressors are not ported; the web edition decompresses only"
       }
     },
     {
