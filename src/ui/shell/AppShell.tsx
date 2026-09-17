@@ -86,7 +86,7 @@ import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
 import { ignoredFilesAlert } from "@/ui/shell/ignoredFiles";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
-import { dumpMenu, type PaneMenuActions, paneFileMenu } from "@/ui/shell/paneMenus";
+import { dumpMenu, type PaneMenuActions, paneFileMenu, textMenu } from "@/ui/shell/paneMenus";
 import { Toolbar } from "@/ui/shell/Toolbar";
 import { TransientNotice } from "@/ui/shell/TransientNotice";
 import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
@@ -115,6 +115,24 @@ function documentKey(document: object): number {
 /** Whether typing here edits text of its own, which keeps its own undo. */
 function isTextEntry(element: HTMLElement): boolean {
   return element.isContentEditable || element.closest("input, textarea, select") !== null;
+}
+
+/**
+ * Whether a press landed on text this application lets the reader select — a
+ * value a detail shows, an ME summary's, a dialog's preview.
+ *
+ * Asked of the computed style rather than listed, so `user-select` in `app.css`
+ * stays the only place that says where selecting text is the point. A place to
+ * type is not one of them: a field brings its own editing behaviour — its own
+ * menu, its own selection — and a rule written for a value would take both.
+ */
+function selectableText(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("input, textarea, select, [contenteditable]") !== null) return false;
+  const style = window.getComputedStyle(target);
+  // Both names are read: WebKit is not known to carry the unprefixed one on the
+  // computed style in every version this runs in.
+  return style.userSelect === "text" || style.webkitUserSelect === "text";
 }
 
 export interface RevealRequest {
@@ -568,6 +586,20 @@ export function AppShell() {
    *
    * Anything that can actually be typed into keeps its focus, and so does the
    * commands menu, which drives itself with the arrow keys.
+   *
+   * So does text the reader is meant to be able to select. Cancelling the
+   * default cancels the whole gesture, not just the focus: a press on a detail
+   * value was left dragging out nothing at all, in every Chromium and WebKit
+   * build checked — `selectstart` never fired and the clipboard got an empty
+   * string, while `user-select` still computed to `text` and a script-made
+   * selection still copied, which is what kept it hidden. So a selectable
+   * surface is let through, and pays the price upstream pays for the same
+   * arrangement: it takes the keyboard, and the dump has it back on the next
+   * click in the dump.
+   *
+   * What counts as selectable is asked of the computed style rather than
+   * listed here, so the one place that says where selecting text is the point
+   * — `user-select` in `app.css` — stays the only place that says it.
    */
   useEffect(() => {
     const onMouseDown = (event: MouseEvent) => {
@@ -579,6 +611,7 @@ export function AppShell() {
       // The dump itself takes the keyboard on a click — that is how a pane is
       // chosen, and its own handler asks for the focus.
       if (target.closest(".hex-scroller") !== null) return;
+      if (selectableText(target)) return;
       event.preventDefault();
     };
     window.addEventListener("mousedown", onMouseDown);
@@ -586,7 +619,8 @@ export function AppShell() {
   }, []);
 
   /**
-   * No browser context menu anywhere in the application.
+   * No browser context menu over a dump, and this application's own over text
+   * the reader can select.
    *
    * Back, Reload and Inspect over a dump are commands about the web page, not
    * about the file — and one slip of Back throws the unsaved edits away. The
@@ -594,9 +628,23 @@ export function AppShell() {
    * and those are opened by their own handlers, which this does not stop: it
    * only cancels the default, so a right-click with no menu of ours — or one
    * whose menu turned out to have nothing to offer — shows nothing at all.
+   *
+   * Text the sheet declares selectable is where that rule would cost something:
+   * with the browser's menu gone, the GUID or the offset just dragged out had no
+   * way to reach the clipboard, which is the whole of what selecting one is for.
+   * Upstream's selectable labels get AppKit's standard text menu, so a press on
+   * one here opens the same menu, built by this application.
    */
   useEffect(() => {
-    const onContextMenu = (event: MouseEvent) => event.preventDefault();
+    const onContextMenu = (event: MouseEvent) => {
+      // A handler nearer the target has already answered — a pane's offset menu,
+      // a tool's row menu — and this one runs after them, at the window. Opening
+      // ours on top would replace theirs.
+      if (!event.defaultPrevented && selectableText(event.target)) {
+        openContextMenu(event, textMenu(window.getSelection()?.toString() ?? ""));
+      }
+      event.preventDefault();
+    };
     window.addEventListener("contextmenu", onContextMenu);
     return () => window.removeEventListener("contextmenu", onContextMenu);
   }, []);

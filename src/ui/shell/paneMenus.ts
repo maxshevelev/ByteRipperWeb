@@ -145,6 +145,26 @@ export function statusOffsetMenu(digits: string): MenuEntry[] {
 }
 
 /**
+ * The right-click menu on text the reader can select: a value a detail shows, an
+ * ME summary's, a dialog's preview.
+ *
+ * Upstream gets this one from AppKit, which brings the standard text menu to
+ * every selectable label it has; a browser brings one only where the page has
+ * not taken it away, and this page takes it away everywhere. So the menu is
+ * built here, holding the one command of AppKit's that means anything over a
+ * value that cannot be edited. What it copies is what was selected when the menu
+ * opened, and with nothing selected there is nothing to take — dimmed rather
+ * than hidden, which is the rule Copy follows everywhere else in this file.
+ *
+ * @upstream-differs a menu built here, where upstream's arrives with the text field
+ */
+export function textMenu(selected: string): MenuEntry[] {
+  return [
+    { label: "Copy", disabled: selected.length === 0, onSelect: () => void copyText(selected) },
+  ];
+}
+
+/**
  * The dump's right-click menu (§10.2).
  *
  * The selection-scoped block comes first and only when the click landed inside
