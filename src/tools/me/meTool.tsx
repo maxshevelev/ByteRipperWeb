@@ -49,6 +49,8 @@ import { useParkedToolState } from "@/tools/toolParkedState";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
+import { columnTemplate, type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -109,6 +111,24 @@ interface TreeRow {
 }
 
 const INDENT = 16;
+/**
+ * The tree's columns, and which of them takes the panel's spare width.
+ *
+ * Upstream lays these out at 300 and 150 and gives the slack to **Name**
+ * (`MEAToolViewController`, `name.resizingMask = [.autoresizingMask,
+ * .userResizingMask]`). The owner asked for the other one: widening the panel
+ * widens the values, not the name. Flipping `grows` back is the whole change —
+ * the rest of the panel reads the flag rather than the column.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.nameWidth
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryWidth
+ * @upstream-differs `grows` is on the values column, where upstream carries
+ * `.autoresizingMask` on the name column
+ */
+const ME_COLUMNS: readonly TableColumn[] = [
+  { id: "name", title: "Name", width: 300, min: 150 },
+  { id: "values", title: "", width: 150, min: 150, grows: true },
+];
 /** The tree's share of the split; upstream gives the detail a third. */
 const DEFAULT_TREE_SHARE = 2 / 3;
 const TREE_SHARE_KEY = "byteripper.meTreeShare";
@@ -187,6 +207,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const [busy, setBusy] = useState(false);
   const [checksums, setChecksums] = useState<MEAChecksums | undefined>(undefined);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
+  const { widths, resize, reset: resetWidths } = useColumnWidths(ME_COLUMNS);
   const [showsMarkings, setShowsMarkings] = useShowsMarkings(MEA_PANEL);
   const [notice, setNotice] = useState<string | undefined>(undefined);
   /** Which analysis a reply belongs to: a reply to a superseded one is dropped. */
@@ -639,12 +660,25 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                 tabIndex={0}
                 aria-label="ME firmware structure"
                 onKeyDown={onTreeKey}
+                style={
+                  { "--table-columns": columnTemplate(widths, ME_COLUMNS) } as React.CSSProperties
+                }
               >
                 {/* The tree's heading, as the UEFI tree's: the value column
                     holds `offset · size` and is not titled, which is what
-                    upstream's own header says. */}
+                    upstream's own header says. Each boundary between them is
+                    the reader's to move. */}
                 <div className="me-tree-head" aria-hidden="true">
-                  <span>Name</span>
+                  <span>
+                    Name
+                    <ColumnResizer
+                      columns={ME_COLUMNS}
+                      index={0}
+                      widths={widths}
+                      onChange={resize}
+                      onReset={resetWidths}
+                    />
+                  </span>
                   <span />
                 </div>
                 {rows.map((row, index) => (

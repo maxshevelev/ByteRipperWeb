@@ -265,7 +265,8 @@ describe("MFSFileNames rows", () => {
     expect(row?.children).toEqual([]);
   });
 
-  // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.loadFileNames
+  // Upstream asks this in `MEAParkedState.loadFileNames`, a private function
+  // that no anchor can name — the guard is spelled out in `fileTableWanted`.
   it("is asked for exactly the analyses that need it", () => {
     // An FTBL volume with files cannot name them.
     expect(fileTableWanted(analysis(volume()), [])).toBe(true);

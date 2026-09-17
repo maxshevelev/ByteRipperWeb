@@ -52,6 +52,8 @@ import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
+import { type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -75,17 +77,27 @@ type FitEdit = FitEditRequest["edit"];
 
 /**
  * Upstream's columns, their widths laid out for 11-point text and scaled to this
- * panel's 13 pixels. Fixed, and the table scrolls sideways when they do not fit:
- * squeezing "Points at" to whatever is left is how the one column with something
- * to say ends up saying "Microco…".
+ * panel's 13 pixels.
+ *
+ * The columns are fixed and the table scrolls sideways when they do not fit, so
+ * the table is never narrower than what it was laid out for — which is not what
+ * upstream does with a wide panel. There "Points at" alone takes the slack and
+ * Size and Type give way to their floors on a narrow one (`fitColumnsToThePanel`,
+ * `yieldingColumns`); that is G43 in `Design/GAPS.md` and still open. What is
+ * here is the dragging and the floors, not the fitting.
+ *
+ * `min` is where a column's text starts to be cut short: the row number and the
+ * eight hex digits of an address not at all, the rest earlier.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.entryColumns
  */
-const COLUMNS = [
-  { title: "#", width: 24 },
-  { title: "Type", width: 113 },
-  { title: "Address", width: 90 },
-  { title: "Size", width: 99 },
-  { title: "Points at", width: 355 },
-] as const;
+const FIT_COLUMNS: readonly TableColumn[] = [
+  { id: "index", title: "#", width: 24, min: 24 },
+  { id: "type", title: "Type", width: 113, min: 64 },
+  { id: "address", title: "Address", width: 90, min: 90 },
+  { id: "size", title: "Size", width: 99, min: 48 },
+  { id: "target", title: "Points at", width: 355, min: 96 },
+];
 
 /** How many findings are shown before the list scrolls. */
 const MAX_PROBLEM_ROWS = 8;
@@ -197,6 +209,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const tableFocused = focusZone === TABLE_ZONE_ID;
   const [busy, setBusy] = useState(false);
   const [tableShare, setTableShare] = useState(storedTableShare);
+  const { widths, resize, reset: resetWidths } = useColumnWidths(FIT_COLUMNS);
   /**
    * Whether the table paints its rows — the legend's Show Markings switch,
    * which is remembered beside the legend's own state.
@@ -633,15 +646,22 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           >
             <table className="fit-table">
               <colgroup>
-                {COLUMNS.map((column) => (
-                  <col key={column.title} style={{ width: column.width }} />
+                {FIT_COLUMNS.map((column) => (
+                  <col key={column.id} style={{ width: widths[column.id] ?? column.width }} />
                 ))}
               </colgroup>
               <thead>
                 <tr>
-                  {COLUMNS.map((column) => (
-                    <th key={column.title} scope="col" className="fit-head">
+                  {FIT_COLUMNS.map((column, index) => (
+                    <th key={column.id} scope="col" className="fit-head">
                       {column.title}
+                      <ColumnResizer
+                        columns={FIT_COLUMNS}
+                        index={index}
+                        widths={widths}
+                        onChange={resize}
+                        onReset={resetWidths}
+                      />
                     </th>
                   ))}
                 </tr>
@@ -653,7 +673,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                       // The Top Swap backup's copy of the table follows under a
                       // heading of its own, which cannot be selected.
                       <tr className="fit-backup-heading">
-                        <th colSpan={COLUMNS.length} scope="colgroup">
+                        <th colSpan={FIT_COLUMNS.length} scope="colgroup">
                           {display.backupHeading}
                         </th>
                       </tr>

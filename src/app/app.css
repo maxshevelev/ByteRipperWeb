@@ -2187,6 +2187,40 @@ textarea,
 
 /* ── The tool panel ───────────────────────────────────────────────────── */
 
+/* The grab strip on a table's column boundary, rendered inside the header cell
+   it belongs to. It sits against that cell's right edge rather than straddling
+   it: a header cell clips what it is given, so a strip hung outside one would
+   simply not be there. Eight pixels is the reach a pointer gets for it, and it
+   takes nothing from the row — a header is a label, not a target.
+   Every panel's table uses this, so a reader learns the gesture once. */
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.column-resizer:hover,
+.column-resizer:focus-visible {
+  background: var(--accent);
+  opacity: 0.35;
+  outline: none;
+}
+
+/* The cells a strip is drawn in have to be what it is positioned against. The
+   FIT table's headers are already `position: sticky`, which is a containing
+   block too, so they are not listed — naming them here would also mean this
+   rule's `relative` winning or losing the cascade against their own
+   declaration, which is a fact about where the two sit in this file. */
+.me-tree-head > span,
+.uefi-tree-head > span {
+  position: relative;
+}
+
 .tool-panel {
   position: relative;
   /* A panel's text is the dump's size, so it follows the dump's size — upstream's
@@ -2470,12 +2504,15 @@ button.uefi-title {
 }
 
 /* Name takes the rest; Type and Subtype are as wide as the words they hold on
-   nearly every row. The two widths are mirrored in the tool's TYPE_WIDTH and
-   SUBTYPE_WIDTH. */
+   nearly every row. The template is the tool's own, set as a custom property on
+   the scroller so that a dragged column moves the head and every row at once
+   without a style object per row — the rows here are virtualised, and a few
+   hundred of them re-rendering their styles would be the whole cost of a drag.
+   The fallback is the design's, for a panel that has not set one. */
 .uefi-tree-head,
 .uefi-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px 88px;
+  grid-template-columns: var(--table-columns, minmax(0, 1fr) 76px 88px);
   align-items: center;
   white-space: nowrap;
 }
@@ -3293,11 +3330,12 @@ button.uefi-title {
 
 /* Name takes the rest; the second column holds `offset · size` on most rows.
    The head shares the grid, as the UEFI tree's does, so a column cannot be
-   titled over one cell and drawn in another. */
+   titled over one cell and drawn in another. The template comes from the tool,
+   as the UEFI tree's does — there the values column is the one that grows. */
 .me-tree-head,
 .me-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 150px);
+  grid-template-columns: var(--table-columns, minmax(0, 1fr) minmax(0, 150px));
   align-items: center;
   height: 22px;
   white-space: nowrap;

@@ -81,10 +81,6 @@
       "why": "AppKit font vending; the web uses CSS."
     },
     {
-      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable",
-      "why": "An NSTableView subclass; the web draws a table element."
-    },
-    {
       "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession",
       "why": "AppKit session lifecycle; a React component's own lifetime is the web's."
     },
@@ -4581,7 +4577,10 @@
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheLegendLaysOutWithoutAmbiguityShutOrOpen": "n/a — a layout pass over an AppKit stack view; here the browser lays the legend out from CSS",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheLegendLeavesRoomAroundAndBetweenHeaderAndList": "n/a — a layout pass over an AppKit stack view; here the legend's margins are CSS (src/app/app.css)",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailScrollTests.swift#*": "later — no React component tests in this project yet",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolPanelFontTests.swift#*": "n/a — the panel's type sizes are CSS"
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolPanelFontTests.swift#*": "n/a — the panel's type sizes are CSS",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.scaleColumnWidths": "n/a — a column follows the app's zoom upstream; the web's panels are laid out in px at a fixed 13-pixel text and the font-size setting does not reach them",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.HeaderView*": "n/a — a header that keeps the height a tiling scroll view would otherwise take back; the web's header is a grid row",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.makeCell*": "n/a — the cell, its warning slot and its badges are elements the panels render (RowMarks.tsx, app.css)"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -4610,6 +4609,11 @@
           "src/tools/toolRowMarks.test.ts",
           "src/ui/toolPanel/RowMarks.test.ts",
           "src/ui/toolPanel/ToolRowMarksLegend.test.ts"
+        ],
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift": [
+          "src/ui/toolPanel/columnWidths.ts",
+          "src/ui/toolPanel/ColumnResizer.tsx",
+          "src/app/app.css"
         ]
       }
     },

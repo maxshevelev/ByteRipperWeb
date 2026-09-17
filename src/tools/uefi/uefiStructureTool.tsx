@@ -27,6 +27,13 @@ import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ScopeShapes } from "@/ui/shell/scopeGlyph";
+import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
+import {
+  columnsMinWidth,
+  columnTemplate,
+  type TableColumn,
+  useColumnWidths,
+} from "@/ui/toolPanel/columnWidths";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -67,13 +74,23 @@ const OVERSCAN = 8;
 const INDENT = 16;
 /**
  * Upstream's column widths (319, 62 and 69 points at its 11-point design size),
- * at this panel's 13 pixels. Type and Subtype hold one short word on almost every
- * row; Name is the column with something to say and takes the rest. The two
- * narrow ones are mirrored in `.uefi-row`'s grid.
+ * at this panel's 13 pixels. Type and Subtype hold one short word on almost
+ * every row; Name is the column with something to say and takes the rest —
+ * upstream's own choice here, unlike the ME tree's, and the reason the two
+ * panels read differently from the same component.
+ *
+ * The design width of the two narrow ones is what a drag is put back to; their
+ * floors are where their text starts to be cut short.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.nameWidth
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.typeWidth
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.subtypeWidth
  */
-const NAME_WIDTH = 300;
-const TYPE_WIDTH = 76;
-const SUBTYPE_WIDTH = 88;
+const UEFI_COLUMNS: readonly TableColumn[] = [
+  { id: "name", title: "Name", width: 300, min: 200, grows: true },
+  { id: "type", title: "Type", width: 76, min: 56 },
+  { id: "subtype", title: "Subtype", width: 88, min: 64 },
+];
 /**
  * How long a branch may take before its row says it is being read. Under this
  * the row simply opens when the branch is there, which is the common case.
@@ -189,6 +206,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
+  const { widths, resize, reset: resetWidths } = useColumnWidths(UEFI_COLUMNS);
   /**
    * Whether the tree lists empty padding.
    *
@@ -558,7 +576,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
   const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
   const last = Math.min(rows.length, Math.ceil((scrollTop + height) / ROW_HEIGHT) + OVERSCAN);
-  const minWidth = NAME_WIDTH + maxDepth * INDENT + TYPE_WIDTH + SUBTYPE_WIDTH;
+  // The deepest row's indentation on top of the columns' own floors: narrower
+  // than this and an opened row's name has nowhere to go, so the scroller
+  // scrolls instead of the columns squeezing past what they can hold.
+  const minWidth = columnsMinWidth(UEFI_COLUMNS) + maxDepth * INDENT;
   const title = presented.title;
   const titleKey = title === undefined ? undefined : pathKey(title.id);
   const shown = selected === undefined ? undefined : state.detail;
@@ -634,10 +655,34 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             aria-label="Firmware structure"
             onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
             onKeyDown={onKeyDown}
+            style={
+              {
+                minWidth,
+                "--table-columns": columnTemplate(widths, UEFI_COLUMNS),
+              } as React.CSSProperties
+            }
           >
             <div className="uefi-tree-head" style={{ minWidth }} aria-hidden="true">
-              <span>Name</span>
-              <span>Type</span>
+              <span>
+                Name
+                <ColumnResizer
+                  columns={UEFI_COLUMNS}
+                  index={0}
+                  widths={widths}
+                  onChange={resize}
+                  onReset={resetWidths}
+                />
+              </span>
+              <span>
+                Type
+                <ColumnResizer
+                  columns={UEFI_COLUMNS}
+                  index={1}
+                  widths={widths}
+                  onChange={resize}
+                  onReset={resetWidths}
+                />
+              </span>
               <span>Subtype</span>
             </div>
             <div
