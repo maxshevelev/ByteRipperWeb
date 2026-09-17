@@ -1,5 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import type { PaneLayout } from "@/state/workspaceStore";
+import { usePointerDrag } from "@/ui/shell/pointerDrag";
 
 /**
  * The handle between the two panes.
@@ -37,52 +38,21 @@ export function PaneDivider({
   initial = 0.5,
   label = "Resize the panes",
 }: PaneDividerProps) {
-  const draggingRef = useRef(false);
-
-  const fractionAt = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const parent = event.currentTarget.parentElement;
-      if (parent === null) return undefined;
-      const bounds = parent.getBoundingClientRect();
-      return layout === "sideBySide"
+  // The gesture itself is `usePointerDrag`'s — the same one the panel edges and
+  // the table columns use, and the same one that must not run without a button
+  // held. It used to be a ref set here, captured "if possible" and cleared on a
+  // release that a refused capture never delivered: a drag that never ended,
+  // and a divider that followed the pointer the next time it crossed.
+  const drag = usePointerDrag<HTMLDivElement>((_start, event) => {
+    const parent = event.currentTarget.parentElement;
+    if (parent === null) return;
+    const bounds = parent.getBoundingClientRect();
+    const next =
+      layout === "sideBySide"
         ? (event.clientX - bounds.left) / bounds.width
         : (event.clientY - bounds.top) / bounds.height;
-    },
-    [layout]
-  );
-
-  const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    draggingRef.current = true;
-    // Capture keeps the drag steering after the pointer leaves the handle.
-    // Failing to get it is not a reason to refuse the drag — it just stops at
-    // the handle's edge.
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // No active pointer with that id; carry on without capture.
-    }
-    event.preventDefault();
-  }, []);
-
-  const onPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!draggingRef.current) return;
-      const next = fractionAt(event);
-      if (next !== undefined) onChange(clamp(next));
-    },
-    [fractionAt, onChange]
-  );
-
-  const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    draggingRef.current = false;
-    try {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-    } catch {
-      // Nothing to release.
-    }
-  }, []);
+    onChange(clamp(next));
+  });
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -114,10 +84,11 @@ export function PaneDivider({
       aria-valuenow={Math.round(fraction * 100)}
       aria-valuemin={Math.round(MIN_FRACTION * 100)}
       aria-valuemax={Math.round((1 - MIN_FRACTION) * 100)}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      onPointerCancel={drag.onPointerCancel}
+      onLostPointerCapture={drag.onLostPointerCapture}
       onDoubleClick={() => onChange(initial)}
       onKeyDown={onKeyDown}
     />

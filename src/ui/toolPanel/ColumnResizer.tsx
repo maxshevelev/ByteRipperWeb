@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { usePointerDrag } from "@/ui/shell/pointerDrag";
 import { boundaryTarget, draggedWidth, type TableColumn } from "@/ui/toolPanel/columnWidths";
 
 /**
@@ -35,41 +36,29 @@ export interface ColumnResizerProps {
 }
 
 export function ColumnResizer({ columns, index, widths, onChange, onReset }: ColumnResizerProps) {
-  const dragging = useRef<{ readonly startX: number; readonly startWidth: number } | undefined>(
-    undefined
-  );
-
   const target = boundaryTarget(columns, index);
   const column = target === undefined ? undefined : columns.find((one) => one.id === target.id);
   const width = target === undefined ? 0 : (widths[target.id] ?? 0);
 
-  const onPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      dragging.current = { startX: event.clientX, startWidth: width };
-      event.currentTarget.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    },
-    [width]
-  );
+  // Where the column was when the press landed. A payload the drag reads, not a
+  // second opinion about whether it is running — `usePointerDrag` owns that.
+  const atPress = useRef(0);
 
-  const onPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragging.current;
-      if (drag === undefined || target === undefined || column === undefined) return;
+  // The gesture is `usePointerDrag`'s, as it is for the pane divider and the
+  // panel edges: the column cannot be dragged by a pointer that is only
+  // passing over the handle.
+  const drag = usePointerDrag<HTMLDivElement>(
+    (start, event) => {
+      if (target === undefined || column === undefined) return;
       onChange(
         target.id,
-        draggedWidth(drag.startWidth, event.clientX - drag.startX, column, target.sign)
+        draggedWidth(atPress.current, event.clientX - start.clientX, column, target.sign)
       );
     },
-    [target, column, onChange]
-  );
-
-  const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    dragging.current = undefined;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    () => {
+      atPress.current = width;
     }
-  }, []);
+  );
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -98,10 +87,11 @@ export function ColumnResizer({ columns, index, widths, onChange, onReset }: Col
       aria-valuenow={width}
       aria-valuemin={column.min}
       aria-valuemax={column.min + 1000}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      onPointerCancel={drag.onPointerCancel}
+      onLostPointerCapture={drag.onLostPointerCapture}
       onDoubleClick={(event) => {
         // The header cell beside it is a click target of its own in some panels.
         event.stopPropagation();

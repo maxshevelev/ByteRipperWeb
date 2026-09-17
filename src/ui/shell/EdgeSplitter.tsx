@@ -1,4 +1,5 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
+import { usePointerDrag } from "@/ui/shell/pointerDrag";
 
 /**
  * The handle on a side panel's edge that sets the panel's width.
@@ -34,31 +35,15 @@ export function EdgeSplitter({
   initial,
   onChange,
 }: EdgeSplitterProps) {
-  const dragging = useRef(false);
-
-  const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    dragging.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  }, []);
-
-  const onPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!dragging.current) return;
-      const panel = event.currentTarget.parentElement;
-      if (panel === null) return;
-      const bounds = panel.getBoundingClientRect();
-      onChange(edge === "left" ? bounds.right - event.clientX : event.clientX - bounds.left);
-    },
-    [edge, onChange]
-  );
-
-  const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    dragging.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }, []);
+  // The gesture is `usePointerDrag`'s, as it is for the pane divider and the
+  // table columns: a press of the primary button starts it, and it runs only
+  // while that button is down.
+  const drag = usePointerDrag<HTMLDivElement>((_start, event) => {
+    const panel = event.currentTarget.parentElement;
+    if (panel === null) return;
+    const bounds = panel.getBoundingClientRect();
+    onChange(edge === "left" ? bounds.right - event.clientX : event.clientX - bounds.left);
+  });
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -86,10 +71,11 @@ export function EdgeSplitter({
       aria-valuenow={width}
       aria-valuemin={min}
       aria-valuemax={max}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      onPointerCancel={drag.onPointerCancel}
+      onLostPointerCapture={drag.onLostPointerCapture}
       onDoubleClick={() => onChange(initial)}
       onKeyDown={onKeyDown}
     />
