@@ -335,10 +335,10 @@ export const BootPolicy = {
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#BootPolicy.structureID
    */
-  structureIdLow: 0x4243_415f,
+  structureIdLow: 0x4341_5f5f,
   structureIdHigh: 0x5f5f_5042,
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#BootPolicy.ibbs */
-  ibbsLow: 0x4249_535f,
+  ibbsLow: 0x4249_5f5f,
   ibbsHigh: 0x5f5f_5342,
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#BootPolicy.pmda */
   pmdaLow: 0x4d50_5f5f,

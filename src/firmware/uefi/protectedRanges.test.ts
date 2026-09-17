@@ -19,6 +19,7 @@ import { severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidEquals } from "@/firmware/uefi/efiGuid";
 import { DXE_CORE } from "@/firmware/uefi/knownGuids";
 import {
+  BootPolicy,
   noProtection,
   type ProtectedRange,
   type ProtectedRangeKind,
@@ -46,6 +47,39 @@ const rangesOf = (bytes: Uint8Array): ProtectedRanges => {
   if (found === undefined) throw new Error("the parse read no ranges");
   return found;
 };
+
+/**
+ * Upstream writes each of these as one 64-bit literal; JavaScript has no exact
+ * 64-bit integer, so the port keeps each as the two dwords a little-endian
+ * reader compares against — and a pair of hand-split dwords is a pair nothing
+ * else proves. A manifest is found by these bytes or it is not found at all,
+ * and a wrong split reads as "no Boot Guard here" on an image that has it: the
+ * test fixtures write the same constants, so they cannot tell the difference.
+ * This says what the bytes must spell.
+ *
+ * @web-only the split is the port's, so the check of it is too
+ */
+describe("the signatures", () => {
+  const spells = (id: { readonly low: number; readonly high: number }): string => {
+    const bytes = new BinaryWriter().u32(id.low).u32(id.high).bytes;
+    return String.fromCharCode(...bytes);
+  };
+
+  it("spell what a manifest holds", () => {
+    expect(spells({ low: BootPolicy.fitSignatureLow, high: BootPolicy.fitSignatureHigh })).toBe(
+      "_FIT_   "
+    );
+    expect(spells({ low: BootPolicy.structureIdLow, high: BootPolicy.structureIdHigh })).toBe(
+      "__ACBP__"
+    );
+    expect(spells({ low: BootPolicy.ibbsLow, high: BootPolicy.ibbsHigh })).toBe("__IBBS__");
+    expect(spells({ low: BootPolicy.pmdaLow, high: BootPolicy.pmdaHigh })).toBe("__PMDA__");
+    expect(spells({ low: BootPolicy.pmsgLow, high: BootPolicy.pmsgHigh })).toBe("__PMSG__");
+    expect(
+      spells({ low: BootPolicy.phoenixSignatureLow, high: BootPolicy.phoenixSignatureHigh })
+    ).toBe("$HASHTBL");
+  });
+});
 
 describe("the Boot Policy", () => {
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#ProtectedRangesTests.testAV1ManifestNamesItsIBBThePostIBBRangeAndPMDA

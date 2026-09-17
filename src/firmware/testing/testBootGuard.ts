@@ -121,7 +121,7 @@ export interface TestSegment {
  *
  * @upstream Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#TestBootGuard.txts
  */
-const TXTS = { low: 0x5354_5854, high: 0x5f5f_5354 } as const;
+const TXTS = { low: 0x5854_5f5f, high: 0x5f5f_5354 } as const;
 
 const idBytes = (id: { readonly low: number; readonly high: number }) =>
   new BinaryWriter().u32(id.low).u32(id.high).bytes;
