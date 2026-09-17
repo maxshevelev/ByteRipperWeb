@@ -48,9 +48,15 @@ Screenshots are wherever you point `shot`; `/tmp` is a good place.
 | `open <file> [--tool NAME] [--tab TEXT] [--url U]` | opens the dump, then optionally a tool and one of its tabs |
 | `shot <path>` | PNG of the page |
 | `eval "<js>"` | evaluates in the page and prints the value |
-| `hover <selector> [dx dy]` | moves the pointer over an element with nothing held |
-| `drag <selector> [dx dy]` | a real mouse drag from the element's centre, in 12 steps |
-| `click <selector>` | a real click |
+| `hover <what> [dx dy]` | moves the pointer over an element with nothing held |
+| `drag <what> [dx dy]` | a real mouse drag from the element's centre, in 12 steps |
+| `click <what>` | a real click |
+
+`<what>` is a selector, or `@x,y` for a point in the viewport. The dump needs
+the point: its bytes, its addresses, its bookmark marks and its selection are
+pixels on a canvas, so there is no element to name. Where a row is: the address
+column is about 8px in from the pane's left edge, and a row is one row height
+below the pane's top — read both off a screenshot rather than guessing.
 | `keys <key>...` | `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `Enter`, `Escape` |
 | `text` | the page's visible text |
 | `stop` | closes the browser and forgets it |

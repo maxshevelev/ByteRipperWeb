@@ -139,6 +139,21 @@ class Cdp {
   }
 
   /**
+   * Where a click target is: an element's centre, or a point given outright.
+   *
+   * The dump is a canvas — its bytes, its addresses and its bookmark marks are
+   * pixels — so a gesture on it has no element to name. `@x,y` says where to
+   * click; anything else is a selector.
+   */
+  async target(where) {
+    const point = /^@(-?\d+),(-?\d+)$/.exec(where);
+    if (point !== null) return { x: Number(point[1]), y: Number(point[2]) };
+    const at = await this.box(where);
+    if (at === null) throw new Error(`no element matches ${where}`);
+    return at;
+  }
+
+  /**
    * A real mouse drag, in steps, so the app sees a pointer gesture rather than
    * a script calling its handlers. Chrome only opens a file chooser for a
    * gesture it believes in, and only steers a drag it sees move.
@@ -421,30 +436,27 @@ const COMMANDS = {
   },
 
   async drag(args) {
-    const [selector, dx, dy] = positionals(args);
+    const [where, dx, dy] = positionals(args);
     const cdp = await attach(readState());
-    const at = await cdp.box(selector);
-    if (at === null) throw new Error(`no element matches ${selector}`);
+    const at = await cdp.target(where);
     await cdp.drag(at, { x: at.x + Number(dx ?? 0), y: at.y + Number(dy ?? 0) });
-    console.log(`dragged ${selector} by ${dx ?? 0},${dy ?? 0}`);
+    console.log(`dragged ${where} by ${dx ?? 0},${dy ?? 0}`);
   },
 
   async click(args) {
-    const selector = positionals(args)[0];
+    const where = positionals(args)[0];
     const cdp = await attach(readState());
-    const at = await cdp.box(selector);
-    if (at === null) throw new Error(`no element matches ${selector}`);
+    const at = await cdp.target(where);
     await cdp.click(at.x, at.y);
-    console.log(`clicked ${selector}`);
+    console.log(`clicked ${where}`);
   },
 
   async hover(args) {
-    const [selector, dx, dy] = positionals(args);
+    const [where, dx, dy] = positionals(args);
     const cdp = await attach(readState());
-    const at = await cdp.box(selector);
-    if (at === null) throw new Error(`no element matches ${selector}`);
+    const at = await cdp.target(where);
     await cdp.hover(at.x + Number(dx ?? 0), at.y + Number(dy ?? 0));
-    console.log(`hovering ${selector}`);
+    console.log(`hovering ${where}`);
   },
 
   async keys(args) {
