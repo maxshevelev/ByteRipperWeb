@@ -55,10 +55,18 @@ export function TransientNotice() {
 /**
  * One plate: a glyph and its lines, or a glyph alone.
  *
+ * The plate's grey is the stylesheet's (`--notice-icon`, the palette's
+ * `NoticeIcon`), and it tints the glyph and every line alike through
+ * `currentColor`: upstream sets the same `NoticeColors.icon` on the symbol and
+ * on each label for the same reason — a plate is one object, and a sign louder
+ * than its own text would read as two.
+ *
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.cornerRadius
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.init
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.hitTest
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors.icon
  * @upstream-differs a frosted element with pointer-events: none, rather than an NSVisualEffectView whose hitTest returns nil
  */
 function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving: boolean }) {

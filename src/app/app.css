@@ -208,7 +208,9 @@ textarea,
 }
 
 /* The icon is the Open File button: a third of the window's shorter side,
-   capped, in the muted grey the headline shares — a hint, not a control. */
+   capped, in the landing screen's own grey — the picture and the headline
+   share it, and it is fainter than a notice's, because an empty window is
+   waiting rather than reporting (`--empty-state-icon`). */
 .empty-state-icon {
   flex: none;
   width: min(33.333vmin, 400px);
@@ -218,7 +220,7 @@ textarea,
   padding: 0;
   border: 0;
   background: none;
-  color: var(--text-faint);
+  color: var(--empty-state-icon);
   cursor: pointer;
 }
 
@@ -240,7 +242,7 @@ textarea,
 
 .empty-state-headline {
   margin: 0;
-  color: var(--text-faint);
+  color: var(--empty-state-icon);
   font-size: 20px;
   font-weight: 600;
 }
@@ -3972,8 +3974,14 @@ button.uefi-title {
   animation: transient-notice-out 300ms ease-in forwards;
 }
 
+/* The plate is one object: the glyph and every line under it are the same grey
+   (`--notice-icon`) — a sign louder than its own words would read as two, and
+   the plate reports what the window has already done rather than warning about
+   anything, so it says it quietly. Only the weight tells the heading from the
+   findings below it. */
 .transient-notice-glyph {
   flex: none;
+  color: var(--notice-icon);
 }
 
 .transient-notice-lines {
@@ -3988,6 +3996,7 @@ button.uefi-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--notice-icon);
 }
 
 .transient-notice-heading {
@@ -3996,7 +4005,6 @@ button.uefi-title {
 }
 
 .transient-notice-line {
-  color: var(--text-muted);
   font-size: 12px;
 }
 

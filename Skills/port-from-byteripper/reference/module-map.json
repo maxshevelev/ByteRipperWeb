@@ -568,10 +568,10 @@
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#*.Sets": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#RowMarks*": "n/a — the three colours a row mark reserves are CSS custom properties (--row-mark-ibb, --row-mark-firmware, --row-mark-decompressed) in src/ui/theme/theme.css, which the anchor check does not read; src/tools/toolRowMarkStyle.ts says which mark takes which",
         "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors": "later — G42: the notice plate's sign is painted in the body text colour, where upstream tints it the palette's NoticeIcon grey",
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors.icon": "later — G42: as above, the sign's own grey",
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors": "later — G42: the landing screen's icon is the one --text-faint token, where upstream names an EmptyStateIcon grey, deliberately fainter than a notice's",
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors.icon": "later — G42: as above, the landing icon's own grey"
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors": "n/a — the notice's grey is a CSS custom property (--notice-icon) in src/ui/theme/theme.css, which the anchor check does not read; it tints the plate's glyph and every line under it alike (src/app/app.css), and src/ui/shell/TransientNotice.tsx anchors the members",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#NoticeColors.icon": "n/a — as above: --notice-icon, read by .transient-notice-glyph and .transient-notice-heading/.transient-notice-line",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors": "n/a — the landing screen's grey is a CSS custom property (--empty-state-icon) in src/ui/theme/theme.css, which the anchor check does not read; the picture and the headline share it, and it is deliberately fainter than a notice's (src/app/app.css), and src/ui/shell/EmptyState.tsx anchors the members",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors.icon": "n/a — as above: --empty-state-icon, read by .empty-state-icon and .empty-state-headline"
       },
       "files": {
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift": "src/ui/theme/hexColors.ts"
@@ -3998,7 +3998,11 @@
         "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testTheRightClickAsksForTheDigitsTheBarDraws": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testATransientMessageLeavesNoAddressToAimAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/StatusBarOffsetTests.swift#StatusBarOffsetTests.testThePanePublishesTheAddressRegionAndMenu": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/TransientNoticeViewTests.swift#*": "later — an app flow test; the port has no component or end-to-end test for it yet (G24 in Design/GAPS.md)"
+        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests": "n/a — test scaffolding",
+        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheGlyphIsDrawnInTheNoticeColourAtItsOwnSize": "n/a — it measures an NSView's drawing in a bitmap to read the tint's alpha back; the glyph is inline SVG stroked with currentColor, in the grey the stylesheet gives the plate",
+        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheWordsAreTheSignsColour": "n/a — the plate is one colour by construction here: .transient-notice-glyph and the two line rules read the same --notice-icon (src/app/app.css), so there is no second place to set it and nothing to come apart",
+        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testAGlyphOnlyPlateHoldsTheGlyphInTheMiddle": "n/a — CSS centres the plate's content",
+        "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheNoticeAndTheLandingScreenAreDifferentColours": "later — an app flow test: the two greys are CSS custom properties in src/ui/theme/theme.css, and reading them back needs a browser"
       }
     },
     {
@@ -4092,7 +4096,7 @@
         "src/ui/shell/EmptyState.tsx"
       ],
       "status": "ported",
-      "note": "The landing screen as upstream's: the plus.viewfinder icon as the Open File button, a third of the viewport's shorter side capped at 400, the Drop files here headline and the two-file hint, and the workspace's bookmarks under them — a counted heading and a read-only list of addresses and names in the bookmark colour. The window takes the drop and the view is outlined while files are over it; pane drops are D11's. The tab title is upstream's windowTitle.",
+      "note": "The landing screen as upstream's: the plus.viewfinder icon as the Open File button, a third of the viewport's shorter side capped at 400, the Drop files here headline and the two-file hint, and the workspace's bookmarks under them — a counted heading and a read-only list of addresses and names in the bookmark colour. The window takes the drop and the view is outlined while files are over it; pane drops are D11's. The tab title is upstream's windowTitle. The picture and the headline share one grey and not the bar's own: EmptyStateColors.icon, a CSS custom property (--empty-state-icon) deliberately fainter than a notice's, because an empty window is waiting rather than reporting (G42).",
       "unported": {
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneDropOutcome": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.onPaneDropped": "n/a — one workspace per browser tab (D11): no tabs or windows",
@@ -4119,7 +4123,7 @@
         "src/ui/shell/TransientNotice.tsx"
       ],
       "status": "ported",
-      "note": "The frosted plate over the window, one at a time: the wrap glyph a step or a first-hit scan shows when it came round an end, and the list a Smart Search that found nothing names its encodings in. Upstream's hold and fade timings; a new plate replaces the last at once, a stale one fades, and starting a search or closing the bar takes it away. Drawn with pointer-events: none, glyphs as inline SVG.",
+      "note": "The frosted plate over the window, one at a time: the wrap glyph a step or a first-hit scan shows when it came round an end, and the list a Smart Search that found nothing names its encodings in. Upstream's hold and fade timings; a new plate replaces the last at once, a stale one fades, and starting a search or closing the bar takes it away. Drawn with pointer-events: none, glyphs as inline SVG. The plate's grey is NoticeColors.icon (--notice-icon): the glyph and every line under it are the same colour on purpose — a plate is one object, and a sign louder than its own text would read as two (G42).",
       "unported": {
         "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolImageForTests": "n/a — a test seam",
         "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView": "n/a — SF Symbols do not ship to a browser: the glyph is inline SVG, drawn by TransientNotice.Glyph",

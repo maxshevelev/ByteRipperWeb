@@ -16,6 +16,8 @@ import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.contentStack
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.openButton
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.iconColor
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors
+ * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors.icon
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.headlineGap
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.maxIconSize
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.currentIconSize

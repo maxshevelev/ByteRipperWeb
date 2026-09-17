@@ -85,6 +85,17 @@
   --row-mark-ibb: rgb(255 45 85 / 0.14);
   --row-mark-firmware: rgb(50 173 230 / 0.14);
   --row-mark-decompressed: rgb(88 86 214);
+
+  /* Ported from AppPalette's two icon greys, which are two meanings rather than
+     one. A notice's plate is one object — the sign and the words under it are
+     the same mid grey on purpose, and a sign louder than its own text would
+     read as two — because a plate reports something the window has already
+     done, so it says it quietly (NoticeColors.icon). The landing screen is the
+     opposite case: an empty window is waiting rather than reporting, so its
+     picture and headline are deliberately fainter (EmptyStateColors.icon). */
+  --notice-icon: rgb(0 0 0 / 0.53);
+  --empty-state-icon: rgb(0 0 0 / 0.259);
+
   --segment-0: #d6f0d6;
   --segment-1: #f7d9e0;
   --segment-2: #d6e6fa;
@@ -144,6 +155,10 @@
     --row-mark-ibb: rgb(255 55 95 / 0.24);
     --row-mark-firmware: rgb(100 210 255 / 0.2);
     --row-mark-decompressed: rgb(125 122 255);
+    /* The two icon greys, lighter here as every other ink is (see the light
+       block for what they mean). */
+    --notice-icon: rgb(255 255 255 / 0.55);
+    --empty-state-icon: rgb(255 255 255 / 0.247);
     --segment-0: #29402b;
     --segment-1: #4a2b36;
     --segment-2: #29384d;
@@ -207,6 +222,10 @@
   --row-mark-ibb: rgb(255 55 95 / 0.24);
   --row-mark-firmware: rgb(100 210 255 / 0.2);
   --row-mark-decompressed: rgb(125 122 255);
+  /* The two icon greys, lighter here as every other ink is (see the light
+     block for what they mean). */
+  --notice-icon: rgb(255 255 255 / 0.55);
+  --empty-state-icon: rgb(255 255 255 / 0.247);
   --segment-0: #29402b;
   --segment-1: #4a2b36;
   --segment-2: #29384d;
