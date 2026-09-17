@@ -335,11 +335,16 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // The node and its body, the body in focus — upstream's two zones, drawn
       // over the dump and in the minimap's gutter. Never the children: a store's
       // two hundred variables outlined at once is a dump nobody can read.
-      publishZones(context.pane, uefiZones(node));
-      // The whole node, header through tail — what clicking a row means.
-      context.reveal(node.header[0], Math.max(node.body[1], node.tail[1]));
+      const zones = uefiZones(node, roots);
+      publishZones(context.pane, zones);
+      // What clicking a row means: the whole node, header through tail — or,
+      // for a node inside a compressed section, the section that holds it,
+      // since its own ranges are offsets into a buffer and the dump has no
+      // bytes to show for them. The outermost zone is that range either way.
+      const whole = zones.zones[0];
+      if (whole !== undefined) context.reveal(whole.start, whole.end);
     },
-    [context]
+    [context, roots]
   );
 
   /**
@@ -412,7 +417,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       setSelected(key);
       askFirmwareDetail(context.pane, path);
       setScrollTarget(key);
-      publishZones(context.pane, uefiZones(firmwareNodeAt(roots ?? [], path)));
+      publishZones(context.pane, uefiZones(firmwareNodeAt(roots ?? [], path), roots ?? []));
     },
     [context.pane, roots]
   );
@@ -426,13 +431,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.marks
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.marks(for:)
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks
-   * @upstream-differs the protected ranges and the decompressed buffers are not
-   * read here yet (G3, G1), so no row wears a tint or a rail
+   * @upstream-differs the protected ranges are not read here yet (G3), so no
+   * row wears a tint
    */
   const marksOf = useCallback(
     (node: WireNode): ToolRowMarks =>
-      uefiTreeMarks({ node, diagnostics: state?.diagnostics ?? [] }),
-    [state?.diagnostics]
+      uefiTreeMarks({
+        node,
+        diagnostics: state?.diagnostics ?? [],
+        roots: roots ?? [],
+        isOpen: open.has(pathKey(node.id)),
+      }),
+    [state?.diagnostics, roots, open]
   );
 
   /**
@@ -655,8 +665,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                     choose(node);
                     // Upstream offers exactly one command here, and only on a node
                     // whose checksum is wrong — a clean row gets no menu at all.
+                    // Never inside a compressed section: the fix would be a
+                    // write into a buffer that is not the file.
                     openContextMenu(event, [
-                      marksOf(node).problem === undefined
+                      marksOf(node).problem === undefined || node.space.length !== 0
                         ? undefined
                         : {
                             label: "Fix Checksum",

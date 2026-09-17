@@ -1,4 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
+import { type ByteSpace, FILE_SPACE, isFileSpace } from "@/firmware/uefi/byteSpace";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
 
 /**
@@ -160,12 +161,14 @@ export interface UEFINode {
    */
   isFixed: boolean;
   /**
-   * Lies inside a compressed container, so its absolute address means nothing —
-   * the decompressor puts it wherever it likes. Every address check skips these.
+   * Which bytes `header`, `body` and `tail` are offsets into: the file, or the
+   * buffer a compressed section decompresses to. Ranges are only ever compared
+   * within one space, and `fileRange` is how a caller that needs bytes of the
+   * file says so.
    *
-   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isCompressed
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.space
    */
-  isCompressed: boolean;
+  space: ByteSpace;
   /**
    * The algorithm a container's body is compressed with — nothing for a body
    * that is not compressed, and for one whose algorithm the format does not
@@ -215,7 +218,7 @@ export interface NodeOptions {
   readonly body: ImageRange;
   readonly tail?: ImageRange | undefined;
   readonly isFixed?: boolean;
-  readonly isCompressed?: boolean;
+  readonly space?: ByteSpace;
   readonly compression?: SectionCompression | undefined;
   readonly isErased?: boolean;
   readonly isExpandable?: boolean;
@@ -235,7 +238,7 @@ export function makeNode(options: NodeOptions): UEFINode {
     body: options.body,
     tail: options.tail ?? { start: options.body.end, end: options.body.end },
     isFixed: options.isFixed ?? false,
-    isCompressed: options.isCompressed ?? false,
+    space: options.space ?? FILE_SPACE,
     compression: options.compression,
     isErased: options.isErased ?? false,
     isExpandable: options.isExpandable ?? false,
@@ -268,6 +271,24 @@ export function makeSpan(options: {
 export function nodeRange(node: UEFINode): ImageRange {
   const end = Math.max(node.header.end, node.body.end, node.tail.end);
   return { start: node.header.start, end: Math.max(node.header.start, end) };
+}
+
+/**
+ * Lies inside a compressed container, so its absolute address means nothing —
+ * the decompressor puts it wherever it likes. Every address check skips these.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.isCompressed
+ */
+export const isNodeCompressed = (node: UEFINode): boolean => !isFileSpace(node.space);
+
+/**
+ * The node's range in the file — nothing for anything inside a compressed
+ * section. The name makes a caller that needs file bytes say so.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.fileRange
+ */
+export function nodeFileRange(node: UEFINode): ImageRange | undefined {
+  return isFileSpace(node.space) ? nodeRange(node) : undefined;
 }
 
 /**

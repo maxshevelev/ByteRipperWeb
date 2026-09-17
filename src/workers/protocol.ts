@@ -381,7 +381,14 @@ export interface WireNode {
   readonly body: readonly [number, number];
   readonly tail: readonly [number, number];
   readonly isFixed: boolean;
-  readonly isCompressed: boolean;
+  /**
+   * Which bytes this node's ranges are in: the empty chain for the file, and
+   * otherwise the compressed sections on the way in, each by its header offset
+   * in the space before it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.space
+   */
+  readonly space: readonly number[];
   /**
    * The algorithm this node's body is compressed with, and whether the port
    * opens it — what a panel's compressed badge is read from. Absent for a body
@@ -407,6 +414,15 @@ export interface WireDiagnostic {
   readonly message: string;
   readonly severity: "warning" | "error";
   readonly offset: number;
+  /**
+   * Where inside, when the trouble is in what a compressed section decompresses
+   * to: the space, and the offset in its buffer. The `offset` above is then the
+   * outermost section's header — bytes of the file, which is all the dump can
+   * show.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.inside
+   */
+  readonly inside?: { readonly space: readonly number[]; readonly offset: number } | undefined;
 }
 
 export interface FirmwareRootsResponse {

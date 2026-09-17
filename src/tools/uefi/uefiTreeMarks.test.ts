@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { AMI_HASH_FILE, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
-import { rowMarkChannel } from "@/tools/toolRowMarks";
+import { rowMarkChannel, type ToolRowMarks } from "@/tools/toolRowMarks";
 import {
   checksumProblems,
   holdsChecks,
@@ -17,11 +17,36 @@ import type { WireDiagnostic, WireNode } from "@/workers/protocol";
  * Upstream hands `marks(for:in:)` a `UEFINode` and its image; this port hands
  * `uefiTreeMarks` the node the panel holds, as the worker wired it, plus the
  * parse's diagnostics — so a test builds that pair and states what the panel
- * gets. The two gaps this port has and upstream has not are checked here too:
- * the rail is never drawn (G1) and neither is the background (G3).
+ * gets. The one gap this port has and upstream has not is checked here too: the
+ * Boot Guard background is never drawn (G3).
  */
 
 const LZMA = { algorithm: "LZMA", decodes: true };
+
+/**
+ * @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.section
+ */
+const section = (options: { isExpandable?: boolean; children?: WireNode[] } = {}): WireNode =>
+  wire({
+    kind: "section",
+    subtype: 0x01,
+    name: "LZMA compressed section",
+    header: [0x60, 0x69],
+    body: [0x69, 0x100],
+    tail: [0x100, 0x100],
+    compression: LZMA,
+    ...(options.isExpandable === undefined ? {} : { isExpandable: options.isExpandable }),
+    ...(options.children === undefined ? {} : { children: options.children }),
+  });
+
+/**
+ * @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.inner
+ */
+const inner = (): WireNode =>
+  wire({ kind: "file", name: "Driver", header: [0, 0x18], body: [0x18, 0x40], space: [0x60] });
+
+const hasRail = (marks: ToolRowMarks) =>
+  marks.decompressedFrom !== undefined || marks.opensDecompressed === true;
 /** A node's GUID as the wire carries it: text, not the value. */
 const AMI_HASH_TEXT = guidText(AMI_HASH_FILE);
 const PHOENIX_HASH_TEXT = guidText(PHOENIX_HASH_FILE);
@@ -38,7 +63,7 @@ function wire(options: Partial<WireNode> = {}): WireNode {
     body: options.body ?? [0x18, 0x40],
     tail: options.tail ?? [0x40, 0x40],
     isFixed: options.isFixed ?? false,
-    isCompressed: options.isCompressed ?? false,
+    space: options.space ?? [],
     compression: options.compression,
     isErased: options.isErased ?? false,
     isExpandable: options.isExpandable ?? false,
@@ -87,12 +112,69 @@ describe("what a row wears", () => {
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testAnOpenedOrOpenableSectionWearsTheCompressedBadge
   it("gives a compressed section the badge, and no problem for not being opened yet", () => {
-    const open = uefiTreeMarks({
-      node: wire({ kind: "section", name: "LZMA compressed section", compression: LZMA }),
-      diagnostics: [],
+    const opened = uefiTreeMarks({ node: section({ children: [inner()] }), diagnostics: [] });
+    expect(opened.roles).toEqual([{ kind: "compressed", algorithm: "LZMA", decoded: true }]);
+
+    const closed = uefiTreeMarks({ node: section({ isExpandable: true }), diagnostics: [] });
+    expect(closed.roles).toEqual([{ kind: "compressed", algorithm: "LZMA", decoded: true }]);
+    // Not opened yet is not a failure.
+    expect(closed.problem).toBeUndefined();
+  });
+
+  /**
+   * A node inside a compressed section wears the rail, and its tooltip says
+   * which section the bytes came out of.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testANodeInsideWearsTheRailAndSaysWhereFrom
+   */
+  it("gives a node inside the rail, and says where from", () => {
+    const roots = [section({ children: [inner()] })];
+    const marks = uefiTreeMarks({ node: inner(), diagnostics: [], roots });
+
+    expect(marks.decompressedFrom).toBe("Decompressed from LZMA compressed section at 0x60");
+    expect(marks.problem).toBeUndefined();
+    expect(marks.roles).toEqual([]);
+  });
+
+  /**
+   * A section whose row is open on what came out of it starts the rail its
+   * subtree wears, so the two read as one bracket; its bytes are still the
+   * file's, so it says no "decompressed from". Shut, it has nothing to tie the
+   * rail to — even with the branch read.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testASectionStartsTheRailOnlyWhileItsRowIsOpen
+   */
+  it("starts the rail at a section only while its row is open", () => {
+    const opened = section({ children: [inner()] });
+    const open = uefiTreeMarks({ node: opened, diagnostics: [], isOpen: true });
+    expect(open.opensDecompressed).toBe(true);
+    expect(hasRail(open)).toBe(true);
+    expect(open.decompressedFrom).toBeUndefined();
+
+    // Read, but shut.
+    expect(hasRail(uefiTreeMarks({ node: opened, diagnostics: [], isOpen: false }))).toBe(false);
+    // Nothing under it yet.
+    const closed = section({ isExpandable: true });
+    expect(hasRail(uefiTreeMarks({ node: closed, diagnostics: [], isOpen: true }))).toBe(false);
+  });
+
+  /**
+   * A section that did not decompress is a caution, in the parse's own words.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testASectionThatDidNotDecompressIsACaution
+   */
+  it("makes a section that did not decompress a caution", () => {
+    const failed = section();
+    const marks = uefiTreeMarks({
+      node: failed,
+      diagnostics: [diagnostic("LZMA data does not decompress", 0x60)],
     });
-    expect(open.roles).toEqual([{ kind: "compressed", algorithm: "LZMA", decoded: false }]);
-    expect(open.problem).toBeUndefined();
+
+    expect(marks.roles).toEqual([{ kind: "compressed", algorithm: "LZMA", decoded: false }]);
+    expect(marks.problem?.lines).toEqual(["LZMA data does not decompress"]);
+    expect(marks.problem?.isError).toBe(false);
+    // Nothing came out of it to bracket.
+    expect(hasRail(marks)).toBe(false);
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testAnUndecodedAlgorithmIsGreyAndNotAProblem
@@ -110,20 +192,16 @@ describe("what a row wears", () => {
     expect(marks.problem).toBeUndefined();
   });
 
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeMarksTests.swift#UEFITreeMarksTests.testANodeInsideWearsTheRailAndSaysWhereFrom
-  // @upstream-differs G1 is not ported, so no node's bytes came out of anywhere
-  // and neither `decompressedFrom` nor `opensDecompressed` is ever set
-  it("draws no rail and no background, because G1 and G3 are not ported", () => {
+  // @upstream-differs G3 is not ported, so no row wears a Boot Guard background
+  it("draws no background, because G3 is not ported", () => {
     const marks = uefiTreeMarks({
       node: wire({ kind: "file", name: "Driver", compression: undefined }),
       diagnostics: [],
     });
 
-    expect(marks.decompressedFrom).toBeUndefined();
-    expect(marks.opensDecompressed).toBeUndefined();
     expect(marks.protection).toBeUndefined();
     // And so the legend says nothing it cannot draw.
-    expect(UEFI_TREE_MARKS.legendMarks).not.toContain("decompressed");
+    expect(UEFI_TREE_MARKS.legendMarks).toContain("decompressed");
     expect(UEFI_TREE_MARKS.legendMarks).not.toContain("protectedIBB");
     expect(UEFI_TREE_MARKS.legendMarks).not.toContain("protectedFirmware");
     expect(UEFI_TREE_MARKS.legendMarks).not.toContain("partlyProtected");
@@ -209,6 +287,7 @@ describe("the legend", () => {
   // @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeMarks.swift#UEFITreeMarks.legendMarks
   it("lists exactly the marks this tree draws", () => {
     expect(UEFI_TREE_MARKS.legendMarks).toEqual([
+      "decompressed",
       "error",
       "caution",
       "compressed",
@@ -216,7 +295,7 @@ describe("the legend", () => {
       "holdsChecks",
     ]);
     for (const mark of UEFI_TREE_MARKS.legendMarks) {
-      expect(["problem", "role"]).toContain(rowMarkChannel(mark));
+      expect(["problem", "role", "rail"]).toContain(rowMarkChannel(mark));
     }
   });
 });

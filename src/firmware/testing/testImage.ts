@@ -200,8 +200,12 @@ export function section(options: {
  *
  * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.compressionSection
  */
-export function compressionSection(algorithm: number, body: Uint8Array): Uint8Array {
-  const extra = new BinaryWriter().u32(body.length * 3).u8(algorithm).bytes;
+export function compressionSection(
+  algorithm: number,
+  body: Uint8Array,
+  uncompressedLength?: number
+): Uint8Array {
+  const extra = new BinaryWriter().u32(uncompressedLength ?? body.length * 3).u8(algorithm).bytes;
   return section({ type: Section.compression, body, extra });
 }
 
@@ -215,12 +219,13 @@ export function guidedSectionBytes(options: {
   readonly guid: EFIGUID;
   readonly body: Uint8Array;
   readonly vendorHeader?: Uint8Array;
+  readonly attributes?: number;
 }): Uint8Array {
   const vendorHeader = options.vendorHeader ?? new Uint8Array(0);
   const extra = new BinaryWriter()
     .guid(options.guid)
     .u16(4 + Section.guidDefinedHeaderSize + vendorHeader.length)
-    .u16(0) // Attributes
+    .u16(options.attributes ?? 0)
     .raw(vendorHeader).bytes;
   return section({ type: Section.guidDefined, body: options.body, extra });
 }

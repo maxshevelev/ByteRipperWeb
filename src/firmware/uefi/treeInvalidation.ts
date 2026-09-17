@@ -1,5 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { nodeFileRange, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * What an edit does to a tree that has already been read.
@@ -27,27 +27,30 @@ export function invalidating(nodes: UEFINode[], range: ImageRange, sizeDelta: nu
 }
 
 /**
- * True for what this tree ever leaves collapsed: a volume, and a region whose
- * raw area nobody has scanned. Every other kind's children, once computed, stay
- * computed until an ancestor gate point above it is itself collapsed.
+ * True for what this tree ever leaves collapsed: a volume, a region whose raw
+ * area nobody has scanned, and a compressed section that was opened — told by
+ * children in a space of their own. Every other kind's children, once computed,
+ * stay computed until an ancestor gate point above it is itself collapsed.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.isGatePoint
- * @upstream-differs no section is ever a gate point here: upstream's third case is a compressed section whose children were decompressed into a space of their own, and this port does not decompress — a compressed section is a leaf that names its algorithm
  */
 export function isGatePoint(node: UEFINode): boolean {
-  return node.kind === "volume" || node.kind === "region";
+  return (
+    node.kind === "volume" ||
+    node.kind === "region" ||
+    (node.kind === "section" &&
+      node.children.some((child) => child.space.length !== node.space.length))
+  );
 }
 
 /**
  * A node's range as the file's offsets, or nothing when its offsets are not the
- * file's to speak of.
+ * file's to speak of. An edit is a range of the file, and a node inside a
+ * compressed section goes with the section that holds it.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.fileRange
- * @upstream-differs always the node's own range: a node is in the file's space unless it came out of a decompressor, and this port has none
  */
-function fileRange(node: UEFINode): ImageRange | undefined {
-  return nodeRange(node);
-}
+const fileRange = (node: UEFINode): ImageRange | undefined => nodeFileRange(node);
 
 /** @upstream The standard library's own `Range.overlaps`, which has no declaration to anchor to. */
 function overlaps(one: ImageRange, other: ImageRange): boolean {

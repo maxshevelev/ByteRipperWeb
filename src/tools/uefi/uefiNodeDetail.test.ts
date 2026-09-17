@@ -198,7 +198,7 @@ describe("a file", () => {
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testACompressedNodeHasNoAddress
   it("has no address inside a compressed section", () => {
     const bytes = Test.file({ body: new Uint8Array(0xe8) });
-    const node = { ...fileNode(), isCompressed: true };
+    const node = { ...fileNode(), space: [0x400] };
     expect(value(detailOf(node, bytes, { addressDiff: MAPPED }), "Address")).toBeUndefined();
   });
 

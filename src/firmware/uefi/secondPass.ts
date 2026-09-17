@@ -2,7 +2,13 @@ import { guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FFS } from "@/firmware/uefi/fileParser";
 import { nameOfGuid, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
-import { flattened, makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import {
+  flattened,
+  isNodeCompressed,
+  makeNode,
+  nodeRange,
+  type UEFINode,
+} from "@/firmware/uefi/uefiNode";
 
 /**
  * `X86_RESET_VECTOR_DATA`, at fixed physical addresses inside the Volume Top
@@ -192,7 +198,7 @@ function lastVolumeTopFile(roots: readonly UEFINode[]): UEFINode | undefined {
   let best: UEFINode | undefined;
   for (const root of roots) {
     for (const node of flattened(root)) {
-      if (node.kind !== "file" || node.isCompressed) continue;
+      if (node.kind !== "file" || isNodeCompressed(node)) continue;
       if (node.guid === undefined || !guidEquals(node.guid, VOLUME_TOP_FILE)) continue;
       if (best === undefined || nodeRange(best).end < nodeRange(node).end) best = node;
     }

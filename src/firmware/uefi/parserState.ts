@@ -25,10 +25,18 @@ export interface Limits {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.Limits.maxDepth
    */
   readonly maxDepth: number;
+  /**
+   * The most a compressed section may decompress to. The size comes from an
+   * untrusted header: a DXE volume is tens of megabytes, so a section that
+   * claims more than this is reported and kept whole rather than allocated.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.Limits.maxDecompressedSize
+   */
+  readonly maxDecompressedSize: number;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.Limits.init */
-export const DEFAULT_LIMITS: Limits = { maxDepth: 16 };
+export const DEFAULT_LIMITS: Limits = { maxDepth: 16, maxDecompressedSize: 128 * 1024 * 1024 };
 
 /**
  * How far the scan has got, reported monotonically from just above 0 up to 1.

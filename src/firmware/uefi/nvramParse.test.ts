@@ -3,7 +3,7 @@ import { sourceOver } from "@/firmware/byteSource";
 import { BinaryWriter, DRIVER_GUID, microcode, volume } from "@/firmware/testing/testImage";
 import * as N from "@/firmware/testing/testNvram";
 import { guid } from "@/firmware/uefi/efiGuid";
-import type { Limits } from "@/firmware/uefi/parserState";
+import { DEFAULT_LIMITS, type Limits } from "@/firmware/uefi/parserState";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
@@ -328,7 +328,7 @@ describe("the depth budget over nested stores", () => {
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testFdcNestingBeyondTheDepthLimitIsBounded
   it("stops the nesting past the limit", () => {
-    const parsed = parse(nested(), { maxDepth: 2 });
+    const parsed = parse(nested(), { ...DEFAULT_LIMITS, maxDepth: 2 });
     const outer = parsed.roots[0] as UEFINode;
 
     expect(kinds(outer.children)).toEqual(["fdcStore"]);
@@ -340,7 +340,7 @@ describe("the depth budget over nested stores", () => {
   // The boundary is inclusive, not a refusal of the deepest allowed level.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testFdcNestingWithinTheDepthLimitIsRead
   it("reads the same nesting one level shallower", () => {
-    const parsed = parse(nested(), { maxDepth: 3 });
+    const parsed = parse(nested(), { ...DEFAULT_LIMITS, maxDepth: 3 });
     const outer = parsed.roots[0] as UEFINode;
 
     expect(kinds(outer.children)).toEqual(["fdcStore"]);

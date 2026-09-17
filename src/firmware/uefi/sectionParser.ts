@@ -1,5 +1,11 @@
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp } from "@/firmware/uefi/checksums";
+import {
+  algorithmOfCompressionType,
+  algorithmOfGuid,
+  isCompressedGuid,
+  PROCESSING_REQUIRED,
+} from "@/firmware/uefi/compressedSection";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
 import { guidedSection } from "@/firmware/uefi/knownGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
@@ -206,6 +212,10 @@ function parseSection(
   let guid: EFIGUID | undefined;
   let bodyStart = offset + headerSize;
   let readsBodyAsSections = false;
+  // A compressed section this parser decodes is left closed, the way a volume
+  // is: decoding one is megabytes of work nobody asked for until its row is
+  // opened.
+  let decodable = false;
   let compression: SectionCompression | undefined;
 
   switch (type) {
@@ -219,8 +229,9 @@ function parseSection(
       if (algorithm !== undefined) {
         readsBodyAsSections = algorithm === Section.notCompressed;
         name = compressionName(algorithm);
+        decodable = algorithmOfCompressionType(algorithm) !== undefined;
         if (algorithm !== Section.notCompressed) {
-          compression = { algorithm: algorithmName(algorithm), decodes: false };
+          compression = { algorithm: algorithmName(algorithm), decodes: decodable };
         }
       }
       break;
@@ -245,9 +256,24 @@ function parseSection(
       if (known !== undefined) {
         name = `${known.name} section`;
         readsBodyAsSections = !known.transformsBody;
+      }
+      if (guid !== undefined) {
+        decodable = algorithmOfGuid(guid) !== undefined;
         // A signed or checksummed body is still a run of structures; a
         // compressed one is not, and the badge says which algorithm it is.
-        if (known.compressed) compression = { algorithm: known.name, decodes: false };
+        if (known?.compressed === true) {
+          compression = { algorithm: known.name, decodes: decodable };
+        }
+        // A compressed body has to be processed before it is read, and the
+        // section is meant to say so. Reported, and decoded all the same.
+        const attributes = parser.reader.uint16(offset + headerSize + 18);
+        if (
+          isCompressedGuid(guid) &&
+          attributes !== undefined &&
+          (attributes & PROCESSING_REQUIRED) === 0
+        ) {
+          parser.note({ kind: "processingRequiredNotSet" }, offset);
+        }
       }
       break;
     }
@@ -282,6 +308,8 @@ function parseSection(
     header: { start: offset, end: bodyStart },
     body,
     compression,
+    isExpandable: decodable && body.end > body.start,
+    childDepth: depth + 1,
     children,
   });
 }
@@ -311,7 +339,8 @@ function compressionName(algorithm: number): string {
     case 0x01:
       return "Tiano compressed section";
     case 0x02:
-      return "Customized compressed section";
+      // EDK2 calls it customized; every image that uses it means LZMA.
+      return "LZMA compressed section";
     case 0x86:
       return "LZMA with x86 filter section";
     default:

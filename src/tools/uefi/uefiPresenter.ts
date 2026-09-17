@@ -15,8 +15,12 @@ import type { ZoneMap } from "@/tools/zone";
  * outlining a store's two hundred variables at once is how the dump stops being
  * readable.
  *
- * One divergence: upstream publishes the enclosing section for a node inside a
- * compressed one. This port does not open compressed sections yet.
+ * A node inside a compressed section is not a range of the file, and its buffer
+ * offsets drawn over the dump would outline unrelated bytes. What it publishes
+ * is the section that holds it — the bytes that really are it — named after
+ * both, and picking that zone brings back the section, which is all the file can
+ * say. `roots` is where that section is found; without them such a node
+ * publishes nothing.
  */
 
 /** The fields of a node a zone is made from — a wire node has them. */
@@ -26,6 +30,9 @@ export interface ZonedNode {
   readonly header: readonly [number, number];
   readonly body: readonly [number, number];
   readonly tail: readonly [number, number];
+  /** Which bytes the ranges are in; the file, when it is missing. */
+  readonly space?: readonly number[] | undefined;
+  readonly children?: readonly ZonedNode[] | undefined;
 }
 
 /** What separates a part of a node from the node in a zone id. */
@@ -37,14 +44,48 @@ const PART_SEPARATOR = "#";
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zoneID
  * @upstream-differs the zone id is built inline from the node's path
  */
-export function uefiZones(node: ZonedNode | undefined): ZoneMap {
+export function uefiZones(node: ZonedNode | undefined, roots?: readonly ZonedNode[]): ZoneMap {
   if (node === undefined) return { zones: [], focus: undefined };
+  const outermost = node.space?.[0];
+  if (outermost !== undefined) {
+    const section = sectionAt(roots ?? [], outermost);
+    if (section === undefined) return { zones: [], focus: undefined };
+    const name = node.name === "" ? "Compressed" : node.name;
+    return zonesOf(section, `${name} (in ${section.name})`);
+  }
+  return zonesOf(node, node.name);
+}
+
+/**
+ * The file-space node whose header starts at `offset` — the compressed section a
+ * space names, found the way upstream finds it: down the chain of nodes covering
+ * that byte of the file, and only one of the file's own.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zones
+ */
+function sectionAt(roots: readonly ZonedNode[], offset: number): ZonedNode | undefined {
+  let nodes = roots;
+  let innermost: ZonedNode | undefined;
+  for (;;) {
+    const found = nodes.find((one) => {
+      if ((one.space?.length ?? 0) !== 0) return false;
+      const end = Math.max(one.header[1], one.body[1], one.tail[1]);
+      return offset >= one.header[0] && offset < end;
+    });
+    if (found === undefined) break;
+    innermost = found;
+    nodes = found.children ?? [];
+  }
+  return innermost?.header[0] === offset ? innermost : undefined;
+}
+
+function zonesOf(node: ZonedNode, name: string): ZoneMap {
   // The node's path, `1.2.0` — the same key the tree's rows use, and stable
   // across a re-parse of the same image.
   const id = node.id.join(".");
   const whole = {
     id,
-    name: node.name,
+    name,
     start: node.header[0],
     end: Math.max(node.header[1], node.body[1], node.tail[1]),
   };

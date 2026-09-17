@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { assembleWord, type ByteSource } from "@/firmware/byteSource";
+import { assembleWord, type ByteSource, sourceOver } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
@@ -17,6 +17,7 @@ import {
   repairsForMicrocode,
   repairsForVolume,
 } from "@/firmware/uefi/checksumRepair";
+import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
@@ -24,7 +25,7 @@ import { runSecondPass } from "@/firmware/uefi/secondPass";
 import { invalidating } from "@/firmware/uefi/treeInvalidation";
 import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import {
   addOrReplaceMicrocode,
   type FITEditOutcome,
@@ -124,6 +125,11 @@ function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
 let reader: ImageReader | undefined;
 /** The tree as the worker knows it, so a child request can find its node. */
 let roots: UEFINode[] = [];
+/**
+ * What the compressed sections opened so far decompress to, so a branch closed
+ * and opened again is decoded once.
+ */
+let buffers = new DecompressedBuffers();
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
 
@@ -138,6 +144,7 @@ const wireDiagnostics = (diagnostics: readonly UEFIDiagnostic[]): WireDiagnostic
     message: diagnosticMessage(one),
     severity: severityOf(one.detail),
     offset: one.offset,
+    ...(one.inside === undefined ? {} : { inside: one.inside }),
   }));
 
 /**
@@ -154,7 +161,7 @@ const wireNode = (node: UEFINode): WireNode => ({
   body: [node.body.start, node.body.end],
   tail: [node.tail.start, node.tail.end],
   isFixed: node.isFixed,
-  isCompressed: node.isCompressed,
+  space: node.space,
   compression: node.compression,
   isErased: node.isErased,
   isExpandable: node.isExpandable,
@@ -176,10 +183,24 @@ function nodeAt(path: readonly number[]): UEFINode | undefined {
   return found;
 }
 
+/**
+ * The reader a node's own ranges are offsets into: the file, or the buffer the
+ * compressed section holding it decompresses to. A section on the way in that no
+ * longer decodes leaves nothing to read, and the fields that would have come
+ * from it go with it rather than being read off the file at buffer offsets.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.show
+ */
+function readerFor(node: UEFINode): ImageReader | undefined {
+  if (reader === undefined) return undefined;
+  const read = buffers.readerFor(node.space, reader, DEFAULT_LIMITS.maxDecompressedSize);
+  return read.ok ? read.reader : undefined;
+}
+
 /** Opens one collapsed node where it stands, keeping its children for later asks. */
 function open(node: UEFINode, into: UEFIDiagnostic[]): void {
   if (reader === undefined || !node.isExpandable) return;
-  const result = childrenOf(node, reader, DEFAULT_LIMITS);
+  const result = childrenOf(node, reader, DEFAULT_LIMITS, buffers);
   node.children = stampIds(result.nodes, node.id);
   node.isExpandable = false;
   into.push(...result.diagnostics);
@@ -193,12 +214,13 @@ function open(node: UEFINode, into: UEFIDiagnostic[]): void {
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.repairs
  */
 function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
-  if (reader === undefined) return [];
+  const spaceReader = readerFor(node);
+  if (spaceReader === undefined) return [];
   switch (node.kind) {
     case "volume":
-      return repairsForVolume(node, reader);
+      return repairsForVolume(node, spaceReader);
     case "microcode":
-      return repairsForMicrocode(node, reader);
+      return repairsForMicrocode(node, spaceReader);
     case "file": {
       let nodes = roots;
       let revision = 2;
@@ -208,7 +230,7 @@ function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
         if (next.kind === "volume" && next.subtype !== undefined) revision = next.subtype;
         nodes = next.children;
       }
-      return repairsForFile(node, revision, reader);
+      return repairsForFile(node, revision, spaceReader);
     }
     default:
       return [];
@@ -254,6 +276,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
     switch (request.kind) {
       case "openFirmware": {
         reader = new ImageReader(new BlobByteSource(request.content));
+        buffers = new DecompressedBuffers();
         const sink = new ProgressSink(reader.count, (fraction) =>
           post({ kind: "firmwareProgress", id: request.id, fraction })
         );
@@ -275,7 +298,14 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // read again — by a later `firmwareChildren` — from current bytes. This
         // is the whole of what a live byte source buys upstream.
         reader = new ImageReader(new BlobByteSource(request.content));
-        roots = invalidating(roots, rangeOf(request.range), request.sizeDelta);
+        // A buffer whose section the edit touched is stale with the nodes that
+        // came out of it: an overwrite drops what it overlaps, and an insert or
+        // a delete drops everything at or past it, the offsets behind it having
+        // moved.
+        const edited = rangeOf(request.range);
+        if (request.sizeDelta === 0) buffers.dropOverlapping(edited);
+        else buffers.dropFrom(edited.start);
+        roots = invalidating(roots, edited, request.sizeDelta);
         // No diagnostics come back with this: what was found in the subtrees
         // just dropped went with them, as it does upstream, and what is left is
         // re-collected as those subtrees are read again. The panel's own list
@@ -360,12 +390,18 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           post({ kind: "firmwareRepair", id: request.id, node: request.node, writes: [] });
           return;
         }
+        // A node inside a compressed section is checked in its buffer and
+        // never repaired: a write there is a write into bytes that are not the
+        // file's, so the panel does not offer the fix and this answers nothing.
+        const spaceReader = isNodeCompressed(node) ? undefined : readerFor(node);
         const repairs =
-          node.kind === "volume"
-            ? repairsForVolume(node, reader)
-            : node.kind === "microcode"
-              ? repairsForMicrocode(node, reader)
-              : repairsForFile(node, request.volumeRevision, reader);
+          spaceReader === undefined
+            ? []
+            : node.kind === "volume"
+              ? repairsForVolume(node, spaceReader)
+              : node.kind === "microcode"
+                ? repairsForMicrocode(node, spaceReader)
+                : repairsForFile(node, request.volumeRevision, spaceReader);
         post({
           kind: "firmwareRepair",
           id: request.id,
@@ -399,7 +435,12 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           kind: "firmwareDetail",
           id: request.id,
           node: request.node,
-          detail: buildNodeDetail(node, image, reader, repairsFor(node, request.node)),
+          detail: buildNodeDetail(
+            node,
+            image,
+            readerFor(node) ?? new ImageReader(sourceOver(new Uint8Array(0))),
+            repairsFor(node, request.node)
+          ),
         });
         return;
       }

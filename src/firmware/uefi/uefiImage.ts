@@ -1,5 +1,6 @@
 import type { ByteSource } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
+import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import type { UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { DEFAULT_LIMITS, type Limits, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import { type ResetVector, runSecondPass } from "@/firmware/uefi/secondPass";
@@ -7,7 +8,7 @@ import { materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMateriali
 import {
   flattened,
   type NodeID,
-  nodeRange,
+  nodeFileRange,
   ROOT_ID,
   type UEFINode,
 } from "@/firmware/uefi/uefiNode";
@@ -105,8 +106,10 @@ export class UEFIImage {
     let nodes = this.roots;
     for (;;) {
       const node = nodes.find((one) => {
-        const range = nodeRange(one);
-        return offset >= range.start && offset < range.end;
+        // A node inside a compressed section has offsets into a buffer, not
+        // into the file: a chain by file offset stops at the section itself.
+        const range = nodeFileRange(one);
+        return range !== undefined && offset >= range.start && offset < range.end;
       });
       if (node === undefined) break;
       chain.push(node);
@@ -127,7 +130,7 @@ export class UEFIImage {
   /**
    * The physical address this offset is mapped at, or nothing if the image
    * never told us. Compressed nodes have no meaningful address at all, so
-   * callers holding a node should check `isCompressed` before asking.
+   * callers holding a node should check `isNodeCompressed` before asking.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.address
    */
@@ -169,7 +172,15 @@ export class UEFIImage {
  */
 export function parseUefiImage(
   source: ByteSource,
-  options: { readonly limits?: Limits; readonly onProgress?: (fraction: number) => void } = {}
+  options: {
+    readonly limits?: Limits;
+    readonly onProgress?: (fraction: number) => void;
+    /**
+     * The buffers decoded on the way, for a caller that wants to read what a
+     * compressed section held after the parse — a test, most often.
+     */
+    readonly buffers?: DecompressedBuffers;
+  } = {}
 ): UEFIImage {
   const limits = options.limits ?? DEFAULT_LIMITS;
   const reader = new ImageReader(source);
@@ -181,7 +192,11 @@ export function parseUefiImage(
   const built = rootsOf(reader, limits, sink);
   const roots = built.nodes;
   const diagnostics = [...built.diagnostics];
-  materializeAll(roots, reader, limits, diagnostics, ROOT_ID, sink);
+  const buffers = options.buffers ?? new DecompressedBuffers();
+  materializeAll(roots, reader, limits, buffers, diagnostics, {
+    parent: ROOT_ID,
+    ...(sink === undefined ? {} : { progress: sink }),
+  });
 
   const parser = new Parser(reader, limits);
   const second =

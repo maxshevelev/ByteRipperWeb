@@ -5,7 +5,7 @@ import type { DiagnosticKind } from "@/firmware/uefi/diagnostic";
 import { severityOf } from "@/firmware/uefi/diagnostic";
 import { type EFIGUID, guid } from "@/firmware/uefi/efiGuid";
 import { FFS_V2, FFS_V3 } from "@/firmware/uefi/knownGuids";
-import type { Limits } from "@/firmware/uefi/parserState";
+import { DEFAULT_LIMITS, type Limits } from "@/firmware/uefi/parserState";
 import { Section } from "@/firmware/uefi/sectionParser";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -123,15 +123,16 @@ describe("the encapsulating sections", () => {
     expect(names(outer?.children ?? [])).toEqual(["PE32 image"]);
   });
 
-  // What this parser will not do is decompress. The section says which
-  // algorithm it is and keeps its body whole — no dependency, and no pretending
-  // the contents are readable.
+  // A section whose data is not the algorithm it claims stays a leaf, named
+  // after the algorithm it claimed.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testACompressedSectionThatDoesNotDecodeIsALeafThatNamesItsAlgorithm
   it("leaves a compressed section a leaf that names its algorithm", () => {
     const node = fileOf([Test.compressionSection(0x86, filled(32, 0x5a))]);
 
     expect(node?.children[0]?.name).toBe("LZMA with x86 filter section");
     expect(node?.children[0]?.children).toEqual([]);
+    // It was tried, and there is nothing in it.
+    expect(node?.children[0]?.isExpandable).toBe(false);
     expect(node?.children[0]?.body).toEqual({ start: 0x69, end: 0x89 });
   });
 
@@ -265,7 +266,7 @@ describe("the depth limit", () => {
     });
   };
   const parseAt = (maxDepth: number) => {
-    const limits: Limits = { maxDepth };
+    const limits: Limits = { ...DEFAULT_LIMITS, maxDepth };
     return parseUefiImage(sourceOver(nestedImage()), { limits });
   };
 

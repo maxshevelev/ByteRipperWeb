@@ -3,8 +3,10 @@ import { sourceOver } from "@/firmware/byteSource";
 import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
+import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import type { FlashRegionType } from "@/firmware/uefi/descriptorParser";
 import { DEFAULT_LIMITS } from "@/firmware/uefi/parserState";
+import { NAME_LZMA, nameBody, streamBytes } from "@/firmware/uefi/testing/compressedFixtures";
 import {
   collapsingFrom,
   collapsingOverlapping,
@@ -63,7 +65,7 @@ function built(bytes: Uint8Array): { reader: ImageReader; roots: UEFINode[] } {
 
 /** One node's children, read now — what an expansion does after an invalidation. */
 function expandNode(reader: ImageReader, node: UEFINode): UEFINode[] {
-  const result = childrenOf(node, reader, DEFAULT_LIMITS);
+  const result = childrenOf(node, reader, DEFAULT_LIMITS, new DecompressedBuffers());
   node.children = stampIds(result.nodes, node.id);
   node.isExpandable = false;
   return node.children;
@@ -223,5 +225,60 @@ describe("the rule the change picks", () => {
 
     const refreshed = volumesOf(biosOf(roots));
     expect(collapsed(refreshed[1] as UEFINode)).toBe(true);
+  });
+});
+
+/**
+ * The same rules over a compressed section: opened, it is a gate point of its
+ * own, so an edit over its bytes closes it and an edit elsewhere leaves it.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#LazyCompressedSectionTests.testAnEditOverTheSectionClosesItAndAnEditElsewhereDoesNot
+ */
+describe("invalidating an opened compressed section", () => {
+  /** One volume holding a file whose only section is LZMA, and a second volume. */
+  function image(): Uint8Array {
+    const section = Test.compressionSection(0x02, streamBytes(NAME_LZMA), nameBody().length);
+    return concat(
+      Test.volume({ length: 0x1000, files: [Test.sectionedFile({ sections: [section] })] }),
+      Test.volume({ length: 0x1000, files: [Test.file({ body: bytes(1, 2, 3) })] })
+    );
+  }
+
+  /** The compressed section: the first volume's first file's first section. */
+  const sectionOf = (roots: readonly UEFINode[]): UEFINode =>
+    roots[0]?.children[0]?.children[0]?.children[0] as UEFINode;
+
+  /** The tree with the section opened, and the section itself. */
+  function opened(): { reader: ImageReader; roots: UEFINode[]; section: UEFINode } {
+    const tree = built(image());
+    const root = tree.roots[0] as UEFINode;
+    const volume = root.children[0] as UEFINode;
+    expandNode(tree.reader, volume);
+    const file = volume.children[0] as UEFINode;
+    const section = file.children[0] as UEFINode;
+    expect(section.isExpandable).toBe(true);
+    expect(expandNode(tree.reader, section).map((node) => node.name)).toEqual(["InnerDriver"]);
+    return { reader: tree.reader, roots: tree.roots, section };
+  }
+
+  it("leaves it open for an edit in the other volume", () => {
+    const tree = opened();
+    const after = invalidating(tree.roots, range(0x1100, 0x1101), 0);
+    const section = sectionOf(after);
+
+    expect(section.children.map((node) => node.name)).toEqual(["InnerDriver"]);
+  });
+
+  it("closes it for an edit over its own bytes", () => {
+    const tree = opened();
+    // Inside its body: an edit over a header is an edit that may have moved
+    // everything after it, and then the volume around it is what went stale.
+    const at = tree.section.body.start + 2;
+    const after = invalidating(tree.roots, range(at, at + 1), 0);
+    const section = sectionOf(after);
+
+    expect(section.children).toEqual([]);
+    // And it can be opened again.
+    expect(section.isExpandable).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { outermostSection } from "@/firmware/uefi/byteSpace";
 import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8Of } from "@/firmware/uefi/checksums";
 import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
@@ -16,7 +17,7 @@ import {
 } from "@/firmware/uefi/microcodeParser";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub, subtypeName } from "@/firmware/uefi/uefiTypes";
 import {
   cell,
@@ -100,6 +101,16 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
   const fields: DetailField[] = [field("Kind", kindLabel(node.kind))];
   if (node.subtype !== undefined) fields.push(field("Type", typeText(node)));
   if (node.guid !== undefined) fields.push(field("GUID", guidDetailText(node.guid)));
+  // Inside a compressed section the ranges below are offsets into what it
+  // decompresses to, and this says which section that is.
+  const outermost = outermostSection(node.space);
+  if (outermost !== undefined) {
+    const found = image.innermostNodeContaining(outermost);
+    const section =
+      found !== undefined && found.header.start === outermost ? found.name : "Compressed section";
+    const deeper = node.space.length > 1 ? `, ${node.space.length} compressed sections deep` : "";
+    fields.push(field("Decompressed from", `${section} at ${hex(outermost)}${deeper}`));
+  }
   fields.push(field("Header", rangeText(node.header)));
   fields.push(field("Body", rangeText(node.body)));
   if (node.tail.end > node.tail.start) fields.push(field("Tail", rangeText(node.tail)));
@@ -108,13 +119,13 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
 
   const flags: string[] = [];
   if (node.isFixed) flags.push("fixed");
-  if (node.isCompressed) flags.push("compressed");
+  if (isNodeCompressed(node)) flags.push("compressed");
   if (node.isErased) flags.push("erased");
   if (flags.length > 0) fields.push(field("Flags", flags.join(", ")));
 
   // A compressed node's address means nothing — the decompressor puts it
   // wherever it likes — so the one thing worth showing is skipped there.
-  if (!node.isCompressed) {
+  if (!isNodeCompressed(node)) {
     const address = image.addressForOffset(range.start);
     if (address !== undefined) fields.push(field("Address", hex(address)));
   }
