@@ -3533,7 +3533,7 @@
         "ByteRipperTests/SmartSearchFlowTests.swift#SmartSearchFlowTests.testANamedEncodingOutranksTheSearchAlreadyRunning": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SmartSearchFlowTests.swift#SmartSearchFlowTests.testNamingTheEncodingItAlreadyUsesStillSteps": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SmartSearchFlowTests.swift#SmartSearchFlowTests.testTheAdoptedEncodingReplacesTheNamedOne": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SmartSearchFlowTests.swift#SmartSearchFlowTests.testTheNoticeIsCentredAndSitsInTheLowerThird": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/SmartSearchFlowTests.swift#SmartSearchFlowTests.testTheNoticeIsCentredAndSitsInTheLowerThird": "later — an app flow test that reads a laid-out box back: the plate's width equals its height (\"square: the side is what the content asked for\"), it is centred across the window, sized to its lines, and its middle sits a third of the height up from the bottom — none of which a test without a browser can measure (G44)",
         "ByteRipperTests/SmartSearchFlowTests.swift#SmartSearchFlowTests.testTheNoticeDoesNotSwallowClicks": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/TearOffTests.swift#TearOffTests": "n/a — test scaffolding",
         "ByteRipperTests/TearOffTests.swift#TearOffTests.openComparison": "n/a — test scaffolding",
@@ -4123,7 +4123,7 @@
         "src/ui/shell/TransientNotice.tsx"
       ],
       "status": "ported",
-      "note": "The frosted plate over the window, one at a time: the wrap glyph a step or a first-hit scan shows when it came round an end, and the list a Smart Search that found nothing names its encodings in. Upstream's hold and fade timings; a new plate replaces the last at once, a stale one fades, and starting a search or closing the bar takes it away. Drawn with pointer-events: none, glyphs as inline SVG. The plate's grey is NoticeColors.icon (--notice-icon): the glyph and every line under it are the same colour on purpose — a plate is one object, and a sign louder than its own text would read as two (G42).",
+      "note": "The frosted plate over the window, one at a time: the wrap glyph a step or a first-hit scan shows when it came round an end, and the list a Smart Search that found nothing names its encodings in. Upstream's hold and fade timings; a new plate replaces the last at once, a stale one fades, and starting a search or closing the bar takes it away. Drawn with pointer-events: none, glyphs as inline SVG. The plate's grey is NoticeColors.icon (--notice-icon): the glyph and every line under it are the same colour on purpose — a plate is one object, and a sign louder than its own text would read as two (G42). The plate is a square, with the glyph above its lines and the whole thing centred: the side is whatever the content asked for, and the cap on a window too narrow for it wins over the square, as upstream's preferred heightAnchor == widthAnchor gives way to the presenter's width cap. That is the stylesheet's `aspect-ratio: 1` on .transient-notice, with upstream's `inset` as its padding, `cornerRadius` as its radius and `glyphToTextSpacing` as its gap, and the two glyph sizes are TransientNotice.tsx's SYMBOL_SIZE (72) and GLYPH_SIZE (76), upstream's own numbers (G44). The case that holds the shape is SmartSearchFlowTests' testTheNoticeIsCentredAndSitsInTheLowerThird, which reads the laid-out box back and so stays `later`.",
       "unported": {
         "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolImageForTests": "n/a — a test seam",
         "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView": "n/a — SF Symbols do not ship to a browser: the glyph is inline SVG, drawn by TransientNotice.Glyph",
@@ -4131,8 +4131,8 @@
         "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.image": "n/a — the symbol to draw, which the plate names by glyph instead",
         "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.intrinsicContentSize": "n/a — an SVG has a width and a height set on it",
         "ByteRipperApp/Window/TransientNoticeView.swift#SymbolView.tint": "n/a — the glyph takes the plate's colour through currentColor",
-        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.glyphToTextSpacing": "n/a — CSS lays the plate out",
-        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.inset": "n/a — CSS lays the plate out"
+        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.glyphToTextSpacing": "n/a — the room the glyph keeps from the lines under it is the stylesheet's (`gap: 10px` on .transient-notice, src/app/app.css), which the anchor check does not read; the plate's content is a column flex box, so the gap is the whole of it",
+        "ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.inset": "n/a — the plate's padding, one number for all four sides (`padding: 24px` on .transient-notice, src/app/app.css), which the anchor check does not read — one number on four sides is what leaves the plate square rather than merely boxy"
       },
       "files": {
         "ByteRipperApp/Window/TransientNoticeView.swift": ""

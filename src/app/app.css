@@ -3946,28 +3946,44 @@ button.uefi-title {
   pointer-events: none;
 }
 
-/* A frosted plate, centred, a third of the way up from the bottom. */
+/* A frosted plate, centred, a third of the way up from the bottom — and
+   square, with the glyph above its lines and the whole thing centred: one shape
+   for every plate of the kind, so a confirmation and a report are the same
+   object seen twice. Upstream's numbers: the padding is one number on all four
+   sides (`inset`), which is what makes the shape square rather than merely
+   boxy, the radius is `cornerRadius`, and the gap is `glyphToTextSpacing` —
+   the room the sign keeps from the words under it. */
 .transient-notice {
   position: absolute;
   left: 50%;
   top: calc(100% * 2 / 3);
   transform: translate(-50%, -50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
+  /* The square leaves room above and below the words, and the room falls
+     evenly: the content keeps its own height and is placed, not stretched.
+     Upstream's whole vertical placement is a centre for exactly this reason —
+     pinning the two edges as well would ask the words to fill the difference. */
+  justify-content: center;
+  gap: 10px;
+  /* The square, preferred rather than imposed. The side is whatever the content
+     asked for — the widest line, or a plate that is nothing but its glyph — and
+     a plate whose lines ask for more room than its width takes it, which is the
+     minimum this box has for being a ratio box. Upstream's `heightAnchor ==
+     widthAnchor` is preferred for the same reason: the width cap below has to
+     win on a window with no room for the square, so that window gets a shorter
+     plate rather than a wider one. */
+  aspect-ratio: 1;
   max-width: calc(100% - 40px);
-  padding: 14px 20px 14px 18px;
-  border-radius: 14px;
+  padding: 24px;
+  border-radius: 22px;
   background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   backdrop-filter: blur(20px) saturate(1.8);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
   color: var(--text);
   animation: transient-notice-in 150ms ease-out;
-}
-
-.transient-notice[data-glyph-only] {
-  padding: 22px;
 }
 
 .transient-notice[data-leaving] {
@@ -3987,12 +4003,23 @@ button.uefi-title {
 .transient-notice-lines {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  /* A line shorter than the widest one sits in the middle: the plate is a sign,
+     and a sign is read from the middle out (upstream lines its stack up
+     `centerX`). */
+  align-items: center;
+  /* The plate is as wide as its widest line, so the only lines that could come
+     up short are the ones on a window too narrow to hold them — and those the
+     plate stops rather than clips: the cap the plate took has to reach the
+     lines themselves, or a long one would run out of the plate's edge and off
+     the window with it. */
+  max-width: 100%;
   min-width: 0;
+  gap: 2px;
 }
 
 .transient-notice-heading,
 .transient-notice-line {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

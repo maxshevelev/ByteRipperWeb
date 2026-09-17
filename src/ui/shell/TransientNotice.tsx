@@ -3,11 +3,14 @@ import { useStore } from "@/state/useStore";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 
 /**
- * The glyph on a plate with lines beside it.
+ * The glyph on a plate that has something to read: the sign over the lines.
+ * Larger than an icon beside a label would be, because it is the half of the
+ * plate the eye lands on first — it reads as a sign over the words, not as a
+ * bullet beside them.
  *
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.symbolPointSize
  */
-const SYMBOL_SIZE = 28;
+const SYMBOL_SIZE = 72;
 
 /**
  * The glyph on a plate that is nothing but the glyph — big enough to read as a
@@ -15,7 +18,7 @@ const SYMBOL_SIZE = 28;
  *
  * @upstream ByteRipperApp/Window/TransientNoticeView.swift#TransientNoticeView.glyphPointSize
  */
-const GLYPH_SIZE = 44;
+const GLYPH_SIZE = 76;
 
 /** What a plate that is only its glyph says to a reader who cannot see it. */
 const GLYPH_LABEL: Record<NoticeGlyph, string> = {
@@ -55,6 +58,15 @@ export function TransientNotice() {
 /**
  * One plate: a glyph and its lines, or a glyph alone.
  *
+ * A square, with the glyph above the lines and the whole thing centred, so a
+ * confirmation and a report are the same object seen twice rather than two
+ * things to be learned separately. The side is whatever the content asked for,
+ * so the lines are never squeezed into a column narrower than they were written
+ * for. The rules are the stylesheet's (`.transient-notice`): the square, the
+ * padding that is one number on all four sides, the radius and the gap are
+ * upstream's `heightAnchor == widthAnchor`, `inset`, `cornerRadius` and
+ * `glyphToTextSpacing`.
+ *
  * The plate's grey is the stylesheet's (`--notice-icon`, the palette's
  * `NoticeIcon`), and it tints the glyph and every line alike through
  * `currentColor`: upstream sets the same `NoticeColors.icon` on the symbol and
@@ -74,7 +86,6 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
   return (
     <div
       className="transient-notice"
-      data-glyph-only={glyphOnly ? "" : undefined}
       data-leaving={leaving ? "" : undefined}
       role="status"
       aria-label={glyphOnly ? GLYPH_LABEL[notice.glyph] : notice.lines.join(" ")}
