@@ -2598,14 +2598,20 @@ button.uefi-title {
   text-overflow: ellipsis;
 }
 
+/* The disclosure chevron is sized in `em` (`ui/toolPanel/DisclosureChevron`),
+   so the button takes the row's own text size and the mark comes out at
+   0.538em of it — the 7 points AppKit's disclosure button draws at 13. Centred
+   as a box, the way `.tool-row-mark` is, so the mark sits on the row's middle
+   and not the baseline's. */
 .uefi-twist {
   flex: none;
+  display: grid;
+  place-items: center;
   width: 16px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--text-muted);
-  font-size: 0.8em;
   cursor: pointer;
 }
 
@@ -2690,8 +2696,9 @@ button.uefi-title {
 }
 
 .tool-row-marks-disclosure {
+  display: grid;
+  place-items: center;
   width: 14px;
-  text-align: center;
 }
 
 /* Pushed to the trailing edge, and cut short rather than wrapped: a header
@@ -3423,12 +3430,13 @@ button.uefi-title {
 
 .me-twist {
   flex: none;
+  display: grid;
+  place-items: center;
   width: 16px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--text-muted);
-  font-size: 0.8em;
   cursor: pointer;
 }
 

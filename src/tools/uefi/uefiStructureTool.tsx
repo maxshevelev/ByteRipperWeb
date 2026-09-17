@@ -34,6 +34,7 @@ import {
   type TableColumn,
   useColumnWidths,
 } from "@/ui/toolPanel/columnWidths";
+import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -890,7 +891,7 @@ function TreeRow({
             onToggle(node);
           }}
         >
-          {hasChildren ? (isOpen ? "▾" : "▸") : ""}
+          {hasChildren ? <DisclosureChevron open={isOpen} /> : null}
         </button>
         <RowMarksIcons marks={marks} />
         <span className="uefi-name-text" title={node.guid ?? named}>

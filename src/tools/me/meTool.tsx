@@ -51,6 +51,7 @@ import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
 import { columnTemplate, type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
+import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -972,7 +973,7 @@ function MeTreeRow({
             onToggle(node);
           }}
         >
-          {hasChildren ? (isOpen ? "▾" : "▸") : ""}
+          {hasChildren ? <DisclosureChevron open={isOpen} /> : null}
         </button>
         <RowMarksIcons marks={node.marks} />
         <span className="me-name-text" title={node.title}>

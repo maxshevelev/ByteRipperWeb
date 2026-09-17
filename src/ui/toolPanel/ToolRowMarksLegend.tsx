@@ -6,6 +6,7 @@ import {
   type ToolRowMark,
 } from "@/tools/toolRowMarks";
 import { RowMarkIcon } from "@/ui/toolPanel/RowMarkIcon";
+import { DisclosureChevron } from "./DisclosureChevron";
 
 /**
  * The legend every panel that marks its rows carries (`Design/ROW_MARKS.md`
@@ -150,7 +151,7 @@ export function ToolRowMarksLegend({
           aria-label="Legend"
           onClick={() => setExpanded(!isExpanded)}
         >
-          {isExpanded ? "▾" : "▸"}
+          <DisclosureChevron open={isExpanded} />
         </button>
         <button
           type="button"
