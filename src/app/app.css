@@ -3291,14 +3291,32 @@ button.uefi-title {
   outline-offset: -2px;
 }
 
-/* Name takes the rest; the second column holds `offset · size` on most rows. */
+/* Name takes the rest; the second column holds `offset · size` on most rows.
+   The head shares the grid, as the UEFI tree's does, so a column cannot be
+   titled over one cell and drawn in another. */
+.me-tree-head,
 .me-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 150px);
   align-items: center;
   height: 22px;
   white-space: nowrap;
+}
+
+.me-row {
   cursor: default;
+}
+
+/* The tree's own heading: the name column is titled and the value column is
+   not, which is upstream's arrangement — `MEAToolViewController` gives that
+   column `""` as its title and AppKit draws the header either way. */
+.me-tree-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
 }
 
 .me-row[data-alt] {
@@ -3309,6 +3327,7 @@ button.uefi-title {
   background: var(--selection);
 }
 
+.me-tree-head > span,
 .me-row > span {
   min-width: 0;
   overflow: hidden;

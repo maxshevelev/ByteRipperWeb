@@ -640,6 +640,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                 aria-label="ME firmware structure"
                 onKeyDown={onTreeKey}
               >
+                {/* The tree's heading, as the UEFI tree's: the value column
+                    holds `offset · size` and is not titled, which is what
+                    upstream's own header says. */}
+                <div className="me-tree-head" aria-hidden="true">
+                  <span>Name</span>
+                  <span />
+                </div>
                 {rows.map((row, index) => (
                   <MeTreeRow
                     key={row.key}
