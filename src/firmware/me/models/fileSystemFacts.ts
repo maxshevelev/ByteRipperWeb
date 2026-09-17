@@ -2,9 +2,13 @@
  * What the CSE file systems report: the MFS volume and its backup area, the EFS
  * volume and the FITC OEM configuration beside it.
  *
- * Structural facts only. Naming the files of a file-table volume, and reading the
- * FITC's configuration records, needs `FileTable.dat` — which upstream has not
- * ported either — so these stop where the bytes stop saying things on their own.
+ * Facts decoded from bytes, and nothing else. What `FileTable.dat` says — a
+ * file's path, an ID-keyed record's file, a name of any kind — is not here: it
+ * is looked up on the way to the panel's rows (`MFSFileNames`, `EFSFileNames`,
+ * `ConfigRecordPaths`), which is what keeps a database answer out of the result
+ * model. What the table's *flags* unlock, though, is byte work and is here:
+ * `MFSFile.contentSize`/`.integrity` and `EFSFile` are the tails it makes
+ * possible to split off.
  *
  * Ported from `Packages/MEFirmware/Models/FirmwareAnalysis.swift`.
  */
