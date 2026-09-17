@@ -1,7 +1,8 @@
-import type { MFSFile, MFSHomeRecord } from "@/firmware/me/models/fileSystemFacts";
+import type { EFSFile, MFSFile, MFSHomeRecord } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
+import { EFSFileNames } from "@/tools/me/efsFileNames";
 import type { MEASummaryTone } from "@/tools/me/meaSummary";
 import {
   countText,
@@ -154,11 +155,12 @@ class Fields {
 /**
  * The tree's roots, in reading order.
  *
- * `names` is the one thing here that does not come out of the analysis: an
- * FTBL-mode MFS volume's low-level files have no name in their bytes, so the
- * panel looks theirs up in `FileTable.dat` and hands the answer in
- * (`MFSFileNames`). `.none` — the default — is the tree as it reads before the
- * table arrives, and on every volume that names its own files.
+ * `names` and `efsNames` are the one thing here that does not come out of the
+ * analysis: an FTBL-mode MFS volume's low-level files and an EFS volume's files
+ * have no name in their bytes, so the panel looks theirs up in `FileTable.dat`
+ * and hands the answer in (`MFSFileNames`, `EFSFileNames`). `.none` — the
+ * default — is the tree as it reads before the table arrives, and on every
+ * volume that names its own files.
  *
  * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator
  * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.present
@@ -166,7 +168,8 @@ class Fields {
 export function presentMEA(
   analysis: FirmwareAnalysis,
   checksums: MEAChecksums | undefined,
-  names: MFSFileNames = MFSFileNames.none
+  names: MFSFileNames = MFSFileNames.none,
+  efsNames: EFSFileNames = EFSFileNames.none
 ): MEANode[] {
   const drafts = [
     firmware(analysis),
@@ -178,7 +181,7 @@ export function presentMEA(
     mfsVolume(analysis, names),
     // The fact groups — everything else a dump carried, each only when present.
     backupGroup(analysis),
-    efsGroup(analysis),
+    efsGroup(analysis, efsNames),
     oemGroup(analysis),
     mmeGroup(analysis),
     gscGroup(analysis),
@@ -778,10 +781,81 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
   return { title: "MFS Backup", subtitle: format, fields: fields.rows, children: rows };
 }
 
-function efsGroup(a: FirmwareAnalysis): Draft | undefined {
+function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
   const efs = a.efsVolume;
   if (efs === undefined) return undefined;
-  return { title: "EFS Volume", subtitle: offsetText(efs.offset), fields: valueFields(efs) };
+  // The volume's own facts are dumped field by field, minus the file list —
+  // that is rows, not a field, and it is the one part of the volume the table
+  // had to be read for.
+  const fields = valueFields(efs).filter((one) => one.label !== "files");
+  // Where the names on the file rows came from, on the same terms as the MFS
+  // volume's row: the tables read, the revision asked for, and whether either
+  // half was assumed.
+  if (names.tableLabel !== undefined) fields.push(field("File Table", names.tableLabel));
+
+  const children: Draft[] = [];
+  if (efs.files.length > 0) {
+    const rows = efs.files.map((one): Draft => efsFileRow(one, names));
+    children.push({ title: "Files", subtitle: countText(rows.length, "file"), children: rows });
+  }
+  return {
+    title: "EFS Volume",
+    subtitle: offsetText(efs.offset),
+    fields,
+    children,
+  };
+}
+
+/**
+ * One EFS file. Its name and path are the two tables' text; the sizes and the
+ * Integrity tail are the volume's own bytes.
+ *
+ * The data-area offset is among the fields and not a range on the node: it is an
+ * offset into the volume's Data pages concatenated in index order, so a long
+ * file occupies no one stretch of the dump (`EFSFile`).
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.efsFileRow
+ */
+function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
+  const fields = new Fields().add("VFS ID", file.fileID).add("Size", sizeText(file.contentSize));
+  if (file.contentSize !== file.storedSize) {
+    // What the file's own metadata says it stores, Integrity included — the
+    // difference is the table taken off the end.
+    fields.add("Stored Size", sizeText(file.storedSize));
+  }
+  fields
+    .add("Data Offset", hex(file.dataOffset))
+    .add("Metadata Unknown", hex(file.metadataUnknown));
+  const record = names.record(file.fileID);
+  if (record !== undefined) {
+    fields
+      .add("Path", record.path)
+      .add("File ID", `0x${record.fileID}`)
+      .add("Integrity", yesNo(record.integrity))
+      .add("Encryption", yesNo(record.encryption))
+      .add("Anti-Replay", yesNo(record.antiReplay))
+      .add("Group ID", hex(record.groupID))
+      .add("User ID", hex(record.userID));
+  }
+  const children: Draft[] = [];
+  if (file.integrity !== undefined) {
+    children.push({
+      title: "Integrity",
+      subtitle: sizeText(file.integrity.size),
+      fields: valueFields(file.integrity),
+    });
+  }
+  const name = names.name(file.fileID);
+  return {
+    title: name ?? `File ${file.fileID}`,
+    subtitle:
+      name === undefined
+        ? sizeText(file.contentSize)
+        : `#${file.fileID} · ${sizeText(file.contentSize)}`,
+    fields: fields.rows,
+    children,
+    isEmptySection: file.contentSize === 0,
+  };
 }
 
 function oemGroup(a: FirmwareAnalysis): Draft | undefined {
@@ -832,7 +906,8 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
   const children = rows.map(
     (row, index): Draft => ({
       title: `${row.variant.toUpperCase()} #${index}`,
-      fields: valueFields(row),
+      // `unknown0` is a raw open word, low signal.
+      fields: valueFields(row).filter((one) => one.label !== "unknown0"),
       marks,
     })
   );

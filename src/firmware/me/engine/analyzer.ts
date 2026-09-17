@@ -25,7 +25,7 @@ import {
 import { metAttributes } from "@/firmware/me/engine/huffmanNeed";
 import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelection";
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
-import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
+import { efsDataArea, efsFiles, parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 import {
   ftblFileIntegrity,
   homeDirectory,
@@ -193,6 +193,68 @@ function ftblFiles(
       return split === undefined
         ? file
         : { ...file, contentSize: split.contentSize, integrity: split.integrity };
+    }),
+  };
+}
+
+/**
+ * An EFS volume's files, cut out of its data area by the file table.
+ *
+ * Its Data pages are one flat byte area with no directory in them — the offsets
+ * that cut it into files are the file table's `EFST` records, and which of those
+ * files end with an Integrity table is the `FTBL` flag beside them. Upstream
+ * calls that read necessary and not optional: without the flag a file's content
+ * length cannot be worked out (MEA.py 8846). The platform and dictionary are the
+ * *MFS* volume's, as upstream hands them to `efs_anl`; the revision is the EFS
+ * System page's own.
+ *
+ * Best-effort like the MFS split: no table, no `EFST` for this volume, or a
+ * table whose offsets the data area does not carry leaves `files` empty, which
+ * is the honest answer about a volume that names nothing itself. No Issue — a
+ * missing database is not a finding about the firmware.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer
+ */
+function efsWithFiles(
+  volume: EFSVolume,
+  info: MFSVolumeInfo | undefined,
+  table: FileTable | undefined,
+  identity: { readonly variant: string; readonly major: number; readonly minor: number },
+  bytes: Uint8Array,
+  baseOffset: number,
+  regions: readonly { readonly name: string; readonly offset: number; readonly size: number }[]
+): EFSVolume {
+  if (table === undefined || table.isEmpty) return volume;
+  const region = regions.find((one) => one.name === "EFS");
+  if (region === undefined) return volume;
+  const resolution = table.resolve(info?.ftblPlatform ?? -1, info?.ftblDictionary ?? -1);
+  if (resolution.missing) return volume;
+  const entries = table.efsEntries(
+    resolution.platform,
+    resolution.dictionary,
+    volume.dictionaryRevision
+  );
+  if (entries === undefined || entries.length === 0) return volume;
+  const integrityFileIDs = new Set<number>();
+  for (const entry of entries) {
+    const record = table.recordForFileIndex(
+      entry.fileID,
+      resolution.platform,
+      resolution.dictionary
+    );
+    if (record?.integrity === true) integrityFileIDs.add(entry.fileID);
+  }
+  const area = efsDataArea(bytes, region.offset - baseOffset, region.size, volume.dataPageOrder);
+  return {
+    ...volume,
+    files: efsFiles({
+      dataArea: area,
+      entries,
+      integrityFileIDs,
+      variant: identity.variant,
+      major: identity.major,
+      minor: identity.minor,
+      platform: resolution.platform,
     }),
   };
 }
@@ -720,6 +782,21 @@ function analyze(
   if (mfsVolume !== undefined && mfsInfo !== undefined && mfsVolume.usesFTBL) {
     mfsVolume = ftblFiles(mfsVolume, mfsInfo, fileTable, identity);
   }
+  // One table serves both file systems: the EFS walk needs the same file, its
+  // own `EFST` half and the `FTBL` flags beside it, and the source answers the
+  // second ask out of what the first fetched.
+  let efsVolumeForWalk = fileSystems.efsVolume;
+  if (efsVolumeForWalk !== undefined) {
+    efsVolumeForWalk = efsWithFiles(
+      efsVolumeForWalk,
+      mfsInfo,
+      fileTable,
+      identity,
+      bytes,
+      baseOffset,
+      regions
+    );
+  }
   if (mfsVolume !== undefined && mfsInfo !== undefined && !mfsVolume.usesFTBL) {
     const { variant, major, minor } = identity;
     if (!vfsStartsAtZero(variant, major, minor)) {
@@ -857,7 +934,7 @@ function analyze(
     independentFirmware: independent.length === 0 ? undefined : independent,
     mfsVolume,
     mfsBackup: fileSystems.mfsBackup,
-    efsVolume: fileSystems.efsVolume,
+    efsVolume: efsVolumeForWalk,
     oemConfiguration: fileSystems.oemConfiguration,
     mfsState: fileSystemState,
     gscInfo,

@@ -25,6 +25,7 @@ import {
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { EFSFileNames } from "@/tools/me/efsFileNames";
 import {
   buildSummary,
   isEmphasized,
@@ -301,9 +302,24 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         : MFSFileNames.forVolume(table, analysis.mfsVolume),
     [analysis, table]
   );
+  // The EFS volume's lookup reads the *MFS* volume's platform and dictionary —
+  // upstream hands `efs_anl` the values `mfs_anl` read — so it is the MFS row's
+  // fields, not the EFS page's own Dictionary, that name the tables.
+  const efsNames = useMemo(
+    () =>
+      analysis?.efsVolume === undefined
+        ? EFSFileNames.none
+        : EFSFileNames.forVolume({
+            table,
+            volume: analysis.efsVolume,
+            platform: analysis.mfsVolume?.ftblPlatform ?? -1,
+            dictionary: analysis.mfsVolume?.ftblDictionary ?? -1,
+          }),
+    [analysis, table]
+  );
   const tree = useMemo(
-    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, names)),
-    [analysis, checksums, names]
+    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames)),
+    [analysis, checksums, names, efsNames]
   );
   const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { crc32 } from "@/firmware/me/crypto/checksum";
-import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
+import type { FileTableEFSEntry } from "@/firmware/me/data/fileTable";
+import { efsDataArea, efsFiles, parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 
 /**
  * The EFS volume and the FITC partition. Ported from upstream's `EFSTests`; the
@@ -104,6 +105,8 @@ describe("the EFS volume", () => {
       dataPageHeaderCRCsValid: true,
       dataPageFooterCRCsValid: true,
       matchesMFSDictionary: true,
+      // Nothing to list until the EFS table that locates the files is read.
+      files: [],
     });
   });
 
@@ -224,5 +227,215 @@ describe("the FITC partition", () => {
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testRegionTooSmallForFITCReturnsNil
   it("is nothing too small for a header", () => {
     expect(parseFitc(new Uint8Array(0x0f), 0, 0x0f, 0)).toBeUndefined();
+  });
+});
+
+// MARK: The file walk (efs_anl 8745–8850)
+
+/** Little-endian 16 bits, as the metadata words are stored. */
+const le16 = (value: number) => Uint8Array.from([value & 0xff, (value >>> 8) & 0xff]);
+
+/**
+ * The tail an Integrity-protected file ends with — the same
+ * `MFS_Integrity_Table` the MFS split tests build, not a structure of its own.
+ */
+function integrityFixture(options: {
+  size: number;
+  flags: number;
+  hmac: Uint8Array;
+  nonce: Uint8Array;
+  arRandom?: number;
+  arCounter?: number;
+}): Uint8Array {
+  const out = new Uint8Array(options.size);
+  out.set(options.hmac.subarray(0, options.size));
+  if (options.size === 0x28) {
+    put32(out, 0x10, options.flags);
+    put32(out, 0x14, options.arRandom ?? 0);
+    put32(out, 0x18, options.arCounter ?? 0);
+    out.set(options.nonce, 0x1c);
+  } else {
+    put32(out, 0x20, options.flags);
+    put32(out, 0x24, options.arRandom ?? 0);
+    put32(out, 0x28, options.arCounter ?? 0);
+    out.set(options.nonce, 0x24);
+  }
+  return out;
+}
+
+/** An `EFST` record, as the table would hand one over. */
+const efstEntry = (options: {
+  dataOffset: number;
+  size: number;
+  fileID: number;
+  name: string;
+}): FileTableEFSEntry => ({
+  dataOffset: options.dataOffset,
+  page: 0,
+  pageOffset: options.dataOffset,
+  size: options.size,
+  fileID: options.fileID,
+  reserved: 0,
+  name: options.name,
+});
+
+const csme15 = { variant: "CSME", major: 15, minor: 0, platform: 4 };
+
+describe("the EFS data area", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testTheDataAreaIsTheDataPagesInIndexOrder
+  it("is the Data pages in index order", () => {
+    const region = makeVolume();
+    const area = efsDataArea(region, 0, region.length, [1, 0]);
+    const pageData = PAGE_SIZE - PAGE_HEADER_SIZE - 0x08;
+    expect(area.length).toBe(2 * pageData);
+    // Index [1, 0]: the second physical Data page comes first, and its body
+    // starts at its own seed.
+    expect(area[0]).toBe(0x40);
+    expect(area[pageData]).toBe(0x00);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testTheDataAreaIsEmptyWhenTheIndexOrderIsNotAPermutation
+  it("is empty when the index order is not a permutation", () => {
+    const region = makeVolume();
+    expect(efsDataArea(region, 0, region.length, [0, 0]).length).toBe(0);
+    expect(efsDataArea(region, 0, region.length, [1]).length).toBe(0);
+    expect(efsDataArea(region, 0, region.length, [0, 5]).length).toBe(0);
+  });
+});
+
+describe("the EFS file walk", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAFileIsAsLongAsItsOwnMetadataSays
+  it("takes a file's length from its own metadata", () => {
+    const area = new Uint8Array(0x200).fill(0xff);
+    area.set(le16(0x20), 0x10);
+    area.set(le16(0xab12), 0x12);
+    const files = efsFiles({
+      dataArea: area,
+      entries: [efstEntry({ dataOffset: 0x10, size: 0x100, fileID: 7, name: "SOME_FILE" })],
+      integrityFileIDs: new Set(),
+      ...csme15,
+    });
+    expect(files[0]?.fileID).toBe(7);
+    expect(files[0]?.dataOffset).toBe(0x10);
+    expect(files[0]?.storedSize).toBe(0x20);
+    expect(files[0]?.contentSize).toBe(0x20);
+    expect(files[0]?.metadataUnknown).toBe(0xab12);
+    expect(files[0]?.integrity).toBeUndefined();
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAFlaggedFileIsSplitFromTheTableItEndsWith
+  it("splits a flagged file from the table it ends with", () => {
+    const table = integrityFixture({
+      size: 0x28,
+      flags: 0x2,
+      hmac: new Uint8Array(16).fill(0xa1),
+      nonce: new Uint8Array(12).fill(0xb2),
+      arRandom: 0x55,
+      arCounter: 9,
+    });
+    const first = concat(le16(0x40 + 0x28), le16(0x1111), new Uint8Array(0x40).fill(0x33), table);
+    const area = concat(first, le16(0x10), le16(0x2222), new Uint8Array(0x10).fill(0x44));
+    const files = efsFiles({
+      dataArea: area,
+      entries: [
+        efstEntry({ dataOffset: 0, size: 0x100, fileID: 5, name: "FLAGGED" }),
+        efstEntry({ dataOffset: first.length, size: 0x100, fileID: 6, name: "PLAIN" }),
+      ],
+      integrityFileIDs: new Set([5]),
+      ...csme15,
+    });
+    expect(files.map((one) => one.fileID)).toEqual([5, 6]);
+    expect(files[0]?.storedSize).toBe(0x40 + 0x28);
+    expect(files[0]?.contentSize).toBe(0x40);
+    expect(files[0]?.integrity?.size).toBe(0x28);
+    expect(files[0]?.integrity?.arCounter).toBe(9);
+    expect(files[0]?.integrity?.hmacHex.slice(0, 4)).toBe("A1A1");
+    expect(files[1]?.contentSize).toBe(0x10);
+    expect(files[1]?.integrity).toBeUndefined();
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAnAbsurdCounterMeansTheEFSTableSitsTenBytesEarlier
+  it("reads the table 0x10 earlier when the counter is absurd", () => {
+    const table = integrityFixture({
+      size: 0x28,
+      flags: 0x2,
+      hmac: new Uint8Array(16).fill(0xc3),
+      nonce: new Uint8Array(12).fill(0xd4),
+      arRandom: 0x7,
+      arCounter: 4,
+    });
+    const area = concat(
+      le16(0x20 + 0x38),
+      le16(0),
+      new Uint8Array(0x20).fill(0x66),
+      table,
+      new Uint8Array(0x10).fill(0xee)
+    );
+    const files = efsFiles({
+      dataArea: area,
+      entries: [efstEntry({ dataOffset: 0, size: 0x100, fileID: 4, name: "EXTRA" })],
+      integrityFileIDs: new Set([4]),
+      ...csme15,
+    });
+    expect((files[0]?.storedSize ?? 0) - (files[0]?.contentSize ?? 0)).toBe(0x38);
+    expect(files[0]?.contentSize).toBe(0x20);
+    expect(files[0]?.integrity?.arCounter).toBe(4);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAnUnwrittenFileIsNotListed
+  it("does not list an unwritten file", () => {
+    const area = new Uint8Array(0x100).fill(0xff);
+    area.set(le16(0xffff), 0);
+    const files = efsFiles({
+      dataArea: area,
+      entries: [efstEntry({ dataOffset: 0, size: 0x80, fileID: 3, name: "NEVER_WRITTEN" })],
+      integrityFileIDs: new Set(),
+      ...csme15,
+    });
+    expect(files).toEqual([]);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAFileLongerThanTheTableAllowsIsSkipped
+  it("skips a file longer than the table allows", () => {
+    const area = new Uint8Array(0x200);
+    area.set(le16(0x81), 0);
+    const files = efsFiles({
+      dataArea: area,
+      entries: [efstEntry({ dataOffset: 0, size: 0x80, fileID: 2, name: "TOO_LONG" })],
+      integrityFileIDs: new Set(),
+      ...csme15,
+    });
+    expect(files).toEqual([]);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAnEntryPastTheDataAreaIsSkipped
+  it("skips an entry past the data area", () => {
+    const area = new Uint8Array(0x40);
+    area.set(le16(0x20), 0x30);
+    const files = efsFiles({
+      dataArea: area,
+      entries: [
+        efstEntry({ dataOffset: 0x100, size: 0x80, fileID: 1, name: "BEYOND" }),
+        efstEntry({ dataOffset: 0x30, size: 0x80, fileID: 2, name: "CUT_OFF" }),
+      ],
+      integrityFileIDs: new Set(),
+      ...csme15,
+    });
+    expect(files).toEqual([]);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAFlaggedFileTooShortForItsTableHasNoContent
+  it("gives a flagged file too short for its table no content", () => {
+    const area = new Uint8Array(0x40);
+    area.set(le16(0x10), 0);
+    const files = efsFiles({
+      dataArea: area,
+      entries: [efstEntry({ dataOffset: 0, size: 0x80, fileID: 8, name: "SHORT" })],
+      integrityFileIDs: new Set([8]),
+      ...csme15,
+    });
+    expect(files[0]?.storedSize).toBe(0x10);
+    expect(files[0]?.contentSize).toBe(0);
+    expect(files[0]?.integrity).toBeUndefined();
   });
 });
