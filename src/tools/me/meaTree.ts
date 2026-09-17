@@ -1,7 +1,13 @@
-import type { EFSFile, MFSFile, MFSHomeRecord } from "@/firmware/me/models/fileSystemFacts";
+import type {
+  EFSFile,
+  MFSConfigIDRecord,
+  MFSFile,
+  MFSHomeRecord,
+} from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
+import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
 import { EFSFileNames } from "@/tools/me/efsFileNames";
 import type { MEASummaryTone } from "@/tools/me/meaSummary";
 import {
@@ -155,11 +161,12 @@ class Fields {
 /**
  * The tree's roots, in reading order.
  *
- * `names` and `efsNames` are the one thing here that does not come out of the
- * analysis: an FTBL-mode MFS volume's low-level files and an EFS volume's files
- * have no name in their bytes, so the panel looks theirs up in `FileTable.dat`
- * and hands the answer in (`MFSFileNames`, `EFSFileNames`). `.none` — the
- * default — is the tree as it reads before the table arrives, and on every
+ * `names`, `efsNames` and `configPaths` are the one thing here that does not
+ * come out of the analysis: an FTBL-mode MFS volume's low-level files, an EFS
+ * volume's files and an ID-keyed Configuration record's file have no name in
+ * their bytes, so the panel looks theirs up in `FileTable.dat` and hands the
+ * answer in (`MFSFileNames`, `EFSFileNames`, `ConfigRecordPaths`). `.none` —
+ * the default — is the tree as it reads before the table arrives, and on every
  * volume that names its own files.
  *
  * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator
@@ -169,7 +176,8 @@ export function presentMEA(
   analysis: FirmwareAnalysis,
   checksums: MEAChecksums | undefined,
   names: MFSFileNames = MFSFileNames.none,
-  efsNames: EFSFileNames = EFSFileNames.none
+  efsNames: EFSFileNames = EFSFileNames.none,
+  configPaths: ConfigRecordPaths = ConfigRecordPaths.none
 ): MEANode[] {
   const drafts = [
     firmware(analysis),
@@ -178,11 +186,11 @@ export function presentMEA(
     bootPartitions(analysis),
     codePartition(analysis),
     manifest(analysis),
-    mfsVolume(analysis, names),
+    mfsVolume(analysis, names, configPaths),
     // The fact groups — everything else a dump carried, each only when present.
     backupGroup(analysis),
     efsGroup(analysis, efsNames),
-    oemGroup(analysis),
+    oemGroup(analysis, configPaths),
     mmeGroup(analysis),
     gscGroup(analysis),
     oromGroup(analysis),
@@ -564,7 +572,11 @@ function manifest(a: FirmwareAnalysis): Draft | undefined {
 
 // MARK: - File System (MFS)
 
-function mfsVolume(a: FirmwareAnalysis, names: MFSFileNames): Draft | undefined {
+function mfsVolume(
+  a: FirmwareAnalysis,
+  names: MFSFileNames,
+  configPaths: ConfigRecordPaths = ConfigRecordPaths.none
+): Draft | undefined {
   const vol = a.mfsVolume;
   if (vol === undefined) return undefined;
   const header = new Fields()
@@ -601,6 +613,14 @@ function mfsVolume(a: FirmwareAnalysis, names: MFSFileNames): Draft | undefined 
       subtitle: countText(rows.length, "record"),
       children: rows,
     });
+  }
+  // The newer layouts' Configuration streams: records that identify their file
+  // by ID instead of naming it, so the rows are named through the table
+  // (`ConfigRecordPaths`) the way the file rows above are.
+  for (const stream of vol.configurationsByID ?? []) {
+    children.push(
+      configByIDGroup(stream.records, configStreamTitle(stream.owningFile), configPaths, undefined)
+    );
   }
   if (vol.homeDirectory !== undefined) {
     const home = vol.homeDirectory;
@@ -858,9 +878,126 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
   };
 }
 
-function oemGroup(a: FirmwareAnalysis): Draft | undefined {
+/**
+ * The FITC partition: its header facts, and the configuration records its
+ * payload carries — the OEM `fitc.cfg`, which on the newer layouts is a
+ * partition of its own rather than a low-level file of the volume.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.oemGroup
+ */
+function oemGroup(
+  a: FirmwareAnalysis,
+  paths: ConfigRecordPaths = ConfigRecordPaths.none
+): Draft | undefined {
   const oem = a.oemConfiguration;
-  return oem === undefined ? undefined : { title: "OEM Configuration", fields: valueFields(oem) };
+  if (oem === undefined) return undefined;
+  // The record lists are rows, not fields; the reflected dump would say
+  // "94 entries" and leave the reader no way in.
+  const fields = valueFields(oem).filter(
+    (one) => one.label !== "records" && one.label !== "recordsByID"
+  );
+  const byID = oem.recordsByID ?? [];
+  const byName = oem.records ?? [];
+  if (byID.length > 0 && paths.tableLabel !== undefined) {
+    fields.push(field("File Table", paths.tableLabel));
+  }
+  const children: Draft[] = [];
+  if (byID.length > 0) {
+    children.push(configByIDGroup(byID, "Configuration Records", paths, oem.payloadOffset));
+  }
+  if (byName.length > 0) {
+    const rows = byName.map(
+      (record): Draft => ({
+        title: record.name.length === 0 ? "Record" : record.name,
+        subtitle: sizeText(record.size),
+        fields: valueFields(record),
+      })
+    );
+    children.push({
+      title: "Configuration Records",
+      subtitle: countText(rows.length, "record"),
+      children: rows,
+    });
+  }
+  return {
+    title: "OEM Configuration",
+    subtitle: offsetText(oem.offset),
+    fields,
+    children,
+  };
+}
+
+/**
+ * One ID-keyed Configuration stream as a group of record rows.
+ *
+ * `payloadOffset` is where the stream's bytes start in the image, when that is
+ * knowable: a FITC partition's payload has one position, so its rows stand for
+ * real bytes and reveal them. A stream living in a low-level MFS file has none —
+ * the file is a FAT chain, and the engine does not expose where its chunks
+ * landed.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.configByIDGroup
+ */
+function configByIDGroup(
+  records: readonly MFSConfigIDRecord[],
+  title: string,
+  paths: ConfigRecordPaths,
+  payloadOffset: number | undefined
+): Draft {
+  const rows = records.map((one): Draft => configIDRow(one, paths, payloadOffset));
+  return { title, subtitle: countText(rows.length, "record"), children: rows };
+}
+
+/**
+ * One record of an ID-keyed stream. Named through the table where it names it,
+ * and otherwise by the fallback upstream writes the file out under —
+ * `/Unknown/<ID>.bin`, which says the record is real and its name is not known,
+ * rather than passing the ID off as a name.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.configIDRow
+ */
+function configIDRow(
+  record: MFSConfigIDRecord,
+  paths: ConfigRecordPaths,
+  payloadOffset: number | undefined
+): Draft {
+  const path = paths.path(record.fileID);
+  const fileID = record.fileID.toString(16).toUpperCase().padStart(8, "0");
+  return {
+    title: path ?? `Record 0x${fileID}`,
+    subtitle: sizeText(record.size),
+    range:
+      payloadOffset === undefined
+        ? undefined
+        : rangeValue(payloadOffset + record.offset, record.size),
+    fields: new Fields()
+      .add("File ID", `0x${fileID}`)
+      .add("Path", path)
+      .add("Size", sizeText(record.size))
+      .add("Offset", hex(record.offset))
+      // Upstream's "FIT" column: an OEM `fitc.cfg` setting may override the
+      // Intel `intl.cfg` one through the Flash Image Tool.
+      .add("OEM Configurable", yesNo(record.oemConfigurable))
+      .add("Reserved Flags", hex(record.unknownFlags)).rows,
+    isEmptySection: record.size === 0,
+  };
+}
+
+/**
+ * What the low-level file a Configuration stream came from is called
+ * (upstream's own "006 Intel" / "007 OEM").
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.configStreamTitle
+ */
+function configStreamTitle(owningFile: number): string {
+  switch (owningFile) {
+    case 6:
+      return "Intel Configuration";
+    case 7:
+      return "OEM Configuration";
+    default:
+      return `Configuration ${owningFile}`;
+  }
 }
 
 function mmeGroup(a: FirmwareAnalysis): Draft | undefined {

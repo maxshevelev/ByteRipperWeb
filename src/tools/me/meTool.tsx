@@ -25,6 +25,7 @@ import {
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
 import { EFSFileNames } from "@/tools/me/efsFileNames";
 import {
   buildSummary,
@@ -282,11 +283,25 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     if (wantsDictionaries) loadHuffmanDictionaries();
   }, [wantsDictionaries]);
 
-  // FileTable.dat only for a volume that cannot name its own files, and asked
-  // for *after* the analysis, which is what says so — most dumps never need it,
-  // and it is the largest of the three databases. Asked once per analysis: what
-  // is held answers at once with the day's check behind it.
-  const wantsNames = analysis !== undefined && fileTableWanted(analysis);
+  // Every ID-keyed Configuration record in the analysis, wherever it came from:
+  // the FITC partition's payload and a newer volume's own 6/7 streams are keyed
+  // into the same table.
+  const configIDs = useMemo(
+    () => [
+      ...(analysis?.oemConfiguration?.recordsByID ?? []).map((one) => one.fileID),
+      ...(analysis?.mfsVolume?.configurationsByID ?? []).flatMap((stream) =>
+        stream.records.map((one) => one.fileID)
+      ),
+    ],
+    [analysis]
+  );
+
+  // FileTable.dat only for a volume that cannot name its own files, or for
+  // ID-keyed Configuration records that need the same table to be named from,
+  // and asked for *after* the analysis, which is what says so — most dumps never
+  // need it, and it is the largest of the three databases. Asked once per
+  // analysis: what is held answers at once with the day's check behind it.
+  const wantsNames = analysis !== undefined && (fileTableWanted(analysis) || configIDs.length > 0);
   useEffect(() => {
     if (wantsNames) loadFileTable();
   }, [wantsNames]);
@@ -317,9 +332,22 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           }),
     [analysis, table]
   );
+  const configPaths = useMemo(
+    () =>
+      configIDs.length === 0
+        ? ConfigRecordPaths.none
+        : ConfigRecordPaths.forFileIDs({
+            table,
+            fileIDs: configIDs,
+            platform: analysis?.mfsVolume?.ftblPlatform ?? -1,
+            dictionary: analysis?.mfsVolume?.ftblDictionary ?? -1,
+          }),
+    [configIDs, table, analysis]
+  );
   const tree = useMemo(
-    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames)),
-    [analysis, checksums, names, efsNames]
+    () =>
+      analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),
+    [analysis, checksums, names, efsNames, configPaths]
   );
   const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);

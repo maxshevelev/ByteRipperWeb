@@ -345,6 +345,32 @@ export function efsFiles(options: {
 }
 
 /**
+ * The partition's configuration payload — the bytes the record stream is read
+ * out of: `[0x10 : 0x10+DataLength]` on a revision-1 header, and
+ * `[0x04 : 0x04+length]` on the alpha layout whose first u32 *is* the length.
+ * Both branches are the ones `parseFitc` already checks, read again here rather
+ * than kept alive: the payload is wanted once, after identity.
+ *
+ * Undefined where the header's own length runs past the partition — there is no
+ * saying how much of it was meant.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#FITCParser.configPayload
+ */
+export function fitcConfigPayload(
+  bytes: Uint8Array,
+  offset: number,
+  size: number
+): Uint8Array | undefined {
+  if (offset < 0 || size < FITC_HEADER_SIZE || offset + size > bytes.length) return undefined;
+  const buffer = bytes.subarray(offset, offset + size);
+  const revision = u32(buffer, 0x00) ?? 0;
+  const start = revision === 1 ? FITC_HEADER_SIZE : 0x04;
+  const length = revision === 1 ? (u32(buffer, 0x08) ?? 0) : revision;
+  if (length <= 0 || start + length > buffer.length) return undefined;
+  return buffer.subarray(start, start + length);
+}
+
+/**
  * The FITC partition's header. Revision 1 carries two plain CRC-32s — the
  * header's own, over its first twelve bytes with the checksum word zeroed, and
  * the data's. Any other revision (the CSME 15 TGP alpha layout) carries none: the
@@ -391,6 +417,9 @@ export function parseFitc(
   return {
     offset: absoluteOffset,
     headerRevision,
+    // Where the payload begins, made absolute: the record offsets inside it are
+    // offsets from there, so this is what turns one into a position in the image.
+    payloadOffset: absoluteOffset + (headerRevision === 1 ? FITC_HEADER_SIZE : 0x04),
     dataLength,
     headerCRCStored,
     headerCRCValid,

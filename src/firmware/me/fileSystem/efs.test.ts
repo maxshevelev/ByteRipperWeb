@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { crc32 } from "@/firmware/me/crypto/checksum";
 import type { FileTableEFSEntry } from "@/firmware/me/data/fileTable";
-import { efsDataArea, efsFiles, parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
+import {
+  efsDataArea,
+  efsFiles,
+  fitcConfigPayload,
+  parseEfs,
+  parseFitc,
+} from "@/firmware/me/fileSystem/efs";
 
 /**
  * The EFS volume and the FITC partition. Ported from upstream's `EFSTests`; the
@@ -185,6 +191,8 @@ describe("the FITC partition", () => {
       offset: 0x1000,
       headerRevision: 1,
       dataLength: 0x80,
+      // Where the payload begins: the partition's position plus its 0x10 header.
+      payloadOffset: 0x1010,
       headerCRCStored: crc32(Uint8Array.of(0x01, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0, 0)),
       headerCRCValid: true,
       dataCRCStored: crc32(region.subarray(0x10)),
@@ -222,6 +230,39 @@ describe("the FITC partition", () => {
 
     region[0x100] = 0x00;
     expect(parseFitc(region, 0, region.length, 0)?.paddingAllFF).toBe(false);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testThePayloadIsHandedOutFromBehindTheHeader
+  it("hands the payload out from behind the header", () => {
+    const region = makeFitc();
+    const payload = fitcConfigPayload(region, 0, region.length);
+    expect(payload?.length).toBe(0x80);
+    expect(Array.from(payload?.slice(0, 2) ?? [])).toEqual([3, 10]);
+    expect(parseFitc(region, 0, region.length, 0x31_5000)?.payloadOffset).toBe(0x31_5010);
+
+    // The alpha layout: its first u32 *is* the length, and the payload starts
+    // just past it.
+    const alpha = concat(
+      Uint8Array.from([0x20, 0, 0, 0]),
+      Uint8Array.from({ length: 0x20 }, (_, i) => i),
+      new Uint8Array(0x100).fill(0xff)
+    );
+    const alphaPayload = fitcConfigPayload(alpha, 0, alpha.length);
+    expect(alphaPayload?.length).toBe(0x20);
+    expect(alphaPayload?.[0]).toBe(0);
+    expect(parseFitc(alpha, 0, alpha.length, 0x1000)?.payloadOffset).toBe(0x1004);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAPayloadLongerThanThePartitionIsNil
+  it("is nothing when the payload runs past the partition", () => {
+    const region = new Uint8Array(0x40);
+    put32(region, 0, 1);
+    put32(region, 8, 0x1000);
+    expect(fitcConfigPayload(region, 0, region.length)).toBeUndefined();
+
+    const empty = new Uint8Array(0x40);
+    put32(empty, 0, 1);
+    expect(fitcConfigPayload(empty, 0, empty.length)).toBeUndefined();
   });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testRegionTooSmallForFITCReturnsNil

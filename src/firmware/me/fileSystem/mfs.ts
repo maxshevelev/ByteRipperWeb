@@ -143,8 +143,6 @@ export interface MFSVolumeInfo {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.fileChainsIntact
    */
   readonly fileChainsIntact: boolean;
-  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSVolumeInfo.configurations */
-  readonly configurations: readonly MFSConfigDecode[];
 }
 
 const le16 = (bytes: Uint8Array, at: number): number =>
@@ -273,7 +271,6 @@ export function parseMfs(
     usesFTBL: false,
     files: [] as MFSLowLevelFile[],
     fileChainsIntact: true,
-    configurations: [] as MFSConfigDecode[],
   };
 
   const volume = chunks.get(0);
@@ -348,17 +345,82 @@ export function parseMfs(
     info.fileChainsIntact = intact;
   }
 
-  // Only the legacy layout lays files 6 and 7 out as `MFS_Config_Record_0x1C`
-  // streams; a file-table volume names them through FileTable.dat.
-  if (!info.usesFTBL) {
-    for (const owner of [6, 7]) {
-      const file = info.files.find((one) => one.index === owner);
-      if (file === undefined || file.content.length === 0) continue;
-      const records = decodeConfigRecords(file.content);
-      if (records !== undefined) info.configurations.push({ owningFile: owner, records });
-    }
-  }
+  // The Intel/OEM Configuration streams (low-level files 6/7) are *not* decoded
+  // here: which record struct they carry is an identity question
+  // (`get_cfg_rec_size` — 0x1C on CSME 11/12 and their analogues, 0xC on CSME
+  // 13–16), and this parser knows only bytes. The decode is
+  // `configurations`, run from the analyzer's identity-gated phase over the
+  // files retained here — the same place the Home Directory and the Integrity
+  // split are decoded.
   return info;
+}
+
+/**
+ * One decoded `MFS_Config_Record_0xC` — the record the newer layouts use (CSME
+ * 13–16, CSSPS 6, and the CSSPS 4.4 / 5-on-platform-10 pair), selected by
+ * `configRecordSize` exactly as upstream's `get_cfg_rec_size` selects the
+ * struct.
+ *
+ * It carries no name: the file is identified by a **File ID**, and the path
+ * that ID stands for lives in `FileTable.dat`'s `FTBL` table under that ID as
+ * its key (upstream `mfs_cfg_anl`'s 0xC branch, MEA.py 8526). So the name is a
+ * panel lookup, the way an FTBL volume's file names are, and what the record
+ * itself says is where the bytes are and how the configuration may be
+ * overridden.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord
+ */
+export interface MFSRawConfigIDRecord {
+  /** FTBL table key (0x10002000, 0x12090300, …) — the record's File ID. */
+  readonly fileID: number;
+  /** FileOffset into the owning stream. */
+  readonly offset: number;
+  /** FileSize. */
+  readonly size: number;
+  /** Flags bit0 — fitc.cfg may override intl.cfg. */
+  readonly oemConfigurable: boolean;
+  /** Flags bits 1–15. */
+  readonly unknownFlags: number;
+}
+
+/**
+ * An ID-keyed Configuration record stream, with the low-level file it came from
+ * (6 = Intel, 7 = OEM) — the 0xC counterpart of `MFSConfigDecode`.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigIDDecode
+ */
+export interface MFSConfigIDDecode {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigIDDecode.owningFile */
+  readonly owningFile: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigIDDecode.records */
+  readonly records: readonly MFSRawConfigIDRecord[];
+}
+
+/**
+ * An ID-keyed configuration stream: a u32 record count then that many 0xC
+ * entries. Bounded the same way as the 0x1C walk — the declared count leads,
+ * and a stream shorter than the table it declares yields the complete records
+ * that fit.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSParser.decodeConfigIDRecords
+ */
+export function decodeConfigIDRecords(content: Uint8Array): MFSRawConfigIDRecord[] | undefined {
+  if (content.length < 4) return undefined;
+  const count = le32(content, 0);
+  const records: MFSRawConfigIDRecord[] = [];
+  for (let index = 0; index < count; index++) {
+    const base = 4 + index * 0xc;
+    if (base + 0xc > content.length) break;
+    const flags = le16(content, base + 0x0a);
+    records.push({
+      fileID: le32(content, base),
+      offset: le32(content, base + 0x04),
+      size: le16(content, base + 0x08),
+      oemConfigurable: (flags & 1) !== 0,
+      unknownFlags: flags >> 1,
+    });
+  }
+  return records;
 }
 
 /**
@@ -513,6 +575,77 @@ export function secHeaderSize(
     return 0x34;
   }
   return 0x28;
+}
+
+/**
+ * `get_cfg_rec_size`: the length of one Intel/OEM Configuration record — 0x1C
+ * (named files, `MFS_Config_Record_0x1C`) or 0xC (files identified by File ID
+ * through `FTBL`, `MFS_Config_Record_0xC`). Like `secHeaderSize` it reads
+ * variant/major/minor and `platform` (`vol_ftbl_pl`); `hotfix` is unused
+ * upstream. Upstream's own default for anything unlisted is 0xC.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.configRecordSize
+ */
+export function configRecordSize(
+  variant: string,
+  major: number,
+  minor: number,
+  platform: number
+): number {
+  if (
+    (variant === "CSSPS" && major === 4 && minor === 4) ||
+    (variant === "CSSPS" && major === 5 && platform === 10)
+  ) {
+    return 0xc;
+  }
+  if (
+    (variant === "CSME" && (major === 11 || major === 12)) ||
+    (variant === "CSTXE" && (major === 3 || major === 4)) ||
+    (variant === "CSSPS" && (major === 4 || major === 5))
+  ) {
+    return 0x1c;
+  }
+  if ((variant === "CSME" && major >= 13 && major <= 16) || (variant === "CSSPS" && major === 6)) {
+    return 0xc;
+  }
+  return 0xc;
+}
+
+/**
+ * The volume's Intel (6) and OEM (7) Configuration record streams, read with the
+ * record struct this identity uses (upstream `mfs_cfg_anl` over
+ * `get_cfg_rec_size`). One of the two lists comes back empty: a volume's streams
+ * are all one struct or all the other.
+ *
+ * A stream whose low-level file the volume does not carry is not a finding — a
+ * CSME 15 FTBL volume has no files 6/7 at all, and an uninitialized volume has
+ * no configuration yet.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.configurations
+ */
+export function configurations(options: {
+  readonly files: readonly MFSLowLevelFile[];
+  readonly variant: string;
+  readonly major: number;
+  readonly minor: number;
+  readonly platform: number;
+}): { readonly byName: readonly MFSConfigDecode[]; readonly byID: readonly MFSConfigIDDecode[] } {
+  const { files, variant, major, minor, platform } = options;
+  const size = configRecordSize(variant, major, minor, platform);
+  const byName: MFSConfigDecode[] = [];
+  const byID: MFSConfigIDDecode[] = [];
+  for (const owner of [6, 7]) {
+    const file = files.find((one) => one.index === owner);
+    if (file === undefined || file.content.length === 0) continue;
+    if (size === 0x1c) {
+      const records = decodeConfigRecords(file.content);
+      if (records !== undefined) byName.push({ owningFile: owner, records });
+    } else {
+      const records = decodeConfigIDRecords(file.content);
+      if (records !== undefined) byID.push({ owningFile: owner, records });
+    }
+  }
+  return { byName, byID };
 }
 
 /**

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { crc16_14 } from "@/firmware/me/crypto/checksum";
 import {
+  configRecordSize,
+  configurations,
+  decodeConfigIDRecords,
   decodeConfigRecords,
   ftblFileIntegrity,
   homeDirectory,
@@ -262,9 +265,19 @@ describe("the legacy configuration streams", () => {
     });
     const info = parseMfs(region, 0, region.length);
     expect(info?.usesFTBL).toBe(false);
-    expect(info?.configurations).toHaveLength(1);
-    expect(info?.configurations[0]?.owningFile).toBe(6);
-    const [home, binding] = info?.configurations[0]?.records ?? [];
+    // The stride is an identity answer, so the decode is asked for it: CSME 12
+    // is a 0x1C-record layout (`get_cfg_rec_size`).
+    const configs = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 12,
+      minor: 0,
+      platform: info?.ftblPlatform ?? 0,
+    });
+    expect(configs.byID).toEqual([]);
+    expect(configs.byName).toHaveLength(1);
+    expect(configs.byName[0]?.owningFile).toBe(6);
+    const [home, binding] = configs.byName[0]?.records ?? [];
     expect(home).toMatchObject({
       name: "home",
       isFolder: true,
@@ -302,7 +315,18 @@ describe("the legacy configuration streams", () => {
     const info = parseMfs(region, 0, region.length);
     expect(info?.usesFTBL).toBe(true);
     expect(info?.files.map((one) => one.index)).toEqual([6]);
-    expect(info?.configurations).toEqual([]);
+    // …and a CSME 15 identity reads its records as 0xC, not as the 0x1C stream
+    // the bytes were written as: the layout is upstream's answer, not a guess
+    // from the volume header.
+    const configs = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 15,
+      minor: 0,
+      platform: info?.ftblPlatform ?? 0,
+    });
+    expect(configs.byName).toEqual([]);
+    expect(configs.byID).toHaveLength(1);
   });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testLegacyVolumeWithoutConfigFilesHasEmptyConfigurations
@@ -317,7 +341,15 @@ describe("the legacy configuration streams", () => {
     });
     const info = parseMfs(region, 0, region.length);
     expect(info?.usesFTBL).toBe(false);
-    expect(info?.configurations).toEqual([]);
+    const configs = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 12,
+      minor: 0,
+      platform: info?.ftblPlatform ?? 0,
+    });
+    expect(configs.byName).toEqual([]);
+    expect(configs.byID).toEqual([]);
   });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testConfigStreamTruncatedBeforeItsDeclaredCountDecodesWhatFits
@@ -328,6 +360,112 @@ describe("the legacy configuration streams", () => {
     expect(records?.[0]?.name).toBe("home");
     expect(decodeConfigRecords(Uint8Array.of(1, 2, 3))).toBeUndefined();
     expect(decodeConfigRecords(new Uint8Array(0))).toBeUndefined();
+  });
+});
+
+/** One `MFS_Config_Record_0xC` stream: a u32 count then that many records. */
+function configIDStream(
+  records: readonly {
+    readonly fileID: number;
+    readonly offset: number;
+    readonly size: number;
+    readonly flags: number;
+  }[]
+): Uint8Array {
+  const out = new Uint8Array(4 + records.length * 0xc);
+  put32(out, 0, records.length);
+  records.forEach((record, index) => {
+    const base = 4 + index * 0xc;
+    put32(out, base, record.fileID);
+    put32(out, base + 0x04, record.offset);
+    put16(out, base + 0x08, record.size);
+    put16(out, base + 0x0a, record.flags);
+  });
+  return out;
+}
+
+describe("the ID-keyed configuration records", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAnIDKeyedRecordIsReadInUpstreamsFieldOrder
+  it("read a record in upstream's field order", () => {
+    // Real values from the CSME 15 dump's FITC payload: `/home/amt/rtfd/PrivacyLvl`
+    // is File ID 0x10080A00, one byte long, and OEM-configurable.
+    const stream = configIDStream([
+      { fileID: 0x1008_0a00, offset: 0, size: 1, flags: 0x0001 },
+      { fileID: 0x1008_0700, offset: 1, size: 0x10, flags: 0x0000 },
+    ]);
+    const records = decodeConfigIDRecords(stream);
+    expect(records).toHaveLength(2);
+    expect(records?.[0]?.fileID).toBe(0x1008_0a00);
+    expect(records?.[0]?.offset).toBe(0);
+    expect(records?.[0]?.size).toBe(1);
+    expect(records?.[0]?.oemConfigurable).toBe(true);
+    expect(records?.[0]?.unknownFlags).toBe(0);
+    expect(records?.[1]?.fileID).toBe(0x1008_0700);
+    expect(records?.[1]?.offset).toBe(1);
+    expect(records?.[1]?.size).toBe(0x10);
+    expect(records?.[1]?.oemConfigurable).toBe(false);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheRemainingFlagBitsAreReportedApartFromTheOEMBit
+  it("report the remaining flag bits apart from the OEM bit", () => {
+    const stream = configIDStream([{ fileID: 0x1234_5678, offset: 0, size: 0, flags: 0xffff }]);
+    const record = decodeConfigIDRecords(stream)?.[0];
+    expect(record?.oemConfigurable).toBe(true);
+    expect(record?.unknownFlags).toBe(0x7fff);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testATruncatedIDKeyedStreamDecodesWhatFits
+  it("decode what fits of a truncated stream", () => {
+    const two = configIDStream([
+      { fileID: 1, offset: 0, size: 1, flags: 0 },
+      { fileID: 2, offset: 1, size: 1, flags: 0 },
+    ]);
+    expect(decodeConfigIDRecords(two.subarray(0, 4 + 0xc))?.map((one) => one.fileID)).toEqual([1]);
+    expect(decodeConfigIDRecords(Uint8Array.of(1, 2, 3))).toBeUndefined();
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheConfigRecordSizeFollowsUpstreamsTable
+  it("follow upstream's table for the record size", () => {
+    const size = (variant: string, major: number, minor: number, platform: number) =>
+      configRecordSize(variant, major, minor, platform);
+    expect(size("CSME", 11, 8, 0)).toBe(0x1c);
+    expect(size("CSME", 12, 0, 0)).toBe(0x1c);
+    expect(size("CSTXE", 4, 0, 0)).toBe(0x1c);
+    expect(size("CSSPS", 4, 0, 0)).toBe(0x1c);
+    expect(size("CSSPS", 5, 0, 0)).toBe(0x1c);
+    expect(size("CSSPS", 4, 4, 0)).toBe(0xc);
+    expect(size("CSSPS", 5, 0, 10)).toBe(0xc);
+    expect(size("CSME", 13, 0, 0)).toBe(0xc);
+    expect(size("CSME", 14, 5, 0)).toBe(0xc);
+    expect(size("CSME", 15, 0, 4)).toBe(0xc);
+    expect(size("CSME", 16, 1, 16)).toBe(0xc);
+    expect(size("CSSPS", 6, 0, 0)).toBe(0xc);
+    expect(size("GSC", 104, 0, 0)).toBe(0xc);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheVolumesStreamsAreReadWithTheIdentitysRecordStruct
+  it("read a volume's streams with the identity's record struct", () => {
+    const stream = configIDStream([{ fileID: 0x1000_2000, offset: 0x20, size: 4, flags: 1 }]);
+    const region = makeFileVolume({
+      fileRecords: 20,
+      fat: { 7: 20, 20: stream.length },
+      dataSlotContents: [stream],
+      dictionary: 1,
+      platform: 0,
+      reserved: 0,
+    });
+    const info = parseMfs(region, 0, region.length);
+    const files = info?.files ?? [];
+
+    const newer = configurations({ files, variant: "CSME", major: 15, minor: 0, platform: 4 });
+    expect(newer.byName).toEqual([]);
+    expect(newer.byID).toHaveLength(1);
+    expect(newer.byID[0]?.owningFile).toBe(7);
+    expect(newer.byID[0]?.records[0]?.fileID).toBe(0x1000_2000);
+
+    const older = configurations({ files, variant: "CSME", major: 12, minor: 0, platform: 4 });
+    expect(older.byID).toEqual([]);
+    expect(older.byName).toHaveLength(1);
   });
 });
 

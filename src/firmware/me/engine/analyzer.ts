@@ -25,10 +25,23 @@ import {
 import { metAttributes } from "@/firmware/me/engine/huffmanNeed";
 import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelection";
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
-import { efsDataArea, efsFiles, parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 import {
+  efsDataArea,
+  efsFiles,
+  fitcConfigPayload,
+  parseEfs,
+  parseFitc,
+} from "@/firmware/me/fileSystem/efs";
+import {
+  configRecordSize,
+  configurations,
+  decodeConfigIDRecords,
+  decodeConfigRecords,
   ftblFileIntegrity,
   homeDirectory,
+  type MFSConfigDecode,
+  type MFSRawConfigIDRecord,
+  type MFSRawConfigRecord,
   type MFSVolumeInfo,
   mfsState,
   parseMfs,
@@ -61,6 +74,8 @@ import {
 import type {
   EFSVolume,
   MFSBackup,
+  MFSConfigIDRecord,
+  MFSConfigRecord,
   MFSVolume,
   OEMConfiguration,
 } from "@/firmware/me/models/fileSystemFacts";
@@ -256,6 +271,41 @@ function efsWithFiles(
       minor: identity.minor,
       platform: resolution.platform,
     }),
+  };
+}
+
+/**
+ * A decoded Configuration record as the model carries it. Two streams and two
+ * record structs share these, so the mapping is written once.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.configRecord
+ */
+function configRecord(record: MFSRawConfigRecord): MFSConfigRecord {
+  return {
+    name: record.name,
+    isFolder: record.isFolder,
+    size: record.size,
+    offset: record.offset,
+    unixRights: record.unixRights,
+    integrityProtection: record.integrity,
+    encryptionProtection: record.encryption,
+    antiReplayProtection: record.antiReplay,
+    oemConfigurable: record.oemConfigurable,
+    mcaConfigurable: record.mcaConfigurable,
+    reserved: record.reserved,
+    ownerUserID: record.ownerUserID,
+    ownerGroupID: record.ownerGroupID,
+  };
+}
+
+/** The ID-keyed counterpart — a record with a File ID where a name would be. */
+function configIDRecord(record: MFSRawConfigIDRecord): MFSConfigIDRecord {
+  return {
+    fileID: record.fileID,
+    offset: record.offset,
+    size: record.size,
+    oemConfigurable: record.oemConfigurable,
+    unknownFlags: record.unknownFlags,
   };
 }
 
@@ -779,9 +829,77 @@ function analyze(
   // not start at 0; the tables on any legacy volume.
   const mfsInfo = fileSystems.mfsInfo;
   let mfsVolume = fileSystems.mfsVolume;
+
+  // The Intel (6) and OEM (7) Configuration record streams. Which record struct
+  // they carry is not in the bytes — `get_cfg_rec_size` answers it from
+  // variant/major/minor and the FTBL platform (0x1C named records on CSME 11/12
+  // and their analogues, 0xC ID-keyed ones on CSME 13–16) — so the decode waits
+  // for the identity rather than guessing the stride from the layout, which
+  // would read one struct as the other and print a table of nonsense.
+  let mfsConfigurations: readonly MFSConfigDecode[] = [];
+  if (mfsVolume !== undefined && mfsInfo !== undefined) {
+    const decoded = configurations({
+      files: mfsInfo.files,
+      variant: identity.variant,
+      major: identity.major,
+      minor: identity.minor,
+      platform: mfsInfo.ftblPlatform,
+    });
+    mfsConfigurations = decoded.byName;
+    mfsVolume = {
+      ...mfsVolume,
+      configurations: decoded.byName.map((one) => ({
+        owningFile: one.owningFile,
+        records: one.records.map(configRecord),
+      })),
+      ...(decoded.byID.length === 0
+        ? {}
+        : {
+            configurationsByID: decoded.byID.map((one) => ({
+              owningFile: one.owningFile,
+              records: one.records.map(configIDRecord),
+            })),
+          }),
+    };
+  }
+
   if (mfsVolume !== undefined && mfsInfo !== undefined && mfsVolume.usesFTBL) {
     mfsVolume = ftblFiles(mfsVolume, mfsInfo, fileTable, identity);
   }
+  // The FITC partition's own payload, which is one more Configuration record
+  // stream — low-level file 7, the OEM `fitc.cfg`, kept as a partition of its
+  // own on the newer whole-flash layouts (upstream `fitc_anl` hands it straight
+  // to `mfs_cfg_anl`, MEA.py 8611). The header facts were read in the
+  // structural phase; the records need the same identity-selected struct as a
+  // volume's, so they are read here, off the partition's bytes again.
+  let oemConfiguration = fileSystems.oemConfiguration;
+  if (oemConfiguration !== undefined) {
+    const fitcRegion = regions.find((one) => one.name === "FITC");
+    const payload =
+      fitcRegion === undefined
+        ? undefined
+        : fitcConfigPayload(bytes, fitcRegion.offset - baseOffset, fitcRegion.size);
+    if (payload !== undefined) {
+      const size = configRecordSize(
+        identity.variant,
+        identity.major,
+        identity.minor,
+        mfsInfo?.ftblPlatform ?? -1
+      );
+      if (size === 0xc) {
+        oemConfiguration = {
+          ...oemConfiguration,
+          recordsByID: (decodeConfigIDRecords(payload) ?? []).map(configIDRecord),
+        };
+      } else {
+        const records = decodeConfigRecords(payload);
+        if (records !== undefined) {
+          oemConfiguration = { ...oemConfiguration, records: records.map(configRecord) };
+        }
+      }
+    }
+  }
+
   // One table serves both file systems: the EFS walk needs the same file, its
   // own `EFST` half and the `FTBL` flags beside it, and the source answers the
   // second ask out of what the first fetched.
@@ -815,7 +933,7 @@ function analyze(
     }
     mfsVolume = {
       ...mfsVolume,
-      pchInit: decodePchInit(mfsInfo.files, mfsInfo.configurations, {
+      pchInit: decodePchInit(mfsInfo.files, mfsConfigurations, {
         variant,
         major,
         minor,
@@ -935,7 +1053,7 @@ function analyze(
     mfsVolume,
     mfsBackup: fileSystems.mfsBackup,
     efsVolume: efsVolumeForWalk,
-    oemConfiguration: fileSystems.oemConfiguration,
+    oemConfiguration: oemConfiguration,
     mfsState: fileSystemState,
     gscInfo,
     oromImages,
@@ -1080,24 +1198,10 @@ function decodeFileSystems(
         presentFileCount: present.length,
         fileBytes: present.reduce((sum, one) => sum + one.content.length, 0),
         files: present.map((one) => ({ index: one.index, size: one.content.length })),
-        configurations: info.configurations.map((config) => ({
-          owningFile: config.owningFile,
-          records: config.records.map((record) => ({
-            name: record.name,
-            isFolder: record.isFolder,
-            size: record.size,
-            offset: record.offset,
-            unixRights: record.unixRights,
-            integrityProtection: record.integrity,
-            encryptionProtection: record.encryption,
-            antiReplayProtection: record.antiReplay,
-            oemConfigurable: record.oemConfigurable,
-            mcaConfigurable: record.mcaConfigurable,
-            reserved: record.reserved,
-            ownerUserID: record.ownerUserID,
-            ownerGroupID: record.ownerGroupID,
-          })),
-        })),
+        // The Configuration streams are filled in phase 9: which record struct
+        // they carry is `get_cfg_rec_size`, and that needs the identity this
+        // phase does not have yet.
+        configurations: [],
         homeDirectory: undefined,
         reservedIntegrity: [],
         pchInit: undefined,
