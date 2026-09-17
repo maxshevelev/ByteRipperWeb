@@ -2204,14 +2204,31 @@ textarea,
   touch-action: none;
 }
 
-/* Reached for, it draws the hairline the detail splitter draws and not a bar
-   the width of the strip: the eight pixels are the pointer's to find, and a
-   column boundary marked by eight pixels of accent reads as a column that has
-   grown a third one. */
+/* The strip draws the divider itself, at its own right edge, rather than the
+   header cell drawing one beside it. A cell's border is inside that cell's box,
+   so the next column's `border-left` sits on the far side of the very edge this
+   strip ends at, and the two can never be the same pixel: reached for, the line
+   stood one pixel clear of the divider it was meant to be.
+   Drawn here, there is one line — the boundary between two columns — and
+   reaching for it lights that line rather than adding a second. */
+.column-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
 .column-resizer:hover,
 .column-resizer:focus-visible {
-  background: linear-gradient(var(--accent), var(--accent)) center / 1px 100% no-repeat;
   outline: none;
+}
+
+.column-resizer:hover::after,
+.column-resizer:focus-visible::after {
+  background: var(--accent);
 }
 
 /* The cells a strip is drawn in have to be what it is positioned against. The
@@ -2530,15 +2547,16 @@ button.uefi-title {
   color: var(--text-muted);
 }
 
+/* No border of its own: the divider between two columns is drawn by the strip
+   that grabs it, so that the line and what lights up under the pointer are one
+   and the same. See `.column-resizer::after`. */
 .uefi-tree-head > span {
   overflow: hidden;
   padding: 0 6px;
-  border-left: 1px solid var(--border);
 }
 
 .uefi-tree-head > span:first-child {
   padding-left: 8px;
-  border-left: 0;
 }
 
 .uefi-tree-spacer {
@@ -2985,9 +3003,8 @@ button.uefi-title {
   white-space: nowrap;
 }
 
-.fit-head + .fit-head {
-  border-left: 1px solid var(--border);
-}
+/* No divider of its own, as the trees' heads have none: the boundary drag's
+   strip draws it, at the one pixel where the boundary is. */
 
 .fit-row > td {
   height: 22px;
