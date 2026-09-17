@@ -251,6 +251,10 @@ C_FUNCTION = re.compile(r"^[A-Za-z_][\w\s\*]*?\b(?P<name>[A-Za-z_]\w*)\s*\([^;]*
 # Tiano decompressor is written that way.
 C_FUNCTION_ALONE = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*\([^;]*$")
 C_NOT_NAMES = {"if", "for", "while", "switch", "return", "sizeof"}
+# `typedef void (Z7_FASTCALL *LZFIND_SATUR_SUB_CODE_FUNC)(` is a function
+# pointer's type, not a function: read as a definition it declares something
+# called `void`. A typedef never defines one, so the line is skipped whole.
+C_TYPEDEF = re.compile(r"^typedef\b")
 
 
 def c_symbols(text: str) -> list[Symbol]:
@@ -264,7 +268,7 @@ def c_symbols(text: str) -> list[Symbol]:
     symbols: list[Symbol] = []
     depth = 0
     for number, line in enumerate(code, 1):
-        if depth == 0 and not line.startswith(("#", " ", "\t")):
+        if depth == 0 and not line.startswith(("#", " ", "\t")) and not C_TYPEDEF.match(line):
             match = C_FUNCTION.match(line)
             if match is None:
                 alone = C_FUNCTION_ALONE.match(line)
