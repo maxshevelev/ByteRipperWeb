@@ -1431,17 +1431,18 @@ export function HexPane({
       // what is typed next (§3.3); both are `hexPointer`'s to answer.
       const target = pointerTarget(layout, hit, point.x, typing.isInsertMode);
 
-      // A press on a marked address picks the mark up rather than starting a
-      // selection: the offset column is where marks live, and dragging one to
-      // another row is how §20.3 says a mark is moved.
+      // A press on a marked address picks the mark up as well: the offset column
+      // is where marks live, and dragging one to another row is how §20.6 says a
+      // mark is moved. It places the caret like any other press — an address is
+      // an address whether or not a mark stands on it, and a press and release
+      // on one is the click it has always been. Only a press that then travels
+      // moves the mark, and the drag that follows is the mark's: `dragTo` reads
+      // the two and moves the mark first.
       if (hit.column.kind === "offset" && bookmarkAt(target.offset) !== undefined) {
         markDragRef.current = rowContaining(target.offset);
         // The gesture starts on the mark's own row, so the first step comes
         // when the pointer leaves it.
         markDragPointerRowRef.current = rowContaining(target.offset);
-        event.currentTarget.setPointerCapture(event.pointerId);
-        event.preventDefault();
-        return;
       }
       // Clicking in a column is how you choose which one you are typing into.
       if (target.region !== region) setRegion(target.region);
