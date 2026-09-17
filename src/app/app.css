@@ -3316,9 +3316,12 @@ button.uefi-title {
   text-overflow: ellipsis;
 }
 
-/* A place in the layout that holds nothing. */
+/* A place in the layout that holds nothing — the whole row, both columns.
+   Upstream asks for `secondaryLabelColor`, which this palette spells
+   `--text-muted`; the value column beside it is an ordinary row's colour, so
+   the quiet row reads as one statement rather than as a half-drawn one. */
 .me-row[data-empty] {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .me-name {
@@ -3333,13 +3336,12 @@ button.uefi-title {
   text-overflow: ellipsis;
 }
 
+/* The value column is drawn like the name: an ordinary row's colour, as the
+   UEFI tree's Type and Subtype are. Only an empty row is quiet, and it says so
+   on the row. What is left to the column itself is the figures, which line up
+   because they are tabular. */
 .me-subtitle {
-  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-}
-
-.me-row[data-empty] .me-subtitle {
-  color: inherit;
 }
 
 .me-twist {
