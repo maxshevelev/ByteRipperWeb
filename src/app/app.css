@@ -2204,10 +2204,13 @@ textarea,
   touch-action: none;
 }
 
+/* Reached for, it draws the hairline the detail splitter draws and not a bar
+   the width of the strip: the eight pixels are the pointer's to find, and a
+   column boundary marked by eight pixels of accent reads as a column that has
+   grown a third one. */
 .column-resizer:hover,
 .column-resizer:focus-visible {
-  background: var(--accent);
-  opacity: 0.35;
+  background: linear-gradient(var(--accent), var(--accent)) center / 1px 100% no-repeat;
   outline: none;
 }
 
