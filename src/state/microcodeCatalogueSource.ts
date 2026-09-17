@@ -1,3 +1,4 @@
+import type { FreshenedStatus } from "@/platform/net/freshened";
 import { entriesFromTree, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 
 /**
@@ -11,13 +12,51 @@ import { entriesFromTree, type MicrocodeCatalogueEntry } from "@/tools/fit/micro
  * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource
  */
 export interface MicrocodeSource {
-  /** Every microcode in the collection, read from the file names. */
-  catalogue(signal?: AbortSignal): Promise<{
-    readonly entries: readonly MicrocodeCatalogueEntry[];
-    readonly fetchedAt: number;
-  }>;
-  /** One file's bytes. */
+  /**
+   * Every microcode in the collection, read from the file names.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource.catalogue
+   */
+  catalogue(signal?: AbortSignal): Promise<readonly MicrocodeCatalogueEntry[]>;
+
+  /**
+   * One file's bytes.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource.download
+   */
   download(entry: MicrocodeCatalogueEntry, signal?: AbortSignal): Promise<Uint8Array<ArrayBuffer>>;
+
+  /**
+   * Emits when a background check has replaced the listing with a newer one, so
+   * a table's "latest" verdicts can be settled again against what actually
+   * exists now. A source that never changes its mind never emits.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#MicrocodeSource.catalogueChanges
+   * @upstream-differs a listener returning its own removal, rather than an
+   * `AsyncStream`
+   */
+  changes(listener: (entries: readonly MicrocodeCatalogueEntry[]) => void): () => void;
+
+  /**
+   * When the listing last changed and when it was last confirmed current, or
+   * `undefined` if nothing has been fetched.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.freshness
+   * @upstream-differs on the interface, where upstream keeps it on the concrete
+   * repository: the web's store holds only the interface, so the date the panel
+   * reads has nowhere else to be reached from
+   */
+  freshness(): FreshenedStatus | undefined;
+
+  /**
+   * Makes the next `catalogue` re-check, whatever the clock says. It does not
+   * throw the listing away: a check on a bench with no network must not be the
+   * gesture that empties the table.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/MicrocodeSource.swift#CPUMicrocodesRepository.markStale
+   * @upstream-differs on the interface, as `freshness` is
+   */
+  markStale(): void;
 }
 
 /**
@@ -38,12 +77,20 @@ export function fixedMicrocodeSource(
   tree: string,
   files: ReadonlyMap<string, Uint8Array<ArrayBuffer>> = new Map()
 ): MicrocodeSource {
+  const entries = entriesFromTree(tree);
+  const at = Date.now();
   return {
-    catalogue: async () => ({ entries: entriesFromTree(tree), fetchedAt: Date.now() }),
+    catalogue: async () => entries,
     download: async (entry) => {
       const bytes = files.get(entry.path);
       if (bytes === undefined) throw new Error(`nothing installed at ${entry.path}`);
       return bytes;
     },
+    // A listing already in hand never changes its mind, so it announces
+    // nothing: upstream's default `catalogueChanges()` is a stream that
+    // finishes at once, for the same reason.
+    changes: () => () => undefined,
+    freshness: () => ({ changedAt: at, checkedAt: at }),
+    markStale: () => undefined,
   };
 }

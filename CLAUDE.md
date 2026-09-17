@@ -98,10 +98,20 @@ Relationship to ByteRipper:
 
 Third-party data:
 - The GUID catalogue, the ME databases and the microcode catalogue are fetched
-  live from GitHub, as ByteRipper does: lazy and single-flight. Unlike the
-  desktop, bodies are cached for 24 hours in the Cache API, so a bench without
-  network still has yesterday's databases — and the tool shows their date, so
-  yesterday's data is never mistaken for today's.
+  live from GitHub, as ByteRipper does: lazy and single-flight. Freshness is the
+  desktop's own rule (`Freshened`): a body is held for a day, a body younger
+  than that is not asked for at all, an older one is answered at once with the
+  check running behind it, and a check that cannot be made keeps what is held.
+  Unlike the desktop, that body, its validator and both of the rule's dates live
+  in the Cache API, so a bench without network still has yesterday's databases —
+  and the tool shows their date, so yesterday's data is never mistaken for
+  today's. A check costs no bytes only where CORS lets this code read the
+  `ETag` and send `If-None-Match` (which is `api.github.com`); at
+  `raw.githubusercontent.com` the `ETag` is unreadable and a script-set
+  `If-None-Match` is refused by the preflight, so there the request goes out
+  with `cache: "no-cache"` and the browser revalidates the copy it holds with
+  the validator it stored (`max-age=0` + `If-None-Match` on the wire, a `304`
+  back). Measured in a browser; `cachedSource.ts` records the numbers.
 - Each source sits behind an interface so tests install their own. A test that
   reaches the network is a test that fails on a train.
 - The upstream projects these come from (UEFITool, MEAnalyzer, CPUMicrocodes)

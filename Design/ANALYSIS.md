@@ -245,29 +245,53 @@ share one request). Being online is a dependency the desktop accepted
 deliberately, and the trade it buys — always current data, nothing to update by
 hand — is the same trade here.
 
-It departs from the desktop in one place, and gains something by it: **the
-fetched bodies are cached for 24 hours.** The desktop keeps nothing, so no
-network means no ME Analyzer. Here the bodies live in the Cache API (which works
-without a service worker) with the time they were fetched beside them:
+**The freshness rules are the desktop's own** — `Freshened`, ported whole
+(G16): a body is held for a day, a body younger than that is not asked for at
+all, an older one is answered at once with the check running behind it, a check
+that cannot be made keeps what is held, and a failed check is not repeated for
+five minutes. It departs from the desktop in where the body lives: **the last
+body, its validator and both of the rule's dates are kept in the Cache API**
+(which works without a service worker), so a bench with no network still has
+yesterday's databases.
 
-- Fresher than a day: used straight from the cache; no request is made at all.
-- Older: re-fetched. Success replaces body and timestamp; failure keeps the old
-  body and the tool's header states its date — `MEA.dat · 10 Sep` — so
-  yesterday's data cannot be mistaken for today's.
-- A *Refresh now* control drops the TTL, for the bench that knows an update
-  landed this morning.
-- Nothing cached and no network: the tool says the databases are unavailable,
+- Fresher than a day: used straight from what is held; no request is made at all.
+- Older: re-checked. A body that has not changed costs one request and no bytes
+  where the host allows the question (below); a new one replaces the body, and a
+  check that failed keeps the old body and the tool's header states its date —
+  `MEA.dat · 10 Sep` — so yesterday's data cannot be mistaken for today's.
+- Marking a body stale by hand, for the bench that knows an update landed this
+  morning: `markStale` — `Freshened.markStale`, and the same on the three
+  repositories that hold them, `LongSoftGuidsRepository`, `CPUMicrocodes`
+  `Repository` and `MEAGitHubDataRepository` — makes the next ask re-check it
+  and never discards the value. Upstream binds no gesture to it: it is the API
+  the modules expose and the app's own control was never built. Neither has the
+  web, so the day's clock is what re-checks.
+- Nothing held and no network: the tool says the databases are unavailable,
   which is what the desktop does today.
 
-Revalidation costs almost nothing, though not through our code. The three files
-carry `ETag`s and GitHub honours `If-None-Match` with a `304` and an empty body —
-but a cross-origin response exposes only `cache-control`, `content-length`,
-`content-type` and `expires` to a script (GitHub sends no
-`Access-Control-Expose-Headers`, and no `Last-Modified`), so `response.headers.
-get('etag')` is `null` and we cannot make that request ourselves. The browser's
-own HTTP cache does: it stores the `ETag`, and the `max-age=300` on these files
-means a later `fetch` goes out conditional and usually comes back `304`. The
-three bodies are about 1.2 MB together in the worst case.
+**Whether the conditional request can be made at all is the host's decision, and
+only one of the two hosts lets this code make it.** `api.github.com`, which
+serves the microcode listing, exposes its `ETag` to a cross-origin reader and
+answers a request that carries `If-None-Match` — so there the validator is kept,
+presented back, and an unchanged listing comes home as a `304` costing no bytes.
+That is the desktop's own request, header for header. The other host,
+`raw.githubusercontent.com`, which serves the GUID catalogue, `MEA.dat` and
+`Huffman.dat`, exposes only `cache-control`, `content-length`, `content-type`
+and `expires`: the `ETag` it sends is invisible to a script, and a script-set
+`If-None-Match` is refused before it is made — a CORS preflight answered `403`
+with no `access-control-allow-headers`, so the fetch fails outright. Measured in
+a browser, not assumed.
+
+Those three are asked differently, and the browser makes the same request for
+them that we cannot: a `fetch` with `cache: "no-cache"` goes out with
+`cache-control: max-age=0` and `if-none-match: W/"948cc1e4…"` — a validator the
+script never saw, taken from the browser's own stored copy — and comes back
+`304` for **79 bytes**, where the unconditional fetch beside it moved
+**37 941**. That is the desktop's `reloadIgnoringLocalCacheData` plus its
+`If-None-Match`, arrived at from the other side. It is also why neither mode is
+the browser's ordinary cache policy: a `200` served off disk is not a check, and
+a copy still inside its `max-age` must not answer one — a re-check asked for by
+hand has to reach the server.
 
 Both hosts answer cross-origin requests with `Access-Control-Allow-Origin: *`,
 so a page on any origin may read them. Two things differ from the desktop and

@@ -193,8 +193,11 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     void parsePaneFirmware(pane);
     // The database is fetched when the panel opens, as upstream does: behind
-    // the structure, which is on screen first, with the wait said below.
-    if (meDatabaseStore.getSnapshot().status === "idle") loadMEDatabase();
+    // the structure, which is on screen first, with the wait said below. Asked
+    // unconditionally rather than only when nothing is held: a database in hand
+    // is what the day's re-check runs from, and the source answers this ask at
+    // once either way.
+    loadMEDatabase();
     return () => clearZones(pane);
   }, [pane]);
 
@@ -268,9 +271,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   // way upstream fetches it in the middle of such an analysis and no other.
   const wantsDictionaries = analysis !== undefined && huffmanDictionariesWanted(analysis);
   useEffect(() => {
-    if (wantsDictionaries && huffmanDictionaryStore.getSnapshot().status === "idle") {
-      loadHuffmanDictionaries();
-    }
+    // Asked on every analysis that wants them, not only on the first: what is
+    // held answers at once and the day's re-check runs behind it, which is what
+    // makes a dictionary that has since changed arrive without a reload.
+    if (wantsDictionaries) loadHuffmanDictionaries();
   }, [wantsDictionaries]);
   const tree = useMemo(
     () => (analysis === undefined ? [] : presentMEA(analysis, checksums)),

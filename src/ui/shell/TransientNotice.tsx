@@ -113,8 +113,9 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
  *
  * A wrap is an arrow round a capsule whose head says which end the search came
  * round — top right for one that ran off the end, bottom left for one that ran
- * off the start. A Smart Search that found nothing is a wand, and a pattern just
- * kept is a star. A refusal is `exclamationmark.triangle`: a warning triangle
+ * off the start. A Smart Search that found nothing is a wand, and a query saved
+ * to Favorites is a star. A refusal is `exclamationmark.triangle`: a warning
+ * triangle
  * with the mark in it. A copy wears the sign of the button that made it, drawn
  * from the same shapes the button is, in their own 16-unit box.
  *

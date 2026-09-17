@@ -735,6 +735,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             </button>
           </>
         ) : null}
+        {/*
+          A catalogue that did not arrive says nothing here, which is upstream's
+          own decision: the names the build ships are still there, so the tree is
+          not wrong, only older — `refreshGuids` calls that "not a problem worth
+          saying in red", and its `catch` says nothing at all. The typed failure
+          is in the store (`catalogueMessage`) for whatever says it next.
+        */}
       </footer>
     </div>
   );

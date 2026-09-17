@@ -4,11 +4,11 @@ import type { MicrocodeSource } from "@/state/microcodeCatalogueSource";
 import { fixedMicrocodeSource } from "@/state/microcodeCatalogueSource";
 import {
   cancelMicrocodeCatalogue,
-  forgetMicrocodeCatalogue,
   loadMicrocodeCatalogue,
   microcodeCatalogueMessage,
   microcodeCatalogueStore,
 } from "@/state/microcodeCatalogueStore";
+import { entriesFromTree, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 
 /**
  * What the panel is told while the listing is on its way, and what it is told
@@ -24,29 +24,73 @@ const TREE = `{"tree":[
   {"path":"Intel/cpu906EB_plat02_ver0000007C_2017-12-03_PRD_5046D998.bin","type":"blob","size":2048}
 ]}`;
 
-/** A source that never answers, so "loading" can be looked at. */
-const pending: MicrocodeSource = {
-  catalogue: () => new Promise(() => undefined),
-  download: () => new Promise(() => undefined),
+/** A second listing, for the day's check landing behind an answer. */
+const NEWER_TREE = `{"tree":[
+  {"path":"Intel/cpu906EB_plat02_ver0000007C_2017-12-03_PRD_5046D998.bin","type":"blob","size":2048},
+  {"path":"Intel/cpu906EA_plat02_ver000000F4_2020-01-01_PRD_1F2A3B4C.bin","type":"blob","size":2048}
+]}`;
+
+/**
+ * A source with only the part a case is about, and a stub for the rest — the
+ * four members a case is not about are never what it is asserting on.
+ */
+const stub = (over: Partial<MicrocodeSource>): MicrocodeSource => {
+  const at = Date.now();
+  return {
+    catalogue: async () => entriesFromTree(TREE),
+    download: () => Promise.reject(new Error("not asked")),
+    changes: () => () => undefined,
+    freshness: () => ({ changedAt: at, checkedAt: at }),
+    markStale: () => undefined,
+    ...over,
+  };
 };
 
-const failing = (error: unknown): MicrocodeSource => ({
-  catalogue: () => Promise.reject(error),
-  download: () => Promise.reject(error),
+/** A source that never answers, so "loading" can be looked at. */
+const pending = stub({
+  catalogue: () => new Promise(() => undefined),
+  download: () => new Promise(() => undefined),
 });
+
+const failing = (error: unknown): MicrocodeSource =>
+  stub({
+    catalogue: () => Promise.reject(error),
+    download: () => Promise.reject(error),
+  });
+
+/** A source that counts the asks, and answers with one entry of its own. */
+const counted = (onAsked: () => void): MicrocodeSource =>
+  stub({
+    catalogue: async () => {
+      onAsked();
+      return entriesFromTree(TREE);
+    },
+  });
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {
-  forgetMicrocodeCatalogue();
+  // The store is one per session, so a case starts from nothing held. The
+  // sources a case installs are its own; the live one holds nothing.
+  cancelMicrocodeCatalogue();
+  microcodeCatalogueStore.update(() => ({
+    status: "idle",
+    entries: [],
+    fetchedAt: undefined,
+    failure: undefined,
+  }));
 });
 
 describe("loadMicrocodeCatalogue", () => {
-  it("says it is loading, then what it holds and when", async () => {
+  it("says it is loading while nothing is in hand", () => {
     loadMicrocodeCatalogue(pending);
-    expect(microcodeCatalogueStore.getSnapshot().status).toBe("loading");
 
-    forgetMicrocodeCatalogue();
+    const state = microcodeCatalogueStore.getSnapshot();
+    expect(state.status).toBe("loading");
+    expect(state.failure).toBeUndefined();
+  });
+
+  it("says what it holds and when a listing lands", async () => {
     loadMicrocodeCatalogue(fixedMicrocodeSource(TREE));
     await settle();
 
@@ -59,19 +103,51 @@ describe("loadMicrocodeCatalogue", () => {
 
   it("makes one request when two panels ask", async () => {
     let asked = 0;
-    const counted: MicrocodeSource = {
-      catalogue: async () => {
-        asked++;
-        return { entries: [], fetchedAt: Date.now() };
-      },
-      download: () => Promise.reject(new Error("not asked")),
-    };
+    const source = counted(() => asked++);
 
-    loadMicrocodeCatalogue(counted);
-    loadMicrocodeCatalogue(counted);
+    loadMicrocodeCatalogue(source);
+    loadMicrocodeCatalogue(source);
     await settle();
 
     expect(asked).toBe(1);
+  });
+
+  it("leaves what it holds on screen while the day's check runs behind it", async () => {
+    // The listing is in hand, so a second ask is not a wait: the panel keeps
+    // what it is reading and the source decides, behind the answer, whether a
+    // check is even due (`Freshened`).
+    loadMicrocodeCatalogue(fixedMicrocodeSource(TREE));
+    await settle();
+
+    let asked = 0;
+    loadMicrocodeCatalogue(counted(() => asked++));
+
+    expect(microcodeCatalogueStore.getSnapshot().status).toBe("ready");
+    expect(microcodeCatalogueStore.getSnapshot().entries).toHaveLength(1);
+    await settle();
+    expect(asked).toBe(1);
+  });
+
+  it("takes a listing a background check replaced, and says when it changed", async () => {
+    // A source with a listing in hand that can still change its mind: the day's
+    // check found a newer one, and what it announces is what the store takes.
+    let announce: ((entries: readonly MicrocodeCatalogueEntry[]) => void) | undefined;
+    const source = stub({
+      changes: (listener) => {
+        announce = listener;
+        return () => undefined;
+      },
+    });
+    loadMicrocodeCatalogue(source);
+    await settle();
+    expect(microcodeCatalogueStore.getSnapshot().entries).toHaveLength(1);
+
+    announce?.(entriesFromTree(NEWER_TREE));
+
+    const state = microcodeCatalogueStore.getSnapshot();
+    expect(state.status).toBe("ready");
+    expect(state.entries).toHaveLength(2);
+    expect(state.fetchedAt).toBe(source.freshness()?.changedAt);
   });
 
   it("names being rate-limited, and stays startable", async () => {
@@ -152,23 +228,5 @@ describe("loadMicrocodeCatalogue", () => {
     cancelMicrocodeCatalogue();
 
     expect(microcodeCatalogueStore.getSnapshot().status).toBe("idle");
-  });
-
-  it("does not ask again once a listing has landed", async () => {
-    loadMicrocodeCatalogue(fixedMicrocodeSource(TREE));
-    await settle();
-
-    let asked = 0;
-    loadMicrocodeCatalogue({
-      catalogue: async () => {
-        asked++;
-        return { entries: [], fetchedAt: Date.now() };
-      },
-      download: () => Promise.reject(new Error("not asked")),
-    });
-    await settle();
-
-    expect(asked).toBe(0);
-    expect(microcodeCatalogueStore.getSnapshot().entries).toHaveLength(1);
   });
 });

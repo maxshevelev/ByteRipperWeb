@@ -384,10 +384,12 @@
     {
       "swift": "Packages/MEFirmware",
       "web": [
-        "src/firmware/me"
+        "src/firmware/me",
+        "src/state/meDatabaseStore.ts",
+        "src/state/huffmanDictionaryStore.ts"
       ],
       "status": "in-progress",
-      "note": "The compute-bound half, the layout spine, the CSE extension chain and an analysis end to end, now with upstream's whole model bar the LZMA module check: the SKU (SKU.swift, pre-CSE $SKU), IUP descriptor facts and platform names, firmware end (FirmwareEnd.swift), FWUpdate support, OEM configuration, the pre-CSE $MME directory, production-ready bit and ME 7 blacklist, the independent firmware analysed in its own right, the MFS volume with its legacy configuration, home tree, reserved integrity tables and PCH-init tables, the MFS backup, EFS and FITC, the File System State, GSC INFO, OROM images, the pm/rbe metadata table, .met module chains, and the Huffman module check. Huffman.dat is fetched (D10, like MEA.dat) only for an analysis that says it wants it — the web's form of upstream fetching it mid-analysis. Module offsets in CodePartition are absolute, where upstream's count from the $CPD. The LZMA module check (LZMAModule.swift) runs over the shared LZMA decoder in src/firmware/compression. Not yet: FileTable.dat naming, which upstream has not ported either.",
+      "note": "The compute-bound half, the layout spine, the CSE extension chain and an analysis end to end, now with upstream's whole model bar the LZMA module check: the SKU (SKU.swift, pre-CSE $SKU), IUP descriptor facts and platform names, firmware end (FirmwareEnd.swift), FWUpdate support, OEM configuration, the pre-CSE $MME directory, production-ready bit and ME 7 blacklist, the independent firmware analysed in its own right, the MFS volume with its legacy configuration, home tree, reserved integrity tables and PCH-init tables, the MFS backup, EFS and FITC, the File System State, GSC INFO, OROM images, the pm/rbe metadata table, .met module chains, and the Huffman module check. Huffman.dat is fetched (D10, like MEA.dat) only for an analysis that says it wants it — the web's form of upstream fetching it mid-analysis. Both are held in a `Freshened` value and re-checked once a day: the check is the browser revalidating the copy it holds with the validator it stored, because this host lets no script read the `ETag` (`cache: \"no-cache\"`, and `cachedSource.ts` carries the measurement). A copy a day old answers at once with the check running behind it, a database that has changed is announced so the panel identifies again, and a check that could not be made keeps what is held (G16). Module offsets in CodePartition are absolute, where upstream's count from the $CPD. The LZMA module check (LZMAModule.swift) runs over the shared LZMA decoder in src/firmware/compression. Not yet: FileTable.dat naming, which upstream has not ported either.",
       "files": {
         "Layout/FirmwareEnd.swift": "src/firmware/me/layout/firmwareEnd.ts",
         "Identify/SKU.swift": "src/firmware/me/identify/sku.ts",
@@ -520,8 +522,8 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#FirmwareAnalysisModelTests*": "n/a — the web model is plain objects handed from the worker, never encoded to JSON, and has no revision number",
         "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareTypeClassifierTests.swift#*": "later — firmwareTypeClassifier.ts has no tests of its own yet",
         "Packages/MEFirmware/Tests/MEFirmwareTests/SelectionTests.swift#*": "later — manifestSelection.ts has no tests of its own yet",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift#*": "later — the database stores have no tests of their own yet; revalidation is the Cache API's",
         "Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.r1HeaderSize": "n/a — a constant upstream declares and neither side reads: an R1 header's length comes from the header itself",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift#*": "later — the database stores have no tests of their own yet: the revalidation rules they follow are `Freshened`'s, which carries all fifteen of its upstream cases in src/platform/net/freshened.test.ts, and the request under them is covered in src/platform/net/cachedSource.test.ts",
         "Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CodePartition.entryCount": "n/a — modules.length where it is needed",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Params.*": "n/a — the fields of the web fixture's options object",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Format": "n/a — TestManifest.format takes the model's ManifestFormat",
@@ -581,6 +583,8 @@
       "swift": "Modules/UEFITool",
       "web": [
         "src/state/firmwareStore.ts",
+        "src/state/guidCatalogue.ts",
+        "src/state/guidCatalogueSource.ts",
         "src/tools/toolDetail.ts",
         "src/tools/uefi",
         "src/ui/toolPanel",
@@ -588,7 +592,7 @@
         "src/tools/toolParkedState.ts"
       ],
       "status": "in-progress",
-      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; UEFITreeMarks.swift, uefiTreeMarks.ts). Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), so no row wears the rail (G1) and no node is placed inside a protected range, so none is tinted (G3) — the legend lists neither, and the two vendor hash tables are the only holders of checks, the Insyde arm being unported (G6). Column widths are fixed rather than draggable, and the rows the reader had open travel in the panel's parked session state rather than in the pane (G12). The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
+      "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is: fetched once a session, re-checked once a day against a validator this host will not let a script read — so the browser revalidates the copy it holds with the one it stored (`cache: \"no-cache\"`) — with the copy the last session left in the Cache API taken up before the first ask, so a bench with no network opens on yesterday's names and their date (G16). The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; UEFITreeMarks.swift, uefiTreeMarks.ts). Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), so no row wears the rail (G1) and no node is placed inside a protected range, so none is tinted (G3) — the legend lists neither, and the two vendor hash tables are the only holders of checks, the Insyde arm being unported (G6). Column widths are fixed rather than draggable, and the rows the reader had open travel in the panel's parked session state rather than in the pane (G12). The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back.",
       "files": {
         "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "UEFIToolModule.swift": "src/tools/uefi/uefiStructureTool.tsx",
@@ -622,10 +626,8 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedExport": "later — exporting a decompressed part, or opening it as its own document, is G4",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.fileSource": "later — exporting a decompressed part, or opening it as its own document, is G4",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumField*": "n/a — a checksum problem is a sentence on the row, not a field set",
-        "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#GuidsSourceError*": "later — a failed catalogue fetch is worded by remoteFailureMessage, not a typed error",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.init": "n/a — the source is a module constant",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.settle": "n/a — a test seam for the actor's refresh",
-        "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.markStale": "later — the catalogue cannot be marked stale by hand",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.makeSession": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.onDisplay": "n/a — the view is a React component: its render and effects are the session's lifecycle",
@@ -667,7 +669,7 @@
         "src/tools/toolParkedState.ts"
       ],
       "status": "ported",
-      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch over the Cache API. The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict, the problem mark and up to two role badges sit ahead of the type in that order (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch: a value held in `Freshened`, one conditional request when the day's check is due, and the Cache API as the seat of the last body rather than a lifetime (G16). The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict, the problem mark and up to two role badges sit ahead of the type in that order (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
       "files": {
         "FITToolViewController.swift": "src/tools/fit/fitTool.tsx",
         "FITAddMicrocodeViewController.swift": [
@@ -845,7 +847,8 @@
         "ByteRipperApp/Hex/HexView.swift#HexView.layout": "n/a — AppKit view plumbing",
         "ByteRipperApp/Hex/HexView.swift#HexView.viewDidMoveToSuperview": "n/a — AppKit view plumbing",
         "ByteRipperApp/Hex/HexView.swift#HexView.viewDidMoveToWindow": "n/a — AppKit view plumbing",
-        "ByteRipperApp/Hex/HexView.swift#HexView.indicator*": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
+        "ByteRipperApp/Hex/HexView.swift#HexView.outsetContour": "n/a — the plate it pushes outward is the hopping one, and this edition's find indicator does not hop: no lift, bounce or shadow (GAPS.md G9)",
+      "ByteRipperApp/Hex/HexView.swift#HexView.indicator*": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.IndicatorShadow*": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.bounceFindIndicator": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.isBouncingFindIndicatorForTests": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
@@ -4600,32 +4603,23 @@
     {
       "swift": "Packages/FreshData",
       "web": [
-        "src/platform/net/cachedSource.ts"
+        "src/platform/net/freshened.ts",
+        "src/platform/net/freshened.test.ts",
+        "src/platform/net/cachedSource.ts",
+        "src/platform/net/cachedSource.test.ts"
       ],
-      "status": "in-progress",
-      "note": "Freshened's daily ETag check becomes a Cache API body with a 24-hour lifetime and a stale fallback (remoteSource).",
-      "unported": {
-        "Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.init": "n/a — remoteSource(url) takes the one argument",
-        "Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.changes": "n/a — the stores that hold a body are what a panel subscribes to",
-        "Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.settle": "n/a — a test seam for the actor's refresh",
-        "Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.markStale": "later — a body cannot be marked stale by hand",
-        "Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.Status.checkedAt": "n/a — the Cache API keeps when a body was fetched, not when it was last checked",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testUnchangedWithNothingHeldIsRefused": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testAfterADayUnchangedKeepsTheValueAndRestartsTheClock": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testAReaderIsAnsweredWhileTheCheckIsStillOpen": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testANewDatabaseIsAnnounced": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testTheFirstFetchIsNotAnnounced": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testAFailedCheckIsNotRepeatedUntilTheRetryIntervalHasPassed": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testASuccessfulCheckClearsTheFailure": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testMarkStaleForcesACheckAndKeepsTheValueWhenItFails": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#FreshenedTests.testStatusReportsWhenTheBodyChangedNotWhenItWasChecked": "later — ETag revalidation and retry intervals are the Cache API's lifetime rule instead, and have no tests of their own",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#TestClock*": "n/a — the web tests fake the clock through the source they install",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#Checks*": "n/a — a test double recording the actor's revalidation requests",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift#Gate*": "n/a — a test double holding the actor's fetch open"
-      },
+      "status": "ported",
+      "note": "Freshened's rules, ported whole: a value, the validator the server sent with it, and both of its dates, held in one actor. Nothing held is a fetch, a value younger than the day is not asked for at all, an older one is answered at once with the check running behind it, and a check that could not be made keeps what is held and remembers the failure for five minutes. That is the ETag revalidation upstream does, and it replaces the Cache API's 24-hour lifetime — `remoteSource` is one conditional request where the origin lets a script read the validator and send one (`api.github.com`; `raw.githubusercontent.com` exposes no `ETag` and refuses `If-None-Match`, so there the browser revalidates its own copy for us (`cache: \"no-cache\"`: `max-age=0` and `If-None-Match` on the wire, a `304` back), and the copy the last session left in the Cache API is what a bench with no network opens on.",
+      "unported": {},
       "files": {
-        "Packages/FreshData/Sources/FreshData/Freshened.swift": "src/platform/net/cachedSource.ts",
-        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift": "src/platform/net/cachedSource.test.ts"
+        "Packages/FreshData/Sources/FreshData/Freshened.swift": [
+          "src/platform/net/freshened.ts",
+          "src/platform/net/cachedSource.ts"
+        ],
+        "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift": [
+          "src/platform/net/freshened.test.ts",
+          "src/platform/net/cachedSource.test.ts"
+        ]
       }
     }
   ]
