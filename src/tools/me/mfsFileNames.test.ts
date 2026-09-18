@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
-import type { MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type { MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import { analysisWith, mfsVolumeFixture } from "@/tools/me/meaTesting";
 import type { MEANode } from "@/tools/me/meaTree";
 import { presentMEA } from "@/tools/me/meaTree";
@@ -50,9 +50,12 @@ function volume(
     readonly platform?: number;
     readonly dictionary?: number;
     readonly indices?: readonly number[];
+    /** Files whose Integrity table the engine took off the end. */
+    readonly split?: ReadonlySet<number>;
   } = {}
 ): MFSVolume {
   const indices = options.indices ?? [6, 7, 63, 99];
+  const split = options.split ?? new Set<number>();
   return {
     ...mfsVolumeFixture(),
     ftblPlatform: options.platform ?? 4,
@@ -61,9 +64,27 @@ function volume(
     usedFileCount: indices.length,
     presentFileCount: indices.length,
     fileBytes: 0x100 * indices.length,
-    files: indices.map((index) => ({ index, size: 0x100 })),
+    files: indices.map((index) =>
+      split.has(index)
+        ? { index, size: 0x100, contentSize: 0x100 - 0x28, integrity: integrityFixture }
+        : { index, size: 0x100 }
+    ),
   };
 }
+
+/** The tail an FTBL volume's flagged files arrive with. */
+const integrityFixture: MFSIntegrityTable = {
+  size: 0x28,
+  hmacHex: "AABB",
+  flagsRaw: 2,
+  antiReplayProtection: true,
+  encryptionProtection: false,
+  antiReplayIndex: 3,
+  securityVersion: 0,
+  arRandom: 0x99,
+  arCounter: 7,
+  nonceHex: "CCDD",
+};
 
 const fieldValue = (node: MEANode | undefined, label: string): string | undefined =>
   node?.fields.find((one) => one.label === label)?.value;
@@ -226,6 +247,45 @@ describe("the rows", () => {
     // No index in the subtitle: the title is the index.
     expect(row?.subtitle).toBe("0x100 (256 bytes)");
     expect(fieldValue(row, "Path")).toBeUndefined();
+  });
+
+  /**
+   * A file whose Integrity table the engine took off the end reads as upstream
+   * prints it: `Size` is the content, the whole chain is beside it, and the
+   * table is a row of its own under the file.
+   *
+   * @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testASplitFileShowsItsContentSizeAndItsTable
+   */
+  it("shows a split file's content size and its table", () => {
+    const one = volume({ split: new Set([63]) });
+    const files = filesNode(rootsOf(one, mfsFileNames(table(), one)));
+    const row = files?.children.find((each) => each.title === "/home/mca/manuf_ver");
+
+    // 0x100 less the 0x28 tail.
+    expect(fieldValue(row, "Size")).toBe("0xD8 (216 bytes)");
+    expect(fieldValue(row, "Chain Size")).toBe("0x100 (256 bytes)");
+    expect(row?.subtitle).toBe("#63 · 0xD8 (216 bytes)");
+
+    const integrity = row?.children.find((each) => each.title === "Integrity");
+    expect(integrity?.subtitle).toBe("0x28 (40 bytes)");
+    // The table's own fields are on its row.
+    expect(integrity?.fields.length ?? 0).toBeGreaterThan(0);
+  });
+
+  /**
+   * A file with no table is not given a chain-size row it does not need: the
+   * two numbers are the same one.
+   *
+   * @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAFileWithNoTableShowsOneSize
+   */
+  it("shows one size for a file with no table", () => {
+    const one = volume();
+    const files = filesNode(rootsOf(one, mfsFileNames(table(), one)));
+    const row = files?.children.find((each) => each.title === "/home/mca/manuf_ver");
+
+    expect(fieldValue(row, "Size")).toBe("0x100 (256 bytes)");
+    expect(fieldValue(row, "Chain Size")).toBeUndefined();
+    expect(row?.children).toEqual([]);
   });
 
   // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheVolumeSaysWhichTableNamedItsFiles

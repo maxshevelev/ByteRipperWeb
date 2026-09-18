@@ -212,11 +212,12 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
 
   const databaseText = database.text;
   const huffmanText = huffman.text;
+  const fileTableText = fileTable.text;
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onRetry */
   const analyze = useCallback(() => {
     const job = ++request.current;
     setBusy(true);
-    void analyzePaneMe(pane, databaseText, huffmanText).then((found) => {
+    void analyzePaneMe(pane, databaseText, huffmanText, fileTableText).then((found) => {
       if (job !== request.current) return;
       setBusy(false);
       if (found === undefined) return;
@@ -228,7 +229,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           : { phase: "failed", problem: found.problem }
       );
     });
-  }, [pane, databaseText, huffmanText]);
+  }, [pane, databaseText, huffmanText, fileTableText]);
 
   // Read again when the image changes and when a database lands: MEA.dat turns a
   // structure into an identity, Huffman.dat lets the modules be checked, and

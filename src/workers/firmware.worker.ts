@@ -4,6 +4,7 @@ import { assembleWord, type ByteSource, sourceOver } from "@/firmware/byteSource
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
+import { FileTable } from "@/firmware/me/data/fileTable";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
   type HuffmanDictionaries,
@@ -395,6 +396,26 @@ function parsedDictionaries(text: string): HuffmanDictionaries | undefined {
   }
 }
 
+/**
+ * `FileTable.dat` as a table, kept against the text it was parsed from: the
+ * file is ~5 MB and an image is analysed again on every edit, so parsing it
+ * once per download rather than once per analysis is the difference between a
+ * pause nobody notices and one everybody does. One that does not parse is no
+ * table: the files keep their whole chains as their sizes.
+ */
+let fileTableText: string | undefined;
+let fileTableParsed: FileTable | undefined;
+function parsedFileTable(text: string): FileTable | undefined {
+  if (text === fileTableText) return fileTableParsed;
+  fileTableText = text;
+  try {
+    fileTableParsed = FileTable.parse(text);
+  } catch {
+    fileTableParsed = undefined;
+  }
+  return fileTableParsed;
+}
+
 scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
   const request = event.data;
   try {
@@ -709,6 +730,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         }
         const dictionaries =
           request.huffmanText === undefined ? undefined : parsedDictionaries(request.huffmanText);
+        const table =
+          request.fileTableText === undefined ? undefined : parsedFileTable(request.fileTableText);
         post({
           kind: "meAnalyze",
           id: request.id,
@@ -720,6 +743,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               ? {}
               : { database: MEADatabase.parse(request.databaseText) }),
             ...(dictionaries === undefined ? {} : { huffmanDictionaries: dictionaries }),
+            ...(table === undefined ? {} : { fileTable: table }),
           }),
           problem: undefined,
         });

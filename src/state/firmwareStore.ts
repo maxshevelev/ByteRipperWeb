@@ -461,14 +461,15 @@ export async function editPaneFit(
 export function analyzePaneMe(
   pane: PaneId,
   databaseText: string | undefined,
-  huffmanText: string | undefined
+  huffmanText: string | undefined,
+  fileTableText: string | undefined
 ): Promise<MeAnalyzeResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
   const job = workers[pane]?.job ?? 0;
   return new Promise((resolve) => {
     meWaiters.set(pane, resolve);
-    send(pane, { kind: "meAnalyze", id: job, databaseText, huffmanText });
+    send(pane, { kind: "meAnalyze", id: job, databaseText, huffmanText, fileTableText });
   });
 }
 

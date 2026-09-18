@@ -17,8 +17,29 @@
 export interface MFSFile {
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.index */
   readonly index: number;
-  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.size */
+  /**
+   * The whole assembled FAT chain, Integrity table and all.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.size
+   */
   readonly size: number;
+  /**
+   * The file's own bytes, where a trailing `MFS_Integrity_Table` was taken off
+   * the end — what upstream prints as the file's Size. Nothing where nothing
+   * was split: a file that carries no such table, and every file of a legacy
+   * volume, whose Integrity tables are reported per reserved file and per
+   * home-directory row instead (`reservedIntegrity`, `homeDirectory`).
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.contentSize
+   */
+  readonly contentSize?: number | undefined;
+  /**
+   * The table that came off the end, when one did (`MFSIntegrityTable.size`
+   * says which of 0x28 / 0x34 / 0x38 it turned out to be).
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.integrity
+   */
+  readonly integrity?: MFSIntegrityTable | undefined;
 }
 
 /**

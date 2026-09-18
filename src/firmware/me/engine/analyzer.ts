@@ -1,6 +1,7 @@
 import { crc32 } from "@/firmware/me/crypto/checksum";
 import { hex, sha256, sha384 } from "@/firmware/me/crypto/digest";
 import { validateSignature } from "@/firmware/me/crypto/rsa";
+import type { FileTable } from "@/firmware/me/data/fileTable";
 import { MEADatabase } from "@/firmware/me/data/meaDatabase";
 import {
   decompressHuffman,
@@ -26,6 +27,7 @@ import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelectio
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
 import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 import {
+  ftblFileIntegrity,
   homeDirectory,
   type MFSVolumeInfo,
   mfsState,
@@ -125,13 +127,21 @@ export function analyzeMeRegion(options: {
    * are skipped rather than failed — see `huffmanDictionariesWanted`.
    */
   readonly huffmanDictionaries?: HuffmanDictionaries;
+  /**
+   * `FileTable.dat`, for the one decode that needs a database to read bytes: an
+   * FTBL volume's files end with an Integrity table, and which of them do is in
+   * the table rather than in the bytes. Absent, every file keeps its whole
+   * chain as its size, which is what the flash says.
+   */
+  readonly fileTable?: FileTable;
 }): FirmwareAnalysis {
   return analyze(
     options.bytes,
     options.baseOffset ?? 0,
     options.database ?? MEADatabase.empty,
     options.huffmanDictionaries,
-    true
+    true,
+    options.fileTable
   );
 }
 
@@ -145,7 +155,8 @@ function analyze(
   baseOffset: number,
   database: MEADatabase,
   dictionaries: HuffmanDictionaries | undefined,
-  findsIndependentFirmware: boolean
+  findsIndependentFirmware: boolean,
+  fileTable?: FileTable
 ): FirmwareAnalysis {
   const issues: Issue[] = [];
 
@@ -680,6 +691,56 @@ function analyze(
         year: manifest.year,
         month: manifest.month,
         day: manifest.day,
+      }),
+    };
+  }
+
+  // The one decode that waits for a database: an FTBL-mode volume's files end
+  // with an `MFS_Integrity_Table`, and *which* of them do is not in the bytes —
+  // the file table says so (upstream's `mfs_home13_anl` reads the flag out of
+  // FTBL before it splits the file). So the flags come from the table, the
+  // split is byte work, and what lands in the model is the tail's own numbers
+  // plus the content length without it.
+  //
+  // Best-effort in every direction: no table (offline, rate-limited, a volume
+  // the table does not describe) leaves every `contentSize` absent and `size`
+  // the whole chain, which is what the flash says. No issue is raised — a
+  // missing database is not a finding about the firmware.
+  // @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.analyze
+  if (
+    mfsVolume?.usesFTBL === true &&
+    mfsInfo !== undefined &&
+    mfsInfo.files.length > 0 &&
+    fileTable !== undefined &&
+    !fileTable.isEmpty
+  ) {
+    const resolution = fileTable.resolve(mfsInfo.ftblPlatform, mfsInfo.ftblDictionary);
+    const protectedIndices = new Set(
+      mfsInfo.files
+        .map((one) => one.index)
+        .filter(
+          (index) =>
+            fileTable.recordNamingFileIndex(index, resolution.platform, resolution.dictionary)
+              ?.integrity === true
+        )
+    );
+    const splits = new Map(
+      ftblFileIntegrity({
+        files: mfsInfo.files,
+        protectedIndices,
+        variant: identity.variant,
+        major: identity.major,
+        minor: identity.minor,
+        platform: mfsInfo.ftblPlatform,
+      }).map((split) => [split.fileIndex, split])
+    );
+    mfsVolume = {
+      ...mfsVolume,
+      files: mfsVolume.files.map((file) => {
+        const split = splits.get(file.index);
+        return split === undefined
+          ? file
+          : { ...file, contentSize: split.contentSize, integrity: split.integrity };
       }),
     };
   }

@@ -357,6 +357,13 @@ export interface MeAnalyzeRequest {
    * panel fetches it only for an analysis that says it wants one.
    */
   readonly huffmanText: string | undefined;
+  /**
+   * `FileTable.dat`, likewise as text, for the one decode that needs a database
+   * to read bytes: which of an FTBL volume's files end with an Integrity table
+   * is in the table, not in the flash. The panel fetches it only for a volume
+   * that asks, and the worker keeps its parse — it is ~5 MB.
+   */
+  readonly fileTableText: string | undefined;
 }
 
 /** The ME region's digests — three passes over it, so only when somebody asks. */

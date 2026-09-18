@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { crc16_14 } from "@/firmware/me/crypto/checksum";
 import {
   decodeConfigRecords,
+  ftblFileIntegrity,
   homeDirectory,
   homeRecordSize,
   integrityTable,
@@ -724,5 +725,168 @@ describe("the File System State", () => {
   it("reads no index on a file-table volume", () => {
     expect(state([8], true)).toBe("unconfigured");
     expect(state([7, 9], true)).toBe("unconfigured");
+  });
+});
+
+// MARK: - FTBL-volume file Integrity (upstream `mfs_home13_anl` 8367–8404)
+
+/**
+ * An `MFS_Integrity_Table` of either layout, written where the decode reads it.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.integrityTable
+ */
+function integrityTableBytes(options: {
+  readonly size: number;
+  readonly flags: number;
+  readonly hmac: Uint8Array;
+  readonly nonce: Uint8Array;
+  readonly arRandom?: number;
+  readonly arCounter?: number;
+}): Uint8Array {
+  const out = new Uint8Array(options.size);
+  const view = new DataView(out.buffer);
+  out.set(options.hmac.subarray(0, options.size), 0);
+  const random = options.arRandom ?? 0;
+  const counter = options.arCounter ?? 0;
+  if (options.size === 0x28) {
+    view.setUint32(0x10, options.flags, true);
+    out.set(options.nonce, 0x1c);
+    view.setUint32(0x14, random, true);
+    view.setUint32(0x18, counter, true);
+  } else {
+    view.setUint32(0x20, options.flags, true);
+    out.set(options.nonce, 0x24);
+    view.setUint32(0x24, random, true);
+    view.setUint32(0x28, counter, true);
+  }
+  return out;
+}
+
+describe("the FTBL volume's file Integrity split", () => {
+  /**
+   * An FTBL volume's files are split only where the file table says they carry
+   * a table — there is nothing in the bytes to tell, and splitting a file that
+   * carries none would take 40 bytes of its content away.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheFTBLSplitFollowsTheTablesFlag
+   */
+  it("follows the table's flag", () => {
+    const table = integrityTableBytes({
+      size: 0x28,
+      flags: 0x2,
+      hmac: filled(0xaa, 16),
+      nonce: filled(0xbb, 12),
+      arRandom: 0x1234,
+      arCounter: 7,
+    });
+    const files: MFSLowLevelFile[] = [
+      { index: 5, content: concat(filled(0x55, 0x100), table) },
+      { index: 6, content: filled(0x66, 0x100) },
+    ];
+
+    const splits = ftblFileIntegrity({
+      files,
+      protectedIndices: new Set([5]),
+      variant: "CSME",
+      major: 15,
+      minor: 0,
+      platform: 4,
+    });
+
+    // File 6 is not flagged, so it is not split.
+    expect(splits.map((one) => one.fileIndex)).toEqual([5]);
+    expect(splits[0]?.contentSize).toBe(0x100);
+    expect(splits[0]?.tableSize).toBe(0x28);
+    expect(splits[0]?.integrity.size).toBe(0x28);
+    expect(splits[0]?.integrity.arCounter).toBe(7);
+    expect(splits[0]?.integrity.antiReplayProtection).toBe(true);
+  });
+
+  /**
+   * Upstream's own workaround, ported as written: some files carry an extra
+   * 0x10 after the 0x28 table, with nothing anywhere saying which — so a table
+   * whose Anti-Replay counter reads absurdly large (> 0xFFFF) is re-read 0x10
+   * further back, and the file ends 0x38 from its content. On `CSME 15.bin`
+   * this is the difference between 233 files and 132.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAnAbsurdCounterMeansTheTableSitsTenBytesEarlier
+   */
+  it("re-reads a table that sits 0x10 earlier than it looked", () => {
+    const real = integrityTableBytes({
+      size: 0x28,
+      flags: 0x2,
+      hmac: filled(0xcc, 16),
+      nonce: filled(0xdd, 12),
+      arRandom: 0x99,
+      arCounter: 3,
+    });
+    // The file ends with the table *and* 0x10 of unknown bytes, so a plain 0x28
+    // read off the end lands in the middle of both and comes out with a counter
+    // no Anti-Replay index would ever hold.
+    const files: MFSLowLevelFile[] = [
+      { index: 9, content: concat(filled(0x77, 0x80), real, filled(0xee, 0x10)) },
+    ];
+
+    const split = ftblFileIntegrity({
+      files,
+      protectedIndices: new Set([9]),
+      variant: "CSME",
+      major: 15,
+      minor: 0,
+      platform: 4,
+    })[0];
+
+    // 0x28 of table plus the 0x10 behind it, and the content is whole.
+    expect(split?.tableSize).toBe(0x38);
+    expect(split?.contentSize).toBe(0x80);
+    // Read where the table really is.
+    expect(split?.integrity.arCounter).toBe(3);
+    expect(split?.integrity.hmacHex.slice(0, 4).toUpperCase()).toBe("CCCC");
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testThe0x34LayoutIsSplitAtItsOwnSize
+  it("splits a 0x34 table at its own size", () => {
+    const table = integrityTableBytes({
+      size: 0x34,
+      flags: 0x2,
+      hmac: filled(0x11, 32),
+      nonce: filled(0x22, 16),
+      arRandom: 0xff_ffff,
+      arCounter: 0xff_ffff,
+    });
+    const files: MFSLowLevelFile[] = [{ index: 3, content: concat(filled(0x33, 0x40), table) }];
+
+    const split = ftblFileIntegrity({
+      files,
+      protectedIndices: new Set([3]),
+      variant: "CSME",
+      major: 14,
+      minor: 5,
+      platform: 4,
+    })[0];
+
+    expect(split?.tableSize).toBe(0x34);
+    expect(split?.contentSize).toBe(0x40);
+  });
+
+  /**
+   * A file too short to hold the table it is flagged for is left alone: a
+   * negative content length is not a fact about a file.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAFileTooShortForItsTableIsNotSplit
+   */
+  it("leaves a file too short for its table alone", () => {
+    const files: MFSLowLevelFile[] = [{ index: 2, content: filled(0x22, 0x10) }];
+
+    expect(
+      ftblFileIntegrity({
+        files,
+        protectedIndices: new Set([2]),
+        variant: "CSME",
+        major: 15,
+        minor: 0,
+        platform: 4,
+      })
+    ).toEqual([]);
   });
 });

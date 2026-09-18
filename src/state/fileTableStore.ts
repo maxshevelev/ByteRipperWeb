@@ -24,6 +24,13 @@ import { createStore } from "@/state/store";
 
 export interface FileTableState {
   readonly status: "idle" | "loading" | "ready" | "failed";
+  /**
+   * The file's text, which the worker parses for itself: the split that needs
+   * the table happens where the volume's bytes are, and a parsed table cannot
+   * cross to a worker.
+   */
+  readonly text: string | undefined;
+  /** The same file, parsed once here, because the names are put on in the panel. */
   readonly table: FileTable | undefined;
   readonly fetchedAt: number | undefined;
   readonly failure: RemoteFailure | undefined;
@@ -31,6 +38,7 @@ export interface FileTableState {
 
 export const fileTableStore = createStore<FileTableState>({
   status: "idle",
+  text: undefined,
   table: undefined,
   fetchedAt: undefined,
   failure: undefined,
@@ -90,6 +98,7 @@ export function loadFileTable(source: FileTableSource = liveFileTableSource): vo
       fileTableStore.update((current) => ({
         ...current,
         status: "ready",
+        text,
         table,
         fetchedAt,
         failure: undefined,

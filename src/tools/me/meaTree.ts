@@ -655,7 +655,13 @@ function mfsVolume(a: FirmwareAnalysis, names: MFSFileNames): Draft | undefined 
  */
 function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
   const record = recordForFile(names, file.index);
-  const fields = new Fields().add("Index", file.index).add("Size", sizeText(file.size));
+  // The file's own bytes where the Integrity table has been taken off the end,
+  // which is the size upstream prints — with the whole chain beside it, because
+  // that is what the volume spent on the file.
+  const fields = new Fields()
+    .add("Index", file.index)
+    .add("Size", sizeText(file.contentSize ?? file.size));
+  if (file.contentSize !== undefined) fields.add("Chain Size", sizeText(file.size));
   if (record !== undefined) {
     fields
       .add("Path", record.path)
@@ -666,16 +672,30 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
       .add("Group ID", hex(record.groupId))
       .add("User ID", hex(record.userId));
   }
+  // The table that came off the end, as its own row under the file: it is a
+  // structure with a dozen fields of its own, and the file's own facts would be
+  // lost among them.
+  const children: Draft[] =
+    file.integrity === undefined
+      ? []
+      : [
+          {
+            title: "Integrity",
+            subtitle: sizeText(file.integrity.size),
+            fields: valueFields(file.integrity),
+          },
+        ];
+  const size = sizeText(file.contentSize ?? file.size);
   return {
     title: record?.path ?? `File ${file.index}`,
     // A named row's subtitle keeps the number the flash actually carries: the
     // index is what the volume says about the file, and a reader comparing the
     // panel with a dump — or with upstream's own `path (0063)` — needs it.
     // @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.mfsFileSubtitle
-    subtitle:
-      record === undefined ? sizeText(file.size) : `#${file.index} · ${sizeText(file.size)}`,
+    subtitle: record === undefined ? size : `#${file.index} · ${size}`,
     // A present file's position is the FAT chain walk, which is not exposed.
     fields: fields.rows,
+    children,
     isEmptySection: file.size === 0,
   };
 }
