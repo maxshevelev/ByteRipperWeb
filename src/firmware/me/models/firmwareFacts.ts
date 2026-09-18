@@ -186,3 +186,55 @@ export interface FPTRegionRow {
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion.flags */
   readonly flags: number;
 }
+
+/**
+ * `UTFL_Header`'s fixed length — what `offset` points at is this many bytes,
+ * and a reader showing the structure needs to say so.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags.size
+ */
+export const UNLOCK_TOKEN_FLAGS_SIZE = 0x20;
+
+/**
+ * The flags a debug unlock token ends with — upstream `UTFL_Header` (MEA.py
+ * 2038).
+ *
+ * An FPT partition named `UTOK` or `STKN` carries a signed unlock token, and
+ * may end with a 0x20-byte structure tagged `UTFL`. One per such partition that
+ * has one; a token without the structure is listed nowhere, which is upstream's
+ * reading too — it calls the structure optional and says nothing when the tag
+ * is absent.
+ *
+ * `delayedAuthMode` is kept as the raw byte it is. Upstream words 0 and 1 as No
+ * and Yes and anything else as "Unknown (n)", which is the panel's job: the
+ * model says what the byte held. `reservedHex` is the 27 trailing bytes in
+ * storage order (upstream prints the same bytes as one little-endian value).
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags
+ */
+export interface UnlockTokenFlags {
+  /**
+   * The partition the structure ends — `UTOK` or `STKN`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags.partition
+   */
+  readonly partition: string;
+  /**
+   * Where the 0x20 bytes begin in the image.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags.offset
+   */
+  readonly offset: number;
+  /**
+   * The Delayed Authentication Mode byte, raw.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags.delayedAuthMode
+   */
+  readonly delayedAuthMode: number;
+  /**
+   * The 27 reserved bytes, in storage order.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags.reservedHex
+   */
+  readonly reservedHex: string;
+}

@@ -135,6 +135,14 @@
     {
       "prefix": "CONTRIBUTING.md",
       "why": "The upstream repository's own guide for its contributors, not code."
+    },
+    {
+      "prefix": "Skills/sync-mea-engine",
+      "why": "The upstream repository's own skill for syncing its ME engine with ME Analyzer; this repository ports the engine from ByteRipper, not from MEA.py."
+    },
+    {
+      "prefix": "Design/TODO.md",
+      "why": "Upstream's own backlog. What the web edition owes is Design/GAPS.md."
     }
   ],
   "modules": [
@@ -493,7 +501,9 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift": "src/firmware/me/engine/moduleIssue.test.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/IndependentCopiesTests.swift": "src/firmware/me/engine/independentCopies.test.ts",
         "Data/FileTable.swift": "src/firmware/me/data/fileTable.ts",
-        "Tests/MEFirmwareTests/FileTableTests.swift": "src/firmware/me/data/fileTable.test.ts"
+        "Tests/MEFirmwareTests/FileTableTests.swift": "src/firmware/me/data/fileTable.test.ts",
+        "Partition/UnlockToken.swift": "src/firmware/me/partition/unlockToken.ts",
+        "Tests/MEFirmwareTests/UnlockTokenTests.swift": "src/firmware/me/partition/unlockToken.test.ts"
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",

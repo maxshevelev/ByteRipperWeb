@@ -14,6 +14,7 @@ import type {
   MEVersion,
   MFSState,
   ReleaseType,
+  UnlockTokenFlags,
 } from "@/firmware/me/models/firmwareFacts";
 import type { GSCInfo, GSCOROMImage, RBEPMMetadata } from "@/firmware/me/models/independentFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
@@ -535,6 +536,14 @@ export interface FirmwareAnalysis {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.rbePmMetadata
    */
   readonly rbePmMetadata: readonly RBEPMMetadata[] | undefined;
+  /**
+   * The `UTFL` flags at the end of each unlock-token partition (`UTOK`,
+   * `STKN`) that carries them. Nothing where no partition does — the structure
+   * is optional in the format.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.unlockTokenFlags
+   */
+  readonly unlockTokenFlags?: readonly UnlockTokenFlags[] | undefined;
   /**
    * The hashes the `pm` / `rbe` module metadata tables list that no module of
    * the image hashes to (upstream's leftover report, MEA.py 5814) — most often

@@ -414,3 +414,90 @@ describe("the RBE/PM metadata table", () => {
     expect(find("Unmatched Hashes", accounted?.children)).toBeUndefined();
   });
 });
+
+describe("the unlock token", () => {
+  const token = (
+    partition: string,
+    offset: number,
+    delayedAuthMode: number,
+    reservedHex = "FF".repeat(0x1b)
+  ) => ({ partition, offset, delayedAuthMode, reservedHex });
+
+  /**
+   * The flags an unlock token ends with are four facts on one node — no folder
+   * to open — and the node stands for the 0x20 bytes it describes.
+   *
+   * @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTheUnlockTokenNodeCarriesItsFactsAndItsBytes
+   */
+  it("carries its facts and its bytes", () => {
+    const roots = presentMEA(
+      analysisWith({ unlockTokenFlags: [token("UTOK", 0x46_1fe0, 0)] }),
+      undefined
+    );
+    const node = find("Unlock Token", roots);
+
+    expect(node?.subtitle).toBe("0x461FE0");
+    expect(node?.range).toEqual({ start: 0x46_1fe0, end: 0x46_2000 });
+    expect(node?.fields).toEqual([
+      { label: "Partition", value: "UTOK" },
+      { label: "Offset", value: "0x461FE0" },
+      { label: "Delayed Authentication Mode", value: "No" },
+      { label: "Reserved", value: `0x${"FF".repeat(0x1b)}` },
+    ]);
+    expect(node?.children).toEqual([]);
+  });
+
+  /**
+   * The mode byte is worded as upstream words it, and a value nobody has seen
+   * says so rather than reading as Yes.
+   *
+   * @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTheDelayedAuthenticationModeIsWordedNotRounded
+   */
+  it("words the delayed authentication mode rather than rounding it", () => {
+    const mode = (raw: number) =>
+      find(
+        "Unlock Token",
+        presentMEA(
+          analysisWith({ unlockTokenFlags: [token("UTOK", 0x1000, raw, "00")] }),
+          undefined
+        )
+      )?.fields.find((one) => one.label === "Delayed Authentication Mode")?.value;
+
+    expect(mode(0)).toBe("No");
+    expect(mode(1)).toBe("Yes");
+    expect(mode(3)).toBe("Unknown (3)");
+  });
+
+  /**
+   * Two tokens in one image are two nodes, each named by its partition — a bare
+   * "Unlock Token" twice would say nothing about which is which.
+   *
+   * @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testTwoTokensAreNamedByTheirPartitions
+   */
+  it("names two tokens by their partitions", () => {
+    const roots = presentMEA(
+      analysisWith({
+        unlockTokenFlags: [token("UTOK", 0x1000, 0, "00"), token("STKN", 0x9000, 1, "00")],
+      }),
+      undefined
+    );
+
+    expect(find("Unlock Token", roots)).toBeUndefined();
+    expect(find("Unlock Token (UTOK)", roots)).toBeDefined();
+    expect(
+      find("Unlock Token (STKN)", roots)?.fields.find(
+        (one) => one.label === "Delayed Authentication Mode"
+      )?.value
+    ).toBe("Yes");
+  });
+
+  /**
+   * The structure is optional in the format, so an image without one has no
+   * node saying so — the tree lists what a dump carries.
+   *
+   * @upstream Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift#MEACuratorTests.testAnImageWithoutTheFlagsHasNoNode
+   */
+  it("is absent from an image that carries none", () => {
+    expect(find("Unlock Token", presentMEA(analysisWith({}), undefined))).toBeUndefined();
+  });
+});
