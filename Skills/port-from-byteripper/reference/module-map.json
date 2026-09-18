@@ -131,6 +131,10 @@
     {
       "prefix": "CLAUDE.md",
       "why": "The upstream repository's own instructions to its contributors, not code."
+    },
+    {
+      "prefix": "CONTRIBUTING.md",
+      "why": "The upstream repository's own guide for its contributors, not code."
     }
   ],
   "modules": [
@@ -4626,6 +4630,48 @@
       "files": {
         "Packages/FreshData/Sources/FreshData/Freshened.swift": "src/platform/net/cachedSource.ts",
         "Packages/FreshData/Tests/FreshDataTests/FreshenedTests.swift": "src/platform/net/cachedSource.test.ts"
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Fragments",
+      "web": [
+        "src/state/fragmentDock.ts",
+        "src/ui/fragments"
+      ],
+      "status": "planned",
+      "note": "A part of a file — a zone, a decompressed body, a node of the UEFI tree — opened over the file it came out of rather than beside it (upstream's Design/FRAGMENT_PANELS_PLAN.md). The dock is a pure model and ports verbatim; the panel is React composition rather than a view controller. What the web does not take: tearing a panel off into a tab, there being no tab (D11), and the flight, the pull-down gesture and the draggable pill, which the owner left out (2026-09-19). G47 and G48 in Design/GAPS.md.",
+      "unported": {
+        "ByteRipperApp/Fragments/FragmentDock.swift#*": "later — G47: the dock model, the piece the web takes verbatim",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.beginPullDown": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.pullPanel": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.endPull": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.springBackDuration": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.slideDuration": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.slowMotion": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.release": "n/a — a panel torn off into a tab of its own: one workspace per browser tab (D11) leaves it nowhere to go",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.adopt": "n/a — a panel torn off into a tab of its own: one workspace per browser tab (D11) leaves it nowhere to go",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#*": "later — G47: which parts this workspace has taken out, and the panel over the parent",
+        "ByteRipperApp/Fragments/FragmentPanelView.swift#*": "later — G47: the panel's own geometry and chrome, as React composition",
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#*": "later — G47: the strip of pills along the bottom edge",
+        "ByteRipperApp/Fragments/PullDownHandleView.swift#*": "n/a — the handle a panel is pulled down by: the owner left the panel's gestures out (2026-09-19)"
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Window/DocumentSurface",
+      "web": [
+        "src/state/workspaceStore.ts",
+        "src/ui/shell/AppShell.tsx"
+      ],
+      "status": "planned",
+      "note": "The composite a document is shown in — the split, the minimap and its feed, the tool session, the pane — lifted out of the window so a fragment panel can have one of its own. The composite is React here already; what is not is the identity, since PaneId is the two file slots and every store is keyed by it. G46 in Design/GAPS.md.",
+      "unported": {
+        "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.panelSplit": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.contentHost": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.loadView": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.setContent": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.*DividerIndex": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.*PaneIndex": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/DocumentSurface.swift#*": "later — G46: a document that is not a file slot, and stores keyed by which surface it belongs to"
       }
     }
   ]
