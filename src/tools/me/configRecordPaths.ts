@@ -42,7 +42,11 @@ export class ConfigRecordPaths {
     this.resolution = resolution;
   }
 
-  /** Nothing looked up. */
+  /**
+   * Nothing looked up.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.none
+   */
   static readonly none = new ConfigRecordPaths(new Map(), undefined);
 
   /**

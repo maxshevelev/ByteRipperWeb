@@ -262,7 +262,11 @@ function efsDataPageBases(buffer: Uint8Array): number[] {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.pageFooterSize
  */
 const FOOTER_SIZE = 0x08;
-/** `EFS_File_Metadata`: two 16-bit words in front of every file's content. */
+/**
+ * `EFS_File_Metadata`: two 16-bit words in front of every file's content.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.metadataSize
+ */
 const METADATA_SIZE = 0x04;
 
 /**

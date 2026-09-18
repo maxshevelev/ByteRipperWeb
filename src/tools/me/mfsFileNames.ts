@@ -50,7 +50,11 @@ export class MFSFileNames {
     this.resolution = resolution;
   }
 
-  /** Nothing looked up. */
+  /**
+   * Nothing looked up.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.none
+   */
   static readonly none = new MFSFileNames(new Map(), undefined);
 
   /**

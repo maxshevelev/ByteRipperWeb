@@ -371,15 +371,35 @@ export function parseMfs(
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord
  */
 export interface MFSRawConfigIDRecord {
-  /** FTBL table key (0x10002000, 0x12090300, …) — the record's File ID. */
+  /**
+   * FTBL table key (0x10002000, 0x12090300, …) — the record's File ID.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.fileID
+   */
   readonly fileID: number;
-  /** FileOffset into the owning stream. */
+  /**
+   * FileOffset into the owning stream.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.offset
+   */
   readonly offset: number;
-  /** FileSize. */
+  /**
+   * FileSize.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.size
+   */
   readonly size: number;
-  /** Flags bit0 — fitc.cfg may override intl.cfg. */
+  /**
+   * Flags bit0 — fitc.cfg may override intl.cfg.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.oemConfigurable
+   */
   readonly oemConfigurable: boolean;
-  /** Flags bits 1–15. */
+  /**
+   * Flags bits 1–15.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.unknownFlags
+   */
   readonly unknownFlags: number;
 }
 

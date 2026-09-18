@@ -551,7 +551,9 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec.*": "n/a — the fields of the web Spec",
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Row*": "n/a — the fields of the web fixture's options object",
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.put*": "n/a — the web fixtures write little-endian fields through their own small helpers",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads"
+        "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.Entry.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.EFSEntry.init": "n/a — an object literal; there is nothing to construct"
       }
     },
     {
@@ -668,7 +670,12 @@
         "Modules/UEFITool/Tests/UEFIToolTests/TestUEFI.swift#*": "n/a — the web UEFI tool tests build their images with src/firmware/testing",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.fields": "n/a — a checksum problem is a sentence on the row, not a field set (UEFIChecksumField* above)",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.badFields": "n/a — as above: the panel reads the problem off the row",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.checksumProblems": "n/a — the problems reach the panel as the rows' own sentences (src/tools/uefi/uefiStructureTool.tsx), not as a list the session keeps"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.checksumProblems": "n/a — the problems reach the panel as the rows' own sentences (src/tools/uefi/uefiStructureTool.tsx), not as a list the session keeps",
+        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen*": "later — G51: opening any node of the tree, or its body, as a panel",
+        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpen": "later — G51: opening any node of the tree, or its body, as a panel",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeInPanel": "later — G51: opening any node of the tree, or its body, as a panel",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenNode": "later — G51: opening any node of the tree, or its body, as a panel",
+        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpenTitle": "later — G51: opening any node of the tree, or its body, as a panel"
       }
     },
     {
@@ -1299,7 +1306,10 @@
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.intrinsicContentSize": "n/a — AppKit measurement; the box is sized by its text and its padding",
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.draw": "n/a — AppKit drawing; CSS draws the box",
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.drawCentredText": "n/a — AppKit drawing; the word is centred in its box by the line box",
-        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.resetCursorRects": "n/a — AppKit cursor rects; `cursor: pointer` in the stylesheet"
+        "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.resetCursorRects": "n/a — AppKit cursor rects; `cursor: pointer` in the stylesheet",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
+        "ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDownwardDragThresholdPassed": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkSymbolName": "later — the three states of a part's link to its parent (G4 in Design/GAPS.md)"
       }
     },
     {
@@ -1404,7 +1414,10 @@
         "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
         "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.noFile": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
         "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.outsideTheFile": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
-        "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.readOnly": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to"
+        "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.readOnly": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
+        "ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openFilePart": "later — G49: the seam that opens a node of the file as a panel",
+        "ByteRipperApp/Tools/ToolController.swift#ToolController.surface": "later — G47: a tool session belongs to a surface once there is more than one",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)"
       }
     },
     {
@@ -1754,7 +1767,8 @@
         "ByteRipperApp/App/MainWindowController.swift#MainWindowController.showWindow": "n/a — NSWindowController and NSToolbar items; the port's toolbar is its own markup",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.increaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.decreaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
-        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.validateMenuItem": "n/a — it only dims Zoom In and Zoom Out, and the browser's page zoom is the zoom (ANALYSIS.md)"
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.validateMenuItem": "n/a — it only dims Zoom In and Zoom Out, and the browser's page zoom is the zoom (ANALYSIS.md)",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)"
       }
     },
     {
@@ -4011,7 +4025,10 @@
         "ByteRipperTests/TransientNoticeViewTests.swift#TransientNoticeViewTests.testTheNoticeAndTheLandingScreenAreDifferentColours": "later — an app flow test: the two greys are CSS custom properties in src/ui/theme/theme.css, and reading them back needs a browser",
         "ByteRipperTests/UseSelectionForFindTests.swift#UseSelectionForFindTests.testTheMenuItemNeedsASelection": "n/a — the web edition has no Edit menu and no action of its own for this: the command is ⌘F's, taken from the selection before the bar opens (G45)",
         "ByteRipperTests/UseSelectionForFindTests.swift#UseSelectionForFindTests.testTheEditMenuCarriesTheCommand": "n/a — as the item it tests: the web has no Edit menu, and the toolbar's Find button is the switch, not this command (G45)",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already the web's, and was before upstream got there: an empty section's whole row reads faint (`.me-row[data-empty]` in app.css), which is what a9c1e34 brought upstream to"
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already the web's, and was before upstream got there: an empty section's whole row reads faint (`.me-row[data-empty]` in app.css), which is what a9c1e34 brought upstream to",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodeOpensAsAPanelLinkedToItsOwnBytes": "later — G51: opening any node of the tree, or its body, as a panel",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodesBodyOpensAsAPanelOfItsOwn": "later — G51: opening any node of the tree, or its body, as a panel",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheTreeMenuOffersBothOnANodeWithAHeader": "later — G51: opening any node of the tree, or its body, as a panel"
       }
     },
     {
@@ -4379,7 +4396,53 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.releases": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.flipInsertMode": "ported — the flip is TypingController.toggleInsertMode, and the alert it puts in front of the first insert-mode keystroke is the insert sentence of src/core/text/shiftWarning.ts, asked through AppShell's editing hooks (src/core/edit/typingController.ts, src/ui/shell/AppShell.tsx)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.wireStatusBar": "ported — a React status line wires its own parts where it draws them: the size and the offset open paneMenus.statusSizeMenu / statusOffsetMenu, and the mode box's click toggles the mode (src/ui/pane/PaneStatusLine.tsx, src/ui/shell/paneMenus.ts)",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.stagedFindPatternForTests": "n/a — a test seam: what a selection staged for the next find is `searchStore`'s `stagedPattern`, which the tests read directly"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.stagedFindPatternForTests": "n/a — a test seam: what a selection staged for the next find is `searchStore`'s `stagedPattern`, which the tests read directly",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.canTearOffFragment": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.closeFragment": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentCloseConfirm": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentFocusChanged": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentPanel": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragments": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.frontSurface": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.frontTools": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.openFragment": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.prepareFragmentMinimap": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.setFragmentDockVisible": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.settleFragmentDock": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.strandingCloseButton": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.strandingSentence": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.surface": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.syncFragmentMinimapBookmarks": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOffFragment": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.windowPanesAreReachable": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.revealUpdateDestination": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmClose": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.unsavedDocumentCount": "later — G48/G49: the dock, the panel over the parent, and the commands that follow what is in front (Design/GAPS.md)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.panelSplit": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.contentPaneIndex": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPaneIndex": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapDividerIndex": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.toolPaneIndex": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.toolDividerIndex": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapDefaults": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPanel": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapView": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPanelVisible": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.setToolPanelWidth": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.toolPanelWidth": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPairLayout": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapWindowResize": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.pane": "later — G47: the surface's own split, minimap and tool panel, which the window holds alone today",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.matchOverlayWalksForTesting": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewPassRowCount": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewPatches": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRebuilds": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRebuildsCompleted": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonIndexBuild": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapSegmentMenu": "later — G50: the gutter's menus on a panel's map, which upstream has off behind a flag",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapZoneMenu": "later — G50: the gutter's menus on a panel's map, which upstream has off behind a flag",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.forgetPaneView": "later — G47: the bookkeeping of which view belongs to which surface"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",

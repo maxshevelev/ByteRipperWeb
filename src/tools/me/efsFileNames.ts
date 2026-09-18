@@ -82,7 +82,11 @@ export class EFSFileNames {
     this.hasTable = options.hasTable;
   }
 
-  /** Nothing looked up. */
+  /**
+   * Nothing looked up.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.none
+   */
   static readonly none = new EFSFileNames({
     names: new Map(),
     records: new Map(),

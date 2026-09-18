@@ -71,6 +71,7 @@ export interface UnlockTokenFlags {
  * a reader showing the structure needs to say so.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#UnlockTokenFlags.size
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Partition/UnlockToken.swift#UnlockTokenParser.flagsSize
  */
 export const UNLOCK_TOKEN_FLAGS_SIZE = 0x20;
 
