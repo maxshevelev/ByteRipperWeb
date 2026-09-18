@@ -1,14 +1,26 @@
 import { crc32, crc32FromZero } from "@/firmware/me/crypto/checksum";
-import type { EFSVolume, OEMConfiguration } from "@/firmware/me/models/fileSystemFacts";
+import type { EfsTableEntry } from "@/firmware/me/data/fileTable";
+import { integrityTable, secHeaderSize } from "@/firmware/me/fileSystem/mfs";
+import type {
+  EFSFile,
+  EFSVolume,
+  MFSIntegrityTable,
+  OEMConfiguration,
+} from "@/firmware/me/models/fileSystemFacts";
 
 /**
  * The EFS volume and the FITC OEM Configuration partition — upstream `efs_anl`
  * and `fitc_anl` — as raw `$FPT` partitions of the newer whole-flash layout.
  *
- * Only what the bytes say on their own: the page inventory, the System page
- * fields, the index permutation and the CRCs of the page headers, index areas
- * and Data page footers; and the FITC header, lengths and checksums. Naming the
- * EFS files and reading the FITC records needs `FileTable.dat`.
+ * `parseEfs` is what the bytes say on their own: the page inventory, the System
+ * page fields, the index permutation and the CRCs of the page headers, index
+ * areas and Data page footers; and the FITC header, lengths and checksums. The
+ * file walk that follows it (`efsDataArea` + `efsFiles`) needs the external
+ * `FileTable.dat`: an EFS volume's pages are one flat byte area, and the
+ * offsets that cut it into files are the EFST records, with the Integrity flag
+ * that decides each file's end coming from the FTBL rows beside them — which is
+ * why upstream calls that read necessary and not optional (MEA.py 8846).
+ * Reading the FITC records stays a parked increment.
  *
  * Ported from `Packages/MEFirmware/FileSystem/EFS.swift`.
  */
@@ -29,6 +41,10 @@ const INDEX_PADDING_LENGTH = 0x08;
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#FITCParser.headerSize
  */
 const FITC_HEADER_SIZE = 0x10;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.metadataSize */
+const METADATA_SIZE = 0x04;
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.pageFooterSize */
+const PAGE_FOOTER_SIZE = 0x08;
 
 const u16 = (bytes: Uint8Array, at: number): number | undefined =>
   at >= 0 && at + 2 <= bytes.length
@@ -185,6 +201,143 @@ export function parseEfs(
     dataPageFooterCRCsValid,
     matchesMFSDictionary: mfsDictionary === undefined ? undefined : dictionary === mfsDictionary,
   };
+}
+
+// MARK: - The file walk (upstream 8745–8850, `-unp86` only)
+
+/**
+ * The volume's data area: its Data pages in System-index order, each
+ * contributing the bytes between its 0x10 header and its 0x8 footer (upstream
+ * `efs_data_all`). This is the buffer the EFS table's offsets are offsets into
+ * — the volume has no other notion of a file position.
+ *
+ * Empty when `order` is not a permutation of the volume's Data pages: the index
+ * area is what says which physical page is the logical first, and without a
+ * usable one there is no data area to speak of.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.dataArea
+ */
+export function efsDataArea(
+  bytes: Uint8Array,
+  offset: number,
+  size: number,
+  order: readonly number[]
+): Uint8Array {
+  if (offset < 0 || size < PAGE_SIZE || offset + size > bytes.length) return new Uint8Array(0);
+  const buffer = bytes.subarray(offset, offset + size);
+  const bases = dataPageBases(buffer);
+  if (
+    order.length !== bases.length ||
+    !order.every((value) => value < bases.length) ||
+    new Set(order).size !== order.length
+  ) {
+    return new Uint8Array(0);
+  }
+  const pageBytes = PAGE_SIZE - PAGE_HEADER_SIZE - PAGE_FOOTER_SIZE;
+  const area = new Uint8Array(bases.length * pageBytes);
+  let at = 0;
+  for (const value of order) {
+    const base = bases[value] ?? 0;
+    area.set(buffer.subarray(base + PAGE_HEADER_SIZE, base + PAGE_SIZE - PAGE_FOOTER_SIZE), at);
+    at += pageBytes;
+  }
+  return area;
+}
+
+/**
+ * The physical bases of the volume's Data pages, in page order — the same
+ * classification `parseEfs` makes: a Data page carries a Dictionary of
+ * 0x0000/0xFFFF and a written Unknown0.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.dataPageBases
+ */
+function dataPageBases(buffer: Uint8Array): number[] {
+  const bases: number[] = [];
+  for (let page = 0; page < Math.floor(buffer.length / PAGE_SIZE); page++) {
+    const base = page * PAGE_SIZE;
+    const dictionary = u16(buffer, base + 0x02) ?? 0;
+    const unknown0 = u16(buffer, base + 0x00) ?? 0xffff;
+    if ((dictionary === 0x0000 || dictionary === 0xffff) && unknown0 !== 0xffff) bases.push(base);
+  }
+  return bases;
+}
+
+/**
+ * The volume's files: one per EFS table entry that the data area actually
+ * carries, in the order they sit there.
+ *
+ * Each entry gives an offset; the four bytes there are the file's own metadata,
+ * and its `Size` — preferred over the table's length, as upstream prefers it —
+ * is how much follows. `integrityFileIds` are the files the FTBL rows flag as
+ * Integrity-protected: their content ends with an `MFS_Integrity_Table`, and
+ * nothing in the EFS bytes says so, which is why the flags are an argument.
+ *
+ * Skipped, exactly as upstream skips them: an entry the data area is too small
+ * to hold, a metadata `Size` of 0xFFFF (a file never written), and a file whose
+ * metadata claims more bytes than the table allotted it — the table is then the
+ * wrong one for this volume, and cutting the area at its offsets would name
+ * bytes that belong to something else.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.files
+ */
+export function efsFiles(options: {
+  readonly dataArea: Uint8Array;
+  readonly entries: readonly EfsTableEntry[];
+  readonly integrityFileIds: ReadonlySet<number>;
+  readonly variant: string;
+  readonly major: number;
+  readonly minor: number;
+  readonly platform: number;
+}): EFSFile[] {
+  const { dataArea, entries, integrityFileIds, variant, major, minor, platform } = options;
+  const sec = secHeaderSize(variant, major, minor, platform);
+  const result: EFSFile[] = [];
+  for (const entry of [...entries].sort((one, other) => one.dataOffset - other.dataOffset)) {
+    const start = entry.dataOffset;
+    if (start < 0 || start + METADATA_SIZE > dataArea.length) continue;
+    const storedSize = u16(dataArea, start);
+    const unknown = u16(dataArea, start + 0x02);
+    if (storedSize === undefined || unknown === undefined || storedSize === 0xffff) continue;
+    if (storedSize > entry.size || start + METADATA_SIZE + storedSize > dataArea.length) continue;
+    const content = dataArea.subarray(start + METADATA_SIZE, start + METADATA_SIZE + storedSize);
+
+    let contentSize = storedSize;
+    let integrity: MFSIntegrityTable | undefined;
+    if (integrityFileIds.has(entry.fileId)) {
+      let tableSize = sec;
+      if (content.length >= sec) {
+        let table = integrityTable(content.subarray(content.length - sec));
+        if (
+          sec === 0x28 &&
+          table !== undefined &&
+          table.arCounter > 0xffff &&
+          content.length >= 0x38
+        ) {
+          const wider = integrityTable(
+            content.subarray(content.length - 0x38, content.length - 0x10)
+          );
+          if (wider !== undefined) {
+            // The same workaround the MFS split needs: the table sits 0x10
+            // earlier than it looked, and the extra bytes are part of what the
+            // file ends with.
+            tableSize = 0x38;
+            table = wider;
+          }
+        }
+        integrity = table;
+      }
+      contentSize = Math.max(0, storedSize - tableSize);
+    }
+    result.push({
+      fileId: entry.fileId,
+      dataOffset: start,
+      storedSize,
+      metadataUnknown: unknown,
+      contentSize,
+      ...(integrity === undefined ? {} : { integrity }),
+    });
+  }
+  return result;
 }
 
 /**

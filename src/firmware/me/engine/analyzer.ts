@@ -25,7 +25,7 @@ import {
 import { metAttributes } from "@/firmware/me/engine/huffmanNeed";
 import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelection";
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
-import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
+import { efsDataArea, efsFiles, parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 import {
   ftblFileIntegrity,
   homeDirectory,
@@ -707,20 +707,23 @@ function analyze(
   // the whole chain, which is what the flash says. No issue is raised — a
   // missing database is not a finding about the firmware.
   // @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.analyze
+  //
+  // One read serves both file systems: the EFS walk below needs the same table
+  // (its own `EFST` half, and the `FTBL` flags beside it).
+  const table = fileTable !== undefined && !fileTable.isEmpty ? fileTable : undefined;
   if (
     mfsVolume?.usesFTBL === true &&
     mfsInfo !== undefined &&
     mfsInfo.files.length > 0 &&
-    fileTable !== undefined &&
-    !fileTable.isEmpty
+    table !== undefined
   ) {
-    const resolution = fileTable.resolve(mfsInfo.ftblPlatform, mfsInfo.ftblDictionary);
+    const resolution = table.resolve(mfsInfo.ftblPlatform, mfsInfo.ftblDictionary);
     const protectedIndices = new Set(
       mfsInfo.files
         .map((one) => one.index)
         .filter(
           (index) =>
-            fileTable.recordNamingFileIndex(index, resolution.platform, resolution.dictionary)
+            table.recordNamingFileIndex(index, resolution.platform, resolution.dictionary)
               ?.integrity === true
         )
     );
@@ -743,6 +746,55 @@ function analyze(
           : { ...file, contentSize: split.contentSize, integrity: split.integrity };
       }),
     };
+  }
+
+  // The EFS volume's files. Its Data pages are one flat byte area with no
+  // directory in them — the offsets that cut it into files are the file table's
+  // `EFST` records, and which of those files end with an Integrity table is the
+  // `FTBL` flag beside them (upstream calls that read necessary, not optional:
+  // without the flag a file's content length cannot be worked out, MEA.py
+  // 8846). The platform and dictionary are the *MFS* volume's, as upstream
+  // hands them to `efs_anl`; the revision is the EFS System page's own.
+  //
+  // Best-effort like the MFS split: no table, no `EFST` for this volume, or a
+  // table whose offsets the data area does not carry leaves `files` empty,
+  // which is the honest answer about a volume that names nothing itself.
+  // @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.analyze
+  let efsVolume = fileSystems.efsVolume;
+  const efsPartition = regions.find((one) => one.name === "EFS");
+  if (efsVolume !== undefined && table !== undefined && efsPartition !== undefined) {
+    const resolution = table.resolve(mfsInfo?.ftblPlatform ?? -1, mfsInfo?.ftblDictionary ?? -1);
+    const entries = resolution.missing
+      ? undefined
+      : table.efsEntries(resolution.platform, resolution.dictionary, efsVolume.dictionaryRevision);
+    if (entries !== undefined && entries.length > 0) {
+      const integrityFileIds = new Set(
+        entries
+          .map((one) => one.fileId)
+          .filter(
+            (id) =>
+              table.recordNamingFileIndex(id, resolution.platform, resolution.dictionary)
+                ?.integrity === true
+          )
+      );
+      efsVolume = {
+        ...efsVolume,
+        files: efsFiles({
+          dataArea: efsDataArea(
+            bytes,
+            efsPartition.offset - baseOffset,
+            efsPartition.size,
+            efsVolume.dataPageOrder
+          ),
+          entries,
+          integrityFileIds,
+          variant: identity.variant,
+          major: identity.major,
+          minor: identity.minor,
+          platform: resolution.platform,
+        }),
+      };
+    }
   }
 
   // The four things that raise the File System State to Configured: the Flash
@@ -851,7 +903,7 @@ function analyze(
     independentFirmware: independent.length === 0 ? undefined : independent,
     mfsVolume,
     mfsBackup: fileSystems.mfsBackup,
-    efsVolume: fileSystems.efsVolume,
+    efsVolume,
     oemConfiguration: fileSystems.oemConfiguration,
     mfsState: fileSystemState,
     gscInfo,

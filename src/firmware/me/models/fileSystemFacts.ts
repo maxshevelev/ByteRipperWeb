@@ -419,11 +419,86 @@ export interface EFSVolume {
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSVolume.dataPageFooterCRCsValid */
   readonly dataPageFooterCRCsValid: boolean;
   /**
+   * The volume's files, in data-area order — empty until the EFS table that
+   * locates them has been read, and on a volume no table describes.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSVolume.files
+   */
+  readonly files?: readonly EFSFile[] | undefined;
+  /**
    * Nothing when no MFS volume decoded alongside.
    *
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSVolume.matchesMFSDictionary
    */
   readonly matchesMFSDictionary: boolean | undefined;
+}
+
+/**
+ * One file of an EFS volume (upstream's `efs_anl` file walk, MEA.py 8817).
+ *
+ * Where the file *is* comes from outside the flash: an EFS volume's Data pages
+ * are a flat byte area with no directory in them, and the offsets that cut it
+ * into files are the `EFST` records of `FileTable.dat`. What is here is what
+ * those bytes then say — the file's own 4-byte metadata header, and, for a file
+ * the FTBL row flags as Integrity-protected, the table it ends with and the
+ * content length without it. The file's *name* and *path* are the table's own
+ * text and stay out of the model; `fileId` is the number both tables key it by,
+ * which is what the panel joins on.
+ *
+ * `dataOffset` is an offset into the volume's assembled data area — its Data
+ * pages concatenated in System-index order, each contributing the bytes between
+ * its 0x10 header and 0x8 footer — and not a position in the image: a file long
+ * enough to span pages (the CSME 15 dump's 0x3000-byte `ICC_MPHYTBL` spans
+ * three) occupies no one range of the dump.
+ *
+ * Files the volume has not written are not listed: upstream skips a metadata
+ * size of 0xFFFF (never used) and a file whose metadata is longer than the
+ * table claims (the table is the wrong one for this volume, and a name put on
+ * those bytes would be a guess).
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile
+ */
+export interface EFSFile {
+  /**
+   * The EFST/FTBL file ID — the FTBL `vfsId` the panel's name comes from.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.fileID
+   */
+  readonly fileId: number;
+  /**
+   * The file's offset into the volume's assembled data area.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.dataOffset
+   */
+  readonly dataOffset: number;
+  /**
+   * `EFS_File_Metadata.Size`: the length the file's own header states, Integrity
+   * table included. Preferred over the table's length, as upstream prefers it.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.storedSize
+   */
+  readonly storedSize: number;
+  /**
+   * `EFS_File_Metadata.Unknown`, kept as the open field it is.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.metadataUnknown
+   */
+  readonly metadataUnknown: number;
+  /**
+   * The file's own bytes with the Integrity table taken off the end. Equal to
+   * `storedSize` where the FTBL row flags no Integrity.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.contentSize
+   */
+  readonly contentSize: number;
+  /**
+   * The table the file ends with, where it has one and it decoded. Nothing on
+   * an unprotected file — and on a protected one whose tail is too short to
+   * read, which still splits (`storedSize - contentSize` is the tail).
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.integrity
+   */
+  readonly integrity?: MFSIntegrityTable | undefined;
 }
 
 /**

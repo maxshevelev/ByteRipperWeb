@@ -25,6 +25,7 @@ import {
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { efsFileNames, NO_EFS_NAMES } from "@/tools/me/efsFileNames";
 import {
   buildSummary,
   isEmphasized,
@@ -286,7 +287,9 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.loadFileNames
    */
   const volume = analysis?.mfsVolume;
-  const wantsFileTable = volume?.usesFTBL === true && volume.files.length > 0;
+  const efsVolume = analysis?.efsVolume;
+  const wantsFileTable =
+    (volume?.usesFTBL === true && volume.files.length > 0) || efsVolume !== undefined;
   useEffect(() => {
     if (wantsFileTable && fileTableStore.getSnapshot().status === "idle") loadFileTable();
   }, [wantsFileTable]);
@@ -296,10 +299,17 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       table === undefined || volume === undefined ? NO_FILE_NAMES : mfsFileNames(table, volume),
     [table, volume]
   );
+  const efsNames = useMemo(
+    () =>
+      table === undefined || efsVolume === undefined
+        ? NO_EFS_NAMES
+        : efsFileNames(table, efsVolume, volume?.ftblPlatform ?? -1, volume?.ftblDictionary ?? -1),
+    [table, efsVolume, volume]
+  );
 
   const tree = useMemo(
-    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, mfsNames)),
-    [analysis, checksums, mfsNames]
+    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, mfsNames, efsNames)),
+    [analysis, checksums, mfsNames, efsNames]
   );
   const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);

@@ -783,7 +783,9 @@
           "src/tools/me/meaTreeMarks.test.ts"
         ],
         "MFSFileNames.swift": "src/tools/me/mfsFileNames.ts",
-        "MEAToolTests/MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts"
+        "MEAToolTests/MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts",
+        "EFSFileNames.swift": "src/tools/me/efsFileNames.ts",
+        "MEAToolTests/EFSFileNamesTests.swift": "src/tools/me/efsFileNames.test.ts"
       },
       "unported": {
         "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
