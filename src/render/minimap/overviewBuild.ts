@@ -77,7 +77,7 @@ export class OverviewCancelled extends Error {
 const ROWS_PER_REPORT = 64;
 
 /**
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRows
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewRows
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fillByteFlags
  */
 export async function buildOverviewRows(

@@ -785,7 +785,7 @@ export function AppShell() {
   /**
    * Shows an offset in both panes, the way difference navigation does.
    *
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scrollPanesToOffset
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.scrollPanes
    */
   const revealInBoth = useCallback((offset: number) => {
     setReveal({

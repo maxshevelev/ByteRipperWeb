@@ -262,10 +262,10 @@ export class ScrollLink {
    *
    * Nothing here touches the caret: this is a way of looking somewhere.
    *
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectMinimapOffset
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.trackMinimapViewport
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateMinimapViewports
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapViewports
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.selectOffset
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.track
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.updateViewports
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.paneViewports
    */
   scrollToOffset(
     id: string,
