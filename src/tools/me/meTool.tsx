@@ -3,6 +3,7 @@ import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
 import { downloadBlob } from "@/platform/files/download";
+import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import {
   analyzePaneMe,
   checksumPaneMe,
@@ -39,6 +40,7 @@ import {
   presentMEA,
 } from "@/tools/me/meaTree";
 import { MEA_TREE_MARKS } from "@/tools/me/meaTreeMarks";
+import { mfsFileNames, NO_FILE_NAMES } from "@/tools/me/mfsFileNames";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
@@ -174,6 +176,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const firmware = useStore(firmwareStore).panes[pane];
   const database = useStore(meDatabaseStore);
   const huffman = useStore(huffmanDictionaryStore);
+  const fileTable = useStore(fileTableStore);
   const park = restoredParked(context.restored);
   const [tab, setTab] = useState<Tab>(park?.tab ?? "summary");
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
@@ -272,9 +275,30 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       loadHuffmanDictionaries();
     }
   }, [wantsDictionaries]);
+
+  /**
+   * `FileTable.dat` only for a volume that has no names of its own: an FTBL
+   * volume's files are numbered in the flash and named in the table, and every
+   * other volume names its own. The largest of the three databases is not
+   * fetched for a dump that would read no name out of it.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.loadFileNames
+   */
+  const volume = analysis?.mfsVolume;
+  const wantsFileTable = volume?.usesFTBL === true && volume.files.length > 0;
+  useEffect(() => {
+    if (wantsFileTable && fileTableStore.getSnapshot().status === "idle") loadFileTable();
+  }, [wantsFileTable]);
+  const table = fileTable.table;
+  const mfsNames = useMemo(
+    () =>
+      table === undefined || volume === undefined ? NO_FILE_NAMES : mfsFileNames(table, volume),
+    [table, volume]
+  );
+
   const tree = useMemo(
-    () => (analysis === undefined ? [] : presentMEA(analysis, checksums)),
-    [analysis, checksums]
+    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, mfsNames)),
+    [analysis, checksums, mfsNames]
   );
   const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);

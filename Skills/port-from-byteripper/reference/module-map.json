@@ -491,7 +491,9 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/RealManifests.swift": "src/firmware/me/testing/realManifests.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift": "src/firmware/me/fileSystem/mfs.test.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift": "src/firmware/me/engine/moduleIssue.test.ts",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/IndependentCopiesTests.swift": "src/firmware/me/engine/independentCopies.test.ts"
+        "Packages/MEFirmware/Tests/MEFirmwareTests/IndependentCopiesTests.swift": "src/firmware/me/engine/independentCopies.test.ts",
+        "Data/FileTable.swift": "src/firmware/me/data/fileTable.ts",
+        "Tests/MEFirmwareTests/FileTableTests.swift": "src/firmware/me/data/fileTable.test.ts"
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
@@ -507,8 +509,6 @@
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.pad": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.montgomeryProduct": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/Digest.swift#Digest.raw": "n/a — callers pick SHA-256 or SHA-384 by the stored hash's length themselves",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fileTable": "later — FileTable.dat naming, which upstream has not ported either",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#FileTable*": "later — FileTable.dat naming, which upstream has not ported either",
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.init": "n/a — the sources are module constants; there is nothing to construct",
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.settle": "n/a — a test seam for the actor's background refresh",
         "Packages/MEFirmware/Sources/MEFirmware/MEAAnalysisProviding.swift#*": "n/a — the analysis is kept on the pane's firmware state in src/state/firmwareStore.ts, not behind a protocol",
@@ -539,7 +539,8 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Spec.*": "n/a — the fields of the web Spec",
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Row*": "n/a — the fields of the web fixture's options object",
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.put*": "n/a — the web fixtures write little-endian fields through their own small helpers",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads"
+        "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fileTable": "n/a — the protocol method is src/state/fileTableStore.ts's FileTableSource, the same seam a test installs its own text through"
       }
     },
     {
@@ -780,7 +781,9 @@
         "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift": [
           "src/tools/me/meaTree.test.ts",
           "src/tools/me/meaTreeMarks.test.ts"
-        ]
+        ],
+        "MFSFileNames.swift": "src/tools/me/mfsFileNames.ts",
+        "MEAToolTests/MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts"
       },
       "unported": {
         "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
