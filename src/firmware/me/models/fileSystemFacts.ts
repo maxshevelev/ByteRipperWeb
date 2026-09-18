@@ -248,6 +248,64 @@ export interface MFSPCHInit {
 }
 
 /**
+ * A decoded ID-keyed MFS Configuration stream — the 0xC branch of upstream's
+ * `mfs_cfg_anl` (MEA.py 8526), which is what the newer layouts carry (CSME
+ * 13–16, CSSPS 6, and the CSSPS 4.4 / 5-on-platform-10 pair) and what the FITC
+ * partition's own payload is made of.
+ *
+ * `owningFile` is the low-level file the records came from (6 = Intel, 7 =
+ * OEM). A volume's streams are all one record struct or all the other, so a
+ * volume that fills this one leaves `configurations` empty.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigurationByID
+ */
+export interface MFSConfigurationByID {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigurationByID.owningFile */
+  readonly owningFile: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigurationByID.records */
+  readonly records: readonly MFSConfigIDRecord[];
+}
+
+/**
+ * One decoded `MFS_Config_Record_0xC` (MEA.py 1402): a configuration file
+ * located by **File ID** rather than by name.
+ *
+ * There is no name in the record and none in the stream — the path the ID
+ * stands for is a row of `FileTable.dat`'s `FTBL` table keyed by that ID
+ * (`0x10002000` → `/home/ish_srv/bios2ish`), which upstream looks up before
+ * writing the file out and falls back to `/Unknown/<ID>.bin` for. So the path
+ * is a panel lookup and what is here is the record's own bytes: where the
+ * content sits in the owning stream, how long it is, and whether an OEM
+ * `fitc.cfg` setting may override the Intel `intl.cfg` one.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigIDRecord
+ */
+export interface MFSConfigIDRecord {
+  /**
+   * The `FTBL` table key, as a number — upstream prints it `0x%0.8X`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigIDRecord.fileID
+   */
+  readonly fileId: number;
+  /**
+   * Offset of the content inside the owning stream.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigIDRecord.offset
+   */
+  readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigIDRecord.size */
+  readonly size: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigIDRecord.oemConfigurable */
+  readonly oemConfigurable: boolean;
+  /**
+   * Flags bits 1–15, which upstream prints as 15 bits and does not name.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSConfigIDRecord.unknownFlags
+   */
+  readonly unknownFlags: number;
+}
+
+/**
  * An MFS volume, from an FPT partition named "MFS".
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume
@@ -297,6 +355,14 @@ export interface MFSVolume {
   readonly files: readonly MFSFile[];
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.configurations */
   readonly configurations: readonly MFSConfiguration[];
+  /**
+   * The volume's ID-keyed (0xC) Configuration streams, where its identity says
+   * its records are those. Nothing when they are 0x1C (`configurations` then
+   * holds them) and when the volume carries no file 6/7 at all.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.configurationsByID
+   */
+  readonly configurationsByID?: readonly MFSConfigurationByID[] | undefined;
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.homeDirectory */
   readonly homeDirectory: MFSHomeDirectory | undefined;
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.reservedIntegrity */
@@ -509,6 +575,27 @@ export interface EFSFile {
 export interface OEMConfiguration {
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#OEMConfiguration.offset */
   readonly offset: number;
+  /**
+   * Where the configuration payload starts in the image — the partition's own
+   * offset plus its header (0x10 on revision 1, 0x04 on the alpha layout whose
+   * first u32 is the length). A record's `offset` is relative to this, so the
+   * two together are the record's bytes in the dump.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#OEMConfiguration.payloadOffset
+   */
+  readonly payloadOffset?: number | undefined;
+  /**
+   * The configuration records the payload carries, read with the record struct
+   * this identity uses — ID-keyed (0xC) on every layout that ships a FITC
+   * partition, and named (0x1C) only if an older identity ever did. Nothing for
+   * the struct this partition does not use, and before the identity-gated
+   * decode has run.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#OEMConfiguration.recordsByID
+   */
+  readonly recordsByID?: readonly MFSConfigIDRecord[] | undefined;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#OEMConfiguration.records */
+  readonly records?: readonly MFSConfigRecord[] | undefined;
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#OEMConfiguration.headerRevision */
   readonly headerRevision: number;
   /**

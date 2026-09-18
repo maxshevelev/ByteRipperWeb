@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { crc32 } from "@/firmware/me/crypto/checksum";
-import { parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
+import { fitcConfigPayload, parseEfs, parseFitc } from "@/firmware/me/fileSystem/efs";
 
 /**
  * The EFS volume and the FITC partition. Ported from upstream's `EFSTests`; the
@@ -180,6 +180,8 @@ describe("the FITC partition", () => {
     const region = makeFitc();
     expect(parseFitc(region, 0, region.length, 0x1000)).toEqual({
       offset: 0x1000,
+      // The header is 0x10 on revision 1, and the payload starts behind it.
+      payloadOffset: 0x1010,
       headerRevision: 1,
       dataLength: 0x80,
       headerCRCStored: crc32(Uint8Array.of(0x01, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0, 0)),
@@ -224,5 +226,56 @@ describe("the FITC partition", () => {
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testRegionTooSmallForFITCReturnsNil
   it("is nothing too small for a header", () => {
     expect(parseFitc(new Uint8Array(0x0f), 0, 0x0f, 0)).toBeUndefined();
+  });
+});
+
+describe("the FITC payload", () => {
+  /**
+   * The payload is where the records are read from, and where it starts is the
+   * revision's answer: 0x10 past a revision-1 header, 0x04 past the alpha
+   * layout's own length word. `payloadOffset` says so absolutely, so a record's
+   * own offset becomes a position in the image.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testThePayloadIsHandedOutFromBehindTheHeader
+   */
+  it("is handed out from behind the header", () => {
+    const region = makeFitc();
+    const payload = fitcConfigPayload(region, 0, region.length);
+
+    expect(payload?.length).toBe(0x80);
+    // The payload's own bytes.
+    expect([...(payload?.subarray(0, 2) ?? [])]).toEqual([3, 10]);
+    expect(parseFitc(region, 0, region.length, 0x31_5000)?.payloadOffset).toBe(0x31_5010);
+
+    const alpha = new Uint8Array(4 + 0x20 + 0x100).fill(0xff);
+    put32(alpha, 0, 0x20);
+    alpha.set(
+      Uint8Array.from({ length: 0x20 }, (_, index) => index),
+      4
+    );
+    const alphaPayload = fitcConfigPayload(alpha, 0, alpha.length);
+
+    expect(alphaPayload?.length).toBe(0x20);
+    expect(alphaPayload?.[0]).toBe(0);
+    expect(parseFitc(alpha, 0, alpha.length, 0x1000)?.payloadOffset).toBe(0x1004);
+  });
+
+  /**
+   * A length running past the partition is no payload: there is no saying how
+   * much of it was meant, and cutting records out of the remainder would invent
+   * them.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAPayloadLongerThanThePartitionIsNil
+   */
+  it("is nothing where the length runs past the partition", () => {
+    const region = new Uint8Array(0x40);
+    put32(region, 0, 1);
+    put32(region, 8, 0x1000);
+    expect(fitcConfigPayload(region, 0, region.length)).toBeUndefined();
+
+    // And a header that declares nothing has nothing to hand out.
+    const empty = new Uint8Array(0x40);
+    put32(empty, 0, 1);
+    expect(fitcConfigPayload(empty, 0, empty.length)).toBeUndefined();
   });
 });

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { crc16_14 } from "@/firmware/me/crypto/checksum";
 import {
+  configRecordSize,
+  configurations,
+  decodeConfigIdRecords,
   decodeConfigRecords,
   ftblFileIntegrity,
   homeDirectory,
@@ -262,9 +265,20 @@ describe("the legacy configuration streams", () => {
     });
     const info = parseMfs(region, 0, region.length);
     expect(info?.usesFTBL).toBe(false);
-    expect(info?.configurations).toHaveLength(1);
-    expect(info?.configurations[0]?.owningFile).toBe(6);
-    const [home, binding] = info?.configurations[0]?.records ?? [];
+    // The stride is an identity answer, so the decode is asked for it: CSME 12
+    // is a 0x1C-record layout (`configRecordSize`).
+    const configs = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 12,
+      minor: 0,
+      platform: info?.ftblPlatform ?? 0,
+    });
+    // A 0x1C layout fills one list, not both.
+    expect(configs.byId).toEqual([]);
+    expect(configs.byName).toHaveLength(1);
+    expect(configs.byName[0]?.owningFile).toBe(6);
+    const [home, binding] = configs.byName[0]?.records ?? [];
     expect(home).toMatchObject({
       name: "home",
       isFolder: true,
@@ -302,7 +316,18 @@ describe("the legacy configuration streams", () => {
     const info = parseMfs(region, 0, region.length);
     expect(info?.usesFTBL).toBe(true);
     expect(info?.files.map((one) => one.index)).toEqual([6]);
-    expect(info?.configurations).toEqual([]);
+    // …and a CSME 15 identity reads its records as 0xC, not as the 0x1C stream
+    // the bytes were written as: the layout is upstream's answer, not a guess
+    // from the volume header.
+    const configs = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 15,
+      minor: 0,
+      platform: info?.ftblPlatform ?? 0,
+    });
+    expect(configs.byName).toEqual([]);
+    expect(configs.byId).toHaveLength(1);
   });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testLegacyVolumeWithoutConfigFilesHasEmptyConfigurations
@@ -317,7 +342,15 @@ describe("the legacy configuration streams", () => {
     });
     const info = parseMfs(region, 0, region.length);
     expect(info?.usesFTBL).toBe(false);
-    expect(info?.configurations).toEqual([]);
+    const configs = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 12,
+      minor: 0,
+      platform: info?.ftblPlatform ?? 0,
+    });
+    expect(configs.byName).toEqual([]);
+    expect(configs.byId).toEqual([]);
   });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testConfigStreamTruncatedBeforeItsDeclaredCountDecodesWhatFits
@@ -888,5 +921,166 @@ describe("the FTBL volume's file Integrity split", () => {
         platform: 4,
       })
     ).toEqual([]);
+  });
+});
+
+// MARK: - ID-keyed Configuration record decode (mfs_cfg_anl 0xC branch)
+
+/**
+ * One `MFS_Config_Record_0xC` stream: a u32 count then that many records of
+ * File ID, offset, size and flags.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.configIDStream
+ */
+function configIdStream(
+  records: readonly {
+    readonly fileId: number;
+    readonly offset: number;
+    readonly size: number;
+    readonly flags: number;
+  }[]
+): Uint8Array {
+  const out = new Uint8Array(4 + records.length * 0xc);
+  put32(out, 0, records.length);
+  records.forEach((record, index) => {
+    const base = 4 + index * 0xc;
+    put32(out, base, record.fileId);
+    put32(out, base + 0x04, record.offset);
+    put16(out, base + 0x08, record.size);
+    put16(out, base + 0x0a, record.flags);
+  });
+  return out;
+}
+
+describe("the ID-keyed configuration records", () => {
+  /**
+   * The record's own fields, with real values from the CSME 15 dump's FITC
+   * payload: `/home/amt/rtfd/PrivacyLvl` is File ID 0x10080A00, one byte long,
+   * and OEM-configurable (upstream's "FIT" column).
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAnIDKeyedRecordIsReadInUpstreamsFieldOrder
+   */
+  it("are read in upstream's field order", () => {
+    const stream = configIdStream([
+      { fileId: 0x1008_0a00, offset: 0x0000, size: 1, flags: 0x0001 },
+      { fileId: 0x1008_0700, offset: 0x0001, size: 0x10, flags: 0x0000 },
+    ]);
+
+    const records = decodeConfigIdRecords(stream) ?? [];
+
+    expect(records).toHaveLength(2);
+    expect(records[0]).toEqual({
+      fileId: 0x1008_0a00,
+      offset: 0,
+      size: 1,
+      // Flags bit 0, and nothing else set.
+      oemConfigurable: true,
+      unknownFlags: 0,
+    });
+    expect(records[1]?.fileId).toBe(0x1008_0700);
+    expect(records[1]?.offset).toBe(1);
+    expect(records[1]?.size).toBe(0x10);
+    expect(records[1]?.oemConfigurable).toBe(false);
+  });
+
+  /**
+   * The flag word is split the way upstream splits it: bit 0 is the OEM
+   * override and the 15 above it are the unnamed remainder, not a second
+   * reading of the same bit.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheRemainingFlagBitsAreReportedApartFromTheOEMBit
+   */
+  it("report the remaining flag bits apart from the OEM bit", () => {
+    const record = decodeConfigIdRecords(
+      configIdStream([{ fileId: 0x1234_5678, offset: 0, size: 0, flags: 0xffff }])
+    )?.[0];
+
+    expect(record?.oemConfigurable).toBe(true);
+    expect(record?.unknownFlags).toBe(0x7fff);
+  });
+
+  /**
+   * Bounded like the 0x1C walk: a declared count the bytes cannot cover decodes
+   * the records that fit, and a stream shorter than the count field is no
+   * stream at all.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testATruncatedIDKeyedStreamDecodesWhatFits
+   */
+  it("decode what fits of a truncated stream", () => {
+    const two = configIdStream([
+      { fileId: 1, offset: 0, size: 1, flags: 0 },
+      { fileId: 2, offset: 1, size: 1, flags: 0 },
+    ]);
+
+    expect(decodeConfigIdRecords(two.subarray(0, 4 + 0xc))?.map((one) => one.fileId)).toEqual([1]);
+    expect(decodeConfigIdRecords(Uint8Array.of(1, 2, 3))).toBeUndefined();
+  });
+
+  /**
+   * `get_cfg_rec_size`, upstream's own table: the older families name their
+   * records, the newer ones key them by ID, and the two CSSPS exceptions come
+   * first — CSSPS 4.4, and CSSPS 5 on FTBL platform 10, are 0xC even though
+   * plain CSSPS 4/5 are 0x1C.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheConfigRecordSizeFollowsUpstreamsTable
+   */
+  it("follow upstream's record-size table", () => {
+    expect(configRecordSize("CSME", 11, 8, 0)).toBe(0x1c);
+    expect(configRecordSize("CSME", 12, 0, 0)).toBe(0x1c);
+    expect(configRecordSize("CSTXE", 4, 0, 0)).toBe(0x1c);
+    expect(configRecordSize("CSSPS", 4, 0, 0)).toBe(0x1c);
+    expect(configRecordSize("CSSPS", 5, 0, 0)).toBe(0x1c);
+    // The 4.4 exception, and the platform-10 one.
+    expect(configRecordSize("CSSPS", 4, 4, 0)).toBe(0xc);
+    expect(configRecordSize("CSSPS", 5, 0, 10)).toBe(0xc);
+    expect(configRecordSize("CSME", 13, 0, 0)).toBe(0xc);
+    expect(configRecordSize("CSME", 14, 5, 0)).toBe(0xc);
+    expect(configRecordSize("CSME", 15, 0, 4)).toBe(0xc);
+    expect(configRecordSize("CSME", 16, 1, 16)).toBe(0xc);
+    expect(configRecordSize("CSSPS", 6, 0, 0)).toBe(0xc);
+    // Upstream's own default.
+    expect(configRecordSize("GSC", 104, 0, 0)).toBe(0xc);
+  });
+
+  /**
+   * A volume's streams are all one struct or all the other, and which is the
+   * identity's answer — the same bytes read as a 0x1C stream on CSME 12 and as
+   * a 0xC one on CSME 15.
+   *
+   * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testTheVolumesStreamsAreReadWithTheIdentitysRecordStruct
+   */
+  it("are read with the identity's record struct", () => {
+    const stream = configIdStream([{ fileId: 0x1000_2000, offset: 0x20, size: 4, flags: 1 }]);
+    const region = makeFileVolume({
+      fileRecords: 20,
+      fat: { 7: 20, 20: stream.length },
+      dataSlotContents: [stream],
+      dictionary: 1,
+      platform: 0,
+      reserved: 0,
+    });
+    const info = parseMfs(region, 0, region.length);
+
+    const newer = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 15,
+      minor: 0,
+      platform: 4,
+    });
+    expect(newer.byName).toEqual([]);
+    expect(newer.byId).toHaveLength(1);
+    // File 7 is the OEM stream.
+    expect(newer.byId[0]?.owningFile).toBe(7);
+    expect(newer.byId[0]?.records[0]?.fileId).toBe(0x1000_2000);
+
+    const older = configurations({
+      files: info?.files ?? [],
+      variant: "CSME",
+      major: 12,
+      minor: 0,
+      platform: 4,
+    });
+    expect(older.byId).toEqual([]);
   });
 });

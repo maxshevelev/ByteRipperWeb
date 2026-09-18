@@ -386,6 +386,10 @@ export function parseFitc(
   }
   return {
     offset: absoluteOffset,
+    // Where the payload begins, made absolute: the record offsets inside it are
+    // offsets from there, so this is what turns one into a position in the
+    // image.
+    payloadOffset: absoluteOffset + (headerRevision === 1 ? FITC_HEADER_SIZE : 0x04),
     headerRevision,
     dataLength,
     headerCRCStored,
@@ -395,4 +399,32 @@ export function parseFitc(
     configLength,
     paddingAllFF,
   };
+}
+
+/**
+ * The partition's configuration payload — the bytes the record stream is read
+ * out of: `[0x10 : 0x10+DataLength]` on a revision-1 header, and
+ * `[0x04 : 0x04+length]` on the alpha layout whose first u32 *is* the length.
+ * Both branches are the ones `parseFitc` already checks, read again here rather
+ * than kept alive: the payload is wanted once, after identity.
+ *
+ * Nothing where the header's own length runs past the partition — there is no
+ * saying how much of it was meant.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#FITCParser.configPayload
+ */
+export function fitcConfigPayload(
+  bytes: Uint8Array,
+  offset: number,
+  size: number
+): Uint8Array | undefined {
+  if (offset < 0 || size < FITC_HEADER_SIZE || offset + size > bytes.length) return undefined;
+  const buffer = bytes.subarray(offset, offset + size);
+  const revision = u32(buffer, 0x00) ?? 0;
+  const start = revision === 1 ? FITC_HEADER_SIZE : 0x04;
+  // On the alpha layout the first word is not a revision at all: it is the
+  // length, which is why it is read as one here.
+  const length = revision === 1 ? (u32(buffer, 0x08) ?? 0) : revision;
+  if (length <= 0 || start + length > buffer.length) return undefined;
+  return buffer.subarray(start, start + length);
 }

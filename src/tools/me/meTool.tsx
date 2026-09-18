@@ -25,6 +25,7 @@ import {
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { configRecordPaths, NO_RECORD_PATHS } from "@/tools/me/configRecordPaths";
 import { efsFileNames, NO_EFS_NAMES } from "@/tools/me/efsFileNames";
 import {
   buildSummary,
@@ -288,8 +289,24 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
    */
   const volume = analysis?.mfsVolume;
   const efsVolume = analysis?.efsVolume;
+  /**
+   * Every ID-keyed Configuration record in the analysis, wherever it came from:
+   * the FITC partition's payload and a newer volume's own 6/7 streams are keyed
+   * into the same table.
+   */
+  const configIds = useMemo(
+    () => [
+      ...(analysis?.oemConfiguration?.recordsByID ?? []).map((one) => one.fileId),
+      ...(volume?.configurationsByID ?? []).flatMap((stream) =>
+        stream.records.map((one) => one.fileId)
+      ),
+    ],
+    [analysis, volume]
+  );
   const wantsFileTable =
-    (volume?.usesFTBL === true && volume.files.length > 0) || efsVolume !== undefined;
+    (volume?.usesFTBL === true && volume.files.length > 0) ||
+    efsVolume !== undefined ||
+    configIds.length > 0;
   useEffect(() => {
     if (wantsFileTable && fileTableStore.getSnapshot().status === "idle") loadFileTable();
   }, [wantsFileTable]);
@@ -307,9 +324,25 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     [table, efsVolume, volume]
   );
 
+  const configPaths = useMemo(
+    () =>
+      table === undefined || configIds.length === 0
+        ? NO_RECORD_PATHS
+        : configRecordPaths(
+            table,
+            configIds,
+            volume?.ftblPlatform ?? -1,
+            volume?.ftblDictionary ?? -1
+          ),
+    [table, configIds, volume]
+  );
+
   const tree = useMemo(
-    () => (analysis === undefined ? [] : presentMEA(analysis, checksums, mfsNames, efsNames)),
-    [analysis, checksums, mfsNames, efsNames]
+    () =>
+      analysis === undefined
+        ? []
+        : presentMEA(analysis, checksums, mfsNames, efsNames, configPaths),
+    [analysis, checksums, mfsNames, efsNames, configPaths]
   );
   const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);
