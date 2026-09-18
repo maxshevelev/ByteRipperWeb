@@ -550,7 +550,9 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.Row*": "n/a — the fields of the web fixture's options object",
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.put*": "n/a — the web fixtures write little-endian fields through their own small helpers",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fileTable": "n/a — the protocol method is src/state/fileTableStore.ts's FileTableSource, the same seam a test installs its own text through"
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fileTable": "n/a — the protocol method is src/state/fileTableStore.ts's FileTableSource, the same seam a test installs its own text through",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.Entry.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.EFSEntry.init": "n/a — an object literal; there is nothing to construct"
       }
     },
     {

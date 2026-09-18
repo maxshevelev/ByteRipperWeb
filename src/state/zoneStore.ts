@@ -43,7 +43,7 @@ export const zoneHooks: {
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.publish
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toolZonesChanged
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncMinimapZones
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.syncZones
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setZones
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.publish
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.publish

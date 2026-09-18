@@ -838,16 +838,18 @@ function SummaryView({
   readonly blocks: readonly MEASummaryBlock[];
   readonly scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
+  // Two blocks can carry one title — an image with two independent firmware
+  // copies names each the same thing — so the repeats are numbered apart, as
+  // the rows inside a block are. A title alone had React dropping one of the
+  // pair, and saying so.
+  const blockKeys = uniqueKeys(blocks.map((block) => block.title ?? ""));
   return (
     <div className="me-summary" ref={scrollRef}>
       <div className="me-summary-grid">
         {blocks.map((block, blockIndex) => {
           const keys = uniqueKeys(block.rows.map((row) => `${row.label}\t${valueText(row)}`));
-          // Two blocks can carry one title — an image with two independent
-          // firmware copies names each the same thing — so the position keys
-          // them apart. A title alone had React dropping one of the pair.
           return (
-            <Fragment key={`${blockIndex}\t${block.title ?? ""}`}>
+            <Fragment key={blockKeys[blockIndex]}>
               {block.title === undefined ? null : (
                 <h3 className="me-summary-title">{block.title}</h3>
               )}

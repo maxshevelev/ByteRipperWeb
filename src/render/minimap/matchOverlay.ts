@@ -5,7 +5,7 @@ import { OverviewBinning } from "@/render/minimap/overviewBinning";
  * How many matches one overview row is marked from before it has said all it
  * can say at this scale.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.matchOverlay
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.matchOverlay
  */
 export const PER_ROW_MARK_LIMIT = 32;
 
@@ -21,7 +21,7 @@ const FULL_ROW = 0xffff;
  * interface for as long as it took. Each row stops early once every column is
  * marked or after {@link PER_ROW_MARK_LIMIT} matches.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.matchOverlay
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.matchOverlay
  * @upstream-differs a row no match reaches is not visited: the walk jumps to the row the next match starts in
  */
 export function matchOverlayMarks(
@@ -77,7 +77,7 @@ export function matchOverlayMarks(
  * The row bits for the find indicator alone — one range, so this is what a step
  * of ‹ › costs on the map.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.currentMatchMarks
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.currentMatchMarks
  */
 export function currentMatchMarks(
   range: { readonly start: number; readonly end: number } | undefined,

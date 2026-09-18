@@ -110,10 +110,10 @@ export interface MinimapState {
    * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.progressLabel
    * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.setRebuildProgress
    * @upstream-differs a <progress> element under the switch
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.OverviewProgressSink
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginOverviewProgress
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reportOverviewProgress
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.hideOverviewProgress
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.OverviewProgressSink
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.beginOverviewProgress
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.reportOverviewProgress
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.hideOverviewProgress
    */
   readonly progress: number;
   readonly problem: string | undefined;
@@ -217,9 +217,9 @@ function anyBuilding(): boolean {
 const send = (pane: PaneId, request: MinimapWorkerRequest) => workerFor(pane).postMessage(request);
 
 /**
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setMinimapPanelVisible
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.setPanelVisible
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPanelVisible
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapPanelVisibilityChanged
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.panelVisibilityChanged
  */
 export function setMinimapVisible(visible: boolean): void {
   minimapStore.update((state) => (state.visible === visible ? state : { ...state, visible }));
@@ -230,8 +230,8 @@ export function setMinimapVisible(visible: boolean): void {
  * Resizes the panel, clamped and remembered.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setMinimapPanelWidth
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.persistMinimapPanelWidth
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.currentMinimapWidth
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.persistMinimapPanelWidth
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.currentMinimapWidth
  */
 export function setMinimapWidth(width: number): void {
   const next = clampMinimapWidth(width);
@@ -246,7 +246,7 @@ export function setMinimapWidth(width: number): void {
 
 /**
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimap
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimapPanel
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.togglePanel
  */
 export function toggleMinimap(): void {
   setMinimapVisible(!minimapStore.getSnapshot().visible);
@@ -255,7 +255,7 @@ export function toggleMinimap(): void {
 /**
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setRenderMode
  * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.onModeChange
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setMinimapRenderMode
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.setRenderMode
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimapOverview
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyPreferredMinimapMode
  */
@@ -299,12 +299,12 @@ function fingerprint(pane: PaneId, extent: number, rowCount: number): string | u
  * to would cost more than doing it.
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setOverviewSummaries
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.rebuildOverview
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scheduleOverviewRebuild
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewSummary
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.refreshMinimapMaps
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewSources
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewFollowIndexChange
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.rebuildOverview
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.scheduleOverviewRebuild
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSummary
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.refreshMaps
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSources
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.followIndexChange
  */
 export async function refreshMinimap(): Promise<void> {
   const state = minimapStore.getSnapshot();
@@ -407,10 +407,10 @@ async function buildHere(pane: PaneId, extent: number, rowCount: number): Promis
  * mask is arithmetic over the match set.
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setMatchOverlays
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncMinimapMatchOverlays
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scheduleMinimapMatchSync
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncedMatchPicture
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.MatchPicture
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.syncMatchOverlays
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.scheduleMatchSync
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.syncedMatchPicture
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.MatchPicture
  */
 export function refreshMasks(): Promise<void> {
   // One refresh at a time, and any number of requests during it make one more:
@@ -545,7 +545,7 @@ function devicePixelRatio(): number {
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.onOverviewUsefulnessChanged
  * @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.setOverviewAvailable
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateOverviewAvailability
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.updateOverviewAvailability
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.preferredMinimapMode
  */
 export function overviewWorthShowing(): boolean {
@@ -582,7 +582,7 @@ let editTimer: ReturnType<typeof setTimeout> | undefined;
 /**
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateOverviewRows
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.invalidateBytes
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.patchOverviewRows
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.patchOverviewRows
  */
 export function noteMinimapEdit(pane: PaneId): void {
   if (!minimapStore.getSnapshot().visible) return;

@@ -126,15 +126,35 @@ export interface MFSConfigDecode {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord
  */
 export interface MFSRawConfigIdRecord {
-  /** The FTBL table key (0x10002000, 0x12090300, …). */
+  /**
+   * The FTBL table key (0x10002000, 0x12090300, …).
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.fileID
+   */
   readonly fileId: number;
-  /** `FileOffset` into the owning stream. */
+  /**
+   * `FileOffset` into the owning stream.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.offset
+   */
   readonly offset: number;
-  /** `FileSize`. */
+  /**
+   * `FileSize`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.size
+   */
   readonly size: number;
-  /** Flags bit 0 — `fitc.cfg` may override `intl.cfg`. */
+  /**
+   * Flags bit 0 — `fitc.cfg` may override `intl.cfg`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.oemConfigurable
+   */
   readonly oemConfigurable: boolean;
-  /** Flags bits 1–15. */
+  /**
+   * Flags bits 1–15.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSRawConfigIDRecord.unknownFlags
+   */
   readonly unknownFlags: number;
 }
 
@@ -145,7 +165,9 @@ export interface MFSRawConfigIdRecord {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigIDDecode
  */
 export interface MFSConfigIdDecode {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigIDDecode.owningFile */
   readonly owningFile: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSConfigIDDecode.records */
   readonly records: readonly MFSRawConfigIdRecord[];
 }
 
@@ -710,14 +732,22 @@ export function reservedIntegrity(options: {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit
  */
 export interface MFSFileIntegritySplit {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.fileIndex */
   readonly fileIndex: number;
-  /** The file's own bytes, with the Integrity table taken off the end. */
+  /**
+   * The file's own bytes, with the Integrity table taken off the end.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.contentSize
+   */
   readonly contentSize: number;
   /**
    * How long that table turned out to be — 0x28, 0x34, or the 0x38 the
    * `arCounter` workaround below finds.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.tableSize
    */
   readonly tableSize: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSHomeDecoder.MFSFileIntegritySplit.integrity */
   readonly integrity: MFSIntegrityTable;
 }
 
