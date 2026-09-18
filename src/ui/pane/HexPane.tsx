@@ -1003,23 +1003,26 @@ export function HexPane({
       return;
     }
     reveal(editingHere.row);
-    // After the scroll lands, or the popover points at where the row used to be.
-    const frame = requestAnimationFrame(() => {
-      const layout = layoutRef.current;
-      const host = scrollRef.current;
-      const scroller = scrollerRef.current;
-      if (layout === undefined || host === null || scroller === null) return;
-      const inView = Math.floor(editingHere.row / BYTES_PER_ROW) * layout.rowHeight - scroller.top;
-      const roomBelow = scroller.viewportHeight - (inView + layout.rowHeight);
-      const above = roomBelow < 130 && inView > roomBelow;
-      setEditAnchor({
-        token: editingHere.token,
-        top: (above ? inView - 6 : inView + layout.rowHeight + 6) + host.scrollTop,
-        left: layout.leftPadding,
-        above,
-      });
+    // Placed now, and not on the next frame. The frame was there to let the
+    // scroll above land first, and the scroll does not need one: the scroller
+    // writes `scrollTop` itself, so the element it writes to already holds the
+    // answer. Waiting cost more than it bought — `requestAnimationFrame` does
+    // not run while a page is not being painted, which a window behind another
+    // window or a tab Chrome has throttled both are, and a popover waiting on a
+    // frame that never comes never appears at all. Reported as exactly that:
+    // sometimes the popover does not show, and a reload fixes it.
+    const layout = layoutRef.current;
+    const host = scrollRef.current;
+    if (layout === undefined || host === null) return;
+    const inView = Math.floor(editingHere.row / BYTES_PER_ROW) * layout.rowHeight - host.scrollTop;
+    const roomBelow = host.clientHeight - (inView + layout.rowHeight);
+    const above = roomBelow < 130 && inView > roomBelow;
+    setEditAnchor({
+      token: editingHere.token,
+      top: (above ? inView - 6 : inView + layout.rowHeight + 6) + host.scrollTop,
+      left: layout.leftPadding,
+      above,
     });
-    return () => cancelAnimationFrame(frame);
   }, [editingHere, reveal]);
 
   /**
