@@ -396,13 +396,27 @@ function parsedDictionaries(text: string): HuffmanDictionaries | undefined {
   }
 }
 
-/** The table, or nothing — a body that is not one is not a reason to fail an analysis. */
+/**
+ * The table, or nothing — a body that is not one is not a reason to fail an
+ * analysis.
+ *
+ * Kept against the text it was parsed from, because the file is ~5 MB and an
+ * image is analysed again on every edit: parsing it once per download rather
+ * than once per analysis is the difference between a pause nobody notices and
+ * one everybody does. The panel's side holds its own parse for the same reason
+ * (`fileTableStore`), and a worker cannot be handed that one.
+ */
+let fileTableText: string | undefined;
+let fileTableParsed: FileTable | undefined;
 function parsedFileTable(text: string): FileTable | undefined {
+  if (text === fileTableText) return fileTableParsed;
+  fileTableText = text;
   try {
-    return FileTable.parse(text);
+    fileTableParsed = FileTable.parse(text);
   } catch {
-    return undefined;
+    fileTableParsed = undefined;
   }
+  return fileTableParsed;
 }
 
 scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
