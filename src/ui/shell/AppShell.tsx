@@ -37,6 +37,7 @@ import {
   dismissAlert,
   duplicatePane,
   editingHooks,
+  foldParts,
   isSlot,
   joinIntoPane,
   openEmptyInPane,
@@ -78,6 +79,7 @@ import {
   paneDropRegion,
 } from "@/ui/drag/PaneDropBands";
 import { SingleFileDrop } from "@/ui/drag/SingleFileDrop";
+import { FragmentPanels } from "@/ui/fragments/FragmentPanels";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
@@ -575,6 +577,32 @@ export function AppShell() {
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
+
+  /**
+   * Escape folds the panel that is up.
+   *
+   * Escape means "let me see what is behind this", so it folds the panel into
+   * its pill rather than closing it: nothing is lost, and the pill is right
+   * there to bring it back.
+   *
+   * On the bubble phase, and never over an event something else has already
+   * answered — a rename field, an open menu, a dialog, the find bar's own
+   * pattern field. That is upstream's responder chain written out: there the
+   * key reaches the window only after the view it was pressed in has declined
+   * it.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.cancelOperation
+   */
+  useEffect(() => {
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (workspaceStore.getSnapshot().dock.expanded === undefined) return;
+      event.preventDefault();
+      foldParts();
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
   }, []);
 
   /**
@@ -1525,6 +1553,10 @@ export function AppShell() {
         onActivate={setActivePane}
         stacked={state.layout === "stacked"}
       />
+      {/* After the panes and the two side panels in the document as well as on
+          screen: the panel is laid over all three, and the dock takes a row of
+          its own under them. */}
+      <FragmentPanels />
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />

@@ -61,13 +61,13 @@ textarea,
      splitter, and a column with no panel in it collapses to nothing. Everything
      else spans every column. */
   grid-template-columns: auto minmax(0, 1fr) auto;
-  /* Toolbar, find bar, workspace — and nothing else. Upstream's window ends
-     where the dump ends: there is no band under the panes, so there is no band
-     to place here. Every one is placed by hand below: auto-placement fills the
-     first free track, so a find bar that is not up let the next element slide
-     into its row and sit under the toolbar. An empty row collapses to nothing,
-     so the workspace keeps its height. */
-  grid-template-rows: auto auto minmax(0, 1fr);
+  /* Toolbar, find bar, workspace, and the fragment dock — the one band under
+     the panes, because a part taken out of a dump has to wait somewhere (G48).
+     Every one is placed by hand below: auto-placement fills the first free
+     track, so a find bar that is not up let the next element slide into its row
+     and sit under the toolbar. An empty row collapses to nothing, so the
+     workspace keeps its height with no dock and no find bar. */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100%;
 }
 
@@ -4147,4 +4147,134 @@ button.uefi-title {
     animation: none;
     opacity: 0;
   }
+}
+
+/* ── Fragment panels and their dock (G48) ─────────────────────────────── */
+
+/*
+ * A part of a dump opened as a panel over the file it came out of. The panel
+ * lies across the whole of the panes' row — the tool panel and the minimap
+ * included, as upstream's host spans the split — and the dock takes a row of
+ * its own beneath, so a pill never covers the line that says where the caret
+ * is.
+ */
+.fragment-panel-host {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  /* Positioned, which is what makes the host a wall: a pane is positioned too,
+     so an ordinary block laid over one would be painted and hit-tested *under*
+     it, and the strip of the parent showing above the panel went on answering
+     the pointer. Later in the tree at the same level wins, and this is the last
+     of the three. */
+  position: relative;
+  display: grid;
+  /* The panel sits on the host's bottom edge, which is the dock's top edge. */
+  align-items: end;
+  min-height: 0;
+  /* Upstream's host clips: nothing of a panel is drawn outside the area it
+     covers. */
+  overflow: hidden;
+}
+
+.fragment-panel {
+  display: grid;
+  min-height: 0;
+  height: var(--fragment-panel-height, 0);
+  overflow: hidden;
+  /* Only the top corners: the bottom edge meets the dock, and a rounded corner
+     there would show the panes through a notch that means nothing. */
+  border-radius: 10px 10px 0 0;
+  background: var(--surface);
+  /* Cast upward, onto the file the part came out of. */
+  box-shadow: 0 -3px 14px rgb(0 0 0 / 0.28);
+}
+
+.fragment-dock {
+  grid-row: 4;
+  display: flex;
+  margin: 0;
+  list-style: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 8px;
+  background: var(--surface-raised);
+  /* The same rule the pane header draws along its own edge, so the dock reads
+     as chrome of the same kind. */
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+/*
+ * One pill: a folded panel, or the one that is up. It wears the shape a pane
+ * wears when it is dragged, because it is the same idea — a document held in
+ * the hand rather than laid out on the bench.
+ */
+.fragment-pill {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  box-sizing: border-box;
+  height: 24px;
+  /* Past this the name truncates rather than the pill taking the whole dock. */
+  max-width: 220px;
+  padding-right: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+}
+
+/* Filled rather than outlined, so the dock says at a glance which pill the
+   panel in front belongs to. */
+.fragment-pill[data-up] {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.fragment-pill-face {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0 0 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+}
+
+.fragment-pill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fragment-pill-glyph {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  color: var(--text-muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+/* A dot, not a word: the pill has room for a name and no more. */
+.fragment-pill-dot {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.fragment-pill[data-up] .fragment-pill-glyph,
+.fragment-pill[data-up] .fragment-pill-dot,
+.fragment-pill[data-up] .close-button {
+  color: inherit;
 }

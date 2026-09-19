@@ -239,6 +239,7 @@ export interface WorkspaceState {
    * them.
    *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fragments
+   * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.dock
    */
   readonly dock: FragmentDock;
   /**
@@ -794,7 +795,7 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
 }
 
 /** The pane a panel's part is read as: one spelling of the panel's own id. */
-const partPane = (id: PanelId): PartId => `part:${id}`;
+export const partPane = (id: PanelId): PartId => `part:${id}`;
 
 /**
  * Opens `bytes` as a part of its own — a pane over the file they came out of,
@@ -837,6 +838,17 @@ export function raisePart(pane: PartId): void {
     ...state,
     dock: expandPanel(state.dock, panelOf(pane)).dock,
   }));
+}
+
+/**
+ * The pill's own click: the panel that is up folds, any other rises.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.toggle
+ */
+export function togglePart(pane: PartId): void {
+  const state = workspaceStore.getSnapshot();
+  if (state.dock.expanded === panelOf(pane)) foldParts();
+  else raisePart(pane);
 }
 
 /**
