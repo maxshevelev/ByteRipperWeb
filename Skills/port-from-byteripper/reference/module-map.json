@@ -4719,10 +4719,9 @@
         "src/state/fragmentDock.ts",
         "src/ui/fragments"
       ],
-      "status": "planned",
+      "status": "in-progress",
       "note": "A part of a file — a zone, a decompressed body, a node of the UEFI tree — opened over the file it came out of rather than beside it (upstream's Design/FRAGMENT_PANELS_PLAN.md). The dock is a pure model and ports verbatim; the panel is React composition rather than a view controller. What the web does not take: tearing a panel off into a tab, there being no tab (D11), and the flight, the pull-down gesture and the draggable pill, which the owner left out (2026-09-19). G48 and G49 in Design/GAPS.md.",
       "unported": {
-        "ByteRipperApp/Fragments/FragmentDock.swift#*": "later — G48: the dock model, the piece the web takes verbatim",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.beginPullDown": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.pullPanel": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.endPull": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
@@ -4735,6 +4734,10 @@
         "ByteRipperApp/Fragments/FragmentPanelView.swift#*": "later — G48: the panel's own geometry and chrome, as React composition",
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#*": "later — G48: the strip of pills along the bottom edge",
         "ByteRipperApp/Fragments/PullDownHandleView.swift#*": "n/a — the handle a panel is pulled down by: the owner left the panel's gestures out (2026-09-19)"
+      },
+      "files": {
+        "FragmentDock.swift": "src/state/fragmentDock.ts",
+        "ByteRipperTests/FragmentDockTests.swift": "src/state/fragmentDock.test.ts"
       }
     },
     {
