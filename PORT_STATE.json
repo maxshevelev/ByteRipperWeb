@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "729fdbbcf906b9bdd1c93715394365fdce1d2032",
-  "baselineNote": "Rename the app to ByteRipper (2026-09-11)"
+  "baseCommit": "bdfe776675ed75909bc267962992e158c0dcc7e8",
+  "baselineNote": "Switch between panels without the flight (2026-09-18)"
 }
