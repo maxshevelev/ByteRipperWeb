@@ -36,8 +36,9 @@ import { segmentsStore } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
-import { activeDecoder, decoderFor, type PaneId } from "@/state/workspaceStore";
+import { activeDecoder, decoderFor, isSlot, type PaneId } from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
+import { EMPTY_ZONES } from "@/tools/zone";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
 import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
 import { PaneDropBands, type PaneDropRegion } from "@/ui/drag/PaneDropBands";
@@ -263,6 +264,9 @@ const platform = detectKeyboardPlatform();
  * the browser snapshots rather than an image drawn to a frame
  */
 function beginPaneDragFromEvent(event: React.DragEvent, paneId: PaneId, name: string): void {
+  // Only one of the workspace's own panes is dragged: a part is opened over a
+  // file, and this edition does not drag it anywhere (GAPS §2.1).
+  if (!isSlot(paneId)) return;
   if ((event.target as Element).closest("input, button") !== null) {
     event.preventDefault();
     return;
@@ -1353,7 +1357,7 @@ export function HexPane({
    * upstream draws them — the focused one washed. The shell never sees a node;
    * the ranges and the focus are the whole of what a tool asks to have drawn.
    */
-  const zones = useStore(zoneStore).panes[paneId];
+  const zones = useStore(zoneStore).panes[paneId] ?? EMPTY_ZONES;
   useEffect(() => {
     rendererRef.current?.setZones(zones.zones, zones.focus);
     scheduleDraw();

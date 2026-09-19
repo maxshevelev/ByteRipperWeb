@@ -10,7 +10,7 @@ import {
   paneDragStore,
 } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
-import type { PaneId } from "@/state/workspaceStore";
+import type { SlotId } from "@/state/workspaceStore";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
 import {
   DropBandLayout,
@@ -189,7 +189,7 @@ export interface PaneDropRegionOptions {
    *
    * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onPaneDropped
    */
-  readonly onPaneDropped: (paneId: PaneId, band: SingleFileDropTarget, copying: boolean) => void;
+  readonly onPaneDropped: (paneId: SlotId, band: SingleFileDropTarget, copying: boolean) => void;
   /**
    * Files were let go on a band. The event is the only handle on them — a
    * browser hands a drop its data and nothing else.

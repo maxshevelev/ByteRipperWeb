@@ -14,7 +14,7 @@ import {
 } from "@/state/toolController";
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { useStore } from "@/state/useStore";
-import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { PANE_IDS, type PaneId, paneIn, workspaceStore } from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
@@ -37,13 +37,13 @@ import { useKeyboardInput } from "@/ui/shell/useKeyboardInput";
 export function ToolPanel({
   onReveal,
 }: {
-  readonly onReveal: (pane: "a" | "b", start: number, end: number) => void;
+  readonly onReveal: (pane: PaneId, start: number, end: number) => void;
 }) {
   const workspace = useStore(workspaceStore);
   const tools = useStore(toolController);
   const { boundPane, width } = tools;
   const tool = activeModule(tools);
-  const slot = boundPane === undefined ? undefined : workspace.panes[boundPane];
+  const slot = boundPane === undefined ? undefined : paneIn(workspace, boundPane);
   const choices = paneChoices(workspace.panes);
   const switchable = selectorEnabled(choices);
   const keyboardRing = useKeyboardInput();

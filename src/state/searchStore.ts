@@ -17,7 +17,7 @@ import { dismissNotice, showNotice, showWrapNotice } from "@/state/noticeStore";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { createStore } from "@/state/store";
 import { createTimeSlicer } from "@/state/timeSlice";
-import { type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { type PaneId, paneIn, paneState, workspaceStore } from "@/state/workspaceStore";
 import type { JobId, SearchWorkerRequest, SearchWorkerResponse } from "@/workers/protocol";
 
 /**
@@ -284,14 +284,17 @@ const IDLE: SearchState = {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onMatchSetChanged
  */
 export function resultsFor(state: SearchState, pane: PaneId): PaneResults {
-  return state.results[pane];
+  // A pane nothing has searched yet has no row of its own — a part opened over
+  // a file starts that way — and reads as a search that found nothing, which is
+  // what it is.
+  return state.results[pane] ?? NO_RESULTS;
 }
 
 /** Replaces part of one pane's results, leaving the other pane's alone. */
 function updateResults(pane: PaneId, patch: Partial<PaneResults>): void {
   searchStore.update((state) => ({
     ...state,
-    results: { ...state.results, [pane]: { ...state.results[pane], ...patch } },
+    results: { ...state.results, [pane]: { ...resultsFor(state, pane), ...patch } },
   }));
   followSearchOperation(pane);
 }
@@ -308,7 +311,7 @@ let searchOperationPane: PaneId = "a";
 function followSearchOperation(pane: PaneId): void {
   const operation = searchOperation;
   if (operation === undefined || pane !== searchOperationPane) return;
-  const results = searchStore.getSnapshot().results[pane];
+  const results = resultsFor(searchStore.getSnapshot(), pane);
   const over =
     results.status === "notFound" ||
     results.status === "failed" ||
@@ -504,7 +507,7 @@ export function startSearch(options: {
   const caseSensitive = options.caseSensitive ?? state.caseSensitive;
   const pane = options.pane ?? state.pane;
 
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined || query.length === 0) {
     cancelRunning();
     updateResults(pane, {
@@ -692,7 +695,7 @@ async function runAttempts(
   direction: "forward" | "backward",
   goal: SearchGoal
 ): Promise<void> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return;
 
   // The worker is handed the *file*. A document with unsaved edits is not its
@@ -944,8 +947,7 @@ export function stepSearch(direction: "forward" | "backward"): void {
   const matches = results.matches;
   if (matches === undefined || !matches.isHighlightable) return;
 
-  const caret =
-    results.current?.start ?? workspaceStore.getSnapshot().panes[pane]?.document.caret ?? 0;
+  const caret = results.current?.start ?? paneState(pane)?.document.caret ?? 0;
   const from = direction === "forward" ? caret + 1 : caret;
   const step = matches.step(direction, from);
   if (step === undefined) return;
@@ -1119,7 +1121,7 @@ export const MAX_SELECTION_FIND_BYTES = 1024;
  */
 export async function useSelectionForFind(): Promise<void> {
   const workspace = workspaceStore.getSnapshot();
-  const slot = workspace.panes[workspace.activePane];
+  const slot = paneIn(workspace, workspace.activePane);
   if (slot === undefined) return;
   const { start, end } = slot.document.selection;
   if (end <= start) return;

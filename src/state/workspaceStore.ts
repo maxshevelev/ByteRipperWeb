@@ -56,9 +56,15 @@ import { groupActs, noteDocumentAct } from "@/state/undoRouter";
  */
 
 /** Which slot. File B is optional; with only A the app is in single-file mode. */
-export type PaneId = "a" | "b";
+export type SlotId = "a" | "b";
 
-export const PANE_IDS: readonly PaneId[] = ["a", "b"];
+export const PANE_IDS: readonly SlotId[] = ["a", "b"];
+
+/** A part opened over the file it came out of, as a pane of its own. */
+export type PartId = `part:${number}`;
+
+/** Which pane: one of the workspace's two file slots, or a part in the dock. */
+export type PaneId = SlotId | PartId;
 
 /**
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel
@@ -105,8 +111,8 @@ export interface PaneState {
  * which is what {@link signalFullInvalidation} sends.
  */
 export const editingHooks: {
-  onEdit?: ((pane: PaneId, edit: DiffEdit) => void) | undefined;
-  onContentChange?: ((pane: PaneId, operations: readonly UndoOperation[]) => void) | undefined;
+  onEdit?: ((pane: SlotId, edit: DiffEdit) => void) | undefined;
+  onContentChange?: ((pane: SlotId, operations: readonly UndoOperation[]) => void) | undefined;
   /**
    * The shell's answer to a shifting edit's warning (§7.2). The edit is handed
    * over because the warning names it — see {@link ShiftingEdit}.
@@ -131,7 +137,7 @@ function scratchOptions(): { scratch?: OpfsScratchStore } {
   return OpfsScratchStore.isAvailable() ? { scratch: new OpfsScratchStore() } : {};
 }
 
-function makeDocument(storage: EditableByteStorage, pane: PaneId) {
+function makeDocument(storage: EditableByteStorage, pane: SlotId) {
   const document = new BinaryDocument(storage);
   const typing = new TypingController(document, {
     onEdit: (edit) => editingHooks.onEdit?.(pane, edit),
@@ -176,7 +182,7 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.signalFullInvalidation
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onFullInvalidation
  */
-function signalFullInvalidation(pane: PaneId): void {
+function signalFullInvalidation(pane: SlotId): void {
   editingHooks.onContentChange?.(pane, []);
 }
 
@@ -196,7 +202,17 @@ export interface WorkspaceState {
    * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.openPaneCount
    * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.hasOpenFile
    */
-  readonly panes: Readonly<Record<PaneId, PaneState | undefined>>;
+  readonly panes: Readonly<Record<SlotId, PaneState | undefined>>;
+  /**
+   * The parts taken out of those files, each a pane of its own, keyed by the
+   * panel it was opened into. Empty until a part is opened — the panel that
+   * opens one is G48 — and kept apart from the slots because the two are not
+   * the same thing: a file is opened into a slot, and a part is opened over
+   * one.
+   *
+   * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface
+   */
+  readonly parts: Readonly<Record<PartId, PaneState>>;
   /**
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
@@ -210,7 +226,7 @@ export interface WorkspaceState {
    * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.activePaneIndex
    * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.activePane
    */
-  readonly activePane: PaneId;
+  readonly activePane: SlotId;
   readonly capabilities: FileCapabilities;
   /**
    * @upstream-differs held in the workspace, and remembered through settingsStore
@@ -262,6 +278,7 @@ export interface Alert {
  */
 export const workspaceStore = createStore<WorkspaceState>({
   panes: { a: undefined, b: undefined },
+  parts: {},
   layout: "sideBySide",
   splitFraction: 0.5,
   activePane: "a",
@@ -271,6 +288,29 @@ export const workspaceStore = createStore<WorkspaceState>({
   confirmShiftingEdits: true,
   alert: undefined,
 });
+
+/**
+ * Whether a pane is one of the workspace's two file slots, as against a part
+ * opened over one.
+ */
+export const isSlot = (pane: PaneId): pane is SlotId => pane === "a" || pane === "b";
+
+/**
+ * The pane `id` names, wherever it lives: a file slot, or a part in the dock.
+ *
+ * Everything that reads a pane's document goes through here rather than
+ * indexing the slots, because a part is a pane too — it has a document, an
+ * editing controller and a name of its own, and nothing that asks "what is in
+ * this pane" should have to know which kind it got.
+ *
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.mappedPane
+ */
+export const paneIn = (state: WorkspaceState, pane: PaneId): PaneState | undefined =>
+  isSlot(pane) ? state.panes[pane] : state.parts[pane];
+
+/** The same, over the store's current snapshot. */
+export const paneState = (pane: PaneId): PaneState | undefined =>
+  paneIn(workspaceStore.getSnapshot(), pane);
 
 /** The decoder the panes draw with, rebuilt only when the setting changes. */
 let cachedDecoder = makeByteDecoder(
@@ -308,7 +348,7 @@ export function activeDecoder(): ByteDecoder {
  * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.firstFilePane
  * @upstream-differs picks the slot for one file; a drop of several fills the empty slots in order
  */
-export function slotForNewFile(): PaneId {
+export function slotForNewFile(): SlotId {
   const { panes, activePane } = workspaceStore.getSnapshot();
   if (panes.a === undefined) return "a";
   if (panes.b === undefined) return "b";
@@ -327,7 +367,7 @@ export function slotForNewFile(): PaneId {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.open
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openBytes
  */
-export function openInPane(pane: PaneId, file: OpenedFile): void {
+export function openInPane(pane: SlotId, file: OpenedFile): void {
   try {
     const base = new FileBackedStorage(file.source, new ChunkCache());
     // The materialisation valve, now that there is somewhere private to write:
@@ -377,7 +417,7 @@ export function openInPane(pane: PaneId, file: OpenedFile): void {
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.closePane
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.close
  */
-export function closePane(pane: PaneId): void {
+export function closePane(pane: SlotId): void {
   forgetJoins(pane);
   clearSegments(pane);
   workspaceStore.update((state) => ({
@@ -416,7 +456,7 @@ export function swapPanes(): void {
  * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.setActive
  * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.onPaneActivated
  */
-export function setActivePane(pane: PaneId): void {
+export function setActivePane(pane: SlotId): void {
   workspaceStore.update((state) =>
     state.activePane === pane ? state : { ...state, activePane: pane }
   );
@@ -533,7 +573,7 @@ export function dismissAlert(): void {
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.canRename
  */
-export function canRenamePane(pane: PaneId): boolean {
+export function canRenamePane(pane: SlotId): boolean {
   const slot = workspaceStore.getSnapshot().panes[pane];
   return slot !== undefined && slot.saved === undefined;
 }
@@ -548,7 +588,7 @@ export function canRenamePane(pane: PaneId): boolean {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.untitledName
  * @upstream-differs the pane's own name field, which every document here already has
  */
-export function renamePane(pane: PaneId, raw: string): boolean {
+export function renamePane(pane: SlotId, raw: string): boolean {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined || slot.saved !== undefined) return false;
   const name = sanitizedPaneName(raw);
@@ -574,7 +614,7 @@ export function renamePane(pane: PaneId, raw: string): boolean {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.saveAs
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneSaveError
  */
-export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
+export async function savePane(pane: SlotId, as = false): Promise<SaveOutcome> {
   const state = workspaceStore.getSnapshot();
   const slot = state.panes[pane];
   if (slot === undefined) return { kind: "cancelled" };
@@ -634,7 +674,7 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
  * @upstream-differs a workspace operation: the copy becomes another pane's document
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openDuplicate
  */
-export async function duplicatePane(from: PaneId): Promise<void> {
+export async function duplicatePane(from: SlotId): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[from];
   if (slot === undefined) return;
   if (!OpfsScratchStore.isAvailable()) {
@@ -644,7 +684,7 @@ export async function duplicatePane(from: PaneId): Promise<void> {
     throw new Error("This browser cannot make a copy: it has no private storage to put one in.");
   }
 
-  const into: PaneId = from === "a" ? "b" : "a";
+  const into: SlotId = from === "a" ? "b" : "a";
   const scratch = new OpfsScratchStore();
   const source = await (slot.document.storage as EditOverlayStorage).contentSnapshot(scratch);
   const { document, typing } = makeDocument(
@@ -704,7 +744,7 @@ function copyName(name: string): string {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.newDocumentInPane
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openUntitled
  */
-export function openEmptyInPane(pane: PaneId, name = "Untitled.bin"): void {
+export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
   const { document, typing } = makeDocument(
     new EditOverlayStorage(new MemoryBackedStorage()),
     pane
@@ -743,7 +783,7 @@ function emptyFile(name: string): OpenedFile {
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.revert
  */
-export async function revertPane(pane: PaneId): Promise<void> {
+export async function revertPane(pane: SlotId): Promise<void> {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
 
@@ -798,9 +838,9 @@ interface JoinMark {
   readonly joined: { readonly name: string; readonly file: OpenedFile };
 }
 
-const joinMarks: Record<PaneId, JoinMark[]> = { a: [], b: [] };
+const joinMarks: Record<SlotId, JoinMark[]> = { a: [], b: [] };
 /** Joins undone and not yet redone, newest last. */
-const undoneJoins: Record<PaneId, JoinMark[]> = { a: [], b: [] };
+const undoneJoins: Record<SlotId, JoinMark[]> = { a: [], b: [] };
 
 /**
  * `bios.bin` becomes `bios-2.bin`, stepping over the names already on screen.
@@ -824,7 +864,7 @@ export function joinedName(name: string, taken: readonly string[]): string {
 }
 
 export interface JoinRequest {
-  readonly pane: PaneId;
+  readonly pane: SlotId;
   readonly source: ByteStorage;
   /** What the joined bytes came from, for the piece that holds them. */
   readonly sourceName: string;
@@ -919,7 +959,7 @@ async function snapshotOf(slot: PaneState, name: string): Promise<OpenedFile> {
  * and the joined bytes take the source's.
  */
 function seamCut(options: {
-  pane: PaneId;
+  pane: SlotId;
   position: JoinPosition;
   sizeBefore: number;
   sourceSize: number;
@@ -958,7 +998,7 @@ function seamCut(options: {
  * history the join is applied, and when it is not the document is back to what
  * the file holds — so the name, the file and the saved copy come back with it.
  */
-export function syncJoinAttachment(pane: PaneId): void {
+export function syncJoinAttachment(pane: SlotId): void {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
   const marks = joinMarks[pane];
@@ -999,7 +1039,7 @@ export function syncJoinAttachment(pane: PaneId): void {
 }
 
 /** A pane's content was replaced: nothing it was joined from is reachable now. */
-function forgetJoins(pane: PaneId): void {
+function forgetJoins(pane: SlotId): void {
   joinMarks[pane].length = 0;
   undoneJoins[pane].length = 0;
 }

@@ -1,5 +1,5 @@
 import { mergeTitle, type Segment, segmentLabel } from "@/core/segments/segmentation";
-import { type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { type PaneId, paneState } from "@/state/workspaceStore";
 import { mergePiece, replacePieceFromFile, savePiece } from "@/ui/segments/segmentCommands";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
@@ -51,7 +51,7 @@ export function pieceMenu(options: {
  * Shared, so the strip and the form put the same thing on screen.
  */
 export function selectPiece(pane: PaneId, piece: Segment): void {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return;
   void slot.typing.setSelection(piece.start, piece.end);
 }

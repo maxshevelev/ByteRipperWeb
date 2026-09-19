@@ -8,7 +8,14 @@ import {
   takeSessionParkedState,
 } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
-import { PANE_IDS, type PaneId, type PaneState, workspaceStore } from "@/state/workspaceStore";
+import {
+  PANE_IDS,
+  type PaneId,
+  type PaneState,
+  paneState,
+  type SlotId,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { clearZones } from "@/state/zoneStore";
 import { toolById } from "@/tools/registry";
 
@@ -283,7 +290,7 @@ export function panesSwapped(): void {
 export function selectPane(pane: PaneId): void {
   const { activeIdentifier, boundPane } = toolController.getSnapshot();
   if (activeIdentifier === undefined || boundPane === undefined || boundPane === pane) return;
-  if (workspaceStore.getSnapshot().panes[pane] === undefined) return;
+  if (paneState(pane) === undefined) return;
 
   endSession(boundPane);
   closeFirmware(boundPane);
@@ -363,7 +370,7 @@ export interface PaneChoice {
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.refreshPanelHeader
  */
 export function paneChoices(
-  panes: Readonly<Record<PaneId, PaneState | undefined>>
+  panes: Readonly<Record<SlotId, PaneState | undefined>>
 ): readonly PaneChoice[] {
   const { boundPane } = toolController.getSnapshot();
   return PANE_IDS.map((pane) => ({

@@ -7,7 +7,7 @@ import {
   segmentsFor,
   undoSegments,
 } from "@/state/segmentsStore";
-import { type PaneId, syncJoinAttachment, workspaceStore } from "@/state/workspaceStore";
+import { isSlot, type PaneId, paneState, syncJoinAttachment } from "@/state/workspaceStore";
 
 /**
  * Which of a pane's histories `Cmd/Ctrl+Z` should take back.
@@ -127,13 +127,13 @@ export function forgetActs(pane: PaneId): void {
 function canUndoAct(act: Act): boolean {
   if (act.kind === "group") return act.parts.some(canUndoAct);
   if (act.kind === "segments") return canUndoSegments(act.pane);
-  return workspaceStore.getSnapshot().panes[act.pane]?.document.canUndo === true;
+  return paneState(act.pane)?.document.canUndo === true;
 }
 
 function canRedoAct(act: Act): boolean {
   if (act.kind === "group") return act.parts.some(canRedoAct);
   if (act.kind === "segments") return canRedoSegments(act.pane);
-  return workspaceStore.getSnapshot().panes[act.pane]?.document.canRedo === true;
+  return paneState(act.pane)?.document.canRedo === true;
 }
 
 async function undoAct(act: Act, batch: boolean): Promise<void> {
@@ -147,11 +147,13 @@ async function undoAct(act: Act, batch: boolean): Promise<void> {
     undoSegments(act.pane);
     return;
   }
-  const slot = workspaceStore.getSnapshot().panes[act.pane];
+  const slot = paneState(act.pane);
   await slot?.typing.undo(batch);
   // A join is one of those steps, and taking it back gives the pane its file
   // and its name back with it (§22.2).
-  syncJoinAttachment(act.pane);
+  // Only a slot can have been joined: a part is opened over a file, never out
+  // of two.
+  if (isSlot(act.pane)) syncJoinAttachment(act.pane);
 }
 
 async function redoAct(act: Act): Promise<void> {
@@ -163,10 +165,12 @@ async function redoAct(act: Act): Promise<void> {
     redoSegments(act.pane);
     return;
   }
-  const slot = workspaceStore.getSnapshot().panes[act.pane];
+  const slot = paneState(act.pane);
   await slot?.typing.redo();
   // Redoing a join detaches the pane from its file again (§22.2).
-  syncJoinAttachment(act.pane);
+  // Only a slot can have been joined: a part is opened over a file, never out
+  // of two.
+  if (isSlot(act.pane)) syncJoinAttachment(act.pane);
 }
 
 /**
@@ -187,7 +191,7 @@ export function nextRedo(pane: PaneId): { readonly label: string | undefined } |
   return nextAct(future, pane, canRedoAct, (slot) => slot.document.canRedo, documentRedoLabel);
 }
 
-type Slot = NonNullable<ReturnType<typeof workspaceStore.getSnapshot>["panes"][PaneId]>;
+type Slot = NonNullable<ReturnType<typeof paneState>>;
 
 /**
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undoLabel
@@ -211,7 +215,7 @@ function nextAct(
   documentCan: (slot: Slot) => boolean,
   documentLabel: (slot: Slot) => string | undefined
 ): { readonly label: string | undefined } | undefined {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   for (let index = stack.length - 1; index >= 0; index--) {
     const act = stack[index];
     if (act === undefined || act.pane !== pane) continue;
@@ -290,10 +294,10 @@ async function undoStep(pane: PaneId, batch: boolean): Promise<boolean> {
   }
   // Nothing recorded for this pane, which is the state after a reload of the
   // page or past the limit above. The document still knows its own history.
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot?.document.canUndo === true) {
     await slot.typing.undo(batch);
-    syncJoinAttachment(pane);
+    if (isSlot(pane)) syncJoinAttachment(pane);
     return true;
   }
   return false;
@@ -326,10 +330,10 @@ async function redoStep(pane: PaneId): Promise<boolean> {
     if (act.after !== undefined) restorePartition(pane, act.after);
     return true;
   }
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot?.document.canRedo === true) {
     await slot.typing.redo();
-    syncJoinAttachment(pane);
+    if (isSlot(pane)) syncJoinAttachment(pane);
     return true;
   }
   return false;

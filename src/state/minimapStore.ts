@@ -13,7 +13,7 @@ import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overvie
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
 import { createStore } from "@/state/store";
-import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { PANE_IDS, type PaneId, paneIn, paneState, workspaceStore } from "@/state/workspaceStore";
 import type { JobId, MinimapWorkerRequest, MinimapWorkerResponse } from "@/workers/protocol";
 
 /**
@@ -286,7 +286,7 @@ export function setMinimapRows(rowCount: number): void {
 
 /** The file identity a density picture is valid for. */
 function fingerprint(pane: PaneId, extent: number, rowCount: number): string | undefined {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return undefined;
   return [slot.name, slot.file.size, slot.file.lastModified, extent, rowCount].join("|");
 }
@@ -369,7 +369,7 @@ export async function refreshMinimap(): Promise<void> {
 
 /** The density picture for an edited document, built on this thread. */
 async function buildHere(pane: PaneId, extent: number, rowCount: number): Promise<void> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return;
   const id = nextJobId++;
   currentJob[pane] = id;
@@ -446,7 +446,7 @@ async function refreshMasksOnce(): Promise<void> {
   const pictures: Record<PaneId, OverviewPicture | undefined> = { a: undefined, b: undefined };
 
   for (const pane of PANE_IDS) {
-    const slot = workspace.panes[pane];
+    const slot = paneIn(workspace, pane);
     const built = density[pane];
     if (slot === undefined || built === undefined) continue;
 

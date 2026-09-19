@@ -14,7 +14,7 @@ import {
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
-import { workspaceStore } from "@/state/workspaceStore";
+import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
@@ -384,7 +384,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealAtCaret = useCallback(async () => {
-    const slot = workspaceStore.getSnapshot().panes[context.pane];
+    const slot = paneState(context.pane);
     if (slot === undefined) return;
     setFinding(true);
     const path = await findFirmwareNodeAt(context.pane, slot.document.selection.start);

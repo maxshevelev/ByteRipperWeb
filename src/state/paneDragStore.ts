@@ -1,5 +1,5 @@
 import { createStore } from "@/state/store";
-import type { PaneId } from "@/state/workspaceStore";
+import type { SlotId } from "@/state/workspaceStore";
 import type { SingleFileDropTarget } from "@/ui/drag/dragDrop";
 
 /**
@@ -25,7 +25,7 @@ export interface PaneDragState {
   /** `undefined` when nothing is being dragged over the workspace at all. */
   readonly inFlight: DragKind | undefined;
   /** The pane being dragged, when one is. */
-  readonly paneId: PaneId | undefined;
+  readonly paneId: SlotId | undefined;
   /**
    * Whether the drag in flight is asking to copy. Held between updates so the
    * captions can be recomputed without the event to hand.
@@ -71,7 +71,7 @@ export function beginFileDrag(): void {
  * @upstream-differs the identity is written here rather than onto a pasteboard, because a browser
  * hides a drag's data from every destination until the drop
  */
-export function beginPaneDrag(paneId: PaneId): void {
+export function beginPaneDrag(paneId: SlotId): void {
   paneDragStore.update(() => ({ ...IDLE, inFlight: "pane", paneId }));
 }
 
@@ -136,7 +136,7 @@ export function notePaneDragZone(zone: SingleFileDropTarget | undefined): void {
 /**
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.draggedPaneID
  */
-export function draggedPaneId(): PaneId | undefined {
+export function draggedPaneId(): SlotId | undefined {
   return paneDragStore.getSnapshot().paneId;
 }
 

@@ -1,5 +1,5 @@
 import type { PaneId } from "@/state/workspaceStore";
-import { workspaceStore } from "@/state/workspaceStore";
+import { paneState } from "@/state/workspaceStore";
 import {
   type ToolTransaction,
   transactionProblemMessage,
@@ -29,7 +29,7 @@ export async function applyTransaction(
   const checked = validateTransaction(transaction);
   if (!checked.ok) return transactionProblemMessage(checked.problem);
 
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return "That pane has no file open.";
 
   // Bounds are the document's to know, and they are checked before anything is

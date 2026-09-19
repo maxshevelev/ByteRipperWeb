@@ -49,9 +49,17 @@ import {
 import { segmentsStore } from "@/state/segmentsStore";
 import { zoneSelected } from "@/state/toolController";
 import { useStore } from "@/state/useStore";
-import { PANE_IDS, type PaneId, workspaceStore } from "@/state/workspaceStore";
+import {
+  isSlot,
+  PANE_IDS,
+  type PaneId,
+  paneIn,
+  paneState,
+  type SlotId,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
-import type { Zone } from "@/tools/zone";
+import { EMPTY_ZONES, type Zone } from "@/tools/zone";
 import { ViewportMarks } from "@/ui/minimap/ViewportMarks";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { pieceMenu, selectPiece } from "@/ui/segments/segmentMenu";
@@ -77,7 +85,7 @@ export interface MinimapPanelProps {
   /** What each pane has selected, drawn as a strip on its map. */
   readonly selections: Partial<Record<PaneId, { readonly start: number; readonly end: number }>>;
   /** Makes a pane the active one, as clicking its dump does. */
-  readonly onActivate: (pane: PaneId) => void;
+  readonly onActivate: (pane: SlotId) => void;
   /** The maps mirror the panes' arrangement. */
   readonly stacked: boolean;
 }
@@ -421,7 +429,7 @@ interface CanvasProps {
    * this map's bookmark marks and segment strip sit in.
    */
   readonly placement: MapPlacement;
-  readonly onActivate: (pane: PaneId) => void;
+  readonly onActivate: (pane: SlotId) => void;
 }
 
 /**
@@ -449,7 +457,7 @@ function MinimapCanvas({
   const differences = useStore(diffStore).index;
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [cells, setCells] = useState<CellState[]>([]);
-  const slot = workspace.panes[pane];
+  const slot = paneIn(workspace, pane);
 
   // The colours are read from the theme rather than hard-coded, and re-read
   // when it changes — the same contract the hex grid's palette has.
@@ -634,7 +642,7 @@ function MinimapCanvas({
    * Depth is how many zones contain this one: nested brackets step inward, so
    * the nesting is what the eye reads rather than something to work out.
    */
-  const zones = useStore(zoneStore).panes[pane];
+  const zones = useStore(zoneStore).panes[pane] ?? EMPTY_ZONES;
   /**
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setZoneMaps
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.brackets
@@ -783,7 +791,9 @@ function MinimapCanvas({
       } catch {
         // No active pointer with that id; carry on without capture.
       }
-      onActivate(pane);
+      // The map draws the workspace's own panes, which is what a click on it
+      // makes active.
+      if (isSlot(pane)) onActivate(pane);
 
       const box = canvas.getBoundingClientRect();
       const x = event.clientX - box.left;
@@ -1000,7 +1010,7 @@ function MinimapCanvas({
               {
                 label: `Select Zone ${named}`,
                 onSelect: () => {
-                  const slot = workspaceStore.getSnapshot().panes[pane];
+                  const slot = paneState(pane);
                   if (slot === undefined) return;
                   void slot.typing.setSelection(zone.start, zone.end);
                   scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW, { centre: true });

@@ -1,5 +1,5 @@
 import type { JoinPosition } from "@/core/document/binaryDocument";
-import type { PaneId } from "@/state/workspaceStore";
+import type { PaneId, SlotId } from "@/state/workspaceStore";
 
 /**
  * What a drop on a pane means (§4.3, §22.4).
@@ -293,8 +293,8 @@ export function paneDropOutcome(
  */
 export function singleFilePaneDrop(
   band: SingleFileDropTarget,
-  arrangement: { readonly open: PaneId; readonly free: PaneId }
-): { readonly pane: PaneId; readonly band: SingleFileDropTarget } {
+  arrangement: { readonly open: SlotId; readonly free: SlotId }
+): { readonly pane: SlotId; readonly band: SingleFileDropTarget } {
   return { pane: band === "addSecond" ? arrangement.free : arrangement.open, band };
 }
 

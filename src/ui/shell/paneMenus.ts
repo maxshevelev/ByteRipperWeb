@@ -11,6 +11,8 @@ import { segmentsFor } from "@/state/segmentsStore";
 import {
   type PaneId,
   type PaneState,
+  paneIn,
+  type SlotId,
   swapPanes,
   type WorkspaceState,
 } from "@/state/workspaceStore";
@@ -36,14 +38,14 @@ import type { MenuEntry } from "@/ui/shell/menuModel";
 /** What the shell can do, handed in so this module holds no state of its own. */
 export interface PaneMenuActions {
   readonly onNew: () => void;
-  readonly onOpen: (into?: PaneId) => void;
+  readonly onOpen: (into?: SlotId) => void;
   readonly onSave: (pane: PaneId) => void;
   readonly onSaveAs: (pane: PaneId) => void;
   /** Turns the header's name into a field (§23). */
   readonly onRename: (pane: PaneId) => void;
   readonly onRevert: (pane: PaneId) => void;
-  readonly onDuplicate: (pane: PaneId) => void;
-  readonly onClose: (pane: PaneId) => void;
+  readonly onDuplicate: (pane: SlotId) => void;
+  readonly onClose: (pane: SlotId) => void;
   readonly onFill: (pane: PaneId) => void;
   readonly onDeleteBytes: (pane: PaneId) => void;
   readonly onSelectBlockFrom: (pane: PaneId, offset: number) => void;
@@ -53,7 +55,7 @@ export interface PaneMenuActions {
   readonly onSelectZone: (pane: PaneId, zone: Zone) => void;
   readonly onSegments: (pane: PaneId) => void;
   /** Append File… / Insert File at Start… (§22). */
-  readonly onJoin: (pane: PaneId, position: "start" | "end") => void;
+  readonly onJoin: (pane: SlotId, position: "start" | "end") => void;
   /** A problem: a title and a message, in the window's own alert. */
   readonly onProblem: (title: string, message: string) => void;
   /** Something that happened and needs no answer, in the pane's own line. */
@@ -63,10 +65,13 @@ export interface PaneMenuActions {
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makePaneMenu */
 export function paneFileMenu(
   state: WorkspaceState,
-  pane: PaneId,
+  // The file menu is the workspace's own pane's: opening a file into it,
+  // joining one on, closing it. A part opened over a file answers none of
+  // those, and its header's menu is its own (G49).
+  pane: SlotId,
   actions: PaneMenuActions
 ): (MenuEntry | undefined)[] {
-  const slot = state.panes[pane];
+  const slot = paneIn(state, pane);
   if (slot === undefined) return [];
   // The verb follows this pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is (D7).
@@ -184,7 +189,7 @@ export function dumpMenu(
   actions: PaneMenuActions,
   extra: readonly (MenuEntry | undefined)[] = []
 ): (MenuEntry | undefined)[] {
-  const slot = state.panes[pane];
+  const slot = paneIn(state, pane);
   if (slot === undefined) return [];
   const selection = slot.document.selection;
   const inSelection =

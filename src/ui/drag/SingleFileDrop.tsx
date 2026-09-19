@@ -1,7 +1,7 @@
 import { type ReactNode, useRef } from "react";
 import { paneDragStore } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
-import type { PaneId, PaneLayout } from "@/state/workspaceStore";
+import type { PaneLayout, SlotId } from "@/state/workspaceStore";
 import { DropZoneView } from "@/ui/drag/DropZoneView";
 import {
   isDuplicate,
@@ -58,7 +58,7 @@ export interface SingleFileDropProps {
    *
    * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.onPaneDropped
    */
-  readonly onPaneDropped: (paneId: PaneId, band: SingleFileDropTarget, copying: boolean) => void;
+  readonly onPaneDropped: (paneId: SlotId, band: SingleFileDropTarget, copying: boolean) => void;
   /**
    * Files were let go in a zone.
    *

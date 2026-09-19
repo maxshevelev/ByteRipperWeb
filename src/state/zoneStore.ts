@@ -1,5 +1,5 @@
 import { createStore } from "@/state/store";
-import { type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { type PaneId, paneState } from "@/state/workspaceStore";
 import { EMPTY_ZONES, normalizedZones, type ZoneMap } from "@/tools/zone";
 
 /**
@@ -51,7 +51,7 @@ export const zoneHooks: {
 export function publishZones(pane: PaneId, zones: ZoneMap): void {
   // Repaired against the file as it is now: the map is a re-read behind an
   // edit that may have shortened it.
-  const size = workspaceStore.getSnapshot().panes[pane]?.document.size;
+  const size = paneState(pane)?.document.size;
   const drawable = size === undefined ? zones : normalizedZones(zones, size);
   const previousFocus = zonesFor(pane).focus;
   zoneStore.update((state) => ({ panes: { ...state.panes, [pane]: drawable } }));
@@ -77,5 +77,7 @@ export function clearZones(pane: PaneId): void {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexZoneSpans
  */
 export function zonesFor(pane: PaneId): ZoneMap {
-  return zoneStore.getSnapshot().panes[pane];
+  // A pane no tool has published zones for — a part opened over a file, before
+  // a tool is opened on it — has none, which is what the map says.
+  return zoneStore.getSnapshot().panes[pane] ?? EMPTY_ZONES;
 }

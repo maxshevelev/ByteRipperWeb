@@ -37,13 +37,17 @@ import {
   dismissAlert,
   duplicatePane,
   editingHooks,
+  isSlot,
   joinIntoPane,
   openEmptyInPane,
   openInPane,
   type PaneId,
+  paneIn,
+  paneState,
   renamePane,
   reportAlert,
   revertPane,
+  type SlotId,
   savePane,
   setActivePane,
   setConfirmShiftingEdits,
@@ -239,7 +243,7 @@ export function AppShell() {
       noteMinimapEdit(pane);
       // A cut travels with the content: an insert before it moves it, a delete
       // across it merges the pieces it separated.
-      const size = workspaceStore.getSnapshot().panes[pane]?.document.size ?? 0;
+      const size = paneState(pane)?.document.size ?? 0;
       noteSegmentEdit(pane, edit, size);
     };
     editingHooks.confirmShift = confirmInsertShift;
@@ -266,7 +270,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.openSecond
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.ignoredCount
    */
-  const accept = useCallback((files: OpenedFile[], into?: PaneId) => {
+  const accept = useCallback((files: OpenedFile[], into?: SlotId) => {
     // Two files chosen at once fill both slots, which is how a comparison is
     // opened in one gesture — but only into an empty workspace: with a file
     // already open, a second one would land on top of it. A single file goes
@@ -291,7 +295,7 @@ export function AppShell() {
 
   /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentOpenPanel */
   const open = useCallback(
-    async (into?: PaneId) => {
+    async (into?: SlotId) => {
       try {
         accept(
           await openFiles({ multiple: into === undefined, capabilities: state.capabilities }),
@@ -732,8 +736,8 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closePaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
    */
-  const closeWithWarning = useCallback((pane: PaneId) => {
-    const slot = workspaceStore.getSnapshot().panes[pane];
+  const closeWithWarning = useCallback((pane: SlotId) => {
+    const slot = paneState(pane);
     if (slot?.document.isDirty) {
       if (!window.confirm(`${slot.name} has unsaved edits. Close it and lose them?`)) return;
     }
@@ -806,7 +810,7 @@ export function AppShell() {
    * @upstream-differs upstream's join notifies the view to centre its caret; here the shell asks the pane
    */
   const revealSeam = useCallback((pane: PaneId) => {
-    const document = workspaceStore.getSnapshot().panes[pane]?.document;
+    const document = paneState(pane)?.document;
     if (document === undefined) return;
     setReveal({
       [pane]: { offset: document.selection.start, token: ++revealToken.current, moveCaret: false },
@@ -835,7 +839,7 @@ export function AppShell() {
    */
   useEffect(() => {
     undoHooks.onCaretRestored = (pane: PaneId) => {
-      const document = workspaceStore.getSnapshot().panes[pane]?.document;
+      const document = paneState(pane)?.document;
       if (document === undefined) return;
       setReveal({
         [pane]: {
@@ -895,7 +899,7 @@ export function AppShell() {
    * joins without asking, as its menu's Append File… already does
    */
   const joinInto = useCallback(
-    async (pane: PaneId, position: JoinPosition, source: ByteStorage, sourceName: string) => {
+    async (pane: SlotId, position: JoinPosition, source: ByteStorage, sourceName: string) => {
       try {
         await joinIntoPane({ pane, source, sourceName, position });
         revealSeam(pane);
@@ -924,7 +928,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.insertFileAtStart
    */
   const doJoin = useCallback(
-    async (pane: PaneId, position: JoinPosition) => {
+    async (pane: SlotId, position: JoinPosition) => {
       try {
         const [picked] = await openFiles({
           multiple: false,
@@ -957,7 +961,7 @@ export function AppShell() {
    *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.singleFilePaneDrop
    */
-  const singleFileBandTarget = useCallback((band: SingleFileDropTarget): PaneId => {
+  const singleFileBandTarget = useCallback((band: SingleFileDropTarget): SlotId => {
     const { panes } = workspaceStore.getSnapshot();
     const lone = panes.a === undefined ? "b" : "a";
     return singleFilePaneDrop(band, { open: lone, free: lone === "a" ? "b" : "a" }).pane;
@@ -980,8 +984,8 @@ export function AppShell() {
    */
   const paneDropOutcomeFor = useCallback(
     (
-      dragging: PaneId,
-      target: PaneId,
+      dragging: SlotId,
+      target: SlotId,
       band: SingleFileDropTarget,
       copying: boolean
     ): PaneDropOutcome => {
@@ -1018,7 +1022,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.paneDropOutcome
    */
   const outcomeResolverFor = useCallback(
-    (target: PaneId) => (band: SingleFileDropTarget, copying: boolean) => {
+    (target: SlotId) => (band: SingleFileDropTarget, copying: boolean) => {
       const dragging = draggedPaneId();
       if (dragging === undefined) return PANE_DROP_NONE;
       return paneDropOutcomeFor(dragging, target, band, copying);
@@ -1033,7 +1037,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performPaneDrop
    */
   const performPaneDrop = useCallback(
-    (dragging: PaneId, target: PaneId, band: SingleFileDropTarget, copying: boolean) => {
+    (dragging: SlotId, target: SlotId, band: SingleFileDropTarget, copying: boolean) => {
       const outcome = paneDropOutcomeFor(dragging, target, band, copying);
       const { panes } = workspaceStore.getSnapshot();
       switch (outcome.kind) {
@@ -1107,9 +1111,9 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openIntoPane
    */
   const openFilesAt = useCallback(
-    (target: PaneId, first: OpenedFile, extra: OpenedFile[], plusSecond: boolean) => {
+    (target: SlotId, first: OpenedFile, extra: OpenedFile[], plusSecond: boolean) => {
       accept([first], target);
-      const other: PaneId = target === "a" ? "b" : "a";
+      const other: SlotId = target === "a" ? "b" : "a";
       const second = extra[0];
       const takesSecond =
         plusSecond &&
@@ -1137,7 +1141,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleComparisonBandDrop
    */
   const handleComparisonBandDrop = useCallback(
-    (target: PaneId, band: SingleFileDropTarget, files: OpenedFile[]) => {
+    (target: SlotId, band: SingleFileDropTarget, files: OpenedFile[]) => {
       const [first, ...extra] = files;
       if (first === undefined) return;
       if (isJoin(band)) {
@@ -1274,7 +1278,7 @@ export function AppShell() {
       onSelectBlockFrom: (pane, offset) => setSelectBlock({ pane, start: offset }),
       onSplitHere: (pane, offset) => setCutAt({ pane, offset }),
       onSelectZone: (pane, zone) => {
-        const slot = workspaceStore.getSnapshot().panes[pane];
+        const slot = paneState(pane);
         if (slot === undefined) return;
         void slot.typing.setSelection(zone.start, zone.end);
         revealInBoth(zone.start);
@@ -1322,7 +1326,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands1
    * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.bands2
    */
-  const comparisonRegionFor = (id: PaneId): PaneDropRegion =>
+  const comparisonRegionFor = (id: SlotId): PaneDropRegion =>
     paneDropRegion({
       outcomeFor: outcomeResolverFor(id),
       onPaneDropped: (paneId, band, copying) => performPaneDrop(paneId, id, band, copying),
@@ -1350,14 +1354,14 @@ export function AppShell() {
   };
 
   /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performPaneDrop */
-  const handleSingleFilePaneDrop = (paneId: PaneId, band: SingleFileDropTarget, copying: boolean) =>
+  const handleSingleFilePaneDrop = (paneId: SlotId, band: SingleFileDropTarget, copying: boolean) =>
     performPaneDrop(paneId, singleFileBandTarget(band), band, copying);
 
   /**
    * One pane, with whatever drop region it wears — nothing in single-file mode,
    * where the workspace's container owns the drop and draws the bands.
    */
-  const paneElement = (id: PaneId, dropRegion?: PaneDropRegion) => {
+  const paneElement = (id: SlotId, dropRegion?: PaneDropRegion) => {
     const pane = state.panes[id];
     if (pane === undefined) return null;
     const other = id === "a" ? "b" : "a";
@@ -1467,11 +1471,13 @@ export function AppShell() {
       {toolId !== undefined && panes.length > 0 ? (
         <ToolPanel
           onReveal={(pane, start, end) => {
-            const slot = workspaceStore.getSnapshot().panes[pane];
+            const slot = paneState(pane);
             if (slot !== undefined) {
               void slot.typing.setSelection(start, end);
             }
-            setActivePane(pane);
+            // A tool bound to one of the workspace's panes makes it the active
+            // one; a part in the dock is active by being in front (G49).
+            if (isSlot(pane)) setActivePane(pane);
             revealInBoth(start);
           }}
         />
@@ -1539,11 +1545,11 @@ export function AppShell() {
       />
       <SelectBlockDialog
         open={selectBlock !== undefined}
-        fileSize={state.panes[selectBlock?.pane ?? activePane]?.document.size ?? 0}
+        fileSize={paneIn(state, selectBlock?.pane ?? activePane)?.document.size ?? 0}
         presetStart={selectBlock?.start}
         onSelect={(start, end) => {
           const pane = selectBlock?.pane ?? activePane;
-          void state.panes[pane]?.typing.setSelection(start, end);
+          void paneIn(state, pane)?.typing.setSelection(start, end);
           revealInBoth(start);
         }}
         onClose={() => setSelectBlock(undefined)}
@@ -1566,7 +1572,7 @@ export function AppShell() {
       />
       <CutDialog
         open={cutAt !== undefined}
-        fileSize={state.panes[cutAt?.pane ?? activePane]?.document.size ?? 0}
+        fileSize={paneIn(state, cutAt?.pane ?? activePane)?.document.size ?? 0}
         presetOffset={cutAt?.offset ?? 0}
         existingCuts={segmentsFor(cutAt?.pane ?? activePane)?.cuts ?? []}
         onCut={(offset, name) => addCut(cutAt?.pane ?? activePane, offset, name)}
@@ -1577,12 +1583,12 @@ export function AppShell() {
         pane={segmentsPane ?? activePane}
         onAddCut={() => {
           const pane = segmentsPane ?? activePane;
-          setCutAt({ pane, offset: state.panes[pane]?.document.caret ?? 0 });
+          setCutAt({ pane, offset: paneIn(state, pane)?.document.caret ?? 0 });
         }}
         onSaveAll={() => void doSaveAllSegments(segmentsPane ?? activePane)}
         onSelectPiece={(piece) => {
           const pane = segmentsPane ?? activePane;
-          const slot = state.panes[pane];
+          const slot = paneIn(state, pane);
           if (slot === undefined) return;
           void slot.typing.setSelection(piece.start, piece.end);
           revealInBoth(piece.start);

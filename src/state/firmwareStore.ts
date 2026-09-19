@@ -3,7 +3,7 @@ import type { FITReport } from "@/firmware/fit/fitTable";
 import { discardParkedStateFor } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import { applyTransaction } from "@/state/toolEdits";
-import { type PaneId, workspaceStore } from "@/state/workspaceStore";
+import { type PaneId, paneState } from "@/state/workspaceStore";
 import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/contentChange";
 import type {
   FirmwareDetailResponse,
@@ -269,7 +269,7 @@ export function openFirmware(pane: PaneId, content: Blob): void {
  * an edit are about the same content.
  */
 async function currentContent(pane: PaneId): Promise<Blob | undefined> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return undefined;
   if (!slot.document.isDirty && slot.file.source instanceof Blob) return slot.file.source;
   return new Blob([await slot.document.read(0, slot.document.size)]);
@@ -369,7 +369,7 @@ export async function fixFirmwareChecksum(
   path: readonly number[],
   volumeRevision: number
 ): Promise<number> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return 0;
 
   const writes = await new Promise<readonly { offset: number; bytes: Uint8Array }[]>((resolve) => {

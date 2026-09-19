@@ -18,7 +18,7 @@ import { saveRange } from "@/platform/files/rangeSave";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { applySegments, segmentLabel, segmentsFor } from "@/state/segmentsStore";
 import { showTransientMessage } from "@/state/transientMessageStore";
-import { type PaneId, reportAlert, workspaceStore } from "@/state/workspaceStore";
+import { type PaneId, paneState, reportAlert } from "@/state/workspaceStore";
 
 /**
  * What the segment commands actually do.
@@ -108,7 +108,7 @@ export function pieceAt(pane: PaneId, offset: number): Segment | undefined {
 
 /** What the saved files are named after: the name the pane's header shows. */
 function baseName(pane: PaneId): string {
-  return workspaceStore.getSnapshot().panes[pane]?.name ?? "Untitled";
+  return paneState(pane)?.name ?? "Untitled";
 }
 
 /**
@@ -120,7 +120,7 @@ function baseName(pane: PaneId): string {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSaveSegment
  */
 export async function savePiece(pane: PaneId, piece: Segment): Promise<void> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return;
   const name = `${baseName(pane)}_${segmentLabel(piece.index)}.bin`;
   try {
@@ -155,7 +155,7 @@ export async function saveAllPieces(
   pane: PaneId,
   confirm: (title: string, message: string) => Promise<boolean>
 ): Promise<void> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   const pieces = segmentsFor(pane)?.segments ?? [];
   if (slot === undefined || pieces.length === 0) return;
 
@@ -230,7 +230,7 @@ function messageFor(preview: { lines: readonly string[]; replacing: readonly str
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.replaceSegment
  */
 export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promise<void> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+  const slot = paneState(pane);
   if (slot === undefined) return;
   try {
     const [donor] = await openFiles({ multiple: false, capabilities: detectFileCapabilities() });

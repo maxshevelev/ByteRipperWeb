@@ -13,7 +13,7 @@ import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import {
   GROUPING_GAP_CHOICES,
-  type PaneId,
+  type SlotId,
   setGroupingGap,
   setLayout,
   setWordSize,
@@ -90,7 +90,7 @@ export function Toolbar({
   onSettings,
   navigation,
 }: {
-  readonly onOpen: (into?: PaneId) => void;
+  readonly onOpen: (into?: SlotId) => void;
   readonly onNew: () => void;
   readonly onNavigate: (what: "difference" | "same", direction: 1 | -1) => void;
   readonly onSave: () => void;
