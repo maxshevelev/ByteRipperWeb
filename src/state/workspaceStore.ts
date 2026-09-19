@@ -21,6 +21,15 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import { noteDocumentChanged } from "@/state/editStore";
+import {
+  collapsePanels,
+  EMPTY_DOCK,
+  expandPanel,
+  type FragmentDock,
+  openPanel,
+  type PanelId,
+  removePanel,
+} from "@/state/fragmentDock";
 import { sanitizedPaneName } from "@/state/paneName";
 import {
   applySegments,
@@ -111,8 +120,13 @@ export interface PaneState {
  * which is what {@link signalFullInvalidation} sends.
  */
 export const editingHooks: {
+  /** The comparison's, so only the workspace's own panes have one. */
   onEdit?: ((pane: SlotId, edit: DiffEdit) => void) | undefined;
-  onContentChange?: ((pane: SlotId, operations: readonly UndoOperation[]) => void) | undefined;
+  /**
+   * Any pane's: a tool open on a part has to hear that the bytes under it
+   * changed, exactly as one open on a file does.
+   */
+  onContentChange?: ((pane: PaneId, operations: readonly UndoOperation[]) => void) | undefined;
   /**
    * The shell's answer to a shifting edit's warning (§7.2). The edit is handed
    * over because the warning names it — see {@link ShiftingEdit}.
@@ -137,10 +151,14 @@ function scratchOptions(): { scratch?: OpfsScratchStore } {
   return OpfsScratchStore.isAvailable() ? { scratch: new OpfsScratchStore() } : {};
 }
 
-function makeDocument(storage: EditableByteStorage, pane: SlotId) {
+function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   const document = new BinaryDocument(storage);
   const typing = new TypingController(document, {
-    onEdit: (edit) => editingHooks.onEdit?.(pane, edit),
+    // The comparison is between the workspace's two panes: an edit in a part
+    // is not a difference between files.
+    onEdit: (edit) => {
+      if (isSlot(pane)) editingHooks.onEdit?.(pane, edit);
+    },
     confirmInsertShift: (edit) => editingHooks.confirmShift?.(edit) ?? true,
   });
   // Both signals, because neither alone is enough. A content change fires while
@@ -156,8 +174,10 @@ function makeDocument(storage: EditableByteStorage, pane: SlotId) {
   // undoable and Cmd/Ctrl+Z has to take back whichever came last.
   document.onTransactionCommitted(() => {
     noteDocumentAct(pane);
-    // A new step is a new future: an undone join can no longer be redone.
-    undoneJoins[pane].length = 0;
+    // A new step is a new future: an undone join can no longer be redone. Only
+    // a slot can have been joined — a part is opened over a file, never out of
+    // two.
+    if (isSlot(pane)) undoneJoins[pane].length = 0;
   });
   return { document, typing };
 }
@@ -213,6 +233,14 @@ export interface WorkspaceState {
    * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface
    */
   readonly parts: Readonly<Record<PartId, PaneState>>;
+  /**
+   * Which parts this workspace has taken out and in what order their pills sit,
+   * with the one that is up — the model, which knows nothing about what is in
+   * them.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fragments
+   */
+  readonly dock: FragmentDock;
   /**
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
@@ -279,6 +307,7 @@ export interface Alert {
 export const workspaceStore = createStore<WorkspaceState>({
   panes: { a: undefined, b: undefined },
   parts: {},
+  dock: EMPTY_DOCK,
   layout: "sideBySide",
   splitFraction: 0.5,
   activePane: "a",
@@ -763,6 +792,78 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
   // the pane's file is gone from under whatever was reading it.
   signalFullInvalidation(pane);
 }
+
+/** The pane a panel's part is read as: one spelling of the panel's own id. */
+const partPane = (id: PanelId): PartId => `part:${id}`;
+
+/**
+ * Opens `bytes` as a part of its own — a pane over the file they came out of,
+ * with a panel in the dock to show it — and gives back the pane it landed in.
+ *
+ * A part is a document like any other: it can be typed into, undone and saved
+ * somewhere else. What it is not is a file slot, so nothing about opening a
+ * file happens here — no placement rule, no join, no active-pane change, and
+ * the workspace's own panes stay exactly where they are behind it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFragment
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open
+ */
+export function openPart(bytes: Uint8Array, name: string): PartId {
+  const opened = openPanel(workspaceStore.getSnapshot().dock);
+  const pane = partPane(opened.id);
+  const { document, typing } = makeDocument(
+    new EditOverlayStorage(new MemoryBackedStorage(bytes)),
+    pane
+  );
+  workspaceStore.update((state) => ({
+    ...state,
+    parts: {
+      ...state.parts,
+      [pane]: { name, file: emptyFile(name), document, typing, saved: undefined, writable: false },
+    },
+    dock: opened.dock,
+  }));
+  return pane;
+}
+
+/**
+ * Raises the panel holding `pane`, folding whatever was up — one gesture, as
+ * the dock hands it back.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.expand
+ */
+export function raisePart(pane: PartId): void {
+  workspaceStore.update((state) => ({
+    ...state,
+    dock: expandPanel(state.dock, panelOf(pane)).dock,
+  }));
+}
+
+/**
+ * Folds the panel that is up, leaving the workspace's own panes in full view.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.collapse
+ */
+export function foldParts(): void {
+  workspaceStore.update((state) => ({ ...state, dock: collapsePanels(state.dock).dock }));
+}
+
+/**
+ * Closes a part: its pill goes, and its document with it.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.close
+ */
+export function closePart(pane: PartId): void {
+  clearSegments(pane);
+  workspaceStore.update((state) => {
+    const parts = { ...state.parts };
+    delete parts[pane];
+    return { ...state, parts, dock: removePanel(state.dock, panelOf(pane)).dock };
+  });
+}
+
+/** The panel a part's pane belongs to. */
+const panelOf = (pane: PartId): PanelId => Number(pane.slice("part:".length)) as PanelId;
 
 /**
  * The placeholder a never-saved document points at until it is given a home.
