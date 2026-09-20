@@ -191,6 +191,17 @@ class Cdp {
     await sleep(150);
   }
 
+  /**
+   * The other button: what opens this application's own context menus. The
+   * press and the release both carry `button: "right"`, and the `contextmenu`
+   * Chrome sends after them is the event the app listens for.
+   */
+  async rightClick(x, y) {
+    await this.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "right", buttons: 2, clickCount: 1 });
+    await this.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "right", buttons: 0, clickCount: 1 });
+    await sleep(150);
+  }
+
   async key(key) {
     const codes = {
       ArrowLeft: [37, "ArrowLeft"],
@@ -449,6 +460,14 @@ const COMMANDS = {
     const at = await cdp.target(where);
     await cdp.click(at.x, at.y);
     console.log(`clicked ${where}`);
+  },
+
+  async rclick(args) {
+    const where = positionals(args)[0];
+    const cdp = await attach(readState());
+    const at = await cdp.target(where);
+    await cdp.rightClick(at.x, at.y);
+    console.log(`right-clicked ${where}`);
   },
 
   async hover(args) {

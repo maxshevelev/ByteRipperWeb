@@ -10,9 +10,11 @@ import { bookmarkAt } from "@/state/bookmarksStore";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
   isSlot,
+  openPart,
   type PaneId,
   type PaneState,
   paneIn,
+  reportAlert,
   type SlotId,
   swapPanes,
   type WorkspaceState,
@@ -254,15 +256,13 @@ export function dumpMenu(
  * because the smallest zone under the pointer is the one being aimed at.
  *
  * Selecting is what tells the tool that published the zone which of its own it
- * is about; saving is the same read-only export Save Selection as… makes, the
- * source file never written.
- *
- * Open Zone in a New Tab is not here: a zone taken out into a document of its
- * own is a tab of the window it came from, and one workspace per browser tab
- * (D11) leaves it nowhere to go.
+ * is about; opening takes its bytes out into a part of their own; saving is the
+ * same read-only export Save Selection as… makes, the source file never
+ * written.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addZoneMenuItems
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectZone
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZoneInPanel
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveZone
  * @upstream ByteRipperApp/Window/MainViewController.swift#ZoneContextTarget
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectZone
@@ -274,13 +274,20 @@ function zoneItems(
   offset: number,
   actions: PaneMenuActions
 ): (MenuEntry | undefined)[] {
-  const zones = zonesContaining(zonesFor(pane), offset);
+  // Innermost first, which is upstream's `.reversed()` over the same list: the
+  // smallest zone under the pointer is the one being aimed at, and it is what
+  // the reader's eye lands on first.
+  const zones = zonesContaining(zonesFor(pane), offset).reverse();
   if (zones.length === 0) return [];
   return [
     { kind: "separator" },
     ...zones.map((zone) => ({
       label: `Select Zone “${zone.name}”`,
       onSelect: () => actions.onSelectZone(pane, zone),
+    })),
+    ...zones.map((zone) => ({
+      label: `Open Zone “${zone.name}”`,
+      onSelect: () => openZone(slot, zone),
     })),
     ...zones.map((zone) => ({
       label: `Save Zone “${zone.name}” as…`,
@@ -402,6 +409,38 @@ function selectionItems(
  * @upstream-differs the picker is the browser's, and a browser without one — or without
  * somewhere to put what the picker would return — hands the bytes to the download flow (D7)
  */
+/**
+ * Open Zone: the zone's bytes taken out as a part of their own, in a panel over
+ * the file they came from.
+ *
+ * The act both zone menus perform — the dump's own and the minimap gutter's —
+ * written once, because the reader asking from the gutter is asking about the
+ * same zone and must get the same copy under the same name.
+ *
+ * A copy, and only a copy: the part is a document of its own, and what the
+ * window's bookmarks mark stays behind, their offsets being the dump's rather
+ * than these bytes'. The link back — which file the bytes came out of, and
+ * putting them back with Update in Parent — is G4, and until it exists nothing
+ * here promises one.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZone
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZoneInPanel
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
+ */
+export function openZone(slot: PaneState, zone: Zone): void {
+  void slot.document
+    .read(zone.start, zone.end - zone.start)
+    .then((bytes) => {
+      openPart(bytes, zoneFileName(slot.name, zone.name, zone.start, zone.end));
+    })
+    .catch((error: unknown) =>
+      reportAlert(
+        "Could not read the zone.",
+        error instanceof Error ? error.message : "Those bytes could not be read."
+      )
+    );
+}
+
 function saveRangeAs(
   slot: PaneState,
   pane: PaneId,

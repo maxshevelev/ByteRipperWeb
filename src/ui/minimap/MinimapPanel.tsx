@@ -58,13 +58,14 @@ import {
   type SlotId,
   workspaceStore,
 } from "@/state/workspaceStore";
-import { zoneStore } from "@/state/zoneStore";
+import { zoneStore, zonesFor } from "@/state/zoneStore";
 import { EMPTY_ZONES, type Zone } from "@/tools/zone";
 import { ViewportMarks } from "@/ui/minimap/ViewportMarks";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { pieceMenu, selectPiece } from "@/ui/segments/segmentMenu";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
+import { openZone } from "@/ui/shell/paneMenus";
 import {
   isDarkTheme,
   observeHexColors,
@@ -1019,6 +1020,19 @@ function MinimapCanvas({
                   // side that knows what the zone stands for.
                   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectZone
                   zoneSelected(pane, zone.id);
+                },
+              },
+              {
+                // The same act the dump's own menu performs, on the zone looked
+                // up again: a tool-module may have republished between the menu
+                // opening and the item being picked.
+                // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
+                label: `Open Zone ${named}`,
+                onSelect: () => {
+                  const slot = paneState(pane);
+                  const current = zonesFor(pane).zones.find((one) => one.id === zone.id);
+                  if (slot === undefined || current === undefined) return;
+                  openZone(slot, current);
                 },
               },
             ]);

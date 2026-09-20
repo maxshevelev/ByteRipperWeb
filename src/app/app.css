@@ -4167,6 +4167,13 @@ button.uefi-title {
      the pointer. Later in the tree at the same level wins, and this is the last
      of the three. */
   position: relative;
+  /* And a stacking context over everything the content area holds, because
+     being later in the tree is only enough against what is painted in the same
+     layer: a table's column handle inside the tool panel carries z-index 1 and
+     was drawn straight through the panel covering it. Below the menus (20) and
+     the notice plate (50), which are the window's own and belong over
+     everything. */
+  z-index: 10;
   display: grid;
   /* The panel sits on the host's bottom edge, which is the dock's top edge. */
   align-items: end;
