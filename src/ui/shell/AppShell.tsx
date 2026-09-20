@@ -34,17 +34,23 @@ import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
   closePane,
+  closePart,
   dismissAlert,
   duplicatePane,
   editingHooks,
   foldParts,
+  frontPane,
   isSlot,
   joinIntoPane,
   openEmptyInPane,
   openInPane,
   type PaneId,
+  type PaneState,
+  type PartId,
   paneIn,
+  paneInFront,
   paneState,
+  raisePart,
   renamePane,
   reportAlert,
   revertPane,
@@ -55,6 +61,7 @@ import {
   setSplitFraction,
   slotForNewFile,
   swapPanes,
+  windowPanesAreReachable,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
@@ -373,6 +380,27 @@ export function AppShell() {
   const activePane = state.activePane;
 
   /**
+   * The pane the document commands mean — the part in the panel that is up, or
+   * the active pane when none is (`frontPane`). `activePane` above stays what
+   * it was: the workspace's own pane, which is what the commands about *panes*
+   * are addressed to.
+   */
+  const front = frontPane(state);
+  /**
+   * Whether the workspace's own panes are taking orders. A panel covers them,
+   * and a command that rearranged or replaced something nobody can see is a
+   * command that looks like it did nothing.
+   */
+  const panesReachable = windowPanesAreReachable(state);
+  /**
+   * A pane's selection: the one the dump reports as it moves, and the
+   * document's own for a part, whose panel reports to nobody — the panel is the
+   * only surface it has, so nothing else needs to follow its caret.
+   */
+  const selectionIn = (pane: PaneId) =>
+    selections[pane] ?? paneIn(state, pane)?.document.selection ?? { start: 0, end: 0 };
+
+  /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveDocumentOfPane
@@ -384,7 +412,7 @@ export function AppShell() {
   const doSave = useCallback(
     async (as: boolean) => {
       try {
-        const outcome = await savePane(activePane, as);
+        const outcome = await savePane(front, as);
         // A save written back through the file's own handle says so by
         // itself — the pane stops reading "Modified" — and upstream confirms a
         // save with nothing at all. A download is the case that needs words:
@@ -392,7 +420,7 @@ export function AppShell() {
         // readout going clean would say the opposite.
         if (outcome.kind === "downloaded") {
           showTransientMessage(
-            activePane,
+            front,
             `Downloaded ${outcome.name}. The file you opened is unchanged.`
           );
         }
@@ -403,25 +431,32 @@ export function AppShell() {
         );
       }
     },
-    [activePane]
+    [front]
   );
 
   /**
+   * Revert is a file's command, not a document's: it reads the file again. A
+   * part has no file to read — its bytes came out of its parent, and putting
+   * them back is Update in Parent (G4) — so the command is the front pane's
+   * only while the front pane is one of the workspace's own.
+   *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertPaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertDocumentOfPane
    */
   const doRevert = useCallback(() => {
-    const pane = workspaceStore.getSnapshot().panes[activePane];
+    const target = paneInFront();
+    if (!isSlot(target)) return;
+    const pane = workspaceStore.getSnapshot().panes[target];
     if (pane === undefined || !pane.document.isDirty) return;
     if (!window.confirm(`Throw away every unsaved edit to ${pane.name}?`)) return;
-    void revertPane(activePane).catch(() =>
+    void revertPane(target).catch(() =>
       reportAlert(
         "Revert failed.",
         "That file could not be read again — it may have changed or been moved."
       )
     );
-  }, [activePane]);
+  }, []);
 
   const [fillOpen, setFillOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -472,10 +507,11 @@ export function AppShell() {
     void restoreFavorites();
   }, []);
 
-  // The find bar always searches the pane the commands act on.
+  // The find bar always searches the pane the commands act on — the part in
+  // front of the dump, where one is up.
   useEffect(() => {
-    setSearchPane(activePane);
-  }, [activePane]);
+    setSearchPane(front);
+  }, [front]);
 
   // Closing the last file closes the find bar with it. Refusing to open it
   // over an empty workspace while leaving one open there would be two answers
@@ -544,9 +580,14 @@ export function AppShell() {
           // The pane's own handler has this too, but only while the dump has
           // the keyboard — and marking a row is a workspace command.
           event.preventDefault();
+          // A mark is an absolute offset in the workspace's own files, so while
+          // a panel is up there is nothing here to mark: the part's offsets are
+          // its own, and the marks that mean them are the panel's own list,
+          // which is the next piece of G49. Marking the dump under the panel at
+          // the part's caret would put a mark where nobody asked for one.
           const active = workspaceStore.getSnapshot().activePane;
           const slot = workspaceStore.getSnapshot().panes[active];
-          if (slot === undefined) return;
+          if (slot === undefined || !windowPanesAreReachable(workspaceStore.getSnapshot())) return;
           // ⇧⌘D edits the caret row's mark; ⌘D marks and names it, or unmarks it.
           if (event.shiftKey) editBookmarkInPane(active, slot.document.selection.start);
           else toggleBookmarkInPane(active, slot.document.selection.start);
@@ -566,9 +607,11 @@ export function AppShell() {
               : event.shiftKey;
           if ((event.key === "y" || event.key === "Y") && !redo) return;
           event.preventDefault();
-          const active = workspaceStore.getSnapshot().activePane;
-          if (redo) void redoLast(active);
-          else void undoLast(active, false);
+          // Undo means the document in front: an edit made in a part is undone
+          // in the part, not in the file it is lying over.
+          const inFront = paneInFront();
+          if (redo) void redoLast(inFront);
+          else void undoLast(inFront, false);
           return;
         }
         default:
@@ -727,9 +770,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentFillSheet
    */
   const doFill = useCallback((pattern: Uint8Array) => {
-    void workspaceStore
-      .getSnapshot()
-      .panes[workspaceStore.getSnapshot().activePane]?.typing.fillSelection(pattern);
+    void paneState(paneInFront())?.typing.fillSelection(pattern);
   }, []);
 
   /**
@@ -741,18 +782,24 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.goTo
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.goToFormPresenter
    */
-  const doGoTo = useCallback(
-    (offset: number) => {
+  const doGoTo = useCallback((offset: number) => {
+    // An address means the document in front. In one of the workspace's own
+    // panes it is shown in both, the way difference navigation shows one: the
+    // offset is the same row of both files. A part has no pane beside it, and
+    // the dump behind the panel is not what was asked about.
+    const target = paneInFront();
+    if (isSlot(target)) {
       setReveal({
         a: { offset, token: ++revealToken.current },
         b: { offset, token: revealToken.current },
       });
-      setActivePane(activePane);
-      // Remembered, so the next Go To offers it back rather than being retyped.
-      noteVisited(offset);
-    },
-    [activePane]
-  );
+      setActivePane(target);
+    } else {
+      setReveal({ [target]: { offset, token: ++revealToken.current } });
+    }
+    // Remembered, so the next Go To offers it back rather than being retyped.
+    noteVisited(offset);
+  }, []);
 
   /**
    * Closing a pane throws away whatever is unsaved in it, so it asks first —
@@ -764,7 +811,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closePaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
    */
-  const closeWithWarning = useCallback((pane: SlotId) => {
+  const closeWithWarning = useCallback((pane: PaneId) => {
     const slot = paneState(pane);
     if (slot?.document.isDirty) {
       if (!window.confirm(`${slot.name} has unsaved edits. Close it and lose them?`)) return;
@@ -777,7 +824,10 @@ export function AppShell() {
     // opens at its top rather than at where this one was.
     scrollLink.forget(pane);
     forgetTransientMessage(pane);
-    closePane(pane);
+    // A part goes with its panel; a slot stays and is emptied.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeFragment
+    if (isSlot(pane)) closePane(pane);
+    else closePart(pane);
   }, []);
 
   /**
@@ -825,6 +875,19 @@ export function AppShell() {
       b: { offset, token: revealToken.current },
     });
   }, []);
+
+  /**
+   * Shows an offset in the pane it was asked about: in both of the workspace's
+   * panes where it is one of theirs, and in the part alone where it is a part's
+   * — an offset in a part means nothing in the file behind it.
+   */
+  const revealIn = useCallback(
+    (pane: PaneId, offset: number) => {
+      if (isSlot(pane)) revealInBoth(offset);
+      else setReveal({ [pane]: { offset, token: ++revealToken.current } });
+    },
+    [revealInBoth]
+  );
 
   /**
    * Centres a join's seam in the pane that took the file.
@@ -1222,8 +1285,8 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.deleteSelectionOrCaret
    */
   const doDeleteBytes = useCallback(() => {
-    void workspaceStore.getSnapshot().panes[activePane]?.typing.deleteBytes();
-  }, [activePane]);
+    void paneState(paneInFront())?.typing.deleteBytes();
+  }, []);
 
   /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.nextDifference
@@ -1237,6 +1300,9 @@ export function AppShell() {
     (what: "difference" | "same", direction: 1 | -1) => {
       const hunks = diff.hunks;
       if (hunks === undefined) return;
+      // The comparison is the workspace's, not the front surface's: a part is
+      // one document with nothing beside it to differ from.
+      if (!windowPanesAreReachable(workspaceStore.getSnapshot())) return;
 
       const from = selections[state.activePane].start;
       const target =
@@ -1309,7 +1375,7 @@ export function AppShell() {
         const slot = paneState(pane);
         if (slot === undefined) return;
         void slot.typing.setSelection(zone.start, zone.end);
-        revealInBoth(zone.start);
+        revealIn(pane, zone.start);
         // The bytes are the host's half; telling the tool that published the
         // zone is the other one, and it is the only side that knows what the
         // zone stands for.
@@ -1321,7 +1387,7 @@ export function AppShell() {
       onProblem: reportAlert,
       onMessage: showTransientMessage,
     }),
-    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin, revealInBoth]
+    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin, revealIn]
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
@@ -1437,11 +1503,66 @@ export function AppShell() {
     );
   };
 
+  /**
+   * The dump inside a fragment panel, with the wiring a pane of the workspace
+   * gets: the two menus, the saves, Find and its results, the reveal, and the
+   * header's ✕ and name.
+   *
+   * Written out beside `paneElement` rather than shared with it, because every
+   * target differs — upstream writes its own out for the same reason. There is
+   * no pane beside a part, so no companion, no peer selection and no
+   * differences; the header's ✕ closes the panel rather than emptying a slot;
+   * and nothing is dropped on it, the panel being the wall over the panes
+   * rather than a target of its own.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView
+   */
+  const partElement = (pane: PartId, part: PaneState) => (
+    <HexPane
+      key={`${pane}:${documentKey(part.document)}`}
+      paneId={pane}
+      // The part's own name is all the header has to say: there is no slot to
+      // name, and the panel is the only place it can be.
+      label={part.name}
+      name={part.name}
+      document={part.document}
+      typing={part.typing}
+      saved={part.saved}
+      wordSize={state.wordSize}
+      // The panel in front is the pane in front: it is the only one in it.
+      isActive
+      onActivate={() => raisePart(pane)}
+      onClose={() => closeWithWarning(pane)}
+      onSelectionChanged={(selection) =>
+        setSelections((current) => ({ ...current, [pane]: selection }))
+      }
+      revealRequest={reveal[pane]}
+      onSave={() => void doSave(false)}
+      onSaveAs={() => void doSave(true)}
+      onGoTo={() => setGoTo("offset")}
+      onFind={openFind}
+      matches={resultsFor(search, pane).matches}
+      currentMatch={resultsFor(search, pane).current}
+      resultsShown={resultsFor(search, pane).resultsShown}
+      searchStatus={resultsFor(search, pane).status}
+      onGoToMatch={(offset) => revealIn(pane, offset)}
+      onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, pane, menuActions))}
+      renaming={renamingPane === pane}
+      onRenameEnd={(typed, commit) => {
+        setRenamingPane(undefined);
+        if (commit) renamePane(pane, typed);
+      }}
+      onDumpMenu={(event, anchor, onClose) =>
+        openContextMenu(event, dumpMenu(state, pane, anchor.offset, menuActions), onClose)
+      }
+    />
+  );
+
   // Whether each difference arrow has somewhere to go from the active caret —
   // the rule the navigation itself uses, so a lit arrow always moves.
   const caretForNavigation = selections[activePane].start;
   const navigation =
-    diff.status === "ready" && diff.hunks !== undefined
+    diff.status === "ready" && diff.hunks !== undefined && panesReachable
       ? {
           previousDifference: diff.hunks.previousDifference(caretForNavigation) !== undefined,
           nextDifference: diff.hunks.nextDifference(caretForNavigation) !== undefined,
@@ -1461,23 +1582,28 @@ export function AppShell() {
         onDeleteBytes={doDeleteBytes}
         onGoTo={() => setGoTo("offset")}
         onBookmarks={() => setGoTo("bookmarks")}
+        // Joining a donor file into a pane is a pane's command: a panel has one
+        // pane and none beside it.
         onJoin={(position) => void doJoin(activePane, position)}
-        onSegments={() => setSegmentsPane(activePane)}
-        onSplitHere={() =>
-          setCutAt({
-            pane: activePane,
-            offset: workspaceStore.getSnapshot().panes[activePane]?.document.caret ?? 0,
-          })
-        }
-        onSaveAllSegments={() => void doSaveAllSegments(activePane)}
+        // The partition is the document's, so these three mean the part while
+        // one is in front of the dump.
+        onSegments={() => setSegmentsPane(front)}
+        onSplitHere={() => setCutAt({ pane: front, offset: paneState(front)?.document.caret ?? 0 })}
+        onSaveAllSegments={() => void doSaveAllSegments(front)}
         onToggleBookmark={() => {
+          // As ⌘D above: the workspace's marks are its files' offsets, and a
+          // part's own list is the next piece of G49.
           const slot = workspaceStore.getSnapshot().panes[activePane];
-          if (slot !== undefined) toggleBookmarkInPane(activePane, slot.document.selection.start);
+          if (slot !== undefined && panesReachable) {
+            toggleBookmarkInPane(activePane, slot.document.selection.start);
+          }
         }}
         onDuplicate={doDuplicate}
         onFind={openFind}
         onToggleFind={showFindBar}
-        onClose={() => closeWithWarning(activePane)}
+        // Upstream's ⌘W with a panel up closes that panel, and the bar's Close
+        // is the same command: what is in front is what goes.
+        onClose={() => closeWithWarning(front)}
         onSettings={() => {
           setSettingsTab(undefined);
           setSettingsOpen(true);
@@ -1486,7 +1612,8 @@ export function AppShell() {
       />
       {searchOpen ? (
         <FindBar
-          onReveal={revealInBoth}
+          // The bar searches the pane in front, so a match is shown there.
+          onReveal={(offset) => revealIn(front, offset)}
           // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
           onManageFavorites={() => {
             setSettingsTab("favorites");
@@ -1506,7 +1633,7 @@ export function AppShell() {
             // A tool bound to one of the workspace's panes makes it the active
             // one; a part in the dock is active by being in front (G49).
             if (isSlot(pane)) setActivePane(pane);
-            revealInBoth(start);
+            revealIn(pane, start);
           }}
         />
       ) : null}
@@ -1556,33 +1683,33 @@ export function AppShell() {
       {/* After the panes and the two side panels in the document as well as on
           screen: the panel is laid over all three, and the dock takes a row of
           its own under them. */}
-      <FragmentPanels />
+      <FragmentPanels renderPane={partElement} onClose={closeWithWarning} />
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
 
       <GoToDialog
         open={goTo !== undefined}
-        fileSize={state.panes[activePane]?.document.size ?? 0}
-        document={state.panes[activePane]?.document}
+        fileSize={paneIn(state, front)?.document.size ?? 0}
+        document={paneIn(state, front)?.document}
         focus={goTo ?? "offset"}
         onGo={doGoTo}
         onClose={() => setGoTo(undefined)}
       />
       <FillDialog
         open={fillOpen}
-        byteCount={Math.max(1, selections[activePane].end - selections[activePane].start)}
+        byteCount={Math.max(1, selectionIn(front).end - selectionIn(front).start)}
         onFill={doFill}
         onClose={() => setFillOpen(false)}
       />
       <SelectBlockDialog
         open={selectBlock !== undefined}
-        fileSize={paneIn(state, selectBlock?.pane ?? activePane)?.document.size ?? 0}
+        fileSize={paneIn(state, selectBlock?.pane ?? front)?.document.size ?? 0}
         presetStart={selectBlock?.start}
         onSelect={(start, end) => {
-          const pane = selectBlock?.pane ?? activePane;
+          const pane = selectBlock?.pane ?? front;
           void paneIn(state, pane)?.typing.setSelection(start, end);
-          revealInBoth(start);
+          revealIn(pane, start);
         }}
         onClose={() => setSelectBlock(undefined)}
       />
@@ -1604,26 +1731,26 @@ export function AppShell() {
       />
       <CutDialog
         open={cutAt !== undefined}
-        fileSize={paneIn(state, cutAt?.pane ?? activePane)?.document.size ?? 0}
+        fileSize={paneIn(state, cutAt?.pane ?? front)?.document.size ?? 0}
         presetOffset={cutAt?.offset ?? 0}
-        existingCuts={segmentsFor(cutAt?.pane ?? activePane)?.cuts ?? []}
-        onCut={(offset, name) => addCut(cutAt?.pane ?? activePane, offset, name)}
+        existingCuts={segmentsFor(cutAt?.pane ?? front)?.cuts ?? []}
+        onCut={(offset, name) => addCut(cutAt?.pane ?? front, offset, name)}
         onClose={() => setCutAt(undefined)}
       />
       <SegmentsDialog
         open={segmentsPane !== undefined}
-        pane={segmentsPane ?? activePane}
+        pane={segmentsPane ?? front}
         onAddCut={() => {
-          const pane = segmentsPane ?? activePane;
+          const pane = segmentsPane ?? front;
           setCutAt({ pane, offset: paneIn(state, pane)?.document.caret ?? 0 });
         }}
-        onSaveAll={() => void doSaveAllSegments(segmentsPane ?? activePane)}
+        onSaveAll={() => void doSaveAllSegments(segmentsPane ?? front)}
         onSelectPiece={(piece) => {
-          const pane = segmentsPane ?? activePane;
+          const pane = segmentsPane ?? front;
           const slot = paneIn(state, pane);
           if (slot === undefined) return;
           void slot.typing.setSelection(piece.start, piece.end);
-          revealInBoth(piece.start);
+          revealIn(pane, piece.start);
         }}
         onClose={() => setSegmentsPane(undefined)}
       />

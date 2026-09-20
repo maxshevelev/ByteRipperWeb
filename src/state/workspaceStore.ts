@@ -250,10 +250,13 @@ export interface WorkspaceState {
   /** File A's share of the workspace, 0–1. The divider moves it. */
   readonly splitFraction: number;
   /**
-   * Which pane the keyboard and the commands act on.
+   * Which of the workspace's own two panes the keyboard and the pane commands
+   * act on — whatever is in front of it. The commands that mean a document
+   * read `frontPane` instead, which is this one only while no panel is up.
    *
    * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.activePaneIndex
    * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.activePane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.windowActivePane
    */
   readonly activePane: SlotId;
   readonly capabilities: FileCapabilities;
@@ -341,6 +344,60 @@ export const paneIn = (state: WorkspaceState, pane: PaneId): PaneState | undefin
 /** The same, over the store's current snapshot. */
 export const paneState = (pane: PaneId): PaneState | undefined =>
   paneIn(workspaceStore.getSnapshot(), pane);
+
+/**
+ * Puts a pane's state back where that pane lives — a slot, or a part — for the
+ * operations that are a document's rather than a slot's and so can be handed
+ * either.
+ *
+ * A pane that is no longer there is left alone: writing one back would bring a
+ * part closed while its save panel was open back from the dead, with a pill in
+ * a dock that has already forgotten it.
+ */
+function withPane(state: WorkspaceState, pane: PaneId, next: PaneState): WorkspaceState {
+  if (paneIn(state, pane) === undefined) return state;
+  return isSlot(pane)
+    ? { ...state, panes: { ...state.panes, [pane]: next } }
+    : { ...state, parts: { ...state.parts, [pane]: next } };
+}
+
+/**
+ * The pane a command is about: the part in the panel that is up, or — with the
+ * stage clear — the workspace's own active pane.
+ *
+ * The commands that mean a *document* read this one: the caret and the
+ * selection, Find, Go To, the bookmarks, the segments, Save, and the tool
+ * panel's own. A panel covers the file it came out of, so a command that went
+ * on meaning the dump underneath would act on bytes nobody can see.
+ *
+ * The commands that mean the workspace's *panes* read `activePane` instead —
+ * File ▸ Open and where a file lands, the drops, Swap Panels, Duplicate, Close
+ * Pane, the comparison. A panel has one pane and none beside it, so those are
+ * not addressed to it; while one is up they are refused rather than redirected
+ * (`windowPanesAreReachable`).
+ *
+ * Which list a call site belongs in is upstream's decision, not the call site's
+ * (`Design/FRAGMENT_PANELS_PLAN.md`, "Which commands follow the front
+ * surface").
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activePane
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.frontPane
+ */
+export const frontPane = (state: WorkspaceState): PaneId =>
+  state.dock.expanded === undefined ? state.activePane : partPane(state.dock.expanded);
+
+/** The same, over the store's current snapshot. */
+export const paneInFront = (): PaneId => frontPane(workspaceStore.getSnapshot());
+
+/**
+ * Whether the workspace's own panes are taking orders. They are not while a
+ * panel is up: it covers them, and a command that rearranged or replaced
+ * something nobody can see is a command that looks like it did nothing.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.windowPanesAreReachable
+ */
+export const windowPanesAreReachable = (state: WorkspaceState): boolean =>
+  state.dock.expanded === undefined;
 
 /** The decoder the panes draw with, rebuilt only when the setting changes. */
 let cachedDecoder = makeByteDecoder(
@@ -603,8 +660,8 @@ export function dismissAlert(): void {
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.canRename
  */
-export function canRenamePane(pane: SlotId): boolean {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+export function canRenamePane(pane: PaneId): boolean {
+  const slot = paneState(pane);
   return slot !== undefined && slot.saved === undefined;
 }
 
@@ -618,15 +675,13 @@ export function canRenamePane(pane: SlotId): boolean {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.untitledName
  * @upstream-differs the pane's own name field, which every document here already has
  */
-export function renamePane(pane: SlotId, raw: string): boolean {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+export function renamePane(pane: PaneId, raw: string): boolean {
+  const slot = paneState(pane);
   if (slot === undefined || slot.saved !== undefined) return false;
   const name = sanitizedPaneName(raw);
   if (name === undefined || name === slot.name) return false;
   workspaceStore.update((state) =>
-    state.panes[pane] === slot
-      ? { ...state, panes: { ...state.panes, [pane]: { ...slot, name } } }
-      : state
+    paneIn(state, pane) === slot ? withPane(state, pane, { ...slot, name }) : state
   );
   return true;
 }
@@ -644,9 +699,9 @@ export function renamePane(pane: SlotId, raw: string): boolean {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.saveAs
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneSaveError
  */
-export async function savePane(pane: SlotId, as = false): Promise<SaveOutcome> {
+export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   const state = workspaceStore.getSnapshot();
-  const slot = state.panes[pane];
+  const slot = paneIn(state, pane);
   if (slot === undefined) return { kind: "cancelled" };
 
   const overlay = slot.document.storage as EditOverlayStorage;
@@ -670,20 +725,16 @@ export async function savePane(pane: SlotId, as = false): Promise<SaveOutcome> {
     overlay.rebase(base);
     slot.document.markSaved();
     noteDocumentChanged();
-    workspaceStore.update((current) => ({
-      ...current,
-      panes: {
-        ...current.panes,
-        [pane]: {
-          ...slot,
-          name: outcome.file.name,
-          file: outcome.file,
-          // The file on disk now holds the document, so nothing is an edit.
-          saved: savedStorageFor(outcome.file),
-          writable: outcome.file.handle !== undefined,
-        },
-      },
-    }));
+    workspaceStore.update((current) =>
+      withPane(current, pane, {
+        ...slot,
+        name: outcome.file.name,
+        file: outcome.file,
+        // The file on disk now holds the document, so nothing is an edit.
+        saved: savedStorageFor(outcome.file),
+        writable: outcome.file.handle !== undefined,
+      })
+    );
   }
 
   return outcome;

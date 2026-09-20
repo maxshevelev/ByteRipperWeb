@@ -1,16 +1,15 @@
+import type React from "react";
 import { editStore } from "@/state/editStore";
 import { useStore } from "@/state/useStore";
 import {
-  closePart,
+  type PaneState,
   type PartId,
   partPane,
-  raisePart,
   togglePart,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
 import { FragmentPanel, FragmentPanelHost } from "@/ui/fragments/FragmentPanelView";
-import { HexPane } from "@/ui/pane/HexPane";
 
 /**
  * The workspace's fragment panels: the dock of pills, and the one panel that is
@@ -20,13 +19,25 @@ import { HexPane } from "@/ui/pane/HexPane";
  * belong in different rows of the shell: the panel lies over the panes, the
  * dock takes a row of its own under them.
  *
- * What is *not* here is anything about the part's own life — which bytes it
- * holds, where they came from, what closing it should ask. That is the store's
- * (`openPart` and its neighbours), and the asking is G49's.
+ * The dump inside the panel is not built here. The shell builds it, with the
+ * same wiring it gives its own panes — the two context menus, the search
+ * results, the reveal, the saves — because that wiring is the shell's to give
+ * and a panel that assembled its own would be a second, quieter pane
+ * (`wireFragmentPaneView`). What is here is what the panel *is*: which part is
+ * up, and the pills of the ones that are not.
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView
  */
-export function FragmentPanels() {
+export function FragmentPanels({
+  renderPane,
+  onClose,
+}: {
+  /** The dump for a part, wired by the shell. */
+  readonly renderPane: (pane: PartId, part: PaneState) => React.ReactNode;
+  /** The pill's ✕: the same close the panel's own header asks for. */
+  readonly onClose: (pane: PartId) => void;
+}) {
   const state = useStore(workspaceStore);
   // The pill's dot is the part's own dirtiness, which the workspace store does
   // not change for — that is exactly what this tick is for.
@@ -55,30 +66,13 @@ export function FragmentPanels() {
     <>
       {pane !== undefined && part !== undefined ? (
         <FragmentPanelHost>
-          <FragmentPanel>
-            <HexPane
-              key={pane}
-              paneId={pane}
-              // The part's own name is all the header has to say: there is no
-              // slot to name, and the panel is the only place it can be.
-              label={part.name}
-              name={part.name}
-              document={part.document}
-              typing={part.typing}
-              wordSize={state.wordSize}
-              // The panel in front is the pane in front: it is the only one in
-              // it. Which commands that pulls with it is G49's.
-              isActive
-              onActivate={() => raisePart(pane)}
-              onClose={() => closePart(pane)}
-            />
-          </FragmentPanel>
+          <FragmentPanel>{renderPane(pane, part)}</FragmentPanel>
         </FragmentPanelHost>
       ) : null}
       <FragmentDockStrip
         items={items}
         onSelect={(id) => togglePart(partPane(id))}
-        onClose={(id) => closePart(partPane(id))}
+        onClose={(id) => onClose(partPane(id))}
       />
     </>
   );

@@ -12,12 +12,15 @@ import { activate, menuState, panesSwapped, toolController } from "@/state/toolC
 import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import {
+  frontPane,
   GROUPING_GAP_CHOICES,
+  paneIn,
   type SlotId,
   setGroupingGap,
   setLayout,
   setWordSize,
   swapPanes,
+  windowPanesAreReachable,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
@@ -130,13 +133,18 @@ export function Toolbar({
   // will do rather than what it might.
   useStore(bookmarksStore);
   // The same for the segment commands, which say what they would merge.
-  const pieceCount =
-    useStore(segmentsStore).panes[state.activePane]?.partition.segments.length ?? 0;
-  const active = state.panes[state.activePane];
+  // Every document command in this menu means the pane in front — the part in
+  // the panel that is up, or the active pane with the stage clear — and every
+  // command about the workspace's own panes is left out while a panel covers
+  // them (`frontPane`, `windowPanesAreReachable`).
+  const front = frontPane(state);
+  const panesReachable = windowPanesAreReachable(state);
+  const pieceCount = useStore(segmentsStore).panes[front]?.partition.segments.length ?? 0;
+  const active = paneIn(state, front);
   // What ⌘Z would take back, asked rather than assumed: a cut is undoable too,
   // and it is the router that knows which of the two histories a press means.
-  const undoable = nextUndo(state.activePane);
-  const redoable = nextRedo(state.activePane);
+  const undoable = nextUndo(front);
+  const redoable = nextRedo(front);
   // The verb follows the pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is.
   const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
@@ -153,7 +161,10 @@ export function Toolbar({
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncDiffNavigationToolbarItem
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyDiffNavigationToolbarItem
    */
-  const canNavigate = diff.status === "ready" && diff.hunks !== undefined;
+  // The comparison is the workspace's, and a panel is in the way of it: the
+  // items stay where they are and stop working, rather than leaving the bar and
+  // coming back.
+  const canNavigate = diff.status === "ready" && diff.hunks !== undefined && panesReachable;
   const anyOpen = state.panes.a !== undefined;
   const dirty = active?.document.isDirty === true;
 
@@ -186,7 +197,7 @@ export function Toolbar({
     { label: "New", onSelect: onNew },
     { label: "Open…", onSelect: () => onOpen() },
     anyOpen && state.panes.b === undefined
-      ? { label: "Compare with…", onSelect: () => onOpen("b") }
+      ? { label: "Compare with…", disabled: !panesReachable, onSelect: () => onOpen("b") }
       : undefined,
     { kind: "separator" },
     active === undefined
@@ -199,16 +210,30 @@ export function Toolbar({
     active === undefined
       ? undefined
       : { label: verb === "Save" ? "Save As…" : "Download As…", onSelect: onSaveAs },
+    // Revert reads the file again, and the three below act on the workspace's
+    // own panes: a part has no file behind it and no pane beside it.
     active === undefined
       ? undefined
-      : { label: "Revert to Saved", disabled: !dirty, onSelect: onRevert },
+      : {
+          label: "Revert to Saved",
+          disabled: !dirty || !panesReachable,
+          onSelect: onRevert,
+        },
     { kind: "separator" },
     active === undefined
       ? undefined
-      : { label: "Insert File at Start…", onSelect: () => onJoin("start") },
-    active === undefined ? undefined : { label: "Append File…", onSelect: () => onJoin("end") },
+      : {
+          label: "Insert File at Start…",
+          disabled: !panesReachable,
+          onSelect: () => onJoin("start"),
+        },
+    active === undefined
+      ? undefined
+      : { label: "Append File…", disabled: !panesReachable, onSelect: () => onJoin("end") },
     { kind: "separator" },
-    active === undefined ? undefined : { label: "Duplicate", onSelect: onDuplicate },
+    active === undefined
+      ? undefined
+      : { label: "Duplicate", disabled: !panesReachable, onSelect: onDuplicate },
     active === undefined ? undefined : { label: "Close", onSelect: onClose },
 
     { kind: "separator" },
@@ -222,14 +247,14 @@ export function Toolbar({
       : {
           label: undoable.label === undefined ? "Undo" : `Undo ${undoable.label}`,
           shortcut: "⌘Z",
-          onSelect: () => void undoLast(state.activePane, false),
+          onSelect: () => void undoLast(front, false),
         },
     redoable === undefined
       ? undefined
       : {
           label: redoable.label === undefined ? "Redo" : `Redo ${redoable.label}`,
           shortcut: "⇧⌘Z",
-          onSelect: () => void redoLast(state.activePane),
+          onSelect: () => void redoLast(front),
         },
     undoable === undefined && redoable === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { label: "Fill Selection with…", onSelect: onFill },
@@ -242,17 +267,25 @@ export function Toolbar({
 
     active === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { kind: "heading", label: "Bookmarks" },
+    // A mark is an absolute offset in one of the workspace's files, so these
+    // two are the panes' while a part's own marks are still to come (G49).
     active === undefined
       ? undefined
       : {
           label:
             bookmarkAt(active.document.caret) === undefined ? "Add Bookmark" : "Remove Bookmark",
           shortcut: "⌘D",
+          disabled: !panesReachable,
           onSelect: onToggleBookmark,
         },
     active === undefined
       ? undefined
-      : { label: "Bookmarks…", shortcut: "⌥⌘B", onSelect: onBookmarks },
+      : {
+          label: "Bookmarks…",
+          shortcut: "⌥⌘B",
+          disabled: !panesReachable,
+          onSelect: onBookmarks,
+        },
 
     active === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { kind: "heading", label: "Segments" },
@@ -263,8 +296,8 @@ export function Toolbar({
           label: "Merge",
           disabled: pieceCount < 2,
           onSelect: () => {
-            const piece = pieceAt(state.activePane, active.document.caret);
-            if (piece !== undefined) mergePiece(state.activePane, piece.index);
+            const piece = pieceAt(front, active.document.caret);
+            if (piece !== undefined) mergePiece(front, piece.index);
           },
         },
     active === undefined ? undefined : { label: "Segments…", onSelect: onSegments },
@@ -281,12 +314,14 @@ export function Toolbar({
     bothOpen
       ? {
           label: state.layout === "sideBySide" ? "Stack the Panes" : "Put the Panes Side by Side",
+          disabled: !panesReachable,
           onSelect: () => setLayout(state.layout === "sideBySide" ? "stacked" : "sideBySide"),
         }
       : undefined,
     bothOpen
       ? {
           label: "Swap Panes",
+          disabled: !panesReachable,
           onSelect: () => {
             panesSwapped();
             swapPanes();

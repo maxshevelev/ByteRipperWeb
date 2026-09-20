@@ -9,6 +9,7 @@ import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditSt
 import { bookmarkAt } from "@/state/bookmarksStore";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
+  isSlot,
   type PaneId,
   type PaneState,
   paneIn,
@@ -45,7 +46,8 @@ export interface PaneMenuActions {
   readonly onRename: (pane: PaneId) => void;
   readonly onRevert: (pane: PaneId) => void;
   readonly onDuplicate: (pane: SlotId) => void;
-  readonly onClose: (pane: SlotId) => void;
+  /** Closes a pane, or a part with the panel it is in. */
+  readonly onClose: (pane: PaneId) => void;
   readonly onFill: (pane: PaneId) => void;
   readonly onDeleteBytes: (pane: PaneId) => void;
   readonly onSelectBlockFrom: (pane: PaneId, offset: number) => void;
@@ -62,13 +64,24 @@ export interface PaneMenuActions {
   readonly onMessage: (pane: PaneId, message: string) => void;
 }
 
-/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makePaneMenu */
+/**
+ * The header's File menu, for a pane of either kind.
+ *
+ * Upstream hands a fragment panel's header this very menu — `view.paneMenu =
+ * makePaneMenu(for: pane)` — because there a panel *is* a pane, one of a list
+ * the window keeps. Here the workspace has two named slots and a part is not
+ * one of them, so the items that mean a slot — opening a file into it, joining
+ * one on, duplicating it into the pane beside it, swapping the two — are left
+ * out over a part rather than pointed somewhere arbitrary. What stays is what
+ * belongs to the document: the saves, the name, and closing it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makePaneMenu
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView
+ * @upstream-differs the slot-only items are dropped for a part, the workspace having named slots rather than a list of panes
+ */
 export function paneFileMenu(
   state: WorkspaceState,
-  // The file menu is the workspace's own pane's: opening a file into it,
-  // joining one on, closing it. A part opened over a file answers none of
-  // those, and its header's menu is its own (G49).
-  pane: SlotId,
+  pane: PaneId,
   actions: PaneMenuActions
 ): (MenuEntry | undefined)[] {
   const slot = paneIn(state, pane);
@@ -78,11 +91,20 @@ export function paneFileMenu(
   const verb = saveVerb(state.capabilities, slot.file.handle !== undefined);
   const dirty = slot.document.isDirty;
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
+  // A part has no file behind it: nothing to open one into, nothing to revert
+  // to, and no pane beside it to be duplicated into or swapped with.
+  const inSlot = isSlot(pane) ? pane : undefined;
+
+  /** The items only a slot has, built where there is one to name. */
+  const ofSlot = (make: (slot: SlotId) => (MenuEntry | undefined)[]): (MenuEntry | undefined)[] =>
+    inSlot === undefined ? [] : make(inSlot);
 
   return [
-    { label: "New File", onSelect: actions.onNew },
-    { label: "Open…", onSelect: () => actions.onOpen(pane) },
-    { kind: "separator" },
+    ...ofSlot((slot) => [
+      { label: "New File", onSelect: actions.onNew },
+      { label: "Open…", onSelect: () => actions.onOpen(slot) },
+      { kind: "separator" },
+    ]),
     { label: verb, disabled: !dirty && verb === "Save", onSelect: () => actions.onSave(pane) },
     {
       label: verb === "Save" ? "Save As…" : "Download As…",
@@ -96,21 +118,26 @@ export function paneFileMenu(
       disabled: slot.saved !== undefined,
       onSelect: () => actions.onRename(pane),
     },
-    { label: "Revert to Saved", disabled: !dirty, onSelect: () => actions.onRevert(pane) },
+    ...ofSlot((slot) => [
+      { label: "Revert to Saved", disabled: !dirty, onSelect: () => actions.onRevert(slot) },
+    ]),
     { kind: "separator" },
     // The join twins (§22.1). Insert is grouped with the edit commands above;
     // Append sits with it, both acting on THIS pane rather than the active one.
-    { label: "Insert File at Start…", onSelect: () => actions.onJoin(pane, "start") },
-    { label: "Append File…", onSelect: () => actions.onJoin(pane, "end") },
-    { kind: "separator" },
-    { label: "Duplicate", onSelect: () => actions.onDuplicate(pane) },
-    { kind: "separator" },
+    ...ofSlot((slot) => [
+      { label: "Insert File at Start…", onSelect: () => actions.onJoin(slot, "start") },
+      { label: "Append File…", onSelect: () => actions.onJoin(slot, "end") },
+      { kind: "separator" },
+      { label: "Duplicate", onSelect: () => actions.onDuplicate(slot) },
+      { kind: "separator" },
+    ]),
     // Upstream's Copy Full Path and Show in Finder have no counterpart: a
     // browser is told a file's name and nothing else about where it came from.
     { label: "Copy File Name", onSelect: () => void copyText(slot.name) },
     { label: "Close", onSelect: () => actions.onClose(pane) },
-    bothOpen ? { kind: "separator" } : undefined,
-    bothOpen ? { label: "Swap Panes", onSelect: swapPanes } : undefined,
+    ...ofSlot(() =>
+      bothOpen ? [{ kind: "separator" }, { label: "Swap Panes", onSelect: swapPanes }] : []
+    ),
   ];
 }
 
