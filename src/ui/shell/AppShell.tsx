@@ -50,6 +50,7 @@ import {
   paneIn,
   paneInFront,
   paneState,
+  partPane,
   raisePart,
   renamePane,
   reportAlert,
@@ -621,6 +622,26 @@ export function AppShell() {
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
   }, []);
+
+  /**
+   * The keyboard goes to the panel that has just been raised, and back to the
+   * workspace's own dump when the last one folds.
+   *
+   * Without it the dump behind a panel keeps the keyboard: every keystroke,
+   * every arrow, everything ⌘Z means goes into the file the reader cannot see.
+   *
+   * The dump is found in the document rather than through a reference, because
+   * the panel's pane is rendered by the panel and the shell has nothing to hold
+   * — which is why a pane says which one it is (`data-pane`).
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentFocusChanged
+   */
+  const raised = state.dock.expanded;
+  useEffect(() => {
+    const pane = raised === undefined ? workspaceStore.getSnapshot().activePane : partPane(raised);
+    const dump = document.querySelector(`.hex-pane[data-pane="${pane}"] .hex-scroller`);
+    if (dump instanceof HTMLElement) dump.focus();
+  }, [raised]);
 
   /**
    * Escape folds the panel that is up.

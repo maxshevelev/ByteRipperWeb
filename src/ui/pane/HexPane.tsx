@@ -1772,6 +1772,10 @@ export function HexPane({
     // biome-ignore lint/a11y/noStaticElementInteractions: a drop region is not interactivity of its own.
     <div
       className="hex-pane"
+      // Which pane this is, for the one thing that has to find a dump without
+      // holding a reference to it: the keyboard, when a panel is raised or
+      // folded (`fragmentFocusChanged`).
+      data-pane={paneId}
       data-active={isActive ? "" : undefined}
       onPointerDownCapture={onActivate}
       onFocusCapture={onActivate}
