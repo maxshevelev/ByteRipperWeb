@@ -902,22 +902,29 @@ export function HexPane({
   }, [applyViewport, drawHeader, scheduleDraw]);
 
   useEffect(() => {
-    return scrollLink.register(paneId, {
-      rowHeight: () => layoutRef.current?.rowHeight ?? 0,
-      position: () => ({
-        top: scrollerRef.current?.top ?? 0,
-        left: scrollerRef.current?.left ?? 0,
-      }),
-      extent: () => ({
-        maxTop: scrollerRef.current?.maxTop ?? 0,
-        maxLeft: scrollerRef.current?.maxLeft ?? 0,
-        viewportHeight: scrollerRef.current?.viewportHeight ?? 0,
-      }),
-      moveTo: (position) => {
-        scrollerRef.current?.moveTo(position.top, position.left);
-        linkMovedRef.current();
+    // The workspace's panes scroll together, being a comparison by absolute
+    // offset; a part is a group of its own, because its offsets start at zero
+    // and mean nothing in the file the panel is lying over.
+    return scrollLink.register(
+      paneId,
+      {
+        rowHeight: () => layoutRef.current?.rowHeight ?? 0,
+        position: () => ({
+          top: scrollerRef.current?.top ?? 0,
+          left: scrollerRef.current?.left ?? 0,
+        }),
+        extent: () => ({
+          maxTop: scrollerRef.current?.maxTop ?? 0,
+          maxLeft: scrollerRef.current?.maxLeft ?? 0,
+          viewportHeight: scrollerRef.current?.viewportHeight ?? 0,
+        }),
+        moveTo: (position) => {
+          scrollerRef.current?.moveTo(position.top, position.left);
+          linkMovedRef.current();
+        },
       },
-    });
+      isSlot(paneId) ? undefined : paneId
+    );
   }, [paneId]);
 
   const onScroll = useCallback(() => {

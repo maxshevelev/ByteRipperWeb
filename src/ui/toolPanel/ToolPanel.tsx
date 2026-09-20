@@ -14,7 +14,7 @@ import {
 } from "@/state/toolController";
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { useStore } from "@/state/useStore";
-import { PANE_IDS, type PaneId, paneIn, workspaceStore } from "@/state/workspaceStore";
+import { openPart, PANE_IDS, type PaneId, paneIn, workspaceStore } from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
@@ -70,6 +70,12 @@ export function ToolPanel({
     // through, so a tool's confirmation cannot come to look like another app's.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice
     showNotice,
+    // Bytes the panel hands over, opened as a part over the file they came out
+    // of. The panel says what they are; where they open is not its business.
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
+    openPart: (bytes, name) => {
+      openPart(bytes, name);
+    },
   };
 
   return (

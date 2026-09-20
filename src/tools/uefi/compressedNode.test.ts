@@ -11,16 +11,23 @@ import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
 import type { NodeDetail } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
-import { uefiZones, type ZonedNode } from "@/tools/uefi/uefiPresenter";
+import {
+  type CompressedSectionNode,
+  decompressedExport,
+  decompressedPartName,
+  uefiZones,
+  type ZonedNode,
+} from "@/tools/uefi/uefiPresenter";
 
 /**
  * A node inside a compressed section, as the panel shows it: drawn as the
- * section that holds it, read from the buffer, checked there, and never written.
- * Ported from upstream's `CompressedNodeTests`.
+ * section that holds it, read from the buffer, checked there, never written —
+ * and taken out, as a file or as a part of its own. Ported from upstream's
+ * `CompressedNodeTests`.
  *
- * Export and Open in a New Tab are upstream's too and are not here: taking a
- * decompressed part out as a document of its own is G4, and a second tab is not
- * something a web workspace has (D11).
+ * What a part is *linked* to is not here: the parent, the range it came out of
+ * and Update in Parent are G4, and `nodeOpen` — opening any node of the tree
+ * rather than only what a section decompresses to — is G51.
  */
 
 /**
@@ -72,13 +79,16 @@ function built(): {
   };
 }
 
-const wire = (node: UEFINode): ZonedNode => ({
+const wire = (node: UEFINode): ZonedNode & CompressedSectionNode => ({
   id: node.id,
+  kind: node.kind,
   name: node.name,
   header: [node.header.start, node.header.end] as const,
   body: [node.body.start, node.body.end] as const,
   tail: [node.tail.start, node.tail.end] as const,
   space: node.space,
+  compression: node.compression,
+  isExpandable: node.isExpandable,
   children: node.children.map(wire),
 });
 
@@ -127,6 +137,86 @@ describe("the detail", () => {
     );
     // A compressed node's address means nothing.
     expect(value(detail, "Address")).toBeUndefined();
+  });
+});
+
+describe("what a node has decompressed", () => {
+  /**
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testAnOpenedSectionExportsItsWholeBufferAndANodeInsideItsOwnBytes
+   */
+  it("is the whole buffer for an opened section, and its own bytes for a node inside", () => {
+    const image = built();
+
+    const body = decompressedExport(wire(image.section));
+    expect(body?.space).toEqual([0]);
+    expect(body?.range).toBeUndefined();
+    expect(body?.menuTitle).toBe("Export Decompressed Body…");
+    expect(body?.openTitle).toBe("Open Decompressed Body");
+    expect(body?.suggestedName).toBe("LZMA compressed section decompressed.bin");
+    // And that space really is the decompressed body.
+    const buffer = image.readers.readerFor(body?.space ?? []);
+    expect(Array.from(buffer?.bytes(buffer.all) ?? [])).toEqual(Array.from(fileBody()));
+
+    const bytes = decompressedExport(wire(image.inner));
+    expect(bytes?.space).toEqual(image.inner.space);
+    expect(bytes?.range).toEqual([0, fileBody().length]);
+    expect(bytes?.menuTitle).toBe("Export Decompressed Bytes…");
+    expect(bytes?.openTitle).toBe("Open Decompressed Bytes");
+    expect(bytes?.suggestedName).toBe("Inner decompressed.bin");
+    // Named after the dump it came out of, then what it is.
+    expect(bytes === undefined ? undefined : decompressedPartName(bytes, "bios.rom")).toBe(
+      "bios_Inner decompressed.bin"
+    );
+    expect(bytes === undefined ? undefined : decompressedPartName(bytes, "")).toBe(
+      "Inner decompressed.bin"
+    );
+  });
+
+  it("is nothing for a node of the file, whose bytes the dump already exports", () => {
+    const plain = {
+      kind: "file",
+      name: "Driver",
+      header: [0, 0x18] as const,
+      body: [0x18, 0x40] as const,
+      tail: [0x40, 0x40] as const,
+      space: [],
+      isExpandable: false,
+      children: [],
+    };
+
+    expect(decompressedExport(plain)).toBeUndefined();
+  });
+
+  /**
+   * The row says it is compressed before it is opened, so the export is offered
+   * then — and reading it decodes the body.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testAClosedCompressedSectionExportsItsBodyDecodedOnDemand
+   */
+  it("is offered by a section still closed, and by neither kind that cannot open", () => {
+    const image = built();
+    const closed = {
+      ...wire(image.section),
+      children: [],
+      isExpandable: true,
+      compression: { algorithm: "LZMA", decodes: true },
+    };
+
+    const body = decompressedExport(closed);
+    expect(body?.space).toEqual([0]);
+    expect(body?.range).toBeUndefined();
+    expect(body?.openTitle).toBe("Open Decompressed Body");
+
+    // A section the decoder cannot read has nothing to save.
+    expect(
+      decompressedExport({
+        ...closed,
+        compression: { algorithm: "Unknown", decodes: false },
+        isExpandable: false,
+      })
+    ).toBeUndefined();
+    // And one that was opened and did not decompress offers nothing either.
+    expect(decompressedExport({ ...closed, isExpandable: false })).toBeUndefined();
   });
 });
 

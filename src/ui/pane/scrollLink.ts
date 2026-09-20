@@ -111,66 +111,89 @@ export interface LinkedScroller {
 }
 
 /**
- * Keeps the registered panes at the same offsets.
+ * The panes that scroll together, and the position they share.
+ *
+ * One group is the workspace's own panes: a comparison is by absolute offset,
+ * so the two move as one. Every part opened over them is a group of its own —
+ * its offsets start at zero and mean nothing in the file behind it, so a panel
+ * that followed the dump would open showing bytes nobody asked about. It was
+ * measured doing exactly that: a decompressed body opened at the parent's
+ * scroll, half a megabyte down its own 17 MB.
+ *
+ * A group of one mirrors to nobody and still holds a position, which is what
+ * the reveal and the visible range are read from.
+ */
+const WORKSPACE_PANES = "panes";
+
+/** Where a group of panes is, in content pixels. */
+interface SharedPosition {
+  readonly top: number;
+  readonly left: number;
+  readonly rowHeight: number;
+  /** The viewport it was taken in, where a change of measure finds the middle. */
+  readonly viewportHeight: number;
+}
+
+/**
+ * Keeps the panes of one group at the same offsets.
  *
  * One per workspace. Panes register on mount and deregister on unmount, so with
  * a single file open there is nothing to mirror and nothing happens.
  */
 export class ScrollLink {
-  private readonly panes = new Map<string, LinkedScroller>();
+  private readonly panes = new Map<string, { scroller: LinkedScroller; group: string }>();
 
   /**
-   * The position the panes share: where a pane was last *taken* — by the user's
-   * scroll or by a navigation — in content pixels, with the row height it was
-   * measured at.
+   * The position each group shares: where one of its panes was last *taken* —
+   * by the user's scroll or by a navigation — in content pixels, with the row
+   * height it was measured at.
    *
-   * It is the only position there is. Every other move a pane makes — a resize,
-   * its file growing or shrinking under an edit or a revert, a font change — is
-   * that pane fitting itself back under this position as far as its own file
-   * reaches, never a new position handed to the other pane. That is what keeps
-   * two panes from drifting apart: the one place they may disagree is past the
-   * end of the shorter file, and the moment it reaches that far again it is
-   * level again.
+   * It is the only position a group has. Every other move a pane makes — a
+   * resize, its file growing or shrinking under an edit or a revert, a font
+   * change — is that pane fitting itself back under this position as far as its
+   * own file reaches, never a new position handed to the other pane. That is
+   * what keeps two panes from drifting apart: the one place they may disagree
+   * is past the end of the shorter file, and the moment it reaches that far
+   * again it is level again.
    *
-   * Kept when the last pane leaves, so a pane whose file is replaced — which
-   * remounts it — comes back where it was; {@link forget} drops it when a pane
-   * is closed on purpose.
+   * Kept when the last pane of a group leaves, so a pane whose file is replaced
+   * — which remounts it — comes back where it was; {@link forget} drops it when
+   * a pane is closed on purpose.
    */
-  private shared:
-    | {
-        readonly top: number;
-        readonly left: number;
-        readonly rowHeight: number;
-        /** The viewport it was taken in, where a change of measure finds the middle. */
-        readonly viewportHeight: number;
-      }
-    | undefined;
+  private readonly shared = new Map<string, SharedPosition>();
 
   /**
-   * Joins a pane to the link. Joining is not a scroll: the pane comes to where
-   * the panes already are, and nothing already open moves to meet it — the
+   * Joins a pane to its group. Joining is not a scroll: the pane comes to where
+   * that group already is, and nothing already open moves to meet it — the
    * comparison opens in lock-step from the position the reader was at.
+   *
+   * `group` is the workspace's panes unless the caller says otherwise; a part
+   * passes its own id, which is a group of one.
    *
    * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.isSyncArmed
    * @upstream-differs every pane that joins is aligned, not only the second one on the first layout
    */
-  register(id: string, scroller: LinkedScroller): () => void {
-    this.panes.set(id, scroller);
-    this.align(scroller);
+  register(id: string, scroller: LinkedScroller, group: string = WORKSPACE_PANES): () => void {
+    this.panes.set(id, { scroller, group });
+    this.align(scroller, group);
     this.announce();
     return () => {
-      if (this.panes.get(id) === scroller) this.panes.delete(id);
+      if (this.panes.get(id)?.scroller === scroller) this.panes.delete(id);
       this.announce();
     };
   }
 
   /**
-   * A pane is being closed on purpose, not remounted: when it is the last one,
-   * the next file opens at its top rather than at where this one was.
+   * A pane is being closed on purpose, not remounted: when it is the last one
+   * of its group, the next file opens at its top rather than at where this one
+   * was.
    */
   forget(id: string): void {
-    for (const other of this.panes.keys()) if (other !== id) return;
-    this.shared = undefined;
+    const group = this.panes.get(id)?.group ?? WORKSPACE_PANES;
+    for (const [other, held] of this.panes) {
+      if (other !== id && held.group === group) return;
+    }
+    this.shared.delete(group);
   }
 
   /**
@@ -180,16 +203,18 @@ export class ScrollLink {
    * or the pane is not laid out — so the pane can decide for itself.
    */
   settle(id: string): boolean {
-    const pane = this.panes.get(id);
-    if (pane === undefined || this.shared === undefined || pane.rowHeight() <= 0) return false;
-    this.align(pane);
+    const held = this.panes.get(id);
+    if (held === undefined || !this.shared.has(held.group) || held.scroller.rowHeight() <= 0) {
+      return false;
+    }
+    this.align(held.scroller, held.group);
     this.announce();
     return true;
   }
 
-  /** Moves a pane under the shared position, clamped to its own extent. */
-  private align(pane: LinkedScroller): void {
-    const shared = this.shared;
+  /** Moves a pane under its group's shared position, clamped to its own extent. */
+  private align(pane: LinkedScroller, group: string): void {
+    const shared = this.shared.get(group);
     const rowHeight = pane.rowHeight();
     if (shared === undefined || rowHeight <= 0) return;
     // The same rows, whatever each pane is measured at now: a font change
@@ -242,7 +267,7 @@ export class ScrollLink {
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.onVisibleRangeChanged
    */
   visibleRange(id: string, bytesPerRow: number): { start: number; end: number } | undefined {
-    const pane = this.panes.get(id);
+    const pane = this.panes.get(id)?.scroller;
     if (pane === undefined) return undefined;
     const rowHeight = pane.rowHeight();
     if (rowHeight <= 0) return undefined;
@@ -273,7 +298,7 @@ export class ScrollLink {
     bytesPerRow: number,
     options: { readonly centre?: boolean } = {}
   ): void {
-    const pane = this.panes.get(id);
+    const pane = this.panes.get(id)?.scroller;
     if (pane === undefined) return;
     const rowHeight = pane.rowHeight();
     if (rowHeight <= 0) return;
@@ -289,23 +314,23 @@ export class ScrollLink {
   }
 
   /**
-   * Called when a pane has scrolled. Mirrors it to the others.
+   * Called when a pane has scrolled. Mirrors it to the others of its group.
    *
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHexViewportChanged
    */
   report(id: string): void {
-    const source = this.panes.get(id);
-    const rowHeight = source?.rowHeight() ?? 0;
-    if (source !== undefined && rowHeight > 0) {
-      const position = source.position();
-      this.shared = {
+    const held = this.panes.get(id);
+    const rowHeight = held?.scroller.rowHeight() ?? 0;
+    if (held !== undefined && rowHeight > 0) {
+      const position = held.scroller.position();
+      this.shared.set(held.group, {
         top: position.top,
         left: position.left,
         rowHeight,
-        viewportHeight: source.extent().viewportHeight,
-      };
+        viewportHeight: held.scroller.extent().viewportHeight,
+      });
       for (const [otherId, other] of this.panes) {
-        if (otherId !== id) this.align(other);
+        if (otherId !== id && other.group === held.group) this.align(other.scroller, other.group);
       }
     }
     this.announce();

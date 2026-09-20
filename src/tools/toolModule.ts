@@ -82,6 +82,20 @@ export interface ToolContext {
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.showNotice
    */
   readonly showNotice: (glyph: NoticeGlyph, lines: readonly string[]) => void;
+  /**
+   * Bytes the panel has made sense of, opened as a part of their own — a panel
+   * over the file they came out of, with a pill in the dock
+   * (`Design/GAPS.md` G48, G49).
+   *
+   * The tool decides what the bytes are and what they are called; where they
+   * open is the application's, and there is only one answer to that.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.openPart
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
+   * @upstream-differs no `linkedTo` range: the link back to the parent, and Update in Parent with it, is G4
+   */
+  readonly openPart: (bytes: Uint8Array, name: string) => void;
 }
 
 /**

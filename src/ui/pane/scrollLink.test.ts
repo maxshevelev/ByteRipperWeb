@@ -169,6 +169,72 @@ describe("the link between two panes", () => {
   });
 });
 
+/**
+ * A part opened over the panes is a surface of its own, and its offsets start
+ * at zero: a panel that scrolled with the dump behind it would open showing
+ * bytes nobody asked about. Measured doing exactly that, before the groups
+ * existed — a decompressed body opened half a megabyte down.
+ */
+describe("a part's own scrolling", () => {
+  it("does not follow the workspace's panes, nor take them along", () => {
+    const link = new ScrollLink();
+    const dump = fakePane(40_000);
+    const part = fakePane(40_000);
+    link.register("a", dump.scroller);
+    dump.state.position = { top: 17_000, left: 0 };
+    link.report("a");
+
+    link.register("part:1", part.scroller, "part:1");
+    expect(part.state.moves).toBe(0);
+
+    part.state.position = { top: 340, left: 0 };
+    link.report("part:1");
+    expect(dump.state.position.top).toBe(17_000);
+  });
+
+  it("keeps a position of its own, which its reveal reads", () => {
+    const link = new ScrollLink();
+    const part = fakePane(40_000);
+    link.register("part:1", part.scroller, "part:1");
+
+    link.scrollToOffset("part:1", 100 * 16, 16);
+
+    expect(part.state.position.top).toBe(1_700);
+    expect(link.visibleRange("part:1", 16)?.start).toBe(100 * 16);
+  });
+
+  /** Two parts are two surfaces, not one: neither is the other's comparison. */
+  it("is its own even beside another part", () => {
+    const link = new ScrollLink();
+    const first = fakePane(40_000);
+    const second = fakePane(40_000);
+    link.register("part:1", first.scroller, "part:1");
+    link.register("part:2", second.scroller, "part:2");
+
+    first.state.position = { top: 5_100, left: 0 };
+    link.report("part:1");
+
+    expect(second.state.moves).toBe(0);
+  });
+
+  /** And closing one leaves the panes' own position where it was. */
+  it("forgets only its own place when it closes", () => {
+    const link = new ScrollLink();
+    const dump = fakePane(40_000);
+    const part = fakePane(40_000);
+    link.register("a", dump.scroller);
+    dump.state.position = { top: 17_000, left: 0 };
+    link.report("a");
+    const stop = link.register("part:1", part.scroller, "part:1");
+    stop();
+    link.forget("part:1");
+
+    const again = fakePane(40_000);
+    link.register("b", again.scroller);
+    expect(again.state.position.top).toBe(17_000);
+  });
+});
+
 describe("panes that never drift apart", () => {
   /** A long file scrolled far past the end of a short one. */
   function pastTheShortEnd() {

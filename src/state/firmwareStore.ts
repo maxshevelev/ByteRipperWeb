@@ -191,6 +191,10 @@ function ensureWorker(pane: PaneId): PaneWorker {
       case "firmwareDetail":
         update(pane, { detail: response });
         return;
+      case "firmwareSpaceBytes":
+        spaceBytesWaiters.get(pane)?.(response.bytes);
+        spaceBytesWaiters.delete(pane);
+        return;
       case "firmwareProtectedRanges":
         // The reading's own complaints join the panel's list: what the lists
         // say is as much a part of reading an image as what its headers say.
@@ -210,6 +214,8 @@ function ensureWorker(pane: PaneId): PaneWorker {
         // holding a promise that will never settle.
         fitWaiters.get(pane)?.(undefined);
         fitWaiters.delete(pane);
+        spaceBytesWaiters.get(pane)?.(undefined);
+        spaceBytesWaiters.delete(pane);
         fitEditWaiters.get(pane)?.({
           kind: "fitEdit",
           id: response.id,
@@ -345,6 +351,29 @@ export function askFirmwareProtectedRanges(pane: PaneId): void {
   if (current === undefined || current.status !== "ready") return;
   if (current.protectedRanges !== undefined) return;
   send(pane, { kind: "firmwareProtectedRanges", id: workers[pane]?.job ?? 0 });
+}
+
+/**
+ * The bytes of one buffer, or a range of one — what a compressed section
+ * decompresses to, and what a node inside it holds.
+ *
+ * Nothing where the section does not decompress: a stream the decoder cannot
+ * read, or one that failed. The caller is what knows how to say so.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.decompressedBytes
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.withDecompressedBytes
+ */
+export async function readSpaceBytes(
+  pane: PaneId,
+  space: readonly number[],
+  range?: readonly [number, number] | undefined
+): Promise<Uint8Array | undefined> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return undefined;
+  return new Promise<Uint8Array | undefined>((resolve) => {
+    spaceBytesWaiters.set(pane, resolve);
+    send(pane, { kind: "firmwareSpaceBytes", id: workers[pane]?.job ?? 0, space, range });
+  });
 }
 
 export function askFirmwareDetail(pane: PaneId, path: readonly number[]): void {
@@ -499,6 +528,9 @@ const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse) => void>();
 
 /** Who is waiting for a FIT report, by pane. One panel asks at a time. */
 const fitWaiters = new Map<PaneId, (report: FITReport | undefined) => void>();
+
+/** Who is waiting for a buffer's bytes, by pane. One command asks at a time. */
+const spaceBytesWaiters = new Map<PaneId, (bytes: Uint8Array | undefined) => void>();
 
 /** Who is waiting for a repair, by the node it is about. */
 const repairWaiters = new Map<

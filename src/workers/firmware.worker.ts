@@ -611,6 +611,30 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      // The bytes of a buffer, or a range of one: what Export Decompressed and
+      // Open Decompressed hand over. A section still closed decodes here, which
+      // is why the commands can be offered before the row is opened.
+      //
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.decompressedBytes
+      case "firmwareSpaceBytes": {
+        const space = request.space;
+        const read =
+          reader === undefined
+            ? undefined
+            : buffers.readerFor(space, reader, DEFAULT_LIMITS.maxDecompressedSize);
+        if (read === undefined || !read.ok) {
+          post({ kind: "firmwareSpaceBytes", id: request.id });
+          return;
+        }
+        const asked = request.range;
+        const range =
+          asked === undefined
+            ? read.reader.all
+            : { start: asked[0], end: Math.min(asked[1], read.reader.count) };
+        post({ kind: "firmwareSpaceBytes", id: request.id, bytes: read.reader.bytes(range) });
+        return;
+      }
+
       case "fitRead": {
         if (reader === undefined) {
           post({ kind: "firmwareFailed", id: request.id, problem: "No image is open." });

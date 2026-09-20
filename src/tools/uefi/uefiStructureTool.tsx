@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
+import { downloadBlob } from "@/platform/files/download";
 import {
   askFirmwareDetail,
   askFirmwareProtectedRanges,
@@ -10,6 +11,7 @@ import {
   fixFirmwareChecksum,
   parsePaneFirmware,
   pathKey,
+  readSpaceBytes,
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import type { ToolSessionState } from "@/state/parkedToolState";
@@ -21,7 +23,13 @@ import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
-import { nodeIDOfZone, uefiZones } from "@/tools/uefi/uefiPresenter";
+import {
+  type DecompressedExport,
+  decompressedExport,
+  decompressedPartName,
+  nodeIDOfZone,
+  uefiZones,
+} from "@/tools/uefi/uefiPresenter";
 import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -375,6 +383,72 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
+   * What a node has decompressed, read out of the worker's own buffer: the
+   * whole of what a compressed section opens to, or one node's bytes inside it.
+   *
+   * A section still closed decodes on the way out, which is why both commands
+   * are offered before a row is opened — the row already says it is compressed.
+   * Nothing comes back where the stream does not decode, and the command says
+   * so rather than handing over an empty file.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.withDecompressedBytes
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.decompressedBytes
+   */
+  const decompressedBytes = useCallback(
+    async (taken: DecompressedExport): Promise<Uint8Array | undefined> => {
+      const bytes = await readSpaceBytes(context.pane, taken.space, taken.range);
+      if (bytes === undefined || bytes.length === 0) {
+        context.report("The section does not decompress.");
+        return undefined;
+      }
+      return bytes;
+    },
+    [context]
+  );
+
+  /**
+   * Export Decompressed Body… / Export Decompressed Bytes…: what the section
+   * holds, written out as a file of its own.
+   *
+   * Upstream asks for a save panel and says how much it wrote; a page has no
+   * panel to ask with, so the bytes go through the download flow the rest of
+   * the application uses (D7) and the sentence is the same one.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.exportDecompressed
+   * @upstream-differs the browser's download flow in place of the save panel, so there is no cancelling to hear about
+   */
+  const exportDecompressed = useCallback(
+    async (taken: DecompressedExport) => {
+      const bytes = await decompressedBytes(taken);
+      if (bytes === undefined) return;
+      // `slice()` because a Blob wants bytes over a plain ArrayBuffer, which is
+      // what the clipboard's own export does for the same reason.
+      downloadBlob(
+        new Blob([bytes.slice()], { type: "application/octet-stream" }),
+        taken.suggestedName
+      );
+      context.report(`Exported ${bytes.length} bytes.`);
+    },
+    [context, decompressedBytes]
+  );
+
+  /**
+   * Open Decompressed Body / Open Decompressed Bytes: the same bytes the export
+   * saves, opened as a part of their own — its own offsets from zero, its own
+   * search, its own tree — without saving anything first.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecompressedInNewTab
+   */
+  const openDecompressed = useCallback(
+    async (taken: DecompressedExport) => {
+      const bytes = await decompressedBytes(taken);
+      if (bytes === undefined) return;
+      context.openPart(bytes, decompressedPartName(taken, paneState(context.pane)?.name ?? ""));
+    },
+    [context, decompressedBytes]
+  );
+
+  /**
    * The node under the caret, shown in the tree: every branch on the way
    * opened, its row selected, its detail up. Only the tree moves — the dump is
    * where the reader is standing, so nothing is published that would scroll it
@@ -718,10 +792,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   onChoose={choose}
                   onMenu={(event, node) => {
                     choose(node);
-                    // Upstream offers exactly one command here, and only on a node
-                    // whose checksum is wrong — a clean row gets no menu at all.
-                    // Never inside a compressed section: the fix would be a
-                    // write into a buffer that is not the file.
+                    // What this row has decompressed, if anything: a compressed
+                    // section's whole buffer, or one node's bytes inside one.
+                    const taken = decompressedExport(node);
+                    // Fix Checksum is offered only on a node whose checksum is
+                    // wrong — a clean row gets no menu at all. Never inside a
+                    // compressed section: the fix would be a write into a
+                    // buffer that is not the file.
                     openContextMenu(event, [
                       marksOf(node).problem === undefined || node.space.length !== 0
                         ? undefined
@@ -737,6 +814,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                               });
                             },
                           },
+                      taken === undefined
+                        ? undefined
+                        : {
+                            label: taken.menuTitle,
+                            onSelect: () => void exportDecompressed(taken),
+                          },
+                      taken === undefined
+                        ? undefined
+                        : { label: taken.openTitle, onSelect: () => void openDecompressed(taken) },
                     ]);
                   }}
                 />

@@ -39,6 +39,109 @@ export interface ZonedNode {
 const PART_SEPARATOR = "#";
 
 /**
+ * The fields an export is decided from. A wire node has them, and so does a
+ * parsed one once its ranges are written as pairs.
+ */
+export interface CompressedSectionNode {
+  readonly kind: string;
+  readonly name: string;
+  readonly header: readonly [number, number];
+  readonly body: readonly [number, number];
+  readonly tail: readonly [number, number];
+  readonly space: readonly number[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.compression */
+  readonly compression?: { readonly algorithm: string; readonly decodes: boolean } | undefined;
+  readonly isExpandable: boolean;
+  readonly children?: readonly { readonly space: readonly number[] }[] | undefined;
+}
+
+/**
+ * What a node has that is worth taking out decompressed: which buffer it is
+ * in, which bytes of it, and what the two commands offering it are called.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport
+ */
+export interface DecompressedExport {
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.space */
+  readonly space: readonly number[];
+  /**
+   * The bytes in that space, or nothing for the whole of it — which is what a
+   * section's own body is.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.range
+   */
+  readonly range?: readonly [number, number] | undefined;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.suggestedName */
+  readonly suggestedName: string;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.menuTitle */
+  readonly menuTitle: string;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.openTitle */
+  readonly openTitle: string;
+}
+
+/**
+ * A compressed section exports everything it decompresses to — one that opened,
+ * and one still closed that would: the row already says it is compressed, and
+ * the buffer is decoded when the export reads it. A node inside one exports its
+ * own bytes from that buffer. Nothing else has anything decompressed to save —
+ * its bytes are the file's, and the dump already exports those.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedExport
+ */
+export function decompressedExport(node: CompressedSectionNode): DecompressedExport | undefined {
+  // What came *out* of a section says so in its name. Without it the section
+  // opened as a node and the same section's decompressed body arrive under one
+  // name — `bios_LZMA Section.bin` twice — and the two hold entirely different
+  // bytes. A node with no name is already called `decompressed`, so it says it
+  // once.
+  const base = Array.from(node.name.length === 0 ? "decompressed" : node.name)
+    .map((character) => ("/:".includes(character) ? "_" : character))
+    .join("");
+  const marked = node.name.length === 0 ? base : `${base} decompressed`;
+  const children = node.children ?? [];
+  const opened = children.some((child) => !sameSpace(child.space, node.space));
+  const closed = node.compression?.decodes === true && node.isExpandable && children.length === 0;
+  if (node.kind === "section" && (opened || closed)) {
+    return {
+      // The buffer this section opens to: its own space with the section's
+      // header offset on the end.
+      // @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSpace.swift#ByteSpace.inside
+      space: [...node.space, node.header[0]],
+      range: undefined,
+      suggestedName: `${marked}.bin`,
+      menuTitle: "Export Decompressed Body…",
+      openTitle: "Open Decompressed Body",
+    };
+  }
+  if (node.space.length !== 0) {
+    return {
+      space: node.space,
+      range: [node.header[0], Math.max(node.header[1], node.body[1], node.tail[1])],
+      suggestedName: `${marked}.bin`,
+      menuTitle: "Export Decompressed Bytes…",
+      openTitle: "Open Decompressed Bytes",
+    };
+  }
+  return undefined;
+}
+
+/**
+ * The part's name: the dump it came out of, then what it is —
+ * `bios_LZMA compressed section decompressed.bin`, the way a zone's is named.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.tabName
+ */
+export function decompressedPartName(taken: DecompressedExport, fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  const stem = dot <= 0 ? fileName : fileName.slice(0, dot);
+  return stem.length === 0 ? taken.suggestedName : `${stem}_${taken.suggestedName}`;
+}
+
+/** Two spaces are the same buffer when they are the same chain of sections. */
+const sameSpace = (left: readonly number[], right: readonly number[]): boolean =>
+  left.length === right.length && left.every((offset, index) => offset === right[index]);
+
+/**
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zones
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zoneID

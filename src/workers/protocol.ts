@@ -289,6 +289,27 @@ export interface FirmwareProtectedRangesRequest {
   readonly id: JobId;
 }
 
+/**
+ * The bytes of one buffer, or a range of one: what a compressed section
+ * decompresses to, and a node inside it.
+ *
+ * Asked of the worker because the buffer is the worker's — decoding a section
+ * is megabytes of work and the decoded copy is kept there — and because a
+ * section still closed decodes on the way out, which is the whole point of
+ * offering the export before the row is opened.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.decompressedBytes
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SpaceReaders.swift#SpaceReaders.reader
+ */
+export interface FirmwareSpaceBytesRequest {
+  readonly kind: "firmwareSpaceBytes";
+  readonly id: JobId;
+  /** The chain of compressed sections the bytes are in; empty is the file. */
+  readonly space: readonly number[];
+  /** The bytes in that space, or nothing for the whole of it. */
+  readonly range?: readonly [number, number] | undefined;
+}
+
 /** Everything the detail panel shows about one node, read once. */
 export interface FirmwareDetailRequest {
   readonly kind: "firmwareDetail";
@@ -377,6 +398,7 @@ export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | MeChecksumsRequest
   | FirmwareDetailRequest
+  | FirmwareSpaceBytesRequest
   | FirmwareProtectedRangesRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
@@ -543,6 +565,17 @@ export interface FirmwareDetailResponse {
 }
 
 /**
+ * The bytes asked for, or nothing at all where the section does not decompress
+ * — a stream the decoder cannot read, or one that failed. The caller says so;
+ * the worker does not guess at a message.
+ */
+export interface FirmwareSpaceBytesResponse {
+  readonly kind: "firmwareSpaceBytes";
+  readonly id: JobId;
+  readonly bytes?: Uint8Array | undefined;
+}
+
+/**
  * The innermost node covering an offset, with every branch on the way to it
  * opened — so the whole tree comes back, not only the path.
  */
@@ -616,6 +649,7 @@ export type FirmwareWorkerResponse =
   | FirmwareInvalidatedResponse
   | FirmwareAddressesResponse
   | FirmwareDetailResponse
+  | FirmwareSpaceBytesResponse
   | FirmwareProtectedRangesResponse
   | FirmwareNodeAtOffsetResponse
   | FirmwareRepairResponse
