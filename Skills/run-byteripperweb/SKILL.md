@@ -51,6 +51,7 @@ Screenshots are wherever you point `shot`; `/tmp` is a good place.
 | `hover <what> [dx dy]` | moves the pointer over an element with nothing held |
 | `drag <what> [dx dy]` | a real mouse drag from the element's centre, in 12 steps |
 | `click <what>` | a real click |
+| `rclick <what>` | a real right-click, which is what opens the app's own menus |
 
 `<what>` is a selector, or `@x,y` for a point in the viewport. The dump needs
 the point: its bytes, its addresses, its bookmark marks and its selection are
@@ -108,6 +109,12 @@ src/core/document/binaryDocument.test.ts` to check it.
 - **Headless Chrome writes to its profile while closing**, so deleting it can
   fail with `ENOTEMPTY`. It is a temp directory and the next `start` wipes it.
 - The pane the dump lands in is `.hex-pane`. `.pane` matches nothing.
+- **A menu this app opens is a list of `.menu-item` buttons.** `rclick` opens
+  the one under the pointer; then
+  `eval "Array.from(document.querySelectorAll('.menu-item')).map(e=>(e.disabled?'[x] ':'')+e.textContent).join(' | ')"`
+  reads it — `disabled` is how a refused command says so — and
+  `eval "Array.from(document.querySelectorAll('.menu-item'))[N].click()"` picks
+  one. Escape closes the menu; a second Escape reaches the window behind it.
 
 ## Troubleshooting
 
