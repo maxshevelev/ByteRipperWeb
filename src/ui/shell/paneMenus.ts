@@ -7,7 +7,7 @@ import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarkAt } from "@/state/bookmarksStore";
-import { askFirmwareLayout } from "@/state/firmwareStore";
+import { askFirmwarePart } from "@/state/firmwareStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
@@ -453,8 +453,14 @@ function selectionItems(
 export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
   void slot.document
     .read(zone.start, zone.end - zone.start)
-    .then(async (bytes) =>
-      openLinkedPart({
+    .then(async (bytes) => {
+      // What the bytes *are*, where the parent's tree covers them — a zone that
+      // is a volume or a file is read as one rather than scanned — and, when it
+      // is a structure like that, where they go back to: a zone that is a
+      // volume, a file or a section goes back through the rebuild planner, at
+      // whatever length it has come to (§6).
+      const part = await askFirmwarePart(pane, { range: [zone.start, zone.end] });
+      return openLinkedPart({
         parent: pane,
         bytes,
         name: zoneFileName(slot.name, zone.name, zone.start, zone.end),
@@ -462,11 +468,10 @@ export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
         // The zone's own name is what it is called in the parent, which is
         // better than anything read back off the file name.
         partName: zone.name,
-        // And what the bytes *are*, where the parent's tree covers them: a
-        // zone that is a volume or a file is read as one rather than scanned.
-        layout: await askFirmwareLayout(pane, { range: [zone.start, zone.end] }),
-      })
-    )
+        layout: part.layout,
+        rebuildTarget: part.rebuild,
+      });
+    })
     .catch((error: unknown) =>
       reportAlert(
         "Could not read the zone.",

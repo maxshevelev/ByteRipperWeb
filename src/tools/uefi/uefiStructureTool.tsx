@@ -462,7 +462,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         bytes,
         partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),
         fileSourceOf(node, roots ?? []),
-        layout
+        layout,
+        // What they are, and where they go back to: the whole buffer, or this
+        // node's bytes in it, compressed again on the way (§6).
+        {
+          kind: "decompressed",
+          rebuild: {
+            space: taken.space,
+            ...(taken.range === undefined
+              ? {}
+              : { range: { start: taken.range[0], end: taken.range[1] } }),
+          },
+        }
       );
     },
     [context, decompressedBytes, roots]
@@ -495,7 +506,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         bytes,
         partName(open.suggestedName, paneState(context.pane)?.name ?? ""),
         open.source,
-        await askFirmwareLayout(context.pane, { node: node.id, body })
+        await askFirmwareLayout(context.pane, { node: node.id, body }),
+        // The file's own bytes, which go back as they are — through the
+        // planner where the node is a structure the image can be laid out
+        // again around (§6).
+        { kind: "copy", rebuild: open.rebuild }
       );
     },
     [context, roots]

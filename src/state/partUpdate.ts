@@ -1,4 +1,6 @@
-import type { DocumentOrigin } from "@/state/documentOrigin";
+import type { DocumentOrigin, OriginUpdate } from "@/state/documentOrigin";
+import { askFirmwareRebuild } from "@/state/firmwareStore";
+import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { applyTransaction } from "@/state/toolEdits";
 import {
   type PaneId,
@@ -65,6 +67,8 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     return { kind: "refused" };
   }
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
+  const stepName = `Update from ${slot.name}`;
+  if (plan.kind === "rebuild") return rebuildIntoParent(origin, plan, stepName);
 
   // The link takes the new bytes as the truth *before* the write, so the change
   // the write announces already finds it intact with nothing left to put back —
@@ -74,7 +78,7 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     plan.offset + plan.bytes.length,
   ]);
   const problem = await applyTransaction(origin.parent, {
-    name: `Update from ${slot.name}`,
+    name: stepName,
     writes: [{ offset: plan.offset, bytes: plan.bytes }],
   });
   if (problem !== undefined) {
@@ -82,6 +86,92 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     reportAlert(`Could not update “${origin.parentName}”.`, problem);
     return { kind: "refused" };
   }
+  return { kind: "updated", parent: origin.parent };
+}
+
+/**
+ * A part the image's structure is laid out again around — a decompressed body,
+ * a zone that is a volume, a file or a section — goes through the rebuild
+ * planner, in the parent's own worker (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
+ *
+ * The parent's status line says what is being done and how far it has got,
+ * with a (×) that abandons the result: the plan cannot be stopped halfway, but
+ * nothing is written until it is done, so abandoning costs nothing. The plan is
+ * worked out over the parent's bytes as they were when it was asked for, so an
+ * edit made meanwhile throws it away rather than landing on top of it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginUpdateOperation
+ * @upstream-differs the parent's status line, where upstream puts a modal sheet
+ * on the parent's window: this edition has one window and one line per pane
+ */
+async function rebuildIntoParent(
+  origin: DocumentOrigin,
+  plan: Extract<OriginUpdate, { kind: "rebuild" }>,
+  stepName: string
+): Promise<UpdateOutcome> {
+  const parent = paneState(origin.parent);
+  if (parent === undefined) return { kind: "refused" };
+  const document = parent.document;
+  const generation = document.contentGeneration;
+
+  let abandoned = false;
+  const operation = new BackgroundOperation(
+    `Updating “${origin.parentName}” from “${origin.partName}”`,
+    () => {
+      abandoned = true;
+      operation.finish();
+    }
+  );
+  beginOperation(origin.parent, operation);
+  const answer = await askFirmwareRebuild(
+    origin.parent,
+    plan.bytes,
+    plan.target,
+    (phase, fraction) => {
+      operation.rename(phase);
+      operation.report(fraction);
+    }
+  );
+  operation.finish();
+  if (abandoned) return { kind: "cancelled" };
+
+  const built = answer?.plan;
+  if (built === undefined) {
+    reportAlert(
+      `“${origin.partName}” cannot be put back`,
+      answer?.refusal ?? `Nothing was changed in ${origin.parentName}.`
+    );
+    return { kind: "refused" };
+  }
+  // Worked out over the bytes as they were when asked.
+  const now = paneState(origin.parent);
+  if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
+    reportAlert(
+      `“${origin.parentName}” changed`,
+      "It changed while the update was being worked out. Nothing was written."
+    );
+    return { kind: "refused" };
+  }
+
+  const snapshot = origin.adopt(plan.bytes, built.sourceBytes, [built.source[0], built.source[1]]);
+  if (built.bytes.length > 0) {
+    const problem = await applyTransaction(origin.parent, {
+      name: stepName,
+      writes: [{ offset: built.offset, bytes: built.bytes }],
+    });
+    if (problem !== undefined) {
+      origin.restore(snapshot);
+      reportAlert(`Could not update “${origin.parentName}”.`, problem);
+      return { kind: "refused" };
+    }
+  }
+  reportAlert(
+    `Updated “${origin.parentName}”`,
+    built.warnings.length === 0
+      ? "Nothing was written inside a Boot Guard or vendor protected range."
+      : built.warnings.join("\n\n")
+  );
   return { kind: "updated", parent: origin.parent };
 }
 

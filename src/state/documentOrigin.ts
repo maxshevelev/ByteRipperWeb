@@ -2,6 +2,7 @@ import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { hexAddress } from "@/core/text/hexText";
 import { sha256 } from "@/firmware/me/crypto/digest";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
 /**
@@ -39,10 +40,6 @@ export type OriginKind = "copy" | "decompressed";
  * is written.
  *
  * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.Update
- * @upstream-differs no `rebuild` case: laying the image out again around a part
- * whose length changed is the planner (`UEFIRebuild`), which this port has no
- * half of yet — such a part is refused by the length rule below, which is the
- * same answer upstream gives a part with no rebuild target
  */
 export type OriginUpdate =
   | {
@@ -50,6 +47,16 @@ export type OriginUpdate =
       readonly offset: number;
       readonly bytes: Uint8Array;
       /** The source has changed there since, so the overwrite has to be asked for. */
+      readonly confirm: boolean;
+    }
+  /**
+   * `bytes` through the rebuild planner (§6) — a decompressed body, or a zone
+   * that is a structure of the image, of whatever length.
+   */
+  | {
+      readonly kind: "rebuild";
+      readonly target: RebuildTarget;
+      readonly bytes: Uint8Array;
       readonly confirm: boolean;
     }
   | { readonly kind: "refused"; readonly title: string; readonly message: string };
@@ -115,6 +122,15 @@ export class DocumentOrigin {
   /** @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.kind */
   readonly kind: OriginKind;
   /**
+   * Where the bytes go back to through the rebuild planner, when the part is
+   * something the image's structure can be laid out again around
+   * (`Design/UEFI/UPDATE_IN_PARENT.md` §6). Nothing for bytes that go back as
+   * they are, at their own length.
+   *
+   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.rebuildTarget
+   */
+  readonly rebuildTarget: RebuildTarget | undefined;
+  /**
    * What the bytes are, for a tool-module opened on the part: a decompressed
    * body is a run of sections, not an image to scan.
    *
@@ -151,6 +167,7 @@ export class DocumentOrigin {
     source: readonly [number, number],
     partName: string,
     kind: OriginKind,
+    rebuildTarget: RebuildTarget | undefined,
     layout: UEFIRootLayout,
     fingerprint: string | undefined,
     baseline: string
@@ -161,6 +178,7 @@ export class DocumentOrigin {
     this.source = source;
     this.partName = partName;
     this.kind = kind;
+    this.rebuildTarget = rebuildTarget;
     this.layout = layout;
     this.fingerprint = fingerprint;
     this.baseline = baseline;
@@ -181,6 +199,8 @@ export class DocumentOrigin {
     readonly source: readonly [number, number];
     readonly partName: string;
     readonly kind?: OriginKind;
+    /** Where the bytes go back to through the rebuild planner, when they do. */
+    readonly rebuildTarget?: RebuildTarget | undefined;
     /** What a panel opened on the part should read its bytes as. */
     readonly layout?: UEFIRootLayout;
     readonly content: Uint8Array;
@@ -195,6 +215,7 @@ export class DocumentOrigin {
       options.source,
       options.partName,
       options.kind ?? "copy",
+      options.rebuildTarget,
       options.layout ?? IMAGE_LAYOUT,
       fingerprint,
       hex(sha256(options.content))
@@ -294,13 +315,23 @@ export class DocumentOrigin {
         message: `Nothing was changed in ${this.parentName}.`,
       };
     }
+    // A part the image's structure can be laid out again around goes through
+    // the planner, whatever length it has come back at (§6).
+    if (this.rebuildTarget !== undefined) {
+      return {
+        kind: "rebuild",
+        target: this.rebuildTarget,
+        bytes,
+        confirm: state === "sourceChanged",
+      };
+    }
     if (this.kind !== "copy") {
       return {
         kind: "refused",
         title: "This cannot be put back",
         message:
           `These bytes were decompressed from “${this.partName}” in ${this.parentName}, ` +
-          "and compressing them again is not something this edition does yet.",
+          "and where they belong in it was not recorded when the part was opened.",
       };
     }
     const length = this.source[1] - this.source[0];

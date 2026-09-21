@@ -1,6 +1,7 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import { applyTransaction } from "@/state/toolEdits";
@@ -9,6 +10,7 @@ import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/
 import type {
   FirmwareDetailResponse,
   FirmwareProtectedRangesResponse,
+  FirmwareRebuildResponse,
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
   FitEditRequest,
@@ -197,8 +199,29 @@ function ensureWorker(pane: PaneId): PaneWorker {
         spaceBytesWaiters.delete(pane);
         return;
       case "firmwareLayout":
-        layoutWaiters.get(pane)?.(response.layout);
+        layoutWaiters.get(pane)?.({
+          layout: response.layout,
+          rebuild:
+            response.rebuild === undefined
+              ? undefined
+              : {
+                  space: response.rebuild.space,
+                  ...(response.rebuild.range === undefined
+                    ? {}
+                    : {
+                        range: { start: response.rebuild.range[0], end: response.rebuild.range[1] },
+                      }),
+                },
+        });
         layoutWaiters.delete(pane);
+        return;
+      case "firmwareRebuildProgress":
+        rebuildProgress.get(pane)?.(response.phase, response.fraction);
+        return;
+      case "firmwareRebuild":
+        rebuildWaiters.get(pane)?.(response);
+        rebuildWaiters.delete(pane);
+        rebuildProgress.delete(pane);
         return;
       case "firmwareProtectedRanges":
         // The reading's own complaints join the panel's list: what the lists
@@ -221,8 +244,11 @@ function ensureWorker(pane: PaneId): PaneWorker {
         fitWaiters.delete(pane);
         spaceBytesWaiters.get(pane)?.(undefined);
         spaceBytesWaiters.delete(pane);
-        layoutWaiters.get(pane)?.(IMAGE_LAYOUT);
+        layoutWaiters.get(pane)?.({ layout: IMAGE_LAYOUT, rebuild: undefined });
         layoutWaiters.delete(pane);
+        rebuildWaiters.get(pane)?.(undefined);
+        rebuildWaiters.delete(pane);
+        rebuildProgress.delete(pane);
         fitEditWaiters.get(pane)?.({
           kind: "fitEdit",
           id: response.id,
@@ -401,11 +427,76 @@ export async function askFirmwareLayout(
     | { readonly node: readonly number[]; readonly body?: boolean }
     | { readonly range: readonly [number, number] }
 ): Promise<UEFIRootLayout> {
+  return (await askFirmwarePart(pane, target)).layout;
+}
+
+/**
+ * What the parent's tree knows about a part of it, both halves at once: what
+ * the bytes are read as on their own, and where they go back to through the
+ * rebuild planner.
+ *
+ * One question because it is one question of the tree, asked at the one moment
+ * a part is opened — upstream reads both off the image on the spot, having the
+ * image at hand.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.of
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.forFileRange
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.target
+ */
+export async function askFirmwarePart(
+  pane: PaneId,
+  target:
+    | { readonly node: readonly number[]; readonly body?: boolean }
+    | { readonly range: readonly [number, number] }
+): Promise<PartReading> {
   const current = firmwareFor(pane);
-  if (current === undefined || current.status !== "ready") return IMAGE_LAYOUT;
-  return new Promise<UEFIRootLayout>((resolve) => {
+  if (current === undefined || current.status !== "ready") {
+    return { layout: IMAGE_LAYOUT, rebuild: undefined };
+  }
+  return new Promise<PartReading>((resolve) => {
     layoutWaiters.set(pane, resolve);
     send(pane, { kind: "firmwareLayout", id: workers[pane]?.job ?? 0, ...target });
+  });
+}
+
+/** What the tree says a part of the image is, and what putting it back means. */
+export interface PartReading {
+  readonly layout: UEFIRootLayout;
+  readonly rebuild: RebuildTarget | undefined;
+}
+
+/**
+ * What putting `bytes` back at `target` would take, worked out in the pane's
+ * own worker — the image parsed twice and every compressed section on the way
+ * compressed again, which is seconds of work and none of it the main thread's.
+ *
+ * Nothing is written: the plan comes back, and the caller decides.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+ */
+export async function askFirmwareRebuild(
+  pane: PaneId,
+  bytes: Uint8Array,
+  target: RebuildTarget,
+  onProgress?: (phase: string, fraction: number) => void
+): Promise<FirmwareRebuildResponse | undefined> {
+  const content = await currentContent(pane);
+  if (content === undefined) return undefined;
+  return new Promise<FirmwareRebuildResponse | undefined>((resolve) => {
+    rebuildWaiters.set(pane, resolve);
+    if (onProgress !== undefined) rebuildProgress.set(pane, onProgress);
+    send(pane, {
+      kind: "firmwareRebuild",
+      id: workers[pane]?.job ?? 0,
+      content,
+      bytes,
+      target: {
+        space: target.space,
+        ...(target.range === undefined
+          ? {}
+          : { range: [target.range.start, target.range.end] as const }),
+      },
+    });
   });
 }
 
@@ -566,7 +657,13 @@ const fitWaiters = new Map<PaneId, (report: FITReport | undefined) => void>();
 const spaceBytesWaiters = new Map<PaneId, (bytes: Uint8Array | undefined) => void>();
 
 /** Who is waiting to be told what a part of this image would be read as. */
-const layoutWaiters = new Map<PaneId, (layout: UEFIRootLayout) => void>();
+const layoutWaiters = new Map<PaneId, (reading: PartReading) => void>();
+
+/** Who is waiting for a rebuild plan, by pane. One update runs at a time. */
+const rebuildWaiters = new Map<PaneId, (response: FirmwareRebuildResponse | undefined) => void>();
+
+/** Where a running rebuild's progress goes, by pane. */
+const rebuildProgress = new Map<PaneId, (phase: string, fraction: number) => void>();
 
 /** Who is waiting for a repair, by the node it is about. */
 const repairWaiters = new Map<

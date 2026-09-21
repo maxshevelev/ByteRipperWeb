@@ -27,6 +27,7 @@ import {
   protectedRangeKindName,
   protectionOfNode,
   protectionOfRange,
+  rebuildRanges,
 } from "@/firmware/uefi/protectedRanges";
 import { TCGHash } from "@/firmware/uefi/tcgHash";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
@@ -497,5 +498,24 @@ describe("the marking rule", () => {
     }
     // A later range around it does not repaint it.
     expect(protectionOfRange(forward, range(0x100, 0x200))).toBe("ibb");
+  });
+
+  /**
+   * What the rebuild planner is handed: the IBB to refuse a change inside, and
+   * everything else to warn about (`UPDATE_IN_PARENT.md` §6.4).
+   *
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#ProtectedRangesTests.testThePlannerIsHandedTheIBBToRefuseAndTheRestToWarnAbout
+   */
+  it("hands the planner the IBB to refuse and the rest to warn about", () => {
+    const ranges = list([
+      ["ibb", range(0x100, 0x200)],
+      ["phoenix", range(0x300, 0x400)],
+    ]);
+
+    expect(rebuildRanges(ranges).map((one) => one.kind)).toEqual(["ibb", "vendorHash"]);
+    expect(rebuildRanges(ranges).map((one) => one.range)).toEqual([
+      range(0x100, 0x200),
+      range(0x300, 0x400),
+    ]);
   });
 });

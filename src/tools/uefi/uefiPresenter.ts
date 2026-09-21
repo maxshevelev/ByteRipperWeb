@@ -1,3 +1,4 @@
+import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { ZoneMap } from "@/tools/zone";
 
 /**
@@ -27,6 +28,12 @@ import type { ZoneMap } from "@/tools/zone";
 export interface ZonedNode {
   readonly id: readonly number[];
   readonly name: string;
+  /**
+   * What the node is, where the caller has it — a wire node does. It decides
+   * one thing here: whether the node is a structure the image can be laid out
+   * again around.
+   */
+  readonly kind?: string | undefined;
   readonly header: readonly [number, number];
   readonly body: readonly [number, number];
   readonly tail: readonly [number, number];
@@ -161,9 +168,9 @@ const fileNameOf = (name: string, fallback: string): string =>
  * at the part they mean.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen
- * @upstream-differs no `layout` or `rebuild`: what a UEFI panel opened on the
- * part should read the bytes as, and where they go back to through the rebuild
- * planner, are the planner's, which this port has no half of yet (G4)
+ * @upstream-differs no `layout`: what a UEFI panel opened on the part should
+ * read the bytes as is the tree's answer, and the tree is in the worker —
+ * `askFirmwarePart` asks it at the moment the part is opened
  */
 export interface NodeOpen {
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.space */
@@ -177,6 +184,14 @@ export interface NodeOpen {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.source
    */
   readonly source: readonly [number, number];
+  /**
+   * Where the bytes go back to through the rebuild planner, when the part is
+   * something the image's structure can be laid out again around
+   * (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.rebuild
+   */
+  readonly rebuild?: RebuildTarget | undefined;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.suggestedName */
   readonly suggestedName: string;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.menuTitle */
@@ -227,14 +242,31 @@ export function nodeOpen(
   const source = space.length === 0 ? range : fileSourceOf(node, roots ?? []);
   if (source === undefined) return undefined;
   const suffix = body ? " body" : "";
+  // A whole node of the file is a structure the image can be laid out again
+  // around; a body, or a slice of a buffer, is bytes going back where they
+  // were, through the section they came out of.
+  const own: RebuildTarget = { space, range: { start: range[0], end: range[1] } };
+  const rebuild =
+    space.length === 0 && !body ? (LAID_OUT_AGAIN.has(node.kind ?? "") ? own : undefined) : own;
   return {
     space,
     range,
     source,
+    ...(rebuild === undefined ? {} : { rebuild }),
     suggestedName: `${fileNameOf(node.name, "node")}${suffix}.bin`,
     menuTitle: title,
   };
 }
+
+/**
+ * The kinds a rebuild can lay the image out again around.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.target
+ * @upstream-differs read off the node in hand rather than by looking for a node
+ * of the image with that exact range: the node the reader asked about is that
+ * node, and the tree here is the panel's wire copy
+ */
+const LAID_OUT_AGAIN = new Set(["volume", "file", "section"]);
 
 /**
  * Where a node's bytes are held in the file: its own range, or — for a node

@@ -345,6 +345,84 @@ export interface FirmwareLayoutResponse {
   readonly kind: "firmwareLayout";
   readonly id: JobId;
   readonly layout: UEFIRootLayout;
+  /**
+   * Where those same bytes go back to through the rebuild planner, when the
+   * range is a structure the image can be laid out again around — a volume, a
+   * file, a section (`Design/UEFI/UPDATE_IN_PARENT.md` §6). One question of the
+   * tree answers both: what the part is, and what putting it back means.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.target
+   */
+  readonly rebuild?: WireRebuildTarget | undefined;
+}
+
+/**
+ * A rebuild target on the wire: `RebuildTarget` with its range as the pair
+ * every range crosses as.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Target
+ */
+export interface WireRebuildTarget {
+  readonly space: readonly number[];
+  readonly range?: readonly [number, number] | undefined;
+}
+
+/**
+ * Putting an edited part back: the planner run where the bytes are, over the
+ * parent's whole file (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
+ *
+ * In the worker because it is seconds of work — the image parsed twice and
+ * every compressed section on the way compressed again — and because the
+ * protected ranges it checks against come from the tree this worker holds.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.plan
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+ */
+export interface FirmwareRebuildRequest {
+  readonly kind: "firmwareRebuild";
+  readonly id: JobId;
+  /** The parent's content as it stands, which the plan is worked out over. */
+  readonly content: Blob;
+  /** The part's bytes, going back. */
+  readonly bytes: Uint8Array;
+  readonly target: WireRebuildTarget;
+}
+
+/** How far the plan has got, and what it is doing — phases, not a bar alone. */
+export interface FirmwareRebuildProgress {
+  readonly kind: "firmwareRebuildProgress";
+  readonly id: JobId;
+  readonly phase: string;
+  /** In `[0, 1]`. */
+  readonly fraction: number;
+}
+
+/**
+ * The plan, or the sentence saying why there is none.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Plan
+ */
+export interface FirmwareRebuildResponse {
+  readonly kind: "firmwareRebuild";
+  readonly id: JobId;
+  readonly plan:
+    | {
+        readonly offset: number;
+        readonly bytes: Uint8Array;
+        readonly warnings: readonly string[];
+        /** Where the part is held in the file once the plan is written. */
+        readonly source: readonly [number, number];
+        /**
+         * Those bytes, as the rebuilt file holds them — what the link takes as
+         * the source's own from now on. Sent from here because the rebuilt
+         * image is the worker's, and the run written back is only the part of
+         * it that changed.
+         */
+        readonly sourceBytes: Uint8Array;
+      }
+    | undefined;
+  /** The refusal's sentence, when there is no plan. */
+  readonly refusal: string | undefined;
 }
 
 /** Everything the detail panel shows about one node, read once. */
@@ -443,6 +521,7 @@ export type FirmwareWorkerRequest =
   | FirmwareInvalidateRequest
   | FirmwareAddressesRequest
   | FirmwareRepairRequest
+  | FirmwareRebuildRequest
   | FitReadRequest
   | FitEditRequest
   | MeAnalyzeRequest
@@ -692,5 +771,7 @@ export type FirmwareWorkerResponse =
   | FirmwareProtectedRangesResponse
   | FirmwareNodeAtOffsetResponse
   | FirmwareRepairResponse
+  | FirmwareRebuildProgress
+  | FirmwareRebuildResponse
   | FirmwareProgress
   | FirmwareFailed;

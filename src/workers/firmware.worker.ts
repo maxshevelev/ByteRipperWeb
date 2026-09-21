@@ -28,6 +28,7 @@ import {
   type ProtectedRanges,
   protectedRangeKindName,
   readProtectedRanges,
+  rebuildRanges,
 } from "@/firmware/uefi/protectedRanges";
 import {
   IMAGE_LAYOUT,
@@ -47,6 +48,7 @@ import { invalidating } from "@/firmware/uefi/treeInvalidation";
 import { childrenOf, materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { planRebuild, targetForFileRange } from "@/firmware/uefi/uefiRebuild";
 import {
   addOrReplaceMicrocode,
   type FITEditOutcome,
@@ -651,7 +653,81 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         } else if (image !== undefined && request.range !== undefined) {
           answer = layoutForFileRange(request.range, image);
         }
-        post({ kind: "firmwareLayout", id: request.id, layout: answer });
+        // And, for a range of the file, whether it is a structure the image can
+        // be laid out again around — the same question of the same tree, and
+        // the other half of what opening a part records.
+        //
+        // @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.target
+        const target =
+          image === undefined || request.range === undefined
+            ? undefined
+            : targetForFileRange(rangeOf(request.range), image);
+        post({
+          kind: "firmwareLayout",
+          id: request.id,
+          layout: answer,
+          ...(target === undefined
+            ? {}
+            : { rebuild: { space: target.space, range: request.range } }),
+        });
+        return;
+      }
+
+      // Putting an edited part back: the planner, over the parent's whole file,
+      // with the protected ranges this worker's own tree reads
+      // (`Design/UEFI/UPDATE_IN_PARENT.md` §6, §6.4).
+      //
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.protectedRanges
+      case "firmwareRebuild": {
+        const file = new BlobByteSource(request.content);
+        const bytes = file.bytes(0, file.byteCount);
+        const ranges = reader === undefined ? undefined : rebuildRanges(readRanges());
+        const result = planRebuild(
+          request.bytes,
+          {
+            space: request.target.space,
+            ...(request.target.range === undefined ? {} : { range: rangeOf(request.target.range) }),
+          },
+          bytes,
+          {
+            ...(ranges === undefined ? {} : { protected: ranges }),
+            onProgress: (progress) =>
+              post({
+                kind: "firmwareRebuildProgress",
+                id: request.id,
+                phase: progress.phase,
+                fraction: progress.fraction,
+              }),
+          }
+        );
+        if (!result.ok) {
+          post({
+            kind: "firmwareRebuild",
+            id: request.id,
+            plan: undefined,
+            refusal: result.refusal.message,
+          });
+          return;
+        }
+        // The source as the rebuilt file holds it: the plan is written over the
+        // file here so the link's new fingerprint is read off the same bytes
+        // the parent will have.
+        const rebuilt = bytes;
+        rebuilt.set(result.plan.bytes, result.plan.offset);
+        const { start, end } = result.plan.source;
+        post({
+          kind: "firmwareRebuild",
+          id: request.id,
+          plan: {
+            offset: result.plan.offset,
+            bytes: result.plan.bytes,
+            warnings: result.plan.warnings,
+            source: [start, end],
+            sourceBytes: rebuilt.slice(start, end),
+          },
+          refusal: undefined,
+        });
         return;
       }
 

@@ -91,8 +91,15 @@ export function ToolPanel({
     // are; where they open, and what the link is worth, is not its business.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
-    openPart: (bytes, name, source, layout) => {
-      void openLinkedPart({ parent: boundPane, bytes, name, source, layout });
+    openPart: (bytes, name, source, layout, part) => {
+      void openLinkedPart({
+        parent: boundPane,
+        bytes,
+        name,
+        source,
+        layout,
+        ...(part === undefined ? {} : { kind: part.kind, rebuildTarget: part.rebuild }),
+      });
     },
   };
 

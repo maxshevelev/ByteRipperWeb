@@ -1,4 +1,5 @@
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { NoticeGlyph } from "@/state/noticeStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import type { PaneId } from "@/state/workspaceStore";
@@ -109,7 +110,21 @@ export interface ToolContext {
      *
      * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout
      */
-    layout?: UEFIRootLayout
+    layout?: UEFIRootLayout,
+    /**
+     * How the bytes stand to the source, and where they go back to: the
+     * source's own bytes go back as they are, what it decompresses to goes back
+     * compressed again, and a part the image can be laid out again around goes
+     * through the rebuild planner at whatever length it has come to
+     * (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
+     *
+     * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#UEFITreeProviding.openPart
+     * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#UEFITreeProviding.openFilePart
+     */
+    part?: {
+      readonly kind: "copy" | "decompressed";
+      readonly rebuild?: RebuildTarget | undefined;
+    }
   ) => void;
 }
 
