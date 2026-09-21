@@ -9,25 +9,37 @@ import {
 } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import {
+  isSlot,
   PANE_IDS,
   type PaneId,
   type PaneState,
+  paneInFront,
   paneState,
   type SlotId,
+  type SurfaceId,
+  surfaceOf,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { clearZones } from "@/state/zoneStore";
 import { toolById } from "@/tools/registry";
 
 /**
- * The tool-module side of the workspace: which one is active, and the pane its
+ * The tool-module side of a surface: which one is active, and the pane its
  * session is bound to.
  *
  * Two places choose the tool — the toolbar's picker and the ☰ menu — so the
- * choice lives here rather than inside the panel. One tool at a time; None is
- * how the panel is closed.
+ * choice lives here rather than inside the panel. One tool at a time per
+ * surface; None is how a panel is closed.
+ *
+ * **One session per surface**, which is upstream's arrangement once the
+ * composite left the window: the workspace's two panes share one — they are a
+ * comparison — and every part opened over them has one of its own, so the Tools
+ * menu means whatever is in front and a panel folded away keeps the tool it was
+ * reading with (`Design/GAPS.md` G50).
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontTools
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toolsFor
  */
 
 /**
@@ -59,7 +71,8 @@ function storedWidth(): number {
   }
 }
 
-export interface ToolControllerState {
+/** What one surface is running, and what it was handed. */
+export interface ToolSession {
   /**
    * The active tool-module's identifier, or nothing for None. An identifier
    * the registry does not answer to is never stored: it reads as None.
@@ -87,8 +100,49 @@ export interface ToolControllerState {
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.restore
    */
   readonly restored: ToolSessionState | undefined;
-  /** The panel's width in CSS pixels. */
+  /**
+   * The panel's width in CSS pixels, which is this surface's own: a drag on a
+   * panel's own splitter must not move the window's tool panel behind it.
+   *
+   * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.toolPanelWidth
+   */
   readonly width: number;
+}
+
+export interface ToolControllerState {
+  /** What each surface is running, by surface id. A surface with nothing is absent. */
+  readonly sessions: Readonly<Record<string, ToolSession>>;
+}
+
+/** A surface running nothing, which is what an absent entry means. */
+export const IDLE_SESSION: ToolSession = {
+  activeIdentifier: undefined,
+  boundPane: undefined,
+  restored: undefined,
+  width: storedWidth(),
+};
+
+/** What `surface` is running. */
+export const sessionOn = (state: ToolControllerState, surface: SurfaceId): ToolSession =>
+  state.sessions[surface] ?? IDLE_SESSION;
+
+/**
+ * The session of the surface in front — the part of the panel that is up, or
+ * the workspace's own. What the Tools menu and its picker mean.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontTools
+ */
+export const frontSession = (state: ToolControllerState): ToolSession =>
+  sessionOn(state, surfaceOf(paneInFront()));
+
+/** The surface the menus act on. */
+const frontSurface = (): SurfaceId => surfaceOf(paneInFront());
+
+/** Writes one surface's session back, leaving every other surface alone. */
+function updateSession(surface: SurfaceId, change: (session: ToolSession) => ToolSession): void {
+  toolController.update((state) => ({
+    sessions: { ...state.sessions, [surface]: change(sessionOn(state, surface)) },
+  }));
 }
 
 /**
@@ -96,15 +150,10 @@ export interface ToolControllerState {
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.activeModule
  */
-export const activeModule = (state: ToolControllerState) =>
-  state.activeIdentifier === undefined ? undefined : toolById(state.activeIdentifier);
+export const activeModule = (session: ToolSession) =>
+  session.activeIdentifier === undefined ? undefined : toolById(session.activeIdentifier);
 
-export const toolController = createStore<ToolControllerState>({
-  activeIdentifier: undefined,
-  boundPane: undefined,
-  restored: undefined,
-  width: storedWidth(),
-});
+export const toolController = createStore<ToolControllerState>({ sessions: {} });
 
 /**
  * A zone the user picked in the dump or on the minimap's gutter, on its way to
@@ -138,7 +187,10 @@ export const zoneSelectionStore = createStore<{ request: ZoneSelectionRequest | 
  * @web-only the panel is a component rather than an object with a lifetime, so a request is the only way to reach it from the shell
  */
 export function zoneSelected(pane: PaneId, zoneId: string): void {
-  const { activeIdentifier, boundPane } = toolController.getSnapshot();
+  // The session that can act on it is the one on this pane's own surface: a
+  // zone map belongs to one pane, and a panel's tool knows nothing of the
+  // dump behind it.
+  const { activeIdentifier, boundPane } = sessionOn(toolController.getSnapshot(), surfaceOf(pane));
   if (activeIdentifier === undefined || boundPane === undefined || pane !== boundPane) return;
   // A new object each time: picking the same zone again is a second request,
   // and an identity-compared store would otherwise swallow it.
@@ -163,8 +215,8 @@ export function takeZoneSelection(): ZoneSelectionRequest | undefined {
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.isPanelVisible
  */
-export const isPanelVisible = (state: ToolControllerState): boolean =>
-  state.activeIdentifier !== undefined && state.boundPane !== undefined;
+export const isPanelVisible = (session: ToolSession): boolean =>
+  session.activeIdentifier !== undefined && session.boundPane !== undefined;
 
 /**
  * Makes `identifier` the active tool-module, or closes the current one when it
@@ -177,15 +229,18 @@ export const isPanelVisible = (state: ToolControllerState): boolean =>
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateTool
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tools
  */
-export function activate(identifier: string | undefined): void {
+export function activate(identifier: string | undefined, surface = frontSurface()): void {
   const resolved =
     identifier !== undefined && toolById(identifier) !== undefined ? identifier : undefined;
-  const state = toolController.getSnapshot();
-  if (resolved === state.activeIdentifier) return;
+  const running = sessionOn(toolController.getSnapshot(), surface);
+  if (resolved === running.activeIdentifier) return;
 
-  endSession(state.boundPane);
-  const { panes, activePane } = workspaceStore.getSnapshot();
-  const pane = resolved !== undefined && panes[activePane] !== undefined ? activePane : undefined;
+  endSession(surface, running.boundPane);
+  // Which pane the session starts on: the workspace's active one, or the part
+  // itself, a panel having one pane and no other to choose between.
+  const { activePane } = workspaceStore.getSnapshot();
+  const candidate: PaneId = surface === "panes" ? activePane : surface;
+  const pane = resolved !== undefined && paneState(candidate) !== undefined ? candidate : undefined;
   // Consumed rather than copied: from here the session owns it, and what comes
   // back next time is whatever this session decides to leave.
   const restored =
@@ -193,8 +248,8 @@ export function activate(identifier: string | undefined): void {
   // Nothing was said about it yet, so nothing standing from an earlier session
   // can be mistaken for this one's answer.
   forgetSessionParkedState();
-  toolController.update((current) => ({
-    ...current,
+  updateSession(surface, (session) => ({
+    ...session,
     activeIdentifier: pane === undefined ? undefined : resolved,
     boundPane: pane,
     restored,
@@ -202,7 +257,7 @@ export function activate(identifier: string | undefined): void {
 
   // @web-only The parsed tree is the largest thing this application holds; it is kept while any tool shows it and dropped with None.
   if (pane === undefined) {
-    for (const one of PANE_IDS) closeFirmware(one);
+    for (const one of surface === "panes" ? PANE_IDS : [surface]) closeFirmware(one);
   }
 }
 
@@ -219,7 +274,7 @@ export function activate(identifier: string | undefined): void {
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.endSession
  */
-function endSession(boundPane: PaneId | undefined): void {
+function endSession(surface: SurfaceId, boundPane: PaneId | undefined): void {
   // The identifier the session is *running* under, which is the one that is
   // about to end: this is called before the choice is assigned below.
   //
@@ -227,7 +282,7 @@ function endSession(boundPane: PaneId | undefined): void {
   // @upstream-differs upstream holds it in a field because its `activate` assigns
   // the new choice first and ends the old session after; here the assignment is
   // the last thing `activate` does, so the store's current value is the running one.
-  const running = toolController.getSnapshot().activeIdentifier;
+  const running = sessionOn(toolController.getSnapshot(), surface).activeIdentifier;
   if (running !== undefined && boundPane !== undefined) {
     const handing = takeSessionParkedState(boundPane);
     if (handing !== undefined) parkToolState(running, boundPane, handing);
@@ -252,8 +307,22 @@ function endSession(boundPane: PaneId | undefined): void {
 export function paneClosed(pane: PaneId): void {
   // The session ends first — parking what it hands back — and the parked state
   // goes after, so what the stopping session just left is dropped with the rest.
-  if (toolController.getSnapshot().boundPane === pane) activate(undefined);
+  const surface = surfaceOf(pane);
+  if (sessionOn(toolController.getSnapshot(), surface).boundPane === pane) {
+    activate(undefined, surface);
+  }
   discardParkedStateFor(pane);
+  // A part takes its surface with it: nothing will ask about a panel that has
+  // closed, and a session kept under its id would be handed to the next part
+  // to take that id.
+  if (!isSlot(pane)) {
+    toolController.update((state) => {
+      if (state.sessions[pane] === undefined) return state;
+      const sessions = { ...state.sessions };
+      delete sessions[pane];
+      return { sessions };
+    });
+  }
 }
 
 /**
@@ -264,10 +333,10 @@ export function paneClosed(pane: PaneId): void {
  * @web-only upstream's binding is an object reference, which a swap carries along by itself.
  */
 export function panesSwapped(): void {
-  toolController.update((state) =>
-    state.boundPane === undefined
-      ? state
-      : { ...state, boundPane: state.boundPane === "a" ? "b" : "a" }
+  updateSession("panes", (session) =>
+    session.boundPane === undefined
+      ? session
+      : { ...session, boundPane: session.boundPane === "a" ? "b" : "a" }
   );
 }
 
@@ -288,18 +357,20 @@ export function panesSwapped(): void {
  * @web-only the parsed tree the session was reading is dropped with it: it is the largest thing this application holds, and no tool shows that pane any more — as with `activate`.
  */
 export function selectPane(pane: PaneId): void {
-  const { activeIdentifier, boundPane } = toolController.getSnapshot();
+  // Only the workspace's own surface has a second pane to move a tool to.
+  const surface = surfaceOf(pane);
+  const { activeIdentifier, boundPane } = sessionOn(toolController.getSnapshot(), surface);
   if (activeIdentifier === undefined || boundPane === undefined || boundPane === pane) return;
   if (paneState(pane) === undefined) return;
 
-  endSession(boundPane);
+  endSession(surface, boundPane);
   closeFirmware(boundPane);
   // What this tool left on its own file is a state about a file it is no longer
   // reading, so it is taken and refused rather than left standing — and what
   // the new pane held for this tool, if anything, is this session's.
   const restored = takeParkedToolState(activeIdentifier, pane);
   forgetSessionParkedState();
-  toolController.update((current) => ({ ...current, boundPane: pane, restored }));
+  updateSession(surface, (session) => ({ ...session, boundPane: pane, restored }));
 }
 
 /**
@@ -315,7 +386,7 @@ export function menuState(
 ): { readonly enabled: boolean; readonly checked: boolean } {
   return {
     enabled: identifier === undefined || fileIsOpen,
-    checked: identifier === toolController.getSnapshot().activeIdentifier,
+    checked: identifier === frontSession(toolController.getSnapshot()).activeIdentifier,
   };
 }
 
@@ -372,7 +443,7 @@ export interface PaneChoice {
 export function paneChoices(
   panes: Readonly<Record<SlotId, PaneState | undefined>>
 ): readonly PaneChoice[] {
-  const { boundPane } = toolController.getSnapshot();
+  const { boundPane } = sessionOn(toolController.getSnapshot(), "panes");
   return PANE_IDS.map((pane) => ({
     fileName: panes[pane]?.name ?? "No file",
     isBound: boundPane === pane,
@@ -396,10 +467,10 @@ export const selectorEnabled = (choices: readonly PaneChoice[]): boolean =>
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.persistPanelWidth
  * @upstream-differs one remembered width for every tool, not one per tool-module
  */
-export function setToolPanelWidth(width: number): void {
+export function setToolPanelWidth(surface: SurfaceId, width: number): void {
   const next = clampToolPanelWidth(width);
-  if (toolController.getSnapshot().width === next) return;
-  toolController.update((state) => ({ ...state, width: next }));
+  if (sessionOn(toolController.getSnapshot(), surface).width === next) return;
+  updateSession(surface, (session) => ({ ...session, width: next }));
   try {
     localStorage.setItem(WIDTH_STORAGE_KEY, String(next));
   } catch {

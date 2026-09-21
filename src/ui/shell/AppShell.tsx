@@ -27,7 +27,7 @@ import {
   useSelectionForFind,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import { paneClosed, toolController, zoneSelected } from "@/state/toolController";
+import { paneClosed, sessionOn, toolController, zoneSelected } from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
@@ -62,6 +62,7 @@ import {
   setSplitFraction,
   slotForNewFile,
   swapPanes,
+  WORKSPACE_SURFACE,
   windowPanesAreReachable,
   workspaceStore,
 } from "@/state/workspaceStore";
@@ -484,8 +485,12 @@ export function AppShell() {
   const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
   /** The pane whose segments form is open, or nothing. */
   const [segmentsPane, setSegmentsPane] = useState<PaneId | undefined>(undefined);
-  /** The tool on the left, or None. One at a time, beside the dumps. */
-  const toolId = useStore(toolController).activeIdentifier;
+  /**
+   * The tool on the left of the workspace's own panes, or None. A panel over
+   * them draws its own, from its own session (G50).
+   */
+  const tools = useStore(toolController);
+  const toolId = sessionOn(tools, WORKSPACE_SURFACE).activeIdentifier;
   /**
    * The question Save All asks before it writes, and the answer it is waiting
    * for. A promise rather than a callback so the command reads as one sequence:
@@ -1536,44 +1541,59 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView
    */
   const partElement = (pane: PartId, part: PaneState) => (
-    <HexPane
-      key={`${pane}:${documentKey(part.document)}`}
-      paneId={pane}
-      // The part's own name is all the header has to say: there is no slot to
-      // name, and the panel is the only place it can be.
-      label={part.name}
-      name={part.name}
-      document={part.document}
-      typing={part.typing}
-      saved={part.saved}
-      wordSize={state.wordSize}
-      // The panel in front is the pane in front: it is the only one in it.
-      isActive
-      onActivate={() => raisePart(pane)}
-      onClose={() => closeWithWarning(pane)}
-      onSelectionChanged={(selection) =>
-        setSelections((current) => ({ ...current, [pane]: selection }))
-      }
-      revealRequest={reveal[pane]}
-      onSave={() => void doSave(false)}
-      onSaveAs={() => void doSave(true)}
-      onGoTo={() => setGoTo("offset")}
-      onFind={openFind}
-      matches={resultsFor(search, pane).matches}
-      currentMatch={resultsFor(search, pane).current}
-      resultsShown={resultsFor(search, pane).resultsShown}
-      searchStatus={resultsFor(search, pane).status}
-      onGoToMatch={(offset) => revealIn(pane, offset)}
-      onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, pane, menuActions))}
-      renaming={renamingPane === pane}
-      onRenameEnd={(typed, commit) => {
-        setRenamingPane(undefined);
-        if (commit) renamePane(pane, typed);
-      }}
-      onDumpMenu={(event, anchor, onClose) =>
-        openContextMenu(event, dumpMenu(state, pane, anchor.offset, menuActions), onClose)
-      }
-    />
+    <>
+      {/* The panel's own tool panel, on its own session: Tools ▸ ⟨module⟩ with
+          a panel up opens the tool on the panel rather than on the dump behind
+          it, and folding the panel gives the command back to the workspace's
+          own (G50). */}
+      {sessionOn(tools, pane).activeIdentifier === undefined ? null : (
+        <ToolPanel
+          surface={pane}
+          onReveal={(target, start, end) => {
+            void paneState(target)?.typing.setSelection(start, end);
+            revealIn(target, start);
+          }}
+        />
+      )}
+      <HexPane
+        key={`${pane}:${documentKey(part.document)}`}
+        paneId={pane}
+        // The part's own name is all the header has to say: there is no slot to
+        // name, and the panel is the only place it can be.
+        label={part.name}
+        name={part.name}
+        document={part.document}
+        typing={part.typing}
+        saved={part.saved}
+        wordSize={state.wordSize}
+        // The panel in front is the pane in front: it is the only one in it.
+        isActive
+        onActivate={() => raisePart(pane)}
+        onClose={() => closeWithWarning(pane)}
+        onSelectionChanged={(selection) =>
+          setSelections((current) => ({ ...current, [pane]: selection }))
+        }
+        revealRequest={reveal[pane]}
+        onSave={() => void doSave(false)}
+        onSaveAs={() => void doSave(true)}
+        onGoTo={() => setGoTo("offset")}
+        onFind={openFind}
+        matches={resultsFor(search, pane).matches}
+        currentMatch={resultsFor(search, pane).current}
+        resultsShown={resultsFor(search, pane).resultsShown}
+        searchStatus={resultsFor(search, pane).status}
+        onGoToMatch={(offset) => revealIn(pane, offset)}
+        onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, pane, menuActions))}
+        renaming={renamingPane === pane}
+        onRenameEnd={(typed, commit) => {
+          setRenamingPane(undefined);
+          if (commit) renamePane(pane, typed);
+        }}
+        onDumpMenu={(event, anchor, onClose) =>
+          openContextMenu(event, dumpMenu(state, pane, anchor.offset, menuActions), onClose)
+        }
+      />
+    </>
   );
 
   // Whether each difference arrow has somewhere to go from the active caret —

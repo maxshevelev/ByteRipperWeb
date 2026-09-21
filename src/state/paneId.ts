@@ -30,6 +30,29 @@ export type PaneId = SlotId | PartId;
  */
 export const isSlot = (pane: PaneId): pane is SlotId => pane === "a" || pane === "b";
 
+/**
+ * A surface: the composite below the find bar — the split, the panes, the
+ * minimap and its feed, the tool session — of which the workspace has one and
+ * every open part another.
+ *
+ * Upstream lifted it out of the window into a `DocumentSurface` so a part could
+ * have one of its own; here the composite is React already, so what a surface
+ * *is* on this side is the key the stores of those things are kept under.
+ *
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface
+ */
+export type SurfaceId = "panes" | PartId;
+
+/** The workspace's own surface: its two file slots and what they share. */
+export const WORKSPACE_SURFACE = "panes";
+
+/**
+ * The surface a pane belongs to. The two file slots share one, because they
+ * are a comparison — one minimap pair, one tool panel, one split. A part is a
+ * surface of its own, which is the whole of what a panel is.
+ */
+export const surfaceOf = (pane: PaneId): SurfaceId => (isSlot(pane) ? WORKSPACE_SURFACE : pane);
+
 /** The pane a panel's part is read as: one spelling of the panel's own id. */
 export const partPane = (id: PanelId): PartId => `part:${id}`;
 

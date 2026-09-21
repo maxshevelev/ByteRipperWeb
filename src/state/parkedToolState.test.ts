@@ -5,7 +5,7 @@ import {
   parkedModuleIdentifiers,
   type ToolSessionState,
 } from "@/state/parkedToolState";
-import { activate, paneClosed, toolController } from "@/state/toolController";
+import { activate, paneClosed, sessionOn, toolController } from "@/state/toolController";
 import { closePane, openEmptyInPane, PANE_IDS, setActivePane } from "@/state/workspaceStore";
 
 /**
@@ -37,7 +37,7 @@ interface StubState {
   readonly note: string;
 }
 
-const state = () => toolController.getSnapshot();
+const state = () => sessionOn(toolController.getSnapshot(), "panes");
 
 /** Parks `note` on whatever session is running now. */
 function park(pane: "a" | "b", note: string): void {

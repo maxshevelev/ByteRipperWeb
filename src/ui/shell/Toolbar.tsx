@@ -8,7 +8,13 @@ import { minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
-import { activate, menuState, panesSwapped, toolController } from "@/state/toolController";
+import {
+  activate,
+  frontSession,
+  menuState,
+  panesSwapped,
+  toolController,
+} from "@/state/toolController";
 import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import {
@@ -378,7 +384,8 @@ export function Toolbar({
     comparison: bothOpen,
     navigation,
   };
-  const activeTool = TOOLS.find((tool) => tool.id === tools.activeIdentifier);
+  // The picker names what the surface in front is running.
+  const activeTool = TOOLS.find((tool) => tool.id === frontSession(tools).activeIdentifier);
   const layoutOffer = paneLayoutOffer(state.layout);
   // The word size is the bar's one `<select>`, and a select takes a ring from a
   // tap; the field asks here whether the keyboard was the last input, as the

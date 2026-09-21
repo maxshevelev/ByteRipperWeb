@@ -4185,6 +4185,11 @@ button.uefi-title {
 
 .fragment-panel {
   display: grid;
+  /* The same three columns the window has — the tool panel, the dump, the
+     minimap — because a panel is a surface of its own and holds all three
+     (G50). One row: a panel has no toolbar and no find bar of its own. */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   height: var(--fragment-panel-height, 0);
   overflow: hidden;
@@ -4194,6 +4199,24 @@ button.uefi-title {
   background: var(--surface);
   /* Cast upward, onto the file the part came out of. */
   box-shadow: 0 -3px 14px rgb(0 0 0 / 0.28);
+}
+
+/* The window's own placement is the window's: inside a panel the three take the
+   panel's one row. Specificity does the overriding, so neither rule needs a
+   flag and neither has to know about the other's grid. */
+.fragment-panel > .tool-panel {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.fragment-panel > .hex-pane {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.fragment-panel > .minimap {
+  grid-row: 1;
+  grid-column: 3;
 }
 
 .fragment-dock {

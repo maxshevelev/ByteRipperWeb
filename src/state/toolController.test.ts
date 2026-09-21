@@ -8,12 +8,18 @@ import {
   panesSwapped,
   selectorEnabled,
   selectPane,
+  sessionOn,
   toolController,
 } from "@/state/toolController";
 import {
   closePane,
+  closePart,
+  foldParts,
   openEmptyInPane,
+  openPart,
   PANE_IDS,
+  partPane,
+  raisePart,
   setActivePane,
   swapPanes,
   workspaceStore,
@@ -35,7 +41,7 @@ vi.mock("@/tools/registry", () => ({
 const STUB_A = "dev.maxik.tool.stubA";
 const STUB_B = "dev.maxik.tool.stubB";
 
-const state = () => toolController.getSnapshot();
+const state = () => sessionOn(toolController.getSnapshot(), "panes");
 
 /** The header's selector, as the panel reads it. */
 const choices = () => paneChoices(workspaceStore.getSnapshot().panes);
@@ -50,6 +56,7 @@ const ticked = () => {
 beforeEach(() => {
   activate(undefined);
   for (const pane of PANE_IDS) closePane(pane);
+  for (const part of workspaceStore.getSnapshot().dock.panels) closePart(partPane(part));
 });
 
 describe("the session", () => {
@@ -326,5 +333,86 @@ describe("the Tools menu", () => {
     activate("dev.maxik.tool.removed");
 
     expect(state().activeIdentifier).toBeUndefined();
+  });
+});
+
+/**
+ * A part opened over the files is a surface of its own, and so is its tool
+ * panel: the Tools menu means whatever is in front, and a panel folded away
+ * keeps the tool it was reading with.
+ *
+ * @upstream ByteRipperTests/FragmentToolTests.swift#FragmentToolTests.testTheToolsMenuOpensTheToolOnThePanelInFront
+ * @upstream ByteRipperTests/FragmentToolTests.swift#FragmentToolTests.testFoldingThePanelGivesTheCommandBackToTheTab
+ */
+describe("a panel's own session", () => {
+  const bytes = Uint8Array.from({ length: 16 }, (_, index) => index);
+  const on = (surface: string) => sessionOn(toolController.getSnapshot(), surface as never);
+
+  it("is where the Tools menu opens a tool while the panel is up", () => {
+    openEmptyInPane("a");
+    const part = openPart(bytes, "body.bin");
+
+    activate(STUB_A);
+
+    expect(on(part).activeIdentifier).toBe(STUB_A);
+    // And it reads the part.
+    expect(on(part).boundPane).toBe(part);
+    expect(on("panes").activeIdentifier).toBeUndefined();
+  });
+
+  /** Folded again, the same command means the workspace's own panel. */
+  it("gives the command back to the workspace when the panel folds", () => {
+    openEmptyInPane("a");
+    const part = openPart(bytes, "body.bin");
+    activate(STUB_A);
+
+    foldParts();
+    activate(STUB_B);
+
+    expect(on("panes").activeIdentifier).toBe(STUB_B);
+    // The panel kept its own.
+    expect(on(part).activeIdentifier).toBe(STUB_A);
+  });
+
+  /** The choice comes back with the panel, which is the point of keeping it. */
+  it("is still the panel's when it is raised again", () => {
+    openEmptyInPane("a");
+    const part = openPart(bytes, "body.bin");
+    activate(STUB_A);
+    foldParts();
+    activate(STUB_B);
+
+    raisePart(part);
+
+    expect(menuState(STUB_A, true).checked).toBe(true);
+    expect(menuState(STUB_B, true).checked).toBe(false);
+  });
+
+  it("goes with the part, leaving nothing for the next one to inherit", () => {
+    openEmptyInPane("a");
+    const part = openPart(bytes, "body.bin");
+    activate(STUB_A);
+
+    // The shell's own order: the session is told before the workspace forgets
+    // which document this pane held, exactly as for a file slot.
+    paneClosed(part);
+    closePart(part);
+
+    expect(on(part).activeIdentifier).toBeUndefined();
+    expect(on(part).boundPane).toBeUndefined();
+  });
+
+  /** And the workspace's own panel is not disturbed by any of it. */
+  it("leaves the workspace's session alone", () => {
+    openEmptyInPane("a");
+    activate(STUB_B);
+    const part = openPart(bytes, "body.bin");
+
+    activate(STUB_A);
+    paneClosed(part);
+    closePart(part);
+
+    expect(on("panes").activeIdentifier).toBe(STUB_B);
+    expect(on("panes").boundPane).toBe("a");
   });
 });

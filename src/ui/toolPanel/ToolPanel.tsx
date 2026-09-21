@@ -9,12 +9,21 @@ import {
   paneChoices,
   selectorEnabled,
   selectPane,
+  sessionOn,
   setToolPanelWidth,
   toolController,
 } from "@/state/toolController";
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { useStore } from "@/state/useStore";
-import { openPart, PANE_IDS, type PaneId, paneIn, workspaceStore } from "@/state/workspaceStore";
+import {
+  openPart,
+  PANE_IDS,
+  type PaneId,
+  paneIn,
+  type SurfaceId,
+  WORKSPACE_SURFACE,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
@@ -35,14 +44,21 @@ import { useKeyboardInput } from "@/ui/shell/useKeyboardInput";
  * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView
  */
 export function ToolPanel({
+  surface = WORKSPACE_SURFACE,
   onReveal,
 }: {
+  /**
+   * The surface this panel belongs to: the workspace's, or the part of the
+   * panel it is drawn inside. Each runs its own session, so the Tools menu
+   * means whatever is in front and a folded panel keeps its own choice (G50).
+   */
+  readonly surface?: SurfaceId;
   readonly onReveal: (pane: PaneId, start: number, end: number) => void;
 }) {
   const workspace = useStore(workspaceStore);
-  const tools = useStore(toolController);
-  const { boundPane, width } = tools;
-  const tool = activeModule(tools);
+  const session = sessionOn(useStore(toolController), surface);
+  const { boundPane, width } = session;
+  const tool = activeModule(session);
   const slot = boundPane === undefined ? undefined : paneIn(workspace, boundPane);
   const choices = paneChoices(workspace.panes);
   const switchable = selectorEnabled(choices);
@@ -61,7 +77,7 @@ export function ToolPanel({
     // What the session was handed as it started, from the same place the pane
     // and the width come from: it is the host that took it out of the box, and
     // the panel draws the session it belongs to.
-    restored: tools.restored,
+    restored: session.restored,
     reveal,
     // What the panel just did, in the line of the pane it is about — the same
     // two seconds and the same restore the window's own messages get.
@@ -143,7 +159,7 @@ export function ToolPanel({
         </span>
         {/* The panel's ✕ is Tools ▸ None by another route.
             @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onClose */}
-        <CloseButton label="Close the tool panel" onClick={() => activate(undefined)} />
+        <CloseButton label="Close the tool panel" onClick={() => activate(undefined, surface)} />
       </header>
 
       {/* @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setContent */}
@@ -158,7 +174,7 @@ export function ToolPanel({
         min={MIN_TOOL_PANEL_WIDTH}
         max={MAX_TOOL_PANEL_WIDTH}
         initial={DEFAULT_TOOL_PANEL_WIDTH}
-        onChange={setToolPanelWidth}
+        onChange={(next) => setToolPanelWidth(surface, next)}
       />
     </aside>
   );

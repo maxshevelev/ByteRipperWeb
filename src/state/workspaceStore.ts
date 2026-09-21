@@ -38,6 +38,9 @@ import {
   panelOf,
   partPane,
   type SlotId,
+  type SurfaceId,
+  surfaceOf,
+  WORKSPACE_SURFACE,
 } from "@/state/paneId";
 import { sanitizedPaneName } from "@/state/paneName";
 import {
@@ -73,11 +76,11 @@ import { groupActs, noteDocumentAct } from "@/state/undoRouter";
  * has to ask again.
  */
 
-export type { PaneId, PartId, SlotId };
+export type { PaneId, PartId, SlotId, SurfaceId };
 // Which pane an id names lives one level down, where the stores keyed by it can
 // read it without reaching up into the workspace (`src/state/paneId.ts`); this
 // is where the rest of the application reads it from.
-export { isSlot, PANE_IDS, partPane };
+export { isSlot, PANE_IDS, partPane, surfaceOf, WORKSPACE_SURFACE };
 
 /**
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel
@@ -858,15 +861,27 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
 export function openPart(bytes: Uint8Array, name: string): PartId {
   const opened = openPanel(workspaceStore.getSnapshot().dock);
   const pane = partPane(opened.id);
+  // The bytes become a Blob and the part reads them back out of it, exactly as
+  // an opened file does. Two reasons, and both are about what else asks for a
+  // pane's bytes: the firmware worker, the minimap's overview and the search
+  // all take a clean document's *file* and read it off the main thread, and a
+  // part whose file was the empty placeholder handed all three an empty file —
+  // measured, and it is why the panel's own UEFI panel said the part looked
+  // like nothing. And a 17 MB decompressed body is better held in the browser's
+  // blob store than on the JavaScript heap.
+  // `slice()` because a Blob wants bytes over a plain ArrayBuffer, as the
+  // clipboard's own export does for the same reason.
+  const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
+  const file: OpenedFile = { name, size: bytes.length, lastModified: Date.now(), source: blob };
   const { document, typing } = makeDocument(
-    new EditOverlayStorage(new MemoryBackedStorage(bytes)),
+    new EditOverlayStorage(new FileBackedStorage(blob, new ChunkCache())),
     pane
   );
   workspaceStore.update((state) => ({
     ...state,
     parts: {
       ...state.parts,
-      [pane]: { name, file: emptyFile(name), document, typing, saved: undefined, writable: false },
+      [pane]: { name, file, document, typing, saved: undefined, writable: false },
     },
     dock: opened.dock,
   }));
