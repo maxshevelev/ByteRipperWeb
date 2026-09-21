@@ -679,6 +679,9 @@ textarea,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* A shade back until this is the pane the commands act on; see `setActive`
+     below, which is where the two weights and colours are set out. */
+  color: var(--text-muted);
   font-weight: 600;
 }
 
@@ -740,8 +743,13 @@ textarea,
 }
 
 /*
- * The active pane is the one the commands act on, so it says so — with a rule
- * along its top edge rather than a tint, which would fight the difference wash.
+ * The active pane is the one the commands act on, so it says so the way
+ * upstream's header does: its name at the full label colour and a weight above
+ * the others', with the document glyph to match. Nothing is drawn around the
+ * pane itself — a rule along its top edge would fight the difference wash, and
+ * a tint would fight it harder.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.setActive
  */
 .hex-pane {
   display: grid;
@@ -752,7 +760,6 @@ textarea,
      it. Both collapse to nothing when absent. */
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
-  border-top: 2px solid transparent;
   /* The drop overlay's bands hang off this box. */
   position: relative;
 }
@@ -766,12 +773,13 @@ textarea,
   background: var(--surface);
 }
 
-.hex-pane[data-active] {
-  border-top-color: var(--accent);
+.hex-pane[data-active] .pane-name {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .hex-pane[data-active] .pane-document {
-  color: var(--accent);
+  color: var(--text);
 }
 
 /* ── Toolbar groups ───────────────────────────────────────────────────── */
