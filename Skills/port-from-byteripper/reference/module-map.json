@@ -638,7 +638,6 @@
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage.init": "n/a — an object literal",
-        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.fileSource": "later — G4: where a part's bytes go back to, which is the link this port has no half of yet",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumField*": "n/a — a checksum problem is a sentence on the row, not a field set",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.init": "n/a — the source is a module constant",
         "Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository.settle": "n/a — a test seam for the actor's refresh",

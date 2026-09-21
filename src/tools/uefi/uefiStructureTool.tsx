@@ -26,8 +26,10 @@ import { useZoneSelection } from "@/tools/toolZoneSelection";
 import {
   type DecompressedExport,
   decompressedExport,
-  decompressedPartName,
   nodeIDOfZone,
+  nodeOpen,
+  nodeOpenTitle,
+  partName,
   uefiZones,
 } from "@/tools/uefi/uefiPresenter";
 import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
@@ -443,9 +445,37 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     async (taken: DecompressedExport) => {
       const bytes = await decompressedBytes(taken);
       if (bytes === undefined) return;
-      context.openPart(bytes, decompressedPartName(taken, paneState(context.pane)?.name ?? ""));
+      context.openPart(bytes, partName(taken.suggestedName, paneState(context.pane)?.name ?? ""));
     },
     [context, decompressedBytes]
+  );
+
+  /**
+   * Open “…” / Open Body of “…”: the node itself, or its body without the
+   * header in front of it, read as a file of its own — its own offsets from
+   * zero, its own search, its own tree.
+   *
+   * Wherever the node lives: bytes of the file go across as they are, and
+   * bytes of a buffer a compressed section opened to are read out of that
+   * buffer, which is what `space` says.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeInPanel
+   */
+  const openNode = useCallback(
+    async (node: WireNode, body: boolean) => {
+      const open = nodeOpen(node, body, roots);
+      if (open === undefined) {
+        context.report("There is nothing to open here.");
+        return;
+      }
+      const bytes = await readSpaceBytes(context.pane, open.space, open.range);
+      if (bytes === undefined || bytes.length === 0) {
+        context.report("Those bytes could not be read.");
+        return;
+      }
+      context.openPart(bytes, partName(open.suggestedName, paneState(context.pane)?.name ?? ""));
+    },
+    [context, roots]
   );
 
   /**
@@ -823,6 +853,20 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                       taken === undefined
                         ? undefined
                         : { label: taken.openTitle, onSelect: () => void openDecompressed(taken) },
+                      // And the node itself, wherever it lives — with its body
+                      // on its own where it has a header to leave behind.
+                      nodeOpenTitle(node, false) === undefined
+                        ? undefined
+                        : {
+                            label: nodeOpenTitle(node, false) ?? "",
+                            onSelect: () => void openNode(node, false),
+                          },
+                      nodeOpenTitle(node, true) === undefined
+                        ? undefined
+                        : {
+                            label: nodeOpenTitle(node, true) ?? "",
+                            onSelect: () => void openNode(node, true),
+                          },
                     ]);
                   }}
                 />

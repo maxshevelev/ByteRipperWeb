@@ -14,7 +14,7 @@ import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import {
   type CompressedSectionNode,
   decompressedExport,
-  decompressedPartName,
+  partName,
   uefiZones,
   type ZonedNode,
 } from "@/tools/uefi/uefiPresenter";
@@ -26,8 +26,9 @@ import {
  * `CompressedNodeTests`.
  *
  * What a part is *linked* to is not here: the parent, the range it came out of
- * and Update in Parent are G4, and `nodeOpen` — opening any node of the tree
- * rather than only what a section decompresses to — is G51.
+ * and Update in Parent are G4. Opening any node of the tree rather than only
+ * what a section decompresses to is `nodeOpen`, whose own cases are in
+ * `nodeOpen.test.ts`.
  */
 
 /**
@@ -164,10 +165,10 @@ describe("what a node has decompressed", () => {
     expect(bytes?.openTitle).toBe("Open Decompressed Bytes");
     expect(bytes?.suggestedName).toBe("Inner decompressed.bin");
     // Named after the dump it came out of, then what it is.
-    expect(bytes === undefined ? undefined : decompressedPartName(bytes, "bios.rom")).toBe(
+    expect(bytes === undefined ? undefined : partName(bytes.suggestedName, "bios.rom")).toBe(
       "bios_Inner decompressed.bin"
     );
-    expect(bytes === undefined ? undefined : decompressedPartName(bytes, "")).toBe(
+    expect(bytes === undefined ? undefined : partName(bytes.suggestedName, "")).toBe(
       "Inner decompressed.bin"
     );
   });

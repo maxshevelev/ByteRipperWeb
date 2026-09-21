@@ -130,12 +130,129 @@ export function decompressedExport(node: CompressedSectionNode): DecompressedExp
  * `bios_LZMA compressed section decompressed.bin`, the way a zone's is named.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.tabName
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.partName
  */
-export function decompressedPartName(taken: DecompressedExport, fileName: string): string {
+export function partName(suggestedName: string, fileName: string): string {
   const dot = fileName.lastIndexOf(".");
   const stem = dot <= 0 ? fileName : fileName.slice(0, dot);
-  return stem.length === 0 ? taken.suggestedName : `${stem}_${taken.suggestedName}`;
+  return stem.length === 0 ? suggestedName : `${stem}_${suggestedName}`;
 }
+
+/**
+ * A file name made out of a node's own name: the characters a path is built
+ * from become underscores, so a section called `a/b:c` cannot arrive as a
+ * directory nobody asked for.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpen
+ */
+const fileNameOf = (name: string, fallback: string): string =>
+  Array.from(name.length === 0 ? fallback : name)
+    .map((character) => ("/:".includes(character) ? "_" : character))
+    .join("");
+
+/**
+ * What opening a node — or its body alone — as a panel of its own means
+ * (`Design/FRAGMENT_PANELS_PLAN.md`).
+ *
+ * Every node can be opened: a volume, a file, a section, and a node inside a
+ * compressed section as much as one in the file. The way to study a part of an
+ * image is often to read it as a file — its own offsets from zero, its own
+ * search, its own tree — and the tree is where the reader is already pointing
+ * at the part they mean.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen
+ * @upstream-differs no `source`, `layout` or `rebuild`: what a part links back
+ * to, what a UEFI panel opened on it should read the bytes as, and where they
+ * go back to through the rebuild planner are all the link, which is G4. What
+ * the file bytes *are* is worked out here all the same, because a node whose
+ * section cannot be traced back to the file is one this refuses to open
+ */
+export interface NodeOpen {
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.space */
+  readonly space: readonly number[];
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.range */
+  readonly range: readonly [number, number];
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.suggestedName */
+  readonly suggestedName: string;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.menuTitle */
+  readonly menuTitle: string;
+}
+
+/**
+ * What the tree's menu calls opening `node`, or nothing where there is nothing
+ * there to open: an empty range, or a body that is the whole node anyway.
+ *
+ * The title alone, for a menu built where the image is not at hand; `nodeOpen`
+ * answers the rest.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpenTitle
+ */
+export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefined {
+  const whole = wholeRange(node);
+  const range = body ? node.body : whole;
+  if (range[1] <= range[0]) return undefined;
+  if (body && range[0] === whole[0] && range[1] === whole[1]) return undefined;
+  if (node.name.length === 0) return body ? "Open Node Body" : "Open Node";
+  return body ? `Open Body of “${node.name}”` : `Open “${node.name}”`;
+}
+
+/**
+ * What opening `node` would do, or nothing when there is nothing there to open:
+ * an empty range, a body that is the whole node, or a part of a buffer whose
+ * compressed section cannot be traced back to the file.
+ *
+ * `roots` is where that section is found, exactly as it is for a node's zones;
+ * without them a node inside a buffer cannot be opened, because nothing can say
+ * which bytes of the file it really is.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpen
+ */
+export function nodeOpen(
+  node: ZonedNode,
+  body: boolean,
+  roots?: readonly ZonedNode[]
+): NodeOpen | undefined {
+  const title = nodeOpenTitle(node, body);
+  if (title === undefined) return undefined;
+  const space = node.space ?? [];
+  // Where it links back to: a node of the file is its own source, one in a
+  // buffer is the compressed section holding it — and a section nothing can
+  // find is a part with no way home, which upstream refuses to open at all.
+  if (space.length !== 0 && fileSourceOf(node, roots ?? []) === undefined) return undefined;
+  const suffix = body ? " body" : "";
+  return {
+    space,
+    range: body ? [node.body[0], node.body[1]] : wholeRange(node),
+    suggestedName: `${fileNameOf(node.name, "node")}${suffix}.bin`,
+    menuTitle: title,
+  };
+}
+
+/**
+ * Where a node's bytes are held in the file: its own range, or — for a node
+ * inside a compressed section — the outermost section's.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.fileSource
+ */
+function fileSourceOf(
+  node: ZonedNode,
+  roots: readonly ZonedNode[]
+): readonly [number, number] | undefined {
+  const outermost = node.space?.[0];
+  if (outermost === undefined) return wholeRange(node);
+  const section = sectionAt(roots, outermost);
+  return section === undefined ? undefined : wholeRange(section);
+}
+
+/**
+ * Everything a node covers, header through tail.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.range
+ */
+const wholeRange = (node: ZonedNode): readonly [number, number] => [
+  node.header[0],
+  Math.max(node.header[0], node.header[1], node.body[1], node.tail[1]),
+];
 
 /** Two spaces are the same buffer when they are the same chain of sections. */
 const sameSpace = (left: readonly number[], right: readonly number[]): boolean =>
