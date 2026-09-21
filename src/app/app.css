@@ -682,6 +682,49 @@ textarea,
   font-weight: 600;
 }
 
+/* Where a part came from, beside its name: quiet, because it is a note about
+   the document rather than part of what the document is called, and a button
+   only while it still leads somewhere. The three states upstream's header has —
+   a live link, a parent that has gone, a source that has changed — are told
+   apart by weight and colour rather than by a second glyph, the header having
+   no room for one. */
+.pane-origin {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pane-origin::before {
+  /* The word that makes it a sentence rather than a second name. */
+  content: "from ";
+  color: var(--text-faint);
+}
+
+.pane-origin[data-state="intact"]:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.pane-origin:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* A source that has changed still says where it came from, and says that it has
+   moved on: the strike is the one mark that reads as "this no longer matches"
+   without a colour nobody can see in a dark theme. */
+.pane-origin[data-state="sourceChanged"] {
+  text-decoration: line-through;
+}
+
 /* The name as a field, where the name was: no narrower than a name can be read
    in, and still able to give way in a pane squeezed to nothing. */
 .pane-name-field {

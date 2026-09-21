@@ -21,6 +21,7 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import { forgetPartBookmarks } from "@/state/bookmarksStore";
+import type { DocumentOrigin } from "@/state/documentOrigin";
 import { noteDocumentChanged } from "@/state/editStore";
 import {
   collapsePanels,
@@ -111,6 +112,13 @@ export interface PaneState {
   readonly saved: ByteStorage | undefined;
   /** True when this file can be written back to itself (D7). */
   readonly writable: boolean;
+  /**
+   * Where a part's bytes came from, and the way back. Only a part has one: a
+   * file in a slot was opened, not taken out of anything.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.origin
+   */
+  readonly origin?: DocumentOrigin | undefined;
 }
 
 /**
@@ -867,7 +875,7 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFragment
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open
  */
-export function openPart(bytes: Uint8Array, name: string): PartId {
+export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigin): PartId {
   const opened = openPanel(workspaceStore.getSnapshot().dock);
   const pane = partPane(opened.id);
   // The bytes become a Blob and the part reads them back out of it, exactly as
@@ -890,7 +898,7 @@ export function openPart(bytes: Uint8Array, name: string): PartId {
     ...state,
     parts: {
       ...state.parts,
-      [pane]: { name, file, document, typing, saved: undefined, writable: false },
+      [pane]: { name, file, document, typing, saved: undefined, writable: false, origin },
     },
     dock: opened.dock,
   }));

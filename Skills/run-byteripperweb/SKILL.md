@@ -58,7 +58,7 @@ the point: its bytes, its addresses, its bookmark marks and its selection are
 pixels on a canvas, so there is no element to name. Where a row is: the address
 column is about 8px in from the pane's left edge, and a row is one row height
 below the pane's top — read both off a screenshot rather than guessing.
-| `keys <key>...` | `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `Enter`, `Escape` |
+| `keys <key>...` | `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `Enter`, `Escape`, and any single character — `keys a a` types the byte `AA` into the dump |
 | `text` | the page's visible text |
 | `stop` | closes the browser and forgets it |
 

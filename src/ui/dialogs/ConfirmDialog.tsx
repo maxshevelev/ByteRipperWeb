@@ -22,6 +22,16 @@ export interface ConfirmDialogProps {
   readonly destructive?: boolean | undefined;
   /** Offers the "don't ask again" checkbox when given. */
   readonly rememberLabel?: string | undefined;
+  /**
+   * A third answer, between confirming and cancelling: what an `NSAlert` gets
+   * by adding a button, and the shape a question with two ways forward needs —
+   * closing a part that has bytes to put back is "put them back", "close
+   * anyway" and "not yet".
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmClosingUnreturnedPart
+   */
+  readonly otherLabel?: string | undefined;
+  readonly onOther?: (() => void) | undefined;
   readonly onConfirm: (remember: boolean) => void;
   /**
    * The answer when the question is declined — by Cancel, by Escape, or by a
@@ -48,6 +58,8 @@ export function ConfirmDialog({
   confirmLabel = "Continue",
   destructive = false,
   rememberLabel,
+  otherLabel,
+  onOther,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -75,6 +87,11 @@ export function ConfirmDialog({
           <button type="button" className="toolbar-button" onClick={() => onCancel(remember)}>
             Cancel
           </button>
+          {otherLabel === undefined || onOther === undefined ? null : (
+            <button type="button" className="toolbar-button" onClick={onOther}>
+              {otherLabel}
+            </button>
+          )}
           {/*
             Deliberately not autofocused. `<dialog>` puts the focus on the first
             focusable element, which is Cancel — the right place for a warning,

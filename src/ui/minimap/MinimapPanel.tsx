@@ -1068,7 +1068,7 @@ function MinimapCanvas({
                   const slot = paneState(pane);
                   const current = zonesFor(pane).zones.find((one) => one.id === zone.id);
                   if (slot === undefined || current === undefined) return;
-                  openZone(slot, current);
+                  openZone(pane, slot, current);
                 },
               },
             ]);

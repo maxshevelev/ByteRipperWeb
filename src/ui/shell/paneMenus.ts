@@ -7,10 +7,10 @@ import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarkAt } from "@/state/bookmarksStore";
+import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
   isSlot,
-  openPart,
   type PaneId,
   type PaneState,
   paneIn,
@@ -37,6 +37,18 @@ import type { MenuEntry } from "@/ui/shell/menuModel";
  * toolbar's own menu carries — the same command reached two ways, never two
  * commands that drift apart.
  */
+
+/**
+ * What Update in Parent is called for one part and whether it can act — worked
+ * out where the bytes can be read, and handed to the menu ready to draw.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateUpdateInParent
+ */
+export interface UpdateItem {
+  readonly title: string;
+  readonly enabled: boolean;
+  readonly onSelect: () => void;
+}
 
 /** What the shell can do, handed in so this module holds no state of its own. */
 export interface PaneMenuActions {
@@ -84,7 +96,9 @@ export interface PaneMenuActions {
 export function paneFileMenu(
   state: WorkspaceState,
   pane: PaneId,
-  actions: PaneMenuActions
+  actions: PaneMenuActions,
+  /** A part's way home, where there is one to offer. */
+  update?: UpdateItem | undefined
 ): (MenuEntry | undefined)[] {
   const slot = paneIn(state, pane);
   if (slot === undefined) return [];
@@ -133,6 +147,14 @@ export function paneFileMenu(
       { label: "Duplicate", onSelect: () => actions.onDuplicate(slot) },
       { kind: "separator" },
     ]),
+    // A part's way home, beside the saves: putting the bytes back where they
+    // came from is the other thing a reader does with a part, and for a part
+    // taken out to be edited it is the *only* one that matters.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParent
+    update === undefined
+      ? undefined
+      : { label: update.title, disabled: !update.enabled, onSelect: update.onSelect },
+    update === undefined ? undefined : { kind: "separator" },
     // Upstream's Copy Full Path and Show in Finder have no counterpart: a
     // browser is told a file's name and nothing else about where it came from.
     { label: "Copy File Name", onSelect: () => void copyText(slot.name) },
@@ -287,7 +309,7 @@ function zoneItems(
     })),
     ...zones.map((zone) => ({
       label: `Open Zone “${zone.name}”`,
-      onSelect: () => openZone(slot, zone),
+      onSelect: () => openZone(pane, slot, zone),
     })),
     ...zones.map((zone) => ({
       label: `Save Zone “${zone.name}” as…`,
@@ -419,20 +441,28 @@ function selectionItems(
  *
  * A copy, and only a copy: the part is a document of its own, and what the
  * window's bookmarks mark stays behind, their offsets being the dump's rather
- * than these bytes'. The link back — which file the bytes came out of, and
- * putting them back with Update in Parent — is G4, and until it exists nothing
- * here promises one.
+ * than these bytes'. What it does carry is the link back — the pane, the range
+ * and the name the zone has there — which is what Update in Parent puts the
+ * bytes through (G4).
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZone
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZoneInPanel
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
  */
-export function openZone(slot: PaneState, zone: Zone): void {
+export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
   void slot.document
     .read(zone.start, zone.end - zone.start)
-    .then((bytes) => {
-      openPart(bytes, zoneFileName(slot.name, zone.name, zone.start, zone.end));
-    })
+    .then((bytes) =>
+      openLinkedPart({
+        parent: pane,
+        bytes,
+        name: zoneFileName(slot.name, zone.name, zone.start, zone.end),
+        source: [zone.start, zone.end],
+        // The zone's own name is what it is called in the parent, which is
+        // better than anything read back off the file name.
+        partName: zone.name,
+      })
+    )
     .catch((error: unknown) =>
       reportAlert(
         "Could not read the zone.",

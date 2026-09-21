@@ -23,6 +23,12 @@ import {
 } from "@/state/minimapStore";
 import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
+  partsLinkedTo,
+  strandingCloseButton,
+  strandingSentence,
+  updateInParent,
+} from "@/state/partUpdate";
+import {
   closeSearch,
   noteSearchEdit,
   openSearch,
@@ -94,6 +100,7 @@ import {
 } from "@/ui/drag/PaneDropBands";
 import { SingleFileDrop } from "@/ui/drag/SingleFileDrop";
 import { FragmentPanels } from "@/ui/fragments/FragmentPanels";
+import { usePartLink } from "@/ui/fragments/usePartLink";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
@@ -105,8 +112,15 @@ import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
 import { ignoredFilesAlert } from "@/ui/shell/ignoredFiles";
+import type { MenuEntry } from "@/ui/shell/menuModel";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
-import { dumpMenu, type PaneMenuActions, paneFileMenu, textMenu } from "@/ui/shell/paneMenus";
+import {
+  dumpMenu,
+  type PaneMenuActions,
+  paneFileMenu,
+  textMenu,
+  type UpdateItem,
+} from "@/ui/shell/paneMenus";
 import { Toolbar } from "@/ui/shell/Toolbar";
 import { TransientNotice } from "@/ui/shell/TransientNotice";
 import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
@@ -119,6 +133,57 @@ import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
  * onto an empty app has no pane to aim at, and aiming is not what dropping a
  * file should require. A drop with both slots full replaces the active one.
  */
+
+/**
+ * A part's dump, with the link its header draws and the two commands that link
+ * carries: Update in Parent, and clicking the link to be shown where the bytes
+ * came from.
+ *
+ * A component of its own because the link's verdicts read bytes, so they are
+ * worked out off the render (`usePartLink`) — and a hook cannot be called from
+ * a function the shell runs only while a panel happens to be up.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView
+ */
+function PartDump({
+  headerMenu,
+  onUpdateInParent,
+  onRevealOrigin,
+  ...pane
+}: Omit<React.ComponentProps<typeof HexPane>, "onHeaderMenu" | "link"> & {
+  /** The header's own menu, given what Update in Parent would be called. */
+  readonly headerMenu: (update: UpdateItem | undefined) => (MenuEntry | undefined)[];
+  readonly onUpdateInParent: () => void;
+  readonly onRevealOrigin: () => void;
+}) {
+  const link = usePartLink(pane.paneId);
+  return (
+    <HexPane
+      {...pane}
+      link={
+        link === undefined
+          ? undefined
+          : {
+              partName: link.partName,
+              explanation: link.explanation,
+              state: link.state,
+              onReveal: onRevealOrigin,
+            }
+      }
+      onHeaderMenu={(event) =>
+        openContextMenu(
+          event,
+          headerMenu(
+            link === undefined ? undefined : { ...link.update, onSelect: onUpdateInParent }
+          )
+        )
+      }
+    />
+  );
+}
+
+/** The three ways out of a closing question: put back, close anyway, or not yet. */
+type CloseChoice = "confirm" | "other" | "cancel";
 
 /** A stable name for each open document, so a pane remounts for a new one and only then. */
 const documentKeys = new WeakMap<object, number>();
@@ -497,6 +562,21 @@ export function AppShell() {
   const tools = useStore(toolController);
   const toolId = sessionOn(tools, WORKSPACE_SURFACE).activeIdentifier;
   /**
+   * The question closing a pane asks, and the answer it is waiting for: the
+   * parts it would strand, or the bytes its parent has not got back. Two or
+   * three answers, which `window.confirm` cannot carry.
+   */
+  const [closeAsk, setCloseAsk] = useState<
+    | {
+        title: string;
+        message: string;
+        confirmLabel: string;
+        otherLabel?: string;
+        answer: (choice: CloseChoice) => void;
+      }
+    | undefined
+  >(undefined);
+  /**
    * The question Save All asks before it writes, and the answer it is waiting
    * for. A promise rather than a callback so the command reads as one sequence:
    * pick a folder, ask, write.
@@ -839,9 +919,56 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closePaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
    */
-  const closeWithWarning = useCallback((pane: PaneId) => {
+  const closeWithWarning = useCallback(async (pane: PaneId) => {
     const slot = paneState(pane);
-    if (slot?.document.isDirty) {
+    // One question at a time, in the order the consequences arrive: what
+    // closing this does to the parts that came out of it, then what it does to
+    // its own bytes. Folded into one dialog they read as a single warning and
+    // the second half goes unread — which is the same as not asking.
+    //
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
+    const stranded = partsLinkedTo(pane).length;
+    if (stranded > 0) {
+      const answered = await new Promise<boolean>((resolve) =>
+        setCloseAsk({
+          title: `Close “${slot?.name ?? ""}”?`,
+          message: strandingSentence(stranded),
+          confirmLabel: strandingCloseButton(stranded),
+          answer: (choice) => resolve(choice === "confirm"),
+        })
+      );
+      setCloseAsk(undefined);
+      if (!answered) return;
+    }
+    // A part holding bytes the parent has not got back is offered the thing it
+    // was opened for rather than a save panel for a file nobody wants on disk.
+    //
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmClosingUnreturnedPart
+    const origin = slot?.origin;
+    if (slot !== undefined && origin !== undefined && (await origin.hasChanges(slot.document))) {
+      const choice = await new Promise<CloseChoice>((resolve) =>
+        setCloseAsk({
+          title: `Put “${origin.partName}” back into ${origin.parentName}?`,
+          message:
+            `It has changes ${origin.parentName} has not got. ` +
+            "Closing this panel without putting them back loses them.",
+          confirmLabel: "Update in Parent",
+          otherLabel: "Close Anyway",
+          answer: resolve,
+        })
+      );
+      setCloseAsk(undefined);
+      if (choice === "cancel") return;
+      if (choice === "confirm") {
+        const outcome = await updateInParent(pane as PartId);
+        // A refusal has said why; the panel stays, so the bytes are still there
+        // to do something else with.
+        if (outcome.kind !== "updated") return;
+      }
+    } else if (slot?.document.isDirty === true && origin === undefined) {
+      // The ordinary question, and only for a document with nowhere to put its
+      // bytes back: a part whose parent has them is not losing anything.
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
       if (!window.confirm(`${slot.name} has unsaved edits. Close it and lose them?`)) return;
     }
     // Before the workspace forgets which file this was: a session bound to it
@@ -918,6 +1045,52 @@ export function AppShell() {
       else setReveal({ [pane]: { offset, token: ++revealToken.current } });
     },
     [revealInBoth]
+  );
+
+  /**
+   * The link in a part's header was clicked: the parent comes to the front with
+   * the source selected in its dump. Nothing at all once the parent is gone.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
+   */
+  const showOrigin = useCallback(
+    async (pane: PartId) => {
+      const origin = paneState(pane)?.origin;
+      if (origin === undefined || (await origin.state()) === "parentClosed") return;
+      const parent = origin.parent;
+      // Raising one panel folds the other: there is only ever one up. A parent
+      // that is one of the workspace's own panes needs the stage cleared —
+      // folding only this panel would leave another covering the very bytes this
+      // is here to show.
+      if (isSlot(parent)) foldParts();
+      else raisePart(parent);
+      const [start, end] = origin.sourceRange;
+      void paneState(parent)?.typing.setSelection(start, end);
+      revealIn(parent, start);
+    },
+    [revealIn]
+  );
+
+  /**
+   * Update in Parent: the part's bytes put back where they came from, and then
+   * shown there.
+   *
+   * Showing them is the other half of the command rather than a courtesy: the
+   * write went into a document the reader cannot see — it is behind the panel
+   * they are standing in — so the panel that holds the parent is raised, or the
+   * stage cleared where the parent is one of the workspace's own panes, and the
+   * bytes that just landed are selected.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealUpdateDestination
+   */
+  const putBack = useCallback(
+    async (pane: PartId) => {
+      const outcome = await updateInParent(pane);
+      if (outcome.kind !== "updated") return;
+      await showOrigin(pane);
+    },
+    [showOrigin]
   );
 
   /**
@@ -1397,7 +1570,7 @@ export function AppShell() {
       onRename: (pane) => setRenamingPane(pane),
       onRevert: doRevert,
       onDuplicate: doDuplicate,
-      onClose: (pane) => closeWithWarning(pane),
+      onClose: (pane) => void closeWithWarning(pane),
       onFill: () => setFillOpen(true),
       onDeleteBytes: doDeleteBytes,
       onSelectBlockFrom: (pane, offset) => setSelectBlock({ pane, start: offset }),
@@ -1503,7 +1676,7 @@ export function AppShell() {
         wordSize={state.wordSize}
         isActive={state.activePane === id}
         onActivate={() => setActivePane(id)}
-        onClose={() => closeWithWarning(id)}
+        onClose={() => void closeWithWarning(id)}
         differences={diff.index}
         companionSize={state.panes[other]?.document.size}
         peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
@@ -1563,7 +1736,7 @@ export function AppShell() {
           }}
         />
       )}
-      <HexPane
+      <PartDump
         key={`${pane}:${documentKey(part.document)}`}
         paneId={pane}
         // The part's own name is all the header has to say: there is no slot to
@@ -1577,7 +1750,7 @@ export function AppShell() {
         // The panel in front is the pane in front: it is the only one in it.
         isActive
         onActivate={() => raisePart(pane)}
-        onClose={() => closeWithWarning(pane)}
+        onClose={() => void closeWithWarning(pane)}
         onSelectionChanged={(selection) =>
           setSelections((current) => ({ ...current, [pane]: selection }))
         }
@@ -1591,7 +1764,9 @@ export function AppShell() {
         resultsShown={resultsFor(search, pane).resultsShown}
         searchStatus={resultsFor(search, pane).status}
         onGoToMatch={(offset) => revealIn(pane, offset)}
-        onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, pane, menuActions))}
+        headerMenu={(update) => paneFileMenu(state, pane, menuActions, update)}
+        onUpdateInParent={() => void putBack(pane)}
+        onRevealOrigin={() => void showOrigin(pane)}
         renaming={renamingPane === pane}
         onRenameEnd={(typed, commit) => {
           setRenamingPane(undefined);
@@ -1654,7 +1829,7 @@ export function AppShell() {
         onToggleFind={showFindBar}
         // Upstream's ⌘W with a panel up closes that panel, and the bar's Close
         // is the same command: what is in front is what goes.
-        onClose={() => closeWithWarning(front)}
+        onClose={() => void closeWithWarning(front)}
         onSettings={() => {
           setSettingsTab(undefined);
           setSettingsOpen(true);
@@ -1734,7 +1909,7 @@ export function AppShell() {
       {/* After the panes and the two side panels in the document as well as on
           screen: the panel is laid over all three, and the dock takes a row of
           its own under them. */}
-      <FragmentPanels renderPane={partElement} onClose={closeWithWarning} />
+      <FragmentPanels renderPane={partElement} onClose={(pane) => void closeWithWarning(pane)} />
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
@@ -1805,6 +1980,16 @@ export function AppShell() {
           revealIn(pane, piece.start);
         }}
         onClose={() => setSegmentsPane(undefined)}
+      />
+      <ConfirmDialog
+        open={closeAsk !== undefined}
+        title={closeAsk?.title ?? ""}
+        message={closeAsk?.message ?? ""}
+        confirmLabel={closeAsk?.confirmLabel}
+        otherLabel={closeAsk?.otherLabel}
+        onOther={() => closeAsk?.answer("other")}
+        onConfirm={() => closeAsk?.answer("confirm")}
+        onCancel={() => closeAsk?.answer("cancel")}
       />
       <ConfirmDialog
         open={writeAsk !== undefined}

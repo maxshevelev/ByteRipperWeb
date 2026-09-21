@@ -90,12 +90,15 @@ export interface ToolContext {
    * The tool decides what the bytes are and what they are called; where they
    * open is the application's, and there is only one answer to that.
    *
+   * `source` is where those bytes are in the pane's own file: the link back,
+   * which is what Update in Parent puts them through. A part opened without one
+   * has no way home and says so.
+   *
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.openPart
    * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
-   * @upstream-differs no `linkedTo` range: the link back to the parent, and Update in Parent with it, is G4
    */
-  readonly openPart: (bytes: Uint8Array, name: string) => void;
+  readonly openPart: (bytes: Uint8Array, name: string, source?: readonly [number, number]) => void;
 }
 
 /**

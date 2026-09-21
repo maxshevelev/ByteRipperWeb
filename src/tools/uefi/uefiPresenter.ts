@@ -161,17 +161,22 @@ const fileNameOf = (name: string, fallback: string): string =>
  * at the part they mean.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen
- * @upstream-differs no `source`, `layout` or `rebuild`: what a part links back
- * to, what a UEFI panel opened on it should read the bytes as, and where they
- * go back to through the rebuild planner are all the link, which is G4. What
- * the file bytes *are* is worked out here all the same, because a node whose
- * section cannot be traced back to the file is one this refuses to open
+ * @upstream-differs no `layout` or `rebuild`: what a UEFI panel opened on the
+ * part should read the bytes as, and where they go back to through the rebuild
+ * planner, are the planner's, which this port has no half of yet (G4)
  */
 export interface NodeOpen {
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.space */
   readonly space: readonly number[];
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.range */
   readonly range: readonly [number, number];
+  /**
+   * The file bytes the part links back to: the node's own where they are the
+   * file's, and the compressed section they came out of where they are not.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.source
+   */
+  readonly source: readonly [number, number];
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.suggestedName */
   readonly suggestedName: string;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.menuTitle */
@@ -218,11 +223,14 @@ export function nodeOpen(
   // Where it links back to: a node of the file is its own source, one in a
   // buffer is the compressed section holding it — and a section nothing can
   // find is a part with no way home, which upstream refuses to open at all.
-  if (space.length !== 0 && fileSourceOf(node, roots ?? []) === undefined) return undefined;
+  const range: readonly [number, number] = body ? [node.body[0], node.body[1]] : wholeRange(node);
+  const source = space.length === 0 ? range : fileSourceOf(node, roots ?? []);
+  if (source === undefined) return undefined;
   const suffix = body ? " body" : "";
   return {
     space,
-    range: body ? [node.body[0], node.body[1]] : wholeRange(node),
+    range,
+    source,
     suggestedName: `${fileNameOf(node.name, "node")}${suffix}.bin`,
     menuTitle: title,
   };
@@ -234,7 +242,7 @@ export function nodeOpen(
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.fileSource
  */
-function fileSourceOf(
+export function fileSourceOf(
   node: ZonedNode,
   roots: readonly ZonedNode[]
 ): readonly [number, number] | undefined {

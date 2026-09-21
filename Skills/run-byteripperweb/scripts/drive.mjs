@@ -212,12 +212,16 @@ class Cdp {
       Enter: [13, "Enter"],
       Escape: [27, "Escape"],
     };
-    const [keyCode, code] = codes[key] ?? [key.charCodeAt(0), `Key${key.toUpperCase()}`];
-    for (const type of ["keyDown", "keyUp"]) {
+    const [keyCode, code] = codes[key] ?? [key.toUpperCase().charCodeAt(0), `Key${key.toUpperCase()}`];
+    // A printable key needs its `char` event too: the dump types hex digits,
+    // and a keyDown/keyUp pair with nothing between them lands nothing.
+    const printable = key.length === 1 && codes[key] === undefined;
+    for (const type of printable ? ["keyDown", "char", "keyUp"] : ["keyDown", "keyUp"]) {
       await this.send("Input.dispatchKeyEvent", {
         type,
         key,
         code,
+        ...(type === "char" ? { text: key } : {}),
         windowsVirtualKeyCode: keyCode,
         nativeVirtualKeyCode: keyCode,
       });

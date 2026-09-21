@@ -121,6 +121,24 @@ export interface HexPaneProps {
   readonly onActivate: () => void;
   /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onClose */
   readonly onClose: () => void;
+  /**
+   * Where a part came from, drawn in its header: what it is called there, the
+   * sentence the pointer gets, which of the link's three states it is in, and
+   * the way back.
+   *
+   * Only a part has one — a file in a slot was opened, not taken out of
+   * anything.
+   *
+   * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.originLink
+   */
+  readonly link?:
+    | {
+        readonly partName: string;
+        readonly explanation: string;
+        readonly state: "intact" | "parentClosed" | "sourceChanged";
+        readonly onReveal: () => void;
+      }
+    | undefined;
   /** The comparison, when there are two files. */
   readonly differences?: DiffBlockIndex | undefined;
   /**
@@ -332,6 +350,7 @@ export function HexPane({
   wordSize,
   name,
   label,
+  link,
   isActive,
   paneId,
   onActivate,
@@ -1823,6 +1842,27 @@ export function HexPane({
           <span className="pane-name" title={name}>
             {name}
           </span>
+        )}
+        {link === undefined ? null : (
+          /*
+           * Where this part came from, and the way back to it. A link that
+           * still leads somewhere is a button; one whose parent has gone, or
+           * whose bytes have changed there, is a sign that says so and does
+           * nothing — the same three states upstream's header has.
+           *
+           * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.originLink
+           * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
+           */
+          <button
+            type="button"
+            className="pane-origin"
+            data-state={link.state}
+            title={link.explanation}
+            disabled={link.state !== "intact"}
+            onClick={link.onReveal}
+          >
+            {link.partName}
+          </button>
         )}
         <CloseButton label={`Close ${label}`} onClick={onClose} />
       </header>

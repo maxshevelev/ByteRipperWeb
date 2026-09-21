@@ -632,8 +632,25 @@ export class BinaryDocument {
   }
 
   private emitContent(change: DocumentContentChange): void {
+    this.generation += 1;
     for (const listener of this.contentListeners) listener(change);
   }
+
+  /**
+   * How many times these bytes have changed — a number that means nothing on
+   * its own and everything beside itself: something holding a verdict about
+   * this document's content can ask whether the content could have moved since
+   * it decided, and re-read only then.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.contentGeneration
+   * @upstream-differs the document counts rather than the pane around it, so a
+   * part and a file are asked the same way and a remounted pane changes nothing
+   */
+  get contentGeneration(): number {
+    return this.generation;
+  }
+
+  private generation = 0;
 
   /**
    * Applies an overwrite that may run past EOF, returning the operations it

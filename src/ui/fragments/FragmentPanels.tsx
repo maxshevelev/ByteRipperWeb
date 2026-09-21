@@ -1,5 +1,4 @@
 import type React from "react";
-import { editStore } from "@/state/editStore";
 import { useStore } from "@/state/useStore";
 import {
   type PaneState,
@@ -10,6 +9,7 @@ import {
 } from "@/state/workspaceStore";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
 import { FragmentPanel, FragmentPanelHost } from "@/ui/fragments/FragmentPanelView";
+import { usePartsWithChanges } from "@/ui/fragments/usePartLink";
 
 /**
  * The workspace's fragment panels: the dock of pills, and the one panel that is
@@ -39,9 +39,9 @@ export function FragmentPanels({
   readonly onClose: (pane: PartId) => void;
 }) {
   const state = useStore(workspaceStore);
-  // The pill's dot is the part's own dirtiness, which the workspace store does
-  // not change for — that is exactly what this tick is for.
-  useStore(editStore);
+  // The pill's dot is about bytes, which the workspace store does not change
+  // for — the hook reads them again on every edit anywhere.
+  const unreturned = usePartsWithChanges(state.dock.panels.map((id) => partPane(id)));
 
   // Brings the pills in line with what the panels hold: names, the one that is
   // up, and which of them have bytes the parent has not got back.
@@ -51,10 +51,10 @@ export function FragmentPanels({
     id,
     title: state.parts[partPane(id)]?.name ?? "",
     isUp: state.dock.expanded === id,
-    // Upstream asks the origin whether the parent has the bytes back; until the
-    // link exists (G4) the part's own unsaved work is the honest answer, which
+    // The dot is "the parent has not got these bytes", which is the link's
+    // question; a part with no link falls back to its own unsaved work, which
     // is upstream's own fallback.
-    hasChanges: state.parts[partPane(id)]?.document.isDirty ?? false,
+    hasChanges: unreturned.has(partPane(id)),
   }));
   if (items.length === 0) return null;
 

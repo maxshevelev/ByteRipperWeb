@@ -26,6 +26,7 @@ import { useZoneSelection } from "@/tools/toolZoneSelection";
 import {
   type DecompressedExport,
   decompressedExport,
+  fileSourceOf,
   nodeIDOfZone,
   nodeOpen,
   nodeOpenTitle,
@@ -442,12 +443,19 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecompressedInNewTab
    */
   const openDecompressed = useCallback(
-    async (taken: DecompressedExport) => {
+    async (node: WireNode, taken: DecompressedExport) => {
       const bytes = await decompressedBytes(taken);
       if (bytes === undefined) return;
-      context.openPart(bytes, partName(taken.suggestedName, paneState(context.pane)?.name ?? ""));
+      // What it links back to: the compressed section in the file that these
+      // bytes came out of, which for a node inside a buffer is the section
+      // holding it.
+      context.openPart(
+        bytes,
+        partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),
+        fileSourceOf(node, roots ?? [])
+      );
     },
-    [context, decompressedBytes]
+    [context, decompressedBytes, roots]
   );
 
   /**
@@ -473,7 +481,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         context.report("Those bytes could not be read.");
         return;
       }
-      context.openPart(bytes, partName(open.suggestedName, paneState(context.pane)?.name ?? ""));
+      context.openPart(
+        bytes,
+        partName(open.suggestedName, paneState(context.pane)?.name ?? ""),
+        open.source
+      );
     },
     [context, roots]
   );
@@ -852,7 +864,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                           },
                       taken === undefined
                         ? undefined
-                        : { label: taken.openTitle, onSelect: () => void openDecompressed(taken) },
+                        : {
+                            label: taken.openTitle,
+                            onSelect: () => void openDecompressed(node, taken),
+                          },
                       // And the node itself, wherever it lives — with its body
                       // on its own where it has a header to leave behind.
                       nodeOpenTitle(node, false) === undefined

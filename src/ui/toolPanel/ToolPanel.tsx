@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { showNotice } from "@/state/noticeStore";
+import { openLinkedPart } from "@/state/openLinkedPart";
 import {
   activate,
   activeModule,
@@ -16,7 +17,6 @@ import {
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { useStore } from "@/state/useStore";
 import {
-  openPart,
   PANE_IDS,
   type PaneId,
   paneIn,
@@ -87,10 +87,12 @@ export function ToolPanel({
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice
     showNotice,
     // Bytes the panel hands over, opened as a part over the file they came out
-    // of. The panel says what they are; where they open is not its business.
+    // of, with the link back to where they are in it. The panel says what they
+    // are; where they open, and what the link is worth, is not its business.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
-    openPart: (bytes, name) => {
-      openPart(bytes, name);
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
+    openPart: (bytes, name, source) => {
+      void openLinkedPart({ parent: boundPane, bytes, name, source });
     },
   };
 
