@@ -110,7 +110,6 @@ export function MinimapPanel({
 }: MinimapPanelProps) {
   const state = mapOn(useStore(minimapStore), surface);
   const workspace = useStore(workspaceStore);
-  const viewports = usePaneViewports();
   // The panes this surface draws: the workspace's open slots, or the part.
   const open: readonly PaneId[] =
     surface === WORKSPACE_SURFACE
@@ -118,6 +117,7 @@ export function MinimapPanel({
       : paneIn(workspace, surface) === undefined
         ? []
         : [surface];
+  const viewports = usePaneViewports(open);
   const panelRef = useRef<HTMLElement | null>(null);
   const chrome = usePaneChrome(panelRef, open.length);
 
@@ -339,20 +339,27 @@ function SharedBand({
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setViewports
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewport
  */
-function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number }>> {
+function usePaneViewports(
+  panes: readonly PaneId[]
+): Partial<Record<PaneId, { start: number; end: number }>> {
   const [viewports, setViewports] = useState<
     Partial<Record<PaneId, { start: number; end: number }>>
   >({});
+  // The list itself, so a panel that has just opened over a part reads that
+  // part's scroll rather than the two slots' — a map whose band is about panes
+  // it does not draw has no band at all.
+  const key = panes.join(",");
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the list is the input, by key
   useEffect(() => {
     const read = () => {
       const next: Partial<Record<PaneId, { start: number; end: number }>> = {};
-      for (const id of PANE_IDS) {
+      for (const id of panes) {
         const range = scrollLink.visibleRange(id, BYTES_PER_ROW);
         if (range !== undefined) next[id] = range;
       }
       setViewports((previous) =>
-        PANE_IDS.every(
+        panes.every(
           (id) => previous[id]?.start === next[id]?.start && previous[id]?.end === next[id]?.end
         )
           ? previous
@@ -361,7 +368,7 @@ function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number
     };
     read();
     return scrollLink.onChange(read);
-  }, []);
+  }, [key]);
 
   return viewports;
 }
