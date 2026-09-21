@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import type { OriginState } from "@/state/documentOrigin";
-import { editStore } from "@/state/editStore";
 import { updateInParentItem } from "@/state/partUpdate";
-import { useStore } from "@/state/useStore";
+import { useSettledEdits } from "@/state/useSettledEdits";
 import { type PaneId, type PartId, paneState } from "@/state/workspaceStore";
 
 /**
@@ -10,8 +9,8 @@ import { type PaneId, type PartId, paneState } from "@/state/workspaceStore";
  * Parent would be called and whether it could do anything.
  *
  * Both answers read bytes — the source in the parent, the part's own — so both
- * are worked out off the render and kept here. They are asked again whenever a
- * document changes, which is what the link's verdicts are about; the link
+ * are worked out off the render and kept here. They are asked again once the
+ * bytes have settled, which is what the link's verdicts are about; the link
  * itself caches against each side's content generation, so an ask that changes
  * nothing costs a comparison of two numbers.
  *
@@ -29,7 +28,7 @@ export interface PartLink {
 }
 
 export function usePartLink(pane: PaneId): PartLink | undefined {
-  const version = useStore(editStore).version;
+  const version = useSettledEdits();
   const [link, setLink] = useState<PartLink | undefined>(undefined);
   const origin = paneState(pane)?.origin;
 
@@ -72,7 +71,7 @@ export function usePartLink(pane: PaneId): PartLink | undefined {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentHasSomethingToLose
  */
 export function usePartsWithChanges(parts: readonly PartId[]): ReadonlySet<PartId> {
-  const version = useStore(editStore).version;
+  const version = useSettledEdits();
   const [held, setHeld] = useState<ReadonlySet<PartId>>(new Set());
   const key = parts.join(",");
 

@@ -120,6 +120,49 @@ describe("the link", () => {
   });
 
   /**
+   * The verdicts are about the bytes, and a part typed back to what it was has
+   * nothing to put back — which is also what keeps the walk that answers this
+   * honest: it stops at the first byte that differs and remembers where, so the
+   * byte that stopped it is the first one checked next time.
+   *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testTheLinkFollowsTheSourceBytes
+   */
+  it("has nothing to put back once the part is what it was", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+    const origin = paneState(part)?.origin;
+    const document = paneState(part)?.document;
+    if (origin === undefined || document === undefined) throw new Error("the part should be open");
+
+    await document.overwrite(8, Uint8Array.from([0xaa]));
+    expect(await origin.hasChanges(document)).toBe(true);
+    // A second edit, further in: the first is still what the walk finds first.
+    await document.overwrite(12, Uint8Array.from([0xbb]));
+    expect(await origin.hasChanges(document)).toBe(true);
+
+    await document.overwrite(8, Uint8Array.from([0x18]));
+    expect(await origin.hasChanges(document)).toBe(true);
+    await document.overwrite(12, Uint8Array.from([0x1c]));
+    expect(await origin.hasChanges(document)).toBe(false);
+  });
+
+  /**
+   * An edit in the parent that does not touch the source leaves the link alone:
+   * it is those bytes the link is about, not the whole file.
+   *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testTheLinkFollowsTheSourceBytes
+   */
+  it("is still intact when the parent changes elsewhere", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+    const origin = paneState(part)?.origin;
+
+    await paneState("a")?.document.overwrite(0x30, Uint8Array.from([0xff]));
+
+    expect(await origin?.state()).toBe("intact");
+  });
+
+  /**
    * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAToolTabsPartIsNamedWithoutTheDumpAroundIt
    */
   it("names a part without the dump around it", () => {

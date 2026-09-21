@@ -1,6 +1,5 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { hexAddress } from "@/core/text/hexText";
-import { sha256 } from "@/firmware/me/crypto/digest";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
@@ -67,27 +66,81 @@ export type OriginUpdate =
  * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.Snapshot
  */
 export interface OriginSnapshot {
-  readonly fingerprint: string | undefined;
-  readonly baseline: string;
   readonly source: readonly [number, number];
+  readonly sourceBytes: Blob | undefined;
+  readonly content: Blob;
 }
 
-/** The digest of a stretch of bytes, or nothing where they cannot be read. */
-async function digestOf(
+/**
+ * How much of a side is read at a time while the two are compared.
+ *
+ * @web-only upstream hashes each side whole; this walks them, and a walk reads
+ * in chunks for the same reason every other read of a large file here does
+ */
+const COMPARE_CHUNK = 1 << 20;
+
+/**
+ * A stretch of bytes held as it stood, to answer later whether it still does.
+ *
+ * A `Blob` rather than a digest, and the reason is measured: a part is
+ * megabytes — a decompressed DXE volume is seventeen of them — and this
+ * question is asked on every keystroke. Hashing both sides costs seconds a
+ * keystroke in a browser, where upstream's CryptoKit costs milliseconds; a
+ * comparison that stops at the first differing byte costs almost nothing, gives
+ * the same answer, and keeps the bytes off the JavaScript heap.
+ */
+const snapshotOf = (bytes: Uint8Array): Blob => new Blob([bytes.slice()]);
+
+/** The bytes of a stretch of a document, or nothing where they cannot be read. */
+async function readRange(
   document: BinaryDocument,
   start: number,
   end: number
-): Promise<string | undefined> {
+): Promise<Uint8Array | undefined> {
   if (end > document.size || start > end) return undefined;
   try {
-    return hex(sha256(await document.read(start, end - start)));
+    return await document.read(start, end - start);
   } catch {
     return undefined;
   }
 }
 
-const hex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+/**
+ * Whether `[start, end)` of `document` is byte for byte what `held` holds —
+ * read a chunk at a time, and no further than the first byte that differs.
+ *
+ * `at` is where the two last differed: a witness, checked first, so a part
+ * being typed into answers "changed" from one byte rather than from a walk of
+ * everything before the edit. It comes back with the answer, to be checked
+ * first next time.
+ */
+async function same(
+  document: BinaryDocument,
+  start: number,
+  end: number,
+  held: Blob | undefined,
+  at: number | undefined
+): Promise<{ readonly same: boolean; readonly difference: number | undefined }> {
+  if (held === undefined) return { same: false, difference: undefined };
+  if (end > document.size || start > end || end - start !== held.size) {
+    return { same: false, difference: undefined };
+  }
+  if (at !== undefined && at < held.size) {
+    const read = await readRange(document, start + at, start + at + 1);
+    const known = new Uint8Array(await held.slice(at, at + 1).arrayBuffer());
+    if (read === undefined || read[0] !== known[0]) return { same: false, difference: at };
+  }
+  for (let offset = 0; offset < held.size; offset += COMPARE_CHUNK) {
+    const length = Math.min(COMPARE_CHUNK, held.size - offset);
+    const read = await readRange(document, start + offset, start + offset + length);
+    if (read === undefined) return { same: false, difference: undefined };
+    const known = new Uint8Array(await held.slice(offset, offset + length).arrayBuffer());
+    for (let index = 0; index < length; index++) {
+      if (read[index] !== known[index]) return { same: false, difference: offset + index };
+    }
+  }
+  return { same: true, difference: undefined };
+}
 
 /**
  * The link one part carries.
@@ -140,15 +193,27 @@ export class DocumentOrigin {
 
   /** The document the parent pane held when the part was taken out of it. */
   private readonly parentDocument: BinaryDocument;
-  /** The source's bytes as last taken out or put back. */
-  private fingerprint: string | undefined;
+  /**
+   * The source's bytes as last taken out or put back; nothing where they could
+   * not be read at all.
+   *
+   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.fingerprint
+   * @upstream-differs the bytes, held off the heap, where upstream holds their
+   * SHA-256: what the two sides are asked is whether they still match, and a
+   * walk that stops at the first byte that differs answers it without hashing
+   * megabytes on every keystroke
+   */
+  private sourceBytes: Blob | undefined;
   /**
    * The part's content as last taken out or put back — what "has changes to put
    * back" is measured against.
    *
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.baseline
+   * @upstream-differs the bytes rather than their digest, for the reason above
    */
-  private baseline: string;
+  private content: Blob;
+  /** Where the part and its snapshot last differed — the witness `same` checks first. */
+  private childDifference: number | undefined;
   /**
    * The parent's name now — it follows a Save As — or the last name it had
    * while it was still the parent.
@@ -169,8 +234,8 @@ export class DocumentOrigin {
     kind: OriginKind,
     rebuildTarget: RebuildTarget | undefined,
     layout: UEFIRootLayout,
-    fingerprint: string | undefined,
-    baseline: string
+    sourceBytes: Blob | undefined,
+    content: Blob
   ) {
     this.parent = parent;
     this.parentDocument = parentDocument;
@@ -180,11 +245,11 @@ export class DocumentOrigin {
     this.kind = kind;
     this.rebuildTarget = rebuildTarget;
     this.layout = layout;
-    this.fingerprint = fingerprint;
-    this.baseline = baseline;
+    this.sourceBytes = sourceBytes;
+    this.content = content;
     this.checked = {
       generation: parentDocument.contentGeneration,
-      state: fingerprint === undefined ? "sourceChanged" : "intact",
+      state: sourceBytes === undefined ? "sourceChanged" : "intact",
     };
   }
 
@@ -207,7 +272,7 @@ export class DocumentOrigin {
   }): Promise<DocumentOrigin | undefined> {
     const slot = paneState(options.parent);
     if (slot === undefined) return undefined;
-    const fingerprint = await digestOf(slot.document, options.source[0], options.source[1]);
+    const held = await readRange(slot.document, options.source[0], options.source[1]);
     return new DocumentOrigin(
       options.parent,
       slot.document,
@@ -217,8 +282,8 @@ export class DocumentOrigin {
       options.kind ?? "copy",
       options.rebuildTarget,
       options.layout ?? IMAGE_LAYOUT,
-      fingerprint,
-      hex(sha256(options.content))
+      held === undefined ? undefined : snapshotOf(held),
+      snapshotOf(options.content)
     );
   }
 
@@ -239,9 +304,14 @@ export class DocumentOrigin {
     const generation = slot.document.contentGeneration;
     const checked = this.checked;
     if (checked !== undefined && checked.generation === generation) return checked.state;
-    const digest = await digestOf(slot.document, this.source[0], this.source[1]);
-    const state: OriginState =
-      digest !== undefined && digest === this.fingerprint ? "intact" : "sourceChanged";
+    const found = await same(
+      slot.document,
+      this.source[0],
+      this.source[1],
+      this.sourceBytes,
+      undefined
+    );
+    const state: OriginState = found.same ? "intact" : "sourceChanged";
     this.checked = { generation, state };
     return state;
   }
@@ -279,14 +349,10 @@ export class DocumentOrigin {
     const generation = child.contentGeneration;
     const checked = this.childChecked;
     if (checked !== undefined && checked.generation === generation) return checked.changed;
-    let changed = true;
-    try {
-      changed = hex(sha256(await child.read(0, child.size))) !== this.baseline;
-    } catch {
-      changed = true;
-    }
-    this.childChecked = { generation, changed };
-    return changed;
+    const found = await same(child, 0, child.size, this.content, this.childDifference);
+    this.childDifference = found.difference;
+    this.childChecked = { generation, changed: !found.same };
+    return !found.same;
   }
 
   /**
@@ -362,25 +428,27 @@ export class DocumentOrigin {
     source: readonly [number, number]
   ): OriginSnapshot {
     const snapshot: OriginSnapshot = {
-      fingerprint: this.fingerprint,
-      baseline: this.baseline,
       source: this.source,
+      sourceBytes: this.sourceBytes,
+      content: this.content,
     };
-    this.fingerprint = hex(sha256(sourceBytes));
-    this.baseline = hex(sha256(partBytes));
+    this.sourceBytes = snapshotOf(sourceBytes);
+    this.content = snapshotOf(partBytes);
     this.source = source;
     this.checked = undefined;
     this.childChecked = undefined;
+    this.childDifference = undefined;
     return snapshot;
   }
 
   /** @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.restore */
   restore(snapshot: OriginSnapshot): void {
-    this.fingerprint = snapshot.fingerprint;
-    this.baseline = snapshot.baseline;
+    this.sourceBytes = snapshot.sourceBytes;
+    this.content = snapshot.content;
     this.source = snapshot.source;
     this.checked = undefined;
     this.childChecked = undefined;
+    this.childDifference = undefined;
   }
 
   /** The parent pane, while it is still holding the document this came from. */
