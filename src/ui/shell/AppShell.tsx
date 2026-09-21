@@ -1544,14 +1544,40 @@ export function AppShell() {
     [diff.hunks, selections, state.activePane]
   );
 
-  const onSelectionChanged = useMemo(
-    () => ({
-      a: (selection: { start: number; end: number }) =>
-        setSelections((current) => ({ ...current, a: selection })),
-      b: (selection: { start: number; end: number }) =>
-        setSelections((current) => ({ ...current, b: selection })),
-    }),
-    []
+  /**
+   * Where a pane's selection is recorded — and only when it has moved.
+   *
+   * The same numbers in a new object are not a change, and saying they are is
+   * a loop: the pane reports its selection whenever this callback's identity
+   * changes, and a state write here re-renders the shell, which would hand it
+   * another one. Measured at ~600 renders a second with a panel open, before
+   * the guard and the per-pane callbacks below.
+   */
+  const noteSelection = useCallback((pane: PaneId, selection: { start: number; end: number }) => {
+    setSelections((current) => {
+      const held = current[pane];
+      if (held !== undefined && held.start === selection.start && held.end === selection.end) {
+        return current;
+      }
+      return { ...current, [pane]: selection };
+    });
+  }, []);
+
+  /**
+   * One callback per pane, kept for as long as the shell lives: a pane reports
+   * its selection from an effect keyed on this function, so a fresh one each
+   * render would have it re-subscribing — and reporting — on every render.
+   */
+  const selectionReporters = useRef(new Map<PaneId, (s: { start: number; end: number }) => void>());
+  const reportSelection = useCallback(
+    (pane: PaneId) => {
+      const held = selectionReporters.current.get(pane);
+      if (held !== undefined) return held;
+      const made = (selection: { start: number; end: number }) => noteSelection(pane, selection);
+      selectionReporters.current.set(pane, made);
+      return made;
+    },
+    [noteSelection]
   );
 
   /**
@@ -1680,7 +1706,7 @@ export function AppShell() {
         differences={diff.index}
         companionSize={state.panes[other]?.document.size}
         peerSelection={state.panes[other] === undefined ? undefined : selections[other]}
-        onSelectionChanged={onSelectionChanged[id]}
+        onSelectionChanged={reportSelection(id)}
         revealRequest={reveal[id]}
         typing={pane.typing}
         saved={pane.saved}
@@ -1751,9 +1777,7 @@ export function AppShell() {
         isActive
         onActivate={() => raisePart(pane)}
         onClose={() => void closeWithWarning(pane)}
-        onSelectionChanged={(selection) =>
-          setSelections((current) => ({ ...current, [pane]: selection }))
-        }
+        onSelectionChanged={reportSelection(pane)}
         revealRequest={reveal[pane]}
         onSave={() => void doSave(false)}
         onSaveAs={() => void doSave(true)}

@@ -109,6 +109,13 @@ src/core/document/binaryDocument.test.ts` to check it.
 - **Headless Chrome writes to its profile while closing**, so deleting it can
   fail with `ENOTEMPTY`. It is a temp directory and the next `start` wipes it.
 - The pane the dump lands in is `.hex-pane`. `.pane` matches nothing.
+- **A render loop is measured, not guessed at.** With the app idle, a
+  `MutationObserver` over `document.body` should count **zero** mutations in a
+  second:
+  `eval "(async()=>{let n=0;const o=new MutationObserver(()=>n++);o.observe(document.body,{subtree:true,attributes:true,childList:true});await new Promise(r=>setTimeout(r,1000));o.disconnect();return n;})()"`
+  Anything else is the shell re-rendering in a loop, and a CPU profile over the
+  CDP socket (`Profiler.start` / `Profiler.stop`) says which half — React's own
+  frames mean a state write feeding a render.
 - **A menu this app opens is a list of `.menu-item` buttons.** `rclick` opens
   the one under the pointer; then
   `eval "Array.from(document.querySelectorAll('.menu-item')).map(e=>(e.disabled?'[x] ':'')+e.textContent).join(' | ')"`
