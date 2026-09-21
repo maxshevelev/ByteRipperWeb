@@ -14,11 +14,11 @@ import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
 import { createStore } from "@/state/store";
 import {
+  frontSurface,
   isSlot,
   PANE_IDS,
   type PaneId,
   paneIn,
-  paneInFront,
   paneState,
   type SurfaceId,
   surfaceOf,
@@ -169,6 +169,11 @@ export const minimapStore = createStore<MinimapsState>({ surfaces: {} });
  * mode and width and nothing else — which is how a panel opens with the map the
  * workspace has. The moment anything about that panel's map is changed it
  * becomes the panel's own.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.prepareFragmentMinimap
+ * @upstream-differs upstream prepares a panel's map as the panel opens; here the
+ * default answers for a surface nobody has touched, which is the same rule
+ * without a copy to keep in step
  */
 export function mapOn(state: MinimapsState, surface: SurfaceId): MinimapState {
   const held = state.surfaces[surface];
@@ -179,8 +184,7 @@ export function mapOn(state: MinimapsState, surface: SurfaceId): MinimapState {
 }
 
 /** The map of the surface in front — what the toolbar's toggle means. */
-export const frontMap = (state: MinimapsState): MinimapState =>
-  mapOn(state, surfaceOf(paneInFront()));
+export const frontMap = (state: MinimapsState): MinimapState => mapOn(state, frontSurface());
 
 /** Writes one surface's map back, leaving every other surface alone. */
 function updateMap(surface: SurfaceId, change: (map: MinimapState) => MinimapState): void {
@@ -322,7 +326,7 @@ export function setMinimapWidth(surface: SurfaceId, width: number): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimap
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.togglePanel
  */
-export function toggleMinimap(surface: SurfaceId = surfaceOf(paneInFront())): void {
+export function toggleMinimap(surface: SurfaceId = frontSurface()): void {
   setMinimapVisible(surface, !mapFor(surface).visible);
 }
 
@@ -380,7 +384,7 @@ function fingerprint(pane: PaneId, extent: number, rowCount: number): string | u
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSources
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.followIndexChange
  */
-export async function refreshMinimap(surface: SurfaceId = surfaceOf(paneInFront())): Promise<void> {
+export async function refreshMinimap(surface: SurfaceId = frontSurface()): Promise<void> {
   const state = mapFor(surface);
   if (!state.visible || state.rowCount <= 0) return;
 
@@ -484,7 +488,7 @@ async function buildHere(pane: PaneId, extent: number, rowCount: number): Promis
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.syncedMatchPicture
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.MatchPicture
  */
-export function refreshMasks(surface: SurfaceId = surfaceOf(paneInFront())): Promise<void> {
+export function refreshMasks(surface: SurfaceId = frontSurface()): Promise<void> {
   // One refresh at a time *per surface*, and any number of requests during it
   // make one more: a search publishes every hundred milliseconds, and each
   // publish starting its own pass over the file stacked them up behind each

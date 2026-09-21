@@ -583,6 +583,7 @@ function MinimapCanvas({
 
   // The marks of the pane this map is about: a part's are its own, and the
   // workspace's would name rows of a file this map is not drawing.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncFragmentMinimapBookmarks
   const marks = bookmarksIn(useStore(bookmarksStore), pane);
   /** The piece the pointer is over, so the strip can say which it would act on. */
   const [hoveredPiece, setHoveredPiece] = useState<number | undefined>(undefined);
@@ -1036,7 +1037,8 @@ function MinimapCanvas({
           const zone = zoneUnder(event);
           if (zone !== undefined) {
             // The gutter's own menu: the commands that act on the zone under
-            // the pointer (§19.4.5). The zone's name is in the title, so the
+            // the pointer (§19.4.5).
+            // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapZoneMenu The zone's name is in the title, so the
             // menu says what it will act on; an unnamed zone is named by where
             // it starts, which is all there is.
             const named =

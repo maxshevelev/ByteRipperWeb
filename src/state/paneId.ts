@@ -43,13 +43,19 @@ export const isSlot = (pane: PaneId): pane is SlotId => pane === "a" || pane ===
  */
 export type SurfaceId = "panes" | PartId;
 
-/** The workspace's own surface: its two file slots and what they share. */
+/**
+ * The workspace's own surface: its two file slots and what they share.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.surface
+ */
 export const WORKSPACE_SURFACE = "panes";
 
 /**
  * The surface a pane belongs to. The two file slots share one, because they
  * are a comparison — one minimap pair, one tool panel, one split. A part is a
  * surface of its own, which is the whole of what a panel is.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.surface
  */
 export const surfaceOf = (pane: PaneId): SurfaceId => (isSlot(pane) ? WORKSPACE_SURFACE : pane);
 

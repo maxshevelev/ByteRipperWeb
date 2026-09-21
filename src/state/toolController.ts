@@ -9,11 +9,11 @@ import {
 } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import {
+  frontSurface,
   isSlot,
   PANE_IDS,
   type PaneId,
   type PaneState,
-  paneInFront,
   paneState,
   type SlotId,
   type SurfaceId,
@@ -133,10 +133,7 @@ export const sessionOn = (state: ToolControllerState, surface: SurfaceId): ToolS
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontTools
  */
 export const frontSession = (state: ToolControllerState): ToolSession =>
-  sessionOn(state, surfaceOf(paneInFront()));
-
-/** The surface the menus act on. */
-const frontSurface = (): SurfaceId => surfaceOf(paneInFront());
+  sessionOn(state, frontSurface());
 
 /** Writes one surface's session back, leaving every other surface alone. */
 function updateSession(surface: SurfaceId, change: (session: ToolSession) => ToolSession): void {

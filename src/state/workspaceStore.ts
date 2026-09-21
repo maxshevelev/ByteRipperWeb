@@ -391,6 +391,15 @@ export const frontPane = (state: WorkspaceState): PaneId =>
 export const paneInFront = (): PaneId => frontPane(workspaceStore.getSnapshot());
 
 /**
+ * The surface in front: the part of the panel that is up, or the workspace's
+ * own. What the Tools menu, the tool picker and the minimap's toggle mean.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontSurface
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.frontSurface
+ */
+export const frontSurface = (): SurfaceId => surfaceOf(paneInFront());
+
+/**
  * Whether the workspace's own panes are taking orders. They are not while a
  * panel is up: it covers them, and a command that rearranged or replaced
  * something nobody can see is a command that looks like it did nothing.
