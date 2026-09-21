@@ -1,5 +1,6 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { FITReport } from "@/firmware/fit/fitTable";
+import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { discardParkedStateFor } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import { applyTransaction } from "@/state/toolEdits";
@@ -195,6 +196,10 @@ function ensureWorker(pane: PaneId): PaneWorker {
         spaceBytesWaiters.get(pane)?.(response.bytes);
         spaceBytesWaiters.delete(pane);
         return;
+      case "firmwareLayout":
+        layoutWaiters.get(pane)?.(response.layout);
+        layoutWaiters.delete(pane);
+        return;
       case "firmwareProtectedRanges":
         // The reading's own complaints join the panel's list: what the lists
         // say is as much a part of reading an image as what its headers say.
@@ -216,6 +221,8 @@ function ensureWorker(pane: PaneId): PaneWorker {
         fitWaiters.delete(pane);
         spaceBytesWaiters.get(pane)?.(undefined);
         spaceBytesWaiters.delete(pane);
+        layoutWaiters.get(pane)?.(IMAGE_LAYOUT);
+        layoutWaiters.delete(pane);
         fitEditWaiters.get(pane)?.({
           kind: "fitEdit",
           id: response.id,
@@ -249,7 +256,7 @@ function send(pane: PaneId, request: FirmwareWorkerRequest): void {
  * what the document holds once it is not — the tree has to be about the bytes
  * on screen, not the ones on disk.
  */
-export function openFirmware(pane: PaneId, content: Blob): void {
+export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayout): void {
   const held = ensureWorker(pane);
   held.job += 1;
   update(pane, {
@@ -262,7 +269,7 @@ export function openFirmware(pane: PaneId, content: Blob): void {
     detail: undefined,
     problem: undefined,
   });
-  held.worker.postMessage({ kind: "openFirmware", id: held.job, content });
+  held.worker.postMessage({ kind: "openFirmware", id: held.job, content, layout });
 }
 
 /**
@@ -289,7 +296,9 @@ async function currentContent(pane: PaneId): Promise<Blob | undefined> {
 export async function parsePaneFirmware(pane: PaneId): Promise<void> {
   const content = await currentContent(pane);
   if (content === undefined) return;
-  openFirmware(pane, content);
+  // A part is read as what the parent's tree knew it to be: a decompressed
+  // body read as an image is a scan that finds nothing.
+  openFirmware(pane, content, paneState(pane)?.origin?.layout);
 }
 
 /** Asks for one node's children, unless they are already on their way. */
@@ -373,6 +382,30 @@ export async function readSpaceBytes(
   return new Promise<Uint8Array | undefined>((resolve) => {
     spaceBytesWaiters.set(pane, resolve);
     send(pane, { kind: "firmwareSpaceBytes", id: workers[pane]?.job ?? 0, space, range });
+  });
+}
+
+/**
+ * What a part of this pane's image would be read as, opened on its own: a
+ * node's own layout, its body's alone, or a range of the file's.
+ *
+ * An image nothing has parsed — or a pane that is not firmware at all — answers
+ * with the image layout, which is the honest "whatever the bytes announce".
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.of
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.forFileRange
+ */
+export async function askFirmwareLayout(
+  pane: PaneId,
+  target:
+    | { readonly node: readonly number[]; readonly body?: boolean }
+    | { readonly range: readonly [number, number] }
+): Promise<UEFIRootLayout> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return IMAGE_LAYOUT;
+  return new Promise<UEFIRootLayout>((resolve) => {
+    layoutWaiters.set(pane, resolve);
+    send(pane, { kind: "firmwareLayout", id: workers[pane]?.job ?? 0, ...target });
   });
 }
 
@@ -531,6 +564,9 @@ const fitWaiters = new Map<PaneId, (report: FITReport | undefined) => void>();
 
 /** Who is waiting for a buffer's bytes, by pane. One command asks at a time. */
 const spaceBytesWaiters = new Map<PaneId, (bytes: Uint8Array | undefined) => void>();
+
+/** Who is waiting to be told what a part of this image would be read as. */
+const layoutWaiters = new Map<PaneId, (layout: UEFIRootLayout) => void>();
 
 /** Who is waiting for a repair, by the node it is about. */
 const repairWaiters = new Map<

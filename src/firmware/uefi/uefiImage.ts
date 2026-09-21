@@ -4,6 +4,7 @@ import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import type { UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { DEFAULT_LIMITS, type Limits, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import { type ProtectedRanges, readProtectedRanges } from "@/firmware/uefi/protectedRanges";
+import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { type ResetVector, runSecondPass } from "@/firmware/uefi/secondPass";
 import { materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
 import {
@@ -197,6 +198,13 @@ export function parseUefiImage(
      * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.parse
      */
     readonly readsProtectedRanges?: boolean;
+    /**
+     * What the bytes at offset 0 are, where something outside them knows — a
+     * part of another image opened on its own.
+     *
+     * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.parse
+     */
+    readonly layout?: UEFIRootLayout;
   } = {}
 ): UEFIImage {
   const limits = options.limits ?? DEFAULT_LIMITS;
@@ -206,7 +214,7 @@ export function parseUefiImage(
       ? undefined
       : new ProgressSink(reader.count, options.onProgress);
 
-  const built = rootsOf(reader, limits, sink);
+  const built = rootsOf(reader, limits, options.layout ?? IMAGE_LAYOUT, sink);
   const roots = built.nodes;
   const diagnostics = [...built.diagnostics];
   const buffers = options.buffers ?? new DecompressedBuffers();

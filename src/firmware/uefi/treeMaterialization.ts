@@ -3,6 +3,7 @@ import { type ByteSpace, insideSection, isFileSpace } from "@/firmware/uefi/byte
 import { algorithmDisplayName, locateCompressedSection } from "@/firmware/uefi/compressedSection";
 import type { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { type DiagnosticKind, locatedIn, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
+import { parseFile } from "@/firmware/uefi/fileParser";
 import { walkNvramVolumeBody } from "@/firmware/uefi/nvramParser";
 import {
   DEFAULT_EMPTY_BYTE,
@@ -11,9 +12,10 @@ import {
   type ProgressSink,
 } from "@/firmware/uefi/parserState";
 import { parseTopLevel, scanRawArea } from "@/firmware/uefi/rawScan";
+import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { walkSections } from "@/firmware/uefi/sectionParser";
-import { childId, type NodeID, ROOT_ID, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { readVolumeHeader, volumeChildren } from "@/firmware/uefi/volumeParser";
+import { childId, type NodeID, nodeRange, ROOT_ID, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { parseVolume, readVolumeHeader, volumeChildren } from "@/firmware/uefi/volumeParser";
 
 /**
  * The one place a collapsed node's children are computed from the bytes.
@@ -55,11 +57,56 @@ export interface Materialized {
 export function rootsOf(
   reader: ImageReader,
   limits: Limits,
+  layout: UEFIRootLayout = IMAGE_LAYOUT,
   progress?: ProgressSink
 ): Materialized {
+  if (reader.count === 0) return { nodes: [], diagnostics: [] };
   const parser = new Parser(reader, limits, progress);
-  const nodes = reader.count === 0 ? [] : parseTopLevel(parser, reader.all, 0);
-  return { nodes, diagnostics: parser.diagnostics };
+  // What the bytes are, where something outside them knows: the body of a
+  // compressed section is a run of sections, and a signature scan reads it as
+  // padding. A layout the bytes do not bear out is not forced on them — they
+  // are read as an image, and the attempt that failed says nothing.
+  switch (layout.kind) {
+    case "image":
+      break;
+    case "volume": {
+      const volume = parseVolume(parser, { offset: 0, limit: reader.count, depth: 0 });
+      if (volume !== undefined) {
+        const nodes = [
+          volume,
+          ...parser.padding(nodeRange(volume).end, reader.count, DEFAULT_EMPTY_BYTE),
+        ];
+        return { nodes, diagnostics: parser.diagnostics };
+      }
+      break;
+    }
+    case "file": {
+      const file = parseFile(parser, {
+        offset: 0,
+        limit: reader.count,
+        ffsVersion: layout.ffsVersion,
+        volumeRevision: layout.volumeRevision,
+        depth: 0,
+      });
+      if (file !== undefined) {
+        const nodes = [file.node, ...parser.padding(file.size, reader.count, DEFAULT_EMPTY_BYTE)];
+        return { nodes, diagnostics: parser.diagnostics };
+      }
+      break;
+    }
+    case "sections": {
+      const nodes = walkSections(parser, reader.all, {
+        ffsVersion: layout.ffsVersion,
+        emptyByte: DEFAULT_EMPTY_BYTE,
+        depth: 0,
+      });
+      return { nodes, diagnostics: parser.diagnostics };
+    }
+  }
+  // A fresh parser for the fallback, so the failed attempt's complaints are
+  // not carried into what the image itself says.
+  const asImage = layout.kind === "image" ? parser : new Parser(reader, limits, progress);
+  return { nodes: parseTopLevel(asImage, reader.all, 0), diagnostics: asImage.diagnostics };
 }
 
 /**

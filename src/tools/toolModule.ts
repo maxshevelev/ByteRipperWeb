@@ -1,3 +1,4 @@
+import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { NoticeGlyph } from "@/state/noticeStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import type { PaneId } from "@/state/workspaceStore";
@@ -98,7 +99,18 @@ export interface ToolContext {
    * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
    */
-  readonly openPart: (bytes: Uint8Array, name: string, source?: readonly [number, number]) => void;
+  readonly openPart: (
+    bytes: Uint8Array,
+    name: string,
+    source?: readonly [number, number],
+    /**
+     * What a panel opened on the part should read its bytes as, where the tool
+     * knows: a decompressed body is a run of sections, not an image to scan.
+     *
+     * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout
+     */
+    layout?: UEFIRootLayout
+  ) => void;
 }
 
 /**

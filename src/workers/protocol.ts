@@ -21,6 +21,7 @@ import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
+import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { NodeDetail } from "@/tools/toolDetail";
 
 /** A job number. Monotonic per worker client; never reused. */
@@ -221,6 +222,15 @@ export interface FirmwareOpenRequest {
   readonly kind: "openFirmware";
   readonly id: JobId;
   readonly content: Blob;
+  /**
+   * What the bytes at offset 0 are, where the pane knows from outside them: a
+   * part taken out of an image is read as what the parent's tree said it was,
+   * because a decompressed body read as an image is a scan that finds nothing
+   * (`Design/UEFI/UPDATE_IN_PARENT.md` §2.1).
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.layout
+   */
+  readonly layout?: UEFIRootLayout | undefined;
 }
 
 /** One collapsed node's children, computed when something asks to see them. */
@@ -308,6 +318,33 @@ export interface FirmwareSpaceBytesRequest {
   readonly space: readonly number[];
   /** The bytes in that space, or nothing for the whole of it. */
   readonly range?: readonly [number, number] | undefined;
+}
+
+/**
+ * What a part of this image would be read as, when it is opened on its own: the
+ * node's own layout, the layout of its body alone, or the layout of a range of
+ * the file (a zone).
+ *
+ * Asked of the worker because the answer comes from the *tree* — which volume a
+ * file sits in, what file system that volume declares — and the tree is here.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.of
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.forFileRange
+ */
+export interface FirmwareLayoutRequest {
+  readonly kind: "firmwareLayout";
+  readonly id: JobId;
+  /** The node it is about, with `body` for its body alone. */
+  readonly node?: readonly number[] | undefined;
+  readonly body?: boolean | undefined;
+  /** Or a range of the file, which is what a zone is. */
+  readonly range?: readonly [number, number] | undefined;
+}
+
+export interface FirmwareLayoutResponse {
+  readonly kind: "firmwareLayout";
+  readonly id: JobId;
+  readonly layout: UEFIRootLayout;
 }
 
 /** Everything the detail panel shows about one node, read once. */
@@ -398,6 +435,7 @@ export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
   | MeChecksumsRequest
   | FirmwareDetailRequest
+  | FirmwareLayoutRequest
   | FirmwareSpaceBytesRequest
   | FirmwareProtectedRangesRequest
   | FirmwareNodeAtOffsetRequest
@@ -649,6 +687,7 @@ export type FirmwareWorkerResponse =
   | FirmwareInvalidatedResponse
   | FirmwareAddressesResponse
   | FirmwareDetailResponse
+  | FirmwareLayoutResponse
   | FirmwareSpaceBytesResponse
   | FirmwareProtectedRangesResponse
   | FirmwareNodeAtOffsetResponse

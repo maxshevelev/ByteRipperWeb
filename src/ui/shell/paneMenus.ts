@@ -7,6 +7,7 @@ import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarkAt } from "@/state/bookmarksStore";
+import { askFirmwareLayout } from "@/state/firmwareStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
@@ -452,7 +453,7 @@ function selectionItems(
 export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
   void slot.document
     .read(zone.start, zone.end - zone.start)
-    .then((bytes) =>
+    .then(async (bytes) =>
       openLinkedPart({
         parent: pane,
         bytes,
@@ -461,6 +462,9 @@ export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
         // The zone's own name is what it is called in the parent, which is
         // better than anything read back off the file name.
         partName: zone.name,
+        // And what the bytes *are*, where the parent's tree covers them: a
+        // zone that is a volume or a file is read as one rather than scanned.
+        layout: await askFirmwareLayout(pane, { range: [zone.start, zone.end] }),
       })
     )
     .catch((error: unknown) =>

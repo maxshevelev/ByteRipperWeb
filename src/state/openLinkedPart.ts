@@ -1,3 +1,4 @@
+import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { DocumentOrigin } from "@/state/documentOrigin";
 import { openPart, type PaneId, type PartId, paneState } from "@/state/workspaceStore";
 
@@ -29,6 +30,11 @@ export async function openLinkedPart(options: {
    * nothing better to say.
    */
   readonly partName?: string | undefined;
+  /**
+   * What a panel opened on the part should read its bytes as — the parent's
+   * tree is what knows (`askFirmwareLayout`).
+   */
+  readonly layout?: UEFIRootLayout | undefined;
 }): Promise<PartId> {
   const { parent, bytes, name, source } = options;
   const origin =
@@ -38,6 +44,7 @@ export async function openLinkedPart(options: {
           parent,
           source,
           partName: options.partName ?? partNameOf(name, paneState(parent)?.name ?? ""),
+          ...(options.layout === undefined ? {} : { layout: options.layout }),
           content: bytes,
         });
   return openPart(bytes, name, origin);

@@ -1,6 +1,7 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { hexAddress } from "@/core/text/hexText";
 import { sha256 } from "@/firmware/me/crypto/digest";
+import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
 /**
@@ -113,6 +114,13 @@ export class DocumentOrigin {
   readonly partName: string;
   /** @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.kind */
   readonly kind: OriginKind;
+  /**
+   * What the bytes are, for a tool-module opened on the part: a decompressed
+   * body is a run of sections, not an image to scan.
+   *
+   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.layout
+   */
+  readonly layout: UEFIRootLayout;
 
   /** The document the parent pane held when the part was taken out of it. */
   private readonly parentDocument: BinaryDocument;
@@ -143,6 +151,7 @@ export class DocumentOrigin {
     source: readonly [number, number],
     partName: string,
     kind: OriginKind,
+    layout: UEFIRootLayout,
     fingerprint: string | undefined,
     baseline: string
   ) {
@@ -152,6 +161,7 @@ export class DocumentOrigin {
     this.source = source;
     this.partName = partName;
     this.kind = kind;
+    this.layout = layout;
     this.fingerprint = fingerprint;
     this.baseline = baseline;
     this.checked = {
@@ -171,6 +181,8 @@ export class DocumentOrigin {
     readonly source: readonly [number, number];
     readonly partName: string;
     readonly kind?: OriginKind;
+    /** What a panel opened on the part should read its bytes as. */
+    readonly layout?: UEFIRootLayout;
     readonly content: Uint8Array;
   }): Promise<DocumentOrigin | undefined> {
     const slot = paneState(options.parent);
@@ -183,6 +195,7 @@ export class DocumentOrigin {
       options.source,
       options.partName,
       options.kind ?? "copy",
+      options.layout ?? IMAGE_LAYOUT,
       fingerprint,
       hex(sha256(options.content))
     );

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
+import { DECOMPRESSED_BODY_LAYOUT } from "@/firmware/uefi/rootLayout";
 import { downloadBlob } from "@/platform/files/download";
 import {
   askFirmwareDetail,
+  askFirmwareLayout,
   askFirmwareProtectedRanges,
   expandFirmwareNode,
   findFirmwareNodeAt,
@@ -449,10 +451,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // What it links back to: the compressed section in the file that these
       // bytes came out of, which for a node inside a buffer is the section
       // holding it.
+      // What a panel opened on these bytes should read them as: a whole
+      // decompressed body is a run of sections by the FFSv3 rules every buffer
+      // is read with; a node inside one is read as what that node is.
+      const layout =
+        taken.range === undefined
+          ? DECOMPRESSED_BODY_LAYOUT
+          : await askFirmwareLayout(context.pane, { node: node.id });
       context.openPart(
         bytes,
         partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),
-        fileSourceOf(node, roots ?? [])
+        fileSourceOf(node, roots ?? []),
+        layout
       );
     },
     [context, decompressedBytes, roots]
@@ -484,7 +494,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       context.openPart(
         bytes,
         partName(open.suggestedName, paneState(context.pane)?.name ?? ""),
-        open.source
+        open.source,
+        await askFirmwareLayout(context.pane, { node: node.id, body })
       );
     },
     [context, roots]

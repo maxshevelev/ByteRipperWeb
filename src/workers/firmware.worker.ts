@@ -30,6 +30,13 @@ import {
   readProtectedRanges,
 } from "@/firmware/uefi/protectedRanges";
 import {
+  IMAGE_LAYOUT,
+  layoutForFileRange,
+  layoutOf,
+  layoutOfBody,
+  type UEFIRootLayout,
+} from "@/firmware/uefi/rootLayout";
+import {
   runSecondPass,
   type SecondPass,
   secondPassAnchoredOn,
@@ -153,6 +160,12 @@ function protectionNote(warnings: readonly string[] | undefined): string {
 
 /** The image currently open. One per worker, as one worker serves one pane. */
 let reader: ImageReader | undefined;
+/**
+ * What the bytes at offset 0 are, as the pane that opened them said: a part
+ * taken out of an image is read as what the parent's tree knew it to be, and a
+ * re-read after an edit has to read it the same way.
+ */
+let layout: UEFIRootLayout = IMAGE_LAYOUT;
 /** The tree as the worker knows it, so a child request can find its node. */
 let roots: UEFINode[] = [];
 /**
@@ -173,6 +186,16 @@ let protectedRanges: ProtectedRanges | undefined;
 let addresses: SecondPass | undefined;
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
+
+/**
+ * The tree as an image, for the readings that need the whole of it — which
+ * volume a node sits in, what a range of the file is. Nothing before an image
+ * is open.
+ */
+function imageOfTree(): UEFIImage | undefined {
+  if (reader === undefined) return undefined;
+  return new UEFIImage({ size: reader.count, roots, addressDiff: addressing().addressDiff });
+}
 
 /** A range of the file as the main thread sends it — a pair over the wire. */
 const rangeOf = (range: readonly [number, number]): ImageRange => ({
@@ -431,7 +454,10 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         const sink = new ProgressSink(reader.count, (fraction) =>
           post({ kind: "firmwareProgress", id: request.id, fraction })
         );
-        const built = rootsOf(reader, DEFAULT_LIMITS, sink);
+        // What the bytes are, where the pane that opened them knows: a part
+        // taken out of an image is read as what the parent's tree said it was.
+        layout = request.layout ?? IMAGE_LAYOUT;
+        const built = rootsOf(reader, DEFAULT_LIMITS, layout, sink);
         roots = stampIds(built.nodes, []);
         post({
           kind: "firmwareRoots",
@@ -608,6 +634,24 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             repairsFor(node, request.node)
           ),
         });
+        return;
+      }
+
+      // What a part of this image is read as when it is opened on its own. The
+      // answer is the tree's — which volume a file sits in, what file system
+      // that volume declares — so it is answered where the tree is.
+      //
+      // @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.of
+      case "firmwareLayout": {
+        const image = imageOfTree();
+        const node = request.node === undefined ? undefined : nodeAt(request.node);
+        let answer: UEFIRootLayout = IMAGE_LAYOUT;
+        if (image !== undefined && node !== undefined) {
+          answer = request.body === true ? layoutOfBody(node, image) : layoutOf(node, image);
+        } else if (image !== undefined && request.range !== undefined) {
+          answer = layoutForFileRange(request.range, image);
+        }
+        post({ kind: "firmwareLayout", id: request.id, layout: answer });
         return;
       }
 
