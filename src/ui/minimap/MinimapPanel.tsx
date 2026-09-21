@@ -40,6 +40,7 @@ import {
   DEFAULT_MINIMAP_WIDTH,
   MAX_MINIMAP_WIDTH,
   MIN_MINIMAP_WIDTH,
+  mapOn,
   minimapStore,
   overviewWorthShowing,
   setMinimapMode,
@@ -56,6 +57,9 @@ import {
   paneIn,
   paneState,
   type SlotId,
+  type SurfaceId,
+  surfaceOf,
+  WORKSPACE_SURFACE,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zoneStore, zonesFor } from "@/state/zoneStore";
@@ -83,6 +87,12 @@ import { readMinimapColors } from "@/ui/theme/minimapColors";
  */
 
 export interface MinimapPanelProps {
+  /**
+   * The surface this map belongs to: the workspace's, or the part of the panel
+   * it is drawn inside. Each has a map of its own, of its own bytes and its own
+   * length (G50).
+   */
+  readonly surface?: SurfaceId;
   /** What each pane has selected, drawn as a strip on its map. */
   readonly selections: Partial<Record<PaneId, { readonly start: number; readonly end: number }>>;
   /** Makes a pane the active one, as clicking its dump does. */
@@ -92,11 +102,22 @@ export interface MinimapPanelProps {
 }
 
 /** @upstream ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView */
-export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelProps) {
-  const state = useStore(minimapStore);
+export function MinimapPanel({
+  surface = WORKSPACE_SURFACE,
+  selections,
+  onActivate,
+  stacked,
+}: MinimapPanelProps) {
+  const state = mapOn(useStore(minimapStore), surface);
   const workspace = useStore(workspaceStore);
   const viewports = usePaneViewports();
-  const open = PANE_IDS.filter((id) => workspace.panes[id] !== undefined);
+  // The panes this surface draws: the workspace's open slots, or the part.
+  const open: readonly PaneId[] =
+    surface === WORKSPACE_SURFACE
+      ? PANE_IDS.filter((id) => workspace.panes[id] !== undefined)
+      : paneIn(workspace, surface) === undefined
+        ? []
+        : [surface];
   const panelRef = useRef<HTMLElement | null>(null);
   const chrome = usePaneChrome(panelRef, open.length);
 
@@ -123,7 +144,7 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
         min={MIN_MINIMAP_WIDTH}
         max={MAX_MINIMAP_WIDTH}
         initial={DEFAULT_MINIMAP_WIDTH}
-        onChange={setMinimapWidth}
+        onChange={(next) => setMinimapWidth(surface, next)}
       />
       {/*
         The switch strip stands in for the pane's header: same height, same
@@ -132,7 +153,7 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
         begin on the line the bytes do. A map that started higher than the dump
         it stands for would put every offset a few rows out.
       */}
-      <MinimapModes offsetTop={chrome.offsetTop} height={chrome.headerHeight} />
+      <MinimapModes surface={surface} offsetTop={chrome.offsetTop} height={chrome.headerHeight} />
       {/*
        * A margin rather than padding: the shared band is positioned against
        * this element, and an absolute child is placed against the padding box
@@ -167,7 +188,9 @@ export function MinimapPanel({ selections, onActivate, stacked }: MinimapPanelPr
          * canvas it broke at every seam, which read as two separate claims
          * about two separate files. Stacked, each map keeps its own.
          */}
-        {stacked ? null : <SharedBand mode={state.mode} viewport={viewports[open[0] ?? "a"]} />}
+        {stacked ? null : (
+          <SharedBand surface={surface} mode={state.mode} viewport={viewports[open[0] ?? "a"]} />
+        )}
       </div>
     </aside>
   );
@@ -262,12 +285,14 @@ function usePaneChrome(
 /** The one band the side-by-side layout draws, edge to edge and over the gap. */
 function SharedBand({
   mode,
+  surface,
   viewport,
 }: {
+  readonly surface: SurfaceId;
   readonly mode: MinimapMode;
   readonly viewport: { readonly start: number; readonly end: number } | undefined;
 }) {
-  const state = useStore(minimapStore);
+  const state = mapOn(useStore(minimapStore), surface);
   const workspace = useStore(workspaceStore);
   const [height, setHeight] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -282,14 +307,16 @@ function SharedBand({
     return () => observer.disconnect();
   }, []);
 
-  const sizes = PANE_IDS.map((id) => workspace.panes[id]?.document.size ?? 0).filter((s) => s > 0);
+  const drawn: readonly PaneId[] = surface === WORKSPACE_SURFACE ? PANE_IDS : [surface];
+  const sizes = drawn.map((id) => paneIn(workspace, id)?.document.size ?? 0).filter((s) => s > 0);
   const band = viewportBand({
     mode,
     viewport,
     areaHeight: height,
     topRow: derivedTopRow({ mode, sizes, windowRows: visibleRowCount(height), viewport }),
     extent: state.extent,
-    overviewRows: state.pictures.a?.rowCount ?? state.pictures.b?.rowCount ?? 0,
+    overviewRows:
+      drawn.map((id) => state.pictures[id]?.rowCount ?? 0).find((rows) => rows > 0) ?? 0,
     // Drawn, not grabbed: overview gets upstream's two-device-pixel floor, so a
     // sliver's middle is where the panes really are.
     minHeight: mode === "overview" ? overviewBandFloor(window.devicePixelRatio) : 0,
@@ -347,13 +374,15 @@ function usePaneViewports(): Partial<Record<PaneId, { start: number; end: number
  */
 function MinimapModes({
   offsetTop,
+  surface,
   height,
 }: {
+  readonly surface: SurfaceId;
   readonly offsetTop: number;
   readonly height: number;
 }) {
-  const state = useStore(minimapStore);
-  const overviewUseful = overviewWorthShowing();
+  const state = mapOn(useStore(minimapStore), surface);
+  const overviewUseful = overviewWorthShowing(surface);
 
   return (
     <div className="minimap-head" style={height > 0 ? { height, marginTop: offsetTop } : undefined}>
@@ -373,7 +402,7 @@ function MinimapModes({
                   ? "One cell per byte, around where the panes are"
                   : "The whole file at once, shaded by content"
             }
-            onClick={() => setMinimapMode(mode)}
+            onClick={() => setMinimapMode(surface, mode)}
           >
             {mode === "detail" ? "Detail" : "Overview"}
           </button>
@@ -453,7 +482,7 @@ function MinimapCanvas({
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<MinimapRenderer | null>(null);
-  const state = useStore(minimapStore);
+  const state = mapOn(useStore(minimapStore), surfaceOf(pane));
   const workspace = useStore(workspaceStore);
   const differences = useStore(diffStore).index;
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -484,10 +513,13 @@ function MinimapCanvas({
 
   useEffect(() => {
     if (size.height <= 0) return;
-    setMinimapRows(overviewRowCount(size.height, window.devicePixelRatio));
-  }, [size.height]);
+    setMinimapRows(surfaceOf(pane), overviewRowCount(size.height, window.devicePixelRatio));
+  }, [size.height, pane]);
 
-  const sizes = PANE_IDS.map((id) => workspace.panes[id]?.document.size ?? 0).filter((s) => s > 0);
+  // What this surface's maps are binned over: the longer of the workspace's two
+  // files, or the part's own length.
+  const drawn: readonly PaneId[] = isSlot(pane) ? PANE_IDS : [pane];
+  const sizes = drawn.map((id) => paneIn(workspace, id)?.document.size ?? 0).filter((s) => s > 0);
   const windowRows = visibleRowCount(size.height);
   const topRow = derivedTopRow({ mode, sizes, windowRows, viewport });
 

@@ -15,7 +15,12 @@ import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffSt
 import { editStore } from "@/state/editStore";
 import { restoreFavorites } from "@/state/favoritesStore";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
-import { noteMinimapEdit, toggleMinimap, watchForMinimap } from "@/state/minimapStore";
+import {
+  forgetPartMinimap,
+  noteMinimapEdit,
+  toggleMinimap,
+  watchForMinimap,
+} from "@/state/minimapStore";
 import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
   closeSearch,
@@ -847,6 +852,9 @@ export function AppShell() {
     // opens at its top rather than at where this one was.
     scrollLink.forget(pane);
     forgetTransientMessage(pane);
+    // A part's own map goes with it, worker and all: nothing will ask about a
+    // panel that has closed (G50).
+    forgetPartMinimap(pane);
     // A part goes with its panel; a slot stays and is emptied.
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeFragment
     if (isSlot(pane)) closePane(pane);
@@ -1592,6 +1600,15 @@ export function AppShell() {
         onDumpMenu={(event, anchor, onClose) =>
           openContextMenu(event, dumpMenu(state, pane, anchor.offset, menuActions), onClose)
         }
+      />
+      {/* And its own map, of the part rather than of the dump behind it: a
+          panel opens with the map the workspace has, and moves its own edge
+          from then on (G50). */}
+      <MinimapPanel
+        surface={pane}
+        selections={selections}
+        onActivate={setActivePane}
+        stacked={false}
       />
     </>
   );

@@ -13,7 +13,18 @@ import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overvie
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
 import { createStore } from "@/state/store";
-import { PANE_IDS, type PaneId, paneIn, paneState, workspaceStore } from "@/state/workspaceStore";
+import {
+  isSlot,
+  PANE_IDS,
+  type PaneId,
+  paneIn,
+  paneInFront,
+  paneState,
+  type SurfaceId,
+  surfaceOf,
+  WORKSPACE_SURFACE,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import type { JobId, MinimapWorkerRequest, MinimapWorkerResponse } from "@/workers/protocol";
 
 /**
@@ -101,7 +112,7 @@ export interface MinimapState {
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewSummaries
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.matchOverlays
    */
-  readonly pictures: Readonly<Record<PaneId, OverviewPicture | undefined>>;
+  readonly pictures: Readonly<Partial<Record<PaneId, OverviewPicture | undefined>>>;
   readonly status: MinimapStatus;
   /**
    * In `[0, 1]` while a picture is being built.
@@ -130,21 +141,84 @@ const IDLE: MinimapState = {
   modeChosen: false,
   rowCount: 0,
   extent: 0,
-  pictures: { a: undefined, b: undefined },
+  pictures: {},
   status: "idle",
   progress: 0,
   problem: undefined,
 };
 
-export const minimapStore = createStore<MinimapState>(IDLE);
+/**
+ * One map per surface: the workspace's two panes share theirs — they are a
+ * comparison, binned over the longer of the two — and every part opened over
+ * them has a map of its own, of its own bytes and its own length (`Design/
+ * GAPS.md` G50). Upstream's minimap state left the window for exactly this.
+ *
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.minimap
+ */
+export interface MinimapsState {
+  readonly surfaces: Readonly<Record<string, MinimapState>>;
+}
+
+export const minimapStore = createStore<MinimapsState>({ surfaces: {} });
+
+/**
+ * The map `surface` has.
+ *
+ * A surface nothing has touched yet answers with the workspace's own visibility,
+ * mode and width and nothing else — which is how a panel opens with the map the
+ * workspace has. The moment anything about that panel's map is changed it
+ * becomes the panel's own.
+ */
+export function mapOn(state: MinimapsState, surface: SurfaceId): MinimapState {
+  const held = state.surfaces[surface];
+  if (held !== undefined) return held;
+  if (surface === WORKSPACE_SURFACE) return IDLE;
+  const workspace = state.surfaces[WORKSPACE_SURFACE] ?? IDLE;
+  return { ...IDLE, visible: workspace.visible, mode: workspace.mode, width: workspace.width };
+}
+
+/** The map of the surface in front — what the toolbar's toggle means. */
+export const frontMap = (state: MinimapsState): MinimapState =>
+  mapOn(state, surfaceOf(paneInFront()));
+
+/** Writes one surface's map back, leaving every other surface alone. */
+function updateMap(surface: SurfaceId, change: (map: MinimapState) => MinimapState): void {
+  minimapStore.update((state) => ({
+    surfaces: { ...state.surfaces, [surface]: change(mapOn(state, surface)) },
+  }));
+}
+
+/** The map of a surface, off the store's current snapshot. */
+const mapFor = (surface: SurfaceId): MinimapState => mapOn(minimapStore.getSnapshot(), surface);
+
+/** The panes a surface draws: the workspace's two, or the part itself. */
+const panesOf = (surface: SurfaceId): readonly PaneId[] =>
+  surface === WORKSPACE_SURFACE ? PANE_IDS : [surface];
+
+/** A part's map goes when the part does. */
+export function forgetPartMinimap(pane: PaneId): void {
+  if (isSlot(pane)) return;
+  currentJob[pane] = undefined;
+  builtFor[pane] = undefined;
+  density[pane] = undefined;
+  workers.get(pane)?.terminate();
+  workers.delete(pane);
+  minimapStore.update((state) => {
+    if (state.surfaces[pane] === undefined) return state;
+    const surfaces = { ...state.surfaces };
+    delete surfaces[pane];
+    return { surfaces };
+  });
+}
 
 let nextJobId: JobId = 1;
 /** The job each pane is waiting on, so a stale reply can be dropped. */
-const currentJob: Record<PaneId, JobId | undefined> = { a: undefined, b: undefined };
+const currentJob: Partial<Record<PaneId, JobId | undefined>> = {};
 /** What each pane's density was built for; an unchanged file is not rebuilt. */
-const builtFor: Record<PaneId, string | undefined> = { a: undefined, b: undefined };
+const builtFor: Partial<Record<PaneId, string | undefined>> = {};
 /** The density as it came back, kept so a mask change does not need a rebuild. */
-const density: Record<PaneId, Uint8Array | undefined> = { a: undefined, b: undefined };
+const density: Partial<Record<PaneId, Uint8Array | undefined>> = {};
 
 /**
  * One worker per pane, unlike the comparison and the search.
@@ -172,8 +246,8 @@ function workerFor(pane: PaneId): Worker {
 
     switch (response.kind) {
       case "overviewProgress":
-        minimapStore.update((state) => ({
-          ...state,
+        updateMap(surfaceOf(pane), (map) => ({
+          ...map,
           status: "building",
           progress: response.fraction,
         }));
@@ -182,12 +256,12 @@ function workerFor(pane: PaneId): Worker {
       case "overviewDone":
         density[pane] = response.density;
         currentJob[pane] = undefined;
-        minimapStore.update((state) => ({
-          ...state,
-          status: anyBuilding() ? "building" : "ready",
+        updateMap(surfaceOf(pane), (map) => ({
+          ...map,
+          status: anyBuilding(surfaceOf(pane)) ? "building" : "ready",
           progress: 1,
         }));
-        void refreshMasks();
+        void refreshMasks(surfaceOf(pane));
         break;
 
       case "cancelled":
@@ -197,8 +271,8 @@ function workerFor(pane: PaneId): Worker {
       case "error":
         currentJob[pane] = undefined;
         builtFor[pane] = undefined;
-        minimapStore.update((state) => ({
-          ...state,
+        updateMap(surfaceOf(pane), (map) => ({
+          ...map,
           status: "failed",
           problem: response.message,
         }));
@@ -209,9 +283,9 @@ function workerFor(pane: PaneId): Worker {
   return worker;
 }
 
-/** True while either map is still being built. */
-function anyBuilding(): boolean {
-  return PANE_IDS.some((pane) => currentJob[pane] !== undefined);
+/** True while any of a surface's maps is still being built. */
+function anyBuilding(surface: SurfaceId): boolean {
+  return panesOf(surface).some((pane) => currentJob[pane] !== undefined);
 }
 
 const send = (pane: PaneId, request: MinimapWorkerRequest) => workerFor(pane).postMessage(request);
@@ -221,9 +295,9 @@ const send = (pane: PaneId, request: MinimapWorkerRequest) => workerFor(pane).po
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.isPanelVisible
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.panelVisibilityChanged
  */
-export function setMinimapVisible(visible: boolean): void {
-  minimapStore.update((state) => (state.visible === visible ? state : { ...state, visible }));
-  if (visible) void refreshMinimap();
+export function setMinimapVisible(surface: SurfaceId, visible: boolean): void {
+  updateMap(surface, (map) => (map.visible === visible ? map : { ...map, visible }));
+  if (visible) void refreshMinimap(surface);
 }
 
 /**
@@ -233,10 +307,10 @@ export function setMinimapVisible(visible: boolean): void {
  * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.persistMinimapPanelWidth
  * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.currentMinimapWidth
  */
-export function setMinimapWidth(width: number): void {
+export function setMinimapWidth(surface: SurfaceId, width: number): void {
   const next = clampMinimapWidth(width);
-  if (minimapStore.getSnapshot().width === next) return;
-  minimapStore.update((state) => ({ ...state, width: next }));
+  if (mapFor(surface).width === next) return;
+  updateMap(surface, (map) => ({ ...map, width: next }));
   try {
     localStorage.setItem(WIDTH_STORAGE_KEY, String(next));
   } catch {
@@ -248,8 +322,8 @@ export function setMinimapWidth(width: number): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimap
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.togglePanel
  */
-export function toggleMinimap(): void {
-  setMinimapVisible(!minimapStore.getSnapshot().visible);
+export function toggleMinimap(surface: SurfaceId = surfaceOf(paneInFront())): void {
+  setMinimapVisible(surface, !mapFor(surface).visible);
 }
 
 /**
@@ -259,11 +333,11 @@ export function toggleMinimap(): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleMinimapOverview
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyPreferredMinimapMode
  */
-export function setMinimapMode(mode: MinimapMode): void {
-  minimapStore.update((state) =>
-    state.mode === mode && state.modeChosen ? state : { ...state, mode, modeChosen: true }
+export function setMinimapMode(surface: SurfaceId, mode: MinimapMode): void {
+  updateMap(surface, (map) =>
+    map.mode === mode && map.modeChosen ? map : { ...map, mode, modeChosen: true }
   );
-  void refreshMinimap();
+  void refreshMinimap(surface);
 }
 
 /**
@@ -278,10 +352,10 @@ export function setMinimapMode(mode: MinimapMode): void {
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewBinsAreStale
  * @upstream-differs the old picture is stretched by CSS until the new one lands
  */
-export function setMinimapRows(rowCount: number): void {
-  if (minimapStore.getSnapshot().rowCount === rowCount) return;
-  minimapStore.update((state) => ({ ...state, rowCount }));
-  void refreshMinimap();
+export function setMinimapRows(surface: SurfaceId, rowCount: number): void {
+  if (mapFor(surface).rowCount === rowCount) return;
+  updateMap(surface, (map) => ({ ...map, rowCount }));
+  void refreshMinimap(surface);
 }
 
 /** The file identity a density picture is valid for. */
@@ -306,17 +380,18 @@ function fingerprint(pane: PaneId, extent: number, rowCount: number): string | u
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSources
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.followIndexChange
  */
-export async function refreshMinimap(): Promise<void> {
-  const state = minimapStore.getSnapshot();
+export async function refreshMinimap(surface: SurfaceId = surfaceOf(paneInFront())): Promise<void> {
+  const state = mapFor(surface);
   if (!state.visible || state.rowCount <= 0) return;
 
-  const panes = workspaceStore.getSnapshot().panes;
-  const sizes = PANE_IDS.map((id) => panes[id]?.document.size ?? 0).filter((size) => size > 0);
+  const drawn = panesOf(surface);
+  const sizes = drawn.map((id) => paneState(id)?.document.size ?? 0).filter((size) => size > 0);
   const extent = sizes.length === 0 ? 0 : Math.max(...sizes);
 
   if (extent !== state.extent) {
-    // A new extent re-bins both maps, so neither picture is valid any more.
-    for (const pane of PANE_IDS) {
+    // A new extent re-bins this surface's maps, so none of its pictures is
+    // valid any more.
+    for (const pane of drawn) {
       builtFor[pane] = undefined;
       density[pane] = undefined;
     }
@@ -325,19 +400,15 @@ export async function refreshMinimap(): Promise<void> {
   const mode = state.modeChosen
     ? state.mode
     : preferredMode(sizes, state.rowCount * (1 / Math.max(1, devicePixelRatio())));
-  minimapStore.update((current) => ({ ...current, extent, mode }));
+  updateMap(surface, (map) => ({ ...map, extent, mode }));
 
   if (extent <= 0) {
-    minimapStore.update((current) => ({
-      ...current,
-      status: "idle",
-      pictures: { a: undefined, b: undefined },
-    }));
+    updateMap(surface, (map) => ({ ...map, status: "idle", pictures: {} }));
     return;
   }
 
-  for (const pane of PANE_IDS) {
-    const slot = panes[pane];
+  for (const pane of drawn) {
+    const slot = paneState(pane);
     if (slot === undefined) {
       builtFor[pane] = undefined;
       density[pane] = undefined;
@@ -360,20 +431,21 @@ export async function refreshMinimap(): Promise<void> {
     const running = currentJob[pane];
     if (running !== undefined) send(pane, { kind: "cancel", id: running });
     currentJob[pane] = id;
-    minimapStore.update((current) => ({ ...current, status: "building", progress: 0 }));
+    updateMap(surface, (map) => ({ ...map, status: "building", progress: 0 }));
     send(pane, { kind: "overview", id, file, extent, rowCount: state.rowCount });
   }
 
-  await refreshMasks();
+  await refreshMasks(surface);
 }
 
 /** The density picture for an edited document, built on this thread. */
 async function buildHere(pane: PaneId, extent: number, rowCount: number): Promise<void> {
   const slot = paneState(pane);
   if (slot === undefined) return;
+  const surface = surfaceOf(pane);
   const id = nextJobId++;
   currentJob[pane] = id;
-  minimapStore.update((state) => ({ ...state, status: "building", progress: 0 }));
+  updateMap(surface, (map) => ({ ...map, status: "building", progress: 0 }));
 
   try {
     const built = await buildOverviewRows(
@@ -386,12 +458,12 @@ async function buildHere(pane: PaneId, extent: number, rowCount: number): Promis
     if (currentJob[pane] !== id || built === undefined) return;
     density[pane] = built.density;
     currentJob[pane] = undefined;
-    minimapStore.update((state) => ({
-      ...state,
-      status: anyBuilding() ? "building" : "ready",
+    updateMap(surface, (map) => ({
+      ...map,
+      status: anyBuilding(surface) ? "building" : "ready",
       progress: 1,
     }));
-    await refreshMasks();
+    await refreshMasks(surface);
   } catch {
     // A cancelled build is a build whose inputs moved; the newer one publishes.
     if (currentJob[pane] === id) currentJob[pane] = undefined;
@@ -412,40 +484,44 @@ async function buildHere(pane: PaneId, extent: number, rowCount: number): Promis
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.syncedMatchPicture
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.MatchPicture
  */
-export function refreshMasks(): Promise<void> {
-  // One refresh at a time, and any number of requests during it make one more:
-  // a search publishes every hundred milliseconds, and each publish starting its
-  // own pass over the file stacked them up behind each other.
-  if (masksRunning !== undefined) {
-    masksAgain = true;
-    return masksRunning;
+export function refreshMasks(surface: SurfaceId = surfaceOf(paneInFront())): Promise<void> {
+  // One refresh at a time *per surface*, and any number of requests during it
+  // make one more: a search publishes every hundred milliseconds, and each
+  // publish starting its own pass over the file stacked them up behind each
+  // other. Per surface rather than in one queue, because two surfaces are two
+  // questions about two files and neither should wait on the other.
+  const running = masksRunning.get(surface);
+  if (running !== undefined) {
+    masksAgain.add(surface);
+    return running;
   }
-  masksRunning = (async () => {
+  const pass = (async () => {
     try {
       do {
-        masksAgain = false;
-        await refreshMasksOnce();
-      } while (masksAgain);
+        masksAgain.delete(surface);
+        await refreshMasksOnce(surface);
+      } while (masksAgain.has(surface));
     } finally {
-      masksRunning = undefined;
+      masksRunning.delete(surface);
     }
   })();
-  return masksRunning;
+  masksRunning.set(surface, pass);
+  return pass;
 }
 
-let masksRunning: Promise<void> | undefined;
-let masksAgain = false;
+const masksRunning = new Map<SurfaceId, Promise<void>>();
+const masksAgain = new Set<SurfaceId>();
 
-async function refreshMasksOnce(): Promise<void> {
-  const state = minimapStore.getSnapshot();
+async function refreshMasksOnce(surface: SurfaceId): Promise<void> {
+  const state = mapFor(surface);
   if (!state.visible || state.rowCount <= 0 || state.extent <= 0) return;
 
   const workspace = workspaceStore.getSnapshot();
   const differences = diffStore.getSnapshot().index;
   const search = searchStore.getSnapshot();
-  const pictures: Record<PaneId, OverviewPicture | undefined> = { a: undefined, b: undefined };
+  const pictures: Partial<Record<PaneId, OverviewPicture | undefined>> = {};
 
-  for (const pane of PANE_IDS) {
+  for (const pane of panesOf(surface)) {
     const slot = paneIn(workspace, pane);
     const built = density[pane];
     if (slot === undefined || built === undefined) continue;
@@ -482,7 +558,7 @@ async function refreshMasksOnce(): Promise<void> {
     };
   }
 
-  minimapStore.update((current) => ({ ...current, pictures }));
+  updateMap(surface, (map) => ({ ...map, pictures }));
 }
 
 /**
@@ -548,27 +624,39 @@ function devicePixelRatio(): number {
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.updateOverviewAvailability
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.preferredMinimapMode
  */
-export function overviewWorthShowing(): boolean {
-  const state = minimapStore.getSnapshot();
-  const panes = workspaceStore.getSnapshot().panes;
-  const sizes = PANE_IDS.map((id) => panes[id]?.document.size ?? 0).filter((size) => size > 0);
-  return overviewIsInformative(sizes, state.rowCount);
+export function overviewWorthShowing(surface: SurfaceId = WORKSPACE_SURFACE): boolean {
+  const sizes = sizesOn(surface).filter((size) => size > 0);
+  return overviewIsInformative(sizes, mapFor(surface).rowCount);
 }
 
 /** Whether a file is small enough that detail is the more useful view. */
-export function detailWorthShowing(): boolean {
-  const panes = workspaceStore.getSnapshot().panes;
-  const sizes = PANE_IDS.map((id) => panes[id]?.document.size ?? 0);
+export function detailWorthShowing(surface: SurfaceId = WORKSPACE_SURFACE): boolean {
+  const sizes = sizesOn(surface);
   return (sizes.length === 0 ? 0 : Math.max(...sizes)) <= DETAIL_PREFERRED_MAX_SIZE;
 }
 
+/** What a surface's panes hold, in bytes. */
+const sizesOn = (surface: SurfaceId): number[] =>
+  panesOf(surface).map((pane) => paneState(pane)?.document.size ?? 0);
+
 /** Rebuilds when the workspace changes, and re-masks when the overlays do. */
 export function watchForMinimap(): () => void {
+  // Every surface that has a map: the workspace's, and one per part in the
+  // dock. A part's map answers to the same news its parent's does — its file
+  // changed length, its search moved — and nothing else would tell it.
+  const everyMap = (act: (surface: SurfaceId) => void): void => {
+    act(WORKSPACE_SURFACE);
+    for (const surface of Object.keys(minimapStore.getSnapshot().surfaces)) {
+      if (surface !== WORKSPACE_SURFACE) act(surface as SurfaceId);
+    }
+  };
   const unsubscribes = [
-    workspaceStore.subscribe(() => void refreshMinimap()),
-    diffStore.subscribe(() => void refreshMasks()),
+    workspaceStore.subscribe(() => everyMap((surface) => void refreshMinimap(surface))),
+    diffStore.subscribe(() => everyMap((surface) => void refreshMasks(surface))),
     searchStore.subscribe(() => {
-      if (matchesMoved(searchStore.getSnapshot())) void refreshMasks();
+      if (matchesMoved(searchStore.getSnapshot())) {
+        everyMap((surface) => void refreshMasks(surface));
+      }
     }),
   ];
   return () => {
@@ -585,13 +673,14 @@ let editTimer: ReturnType<typeof setTimeout> | undefined;
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.patchOverviewRows
  */
 export function noteMinimapEdit(pane: PaneId): void {
-  if (!minimapStore.getSnapshot().visible) return;
+  const surface = surfaceOf(pane);
+  if (!mapFor(surface).visible) return;
   if (editTimer !== undefined) clearTimeout(editTimer);
   editTimer = setTimeout(() => {
     editTimer = undefined;
     // An edit changes the content, so the density is no longer the file's.
     builtFor[pane] = undefined;
-    void refreshMinimap();
+    void refreshMinimap(surface);
   }, EDIT_COALESCE_MS);
 }
 

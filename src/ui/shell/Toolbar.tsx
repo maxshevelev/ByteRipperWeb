@@ -4,7 +4,7 @@ import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
-import { minimapStore, toggleMinimap } from "@/state/minimapStore";
+import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
@@ -130,7 +130,8 @@ export function Toolbar({
   readonly navigation: ToolbarContext["navigation"];
 }) {
   const state = useStore(workspaceStore);
-  const minimap = useStore(minimapStore);
+  // The toggle and its label mean the map of whatever is in front.
+  const minimap = frontMap(useStore(minimapStore));
   const tools = useStore(toolController);
   const diff = useStore(diffStore);
   // Subscribed for the nudge; the document itself is the truth.
@@ -334,7 +335,7 @@ export function Toolbar({
       ? {
           label: minimap.visible ? "Hide Minimap" : "Show Minimap",
           shortcut: "⌘M",
-          onSelect: toggleMinimap,
+          onSelect: () => toggleMinimap(),
         }
       : undefined,
     bothOpen ? { kind: "separator" } : undefined,
@@ -615,7 +616,7 @@ export function Toolbar({
             label="Toggle Minimap"
             title="Show or hide the minimap (Cmd/Ctrl+M)"
             pressed={minimap.visible}
-            onClick={toggleMinimap}
+            onClick={() => toggleMinimap()}
           >
             <MinimapGlyph />
           </IconButton>
