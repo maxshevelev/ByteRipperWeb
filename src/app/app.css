@@ -701,7 +701,10 @@ textarea,
 }
 
 .pane-name {
-  flex: 1;
+  /* Sized to the name, and shrinking only once the link beside it has given
+     way: upstream pins the link to the title's trailing anchor and lets the
+     link, not the title, lose the argument for width. */
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -710,6 +713,14 @@ textarea,
      below, which is where the two weights and colours are set out. */
   color: var(--text-muted);
   font-weight: 600;
+}
+
+/* What holds the header's two marks at its trailing edge, so the name and the
+   link stay at the leading one rather than being carried across by a title
+   that grew to fill the row. */
+.pane-header-gap {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /*
@@ -728,7 +739,9 @@ textarea,
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateLink
  */
 .pane-origin {
-  flex: 0 1 auto;
+  /* It gives way before the name does — upstream's compression resistance, a
+     step below the title's. */
+  flex: 0 999 auto;
   display: inline-flex;
   align-items: center;
   gap: 3px;

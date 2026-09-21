@@ -1898,6 +1898,10 @@ export function HexPane({
             <span className="pane-origin-name">{link.parentName}</span>
           </button>
         )}
+        {/* The chrome's two marks sit at the trailing edge; the name and the
+            link it carries stay together at the leading one, six pixels apart,
+            where upstream pins the link to the title's trailing anchor. */}
+        <span className="pane-header-gap" aria-hidden="true" />
         {onCollapse === undefined ? null : (
           /*
            * Folds the panel into its pill. Upstream's own note on this button
