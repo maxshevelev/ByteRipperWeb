@@ -1713,6 +1713,7 @@ export function AppShell() {
         revealRequest={reveal[id]}
         typing={pane.typing}
         saved={pane.saved}
+        untitled={pane.untitled}
         onSave={() => void doSave(false)}
         onSaveAs={() => void doSave(true)}
         onGoTo={() => setGoTo("offset")}
@@ -1775,6 +1776,7 @@ export function AppShell() {
         document={part.document}
         typing={part.typing}
         saved={part.saved}
+        untitled={part.untitled}
         wordSize={state.wordSize}
         // The panel in front is the pane in front: it is the only one in it.
         isActive

@@ -21,7 +21,16 @@ function saveA(): void {
     if (pane === undefined) return state;
     return {
       ...state,
-      panes: { ...state.panes, a: { ...pane, saved: new MemoryBackedStorage(new Uint8Array(1)) } },
+      panes: {
+        ...state.panes,
+        a: {
+          ...pane,
+          saved: new MemoryBackedStorage(new Uint8Array(1)),
+          // What a save gives a document: bytes to read as modified against,
+          // and a file whose name is now the document's.
+          untitled: false,
+        },
+      },
     };
   });
 }

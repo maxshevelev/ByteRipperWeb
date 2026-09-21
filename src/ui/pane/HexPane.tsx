@@ -255,6 +255,14 @@ export interface HexPaneProps {
    * every byte would otherwise be drawn as an unsaved edit.
    */
   readonly saved?: ByteStorage | undefined;
+  /**
+   * Nothing on disk holds this document — the badge on its glyph. A different
+   * question from `saved` above: a part has no file and still has the bytes it
+   * was opened with to read as modified against.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.isUntitled
+   */
+  readonly untitled?: boolean | undefined;
   readonly onSave?: (() => void) | undefined;
   readonly onSaveAs?: (() => void) | undefined;
   readonly onGoTo?: (() => void) | undefined;
@@ -379,6 +387,7 @@ export function HexPane({
   revealRequest,
   typing,
   saved,
+  untitled,
   onSave,
   onSaveAs,
   onGoTo,
@@ -1838,7 +1847,7 @@ export function HexPane({
         onDragEnd={endPaneDrag}
         onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
       >
-        <DocumentIcon slot={label} dirty={dirty} untitled={saved === undefined} />
+        <DocumentIcon slot={label} dirty={dirty} untitled={untitled === true} />
         {renaming === true ? (
           <RenameField
             name={name}

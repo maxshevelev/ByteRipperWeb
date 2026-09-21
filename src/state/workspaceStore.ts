@@ -110,6 +110,18 @@ export interface PaneState {
    * file, a duplicate — where every byte would otherwise read as modified.
    */
   readonly saved: ByteStorage | undefined;
+  /**
+   * Nothing on disk holds this document: a new file, a duplicate, a part taken
+   * out of another document. It is what routes Save to Save As and what lets
+   * the name be changed by hand — a saved document's name is its file's.
+   *
+   * Kept apart from `saved` above, which is a different question: a part has no
+   * file and still has bytes to read as modified against, which are the ones it
+   * was opened with.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.isUntitled
+   */
+  readonly untitled: boolean;
   /** True when this file can be written back to itself (D7). */
   readonly writable: boolean;
   /**
@@ -499,6 +511,7 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
           document,
           typing,
           saved: savedStorageFor(file),
+          untitled: false,
           writable: file.handle !== undefined,
         },
       },
@@ -680,7 +693,7 @@ export function dismissAlert(): void {
  */
 export function canRenamePane(pane: PaneId): boolean {
   const slot = paneState(pane);
-  return slot !== undefined && slot.saved === undefined;
+  return slot !== undefined && slot.untitled;
 }
 
 /**
@@ -695,7 +708,7 @@ export function canRenamePane(pane: PaneId): boolean {
  */
 export function renamePane(pane: PaneId, raw: string): boolean {
   const slot = paneState(pane);
-  if (slot === undefined || slot.saved !== undefined) return false;
+  if (slot === undefined || !slot.untitled) return false;
   const name = sanitizedPaneName(raw);
   if (name === undefined || name === slot.name) return false;
   workspaceStore.update((state) =>
@@ -750,6 +763,7 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
         file: outcome.file,
         // The file on disk now holds the document, so nothing is an edit.
         saved: savedStorageFor(outcome.file),
+        untitled: false,
         writable: outcome.file.handle !== undefined,
       })
     );
@@ -806,6 +820,7 @@ export async function duplicatePane(from: SlotId): Promise<void> {
         // Never on disk, so nothing in it is an unsaved *edit* — the whole
         // document is unsaved, which the readout says.
         saved: undefined,
+        untitled: true,
         writable: false,
       },
     },
@@ -852,7 +867,15 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
     ...state,
     panes: {
       ...state.panes,
-      [pane]: { name, file: emptyFile(name), document, typing, saved: undefined, writable: false },
+      [pane]: {
+        name,
+        file: emptyFile(name),
+        document,
+        typing,
+        saved: undefined,
+        untitled: true,
+        writable: false,
+      },
     },
     activePane: pane,
   }));
@@ -874,6 +897,7 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFragment
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open
+ * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.original
  */
 export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigin): PartId {
   const opened = openPanel(workspaceStore.getSnapshot().dock);
@@ -898,7 +922,24 @@ export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigi
     ...state,
     parts: {
       ...state.parts,
-      [pane]: { name, file, document, typing, saved: undefined, writable: false, origin },
+      [pane]: {
+        name,
+        file,
+        document,
+        typing,
+        // What a byte of a part reads as modified *against*: the bytes it was
+        // opened with. A part has nothing on disk, and upstream answers the
+        // same question the same way — the pane's saved storage is the link's
+        // `original` until the part is saved somewhere, and it does not move
+        // when the part is put back into its parent, because putting the bytes
+        // there does not make them the ones the panel opened with.
+        saved: savedStorageFor(file),
+        // A part is a document nothing on disk holds: it can be renamed, and
+        // Save is Save As.
+        untitled: true,
+        writable: false,
+        origin,
+      },
     },
     dock: opened.dock,
   }));

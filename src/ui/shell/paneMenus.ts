@@ -132,7 +132,7 @@ export function paneFileMenu(
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.renamePaneDocument
     {
       label: "Rename",
-      disabled: slot.saved !== undefined,
+      disabled: !slot.untitled,
       onSelect: () => actions.onRename(pane),
     },
     ...ofSlot((slot) => [
