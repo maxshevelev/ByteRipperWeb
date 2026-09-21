@@ -83,6 +83,7 @@ import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
+import { OperationDialog } from "@/ui/dialogs/OperationDialog";
 import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import {
@@ -1945,6 +1946,9 @@ export function AppShell() {
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
+      {/* A long update holds the window while it is worked out, as upstream's
+          sheet does — and says what it is doing where it cannot be missed. */}
+      <OperationDialog />
 
       <GoToDialog
         open={goTo !== undefined}

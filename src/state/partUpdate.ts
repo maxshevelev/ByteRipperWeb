@@ -1,11 +1,10 @@
 import type { DocumentOrigin, OriginUpdate } from "@/state/documentOrigin";
 import { askFirmwareRebuild } from "@/state/firmwareStore";
-import { BackgroundOperation, beginOperation } from "@/state/operationStore";
+import { BackgroundOperation, presentBlocking } from "@/state/operationStore";
 import { applyTransaction } from "@/state/toolEdits";
 import {
   type PaneId,
   type PartId,
-  paneInFront,
   paneState,
   reportAlert,
   workspaceStore,
@@ -95,22 +94,18 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
  * a zone that is a volume, a file or a section — goes through the rebuild
  * planner, in the parent's own worker (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
  *
- * The status line of the surface in front says what is being done and how far
- * it has got, with a (×) that abandons the result: the plan cannot be stopped
- * halfway, but nothing is written until it is done, so abandoning costs
- * nothing. The plan is worked out over the parent's bytes as they were when it
- * was asked for, so an edit made meanwhile throws it away rather than landing
- * on top of it.
+ * A modal says what is being done and how far it has got, with a Cancel that
+ * abandons the result: the plan cannot be stopped halfway, but nothing is
+ * written until it is done, so abandoning costs nothing. It is modal for
+ * upstream's own reason — the plan is worked out over the parent's bytes as
+ * they were when it was asked for, and a change landing under it would only be
+ * thrown away with it.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginUpdateOperation
- * @upstream-differs the line of the surface in front, where upstream puts a
- * modal sheet on the parent's window. Upstream's reasons were that the work
- * lands in the parent and that the parent must not be edited under it; here the
- * parent is the one thing on screen the panel is covering, so its line is the
- * one place this cannot be seen — and what the sheet was guarding is guarded by
- * the generation check below, which throws the plan away rather than writing it
- * over bytes that moved
+ * @upstream-differs one window: upstream's sheet hangs on the parent's window
+ * and brings that window to the front first, where this modal is the one
+ * window's own
  */
 async function rebuildIntoParent(
   origin: DocumentOrigin,
@@ -123,14 +118,11 @@ async function rebuildIntoParent(
   const generation = document.contentGeneration;
 
   let abandoned = false;
-  const operation = new BackgroundOperation(
-    `Updating “${origin.parentName}” from “${origin.partName}”`,
-    () => {
-      abandoned = true;
-      operation.finish();
-    }
-  );
-  beginOperation(paneInFront(), operation);
+  const operation = new BackgroundOperation("Getting ready", () => {
+    abandoned = true;
+    operation.finish();
+  });
+  presentBlocking(`Updating “${origin.parentName}” from “${origin.partName}”`, operation);
   const answer = await askFirmwareRebuild(
     origin.parent,
     plan.bytes,

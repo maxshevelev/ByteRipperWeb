@@ -231,3 +231,55 @@ workspaceStore.subscribe(() => {
   endOperation("b");
   beginOperation(active, operation, true);
 });
+
+/**
+ * The one operation a modal is holding the window for, if any.
+ *
+ * The status line's strip above is for work that runs beside the reader — a
+ * search, an index — and is easy to miss. This is for work whose result depends
+ * on the document not being used while it runs: an update that reads a
+ * document, works for seconds and writes back into it. A modal is what keeps a
+ * second change from landing under the first, and what puts the progress where
+ * the reader is already looking.
+ *
+ * @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet
+ */
+export interface BlockingOperation {
+  readonly operation: BackgroundOperation;
+  /** @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.titleLabel */
+  readonly title: string;
+  /** What it is doing now. @upstream #BlockingOperationSheet.phaseLabel */
+  readonly name: string;
+  /** @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.progressBar */
+  readonly progress: number;
+}
+
+export const blockingOperationStore = createStore<BlockingOperation | undefined>(undefined);
+
+/**
+ * Shows `operation` as the window's modal, and takes it down when the operation
+ * finishes — which is what its own cancellation does too, so Cancel needs no
+ * second path.
+ *
+ * One at a time, as a sheet is: presenting a second replaces the first.
+ *
+ * @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.present
+ */
+export function presentBlocking(title: string, operation: BackgroundOperation): void {
+  const patch = (change: Partial<BlockingOperation>) =>
+    blockingOperationStore.update((shown) =>
+      shown?.operation === operation ? { ...shown, ...change } : shown
+    );
+
+  blockingOperationStore.update(() => ({
+    operation,
+    title,
+    name: operation.name,
+    progress: operation.progress,
+  }));
+  operation.onProgress = (progress) => patch({ progress });
+  operation.onRename = (name) => patch({ name });
+  operation.onFinish = () => {
+    blockingOperationStore.update((shown) => (shown?.operation === operation ? undefined : shown));
+  };
+}

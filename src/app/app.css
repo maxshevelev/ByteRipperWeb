@@ -1064,6 +1064,18 @@ textarea,
   white-space: pre-wrap;
 }
 
+/* The bar of a long operation the window is being held for, under the line
+   that says what it is doing (`ui/dialogs/OperationDialog`). Full width, where
+   the status line's is a stub beside its name: here there is nothing else in
+   the row.
+
+   @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.progressBar */
+.dialog-progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+}
+
 .dialog-preview {
   margin: 0;
   padding: 0.4rem 0.5rem;

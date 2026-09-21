@@ -282,12 +282,11 @@ describe("a part the image is laid out again around", () => {
     };
 
     const running = updateInParent(part);
-    const { operationStore } = await import("@/state/operationStore");
-    // On the part's own line, which is the surface in front: the parent's is
-    // the one place the panel covers. A few turns in — the link reads both
-    // sides before it plans anything.
-    const shown = await until(() => operationStore.getSnapshot()[part]);
-    expect(shown.name).toContain("MyDriver");
+    const { blockingOperationStore } = await import("@/state/operationStore");
+    // The modal that holds the window while the plan is worked out, a few turns
+    // in — the link reads both sides before it plans anything.
+    const shown = await until(() => blockingOperationStore.getSnapshot());
+    expect(shown.title).toContain("MyDriver");
     shown.operation.cancel();
     finish?.();
 
