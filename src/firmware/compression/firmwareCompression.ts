@@ -151,7 +151,10 @@ export function compress(
  */
 export function compressLike(
   bytes: Uint8Array,
-  original: { readonly variant: CompressionVariant; readonly dictionarySize?: number },
+  original: {
+    readonly variant: CompressionVariant;
+    readonly dictionarySize?: number | undefined;
+  },
   stream: Uint8Array,
   options: {
     readonly effort?: LzmaEffort;

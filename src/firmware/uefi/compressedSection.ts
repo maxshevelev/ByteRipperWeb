@@ -5,7 +5,9 @@ import {
   decompressLzma,
   decompressLzmaX86,
   decompressTiano,
+  type LzmaVariant,
   type TianoDecoded,
+  type TianoVariant,
 } from "@/firmware/compression/firmwareDecompression";
 import { ImageReader } from "@/firmware/imageReader";
 import { type EFIGUID, guid, guidKey } from "@/firmware/uefi/efiGuid";
@@ -180,12 +182,22 @@ export function locateCompressedSection(
   return undefined;
 }
 
-/** What a decode gave back, or why there is nothing. */
+/**
+ * What a decode gave back, or why there is nothing.
+ *
+ * The variant and the dictionary are what a section is written again *the same
+ * way* from, so a decode hands them on rather than only the bytes: the rebuild
+ * planner compresses an edited buffer `like` what came out of the section.
+ *
+ * @upstream Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded
+ */
 export type DecodeResult =
   | {
       readonly ok: true;
       readonly bytes: Uint8Array;
-      readonly variant: "Tiano" | "EFI 1.1" | string;
+      readonly variant: LzmaVariant | TianoVariant;
+      /** The LZMA dictionary the stream declares; a Tiano stream has none. */
+      readonly dictionarySize?: number | undefined;
     }
   | { readonly ok: false; readonly failure: DecompressionFailure };
 
@@ -201,11 +213,21 @@ export function decodeCompressedSection(
     switch (section.algorithm) {
       case "lzma": {
         const decoded = decompressLzma(bytes, limit);
-        return { ok: true, bytes: decoded.bytes, variant: decoded.variant };
+        return {
+          ok: true,
+          bytes: decoded.bytes,
+          variant: decoded.variant,
+          dictionarySize: decoded.dictionarySize,
+        };
       }
       case "lzmaX86": {
         const decoded = decompressLzmaX86(bytes, limit);
-        return { ok: true, bytes: decoded.bytes, variant: decoded.variant };
+        return {
+          ok: true,
+          bytes: decoded.bytes,
+          variant: decoded.variant,
+          dictionarySize: decoded.dictionarySize,
+        };
       }
       case "tiano": {
         const chosen = chooseTiano(decompressTiano(bytes, limit));

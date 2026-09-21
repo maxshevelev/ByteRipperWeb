@@ -19,6 +19,7 @@ import {
   nodeRange,
   type UEFINode,
 } from "@/firmware/uefi/uefiNode";
+import type { RebuildProtectedRange } from "@/firmware/uefi/uefiRebuild";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 
 /**
@@ -179,6 +180,25 @@ export interface ProtectedRanges {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.diagnostics
    */
   readonly diagnostics: readonly UEFIDiagnostic[];
+}
+
+/**
+ * The placed ranges as the rebuild planner takes them: a change inside the IBB
+ * is refused, one inside anything else is warned about.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.rebuildRanges
+ */
+export function rebuildRanges(ranges: ProtectedRanges): RebuildProtectedRange[] {
+  const planned: RebuildProtectedRange[] = [];
+  for (const range of ranges.ranges) {
+    if (range.range === undefined) continue;
+    planned.push({
+      kind: isIbbKind(range.kind) ? "ibb" : "vendorHash",
+      range: range.range,
+      name: protectedRangeKindName(range.kind),
+    });
+  }
+  return planned;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.isEmpty */
