@@ -4,7 +4,11 @@ import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import {
   addBookmark,
   BOOKMARK_DRAG_HYSTERESIS,
+  bookmarkAt,
   bookmarks,
+  bookmarksIn,
+  bookmarksStore,
+  forgetPartBookmarks,
   moveBookmark,
   pointerRow,
   removeBookmark,
@@ -37,7 +41,7 @@ const indexOf = (offset: number) => rowContaining(offset) / BYTES_PER_ROW;
 const LAST_ROW = storeRow(0x1ff);
 
 beforeEach(() => {
-  for (const mark of [...bookmarks.bookmarks]) removeBookmark(mark.row);
+  for (const mark of [...bookmarks.bookmarks]) removeBookmark("a", mark.row);
 });
 
 describe("the row a dragged mark is counted on", () => {
@@ -88,7 +92,7 @@ describe("the row a dragged mark is counted on", () => {
 
 describe("a mark dragged across a row boundary", () => {
   it("moves with the crossing, and stops where the crossing stopped it", () => {
-    addBookmark(0x20, "travelling");
+    addBookmark("a", 0x20, "travelling");
     const row = indexOf(0x20);
 
     // The gesture starts on the mark's own row: the first step comes when the
@@ -101,7 +105,7 @@ describe("a mark dragged across a row boundary", () => {
     // Past the band: a step, and the mark takes the new row.
     from = pointerRow(insideRow(row + 1, 4), from, ROW_HEIGHT);
     expect(from).toBe(row + 1);
-    expect(moveBookmark(0x20, from * BYTES_PER_ROW, LAST_ROW)).toBe(0x30);
+    expect(moveBookmark("a", 0x20, from * BYTES_PER_ROW, LAST_ROW)).toBe(0x30);
     expect(bookmarks.bookmarks.map((mark) => mark.row)).toEqual([0x30]);
   });
 
@@ -111,12 +115,12 @@ describe("a mark dragged across a row boundary", () => {
     // jumps it past — one mark per row — so the pointer is left resting on the
     // row the mark just jumped over. Re-reading that row would compute the jump
     // again, in the other direction, and the mark flickered to and fro.
-    addBookmark(0x00, "moving");
-    addBookmark(0x10, "in the way");
+    addBookmark("a", 0x00, "moving");
+    addBookmark("a", 0x10, "in the way");
 
     let from = indexOf(0x00);
     from = pointerRow(insideRow(1, 4), from, ROW_HEIGHT);
-    expect(moveBookmark(0x00, from * BYTES_PER_ROW, LAST_ROW)).toBe(0x20);
+    expect(moveBookmark("a", 0x00, from * BYTES_PER_ROW, LAST_ROW)).toBe(0x20);
     expect(bookmarks.bookmarks.map((mark) => mark.row)).toEqual([0x10, 0x20]);
 
     // The hand jitters within the row the mark is now past.
@@ -130,25 +134,94 @@ describe("a mark dragged across a row boundary", () => {
   it("starts a fresh gesture from the mark's own row", () => {
     // Per gesture, not per view: a new press re-reads where the pointer is, so
     // the next drag is not measured against the last one's row.
-    addBookmark(0x00);
+    addBookmark("a", 0x00);
     let from = indexOf(0x00);
     from = pointerRow(insideRow(3, 6), from, ROW_HEIGHT);
-    moveBookmark(0x00, from * BYTES_PER_ROW, LAST_ROW);
+    moveBookmark("a", 0x00, from * BYTES_PER_ROW, LAST_ROW);
     expect(bookmarks.bookmarks.map((mark) => mark.row)).toEqual([0x30]);
 
     // Pressed again, on the mark where it now is.
     from = indexOf(0x30);
     from = pointerRow(insideRow(4, 6), from, ROW_HEIGHT);
-    moveBookmark(0x30, from * BYTES_PER_ROW, LAST_ROW);
+    moveBookmark("a", 0x30, from * BYTES_PER_ROW, LAST_ROW);
     expect(bookmarks.bookmarks.map((mark) => mark.row)).toEqual([0x40]);
   });
 
   it("cannot be carried past the last row of the file", () => {
     // 0x40 bytes is four rows, so 0x30 is the last row a mark may be dragged to.
     const lastRow = storeRow(0x3f);
-    addBookmark(0x00);
-    const landed = moveBookmark(0x00, 40 * BYTES_PER_ROW, lastRow);
+    addBookmark("a", 0x00);
+    const landed = moveBookmark("a", 0x00, 40 * BYTES_PER_ROW, lastRow);
     expect(landed).toBe(0x30);
     expect(bookmarks.bookmarks.map((mark) => mark.row)).toEqual([0x30]);
+  });
+});
+
+/**
+ * A part opened over a file is a surface of its own, and so are its marks: its
+ * offsets start at zero, and a mark made in one would name an unrelated row of
+ * the file behind it. Upstream gives a fragment panel a `BookmarkStore` of its
+ * own for exactly this.
+ *
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkStore
+ */
+describe("a part's own marks", () => {
+  const part = "part:1" as const;
+  const other = "part:2" as const;
+
+  beforeEach(() => {
+    forgetPartBookmarks(part);
+    forgetPartBookmarks(other);
+  });
+
+  it("are not the workspace's, at the same offset", () => {
+    addBookmark("a", 0x40, "in the file");
+    addBookmark(part, 0x40, "in the part");
+
+    expect(bookmarkAt("a", 0x40)?.name).toBe("in the file");
+    expect(bookmarkAt(part, 0x40)?.name).toBe("in the part");
+    expect(bookmarksIn(bookmarksStore.getSnapshot(), "a").map((mark) => mark.name)).toEqual([
+      "in the file",
+    ]);
+    expect(bookmarksIn(bookmarksStore.getSnapshot(), part).map((mark) => mark.name)).toEqual([
+      "in the part",
+    ]);
+  });
+
+  /** Both of the workspace's panes read one list: a mark is an absolute offset. */
+  it("leave the two file slots sharing theirs", () => {
+    addBookmark("a", 0x40, "shared");
+
+    expect(bookmarkAt("b", 0x40)?.name).toBe("shared");
+    expect(bookmarkAt(part, 0x40)).toBeUndefined();
+  });
+
+  it("are two lists for two parts", () => {
+    addBookmark(part, 0x10, "first");
+    addBookmark(other, 0x10, "second");
+
+    expect(bookmarkAt(part, 0x10)?.name).toBe("first");
+    expect(bookmarkAt(other, 0x10)?.name).toBe("second");
+  });
+
+  /** They go with the part, and nothing of the workspace's goes with them. */
+  it("are forgotten when the part closes", () => {
+    addBookmark("a", 0x40, "kept");
+    addBookmark(part, 0x40, "going");
+
+    forgetPartBookmarks(part);
+
+    expect(bookmarksIn(bookmarksStore.getSnapshot(), part)).toEqual([]);
+    expect(bookmarkAt(part, 0x40)).toBeUndefined();
+    expect(bookmarkAt("a", 0x40)?.name).toBe("kept");
+  });
+
+  /** And a part opened later starts with none, whatever the last one held. */
+  it("start empty for the next part to take that id", () => {
+    addBookmark(part, 0x40, "going");
+    forgetPartBookmarks(part);
+
+    expect(bookmarksIn(bookmarksStore.getSnapshot(), part)).toEqual([]);
   });
 });

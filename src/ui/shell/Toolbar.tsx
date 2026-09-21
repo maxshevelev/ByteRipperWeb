@@ -267,25 +267,21 @@ export function Toolbar({
 
     active === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { kind: "heading", label: "Bookmarks" },
-    // A mark is an absolute offset in one of the workspace's files, so these
-    // two are the panes' while a part's own marks are still to come (G49).
+    // The marks of whatever is in front: the workspace's own for its panes, the
+    // part's own for a part.
     active === undefined
       ? undefined
       : {
           label:
-            bookmarkAt(active.document.caret) === undefined ? "Add Bookmark" : "Remove Bookmark",
+            bookmarkAt(front, active.document.caret) === undefined
+              ? "Add Bookmark"
+              : "Remove Bookmark",
           shortcut: "⌘D",
-          disabled: !panesReachable,
           onSelect: onToggleBookmark,
         },
     active === undefined
       ? undefined
-      : {
-          label: "Bookmarks…",
-          shortcut: "⌥⌘B",
-          disabled: !panesReachable,
-          onSelect: onBookmarks,
-        },
+      : { label: "Bookmarks…", shortcut: "⌥⌘B", onSelect: onBookmarks },
 
     active === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { kind: "heading", label: "Segments" },

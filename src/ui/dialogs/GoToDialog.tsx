@@ -11,7 +11,13 @@ import {
   cancelBookmarkEdit,
   editBookmarkInList,
 } from "@/state/bookmarkEditStore";
-import { bookmarksStore, clearRecentAddresses, removeBookmark } from "@/state/bookmarksStore";
+import {
+  bookmarksIn,
+  bookmarksStore,
+  clearRecentAddresses,
+  removeBookmark,
+} from "@/state/bookmarksStore";
+import type { PaneId } from "@/state/paneId";
 import { useStore } from "@/state/useStore";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
 import { rowDescription, selectionAfterChange, visibleRowCount } from "@/ui/dialogs/bookmarkList";
@@ -39,6 +45,13 @@ import { openContextMenu } from "@/ui/shell/ContextMenu";
  */
 export interface GoToDialogProps {
   readonly open: boolean;
+  /**
+   * The pane the form is about: its size, its marks, and where an address goes.
+   * The pane in front, which for a raised panel is the part — a part's marks
+   * are its own, and the workspace's name rows of a file this form is not
+   * about.
+   */
+  readonly pane: PaneId;
   readonly fileSize: number;
   /** The active pane's bytes, for describing a bookmark that has no name. */
   readonly document?: BinaryDocument | undefined;
@@ -76,6 +89,7 @@ const platform = detectKeyboardPlatform();
  */
 export function GoToDialog({
   open,
+  pane,
   fileSize,
   document: doc,
   focus = "offset",
@@ -86,6 +100,8 @@ export function GoToDialog({
   // hex: the reader goes straight to the digits.
   const [text, setText] = useState(HEX_PREFIX);
   const state = useStore(bookmarksStore);
+  /** The marks of the pane this form is about. */
+  const marks = bookmarksIn(state, pane);
   const editing = useStore(bookmarkEditStore).session;
   /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.isEditingBookmark */
   const editingHere =
@@ -108,8 +124,8 @@ export function GoToDialog({
   const offsetId = useId();
   const errorId = useId();
 
-  const bookmarksNow = useRef(state.bookmarks);
-  bookmarksNow.current = state.bookmarks;
+  const bookmarksNow = useRef(marks);
+  bookmarksNow.current = marks;
 
   useEffect(() => {
     if (!open) return;
@@ -136,10 +152,10 @@ export function GoToDialog({
   // one removed — by ⌫, the menu, or its popover's Delete — hands it on.
   const previousRows = useRef<readonly number[]>([]);
   useEffect(() => {
-    const rows = state.bookmarks.map((mark) => mark.row);
+    const rows = marks.map((mark) => mark.row);
     setSelected((current) => selectionAfterChange(previousRows.current, rows, current));
     previousRows.current = rows;
-  }, [state.bookmarks]);
+  }, [marks]);
 
   /**
    * Validation as the address is typed. The form opens with "0x" in the field:
@@ -214,7 +230,7 @@ export function GoToDialog({
    */
   const onListKeyDown = (event: React.KeyboardEvent) => {
     if (editingHere !== undefined) return;
-    const rows = state.bookmarks.map((mark) => mark.row);
+    const rows = marks.map((mark) => mark.row);
     if (rows.length === 0) return;
     const at = selected === undefined ? -1 : rows.indexOf(selected);
 
@@ -234,7 +250,7 @@ export function GoToDialog({
     }
     if (event.key === "Backspace" || event.key === "Delete") {
       event.preventDefault();
-      if (selected !== undefined) removeBookmark(selected);
+      if (selected !== undefined) removeBookmark(pane, selected);
     }
   };
 
@@ -286,11 +302,15 @@ export function GoToDialog({
     setSelected(mark.row);
     openContextMenu(event, [
       { label: "Edit Bookmark…", onSelect: () => editBookmarkInList(mark.row) },
-      { label: "Delete Bookmark", destructive: true, onSelect: () => removeBookmark(mark.row) },
+      {
+        label: "Delete Bookmark",
+        destructive: true,
+        onSelect: () => removeBookmark(pane, mark.row),
+      },
     ]);
   };
 
-  const empty = state.bookmarks.length === 0;
+  const empty = marks.length === 0;
 
   return (
     <Dialog
@@ -345,10 +365,10 @@ export function GoToDialog({
             role="listbox"
             aria-label="Bookmarks"
             tabIndex={0}
-            style={{ height: visibleRowCount(state.bookmarks.length) * ROW_HEIGHT + 2 }}
+            style={{ height: visibleRowCount(marks.length) * ROW_HEIGHT + 2 }}
             onKeyDown={onListKeyDown}
           >
-            {state.bookmarks.map((mark) => (
+            {marks.map((mark) => (
               // biome-ignore lint/a11y/useFocusableInteractive: the listbox holds the focus; its options are picked with the arrows
               <div
                 key={mark.row}

@@ -1,15 +1,22 @@
 import { type Bookmark, BookmarkStore, rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { hexAddress } from "@/core/text/hexText";
 import { openKeyValueStore } from "@/platform/storage/keyValueStore";
+import { isSlot, type PaneId } from "@/state/paneId";
 import { createStore } from "@/state/store";
 
 /**
  * The workspace's bookmarks, and what keeps them across a reload.
  *
- * One store for the whole tab, not one per pane: a bookmark is an absolute
- * offset, not "an offset in file A", and it marks the same height in both panes
- * of a comparison. Upstream scopes them to a window; a browser tab *is* the
- * window (D11).
+ * One store for the whole tab rather than one per pane: a bookmark is an
+ * absolute offset, not "an offset in file A", and it marks the same height in
+ * both panes of a comparison. Upstream scopes them to a window; a browser tab
+ * *is* the window (D11).
+ *
+ * **A part is the exception, and it is upstream's own:** a fragment panel gets
+ * a `BookmarkStore` of its own, because a part's offsets start at zero and a
+ * mark made in one would name an unrelated row of the file behind it. Those
+ * marks live and die with the part — they are nowhere on disk, and a part is
+ * not something a reload brings back.
  *
  * They outlive the file, deliberately. Closing a dump and opening it again is
  * something a person does constantly while working — a save through another
@@ -32,9 +39,15 @@ import { createStore } from "@/state/store";
 const RECENT_LIMIT = 10;
 
 export interface BookmarksState {
+  /** The workspace's own marks: both of its panes read these. */
   readonly bookmarks: readonly Bookmark[];
+  /** Each open part's own marks, by the pane it is read as. */
+  readonly parts: Readonly<Record<string, readonly Bookmark[]>>;
   /**
    * Addresses this workspace has been sent to, newest first.
+   *
+   * The workspace's, not a surface's: Go To offers back what was typed into it,
+   * and the form is the window's one form wherever the address was meant.
    *
    * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore
    * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.recent
@@ -43,8 +56,49 @@ export interface BookmarksState {
   readonly recent: readonly number[];
 }
 
-/** The one store the panes, the minimap and the dialogs all read. */
+/** The store the workspace's own panes, the minimap and the dialogs read. */
 export const bookmarks = new BookmarkStore();
+
+/** A part's own store, made when its pane first asks and dropped with the part. */
+const partStores = new Map<string, BookmarkStore>();
+
+/**
+ * The marks a pane's dump draws, marks and unmarks: the workspace's for one of
+ * its own panes, and the part's own for a part.
+ *
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkStore
+ */
+export function marksFor(pane: PaneId): BookmarkStore {
+  if (isSlot(pane)) return bookmarks;
+  const held = partStores.get(pane);
+  if (held !== undefined) return held;
+  const made = new BookmarkStore();
+  made.onChange = () => publishPart(pane, made);
+  partStores.set(pane, made);
+  return made;
+}
+
+/**
+ * The marks of one pane, out of a snapshot the caller already has — what a
+ * component subscribed to the store draws.
+ */
+export const bookmarksIn = (state: BookmarksState, pane: PaneId): readonly Bookmark[] =>
+  isSlot(pane) ? state.bookmarks : (state.parts[pane] ?? []);
+
+/**
+ * A part is gone: its marks go with it. Nothing is written, because nothing of
+ * a part's was ever written.
+ */
+export function forgetPartBookmarks(pane: PaneId): void {
+  if (isSlot(pane) || !partStores.has(pane)) return;
+  partStores.delete(pane);
+  bookmarksStore.update((state) => {
+    const parts = { ...state.parts };
+    delete parts[pane];
+    return { ...state, parts };
+  });
+}
 
 /**
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
@@ -54,7 +108,11 @@ export const bookmarks = new BookmarkStore();
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmarkedRows
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmark
  */
-export const bookmarksStore = createStore<BookmarksState>({ bookmarks: [], recent: [] });
+export const bookmarksStore = createStore<BookmarksState>({
+  bookmarks: [],
+  parts: {},
+  recent: [],
+});
 
 const WORKSPACE_KEY = "byteripper.workspace";
 const DATABASE = "byteripper";
@@ -85,13 +143,25 @@ function workspaceId(): string {
   }
 }
 
-/** Publishes what the core store now holds, and writes it out. */
+/** Publishes what the workspace's store now holds, and writes it out. */
 function publish(): void {
   bookmarksStore.update((state) => ({ ...state, bookmarks: [...bookmarks.bookmarks] }));
   void persist();
 }
 
 bookmarks.onChange = () => publish();
+
+/**
+ * The same for a part's marks — published, never written: a part is not
+ * something a reload brings back, and a record of marks into bytes nothing
+ * holds any more would be a record nothing could ever read.
+ */
+function publishPart(pane: PaneId, store: BookmarkStore): void {
+  bookmarksStore.update((state) => ({
+    ...state,
+    parts: { ...state.parts, [pane]: [...store.bookmarks] },
+  }));
+}
 
 let writing: Promise<void> | undefined;
 let writeAgain = false;
@@ -157,28 +227,42 @@ async function sweep(): Promise<void> {
 // MARK: - What the commands do
 
 /**
- * Marks an unmarked row, unmarks a marked one — the store's own toggle, with no
- * popover. ⌘D and a double-click go through `bookmarkEditStore`, which names
- * the mark it makes.
+ * Marks an unmarked row of `pane`, unmarks a marked one — the store's own
+ * toggle, with no popover. ⌘D and a double-click go through
+ * `bookmarkEditStore`, which names the mark it makes.
+ *
+ * Every command below takes the pane it is about, because which marks it means
+ * is not a property of the offset: the same number is a row of the workspace's
+ * file and a row of a part, and they are different places.
  */
-export function toggleBookmark(offset: number): Bookmark | undefined {
-  return bookmarks.toggle(offset);
+export function toggleBookmark(pane: PaneId, offset: number): Bookmark | undefined {
+  return marksFor(pane).toggle(offset);
 }
 
-export function addBookmark(offset: number, name = ""): Bookmark {
-  return bookmarks.add(offset, name);
+export function addBookmark(pane: PaneId, offset: number, name = ""): Bookmark {
+  return marksFor(pane).add(offset, name);
 }
 
-export function removeBookmark(offset: number): boolean {
-  return bookmarks.remove(offset);
+export function removeBookmark(pane: PaneId, offset: number): boolean {
+  return marksFor(pane).remove(offset);
 }
 
-export function editBookmark(from: number, to: number, name: string): Bookmark | undefined {
-  return bookmarks.edit(from, to, name);
+export function editBookmark(
+  pane: PaneId,
+  from: number,
+  to: number,
+  name: string
+): Bookmark | undefined {
+  return marksFor(pane).edit(from, to, name);
 }
 
-export function moveBookmark(from: number, to: number, lastRow: number): number | undefined {
-  return bookmarks.move(from, to, lastRow);
+export function moveBookmark(
+  pane: PaneId,
+  from: number,
+  to: number,
+  lastRow: number
+): number | undefined {
+  return marksFor(pane).move(from, to, lastRow);
 }
 
 /**
@@ -214,8 +298,8 @@ export function pointerRow(y: number, comingFrom: number, rowHeight: number): nu
 }
 
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkRowBytes */
-export function bookmarkAt(offset: number): Bookmark | undefined {
-  return bookmarks.at(offset);
+export function bookmarkAt(pane: PaneId, offset: number): Bookmark | undefined {
+  return marksFor(pane).at(offset);
 }
 
 /**

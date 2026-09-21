@@ -8,7 +8,7 @@ import {
   removeBookmark,
 } from "@/state/bookmarksStore";
 import { createStore } from "@/state/store";
-import type { PaneId } from "@/state/workspaceStore";
+import { type PaneId, paneInFront } from "@/state/workspaceStore";
 
 /**
  * The bookmark being named or edited, and the commands that open it (§20.3).
@@ -91,7 +91,7 @@ function present(pane: PaneId | undefined, row: number, existingName: string | u
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleBookmarkAtOffset
  */
 export function toggleBookmarkInPane(pane: PaneId, offset: number): void {
-  if (removeBookmark(offset)) return;
+  if (removeBookmark(pane, offset)) return;
   markAndNameBookmark(pane, offset);
 }
 
@@ -103,7 +103,7 @@ export function toggleBookmarkInPane(pane: PaneId, offset: number): void {
  */
 export function markAndNameBookmark(pane: PaneId, offset: number): void {
   const row = rowContaining(offset);
-  addBookmark(row);
+  addBookmark(pane, row);
   present(pane, row, undefined);
 }
 
@@ -116,7 +116,7 @@ export function markAndNameBookmark(pane: PaneId, offset: number): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.editBookmarkAtOffset
  */
 export function editBookmarkInPane(pane: PaneId, offset: number): void {
-  const existing = bookmarkAt(offset);
+  const existing = bookmarkAt(pane, offset);
   if (existing === undefined) return;
   present(pane, existing.row, existing.name);
 }
@@ -130,7 +130,7 @@ export function editBookmarkInPane(pane: PaneId, offset: number): void {
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.editBookmark
  */
 export function editBookmarkInList(offset: number): void {
-  const existing = bookmarkAt(offset);
+  const existing = bookmarkAt(paneInFront(), offset);
   if (existing === undefined) return;
   present(undefined, existing.row, existing.name);
 }
@@ -151,7 +151,7 @@ export function abandonBookmarkEdit(): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handleOffsetDoubleClick
  */
 export function handleOffsetDoubleClick(pane: PaneId, offset: number): void {
-  if (bookmarkAt(offset) !== undefined) editBookmarkInPane(pane, offset);
+  if (bookmarkAt(pane, offset) !== undefined) editBookmarkInPane(pane, offset);
   else markAndNameBookmark(pane, offset);
 }
 
@@ -168,7 +168,9 @@ export function editedBookmarkRow(text: string, row: number): number | undefined
   const parsed = parseOffset(text);
   if (!parsed.ok) return undefined;
   const candidate = rowContaining(parsed.value);
-  return candidate === row || bookmarkAt(candidate) === undefined ? candidate : undefined;
+  return candidate === row || bookmarkAt(editedPane(), candidate) === undefined
+    ? candidate
+    : undefined;
 }
 
 /**
@@ -184,7 +186,7 @@ export function commitBookmarkEdit(target: number, name: string): BookmarkEditSe
   const session = current();
   if (session === undefined) return undefined;
   close();
-  editBookmark(session.row, target, name);
+  editBookmark(session.pane ?? paneInFront(), session.row, target, name);
   return session;
 }
 
@@ -199,7 +201,8 @@ export function cancelBookmarkEdit(): void {
   const session = current();
   if (session === undefined) return;
   close();
-  if (session.existingName === undefined) removeBookmark(session.row);
+  if (session.existingName === undefined)
+    removeBookmark(session.pane ?? paneInFront(), session.row);
 }
 
 /**
@@ -212,7 +215,7 @@ export function deleteEditedBookmark(): void {
   const session = current();
   if (session === undefined || session.existingName === undefined) return;
   close();
-  removeBookmark(session.row);
+  removeBookmark(session.pane ?? paneInFront(), session.row);
 }
 
 /**
@@ -224,5 +227,19 @@ export function deleteEditedBookmark(): void {
  */
 bookmarksStore.subscribe(() => {
   const session = current();
-  if (session !== undefined && bookmarkAt(session.row) === undefined) close();
+  if (
+    session !== undefined &&
+    bookmarkAt(session.pane ?? paneInFront(), session.row) === undefined
+  ) {
+    close();
+  }
 });
+
+/**
+ * The marks the open session is about: its own pane's, or the pane in front for
+ * a row picked out of the Go To form's list, which is the window's one list of
+ * whatever is in front of it.
+ */
+function editedPane(): PaneId {
+  return current()?.pane ?? paneInFront();
+}

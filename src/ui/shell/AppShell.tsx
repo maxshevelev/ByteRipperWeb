@@ -581,17 +581,14 @@ export function AppShell() {
           // The pane's own handler has this too, but only while the dump has
           // the keyboard — and marking a row is a workspace command.
           event.preventDefault();
-          // A mark is an absolute offset in the workspace's own files, so while
-          // a panel is up there is nothing here to mark: the part's offsets are
-          // its own, and the marks that mean them are the panel's own list,
-          // which is the next piece of G49. Marking the dump under the panel at
-          // the part's caret would put a mark where nobody asked for one.
-          const active = workspaceStore.getSnapshot().activePane;
-          const slot = workspaceStore.getSnapshot().panes[active];
-          if (slot === undefined || !windowPanesAreReachable(workspaceStore.getSnapshot())) return;
+          // The marks of whatever is in front: a part's own where a panel is
+          // up, the workspace's where none is.
+          const inFront = paneInFront();
+          const slot = paneState(inFront);
+          if (slot === undefined) return;
           // ⇧⌘D edits the caret row's mark; ⌘D marks and names it, or unmarks it.
-          if (event.shiftKey) editBookmarkInPane(active, slot.document.selection.start);
-          else toggleBookmarkInPane(active, slot.document.selection.start);
+          if (event.shiftKey) editBookmarkInPane(inFront, slot.document.selection.start);
+          else toggleBookmarkInPane(inFront, slot.document.selection.start);
           return;
         }
         case "z":
@@ -1612,12 +1609,8 @@ export function AppShell() {
         onSplitHere={() => setCutAt({ pane: front, offset: paneState(front)?.document.caret ?? 0 })}
         onSaveAllSegments={() => void doSaveAllSegments(front)}
         onToggleBookmark={() => {
-          // As ⌘D above: the workspace's marks are its files' offsets, and a
-          // part's own list is the next piece of G49.
-          const slot = workspaceStore.getSnapshot().panes[activePane];
-          if (slot !== undefined && panesReachable) {
-            toggleBookmarkInPane(activePane, slot.document.selection.start);
-          }
+          const slot = paneState(front);
+          if (slot !== undefined) toggleBookmarkInPane(front, slot.document.selection.start);
         }}
         onDuplicate={doDuplicate}
         onFind={openFind}
@@ -1711,6 +1704,7 @@ export function AppShell() {
 
       <GoToDialog
         open={goTo !== undefined}
+        pane={front}
         fileSize={paneIn(state, front)?.document.size ?? 0}
         document={paneIn(state, front)?.document}
         focus={goTo ?? "offset"}

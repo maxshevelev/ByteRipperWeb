@@ -25,7 +25,13 @@ import {
   handleOffsetDoubleClick,
   toggleBookmarkInPane,
 } from "@/state/bookmarkEditStore";
-import { bookmarkAt, bookmarksStore, moveBookmark, pointerRow } from "@/state/bookmarksStore";
+import {
+  bookmarkAt,
+  bookmarksIn,
+  bookmarksStore,
+  moveBookmark,
+  pointerRow,
+} from "@/state/bookmarksStore";
 import { editStore } from "@/state/editStore";
 import { toggleMinimap } from "@/state/minimapStore";
 // Both aliased: this pane already has a `beginDrag`/`endDrag` pair of its own
@@ -1370,7 +1376,9 @@ export function HexPane({
     scheduleDraw();
   }, [zones, scheduleDraw]);
 
-  const marks = useStore(bookmarksStore).bookmarks;
+  // This pane's own marks: the workspace's for a file slot, the part's own for
+  // a part, whose offsets are its own (`bookmarksIn`).
+  const marks = bookmarksIn(useStore(bookmarksStore), paneId);
   useEffect(() => {
     rendererRef.current?.setBookmarks(new Set(marks.map((mark) => mark.row)));
     scheduleDraw();
@@ -1452,7 +1460,7 @@ export function HexPane({
       // on one is the click it has always been. Only a press that then travels
       // moves the mark, and the drag that follows is the mark's: `dragTo` reads
       // the two and moves the mark first.
-      if (hit.column.kind === "offset" && bookmarkAt(target.offset) !== undefined) {
+      if (hit.column.kind === "offset" && bookmarkAt(paneId, target.offset) !== undefined) {
         markDragRef.current = rowContaining(target.offset);
         // The gesture starts on the mark's own row, so the first step comes
         // when the pointer leaves it.
@@ -1477,7 +1485,7 @@ export function HexPane({
         .then(syncTypingReadout);
       event.preventDefault();
     },
-    [contentPoint, doc, region, typing, syncTypingReadout]
+    [contentPoint, doc, region, typing, syncTypingReadout, paneId]
   );
 
   /**
@@ -1488,36 +1496,39 @@ export function HexPane({
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmark
    * @upstream-differs a tip element placed over the mark, not a tooltip rect
    */
-  const trackMarkTip = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const layout = layoutRef.current;
-    const host = scrollRef.current;
-    if (layout === undefined || host === null) return;
-    const bounds = host.getBoundingClientRect();
-    const top = scrollerRef.current?.top ?? 0;
-    const x = event.clientX - bounds.left + host.scrollLeft;
-    const y = event.clientY - bounds.top + top;
-    // The offset column only: the tip is about the mark, not about the row.
-    if (x > layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
-      setMarkTip(undefined);
-      return;
-    }
-    const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
-    const mark = bookmarkAt(row);
-    if (mark === undefined || mark.name.length === 0) {
-      setMarkTip(undefined);
-      return;
-    }
-    // In the scroller's own coordinates, so it travels with the row it names
-    // rather than hanging at a fixed height while the dump scrolls — which are
-    // the content's, less the difference a scaled track makes. And beside the
-    // mark rather than over it: the address it names is the one thing the tip
-    // must not hide.
-    setMarkTip({
-      name: mark.name,
-      top: (row / BYTES_PER_ROW) * layout.rowHeight - top + host.scrollTop,
-      left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
-    });
-  }, []);
+  const trackMarkTip = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const layout = layoutRef.current;
+      const host = scrollRef.current;
+      if (layout === undefined || host === null) return;
+      const bounds = host.getBoundingClientRect();
+      const top = scrollerRef.current?.top ?? 0;
+      const x = event.clientX - bounds.left + host.scrollLeft;
+      const y = event.clientY - bounds.top + top;
+      // The offset column only: the tip is about the mark, not about the row.
+      if (x > layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
+        setMarkTip(undefined);
+        return;
+      }
+      const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
+      const mark = bookmarkAt(paneId, row);
+      if (mark === undefined || mark.name.length === 0) {
+        setMarkTip(undefined);
+        return;
+      }
+      // In the scroller's own coordinates, so it travels with the row it names
+      // rather than hanging at a fixed height while the dump scrolls — which are
+      // the content's, less the difference a scaled track makes. And beside the
+      // mark rather than over it: the address it names is the one thing the tip
+      // must not hide.
+      setMarkTip({
+        name: mark.name,
+        top: (row / BYTES_PER_ROW) * layout.rowHeight - top + host.scrollTop,
+        left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
+      });
+    },
+    [paneId]
+  );
 
   /** The held pointer's place on screen, which the autoscroll steps read. */
   const dragPointerRef = useRef<{ readonly x: number; readonly y: number } | undefined>(undefined);
@@ -1580,7 +1591,7 @@ export function HexPane({
           // elsewhere: a mark may not be dragged out of the file.
           const lastRow = rowContaining(Math.max(0, doc.size - 1));
           const target = row * BYTES_PER_ROW;
-          const landed = moveBookmark(dragging, Math.min(target, lastRow), lastRow);
+          const landed = moveBookmark(paneId, dragging, Math.min(target, lastRow), lastRow);
           if (landed !== undefined) markDragRef.current = landed;
         }
       } else if (selecting) {
@@ -1597,7 +1608,7 @@ export function HexPane({
       const after = { ...before, top: scroller.top };
       return isBeyondVisibleEdge(pointerY, after) && canAutoscrollToward(pointerY, after);
     },
-    [doc, scrollPaneTo, typing]
+    [doc, scrollPaneTo, typing, paneId]
   );
 
   /**

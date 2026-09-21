@@ -15,13 +15,25 @@ export interface UnsavedPane {
   readonly name: string;
 }
 
-/** The panes holding edits the file on disk does not have. */
+/**
+ * The panes holding edits nothing else has — the workspace's own, and the parts
+ * opened over them.
+ *
+ * A part counts. Its bytes are a copy that has never been anywhere else: the
+ * parent has not got them back, and a tab that closed without asking would take
+ * the work with it exactly as it would a file's.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.unsavedDocumentCount
+ */
 export function unsavedPanes(): UnsavedPane[] {
-  const { panes } = workspaceStore.getSnapshot();
+  const { panes, parts } = workspaceStore.getSnapshot();
   const result: UnsavedPane[] = [];
   for (const pane of ["a", "b"] as const) {
     const slot = panes[pane];
     if (slot?.document.isDirty) result.push({ pane, name: slot.name });
+  }
+  for (const [pane, part] of Object.entries(parts)) {
+    if (part.document.isDirty) result.push({ pane: pane as PaneId, name: part.name });
   }
   return result;
 }

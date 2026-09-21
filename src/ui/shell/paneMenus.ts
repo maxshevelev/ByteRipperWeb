@@ -354,7 +354,7 @@ function bookmarkItems(pane: PaneId, offset: number): (MenuEntry | undefined)[] 
       label: `Toggle Bookmark at ${hexAddress(row)}`,
       onSelect: () => toggleBookmarkInPane(pane, offset),
     },
-    bookmarkAt(offset) === undefined
+    bookmarkAt(pane, offset) === undefined
       ? undefined
       : { label: "Edit Bookmark…", onSelect: () => editBookmarkInPane(pane, offset) },
   ];

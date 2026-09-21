@@ -34,7 +34,7 @@ import {
   type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
 import { overviewBandFloor } from "@/render/minimap/viewportMarker";
-import { bookmarksStore } from "@/state/bookmarksStore";
+import { bookmarksIn, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import {
   DEFAULT_MINIMAP_WIDTH,
@@ -549,7 +549,9 @@ function MinimapCanvas({
     };
   }, [mode, slot, topRow, windowRows, differences]);
 
-  const marks = useStore(bookmarksStore).bookmarks;
+  // The marks of the pane this map is about: a part's are its own, and the
+  // workspace's would name rows of a file this map is not drawing.
+  const marks = bookmarksIn(useStore(bookmarksStore), pane);
   /** The piece the pointer is over, so the strip can say which it would act on. */
   const [hoveredPiece, setHoveredPiece] = useState<number | undefined>(undefined);
 

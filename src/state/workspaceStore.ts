@@ -20,6 +20,7 @@ import {
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
+import { forgetPartBookmarks } from "@/state/bookmarksStore";
 import { noteDocumentChanged } from "@/state/editStore";
 import {
   collapsePanels,
@@ -27,9 +28,17 @@ import {
   expandPanel,
   type FragmentDock,
   openPanel,
-  type PanelId,
   removePanel,
 } from "@/state/fragmentDock";
+import {
+  isSlot,
+  PANE_IDS,
+  type PaneId,
+  type PartId,
+  panelOf,
+  partPane,
+  type SlotId,
+} from "@/state/paneId";
 import { sanitizedPaneName } from "@/state/paneName";
 import {
   applySegments,
@@ -64,16 +73,11 @@ import { groupActs, noteDocumentAct } from "@/state/undoRouter";
  * has to ask again.
  */
 
-/** Which slot. File B is optional; with only A the app is in single-file mode. */
-export type SlotId = "a" | "b";
-
-export const PANE_IDS: readonly SlotId[] = ["a", "b"];
-
-/** A part opened over the file it came out of, as a pane of its own. */
-export type PartId = `part:${number}`;
-
-/** Which pane: one of the workspace's two file slots, or a part in the dock. */
-export type PaneId = SlotId | PartId;
+export type { PaneId, PartId, SlotId };
+// Which pane an id names lives one level down, where the stores keyed by it can
+// read it without reaching up into the workspace (`src/state/paneId.ts`); this
+// is where the rest of the application reads it from.
+export { isSlot, PANE_IDS, partPane };
 
 /**
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel
@@ -321,12 +325,6 @@ export const workspaceStore = createStore<WorkspaceState>({
   confirmShiftingEdits: true,
   alert: undefined,
 });
-
-/**
- * Whether a pane is one of the workspace's two file slots, as against a part
- * opened over one.
- */
-export const isSlot = (pane: PaneId): pane is SlotId => pane === "a" || pane === "b";
 
 /**
  * The pane `id` names, wherever it lives: a file slot, or a part in the dock.
@@ -845,9 +843,6 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
   signalFullInvalidation(pane);
 }
 
-/** The pane a panel's part is read as: one spelling of the panel's own id. */
-export const partPane = (id: PanelId): PartId => `part:${id}`;
-
 /**
  * Opens `bytes` as a part of its own — a pane over the file they came out of,
  * with a panel in the dock to show it — and gives back the pane it landed in.
@@ -918,15 +913,15 @@ export function foldParts(): void {
  */
 export function closePart(pane: PartId): void {
   clearSegments(pane);
+  // The part's own marks go with it: they are offsets into bytes nothing holds
+  // any more, and nothing wrote them down.
+  forgetPartBookmarks(pane);
   workspaceStore.update((state) => {
     const parts = { ...state.parts };
     delete parts[pane];
     return { ...state, parts, dock: removePanel(state.dock, panelOf(pane)).dock };
   });
 }
-
-/** The panel a part's pane belongs to. */
-const panelOf = (pane: PartId): PanelId => Number(pane.slice("part:".length)) as PanelId;
 
 /**
  * The placeholder a never-saved document points at until it is given a home.
