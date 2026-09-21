@@ -39,7 +39,7 @@ import { toolById } from "@/tools/registry";
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontTools
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toolsFor
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tools
  */
 
 /**

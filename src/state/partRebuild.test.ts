@@ -283,9 +283,10 @@ describe("a part the image is laid out again around", () => {
 
     const running = updateInParent(part);
     const { operationStore } = await import("@/state/operationStore");
-    // The update reaches the worker a few turns in — the link hashes both
+    // On the part's own line, which is the surface in front: the parent's is
+    // the one place the panel covers. A few turns in — the link reads both
     // sides before it plans anything.
-    const shown = await until(() => operationStore.getSnapshot().a);
+    const shown = await until(() => operationStore.getSnapshot()[part]);
     expect(shown.name).toContain("MyDriver");
     shown.operation.cancel();
     finish?.();

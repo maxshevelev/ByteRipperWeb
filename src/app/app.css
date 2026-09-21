@@ -644,6 +644,33 @@ textarea,
   color: var(--text);
 }
 
+/*
+ * The ⌄ that folds a fragment panel into its pill, beside the close mark.
+ * Only a panel's header carries one — a pane of the workspace has nothing to
+ * fold into — and it wears the close button's shape so the two read as one pair
+ * of marks rather than two kinds of control.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseButton
+ */
+.pane-collapse {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.pane-collapse:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
 /* A cross that closes something (`ui/shell/CloseButton`). */
 .close-button {
   flex: none;
@@ -685,18 +712,27 @@ textarea,
   font-weight: 600;
 }
 
-/* Where a part came from, beside its name: quiet, because it is a note about
-   the document rather than part of what the document is called, and a button
-   only while it still leads somewhere. The three states upstream's header has —
-   a live link, a parent that has gone, a source that has changed — are told
-   apart by weight and colour rather than by a second glyph, the header having
-   no room for one. */
+/*
+ * Where a part came from, beside its name: the chain and the file it was taken
+ * out of, quiet, because it is a note about the document rather than part of
+ * what the document is called.
+ *
+ * Three states, and the two that are not "intact" are not the same kind of
+ * not-intact. A source that has **changed** still leads somewhere: the chain
+ * stays, a shade dimmer, and the click still shows where the bytes came from. A
+ * parent that has **closed** leads nowhere: the chain becomes a crossed octagon
+ * and the name goes red with it — in this application's colour for a state that
+ * is wrong, deliberately not the red of bytes not saved yet — and the click
+ * does nothing.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateLink
+ */
 .pane-origin {
   flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   padding: 0;
   border: 0;
   background: none;
@@ -705,27 +741,38 @@ textarea,
   cursor: pointer;
 }
 
-.pane-origin::before {
-  /* The word that makes it a sentence rather than a second name. */
-  content: "from ";
+.pane-origin-glyph {
+  flex: none;
+}
+
+.pane-origin-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A source that has moved on: dimmer, as upstream's tertiary label is — and
+   struck through, which upstream does not need at its two greys and this
+   edition keeps: eleven pixels of grey against grey is a difference a bench
+   under a lamp does not see. */
+.pane-origin[data-state="sourceChanged"] {
   color: var(--text-faint);
 }
 
-.pane-origin[data-state="intact"]:hover {
-  color: var(--text);
-  text-decoration: underline;
+.pane-origin[data-state="sourceChanged"] .pane-origin-name {
+  text-decoration: line-through;
 }
 
-.pane-origin:disabled {
-  color: var(--text-faint);
+.pane-origin[data-state="parentClosed"] {
+  color: var(--semantic-bad);
   cursor: default;
 }
 
-/* A source that has changed still says where it came from, and says that it has
-   moved on: the strike is the one mark that reads as "this no longer matches"
-   without a colour nobody can see in a dark theme. */
-.pane-origin[data-state="sourceChanged"] {
-  text-decoration: line-through;
+/* The one state the click leads anywhere from says so under the pointer. */
+.pane-origin[data-state="intact"]:hover .pane-origin-name {
+  color: var(--text);
+  text-decoration: underline;
 }
 
 /* The name as a field, where the name was: no narrower than a name can be read

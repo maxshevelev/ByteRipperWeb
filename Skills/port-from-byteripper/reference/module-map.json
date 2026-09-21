@@ -1354,6 +1354,7 @@
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.headerHeight": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.viewDidChangeEffectiveAppearance": "n/a — CSS custom properties follow the theme by themselves",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dragging*": "later — drops on the panel: a file replacing the bound pane's",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.takesDrops": "later — G14 with the drops themselves: upstream's flag is what turns them off on a fragment panel's own tool panel, and here there are none to turn off yet",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.prepareForDragOperation": "later — drops on the panel",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.performDragOperation": "later — drops on the panel",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onDropFiles": "later — drops on the panel",

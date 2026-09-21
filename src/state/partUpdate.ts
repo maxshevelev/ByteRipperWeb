@@ -5,6 +5,7 @@ import { applyTransaction } from "@/state/toolEdits";
 import {
   type PaneId,
   type PartId,
+  paneInFront,
   paneState,
   reportAlert,
   workspaceStore,
@@ -94,16 +95,22 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
  * a zone that is a volume, a file or a section — goes through the rebuild
  * planner, in the parent's own worker (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
  *
- * The parent's status line says what is being done and how far it has got,
- * with a (×) that abandons the result: the plan cannot be stopped halfway, but
- * nothing is written until it is done, so abandoning costs nothing. The plan is
- * worked out over the parent's bytes as they were when it was asked for, so an
- * edit made meanwhile throws it away rather than landing on top of it.
+ * The status line of the surface in front says what is being done and how far
+ * it has got, with a (×) that abandons the result: the plan cannot be stopped
+ * halfway, but nothing is written until it is done, so abandoning costs
+ * nothing. The plan is worked out over the parent's bytes as they were when it
+ * was asked for, so an edit made meanwhile throws it away rather than landing
+ * on top of it.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginUpdateOperation
- * @upstream-differs the parent's status line, where upstream puts a modal sheet
- * on the parent's window: this edition has one window and one line per pane
+ * @upstream-differs the line of the surface in front, where upstream puts a
+ * modal sheet on the parent's window. Upstream's reasons were that the work
+ * lands in the parent and that the parent must not be edited under it; here the
+ * parent is the one thing on screen the panel is covering, so its line is the
+ * one place this cannot be seen — and what the sheet was guarding is guarded by
+ * the generation check below, which throws the plan away rather than writing it
+ * over bytes that moved
  */
 async function rebuildIntoParent(
   origin: DocumentOrigin,
@@ -123,7 +130,7 @@ async function rebuildIntoParent(
       operation.finish();
     }
   );
-  beginOperation(origin.parent, operation);
+  beginOperation(paneInFront(), operation);
   const answer = await askFirmwareRebuild(
     origin.parent,
     plan.bytes,

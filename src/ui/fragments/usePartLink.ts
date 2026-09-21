@@ -14,12 +14,13 @@ import { type PaneId, type PartId, paneState } from "@/state/workspaceStore";
  * itself caches against each side's content generation, so an ask that changes
  * nothing costs a comparison of two numbers.
  *
- * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.originLink
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateLink
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.observeParent
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateUpdateInParent
  */
 export interface PartLink {
-  /** What the part is called in the parent. */
-  readonly partName: string;
+  /** The file the part was taken out of — what the header's link is named after. */
+  readonly parentName: string;
   /** The sentence the pointer gets. */
   readonly explanation: string;
   readonly state: OriginState;
@@ -47,7 +48,7 @@ export function usePartLink(pane: PaneId): PartLink | undefined {
       const update = await updateInParentItem(pane);
       if (cancelled) return;
       setLink({
-        partName: origin.partName,
+        parentName: origin.parentName,
         explanation: origin.explanationFor(state),
         state,
         update,

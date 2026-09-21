@@ -70,6 +70,7 @@ import {
   type GridPoint,
   pointerTarget,
 } from "@/ui/pane/hexPointer";
+import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { PaneStatusLine } from "@/ui/pane/PaneStatusLine";
 import { PaneScroller } from "@/ui/pane/paneScroller";
@@ -77,6 +78,7 @@ import { RenameField } from "@/ui/pane/RenameField";
 import { remeasuredTop, scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
 import { CloseButton } from "@/ui/shell/CloseButton";
+import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 
 /**
@@ -122,18 +124,26 @@ export interface HexPaneProps {
   /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onClose */
   readonly onClose: () => void;
   /**
-   * Where a part came from, drawn in its header: what it is called there, the
-   * sentence the pointer gets, which of the link's three states it is in, and
-   * the way back.
+   * Folds this pane's panel into its pill. Set on a fragment panel's pane and
+   * nowhere else: setting it is what puts the ⌄ in the header, because a pane
+   * of the workspace has nothing to fold into.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onCollapse
+   */
+  readonly onCollapse?: (() => void) | undefined;
+  /**
+   * Where a part came from, drawn in its header: the file it was taken out of,
+   * the sentence the pointer gets, which of the link's three states it is in,
+   * and the way back.
    *
    * Only a part has one — a file in a slot was opened, not taken out of
    * anything.
    *
-   * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.originLink
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateLink
    */
   readonly link?:
     | {
-        readonly partName: string;
+        readonly parentName: string;
         readonly explanation: string;
         readonly state: "intact" | "parentClosed" | "sourceChanged";
         readonly onReveal: () => void;
@@ -355,6 +365,7 @@ export function HexPane({
   paneId,
   onActivate,
   onClose,
+  onCollapse,
   differences,
   companionSize,
   peerSelection,
@@ -1845,12 +1856,21 @@ export function HexPane({
         )}
         {link === undefined ? null : (
           /*
-           * Where this part came from, and the way back to it. A link that
-           * still leads somewhere is a button; one whose parent has gone, or
-           * whose bytes have changed there, is a sign that says so and does
-           * nothing — the same three states upstream's header has.
+           * Where this part came from, and the way back to it: the chain and
+           * the name of the file it was taken out of. Three states, two of them
+           * not "intact" and not the same kind of not-intact — a source that
+           * has changed still leads somewhere, so the chain stays and only
+           * dims; a parent that has closed leads nowhere, so the chain becomes
+           * a crossed octagon and the name goes red with it, in the colour this
+           * application uses for a state that is wrong rather than the red of
+           * bytes not saved yet.
            *
-           * @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.originLink
+           * It stays a button through all three, because a mark that dimmed
+           * itself out is a mark nobody reads; the click is refused for the
+           * broken one where it is handled.
+           *
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateLink
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkTapped
            * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
            */
           <button
@@ -1858,10 +1878,55 @@ export function HexPane({
             className="pane-origin"
             data-state={link.state}
             title={link.explanation}
-            disabled={link.state !== "intact"}
-            onClick={link.onReveal}
+            aria-label={link.explanation}
+            onClick={link.state === "parentClosed" ? undefined : link.onReveal}
           >
-            {link.partName}
+            <svg
+              className="pane-origin-glyph"
+              viewBox="0 0 12 12"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {link.state === "parentClosed" ? <BrokenLinkShapes /> : <LinkShapes />}
+            </svg>
+            <span className="pane-origin-name">{link.parentName}</span>
+          </button>
+        )}
+        {onCollapse === undefined ? null : (
+          /*
+           * Folds the panel into its pill. Upstream's own note on this button
+           * says why it is here rather than only on the gesture: "a gesture is
+           * not discoverable and, in the web edition, not there at all".
+           *
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseButton
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseTapped
+           */
+          <button
+            type="button"
+            className="pane-collapse"
+            title="Collapse into the dock"
+            aria-label="Collapse panel"
+            onClick={onCollapse}
+          >
+            <svg
+              viewBox="0 0 8 5"
+              width="9"
+              height="6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <ChevronShapes />
+            </svg>
           </button>
         )}
         <CloseButton label={`Close ${label}`} onClick={onClose} />

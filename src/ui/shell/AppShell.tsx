@@ -149,22 +149,25 @@ function PartDump({
   headerMenu,
   onUpdateInParent,
   onRevealOrigin,
+  onCollapse,
   ...pane
 }: Omit<React.ComponentProps<typeof HexPane>, "onHeaderMenu" | "link"> & {
   /** The header's own menu, given what Update in Parent would be called. */
   readonly headerMenu: (update: UpdateItem | undefined) => (MenuEntry | undefined)[];
   readonly onUpdateInParent: () => void;
   readonly onRevealOrigin: () => void;
+  readonly onCollapse: () => void;
 }) {
   const link = usePartLink(pane.paneId);
   return (
     <HexPane
       {...pane}
+      onCollapse={onCollapse}
       link={
         link === undefined
           ? undefined
           : {
-              partName: link.partName,
+              parentName: link.parentName,
               explanation: link.explanation,
               state: link.state,
               onReveal: onRevealOrigin,
@@ -1777,6 +1780,9 @@ export function AppShell() {
         isActive
         onActivate={() => raisePart(pane)}
         onClose={() => void closeWithWarning(pane)}
+        // The header's ⌄: the panel goes down into its pill, and nothing else
+        // happens — Esc's answer, on a mark the reader can see.
+        onCollapse={foldParts}
         onSelectionChanged={reportSelection(pane)}
         revealRequest={reveal[pane]}
         onSave={() => void doSave(false)}
