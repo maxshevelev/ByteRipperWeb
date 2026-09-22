@@ -602,11 +602,16 @@ export async function editPaneFit(
   if (current === undefined || current.status !== "ready") {
     return { problem: "That image has not been read yet.", summary: undefined };
   }
-  const job = workers[pane]?.job ?? 0;
-  const planned = await new Promise<FitEditResponse>((resolve) => {
+  const planned = await new Promise<FitEditResponse | undefined>((resolve) => {
+    // A second edit supersedes the first, which is then told it did not happen:
+    // the newer one is the one that counts, and its plan is the one applied.
+    fitEditWaiters.get(pane)?.(undefined);
     fitEditWaiters.set(pane, resolve);
-    send(pane, { kind: "fitEdit", id: job, edit });
+    send(pane, { kind: "fitEdit", id: nextAskJob(pane), edit });
   });
+  if (planned === undefined) {
+    return { problem: undefined, summary: undefined };
+  }
   if (planned.problem !== undefined) {
     return { problem: planned.problem, summary: undefined };
   }
@@ -675,8 +680,8 @@ export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | unde
 /** Who is waiting for the ME region's digests, by pane. */
 const checksumWaiters = new Map<PaneId, (response: MeChecksumsResponse | undefined) => void>();
 
-/** Who is waiting for a planned FIT edit, by pane. */
-const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse) => void>();
+/** Who is waiting for a planned FIT edit, by pane; nothing when it was superseded. */
+const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse | undefined) => void>();
 
 /** Who is waiting for a FIT report, by pane. One panel asks at a time. */
 const fitWaiters = new Map<PaneId, (report: FITReport | undefined) => void>();
