@@ -28,7 +28,7 @@ export interface DetailField {
   /**
    * A value that is a check that passed, led by the green done mark.
    *
-   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.doneValue
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.attributedValue
    * @upstream-differs a flag the shared detail draws, rather than the ME panel's own attributed string
    */
   readonly isDone?: boolean;

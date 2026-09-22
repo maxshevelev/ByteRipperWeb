@@ -112,7 +112,7 @@ function recordRows(roots: readonly MEANode[], group = "OEM Configuration"): MEA
 }
 
 describe("ConfigRecordPaths lookup", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testARecordIsNamedByTheRowAtItsOwnKey
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testARecordIsNamedByTheRowAtItsOwnKey
   it("names a record by the row at its own key", () => {
     const found = paths();
     expect(found.path(0x1008_0a00)).toBe("/home/amt/rtfd/PrivacyLvl");
@@ -120,21 +120,21 @@ describe("ConfigRecordPaths lookup", () => {
     expect(found.path(0x1008_0700)).toBe("/home/amt/rtfd/UC.Config");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAnUnknownIDReadsAsUpstreamsFallback
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAnUnknownIDReadsAsUpstreamsFallback
   it("reads an unknown ID as upstream's fallback", () => {
     const found = paths();
     expect(found.path(0xdead_beef)).toBe("/Unknown/DEADBEEF.bin");
     expect(found.isNamed(0xdead_beef)).toBe(false);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testWithNothingLookedUpThereIsNoPathAtAll
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testWithNothingLookedUpThereIsNoPathAtAll
   it("has no path at all with nothing looked up", () => {
     expect(ConfigRecordPaths.none.path(0x1008_0a00)).toBeUndefined();
     expect(ConfigRecordPaths.none.tableLabel).toBeUndefined();
     expect(ConfigRecordPaths.none.isEmpty).toBe(true);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAnEmptyTableIsNone
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAnEmptyTableIsNone
   it("is none for an empty table", () => {
     const found = ConfigRecordPaths.forFileIDs({
       table: FileTable.empty,
@@ -146,7 +146,7 @@ describe("ConfigRecordPaths lookup", () => {
     expect(found.resolution).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testTheFallbacksAreReportedOnTheLabel
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testTheFallbacksAreReportedOnTheLabel
   it("reports the fallbacks on the label", () => {
     expect(paths().tableLabel).toBe("04 / 0B");
     const assumed = paths(-1, -1);
@@ -158,7 +158,7 @@ describe("ConfigRecordPaths lookup", () => {
 });
 
 describe("ConfigRecordPaths rows", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testANamedRowCarriesTheRecordsFactsAndItsBytes
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testANamedRowCarriesTheRecordsFactsAndItsBytes
   it("carries the record's facts and its bytes on a named row", () => {
     const rows = recordRows(presentMEA(analysis(), undefined, undefined, undefined, paths()));
     expect(rows.subtitle).toBe("3 records");
@@ -176,7 +176,7 @@ describe("ConfigRecordPaths rows", () => {
     expect(second === undefined ? undefined : field("OEM Configurable", second)).toBe("No");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAnUnnamedRowKeepsItsFallbackName
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAnUnnamedRowKeepsItsFallbackName
   it("keeps the fallback name on an unnamed row", () => {
     const rows = recordRows(presentMEA(analysis(), undefined, undefined, undefined, paths()));
     const last = rows.children.at(-1);
@@ -185,7 +185,7 @@ describe("ConfigRecordPaths rows", () => {
     expect(last === undefined ? undefined : field("Reserved Flags", last)).toBe("0x3");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testWithoutTheTableTheRowsAreTheirFileIDs
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testWithoutTheTableTheRowsAreTheirFileIDs
   it("reads the rows as their File IDs without the table", () => {
     const rows = recordRows(presentMEA(analysis(), undefined));
     expect(rows.children.map((one) => one.title)).toEqual([
@@ -198,7 +198,7 @@ describe("ConfigRecordPaths rows", () => {
     expect(first?.range).toEqual({ start: 0x31_5010, end: 0x31_5011 });
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testWithoutAPayloadOffsetTheRowsPointAtNothing
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testWithoutAPayloadOffsetTheRowsPointAtNothing
   it("points the rows at nothing without a payload offset", () => {
     const roots = presentMEA(
       analysis({ payloadOffset: null }),
@@ -210,7 +210,7 @@ describe("ConfigRecordPaths rows", () => {
     for (const row of recordRows(roots).children) expect(row.range).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testTheGroupNamesTheTableAndDropsTheReflectedList
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testTheGroupNamesTheTableAndDropsTheReflectedList
   it("names the table on the group and drops the reflected list", () => {
     const roots = presentMEA(analysis(), undefined, undefined, undefined, paths());
     const oem = roots.find((one) => one.title === "OEM Configuration");
@@ -220,7 +220,7 @@ describe("ConfigRecordPaths rows", () => {
     expect(oem === undefined ? undefined : field("headerRevision", oem)).toBe("1");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAVolumesOwnStreamIsARowUnderTheVolume
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/ConfigRecordPathsTests.swift#ConfigRecordPathsTests.testAVolumesOwnStreamIsARowUnderTheVolume
   it("shows a volume's own stream as a row under the volume", () => {
     const roots = presentMEA(
       analysis({ streamOnVolume: true }),

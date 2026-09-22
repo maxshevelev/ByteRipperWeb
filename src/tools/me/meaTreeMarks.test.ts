@@ -94,7 +94,7 @@ const present = (overrides: Partial<FirmwareAnalysis>): MEANode[] =>
   presentMEA(analysisWith(overrides), undefined);
 
 describe("the compressed badge", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testCompressedModulesWearTheBadge
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEATreeMarksTests.swift#MEATreeMarksTests.testCompressedModulesWearTheBadge
   it("gives it to a compressed module, indigo only to the one the metadata table came out of", () => {
     const roots = present({
       codePartition: cpd([
@@ -123,7 +123,7 @@ describe("the compressed badge", () => {
     expect(rolesOf(roots, "plain")).toEqual([]);
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.module
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.module
   it("does not open a metadata module when the table was never read", () => {
     const roots = present({ codePartition: cpd([module("pm", { huffman: true })]) });
 
@@ -132,7 +132,7 @@ describe("the compressed badge", () => {
     ]);
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.storage
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.storage
   it("reads the algorithm from the `.met` companion first, and the flag otherwise", () => {
     // The companion's block wins over the flag: it is what the module says about
     // itself. A module's own chain is never read — only a `<name>.met` row's.
@@ -152,7 +152,7 @@ describe("the compressed badge", () => {
     ]);
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.storage
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.storage
   it("knows Huffman from its own name when the block is not a compression value", () => {
     // A block whose compression byte is neither 1 nor 2 is not a choice this
     // engine knows, so the module's own flag is the answer.
@@ -170,7 +170,7 @@ describe("the compressed badge", () => {
 });
 
 describe("the issues a module row wears", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testAFailedModuleCheckIsACautionOnItsRow
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEATreeMarksTests.swift#MEATreeMarksTests.testAFailedModuleCheckIsACautionOnItsRow
   it("puts a failed module check on that module's row, beside its badge", () => {
     const roots = present({
       codePartition: cpd([
@@ -204,7 +204,7 @@ describe("the issues a module row wears", () => {
     expect(MEA_TREE_MARKS.legendMarks).toContain("caution");
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.module
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.module
   it("makes an erroring module check an error", () => {
     const roots = present({
       codePartition: cpd([module("kernel")]),
@@ -221,7 +221,7 @@ describe("the issues a module row wears", () => {
 });
 
 describe("the rail on the metadata rows", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheMetadataRowsWearTheRailWhenTheirModuleIsCompressed
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheMetadataRowsWearTheRailWhenTheirModuleIsCompressed
   it("draws it when their module is stored compressed, and names that module", () => {
     const compressed = present({
       codePartition: cpd([module("pm", { huffman: true })]),
@@ -242,7 +242,7 @@ describe("the rail on the metadata rows", () => {
     expect(root("RBE/PM Metadata", plain).marks?.decompressedFrom).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.metadata
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.metadata
   it("takes the rail from either module the table is read out of, and from none when neither is here", () => {
     const asRbe = present({
       codePartition: cpd([module("rbe", { huffman: true })]),
@@ -254,7 +254,7 @@ describe("the rail on the metadata rows", () => {
     expect(metadataMarks(analysisWith({ rbePmMetadata: [metadataRow] }))).toEqual({});
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.metadata
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.metadata
   it("gives the rail to the unmatched-hash rows too, which came out of the same module", () => {
     const roots = present({
       codePartition: cpd([module("pm", { huffman: true })]),
@@ -270,7 +270,7 @@ describe("the rail on the metadata rows", () => {
 });
 
 describe("the manifest and the tables", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheManifestHoldsChecksAndSaysWhenItsSignatureFails
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheManifestHoldsChecksAndSaysWhenItsSignatureFails
   it("makes the manifest hold the checks, and says when its own signature fails", () => {
     const good = present({ manifest: manifestFixture(), rsaSignatureValid: true });
     const row = root("Manifest", good);
@@ -283,7 +283,7 @@ describe("the manifest and the tables", () => {
     expect(root("Manifest", bad).marks?.problem?.isError).toBe(true);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTablesWithAWrongChecksumAreErrors
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTablesWithAWrongChecksumAreErrors
   it("makes a wrong checksum an error on the row it belongs to, and not one the version omits", () => {
     const roots = present({
       codePartition: cpd([module("$MN2")], false),
@@ -320,7 +320,7 @@ describe("the manifest and the tables", () => {
     expect(boot?.marks?.problem).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.codePartition
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.codePartition
   it("names the sum a revision 1 partition carries", () => {
     const roots = present({
       codePartition: { ...cpd([module("$MN2")], false), headerVersion: 1 },
@@ -333,7 +333,7 @@ describe("the manifest and the tables", () => {
 });
 
 describe("the legend", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheLegendListsNoBackground
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEATreeMarksTests.swift#MEATreeMarksTests.testTheLegendListsNoBackground
   it("lists what this tree draws, and nothing it does not", () => {
     const channels = MEA_TREE_MARKS.legendMarks.map((mark) =>
       mark === "decompressed" ? "rail" : undefined

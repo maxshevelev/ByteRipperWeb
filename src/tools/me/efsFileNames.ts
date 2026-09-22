@@ -24,13 +24,13 @@ import type { EFSVolume } from "@/firmware/me/models/fileSystemFacts";
  * too — a volume whose pages carry no directory has nothing to list without the
  * table — so there is nothing to name.
  *
- * Ported from `Modules/MEATool/Sources/MEATool/EFSFileNames.swift`.
+ * Ported from `Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift`.
  */
 export class EFSFileNames {
   /**
    * File ID → the `EFST` record that names it.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.names
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.names
    */
   readonly names: ReadonlyMap<number, FileTableEFSEntry>;
 
@@ -39,7 +39,7 @@ export class EFSFileNames {
    * where no row claims the file — upstream prints an error and stores the file
    * anyway (MEA.py 8936), and the row here keeps its name.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.records
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.records
    */
   readonly records: ReadonlyMap<number, FileTableEntry>;
 
@@ -48,14 +48,14 @@ export class EFSFileNames {
    * rather than named by the MFS volume beside this one. `undefined` when
    * nothing was looked up.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.resolution
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.resolution
    */
   readonly resolution: FileTableResolution | undefined;
 
   /**
    * The table revision the EFS System page names (`dictionaryRevision`).
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.revision
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.revision
    */
   readonly revision: number | undefined;
 
@@ -63,11 +63,11 @@ export class EFSFileNames {
    * Whether that platform and dictionary carry an `EFST` at all, so the panel
    * can tell "no table for this volume" from "a table that named nothing in it".
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.hasTable
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.hasTable
    */
   readonly hasTable: boolean;
 
-  /** @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.init */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.init */
   constructor(options: {
     readonly names: ReadonlyMap<number, FileTableEFSEntry>;
     readonly records: ReadonlyMap<number, FileTableEntry>;
@@ -85,7 +85,7 @@ export class EFSFileNames {
   /**
    * Nothing looked up.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.none
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.none
    */
   static readonly none = new EFSFileNames({
     names: new Map(),
@@ -104,7 +104,7 @@ export class EFSFileNames {
    * against them (`EFSVolume.matchesMFSDictionary`). −1 for either means no MFS
    * volume decoded alongside, which the table's own fallbacks then answer.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.init
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.init
    */
   static forVolume(options: {
     readonly table: FileTable;
@@ -136,7 +136,7 @@ export class EFSFileNames {
    * True when the lookup named nothing — no `EFST` for this volume, or none at
    * its revision.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.isEmpty
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.isEmpty
    */
   get isEmpty(): boolean {
     return this.names.size === 0;
@@ -145,7 +145,7 @@ export class EFSFileNames {
   /**
    * What the file is called, e.g. `BUP_MBP`.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.name
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.name
    */
   name(fileID: number): string | undefined {
     return this.names.get(fileID)?.name;
@@ -154,7 +154,7 @@ export class EFSFileNames {
   /**
    * The `FTBL` row that describes the file, or `undefined` where none claims it.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.record
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.record
    */
   record(fileID: number): FileTableEntry | undefined {
     return this.records.get(fileID);
@@ -167,7 +167,7 @@ export class EFSFileNames {
    * rather than named by the MFS volume (upstream warns in the same place —
    * `check_ftbl_pl` / `check_ftbl_id`).
    *
-   * @upstream Modules/MEATool/Sources/MEATool/EFSFileNames.swift#EFSFileNames.tableLabel
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/EFSFileNames.swift#EFSFileNames.tableLabel
    */
   get tableLabel(): string | undefined {
     const resolution = this.resolution;

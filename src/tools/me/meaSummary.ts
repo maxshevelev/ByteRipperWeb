@@ -40,7 +40,7 @@ export type MEASummaryValue =
 /**
  * The colour a value is drawn in, decided where the fact behind it is known.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryTone
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone
  */
 export type MEASummaryTone = "standard" | "good" | "caution" | "bad";
 
@@ -334,7 +334,7 @@ const numberText = (value: number | undefined) => (value === undefined ? undefin
 
 const POWER_DOWN_VALUES: readonly string[] = ["yes", "no", "unknown", "unknown1", "unknown2"];
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.powerDownMitigation */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.powerDownMitigation */
 function powerDownText(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   return POWER_DOWN_VALUES.includes(value)
@@ -345,7 +345,7 @@ function powerDownText(value: string | undefined): string | undefined {
 /**
  * The MEU version, or nothing for an R0 manifest and the 0 / 0xFFFF no-MEU markers.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#Version.meText
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#Version.meText
  */
 function meuVersion(a: FirmwareAnalysis): string | undefined {
   const { meMajor, meMinor, meHotfix, meBuild } = a.version;

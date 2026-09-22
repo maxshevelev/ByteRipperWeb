@@ -127,7 +127,7 @@ function files(roots: readonly MEANode[]): MEANode {
 }
 
 describe("MFSFileNames lookup", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testItNamesThePresentFilesAndNothingElse
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testItNamesThePresentFilesAndNothingElse
   it("names the present files and nothing else", () => {
     const names = MFSFileNames.forVolume(table(), volume());
     expect(names.path(63)).toBe("/home/mca/manuf_ver");
@@ -136,39 +136,39 @@ describe("MFSFileNames lookup", () => {
     expect(new Set(names.entries.keys())).toEqual(new Set([6, 7, 63]));
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAFileClaimedTwiceTakesTheFirstRecord
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAFileClaimedTwiceTakesTheFirstRecord
   it("takes the first record when a file is claimed twice", () => {
     const names = MFSFileNames.forVolume(table(), volume());
     expect(names.path(7)).toBe("/home/ish_srv/bios2ish");
     expect(names.record(7)?.fileID).toBe("10002000");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheLabelNamesTheTableTheVolumeAskedFor
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheLabelNamesTheTableTheVolumeAskedFor
   it("labels the table the volume asked for", () => {
     expect(MFSFileNames.forVolume(table(), volume()).tableLabel).toBe("04 / 0A");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAnAssumedPlatformIsSaidSo
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAnAssumedPlatformIsSaidSo
   it("says so when the platform was assumed", () => {
     const names = MFSFileNames.forVolume(table(), volume(0x7f));
     expect(names.tableLabel).toBe("01 / 0A (assumed platform)");
     expect(names.path(6)).toBe("/home/icc/default");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testBothHalvesAssumedAreSaidSo
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testBothHalvesAssumedAreSaidSo
   it("says so when both halves were assumed", () => {
     const names = MFSFileNames.forVolume(table(), volume(-1, -1));
     expect(names.tableLabel).toBe("01 / 0A (assumed platform and dictionary)");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAnEmptyTableNamesNothing
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAnEmptyTableNamesNothing
   it("names nothing from an empty table", () => {
     const names = MFSFileNames.forVolume(FileTable.empty, volume());
     expect(names.isEmpty).toBe(true);
     expect(names.tableLabel).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAMissingTableIsReported
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAMissingTableIsReported
   it("reports a table that has no FTBL for this volume", () => {
     const only = FileTable.parse(
       `{ "02": { "0B": { "EFST": { "01": { "00000000": "0,0,1,0,0,X" } } } } }`
@@ -180,7 +180,7 @@ describe("MFSFileNames lookup", () => {
 });
 
 describe("MFSFileNames rows", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheRowsKeepTheirNumbersWithoutATable
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheRowsKeepTheirNumbersWithoutATable
   it("keeps the rows' numbers without a table", () => {
     const roots = presentMEA(analysis(volume()), undefined);
     const branch = files(roots);
@@ -196,7 +196,7 @@ describe("MFSFileNames rows", () => {
     expect(mfs === undefined ? undefined : field("File Table", mfs)).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testANamedRowCarriesThePathAndTheRecordsFlags
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testANamedRowCarriesThePathAndTheRecordsFlags
   it("carries the path and the record's flags on a named row", () => {
     const vol = volume();
     const names = MFSFileNames.forVolume(table(), vol);
@@ -217,7 +217,7 @@ describe("MFSFileNames rows", () => {
     expect(plain === undefined ? undefined : field("Integrity", plain)).toBe("No");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testARowNamesOneRecordAndSaysWhichOne
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testARowNamesOneRecordAndSaysWhichOne
   it("names one record and says which one", () => {
     const vol = volume();
     const names = MFSFileNames.forVolume(table(), vol);
@@ -229,7 +229,7 @@ describe("MFSFileNames rows", () => {
     ).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAnUnnamedFileKeepsItsNumberBesideTheNamedOnes
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAnUnnamedFileKeepsItsNumberBesideTheNamedOnes
   it("keeps an unnamed file's number beside the named ones", () => {
     const vol = volume();
     const names = MFSFileNames.forVolume(table(), vol);
@@ -239,7 +239,7 @@ describe("MFSFileNames rows", () => {
     expect(row === undefined ? undefined : field("Path", row)).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testASplitFileShowsItsContentSizeAndItsTable
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testASplitFileShowsItsContentSizeAndItsTable
   it("shows a split file's content size and its table", () => {
     const vol = volume(4, 0x0a, undefined, new Set([63]));
     const names = MFSFileNames.forVolume(table(), vol);
@@ -254,7 +254,7 @@ describe("MFSFileNames rows", () => {
     expect(integrity?.fields.length).toBeGreaterThan(0);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAFileWithNoTableShowsOneSize
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testAFileWithNoTableShowsOneSize
   it("shows one size for a file with no table", () => {
     const vol = volume();
     const names = MFSFileNames.forVolume(table(), vol);
@@ -285,7 +285,7 @@ describe("MFSFileNames rows", () => {
     expect(fileTableWanted(analysisWith(), [])).toBe(false);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheVolumeSaysWhichTableNamedItsFiles
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheVolumeSaysWhichTableNamedItsFiles
   it("says on the volume which table named its files", () => {
     const vol = volume();
     const names = MFSFileNames.forVolume(table(), vol);

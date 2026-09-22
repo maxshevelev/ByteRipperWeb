@@ -28,13 +28,13 @@ import {
  * No background: the Boot Guard ranges lie in the BIOS region, and an ME row
  * never sits inside one.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks
  */
 export const MEA_TREE_MARKS = {
   /**
    * Every mark this tree draws — what its legend lists.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.legendMarks
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.legendMarks
    */
   legendMarks: [
     "decompressed",
@@ -50,20 +50,20 @@ export const MEA_TREE_MARKS = {
  * How a module is stored, from its directory row and its `.met` companion's
  * Module Attributes block.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.Storage
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.Storage
  */
 export interface MEAStorage {
   /**
    * "Huffman" or "LZMA"; nothing for a module stored as it is.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.Storage.compression
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.Storage.compression
    */
   readonly compression: string | undefined;
-  /** @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.Storage.isEncrypted */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.Storage.isEncrypted */
   readonly isEncrypted: boolean;
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.storage */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.storage */
 export function storage(of: CPDModuleRow, inPartition: CodePartition): MEAStorage {
   const attributes = inPartition.modules
     .find((one) => one.name === `${of.name}.met`)
@@ -87,7 +87,7 @@ export function storage(of: CPDModuleRow, inPartition: CodePartition): MEAStorag
 /**
  * The modules the RBE/PM Metadata table is read out of.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.metadataModules
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.metadataModules
  */
 const metadataModules = new Set(["pm", "rbe"]);
 
@@ -98,7 +98,7 @@ const metadataModules = new Set(["pm", "rbe"]);
  * it (`Issue.module`): an error for an error, a caution for the rest. They stay
  * in the Issues group too.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.module
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.module
  */
 export function moduleMarks(
   module: CPDModuleRow,
@@ -131,7 +131,7 @@ export function moduleMarks(
 /**
  * The code partition's row: its directory checksum.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.codePartition
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.codePartition
  */
 export function codePartitionMarks(partition: CodePartition): ToolRowMarks {
   if (partition.checksumValid !== false) return NO_ROW_MARKS;
@@ -143,7 +143,7 @@ export function codePartitionMarks(partition: CodePartition): ToolRowMarks {
  * The manifest's row: it holds the hashes the modules are checked against, and
  * its own signature may not check out.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.manifest
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.manifest
  */
 export function manifestMarks(analysis: FirmwareAnalysis): ToolRowMarks {
   return {
@@ -162,7 +162,7 @@ export function manifestMarks(analysis: FirmwareAnalysis): ToolRowMarks {
 /**
  * A layout table's row: its CRC-32, where its version has one.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.table
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.table
  */
 export function tableMarks(named: string, checksumValid: boolean | undefined): ToolRowMarks {
   if (checksumValid !== false) return NO_ROW_MARKS;
@@ -173,7 +173,7 @@ export function tableMarks(named: string, checksumValid: boolean | undefined): T
  * The RBE/PM Metadata rows: the rail when the module they were read out of is
  * stored compressed, with its name in the words.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEATreeMarks.swift#MEATreeMarks.metadata
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATreeMarks.swift#MEATreeMarks.metadata
  */
 export function metadataMarks(analysis: FirmwareAnalysis): ToolRowMarks {
   const partition = analysis.codePartition;

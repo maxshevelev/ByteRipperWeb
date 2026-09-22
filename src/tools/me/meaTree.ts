@@ -52,56 +52,56 @@ import type { ZoneMap } from "@/tools/zone";
  * by row are dumped field by field.
  */
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField */
 export interface MEAField {
-  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.label */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.label */
   readonly label: string;
-  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.value */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.value */
   readonly value: string;
   /**
    * What the value says, when it is a verdict: `good` draws it with the green
    * done mark — a check that found nothing wrong.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.tone
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.tone
    * @upstream-differs absent reads as standard
    */
   readonly tone?: MEASummaryTone;
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode */
 export interface MEANode {
   /**
    * An index per level; `[0]` is the first root. Stable across re-reads of the same file.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.path
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.id
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.path
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.id
    * @upstream-differs the node's path is its identity
    */
   readonly path: readonly number[];
-  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.title */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.title */
   readonly title: string;
   /**
    * The row's second column — usually `offset · size`.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.subtitle
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.subtitle
    */
   readonly subtitle: string;
   /**
    * The file bytes the row stands for, when the model gives a reliable range.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.range
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.hasBytes
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.range
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.hasBytes
    * @upstream-differs a node has bytes when its range is defined
    */
   readonly range: { readonly start: number; readonly end: number } | undefined;
-  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.fields */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.fields */
   readonly fields: readonly MEAField[];
-  /** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.children */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.children */
   readonly children: readonly MEANode[];
   /**
    * A place in the layout that holds nothing: drawn grey.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isEmptySection
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isEmptySection
    */
   readonly isEmptySection: boolean;
   /**
@@ -110,7 +110,7 @@ export interface MEANode {
    * built (`MEATreeMarks`), since everything it is decided from is in the
    * analysis the node comes out of.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.marks
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.marks
    * @upstream-differs absent reads as none
    */
   readonly marks: ToolRowMarks | undefined;
@@ -126,10 +126,10 @@ export interface MEAChecksums {
 /**
  * What the checksums group is called, and what its rows say before they are computed.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.checksumsTitle
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.checksumsTitle
  */
 export const CHECKSUMS_TITLE = "Checksums";
-/** @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.pendingValue */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.pendingValue */
 export const PENDING_VALUE = "Loading…";
 
 /** A node before its place in the tree is known. */
@@ -143,7 +143,7 @@ interface Draft {
   readonly marks?: ToolRowMarks;
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEAField.init */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.init */
 const field = (label: string, value: string, tone: MEASummaryTone = "standard"): MEAField =>
   tone === "standard" ? { label, value } : { label, value, tone };
 
@@ -170,8 +170,8 @@ class Fields {
  * the default — is the tree as it reads before the table arrives, and on every
  * volume that names its own files.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.present
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.present
  */
 export function presentMEA(
   analysis: FirmwareAnalysis,
@@ -219,8 +219,8 @@ function finish(draft: Draft, path: readonly number[]): MEANode {
 /**
  * The node at `path`, or nothing when the tree no longer reaches that far.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEATree
- * @upstream Modules/MEATool/Sources/MEATool/MEANode.swift#MEATree.node
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEATree
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEATree.node
  */
 export function meaNodeAt(roots: readonly MEANode[], path: readonly number[]): MEANode | undefined {
   let nodes = roots;
@@ -236,7 +236,7 @@ export function meaNodeAt(roots: readonly MEANode[], path: readonly number[]): M
 /**
  * The checksums group's path, when the tree has one.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.checksumsPath
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.checksumsPath
  */
 export function checksumsPath(roots: readonly MEANode[]): readonly number[] | undefined {
   return roots.find((root) => root.title === CHECKSUMS_TITLE)?.path;
@@ -246,9 +246,9 @@ export function checksumsPath(roots: readonly MEANode[]): readonly number[] | un
  * The zone a selected row publishes: one, focused, for its bytes — and nothing
  * for a row that stands for none (a group, the manifest).
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAZones.swift#MEAZones
- * @upstream Modules/MEATool/Sources/MEATool/MEAZones.swift#MEAZones.build
- * @upstream Modules/MEATool/Sources/MEATool/MEAZones.swift#MEAZones.id
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAZones.swift#MEAZones
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAZones.swift#MEAZones.build
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAZones.swift#MEAZones.id
  * @upstream-differs the zone id is the path joined inline
  */
 export function meaZones(focus: MEANode | undefined): ZoneMap {
@@ -270,7 +270,7 @@ export function meaZones(focus: MEANode | undefined): ZoneMap {
 // MARK: - Identity
 
 /**
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.firmwareImageTool
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.firmwareImageTool
  * @upstream-differs the Flash Image Tool cell is read inline with the identity rows
  */
 function firmware(a: FirmwareAnalysis): Draft {
@@ -314,7 +314,7 @@ function firmware(a: FirmwareAnalysis): Draft {
 /**
  * The whole MEU block, when all four fields are there.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#Version.meText
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#Version.meText
  */
 function meuVersion(a: FirmwareAnalysis): string | undefined {
   const { meMajor, meMinor, meHotfix, meBuild } = a.version;
@@ -677,7 +677,7 @@ function mfsVolume(
  * is among them: a reader checking the panel against upstream's console is
  * looking at that number.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.mfsFileRow
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.mfsFileRow
  */
 function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
   const record = names.record(file.index);
@@ -723,7 +723,7 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
  * is what the volume says about the file, and a reader comparing the panel with
  * a dump — or with upstream's own `path (0063)` — needs it.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.mfsFileSubtitle
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.mfsFileSubtitle
  */
 function mfsFileSubtitle(file: MFSFile, named: boolean): string {
   const size = sizeText(file.contentSize ?? file.size);
@@ -836,7 +836,7 @@ function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
  * offset into the volume's Data pages concatenated in index order, so a long
  * file occupies no one stretch of the dump (`EFSFile`).
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.efsFileRow
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.efsFileRow
  */
 function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
   const fields = new Fields().add("VFS ID", file.fileID).add("Size", sizeText(file.contentSize));
@@ -885,7 +885,7 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
  * payload carries — the OEM `fitc.cfg`, which on the newer layouts is a
  * partition of its own rather than a low-level file of the volume.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.oemGroup
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.oemGroup
  */
 function oemGroup(
   a: FirmwareAnalysis,
@@ -938,7 +938,7 @@ function oemGroup(
  * A flat node rather than a group with one child: it is four facts, and a reader
  * should not have to open a folder to see three of them.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.unlockTokenGroups
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.unlockTokenGroups
  */
 function unlockTokenGroups(a: FirmwareAnalysis): Draft[] {
   const tokens = a.unlockTokenFlags ?? [];
@@ -961,7 +961,7 @@ function unlockTokenGroups(a: FirmwareAnalysis): Draft[] {
  * and Yes, and anything else is a value nobody has seen — said as such rather
  * than rounded to Yes.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.delayedAuthenticationMode
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.delayedAuthenticationMode
  */
 function delayedAuthenticationMode(raw: number): string {
   switch (raw) {
@@ -983,7 +983,7 @@ function delayedAuthenticationMode(raw: number): string {
  * the file is a FAT chain, and the engine does not expose where its chunks
  * landed.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.configByIDGroup
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.configByIDGroup
  */
 function configByIDGroup(
   records: readonly MFSConfigIDRecord[],
@@ -1001,7 +1001,7 @@ function configByIDGroup(
  * `/Unknown/<ID>.bin`, which says the record is real and its name is not known,
  * rather than passing the ID off as a name.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.configIDRow
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.configIDRow
  */
 function configIDRow(
   record: MFSConfigIDRecord,
@@ -1034,7 +1034,7 @@ function configIDRow(
  * What the low-level file a Configuration stream came from is called
  * (upstream's own "006 Intel" / "007 OEM").
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEACurator.swift#MEACurator.configStreamTitle
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.configStreamTitle
  */
 function configStreamTitle(owningFile: number): string {
   switch (owningFile) {
@@ -1182,8 +1182,8 @@ function issuesGroup(a: FirmwareAnalysis): Draft | undefined {
  * and an absent or empty value is left out. Offsets, addresses, CRCs, tags,
  * masks, flags and types read as hex; every other number in decimal.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAValueText
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAValueText.fields
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAValueText
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAValueText.fields
  */
 export function valueFields(value: unknown): MEAField[] {
   const out: MEAField[] = [];

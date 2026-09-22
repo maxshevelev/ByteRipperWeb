@@ -20,7 +20,7 @@ import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
  * a machine that cannot reach the database at all. The rows then read as they
  * always have — `File 63` — which is the honest answer, not a gap.
  *
- * Ported from `Modules/MEATool/Sources/MEATool/MFSFileNames.swift`.
+ * Ported from `Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift`.
  */
 export class MFSFileNames {
   /**
@@ -29,7 +29,7 @@ export class MFSFileNames {
    * is claimed twice more often than not — the records it never reaches are
    * names the file does not have.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.entries
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.entries
    */
   readonly entries: ReadonlyMap<number, FileTableEntry>;
 
@@ -37,11 +37,11 @@ export class MFSFileNames {
    * Which table the lookup read, and whether either half of it was assumed
    * rather than named by the volume. `undefined` when nothing was looked up.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.resolution
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.resolution
    */
   readonly resolution: FileTableResolution | undefined;
 
-  /** @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.init */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.init */
   constructor(
     entries: ReadonlyMap<number, FileTableEntry>,
     resolution: FileTableResolution | undefined
@@ -53,7 +53,7 @@ export class MFSFileNames {
   /**
    * Nothing looked up.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.none
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.none
    */
   static readonly none = new MFSFileNames(new Map(), undefined);
 
@@ -61,7 +61,7 @@ export class MFSFileNames {
    * The names for one volume: every present file's index looked up once, up
    * front, so the rows are built from a value and not from a search.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.init
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.init
    */
   static forVolume(table: FileTable, volume: MFSVolume): MFSFileNames {
     if (table.isEmpty) return MFSFileNames.none;
@@ -80,7 +80,7 @@ export class MFSFileNames {
    * this volume at all. The panel then says nothing about naming rather than
    * claiming a table it could not use.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.isEmpty
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.isEmpty
    */
   get isEmpty(): boolean {
     return this.entries.size === 0;
@@ -89,7 +89,7 @@ export class MFSFileNames {
   /**
    * The record naming `index`, or `undefined`.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.record
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.record
    */
   record(index: number): FileTableEntry | undefined {
     return this.entries.get(index);
@@ -100,7 +100,7 @@ export class MFSFileNames {
    * that index — the row keeps its number then, the way upstream falls back to
    * `/Unknown/<idx>.bin`.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.path
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.path
    */
   path(index: number): string | undefined {
     return this.entries.get(index)?.path;
@@ -112,7 +112,7 @@ export class MFSFileNames {
    * either was assumed rather than read from the volume (upstream warns in the
    * same place — `check_ftbl_pl` / `check_ftbl_id`).
    *
-   * @upstream Modules/MEATool/Sources/MEATool/MFSFileNames.swift#MFSFileNames.tableLabel
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MFSFileNames.swift#MFSFileNames.tableLabel
    */
   get tableLabel(): string | undefined {
     const resolution = this.resolution;

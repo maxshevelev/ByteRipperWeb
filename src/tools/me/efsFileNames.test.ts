@@ -167,7 +167,7 @@ function fileRows(roots: readonly MEANode[]): MEANode {
 }
 
 describe("EFSFileNames lookup", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAFileIsNamedByEFSTAndDescribedByFTBL
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAFileIsNamedByEFSTAndDescribedByFTBL
   it("names a file by EFST and describes it by FTBL", () => {
     const found = names(volume());
     expect(found.name(5)).toBe("BUP_MBP");
@@ -177,14 +177,14 @@ describe("EFSFileNames lookup", () => {
     expect(found.record(6)?.integrity).toBe(false);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testTheSystemPagesRevisionSelectsTheTable
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testTheSystemPagesRevisionSelectsTheTable
   it("selects the table by the System page's revision", () => {
     expect(names(volume({ dictionaryRevision: 1 })).name(6)).toBe("ICC_MPHYTBL");
     expect(names(volume({ dictionaryRevision: 2 })).name(6)).toBe("RENAMED_LATER");
     expect(names(volume({ dictionaryRevision: 2 })).revision).toBe(2);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testARevisionTheTableDoesNotCarryNamesNothing
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testARevisionTheTableDoesNotCarryNamesNothing
   it("names nothing at a revision the table does not carry", () => {
     const found = names(volume({ dictionaryRevision: 9 }));
     expect(found.isEmpty).toBe(true);
@@ -192,14 +192,14 @@ describe("EFSFileNames lookup", () => {
     expect(found.tableLabel).toBe("04 / 0B rev 09 — no EFST at that revision");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testTheLookupUsesTheMFSVolumesPlatformAndDictionary
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testTheLookupUsesTheMFSVolumesPlatformAndDictionary
   it("uses the MFS volume's platform and dictionary", () => {
     const found = names(volume(), 4, 0x0a);
     expect(found.isEmpty).toBe(true);
     expect(found.tableLabel).toBe("04 / 0A rev 01 — no EFST in FileTable.dat");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testWithNoMFSVolumeBothHalvesAreAssumed
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testWithNoMFSVolumeBothHalvesAreAssumed
   it("assumes both halves with no MFS volume beside it", () => {
     const found = names(volume(), -1, -1);
     expect(found.resolution?.platform).toBe(0x01);
@@ -207,7 +207,7 @@ describe("EFSFileNames lookup", () => {
     expect(found.tableLabel).toBe("01 / 0A rev 01 — no EFST in FileTable.dat");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAnEmptyTableIsNone
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAnEmptyTableIsNone
   it("is none for an empty table", () => {
     const found = EFSFileNames.forVolume({
       table: FileTable.empty,
@@ -222,7 +222,7 @@ describe("EFSFileNames lookup", () => {
 });
 
 describe("EFSFileNames rows", () => {
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testANamedRowCarriesBothTablesFacts
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testANamedRowCarriesBothTablesFacts
   it("carries both tables' facts on a named row", () => {
     const efs = volume();
     const rows = fileRows(presentMEA(analysis(efs), undefined, undefined, names(efs)));
@@ -240,7 +240,7 @@ describe("EFSFileNames rows", () => {
     expect(mbp?.subtitle).toBe("#5 · 0xD8 (216 bytes)");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testASplitRowShowsBothSizesAndTheTable
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testASplitRowShowsBothSizesAndTheTable
   it("shows both sizes and the table on a split row", () => {
     const efs = volume();
     const rows = fileRows(presentMEA(analysis(efs), undefined, undefined, names(efs)));
@@ -252,7 +252,7 @@ describe("EFSFileNames rows", () => {
     expect(integrity?.subtitle).toBe("0x28 (40 bytes)");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAnUnsplitRowSaysOneSize
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAnUnsplitRowSaysOneSize
   it("says one size on an unsplit row", () => {
     const efs = volume();
     const rows = fileRows(presentMEA(analysis(efs), undefined, undefined, names(efs)));
@@ -262,7 +262,7 @@ describe("EFSFileNames rows", () => {
     expect(icc?.children).toEqual([]);
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testWithoutNamesTheRowsAreNumbered
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testWithoutNamesTheRowsAreNumbered
   it("numbers the rows without names", () => {
     const rows = fileRows(presentMEA(analysis(volume()), undefined));
     expect(rows.children.map((one) => one.title)).toEqual(["File 6", "File 5", "File 4"]);
@@ -271,7 +271,7 @@ describe("EFSFileNames rows", () => {
     expect(first === undefined ? undefined : field("Path", first)).toBeUndefined();
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testTheVolumeRowNamesTheTableAndDropsTheReflectedList
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testTheVolumeRowNamesTheTableAndDropsTheReflectedList
   it("names the table on the volume row and drops the reflected list", () => {
     const efs = volume();
     const roots = presentMEA(analysis(efs), undefined, undefined, names(efs));
@@ -281,7 +281,7 @@ describe("EFSFileNames rows", () => {
     expect(node === undefined ? undefined : field("dictionary", node)).toBe("11");
   });
 
-  // @upstream Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAFileNoFTBLRowClaimsKeepsItsName
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/EFSFileNamesTests.swift#EFSFileNamesTests.testAFileNoFTBLRowClaimsKeepsItsName
   it("keeps the name of a file no FTBL row claims", () => {
     const efs = volume({
       files: [

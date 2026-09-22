@@ -15,37 +15,37 @@ const pad = (value: number, width: number) => String(value).padStart(width, "0")
 /**
  * `0x`-prefixed, no padding — offsets and small counts.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.hex
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hex
  */
 export const hex = (value: number): string => `0x${upper(value)}`;
 /**
  * Padded to one byte, e.g. an extension tag.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.hexByte
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hexByte
  */
 export const hexByte = (value: number): string => `0x${upper(value).padStart(2, "0")}`;
 /**
  * Padded to two bytes, e.g. a BPDT partition type.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.hex16
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hex16
  */
 export const hex16 = (value: number): string => `0x${upper(value).padStart(4, "0")}`;
 /**
  * Padded to four bytes, e.g. a region's flags word.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.hex32
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hex32
  */
 export const hex32 = (value: number): string => `0x${upper(value >>> 0).padStart(8, "0")}`;
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.offset */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.offset */
 export const offsetText = hex;
 
 /**
  * A byte count in hex and in decimal, so neither has to be worked out from the
  * other. Zero is not worth two spellings: the area holds nothing, and says so.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.size
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.size
  */
 export const sizeText = (value: number): string =>
   value === 0 ? "Empty" : `${hex(value)} (${value} bytes)`;
@@ -53,7 +53,7 @@ export const sizeText = (value: number): string =>
 /**
  * The compact second line `0x… · 0x…` (offset · size).
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.range
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.range
  */
 export const rangeText = (offset: number, size: number): string =>
   `${hex(offset)} · ${size === 0 ? "Empty" : hex(size)}`;
@@ -61,7 +61,7 @@ export const rangeText = (offset: number, size: number): string =>
 /**
  * The file range a row stands for; nothing when there are no bytes.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.rangeValue
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.rangeValue
  */
 export function rangeValue(
   offset: number,
@@ -70,16 +70,16 @@ export function rangeValue(
   return offset >= 0 && size > 0 ? { start: offset, end: offset + size } : undefined;
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.count */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.count */
 export function countText(count: number, noun: string): string {
   if (count === 1) return `1 ${noun}`;
   return noun.endsWith("y") ? `${count} ${noun.slice(0, -1)}ies` : `${count} ${noun}s`;
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.yesNo */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.yesNo */
 export const yesNo = (value: boolean): string => (value ? "Yes" : "No");
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.family */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.family */
 export function familyText(family: FirmwareFamily): string {
   switch (family) {
     case "me":
@@ -109,7 +109,7 @@ export function familyText(family: FirmwareFamily): string {
   }
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.manifestFormat */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.manifestFormat */
 export function manifestFormatText(format: ManifestFormat): string {
   switch (format as string) {
     case "r0":
@@ -126,7 +126,7 @@ export function manifestFormatText(format: ManifestFormat): string {
 /**
  * A one-word enum value as a word, with the few camel-case ones by hand.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.title
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.title
  */
 export function titleText(value: string): string {
   switch (value) {
@@ -141,7 +141,7 @@ export function titleText(value: string): string {
   }
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.version */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.version */
 export const plainVersion = (major: number, minor: number, hotfix: number, build: number): string =>
   `${major}.${minor}.${hotfix}.${build}`;
 
@@ -151,7 +151,7 @@ export const plainVersion = (major: number, minor: number, hotfix: number, build
  * generation keeps at two digits, a PCHC or PHY its build to four. Keyed by the
  * variant token, which is what tells `PMCADP` from `PMCDG2`.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.firmwareVersion
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.firmwareVersion
  */
 export function firmwareVersionText(
   variant: string,
@@ -182,7 +182,7 @@ export function firmwareVersionText(
 /**
  * The Manifest Extension Utility version, its build padded to four as the console prints it.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.manifestExtensionUtility
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.manifestExtensionUtility
  */
 export const meuText = (major: number, minor: number, hotfix: number, build: number): string =>
   `${major}.${minor}.${hotfix}.${pad(build, 4)}`;
@@ -190,14 +190,14 @@ export const meuText = (major: number, minor: number, hotfix: number, build: num
 /**
  * Each letter of a stepping record is a stepping of its own: "BA" is B and A.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.chipsetStepping
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.chipsetStepping
  */
 export const chipsetSteppingText = (letters: string): string => [...letters].join(", ");
 
 /**
  * The two-bit storage field: 0 Undefined, 1 UFS, 2 SPI, and anything else as itself.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.nvmCompatibility
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.nvmCompatibility
  */
 export function nvmCompatibilityText(raw: number): string {
   switch (raw) {
@@ -212,7 +212,7 @@ export function nvmCompatibilityText(raw: number): string {
   }
 }
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.date */
+/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.date */
 export const dateText = (year: number, month: number, day: number): string =>
   `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}`;
 
@@ -221,7 +221,7 @@ export const dateText = (year: number, month: number, day: number): string =>
  * firmware of that ME 7 line the image refuses to be downgraded to. The row's own
  * label names the line, so the major is always 7.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.downgradeBlacklist
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.downgradeBlacklist
  */
 export const downgradeBlacklistText = (entry: {
   readonly minor: number;
@@ -232,7 +232,7 @@ export const downgradeBlacklistText = (entry: {
 /**
  * "Impossible" is upstream's own word for an image no added partition would make updatable.
  *
- * @upstream Modules/MEATool/Sources/MEATool/MEAValueText.swift#MEAText.fwUpdateSupport
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.fwUpdateSupport
  */
 export function fwUpdateSupportText(value: FWUpdateSupport): string {
   switch (value) {

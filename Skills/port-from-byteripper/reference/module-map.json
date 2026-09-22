@@ -780,32 +780,13 @@
       "status": "in-progress",
       "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone and, with the tone, the weight a toned value is drawn in (`isEmphasized`, meaSummary.ts — upstream's rule in the view, stated once here because the panel and the picture taken of it are two renderings of the same rows; the copy is the exception, see ANALYSIS.md), the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Three of the tree's row groups are named from `FileTable.dat` rather than from the analysis, because the flash says nothing about them: an FTBL-mode MFS volume's low-level files (`MFSFileNames`), an EFS volume's files (`EFSFileNames`), and the files of an ID-keyed (0xC) Configuration stream, whether the FITC partition's payload or a newer volume's own 6/7 records (`ConfigRecordPaths`). Each group's own row says which table the names came from and whether either half of it was assumed, and the Configuration records the FITC payload locates also carry the byte range they point at — `payloadOffset` plus the record's own offset. The summary's values are selectable as upstream makes them (`value.isSelectable` on each), and its labels are not, which is also upstream's arrangement: there the name column is a plain label with the flag left off. Nothing checks it (G46). Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
       "files": {
-        "MEANode.swift": "src/tools/me/meaTree.ts",
-        "MEACurator.swift": "src/tools/me/meaTree.ts",
-        "MEAValueText.swift": "src/tools/me/meaTree.ts",
-        "MEAZones.swift": "src/tools/me/meaTree.ts",
-        "MEATreeMarks.swift": "src/tools/me/meaTreeMarks.ts",
         "MEASummary.swift": "src/tools/me/meaSummary.ts",
         "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
         "MEAToolUI/MEAToolModule.swift": "src/tools/me/meTool.tsx",
         "MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
-        "MEAToolTests/MEACuratorTests.swift": "src/tools/me/meaTree.test.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MEACuratorTests.swift": "src/tools/me/meaTree.test.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MEATreeMarksTests.swift": [
-          "src/tools/me/meaTree.test.ts",
-          "src/tools/me/meaTreeMarks.test.ts"
-        ],
-        "MFSFileNames.swift": "src/tools/me/mfsFileNames.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts",
-        "EFSFileNames.swift": "src/tools/me/efsFileNames.ts",
-        "Modules/MEATool/Tests/MEAToolTests/EFSFileNamesTests.swift": "src/tools/me/efsFileNames.test.ts",
-        "ConfigRecordPaths.swift": "src/tools/me/configRecordPaths.ts",
-        "Modules/MEATool/Tests/MEAToolTests/ConfigRecordPathsTests.swift": "src/tools/me/configRecordPaths.test.ts"
+        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts"
       },
       "unported": {
-        "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
-        "Modules/MEATool/Sources/MEATool/MEANode.swift#MEANode.init": "n/a — an object literal",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.init": "n/a — an object literal",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryBlock.init": "n/a — an object literal",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
@@ -822,6 +803,36 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.say": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to"
+      }
+    },
+    {
+      "swift": "Packages/MEPresentation",
+      "web": [
+        "src/tools/me"
+      ],
+      "status": "in-progress",
+      "note": "The ME presentation layer upstream split out of MEATool into its own package: the tree's nodes, curators, zones and value text, the row marks, and the three name tables (MFS, EFS, ConfigRecordPaths) that name the tree's row groups from FileTable.dat. Shared with the ME tool's panel rather than its own, so it lives beside the tool's code in src/tools/me.",
+      "files": {
+        "MEANode.swift": "src/tools/me/meaTree.ts",
+        "MEACurator.swift": "src/tools/me/meaTree.ts",
+        "MEAValueText.swift": "src/tools/me/meaTree.ts",
+        "MEAZones.swift": "src/tools/me/meaTree.ts",
+        "MEATreeMarks.swift": "src/tools/me/meaTreeMarks.ts",
+        "MFSFileNames.swift": "src/tools/me/mfsFileNames.ts",
+        "EFSFileNames.swift": "src/tools/me/efsFileNames.ts",
+        "ConfigRecordPaths.swift": "src/tools/me/configRecordPaths.ts",
+        "MEATreeMarksTests.swift": [
+          "src/tools/me/meaTree.test.ts",
+          "src/tools/me/meaTreeMarks.test.ts"
+        ],
+        "MEACuratorTests.swift": "src/tools/me/meaTree.test.ts",
+        "MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts",
+        "EFSFileNamesTests.swift": "src/tools/me/efsFileNames.test.ts",
+        "ConfigRecordPathsTests.swift": "src/tools/me/configRecordPaths.test.ts"
+      },
+      "unported": {
+        "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
+        "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.init": "n/a — an object literal"
       }
     },
     {

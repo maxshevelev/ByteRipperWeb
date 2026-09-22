@@ -17,14 +17,14 @@ import type { FileTable, FileTableResolution } from "@/firmware/me/data/fileTabl
  * machine that cannot reach the database. A row then reads as its File ID, which
  * is what the stream itself says about it.
  *
- * Ported from `Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift`.
+ * Ported from `Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift`.
  */
 export class ConfigRecordPaths {
   /**
    * File ID → the path the table keys under it. A record the table has no row
    * for is absent, and reads as upstream's own fallback.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.paths
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.paths
    */
   readonly paths: ReadonlyMap<number, string>;
 
@@ -32,11 +32,11 @@ export class ConfigRecordPaths {
    * Which table the lookup read, and whether either half of it was assumed
    * rather than named by the MFS volume. `undefined` when nothing was looked up.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.resolution
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.resolution
    */
   readonly resolution: FileTableResolution | undefined;
 
-  /** @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.init */
+  /** @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.init */
   constructor(paths: ReadonlyMap<number, string>, resolution: FileTableResolution | undefined) {
     this.paths = paths;
     this.resolution = resolution;
@@ -45,7 +45,7 @@ export class ConfigRecordPaths {
   /**
    * Nothing looked up.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.none
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.none
    */
   static readonly none = new ConfigRecordPaths(new Map(), undefined);
 
@@ -56,7 +56,7 @@ export class ConfigRecordPaths {
    * them into `mfs_cfg_anl` (and through `fitc_anl` into it); −1 for either means
    * no MFS volume decoded alongside, which the table's own fallbacks then answer.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.init
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.init
    */
   static forFileIDs(options: {
     readonly table: FileTable;
@@ -79,7 +79,7 @@ export class ConfigRecordPaths {
    * True when no record was named — a table that does not describe this image's
    * configuration at all.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.isEmpty
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.isEmpty
    */
   get isEmpty(): boolean {
     return this.paths.size === 0;
@@ -93,7 +93,7 @@ export class ConfigRecordPaths {
    * happened, a record no row is keyed for reads as upstream writes it out:
    * `/Unknown/<ID>.bin`.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.path
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.path
    */
   path(fileID: number): string | undefined {
     const path = this.paths.get(fileID);
@@ -105,7 +105,7 @@ export class ConfigRecordPaths {
   /**
    * Whether the table actually named this record, as against falling back.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.isNamed
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.isNamed
    */
   isNamed(fileID: number): boolean {
     return this.paths.has(fileID);
@@ -115,7 +115,7 @@ export class ConfigRecordPaths {
    * How the table the paths came from is named on the group's own row — the same
    * form the MFS volume's row uses.
    *
-   * @upstream Modules/MEATool/Sources/MEATool/ConfigRecordPaths.swift#ConfigRecordPaths.tableLabel
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/ConfigRecordPaths.swift#ConfigRecordPaths.tableLabel
    */
   get tableLabel(): string | undefined {
     const resolution = this.resolution;
