@@ -23,9 +23,9 @@ import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
-import type { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
-import type { EFSFileNames } from "@/tools/me/efsFileNames";
-import type { MFSFileNames } from "@/tools/me/mfsFileNames";
+import type { ConfigRecordPaths } from "@/tools/configRecordPaths";
+import type { EFSFileNames } from "@/tools/efsFileNames";
+import type { MFSFileNames } from "@/tools/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
 
 /** A job number. Monotonic per worker client; never reused. */

@@ -1,7 +1,6 @@
 import type { MFSPCHInit } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
-  type MFSState,
   type PowerDownMitigation,
   powerDownMitigationText,
 } from "@/firmware/me/models/firmwareFacts";
@@ -16,8 +15,10 @@ import {
   sizeText,
   titleText,
   yesNo,
-} from "@/tools/me/meaText";
-import { manufactureDate } from "@/tools/me/meaTree";
+} from "@/tools/meaText";
+import { fileSystemState } from "@/tools/meaTones";
+import { manufactureDate } from "@/tools/meaTree";
+import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
 
 /**
  * The «Summary» tab: MEA's console Field/Value table, a table of its own for each
@@ -37,13 +38,6 @@ export type MEASummaryValue =
   | { readonly kind: "value"; readonly text: string }
   | { readonly kind: "comingSoon" };
 
-/**
- * The colour a value is drawn in, decided where the fact behind it is known.
- *
- * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone
- */
-export type MEASummaryTone = "standard" | "good" | "caution" | "bad";
-
 /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow */
 export interface MEASummaryRow {
   /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.label */
@@ -51,7 +45,7 @@ export interface MEASummaryRow {
   /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.value */
   readonly value: MEASummaryValue;
   /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.tone */
-  readonly tone: MEASummaryTone;
+  readonly tone: ToolValueTone;
 }
 
 /**
@@ -86,7 +80,7 @@ export const COMING_SOON: MEASummaryValue = { kind: "comingSoon" };
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
  */
 export function isEmphasized(row: MEASummaryRow): boolean {
-  return row.value.kind === "value" && row.tone !== "standard";
+  return row.value.kind === "value" && isStatusTone(row.tone);
 }
 
 const nonEmpty = (text: string | undefined): text is string =>
@@ -100,7 +94,7 @@ const nonEmpty = (text: string | undefined): text is string =>
  */
 export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   const rows: MEASummaryRow[] = [];
-  const add = (label: string, value: MEASummaryValue, tone: MEASummaryTone = "standard") =>
+  const add = (label: string, value: MEASummaryValue, tone: ToolValueTone = "standard") =>
     rows.push({ label, value, tone });
   // Only for an image the engine named do unanswered rows become promises.
   const identified = a.manifest !== undefined;
@@ -179,7 +173,7 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   // 17 · File System State, in the colour of the state.
   if (isMFSFamily(a)) {
     if (a.mfsState !== undefined) {
-      add("File System State", shown(titleText(a.mfsState)), stateTone(a.mfsState));
+      add("File System State", shown(titleText(a.mfsState)), fileSystemState(a.mfsState));
     } else if (identified) {
       add("File System State", COMING_SOON);
     }
@@ -363,19 +357,6 @@ function chipsetCell(pchInit: MFSPCHInit | undefined): string | undefined {
   if (last === undefined || last.chipset.length === 0) return undefined;
   const letters = [...last.steppings].join(",");
   return letters.length === 0 ? last.chipset : `${last.chipset} ${letters}`;
-}
-
-/** The settled states are green, a volume mid-lifecycle brown, a failed decode red. */
-function stateTone(state: MFSState): MEASummaryTone {
-  switch (state) {
-    case "unconfigured":
-    case "configured":
-      return "good";
-    case "initialized":
-      return "caution";
-    case "error":
-      return "bad";
-  }
 }
 
 function axisType(type: FirmwareAnalysis["type"]): string | undefined {

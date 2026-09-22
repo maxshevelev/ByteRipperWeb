@@ -27,8 +27,8 @@ import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
-import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
-import { EFSFileNames } from "@/tools/me/efsFileNames";
+import { ConfigRecordPaths } from "@/tools/configRecordPaths";
+import { EFSFileNames } from "@/tools/efsFileNames";
 import {
   buildSummary,
   isEmphasized,
@@ -42,9 +42,9 @@ import {
   meaNodeAt,
   meaZones,
   presentMEA,
-} from "@/tools/me/meaTree";
-import { MEA_TREE_MARKS } from "@/tools/me/meaTreeMarks";
-import { fileTableWanted, MFSFileNames } from "@/tools/me/mfsFileNames";
+} from "@/tools/meaTree";
+import { MEA_TREE_MARKS } from "@/tools/meaTreeMarks";
+import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";

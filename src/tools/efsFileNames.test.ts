@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
 import type { EFSVolume, MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
-import { EFSFileNames } from "@/tools/me/efsFileNames";
-import { analysisWith } from "@/tools/me/meaTesting";
-import { type MEANode, presentMEA } from "@/tools/me/meaTree";
+import { EFSFileNames } from "@/tools/efsFileNames";
+import { analysisWith } from "@/tools/meaTesting";
+import { type MEANode, presentMEA } from "@/tools/meaTree";
 
 /**
  * `EFSFileNames` + the file rows it names — the panel's half of upstream's

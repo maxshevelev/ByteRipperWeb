@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
 import type { EFSVolume, MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
-import { analysisWith } from "@/tools/me/meaTesting";
-import { type MEANode, presentMEA } from "@/tools/me/meaTree";
-import { fileTableWanted, MFSFileNames } from "@/tools/me/mfsFileNames";
+import { analysisWith } from "@/tools/meaTesting";
+import { type MEANode, presentMEA } from "@/tools/meaTree";
+import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
 
 /**
  * `MFSFileNames` + the file rows it names — the panel's half of upstream's

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CPDModuleRow, FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
-import { analysisWith, manifestFixture } from "@/tools/me/meaTesting";
-import { type MEANode, presentMEA } from "@/tools/me/meaTree";
-import { MEA_TREE_MARKS, type MEAStorage, metadataMarks } from "@/tools/me/meaTreeMarks";
+import { analysisWith, manifestFixture } from "@/tools/meaTesting";
+import { type MEANode, presentMEA } from "@/tools/meaTree";
+import { MEA_TREE_MARKS, type MEAStorage, metadataMarks } from "@/tools/meaTreeMarks";
 
 /**
  * What the ME Full Tree's rows wear (`ROW_MARKS.md` §5.3), read off the tree the

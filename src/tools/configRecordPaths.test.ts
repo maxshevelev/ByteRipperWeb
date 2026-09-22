@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
 import type { MFSConfigIDRecord, OEMConfiguration } from "@/firmware/me/models/fileSystemFacts";
-import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
-import { analysisWith } from "@/tools/me/meaTesting";
-import { type MEANode, presentMEA } from "@/tools/me/meaTree";
+import { ConfigRecordPaths } from "@/tools/configRecordPaths";
+import { analysisWith } from "@/tools/meaTesting";
+import { type MEANode, presentMEA } from "@/tools/meaTree";
 
 /**
  * `ConfigRecordPaths` + the record rows it names — the panel's half of the 0xC

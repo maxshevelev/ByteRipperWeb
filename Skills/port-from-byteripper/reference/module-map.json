@@ -505,7 +505,7 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/IndependentCopiesTests.swift": "src/firmware/me/engine/independentCopies.test.ts",
         "Data/FileTable.swift": "src/firmware/me/data/fileTable.ts",
         "Tests/MEFirmwareTests/FileTableTests.swift": "src/firmware/me/data/fileTable.test.ts",
-        "Tests/MEFirmwareTests/ConfigRecordPathsTests.swift": "src/tools/me/configRecordPaths.test.ts",
+        "Tests/MEFirmwareTests/ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts",
         "Partition/UnlockToken.swift": "src/firmware/me/partition/unlockToken.ts",
         "Tests/MEFirmwareTests/UnlockTokenTests.swift": "src/firmware/me/partition/unlockToken.test.ts"
       },
@@ -808,27 +808,28 @@
     {
       "swift": "Packages/MEPresentation",
       "web": [
-        "src/tools/me"
+        "src/tools"
       ],
       "status": "in-progress",
-      "note": "The ME presentation layer upstream split out of MEATool into its own package: the tree's nodes, curators, zones and value text, the row marks, and the three name tables (MFS, EFS, ConfigRecordPaths) that name the tree's row groups from FileTable.dat. Shared with the ME tool's panel rather than its own, so it lives beside the tool's code in src/tools/me.",
+      "note": "The ME presentation layer upstream split out of MEATool into its own package: the tree's nodes, curators, zones and value text, the row marks, the tones, and the three name tables (MFS, EFS, ConfigRecordPaths) that name the tree's row groups from FileTable.dat. Two tools present it now — the ME Analyzer and the UEFI Structure's grafted ME sub-tree (G57) — so it lives in shared code at the top of src/tools rather than inside either.",
       "files": {
-        "MEANode.swift": "src/tools/me/meaTree.ts",
-        "MEACurator.swift": "src/tools/me/meaTree.ts",
-        "MEAValueText.swift": "src/tools/me/meaTree.ts",
-        "MEAZones.swift": "src/tools/me/meaTree.ts",
-        "MEATreeMarks.swift": "src/tools/me/meaTreeMarks.ts",
-        "MFSFileNames.swift": "src/tools/me/mfsFileNames.ts",
-        "EFSFileNames.swift": "src/tools/me/efsFileNames.ts",
-        "ConfigRecordPaths.swift": "src/tools/me/configRecordPaths.ts",
+        "MEANode.swift": "src/tools/meaTree.ts",
+        "MEACurator.swift": "src/tools/meaTree.ts",
+        "MEAValueText.swift": "src/tools/meaText.ts",
+        "MEATones.swift": "src/tools/meaTones.ts",
+        "MEAZones.swift": "src/tools/meaTree.ts",
+        "MEATreeMarks.swift": "src/tools/meaTreeMarks.ts",
+        "MFSFileNames.swift": "src/tools/mfsFileNames.ts",
+        "EFSFileNames.swift": "src/tools/efsFileNames.ts",
+        "ConfigRecordPaths.swift": "src/tools/configRecordPaths.ts",
         "MEATreeMarksTests.swift": [
-          "src/tools/me/meaTree.test.ts",
-          "src/tools/me/meaTreeMarks.test.ts"
+          "src/tools/meaTree.test.ts",
+          "src/tools/meaTreeMarks.test.ts"
         ],
-        "MEACuratorTests.swift": "src/tools/me/meaTree.test.ts",
-        "MFSFileNamesTests.swift": "src/tools/me/mfsFileNames.test.ts",
-        "EFSFileNamesTests.swift": "src/tools/me/efsFileNames.test.ts",
-        "ConfigRecordPathsTests.swift": "src/tools/me/configRecordPaths.test.ts"
+        "MEACuratorTests.swift": "src/tools/meaTree.test.ts",
+        "MFSFileNamesTests.swift": "src/tools/mfsFileNames.test.ts",
+        "EFSFileNamesTests.swift": "src/tools/efsFileNames.test.ts",
+        "ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts"
       },
       "unported": {
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
@@ -4555,6 +4556,7 @@
         "src/ui/toolPanel/ToolDetail.tsx",
         "src/tools/toolRowMarks.ts",
         "src/tools/toolRowMarkStyle.ts",
+        "src/tools/toolValueTone.ts",
         "src/ui/toolPanel/RowMarks.tsx",
         "src/ui/toolPanel/RowMarkIcon.tsx",
         "src/ui/toolPanel/ToolRowMarksLegend.tsx",
@@ -4601,7 +4603,10 @@
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolPanelFontTests.swift#*": "n/a — the panel's type sizes are CSS",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.scaleColumnWidths": "n/a — a column follows the app's zoom upstream; the web's panels are laid out in px at a fixed 13-pixel text and the font-size setting does not reach them",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.HeaderView*": "n/a — a header that keeps the height a tiling scroll view would otherwise take back; the web's header is a grid row",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.makeCell*": "n/a — the cell, its warning slot and its badges are elements the panels render (RowMarks.tsx, app.css)"
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.makeCell*": "n/a — the cell, its warning slot and its badges are elements the panels render (RowMarks.tsx, app.css)",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.color": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.font": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.draw": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -4621,6 +4626,7 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift": "src/ui/toolPanel/ToolDetail.tsx",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift": "src/tools/toolRowMarks.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarkStyle.swift": "src/tools/toolRowMarkStyle.ts",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift": "src/tools/toolValueTone.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift": "src/ui/toolPanel/ToolRowMarksLegend.tsx",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend+Pane.swift": [
           "src/ui/toolPanel/ToolRowMarksLegend.tsx",

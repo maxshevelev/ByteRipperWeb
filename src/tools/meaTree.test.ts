@@ -7,7 +7,7 @@ import {
   mfsBackupFixture,
   mfsVolumeFixture,
   versionWith,
-} from "@/tools/me/meaTesting";
+} from "@/tools/meaTesting";
 import {
   CHECKSUMS_TITLE,
   checksumsPath,
@@ -15,7 +15,7 @@ import {
   meaZones,
   PENDING_VALUE,
   presentMEA,
-} from "@/tools/me/meaTree";
+} from "@/tools/meaTree";
 
 /** Ported from upstream's `MEACuratorTests` — the curated tree and its one zone. */
 

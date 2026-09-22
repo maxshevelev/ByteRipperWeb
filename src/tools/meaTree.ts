@@ -8,9 +8,8 @@ import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
 import { UNLOCK_TOKEN_FLAGS_SIZE } from "@/firmware/me/partition/unlockToken";
-import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
-import { EFSFileNames } from "@/tools/me/efsFileNames";
-import type { MEASummaryTone } from "@/tools/me/meaSummary";
+import { ConfigRecordPaths } from "@/tools/configRecordPaths";
+import { EFSFileNames } from "@/tools/efsFileNames";
 import {
   countText,
   dateText,
@@ -28,16 +27,17 @@ import {
   sizeText,
   titleText,
   yesNo,
-} from "@/tools/me/meaText";
+} from "@/tools/meaText";
 import {
   codePartitionMarks,
   manifestMarks,
   metadataMarks,
   moduleMarks,
   tableMarks,
-} from "@/tools/me/meaTreeMarks";
-import { MFSFileNames } from "@/tools/me/mfsFileNames";
+} from "@/tools/meaTreeMarks";
+import { MFSFileNames } from "@/tools/mfsFileNames";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
+import type { ToolValueTone } from "@/tools/toolValueTone";
 import type { ZoneMap } from "@/tools/zone";
 
 /**
@@ -65,7 +65,7 @@ export interface MEAField {
    * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.tone
    * @upstream-differs absent reads as standard
    */
-  readonly tone?: MEASummaryTone;
+  readonly tone?: ToolValueTone;
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode */
@@ -144,7 +144,7 @@ interface Draft {
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.init */
-const field = (label: string, value: string, tone: MEASummaryTone = "standard"): MEAField =>
+const field = (label: string, value: string, tone: ToolValueTone = "standard"): MEAField =>
   tone === "standard" ? { label, value } : { label, value, tone };
 
 /** Label/value rows, leaving out a value that is absent — or empty, where that is asked. */

@@ -49,6 +49,8 @@ import { childrenOf, materializeAll, rootsOf, stampIds } from "@/firmware/uefi/t
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { planRebuild, targetForFileRange } from "@/firmware/uefi/uefiRebuild";
+import { ConfigRecordPaths } from "@/tools/configRecordPaths";
+import { EFSFileNames } from "@/tools/efsFileNames";
 import {
   addOrReplaceMicrocode,
   type FITEditOutcome,
@@ -57,9 +59,7 @@ import {
   removeMicrocodeAt,
   replaceMicrocodeAt,
 } from "@/tools/fit/fitEditor";
-import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
-import { EFSFileNames } from "@/tools/me/efsFileNames";
-import { MFSFileNames } from "@/tools/me/mfsFileNames";
+import { MFSFileNames } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";

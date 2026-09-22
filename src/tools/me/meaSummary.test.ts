@@ -14,7 +14,7 @@ import {
   manifestFixture,
   mfsVolumeFixture,
   versionWith,
-} from "@/tools/me/meaTesting";
+} from "@/tools/meaTesting";
 
 /** Ported from upstream's `MEASummaryTests`. */
 
