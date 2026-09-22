@@ -1,5 +1,9 @@
 # ME region in the UEFI Structure tree
 
+**Status.** Built (G57, closed 2026-09-22). The sections below are the design as
+it was written; three of its decisions were overruled by upstream's own code
+when the work was in front of them, and those are listed at the end.
+
 A design for closing G57: bring the ME structure read-out into the UEFI
 Structure tree, built by the **same** presentation code the ME Analyzer uses,
 rather than re-parsing the ME bytes a second way. The driving ask, verbatim:
@@ -190,3 +194,46 @@ In `src/tools/uefi/uefiStructureTool.tsx`:
   range is outlined on the dump; open the ME Analyzer on the same pane → the same
   analysis is reused (no second parse), and an edit to the file invalidates both.
 - `python3 Skills/port-from-byteripper/scripts/check_anchors.py` exits 0.
+
+## What was built differently, and why
+
+Three of the decisions above were overruled by upstream's own code, which is the
+master (`CLAUDE.md`). Each is written as it now stands.
+
+1. **The subtitle is not a column.** §3 put the ME row's `subtitle` (offset ·
+   size) in the Subtype column. Upstream deliberately does not: the two columns
+   beside the name are a UEFI node's kind and subtype, which an ME row is
+   neither, and a hex range squeezed into 69 points reads as nothing
+   (`UEFIToolViewController.text` returns the title for Name and `""` for both
+   others). The subtitle lands in the **detail's heading** instead, and only for
+   a row with no fields of its own — `UEFIToolSession.meDetailTitle`, ported as
+   `meDetailTitle`. That is where "Regions (FPT) · 11 regions" is read.
+
+2. **`detailOf` is not shared.** §1 moved the ME → `NodeDetail` conversion into
+   `meaTree.ts` for both panels. Upstream's §5 decision 2 closed the other way —
+   per-tool rendering over a shared model — and the two really do differ: the ME
+   Analyzer's detail is titled `node.title` and falls back to "Nothing more to
+   show for this row.", the UEFI Structure's is titled `meDetailTitle(node)`.
+   So `meDetail` lives in `src/tools/uefi/meSubtree.ts` and the ME panel keeps
+   its own `detailOf`.
+
+3. **The ME plumbing is one module, not one panel.** §3 put the row union, the
+   expand trigger, the splice and the branches straight into
+   `uefiStructureTool.tsx`. Everything about *getting* the sub-tree — the shared
+   analysis, the file names, the digests, the graft point, the row keys, the
+   detail, the row that owns a byte — is in `src/tools/uefi/meSubtree.ts`
+   instead, which is upstream's `// MARK: - The ME sub-tree` section of
+   `UEFIToolModule` with a file of its own. The panel keeps what a panel does:
+   the rows, the selection and the drawing.
+
+And two things §2 and §4 left open, decided in the building:
+
+- **`UEFIDetailField.tone` stayed unported**, as §4 allowed: the ME tree's
+  fields carry only `standard` and `good`, and `good` is the detail's own
+  `isDone`. The map records it as `later` with that reason, so the day an ME
+  field needs `caution` or `bad` the entry is the ticket.
+- **The digests are cached beside the analysis**, not inside it: upstream writes
+  `checksums` into the cached `FirmwareAnalysis`, and here they are an argument
+  to `presentMEA` rather than a field of the model, so `checksumPaneMe` caches
+  them in the store by the same key. Both panels are answered from one reading
+  either way.

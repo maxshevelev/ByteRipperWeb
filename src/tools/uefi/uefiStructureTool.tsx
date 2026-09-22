@@ -20,11 +20,22 @@ import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { type MEANode, meaNodeAt, meaZones } from "@/tools/meaTree";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
+import {
+  isMeRegion,
+  meDetail,
+  meKey,
+  meNodeAt,
+  mePathCovering,
+  mePathOf,
+  meRegionPath,
+  useMeSubtree,
+} from "@/tools/uefi/meSubtree";
 import {
   type DecompressedExport,
   decompressedExport,
@@ -71,12 +82,25 @@ import type { WireNode } from "@/workers/protocol";
 /**
  * One row as the list draws it. No node is the "Loading…" row of a slow branch.
  *
+ * The outline is heterogeneous: a row stands either for a node of the UEFI tree
+ * or for a row of the ME sub-tree grafted under the ME region (G57). Upstream
+ * holds a row object per kind and switches on which its data source was handed;
+ * here the two live in one shape, and `me` is what says which this is.
+ *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.id
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.isLoading
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#MEOutlineRow
  */
-interface Row {
+export interface Row {
   readonly node: WireNode | undefined;
+  /**
+   * The ME sub-tree's node, when this row is one of its. Resolved as the rows
+   * are built, which is the same read upstream makes by path on every ask.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.meNode
+   */
+  readonly me?: MEANode | undefined;
   readonly depth: number;
   readonly key: string;
 }
@@ -163,6 +187,14 @@ const pathOf = (key: string): number[] => (key.length === 0 ? [] : key.split("."
 interface Parked {
   /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIParkedState.focus */
   readonly focus: string | undefined;
+  /**
+   * The ME row the reader was looking at, as its key under the region's row.
+   * Kept apart from `focus` because the two resolve against different trees,
+   * and only one is the focus at a time.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIParkedState.meFocus
+   */
+  readonly meFocus: string | undefined;
   readonly open: ReadonlySet<string>;
 }
 
@@ -176,16 +208,42 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
   const held = state as Partial<Parked> | undefined;
   if (held === undefined) return undefined;
   if (held.focus !== undefined && typeof held.focus !== "string") return undefined;
+  if (held.meFocus !== undefined && typeof held.meFocus !== "string") return undefined;
   if (!(held.open instanceof Set)) return undefined;
-  return { focus: held.focus, open: held.open };
+  return { focus: held.focus, meFocus: held.meFocus, open: held.open };
 }
 
-/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.show */
-function rowsOf(
+/**
+ * The ME sub-tree's rows, under the region's own.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineView
+ */
+function meRowsOf(
+  nodes: readonly MEANode[],
+  open: ReadonlySet<string>,
+  depth: number,
+  rows: Row[]
+): void {
+  for (const node of nodes) {
+    const key = meKey(node.path);
+    rows.push({ node: undefined, me: node, depth, key });
+    if (open.has(key) && node.children.length > 0) meRowsOf(node.children, open, depth + 1, rows);
+  }
+}
+
+/**
+ * The rows the outline draws, in order: the listed nodes of the tree, the ME
+ * sub-tree under an opened ME region, and the "Loading…" row of a branch slow
+ * enough to have earned one.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.show
+ */
+export function rowsOf(
   nodes: readonly WireNode[],
   open: ReadonlySet<string>,
   loading: ReadonlySet<string>,
   showsEmptyPadding: boolean,
+  meRoots: readonly MEANode[],
   depth: number,
   rows: Row[] = []
 ): Row[] {
@@ -193,8 +251,15 @@ function rowsOf(
     const key = pathKey(node.id);
     rows.push({ node, depth, key });
     if (!open.has(key)) continue;
+    // The ME region node opens onto the presented ME sub-tree, not onto
+    // children of its own: the UEFI tree does not read past the descriptor's
+    // word for what the region is.
+    if (isMeRegion(node) && meRoots.length > 0) {
+      meRowsOf(meRoots, open, depth + 1, rows);
+      continue;
+    }
     if (node.children.length > 0)
-      rowsOf(node.children, open, loading, showsEmptyPadding, depth + 1, rows);
+      rowsOf(node.children, open, loading, showsEmptyPadding, meRoots, depth + 1, rows);
     else if (loading.has(key))
       rows.push({ node: undefined, depth: depth + 1, key: `${key}#loading` });
   }
@@ -217,6 +282,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   /** Branches the reader asked to open whose children have not arrived. */
   const wanted = useRef(new Set<string>());
   const [selected, setSelected] = useState<string | undefined>(park?.focus);
+  /**
+   * The ME half of the selection, kept apart from the UEFI half so at most one
+   * is in play: picking a node of the tree drops whatever ME row was in focus,
+   * and picking an ME row does the reverse.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.meFocus
+   */
+  const [meFocus, setMeFocus] = useState<string | undefined>(park?.meFocus);
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
@@ -263,7 +336,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.parkedState
    * @upstream-differs the open rows travel with the state, where upstream keeps them on the pane
    */
-  useParkedToolState(context.pane, () => ({ focus: selected, open }));
+  useParkedToolState(context.pane, () => ({ focus: selected, meFocus, open }));
 
   /**
    * The tree's viewport height, watched through a callback ref.
@@ -323,10 +396,37 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     }
   }, [roots, status, open, context.pane]);
 
+  /**
+   * The ME region's sub-tree, read once per pane and shared with the ME
+   * Analyzer. Nothing is read until a reader opens the region's row.
+   */
+  const me = useMeSubtree(context.pane, status === "ready");
+  const meRoots = me.roots;
+  const meIsReading = me.isReading;
+
+  /**
+   * The region's row the reader opened, while the analysis behind it runs. The
+   * row is held shut in the meantime — it has nothing to open onto — the way a
+   * UEFI branch not read yet is.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.meOpening
+   */
+  const [meOpening, setMeOpening] = useState<string | undefined>(undefined);
+  /**
+   * The caret an open was made for, when the open was a reveal: the rows that
+   * could place that byte do not exist until the analysis lands, so the offset
+   * waits here and the row that owns it is settled on when they do.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMERegion
+   */
+  const settleOn = useRef<number | undefined>(undefined);
+  /** Whether the region has already been opened for a restored ME focus. */
+  const openedForParkedFocus = useRef(false);
+
   const presented = useMemo(() => present(roots ?? []), [roots]);
   const rows = useMemo(
-    () => rowsOf(presented.rows, open, loading, showsEmptyPadding, 0),
-    [presented, open, loading, showsEmptyPadding]
+    () => rowsOf(presented.rows, open, loading, showsEmptyPadding, meRoots, 0),
+    [presented, open, loading, showsEmptyPadding, meRoots]
   );
   const maxDepth = useMemo(
     () => rows.reduce((deepest, row) => Math.max(deepest, row.depth), 0),
@@ -346,7 +446,28 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         setLoading((current) => new Set([...current].filter((one) => one !== key)));
         return;
       }
-      if (node.children.length > 0 || !node.isExpandable) {
+      // The ME region is not expandable in the UEFI tree and opens all the same:
+      // onto the ME sub-tree, which is an analysis rather than a branch. Until
+      // that analysis is in hand there is nothing to open onto, so the first ask
+      // starts it and holds the row shut — and an open already in flight is not
+      // asked for a second time, which would be a second full read of the
+      // region.
+      //
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineView
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegion
+      if (isMeRegion(node) && meRoots.length === 0) {
+        if (meOpening !== undefined) return;
+        setMeOpening(key);
+        wanted.current.add(key);
+        me.open();
+        window.setTimeout(() => {
+          if (!wanted.current.has(key)) return;
+          setLoading((current) => new Set([...current, key]));
+          setOpen((current) => new Set([...current, key]));
+        }, LOADING_ROW_DELAY);
+        return;
+      }
+      if (node.children.length > 0 || !node.isExpandable || isMeRegion(node)) {
         setOpen((current) => new Set([...current, key]));
         return;
       }
@@ -360,8 +481,102 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         setOpen((current) => new Set([...current, key]));
       }, LOADING_ROW_DELAY);
     },
-    [open, context.pane]
+    [open, context.pane, me, meOpening, meRoots]
   );
+
+  /**
+   * The reader picked a row of the ME sub-tree. The ME focus and the UEFI focus
+   * are kept apart, so picking one drops the other. A row that stands for bytes
+   * reveals them the way a UEFI node's does; a row that is only a summary of its
+   * children has nothing to reveal and says nothing in the dump.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.selectME
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelectME
+   */
+  const chooseMe = useCallback(
+    (node: MEANode) => {
+      setMeFocus(meKey(node.path));
+      setSelected(undefined);
+      publishZones(context.pane, meaZones(node));
+      if (node.range !== undefined) context.reveal(node.range.start, node.range.end);
+      // Looking at the Checksums row is what asks for the digests: three passes
+      // over the whole region, which a parse leaves out.
+      me.rowPicked(node);
+    },
+    [context, me]
+  );
+
+  /** A row of the ME sub-tree opens and shuts like any other. */
+  const toggleMe = useCallback((node: MEANode) => {
+    const key = meKey(node.path);
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  // The analysis has landed — or failed. A row that never earned a "Loading…"
+  // row simply opens now; a row that did has its placeholder replaced by the
+  // sub-tree, or shut again when nothing came of the reading. An open always
+  // settles somewhere: on the row the reveal asked about, else on the row the
+  // session was parked with, else on the first root.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.meRegionLoading
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMERegion
+  useEffect(() => {
+    if (meOpening === undefined || meIsReading) return;
+    const landed = meRoots.length > 0;
+    setMeOpening(undefined);
+    wanted.current.delete(meOpening);
+    setLoading((current) => new Set([...current].filter((one) => one !== meOpening)));
+    setOpen((current) => {
+      const next = new Set(current);
+      if (landed) next.add(meOpening);
+      else next.delete(meOpening);
+      return next;
+    });
+    const caret = settleOn.current;
+    settleOn.current = undefined;
+    if (!landed) return;
+    const covering = caret === undefined ? undefined : mePathCovering(meRoots, caret);
+    const settled =
+      covering ??
+      (meFocus !== undefined && meNodeAt(meRoots, meFocus) !== undefined
+        ? mePathOf(meFocus)
+        : meRoots[0]?.path);
+    if (settled === undefined) return;
+    const node = meaNodeAt(meRoots, settled);
+    if (node === undefined) return;
+    // Every ancestor of it open, so the row the open settled on is in the list.
+    setOpen((current) => {
+      const next = new Set(current);
+      for (let length = 1; length < settled.length; length++) {
+        next.add(meKey(settled.slice(0, length)));
+      }
+      return next;
+    });
+    chooseMe(node);
+    setScrollTarget(meKey(settled));
+  }, [meOpening, meIsReading, meRoots, meFocus, chooseMe]);
+
+  // A session parked on an ME row comes back to it: the sub-tree it named is
+  // not there until the region is read, so the region is opened for it.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.bind
+  useEffect(() => {
+    if (openedForParkedFocus.current) return;
+    if (meFocus === undefined || meRoots.length > 0 || meOpening !== undefined) return;
+    if (status !== "ready" || roots === undefined) return;
+    const regionPath = meRegionPath(roots);
+    const region = regionPath === undefined ? undefined : firmwareNodeAt(roots, regionPath);
+    if (region === undefined) return;
+    // Once: a reading that came back with nothing would otherwise be asked for
+    // again on the render that ended it, and again after that.
+    openedForParkedFocus.current = true;
+    toggle(region);
+  }, [meFocus, meRoots, meOpening, status, roots, toggle]);
 
   /**
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelect
@@ -371,6 +586,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     (node: WireNode) => {
       const key = pathKey(node.id);
       setSelected(key);
+      // A UEFI node and an ME row are two halves of one selection: picking a
+      // node of the tree drops whatever ME row was in focus.
+      setMeFocus(undefined);
       askFirmwareDetail(context.pane, node.id);
       // The node and its body, the body in focus — upstream's two zones, drawn
       // over the dump and in the minimap's gutter. Never the children: a store's
@@ -522,12 +740,54 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * where the reader is standing, so nothing is published that would scroll it
    * away from the caret that asked.
    *
+   * A byte of the ME region is owned by a row of the ME sub-tree, which the
+   * walk below cannot see: those rows are presented under the region rather
+   * than parsed into the tree, so the deepest node the walk finds inside the
+   * region is the region itself. The sub-tree is asked first, and a region
+   * nobody has opened yet is opened for the reveal rather than answered for by
+   * the node above it.
+   *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegionForReveal
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealAtCaret = useCallback(async () => {
     const slot = paneState(context.pane);
     if (slot === undefined) return;
+    const caret = slot.document.selection.start;
+    // The ME half first, because the walk below has never heard of it.
+    const mePath = mePathCovering(meRoots, caret);
+    if (mePath !== undefined) {
+      const node = meaNodeAt(meRoots, mePath);
+      if (node !== undefined) {
+        setOpen((current) => {
+          const next = new Set(current);
+          for (let length = 1; length < mePath.length; length++) {
+            next.add(meKey(mePath.slice(0, length)));
+          }
+          return next;
+        });
+        setMeFocus(meKey(mePath));
+        setSelected(undefined);
+        setScrollTarget(meKey(mePath));
+        me.rowPicked(node);
+        return;
+      }
+    }
+    // The presented sub-tree placed the byte in no row of its own — or there is
+    // no sub-tree yet, and the rows that could place it do not exist. Only the
+    // second is worth opening a region for: the first has answered.
+    if (meRoots.length === 0) {
+      const regionPath = meRegionPath(roots ?? []);
+      const region = regionPath === undefined ? undefined : firmwareNodeAt(roots ?? [], regionPath);
+      if (region !== undefined && caret >= region.body[0] && caret < region.body[1]) {
+        // The open settles on the row that owns this byte, once there are rows.
+        settleOn.current = caret;
+        toggle(region);
+        setScrollTarget(pathKey(region.id));
+        return;
+      }
+    }
     setFinding(true);
     const path = await findFirmwareNodeAt(context.pane, slot.document.selection.start);
     setFinding(false);
@@ -539,9 +799,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     });
     const key = pathKey(path);
     setSelected(key);
+    setMeFocus(undefined);
     askFirmwareDetail(context.pane, path);
     setScrollTarget(key);
-  }, [context.pane]);
+  }, [context.pane, me, meRoots, roots, toggle]);
 
   // Brings a row the panel chose itself into view, once it is in the list.
   useEffect(() => {
@@ -569,10 +830,22 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * nothing published, which is what upstream's own `show(publish:)` does with a
    * focus that resolves to nil.
    *
+   * The zone on screen belongs to whichever focus is active, so the id is
+   * routed by which one is set — not by the id's shape, which a one-level ME
+   * path ("0") and a UEFI node ("0") cannot tell apart.
+   *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.zoneSelected
    */
   const zonePicked = useCallback(
     (zoneId: string) => {
+      if (meFocus !== undefined) {
+        const mePath = zoneId.length === 0 ? [] : zoneId.split("/").map(Number);
+        const node = meaNodeAt(meRoots, mePath);
+        if (node === undefined) return;
+        chooseMe(node);
+        setScrollTarget(meKey(mePath));
+        return;
+      }
       const path = nodeIDOfZone(zoneId);
       if (path === undefined) return;
       setOpen((current) => {
@@ -584,11 +857,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       });
       const key = pathKey(path);
       setSelected(key);
+      setMeFocus(undefined);
       askFirmwareDetail(context.pane, path);
       setScrollTarget(key);
       publishZones(context.pane, uefiZones(firmwareNodeAt(roots ?? [], path), roots ?? []));
     },
-    [context.pane, roots]
+    [context.pane, roots, meFocus, meRoots, chooseMe]
   );
   useZoneSelection(context.pane, zonePicked);
 
@@ -636,17 +910,25 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   /** The keyboard, for the tree as a whole: a row is not a tab stop of its own. */
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      const index = rows.findIndex((row) => row.key === selected);
+      const focused = selected ?? meFocus;
+      const index = rows.findIndex((row) => row.key === focused);
+      /** A row of either half is picked by the half it belongs to. */
+      const pick = (row: Row) => {
+        if (row.me !== undefined) chooseMe(row.me);
+        else if (row.node !== undefined) choose(row.node);
+        else return false;
+        setScrollTarget(row.key);
+        return true;
+      };
       const moveTo = (from: number, step: 1 | -1) => {
         for (let at = from; at >= 0 && at < rows.length; at += step) {
           const row = rows[at];
-          if (row?.node === undefined) continue;
-          choose(row.node);
-          setScrollTarget(row.key);
-          return;
+          if (row !== undefined && pick(row)) return;
         }
       };
-      const current = rows[index]?.node;
+      const row = rows[index];
+      const current = row?.node;
+      const currentMe = row?.me;
       switch (event.key) {
         case "ArrowDown":
           moveTo(index + 1, 1);
@@ -655,10 +937,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           moveTo(index < 0 ? rows.length - 1 : index - 1, -1);
           break;
         case "ArrowRight":
+          if (row !== undefined && currentMe !== undefined) {
+            if (!open.has(row.key) && currentMe.children.length > 0) toggleMe(currentMe);
+            else moveTo(index + 1, 1);
+            break;
+          }
           if (current === undefined) return;
           if (
             !open.has(pathKey(current.id)) &&
-            (listed(current.children, showsEmptyPadding).length > 0 || current.isExpandable)
+            (listed(current.children, showsEmptyPadding).length > 0 ||
+              current.isExpandable ||
+              isMeRegion(current))
           ) {
             toggle(current);
           } else {
@@ -666,16 +955,22 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           }
           break;
         case "ArrowLeft": {
+          if (row !== undefined && currentMe !== undefined) {
+            if (open.has(row.key)) {
+              toggleMe(currentMe);
+              break;
+            }
+            const above = rows.find((one) => one.key === meKey(currentMe.path.slice(0, -1)));
+            if (above !== undefined) pick(above);
+            break;
+          }
           if (current === undefined) return;
           if (open.has(pathKey(current.id))) {
             toggle(current);
             break;
           }
-          const parent = rows.find((row) => row.key === pathKey(current.id.slice(0, -1)));
-          if (parent?.node !== undefined) {
-            choose(parent.node);
-            setScrollTarget(parent.key);
-          }
+          const parent = rows.find((one) => one.key === pathKey(current.id.slice(0, -1)));
+          if (parent !== undefined) pick(parent);
           break;
         }
         default:
@@ -683,7 +978,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
       event.preventDefault();
     },
-    [rows, selected, open, choose, toggle, showsEmptyPadding]
+    [rows, selected, meFocus, open, choose, chooseMe, toggle, toggleMe, showsEmptyPadding]
   );
 
   const changeTreeShare = useCallback((share: number) => {
@@ -726,6 +1021,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const title = presented.title;
   const titleKey = title === undefined ? undefined : pathKey(title.id);
   const shown = selected === undefined ? undefined : state.detail;
+  // Which half of the selection the detail is about. An ME row's detail is its
+  // own curated fields, which the worker knows nothing of; a UEFI node's is the
+  // header the worker read back.
+  const meShown = meFocus === undefined ? undefined : meNodeAt(meRoots, meFocus);
 
   return (
     <div className="uefi-tool">
@@ -851,13 +1150,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                           catalogue.catalogue
                         )
                   }
-                  marks={row.node === undefined ? undefined : marksOf(row.node)}
+                  marks={row.me?.marks ?? (row.node === undefined ? undefined : marksOf(row.node))}
                   showsMarkings={showsMarkings}
                   showsEmptyPadding={showsEmptyPadding}
                   isOpen={open.has(row.key)}
-                  isSelected={selected === row.key}
+                  isSelected={(selected ?? meFocus) === row.key}
                   onToggle={toggle}
                   onChoose={choose}
+                  onToggleMe={toggleMe}
+                  onChooseMe={chooseMe}
                   onMenu={(event, node) => {
                     choose(node);
                     // What this row has decompressed, if anything: a compressed
@@ -932,8 +1233,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         />
 
         <ToolDetail
-          subject={shown === undefined ? undefined : pathKey(shown.node)}
-          detail={shown?.detail ?? EMPTY_DETAIL}
+          subject={meFocus ?? (shown === undefined ? undefined : pathKey(shown.node))}
+          detail={meShown !== undefined ? meDetail(meShown) : (shown?.detail ?? EMPTY_DETAIL)}
           placeholder="Select a node to see what it is."
         />
       </div>
@@ -987,6 +1288,8 @@ function TreeRow({
   isSelected,
   onToggle,
   onChoose,
+  onToggleMe,
+  onChooseMe,
   onMenu,
 }: {
   readonly row: Row;
@@ -999,12 +1302,68 @@ function TreeRow({
   readonly isSelected: boolean;
   readonly onToggle: (node: WireNode) => void;
   readonly onChoose: (node: WireNode) => void;
+  readonly onToggleMe: (node: MEANode) => void;
+  readonly onChooseMe: (node: MEANode) => void;
   readonly onMenu: (event: React.MouseEvent, node: WireNode) => void;
 }) {
   const node = row.node;
   const style = { top: index * ROW_HEIGHT };
   const alternate = index % 2 === 1 ? "" : undefined;
   const indent = { paddingLeft: `${row.depth * INDENT + 2}px` };
+
+  // A row of the ME sub-tree: its name in the Name column and nothing in the
+  // two beside it. The ME tree is a semantic tree, not a structural one, and
+  // has no UEFI type or subtype to show; what it would put there — the hex
+  // `offset · size` — is in the detail's heading instead (`meDetailTitle`).
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.text
+  if (row.me !== undefined) {
+    const me = row.me;
+    const hasMeChildren = me.children.length > 0;
+    return (
+      // biome-ignore lint/a11y/useKeyWithClickEvents: the tree handles the keys
+      <div
+        className="uefi-row tool-marked-row"
+        role="treeitem"
+        tabIndex={-1}
+        aria-level={row.depth + 1}
+        aria-selected={isSelected}
+        {...(hasMeChildren ? { "aria-expanded": isOpen } : {})}
+        data-selected={isSelected ? "" : undefined}
+        data-alt={alternate}
+        // A section that holds nothing reads grey — the whole row, name
+        // included: it is a place in the layout rather than something to go and
+        // look at, and the ME Analyzer draws it the same way.
+        data-empty={me.isEmptySection ? "" : undefined}
+        title={rowMarkTitle(marks)}
+        {...rowPaintAttrs(marks, showsMarkings)}
+        style={style}
+        onClick={() => onChooseMe(me)}
+      >
+        <span className="uefi-name" style={indent}>
+          <button
+            type="button"
+            className="uefi-twist"
+            tabIndex={-1}
+            disabled={!hasMeChildren}
+            aria-label={isOpen ? "Collapse" : "Expand"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleMe(me);
+            }}
+          >
+            {hasMeChildren ? <DisclosureChevron open={isOpen} /> : null}
+          </button>
+          <RowMarksIcons marks={marks} />
+          <span className="uefi-name-text" title={me.subtitle.length > 0 ? me.subtitle : me.title}>
+            {me.title}
+          </span>
+        </span>
+        <span className="uefi-type" />
+        <span className="uefi-subtype" />
+      </div>
+    );
+  }
 
   if (node === undefined) {
     return (
@@ -1025,8 +1384,10 @@ function TreeRow({
   }
 
   // A branch read to nothing but empty padding has nothing to open on while
-  // that padding is hidden.
-  const hasChildren = listed(node.children, showsEmptyPadding).length > 0 || node.isExpandable;
+  // that padding is hidden. The ME region offers the twist either way: it is
+  // not expandable in the UEFI tree, and it opens the ME sub-tree.
+  const hasChildren =
+    listed(node.children, showsEmptyPadding).length > 0 || node.isExpandable || isMeRegion(node);
   return (
     // The tree takes the keyboard for every row at once (`onKeyDown` above), so
     // a row answers the pointer only.

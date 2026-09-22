@@ -612,8 +612,14 @@
       "status": "in-progress",
       "note": "The structure tree is across at M8: a virtualised list rather than an NSOutlineView, with the same lazy expansion — a region's raw-area scan and a volume's file walk are never run until a row is opened. LazyUEFITree's actor becomes a worker plus a store: the worker holds the ImageReader and answers roots, children, the node at an offset, details and repairs; the store holds the tree React renders. The panel follows UEFIToolViewController's layout: the title with the wrapper root folded into it and the reveal-at-caret button, the Name/Type/Subtype tree over the detail with a divider the reader moves (the detail starts at a third), a branch that stays shut until it arrives with a Loading… row only after 200 ms, and the notice line. UEFITreeDisplay and UEFINodeDetail are ported with their tests; the column texts and the detail are built in the worker, where the parsed node and the reader are, and the name on the main thread, where the GUID catalogue is: fetched once a session, re-checked once a day against a validator this host will not let a script read — so the browser revalidates the copy it holds with the one it stored (`cache: \"no-cache\"`) — with the copy the last session left in the Cache API taken up before the first ask, so a bench with no network opens on yesterday's names and their date (G16). The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; UEFITreeMarks.swift, uefiTreeMarks.ts). Divergences: the detail has no \"Decompressed from\" row (compressed sections are not ported), so no row wears the rail (G1) and no node is placed inside a protected range, so none is tinted (G3) — the legend lists neither, and the two vendor hash tables are the only holders of checks, the Insyde arm being unported (G6). Column widths are fixed rather than draggable, and the rows the reader had open travel in the panel's parked session state rather than in the pane (G12). The row menu is the one command upstream offers and only on a node whose checksum is wrong, through the document, so Cmd/Ctrl+Z takes it back. Every value the detail shows is selectable, which is what upstream's `isSelectable` on each of its value labels buys: the web says it once, `.tool-detail { user-select: text }` over a body that selects nothing, and that one rule is what carries it for the FIT and ME panels as well, since all three render this component - the permission grid's cells included. The window's focus guard is the other half of it: the guard cancels the default of a press on anything the sheet does not declare selectable, and a cancelled default is a cancelled gesture, so the surfaces the sheet does declare have to be let through. A right-click on one opens this application's own menu with the single command AppKit's text menu offers over a value that cannot be edited — Copy, dimmed until something is selected — since the browser's menu is taken away everywhere. Nothing checks it, though (G46).",
       "files": {
-        "UEFIToolViewController.swift": "src/tools/uefi/uefiStructureTool.tsx",
-        "UEFIToolModule.swift": "src/tools/uefi/uefiStructureTool.tsx",
+        "UEFIToolViewController.swift": [
+          "src/tools/uefi/uefiStructureTool.tsx",
+          "src/tools/uefi/meSubtree.ts"
+        ],
+        "UEFIToolModule.swift": [
+          "src/tools/uefi/uefiStructureTool.tsx",
+          "src/tools/uefi/meSubtree.ts"
+        ],
         "UEFITreeDisplay.swift": "src/tools/uefi/uefiTreeDisplay.ts",
         "UEFINodeDetail.swift": "src/tools/uefi/uefiNodeDetail.ts",
         "UEFIPresenter.swift": "src/tools/uefi/uefiPresenter.ts",
@@ -671,7 +677,14 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpen": "later — G51: opening any node of the tree, or its body, as a panel",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeInPanel": "later — G51: opening any node of the tree, or its body, as a panel",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenNode": "later — G51: opening any node of the tree, or its body, as a panel",
-        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpenTitle": "later — G51: opening any node of the tree, or its body, as a panel"
+        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpenTitle": "later — G51: opening any node of the tree, or its body, as a panel",
+        "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.tone": "later — the ME sub-tree's fields only carry standard and good, and good is the detail's own isDone; a field that needs caution or bad is what turns this flag into upstream's tone (Design/ME_REGION_IN_UEFI_TREE.md §4)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.dataSource": "n/a — upstream's seam for installing a fake ME data source in a test; here the reads cross a worker and a test installs a fake worker instead",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#MEOutlineRow.init": "n/a — an ME row is a field of the row record, not an object of its own",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenMERegion": "n/a — the callbacks between upstream's controller and its session; the panel is both here, so the open and its ending are one effect",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onMERegionLoading": "n/a — the callbacks between upstream's controller and its session; the panel is both here, so the open and its ending are one effect",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.meRegionOpening": "n/a — the placeholder's clock is the same timer every held-shut row uses (uefiStructureTool.toggle)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMERegion": "n/a — the open and the selection it settles on are the landing effect in uefiStructureTool"
       }
     },
     {
@@ -3995,7 +4008,18 @@
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already the web's, and was before upstream got there: an empty section's whole row reads faint (`.me-row[data-empty]` in app.css), which is what a9c1e34 brought upstream to",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodeOpensAsAPanelLinkedToItsOwnBytes": "later — G51: opening any node of the tree, or its body, as a panel",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodesBodyOpensAsAPanelOfItsOwn": "later — G51: opening any node of the tree, or its body, as a panel",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheTreeMenuOffersBothOnANodeWithAHeader": "later — G51: opening any node of the tree, or its body, as a panel"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheTreeMenuOffersBothOnANodeWithAHeader": "later — G51: opening any node of the tree, or its body, as a panel",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.intelImageWithME": "n/a — test scaffolding",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.intelImageWithReadableME": "n/a — test scaffolding",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAFailedNameFetchIsNotAskedAgain": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testARevealOffAnMERowClearsTheZoneMap": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testARevealWhoseReadingFailsFallsBackToTheRegionNode": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAStatusValueIsDrawnBoldAndColoured": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnEmptyMESectionReadsGrey": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowDoesNotScrollBackToTheSelection": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingIntoAnUnopenedMERegionOpensItAndPicksTheRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAMappableMENodePublishesItsRange": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAnInfoLeafMENodePublishesNoZone": "later — an app flow test; the port has no component or end-to-end test for it yet"
       }
     },
     {

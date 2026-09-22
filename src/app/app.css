@@ -2702,6 +2702,13 @@ button.uefi-title {
   background: var(--selection);
 }
 
+/* A grafted ME row standing for a section that holds nothing: the whole row
+   reads grey, name included, as the ME Analyzer draws it — it is a place in the
+   layout rather than something to go and look at. */
+.uefi-row[data-empty] {
+  color: var(--text-muted);
+}
+
 .uefi-row > span {
   min-width: 0;
   overflow: hidden;

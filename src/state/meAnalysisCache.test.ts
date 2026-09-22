@@ -92,6 +92,7 @@ describe("the pane's ME analysis", () => {
     expect(sent("meAnalyze")).toHaveLength(1);
   });
 
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTwoAsksForOneRegionReadItOnce
   it("answers two panels asking at once with one reading", async () => {
     const one = analyzePaneMe("a", "MEA.dat", undefined, undefined);
     const two = analyzePaneMe("a", "MEA.dat", undefined, undefined);
@@ -103,6 +104,7 @@ describe("the pane's ME analysis", () => {
     await expect(two).resolves.toMatchObject({ regionOffset: 0x1000 });
   });
 
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnEditInsideTheRegionDropsTheReadingInFlight
   it("is read again once the bytes have moved", async () => {
     const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
     answerAnalysis();
@@ -130,6 +132,8 @@ describe("the pane's ME analysis", () => {
     expect(sent("meAnalyze")).toHaveLength(2);
   });
 
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANewDatabaseDropsTheCachedAnalysis
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANewDatabaseMakesTheUEFIPanelReadTheRegionAgain
   it("is read again against a newer database", async () => {
     const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
     answerAnalysis();
