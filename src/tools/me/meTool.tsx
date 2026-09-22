@@ -45,9 +45,10 @@ import {
 } from "@/tools/meaTree";
 import { MEA_TREE_MARKS } from "@/tools/meaTreeMarks";
 import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
-import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
+import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
+import type { ToolValueTone } from "@/tools/toolValueTone";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
@@ -55,7 +56,7 @@ import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
 import { columnTemplate, type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
-import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import { DoneMark, ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 
 /**
@@ -181,11 +182,10 @@ function detailOf(node: MEANode | undefined): NodeDetail {
   }
   return {
     title: node.title,
-    fields: node.fields.map((one) =>
-      one.tone === "good"
-        ? { ...field(one.label, one.value), isDone: true }
-        : field(one.label, one.value)
-    ),
+    // The tone travels with the field: the detail draws a status bold, in the
+    // tone's colour and with the tick a passed check carries — the same
+    // rendering the Summary tab's row gets from the same tone.
+    fields: node.fields.map((one) => tonedField(one.label, one.value, one.tone ?? "standard")),
     tables: [],
   };
 }
@@ -562,7 +562,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
    */
   const copySummary = useCallback(() => {
     if (blocks.length === 0) return;
-    void writeRichText(summaryHtml(blocks), summaryPlain(blocks)).then((done) => {
+    void writeRichText(summaryHtml(blocks, toneColours()), summaryPlain(blocks)).then((done) => {
       if (done) showNotice("copySummary", ["Summary Copied"]);
       else setNotice("The browser would not put the summary on the clipboard.");
     });
@@ -946,6 +946,10 @@ function SummaryView({
                     data-emphasis={isEmphasized(row) ? "" : undefined}
                     data-soon={row.value.kind === "comingSoon" ? "" : undefined}
                   >
+                    {/* A passed check carries its tick here too: the row and
+                        the detail ask the same tone for the same string, so the
+                        two cannot come apart (`ToolValueTone.attributedValue`). */}
+                    {isEmphasized(row) && row.tone === "good" ? <DoneMark /> : null}
                     {valueText(row)}
                   </span>
                 </Fragment>
@@ -1050,9 +1054,20 @@ export function summaryPlain(blocks: readonly MEASummaryBlock[]): string {
 /**
  * The summary as a two-column table, for a note or a report.
  *
+ * A status-toned value goes across bold and in its tone's colour, the way the
+ * panel draws it and the way the picture copy carries it: the rich flavour is
+ * where a clipboard can say that, and a copy that dropped it would read as if
+ * the fact had no answer.
+ *
+ * `tones` is the palette as the page is drawing it, since the colours are the
+ * theme's rather than this function's.
+ *
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
  */
-export function summaryHtml(blocks: readonly MEASummaryBlock[]): string {
+export function summaryHtml(
+  blocks: readonly MEASummaryBlock[],
+  tones: Readonly<Record<ToolValueTone, string>>
+): string {
   const body = blocks
     .map((block) => {
       const title =
@@ -1060,15 +1075,33 @@ export function summaryHtml(blocks: readonly MEASummaryBlock[]): string {
           ? ""
           : `<tr><th colspan="2" align="left">${escapeHtml(block.title)}</th></tr>`;
       const rows = block.rows
-        .map(
-          (row) =>
-            `<tr><td>${escapeHtml(row.label)}</td><td>${escapeHtml(valueText(row))}</td></tr>`
-        )
+        .map((row) => {
+          const text = escapeHtml(valueText(row));
+          const value = isEmphasized(row)
+            ? `<b style="color:${tones[row.tone]}">${text}</b>`
+            : text;
+          return `<tr><td>${escapeHtml(row.label)}</td><td>${value}</td></tr>`;
+        })
         .join("");
       return title + rows;
     })
     .join("");
   return `<table>${body}</table>`;
+}
+
+/**
+ * The tone colours as the page is drawing them right now — the app's palette,
+ * read off the document, so a copy carries the same green the panel showed.
+ */
+function toneColours(): Record<ToolValueTone, string> {
+  const style = getComputedStyle(document.documentElement);
+  const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  return {
+    standard: token("--text", "#1d1d1f"),
+    good: token("--semantic-good", "#1a7f37"),
+    caution: token("--semantic-caution", "#8a6d00"),
+    bad: token("--semantic-bad", "#c4241f"),
+  };
 }
 
 /**

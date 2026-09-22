@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
   analysisWith,
   bootFixture,
@@ -21,6 +22,8 @@ import {
 
 const field = (label: string, node: MEANode | undefined) =>
   node?.fields.find((one) => one.label === label)?.value;
+const tone = (label: string, node: MEANode | undefined) =>
+  node?.fields.find((one) => one.label === label)?.tone;
 const find = (title: string, nodes: readonly MEANode[] | undefined) =>
   nodes?.find((one) => one.title === title);
 const region = (name: string, offset: number, size: number) => ({
@@ -122,6 +125,24 @@ describe("the identity", () => {
     expect(field("Size", firmware)).toBe("0x200000 (2097152 bytes)");
     expect(field("SKU", firmware)).toBeUndefined();
     expect(field("RSA Signature Valid", firmware)).toBeUndefined();
+  });
+
+  // The one row of this group that is a verdict, and the detail draws it as
+  // one: the same tone the Summary tab's row carries, so a reader comparing the
+  // two panels cannot find two colours for one fact.
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.firmware
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEATones.swift#MEATones.fileSystemState
+  it("carries the File System State's status on the field", () => {
+    const state = (mfsState: FirmwareAnalysis["mfsState"]) =>
+      presentMEA(analysisWith({ mfsState }), undefined)[0];
+
+    expect(field("File System State", state("configured"))).toBe("Configured");
+    expect(tone("File System State", state("configured"))).toBe("good");
+    expect(tone("File System State", state("unconfigured"))).toBe("good");
+    expect(tone("File System State", state("initialized"))).toBe("caution");
+    expect(tone("File System State", state("error"))).toBe("bad");
+    // And every other row of the group is an ordinary value.
+    expect(tone("Family", state("configured"))).toBeUndefined();
   });
 });
 

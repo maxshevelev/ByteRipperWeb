@@ -9,6 +9,8 @@
  * cross a worker boundary is plain data, which this is.
  */
 
+import type { ToolValueTone } from "@/tools/toolValueTone";
+
 /**
  * One label/value row.
  *
@@ -20,19 +22,23 @@ export interface DetailField {
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.value */
   readonly value: string;
   /**
-   * A value that reads as a problem — a checksum that does not check out.
+   * What the value says, when it is a verdict: the panel draws it bold and in
+   * the colour the tone names, and leads a passed check with its tick.
+   * `standard` is ordinary text, which is what most fields are.
    *
-   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.isProblem
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.tone
    */
-  readonly isProblem: boolean;
-  /**
-   * A value that is a check that passed, led by the green done mark.
-   *
-   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.attributedValue
-   * @upstream-differs a flag the shared detail draws, rather than the ME panel's own attributed string
-   */
-  readonly isDone?: boolean;
+  readonly tone: ToolValueTone;
 }
+
+/**
+ * A value that reads as a problem — a checksum that does not check out. A `bad`
+ * tone is what that is, so this asks the tone rather than keeping a second flag
+ * that could disagree with it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.isProblem
+ */
+export const isProblemField = (one: DetailField): boolean => one.tone === "bad";
 
 /**
  * A cell, and whether it is an answer worth colouring.
@@ -86,11 +92,27 @@ export interface NodeDetail {
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.empty */
 export const EMPTY_DETAIL: NodeDetail = { title: "", fields: [], tables: [] };
 
-/** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.init */
+/**
+ * An ordinary field, or one whose value is a problem.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.init
+ */
 export const field = (label: string, value: string, isProblem = false): DetailField => ({
   label,
   value,
-  isProblem,
+  tone: isProblem ? "bad" : "standard",
+});
+
+/**
+ * A field whose value carries a status of its own — the ME facts that are a
+ * verdict rather than a number.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.init
+ */
+export const tonedField = (label: string, value: string, tone: ToolValueTone): DetailField => ({
+  label,
+  value,
+  tone,
 });
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Cell.init */

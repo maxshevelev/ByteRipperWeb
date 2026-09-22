@@ -45,7 +45,7 @@ import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeFo
 import { entryFileName, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 import { cpuidsOf, type MicrocodeFormMode } from "@/tools/fit/microcodeFormModel";
 import { pickMicrocode } from "@/tools/fit/pickMicrocode";
-import type { NodeDetail } from "@/tools/toolDetail";
+import { field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
@@ -565,7 +565,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           : undefined);
   const detail: NodeDetail = {
     title: display.detail.title,
-    fields: display.detail.fields,
+    // The FIT table's own field carries a flag, as upstream's does; the shared
+    // detail carries a tone, and a problem is the `bad` one.
+    fields: display.detail.fields.map((one) => field(one.label, one.value, one.isProblem)),
     tables: [],
   };
 

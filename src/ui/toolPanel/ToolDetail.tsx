@@ -59,13 +59,20 @@ export function ToolDetail({
             {detail.fields.map((one) => (
               <div className="tool-detail-row" key={one.label}>
                 <dt>{one.label}</dt>
+                {/*
+                  One rendering for a value that carries a status, wherever it
+                  is drawn: bold, in the tone's colour, and led by the tick when
+                  the status is a passed check. The ME Analyzer's Summary row
+                  asks the same tone for the same string, so the two cannot come
+                  apart (`ToolValueTone.attributedValue`).
+                */}
                 <dd
                   // Digits of one width for a number, so an offset or a size
                   // reads against the dump; words stay in the body face.
                   data-mono={one.value.startsWith("0x") ? "" : undefined}
-                  data-problem={one.isProblem ? "" : undefined}
+                  data-tone={one.tone === "standard" ? undefined : one.tone}
                 >
-                  {one.isDone === true ? <DoneMark /> : null}
+                  {one.tone === "good" ? <DoneMark /> : null}
                   {one.value}
                 </dd>
               </div>
@@ -130,14 +137,21 @@ function DetailTableView({ table }: { readonly table: DetailTable }) {
 }
 
 /**
- * The green done mark before a value that is a check that passed — upstream's
- * `checkmark.circle.fill`, in the text so it wraps and selects with it.
+ * The mark before a value that is a check that passed — upstream's `checkmark`,
+ * in the text so it wraps and selects with what it marks, and in the tone's own
+ * colour (`currentColor`, which the row's tone sets).
+ *
+ * The tick and not a filled disc: at a label's size the disc's own tick is a
+ * few pixels across, and the mark then reads as a green dot on the row rather
+ * than as "this checks out".
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.attributedValue
+ * @upstream-differs an element in the text, where upstream attaches an image to the attributed string
  */
-function DoneMark() {
+export function DoneMark() {
   return (
     <svg className="tool-detail-done" viewBox="0 0 16 16" role="img" aria-label="Done">
-      <circle cx="8" cy="8" r="7" />
-      <path d="M4.8 8.3 7 10.4l4.2-4.6" />
+      <path d="M3.2 8.6 6.4 11.8 12.8 4.6" />
     </svg>
   );
 }

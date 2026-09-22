@@ -292,11 +292,12 @@ function headerFields(
         add("Loader revision", reader.uint32(h + 0x14), hex);
         const repair = repairs.find((one) => one.offset === h + 0x10);
         fields.push(
+          // The engine's own field carries a flag; the detail carries a tone.
           ...microcodeFields(
             header,
             repair === undefined,
             repair === undefined ? undefined : littleEndian(repair.bytes)
-          )
+          ).map((one) => field(one.label, one.value, one.isProblem))
         );
       }
       break;

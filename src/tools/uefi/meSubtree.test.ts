@@ -170,8 +170,8 @@ describe("what an ME row says when it is picked", () => {
     expect(meDetail(row)).toEqual({
       title: "Firmware",
       fields: [
-        { label: "Family", value: "CSME", isProblem: false },
-        { label: "Unmatched Hashes", value: "None", isProblem: false, isDone: true },
+        { label: "Family", value: "CSME", tone: "standard" },
+        { label: "Unmatched Hashes", value: "None", tone: "good" },
       ],
       tables: [],
     });

@@ -16,7 +16,7 @@ import {
   presentMEA,
 } from "@/tools/meaTree";
 import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
-import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
+import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { WireNode } from "@/workers/protocol";
 
 /**
@@ -123,11 +123,7 @@ export function meDetail(node: MEANode | undefined): NodeDetail {
   if (node === undefined) return EMPTY_DETAIL;
   return {
     title: meDetailTitle(node),
-    fields: node.fields.map((one) =>
-      one.tone === "good"
-        ? { ...field(one.label, one.value), isDone: true }
-        : field(one.label, one.value)
-    ),
+    fields: node.fields.map((one) => tonedField(one.label, one.value, one.tone ?? "standard")),
     tables: [],
   };
 }

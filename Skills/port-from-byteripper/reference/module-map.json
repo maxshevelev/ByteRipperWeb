@@ -678,7 +678,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeInPanel": "later — G51: opening any node of the tree, or its body, as a panel",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenNode": "later — G51: opening any node of the tree, or its body, as a panel",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpenTitle": "later — G51: opening any node of the tree, or its body, as a panel",
-        "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.tone": "later — the ME sub-tree's fields only carry standard and good, and good is the detail's own isDone; a field that needs caution or bad is what turns this flag into upstream's tone (Design/ME_REGION_IN_UEFI_TREE.md §4)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.dataSource": "n/a — upstream's seam for installing a fake ME data source in a test; here the reads cross a worker and a test installs a fake worker instead",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#MEOutlineRow.init": "n/a — an ME row is a field of the row record, not an object of its own",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenMERegion": "n/a — the callbacks between upstream's controller and its session; the panel is both here, so the open and its ending are one effect",

@@ -28,6 +28,7 @@ import {
   titleText,
   yesNo,
 } from "@/tools/meaText";
+import { fileSystemState } from "@/tools/meaTones";
 import {
   codePartitionMarks,
   manifestMarks,
@@ -294,8 +295,15 @@ function firmware(a: FirmwareAnalysis): Draft {
       a.rsaSignatureValid === undefined ? undefined : yesNo(a.rsaSignatureValid)
     )
     .add("ARB SVN", a.arbSvn)
-    .add("VCN", a.vcn)
-    .add("File System State", a.mfsState === undefined ? undefined : titleText(a.mfsState));
+    .add("VCN", a.vcn);
+  // The one row of this group that is a verdict rather than a value, and it
+  // carries the tone that says so — the same one the Summary's row asks for, so
+  // a reader comparing the two panels cannot find two colours for one fact.
+  if (a.mfsState !== undefined) {
+    fields.rows.push(
+      field("File System State", titleText(a.mfsState), fileSystemState(a.mfsState))
+    );
+  }
   // A non-IFWI image's $FPT header FIT; an IFWI's sits on each boot BPDT.
   if (a.fptHeaderFIT !== undefined) {
     const fit = a.fptHeaderFIT;

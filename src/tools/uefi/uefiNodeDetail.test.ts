@@ -11,7 +11,7 @@ import { TCGHash } from "@/firmware/uefi/tcgHash";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
-import type { NodeDetail } from "@/tools/toolDetail";
+import { isProblemField, type NodeDetail } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 
 /**
@@ -43,8 +43,10 @@ function detailOf(
 
 const value = (detail: NodeDetail, label: string) =>
   detail.fields.find((one) => one.label === label)?.value;
-const problem = (detail: NodeDetail, label: string) =>
-  detail.fields.find((one) => one.label === label)?.isProblem;
+const problem = (detail: NodeDetail, label: string) => {
+  const found = detail.fields.find((one) => one.label === label);
+  return found === undefined ? undefined : isProblemField(found);
+};
 const table = (detail: NodeDetail, title: string) =>
   detail.tables.find((one) => one.title === title);
 

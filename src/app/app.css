@@ -2999,28 +2999,43 @@ button.uefi-title {
   font-variant-numeric: tabular-nums;
 }
 
-.tool-detail-row dd[data-problem] {
+/* A value that carries a status is bold as well as coloured: the weight is what
+   makes a state read at a glance rather than as one more line of text. The same
+   rule the ME Analyzer's Summary row draws by (`ToolValueTone.font`).
+
+   Never a hex value: those keep the figures that line up down the list, and
+   upstream's own font rule asks the value before it asks the tone — a wrong
+   checksum takes the red and stays in the one width. */
+.tool-detail-row dd[data-tone]:not([data-mono]) {
+  font-weight: 700;
+}
+
+.tool-detail-row dd[data-tone="good"] {
+  color: var(--semantic-good);
+}
+
+.tool-detail-row dd[data-tone="caution"] {
+  color: var(--semantic-caution);
+}
+
+.tool-detail-row dd[data-tone="bad"] {
   color: var(--semantic-bad);
 }
 
-/* A check that passed: a filled green circle with a tick knocked out of it,
-   sat on the text's baseline. The tick is the ground showing through, as an SF
-   Symbol's `.fill` variant draws it — a hole, not a white mark. */
+/* A check that passed: a tick in the value's own colour, sat on the text's
+   baseline. Not a filled disc — at this size the disc's tick is a few pixels
+   across and the mark reads as a green dot rather than as "this checks out". */
 .tool-detail-done {
   width: 1em;
   height: 1em;
-  margin-right: 0.3em;
+  margin-right: 0.15em;
   vertical-align: -0.15em;
-}
-
-.tool-detail-done circle {
-  fill: var(--semantic-good);
 }
 
 .tool-detail-done path {
   fill: none;
-  stroke: var(--knockout);
-  stroke-width: 1.8;
+  stroke: currentcolor;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
