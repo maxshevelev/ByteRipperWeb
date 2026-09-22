@@ -1008,15 +1008,39 @@ function emptyFile(name: string): OpenedFile {
 }
 
 /**
- * Throws every unsaved edit away and starts again from the file on disk.
+ * Whether this pane's Revert goes back to the bytes it was opened with rather
+ * than to a file: a part taken out of another document has no file behind it,
+ * and has those bytes.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.canRevertToOriginal
+ * @upstream-differs a predicate over the pane's state, the pane being a record here rather than an object
+ */
+export function canRevertToOriginal(pane: PaneState): boolean {
+  return pane.untitled && pane.origin !== undefined;
+}
+
+/**
+ * Throws every unsaved edit away and starts again from the file on disk — or,
+ * for a part, from the bytes the panel was opened with.
  *
  * The file is re-read rather than the overlay merely reset: it may have changed
  * since it was opened, and "revert to saved" means the bytes that are saved.
  *
+ * Upstream needs two of these, because its two bases are different things: a
+ * file it reopens by URL, and `DocumentOrigin.original`, a copy of the bytes
+ * the tab opened with that the link carries for exactly this. Here they are one
+ * — `openPart` builds the part's document over a Blob of those bytes, and that
+ * Blob is the pane's file — so the file this re-reads *is* the original, and
+ * the part simply takes the branch every handle-less document takes. What the
+ * link holds is left alone either way: the bytes are still the part's, so the
+ * part is still linked (upstream says the same in `revertToOriginal`).
+ *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.revert
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.revertToOriginal
+ * @upstream-differs one revert for both, a part's file being the bytes it opened with
  */
-export async function revertPane(pane: SlotId): Promise<void> {
-  const slot = workspaceStore.getSnapshot().panes[pane];
+export async function revertPane(pane: PaneId): Promise<void> {
+  const slot = paneState(pane);
   if (slot === undefined) return;
 
   const handle = slot.file.handle;
@@ -1032,18 +1056,15 @@ export async function revertPane(pane: SlotId): Promise<void> {
   // The file may have changed since it was opened, so the saved view is
   // rebuilt from what was just read rather than kept from before.
   workspaceStore.update((state) => {
-    const current = state.panes[pane];
+    const current = paneIn(state, pane);
     if (current === undefined) return state;
-    return {
-      ...state,
-      panes: {
-        ...state.panes,
-        [pane]: { ...current, saved: new FileBackedStorage(source, new ChunkCache()) },
-      },
-    };
+    return withPane(state, pane, {
+      ...current,
+      saved: new FileBackedStorage(source, new ChunkCache()),
+    });
   });
   // Reverting throws the edits away, and the cuts travelled with them.
-  forgetJoins(pane);
+  if (isSlot(pane)) forgetJoins(pane);
   resetSegments(pane, slot.document.size);
   noteDocumentChanged();
 }

@@ -35,6 +35,7 @@ import { wordSizeChoiceTitle } from "@/ui/settings/settingsText";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
+import { revertItem } from "@/ui/shell/paneMenus";
 import {
   BackwardGlyph,
   FindGlyph,
@@ -174,6 +175,7 @@ export function Toolbar({
   const canNavigate = diff.status === "ready" && diff.hunks !== undefined && panesReachable;
   const anyOpen = state.panes.a !== undefined;
   const dirty = active?.document.isDirty === true;
+  const revert = revertItem(active);
 
   /**
    * The commands, in the macOS app's own sections and order.
@@ -217,15 +219,12 @@ export function Toolbar({
     active === undefined
       ? undefined
       : { label: verb === "Save" ? "Save As…" : "Download As…", onSelect: onSaveAs },
-    // Revert reads the file again, and the three below act on the workspace's
-    // own panes: a part has no file behind it and no pane beside it.
+    // Revert follows the pane in front like the saves above it, titled for what
+    // that pane goes back to. The three below it act on the workspace's own
+    // panes instead: a part has no pane beside it.
     active === undefined
       ? undefined
-      : {
-          label: "Revert to Saved",
-          disabled: !dirty || !panesReachable,
-          onSelect: onRevert,
-        },
+      : { label: revert.title, disabled: !revert.enabled, onSelect: onRevert },
     { kind: "separator" },
     active === undefined
       ? undefined

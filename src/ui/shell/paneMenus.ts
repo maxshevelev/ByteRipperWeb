@@ -11,6 +11,7 @@ import { askFirmwarePart } from "@/state/firmwareStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
+  canRevertToOriginal,
   isSlot,
   type PaneId,
   type PaneState,
@@ -49,6 +50,27 @@ export interface UpdateItem {
   readonly title: string;
   readonly enabled: boolean;
   readonly onSelect: () => void;
+}
+
+/**
+ * Revert to Saved for a file, Revert to Original for a part of another
+ * document — one item, titled for the pane it acts on.
+ *
+ * There is nothing on disk to revert an untitled document to: a New File and a
+ * duplicate are refused, and a part is not, because a part's bytes are the ones
+ * it was opened with (`canRevertToOriginal`).
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateRevert
+ * @upstream-differs also disabled with nothing to throw away, as every other command here is titled and enabled by what it would do
+ */
+export function revertItem(pane: PaneState | undefined): {
+  readonly title: string;
+  readonly enabled: boolean;
+} {
+  if (pane === undefined) return { title: "Revert to Saved", enabled: false };
+  const dirty = pane.document.isDirty;
+  if (canRevertToOriginal(pane)) return { title: "Revert to Original", enabled: dirty };
+  return { title: "Revert to Saved", enabled: dirty && !pane.untitled };
 }
 
 /** What the shell can do, handed in so this module holds no state of its own. */
@@ -108,8 +130,9 @@ export function paneFileMenu(
   const verb = saveVerb(state.capabilities, slot.file.handle !== undefined);
   const dirty = slot.document.isDirty;
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
-  // A part has no file behind it: nothing to open one into, nothing to revert
-  // to, and no pane beside it to be duplicated into or swapped with.
+  const revert = revertItem(slot);
+  // A part has no file behind it: nothing to open one into, and no pane beside
+  // it to be duplicated into or swapped with.
   const inSlot = isSlot(pane) ? pane : undefined;
 
   /** The items only a slot has, built where there is one to name. */
@@ -135,9 +158,9 @@ export function paneFileMenu(
       disabled: !slot.untitled,
       onSelect: () => actions.onRename(pane),
     },
-    ...ofSlot((slot) => [
-      { label: "Revert to Saved", disabled: !dirty, onSelect: () => actions.onRevert(slot) },
-    ]),
+    // A part gets this one too, titled for what it goes back to: the bytes the
+    // panel was opened with, which is what "saved" means where nothing is.
+    { label: revert.title, disabled: !revert.enabled, onSelect: () => actions.onRevert(pane) },
     { kind: "separator" },
     // The join twins (§22.1). Insert is grouped with the edit commands above;
     // Append sits with it, both acting on THIS pane rather than the active one.

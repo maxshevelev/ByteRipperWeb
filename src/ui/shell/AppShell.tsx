@@ -44,6 +44,7 @@ import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
+  canRevertToOriginal,
   closePane,
   closePart,
   dismissAlert,
@@ -511,21 +512,35 @@ export function AppShell() {
   );
 
   /**
-   * Revert is a file's command, not a document's: it reads the file again. A
-   * part has no file to read — its bytes came out of its parent, and putting
-   * them back is Update in Parent (G4) — so the command is the front pane's
-   * only while the front pane is one of the workspace's own.
+   * Revert, for a pane of either kind: a file goes back to what is on disk, and
+   * a part to the bytes the panel was opened with. Asked first either way, and
+   * each asked in its own words — what a part throws away is every change made
+   * since it came out of its parent, which is a different sentence from a
+   * file's.
+   *
+   * An untitled document that is not a part has nothing behind it and is
+   * refused, as upstream refuses it: a New File would revert to no bytes at all.
+   *
+   * The pane is named by the header menu the item was built for, so it always
+   * acts on its own pane rather than on whichever is active; the command menu
+   * names none and means the pane in front, as its saves do.
    *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertPaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertDocumentOfPane
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revertToOriginal
    */
-  const doRevert = useCallback(() => {
-    const target = paneInFront();
-    if (!isSlot(target)) return;
-    const pane = workspaceStore.getSnapshot().panes[target];
+  const doRevert = useCallback((of?: PaneId) => {
+    const target = of ?? paneInFront();
+    const pane = paneState(target);
     if (pane === undefined || !pane.document.isDirty) return;
-    if (!window.confirm(`Throw away every unsaved edit to ${pane.name}?`)) return;
+    const origin = canRevertToOriginal(pane) ? pane.origin : undefined;
+    if (origin === undefined && pane.untitled) return;
+    const asked =
+      origin === undefined
+        ? `Throw away every unsaved edit to ${pane.name}?`
+        : `Revert to the original bytes? Every change made since “${origin.partName}” was opened from ${origin.parentName} will be discarded.`;
+    if (!window.confirm(asked)) return;
     void revertPane(target).catch(() =>
       reportAlert(
         "Revert failed.",
