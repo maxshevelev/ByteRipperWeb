@@ -569,6 +569,10 @@ export function AppShell() {
    * The question closing a pane asks, and the answer it is waiting for: the
    * parts it would strand, or the bytes its parent has not got back. Two or
    * three answers, which `window.confirm` cannot carry.
+   *
+   * One slot, not a queue: while it is set the dialog is modal, and a modal
+   * dialog takes the keyboard and the mouse, so no second close can be asked
+   * until this one is answered.
    */
   const [closeAsk, setCloseAsk] = useState<
     | {
@@ -906,11 +910,13 @@ export function AppShell() {
         b: { offset, token: revealToken.current },
       });
       setActivePane(target);
+      // Remembered, so the next Go To offers it back rather than being retyped.
+      // A part's offset is local to the bytes it was taken out of, so it is not
+      // offered back, where it would name a different row of the file.
+      noteVisited(offset);
     } else {
       setReveal({ [target]: { offset, token: ++revealToken.current } });
     }
-    // Remembered, so the next Go To offers it back rather than being retyped.
-    noteVisited(offset);
   }, []);
 
   /**
