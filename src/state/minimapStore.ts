@@ -668,8 +668,11 @@ export function watchForMinimap(): () => void {
   };
 }
 
-/** Notes an edit, so the picture catches up without a full rebuild. */
-let editTimer: ReturnType<typeof setTimeout> | undefined;
+/**
+ * The coalesced rebuild, one per surface: an edit on another surface must not
+ * cancel this one's pending refresh.
+ */
+const editTimers = new Map<SurfaceId, ReturnType<typeof setTimeout>>();
 
 /**
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateOverviewRows
@@ -679,13 +682,18 @@ let editTimer: ReturnType<typeof setTimeout> | undefined;
 export function noteMinimapEdit(pane: PaneId): void {
   const surface = surfaceOf(pane);
   if (!mapFor(surface).visible) return;
-  if (editTimer !== undefined) clearTimeout(editTimer);
-  editTimer = setTimeout(() => {
-    editTimer = undefined;
-    // An edit changes the content, so the density is no longer the file's.
-    builtFor[pane] = undefined;
-    void refreshMinimap(surface);
-  }, EDIT_COALESCE_MS);
+  // An edit changes the content, so the density is no longer the file's. Cleared
+  // now, for the pane edited, so a burst across panes drops each one's picture.
+  builtFor[pane] = undefined;
+  const pending = editTimers.get(surface);
+  if (pending !== undefined) clearTimeout(pending);
+  editTimers.set(
+    surface,
+    setTimeout(() => {
+      editTimers.delete(surface);
+      void refreshMinimap(surface);
+    }, EDIT_COALESCE_MS)
+  );
 }
 
 /** A fast typist produces one rebuild rather than one per keystroke. */
