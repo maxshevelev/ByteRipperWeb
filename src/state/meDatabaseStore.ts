@@ -200,14 +200,15 @@ export function loadMEDatabase(source: MEDatabaseSource = liveMEDatabaseSource):
   const signal = waiting ? controller?.signal : undefined;
 
   void source.load(signal).then(
-    (text) =>
+    (text) => {
       meDatabaseStore.update((current) => ({
         ...current,
         status: "ready",
         text,
         fetchedAt: source.freshness()?.changedAt,
         failure: undefined,
-      })),
+      }));
+    },
     (error: unknown) => {
       if (error instanceof Error && error.name === "AbortError") {
         meDatabaseStore.update((current) =>

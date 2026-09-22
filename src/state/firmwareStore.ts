@@ -1,5 +1,6 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { FITReport } from "@/firmware/fit/fitTable";
+import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
@@ -17,6 +18,7 @@ import type {
   FitEditResponse,
   MeAnalyzeResponse,
   MeChecksumsResponse,
+  MeFileNamesResponse,
   WireDiagnostic,
   WireNode,
 } from "@/workers/protocol";
@@ -178,6 +180,11 @@ function ensureWorker(pane: PaneId): PaneWorker {
         checksumWaiters.delete(pane);
         return;
       }
+      case "meFileNames": {
+        meFileNamesWaiters.get(pane)?.(response);
+        meFileNamesWaiters.delete(pane);
+        return;
+      }
       case "fitEdit": {
         fitEditWaiters.get(pane)?.(response);
         fitEditWaiters.delete(pane);
@@ -303,6 +310,8 @@ function dropAsks(pane: PaneId, failure?: { readonly id: number; readonly proble
   meWaiters.delete(pane);
   checksumWaiters.get(pane)?.(undefined);
   checksumWaiters.delete(pane);
+  meFileNamesWaiters.get(pane)?.(undefined);
+  meFileNamesWaiters.delete(pane);
 }
 
 function nextAskJob(pane: PaneId): number {
@@ -703,6 +712,49 @@ export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | unde
 
 /** Who is waiting for the ME region's digests, by pane. */
 const checksumWaiters = new Map<PaneId, (response: MeChecksumsResponse | undefined) => void>();
+
+/**
+ * The names an analysis cannot give itself, looked up in `FileTable.dat` off
+ * the main thread — the follow-up ask that names the files of an analysis.
+ *
+ * The volumes and the config record IDs cross, not the analysis: the worker is
+ * where the table is parsed, and the panel never holds it. A second ask
+ * supersedes the first, the way the analysis's does.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileNames
+ * @upstream-differs the web's store bridge for the ask upstream's session makes inline
+ */
+export function fileNamesPaneMe(
+  pane: PaneId,
+  options: {
+    readonly mfs: MFSVolume | undefined;
+    readonly efs: EFSVolume | undefined;
+    readonly configIDs: readonly number[];
+    readonly platform: number;
+    readonly dictionary: number;
+    readonly fileTableText: string | undefined;
+  }
+): Promise<MeFileNamesResponse | undefined> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    meFileNamesWaiters.get(pane)?.(undefined);
+    meFileNamesWaiters.set(pane, resolve);
+    send(pane, {
+      kind: "meFileNames",
+      id: nextAskJob(pane),
+      mfs: options.mfs,
+      efs: options.efs,
+      configIDs: options.configIDs,
+      platform: options.platform,
+      dictionary: options.dictionary,
+      fileTableText: options.fileTableText,
+    });
+  });
+}
+
+/** Who is waiting for an analysis's names, by pane. */
+const meFileNamesWaiters = new Map<PaneId, (response: MeFileNamesResponse | undefined) => void>();
 
 /** Who is waiting for a planned FIT edit, by pane; nothing when it was superseded. */
 const fitEditWaiters = new Map<PaneId, (planned: FitEditResponse | undefined) => void>();

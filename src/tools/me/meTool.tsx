@@ -3,10 +3,11 @@ import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
 import { downloadBlob } from "@/platform/files/download";
-import { fileTableOf, fileTableStore, loadFileTable } from "@/state/fileTableStore";
+import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import {
   analyzePaneMe,
   checksumPaneMe,
+  fileNamesPaneMe,
   firmwareStore,
   parsePaneFirmware,
 } from "@/state/firmwareStore";
@@ -399,50 +400,57 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     if (wantsNames) loadFileTable();
   }, [wantsNames]);
 
-  // The names belong to the volume they were looked up for; `MFSFileNames.none`
-  // is a volume the table does not describe, and every legacy volume, whose
-  // rows keep the numbers their own bytes carry.
-  const table = fileTableOf(fileTable);
-  const names = useMemo(
-    () =>
-      analysis?.mfsVolume === undefined
-        ? MFSFileNames.none
-        : MFSFileNames.forVolume(table, analysis.mfsVolume),
-    [analysis, table]
-  );
-  // The EFS volume's lookup reads the *MFS* volume's platform and dictionary —
-  // upstream hands `efs_anl` the values `mfs_anl` read — so it is the MFS row's
-  // fields, not the EFS page's own Dictionary, that name the tables.
-  const efsNames = useMemo(
-    () =>
-      analysis?.efsVolume === undefined
-        ? EFSFileNames.none
-        : EFSFileNames.forVolume({
-            table,
-            volume: analysis.efsVolume,
-            platform: analysis.mfsVolume?.ftblPlatform ?? -1,
-            dictionary: analysis.mfsVolume?.ftblDictionary ?? -1,
-          }),
-    [analysis, table]
-  );
-  const configPaths = useMemo(
-    () =>
-      configIDs.length === 0
-        ? ConfigRecordPaths.none
-        : ConfigRecordPaths.forFileIDs({
-            table,
-            fileIDs: configIDs,
-            platform: analysis?.mfsVolume?.ftblPlatform ?? -1,
-            dictionary: analysis?.mfsVolume?.ftblDictionary ?? -1,
-          }),
-    [configIDs, table, analysis]
-  );
+  // The names an analysis cannot give itself, looked up in `FileTable.dat` off
+  // the main thread, as upstream does: the table is parsed in the worker, and
+  // the panel never holds it. `.none` is a volume the table does not describe,
+  // and every legacy volume, whose rows keep the numbers their own bytes carry.
+  // The EFS lookup reads the *MFS* volume's platform and dictionary — upstream
+  // hands `efs_anl` the values `mfs_anl` read — so it is the MFS row's fields,
+  // not the EFS page's own Dictionary, that name the tables.
+  const [names, setNames] = useState<MFSFileNames>(MFSFileNames.none);
+  const [efsNames, setEfsNames] = useState<EFSFileNames>(EFSFileNames.none);
+  const [configPaths, setConfigPaths] = useState<ConfigRecordPaths>(ConfigRecordPaths.none);
+  /** Which names ask a reply belongs to: a reply to a superseded one is dropped. */
+  const fileNamesJob = useRef(0);
+  useEffect(() => {
+    // A new analysis is a new question: the names it held were about the
+    // volumes it read, and they go with it rather than standing there unmarked.
+    setNames(MFSFileNames.none);
+    setEfsNames(EFSFileNames.none);
+    setConfigPaths(ConfigRecordPaths.none);
+    if (analysis === undefined || fileTableText === undefined) return;
+    const wantsMFS =
+      analysis.mfsVolume !== undefined &&
+      analysis.mfsVolume.usesFTBL === true &&
+      analysis.mfsVolume.files.length > 0;
+    const wantsEFS = analysis.efsVolume !== undefined;
+    const wantsConfig = configIDs.length > 0;
+    if (!wantsMFS && !wantsEFS && !wantsConfig) return;
+    const job = ++fileNamesJob.current;
+    void fileNamesPaneMe(pane, {
+      mfs: wantsMFS ? analysis.mfsVolume : undefined,
+      efs: wantsEFS ? analysis.efsVolume : undefined,
+      configIDs: wantsConfig ? configIDs : [],
+      platform: analysis.mfsVolume?.ftblPlatform ?? -1,
+      dictionary: analysis.mfsVolume?.ftblDictionary ?? -1,
+      fileTableText,
+    }).then((found) => {
+      if (job !== fileNamesJob.current) return;
+      if (found === undefined) return;
+      setNames(found.mfs ?? MFSFileNames.none);
+      setEfsNames(found.efs ?? EFSFileNames.none);
+      setConfigPaths(found.config ?? ConfigRecordPaths.none);
+    });
+  }, [analysis, configIDs, fileTableText, pane]);
   const tree = useMemo(
     () =>
       analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),
     [analysis, checksums, names, efsNames, configPaths]
   );
-  const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
+  const blocks = useMemo(
+    () => (analysis === undefined ? [] : buildSummary(analysis)),
+    [analysis]
+  );
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);
   const selected = focus === undefined ? undefined : meaNodeAt(tree, pathOf(focus));
 

@@ -227,6 +227,15 @@ export class FileTable {
 
   private readonly tables: Tables;
   private readonly efst: EFSTTables;
+  /**
+   * `vfsID` → the record that claims it, one per table, built the first time a
+   * lookup reads that table. `recordForFileIndex` is called once per file of a
+   * volume, and a volume has hundreds of files over a table of hundreds of
+   * records: re-walking and re-parsing the table for every one of them is the
+   * pause a panel switch used to cost. Parsing each record once, into this, is
+   * the same answer in a single pass.
+   */
+  private readonly byVfs = new Map<string, Map<number, FileTableEntry>>();
 
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.init */
   constructor(options: { readonly tables?: Tables; readonly efst?: EFSTTables } = {}) {
@@ -327,15 +336,7 @@ export class FileTable {
     platform: number,
     dictionary: number
   ): FileTableEntry | undefined {
-    const records = this.ftblRecords(platform, dictionary);
-    if (records === undefined) return undefined;
-    let best: FileTableEntry | undefined;
-    for (const [fileID, record] of records) {
-      const entry = fileTableEntry(fileID, record);
-      if (entry === undefined || entry.vfsID !== index) continue;
-      if (best === undefined || entry.fileID < best.fileID) best = entry;
-    }
-    return best;
+    return this.ftblByVfs(platform, dictionary)?.get(index);
   }
 
   /**
@@ -374,6 +375,38 @@ export class FileTable {
       .get(tableKey(resolution.platform))
       ?.get(tableKey(resolution.dictionary))
       ?.get("FTBL");
+  }
+
+  /**
+   * `vfsID` → the record that claims it, for the table `platform`/`dictionary`
+   * resolve to — the one pass `recordForFileIndex` used to make per file, done
+   * once and kept. `undefined` when the table resolves to none, the same answer
+   * `ftblRecords` gives.
+   *
+   * The pick inside a shared `vfsID` is the lowest file ID, the rule
+   * `recordForFileIndex` states: the string compare is kept as written, so the
+   * index answers the way the walk did, record for record.
+   */
+  private ftblByVfs(platform: number, dictionary: number): Map<number, FileTableEntry> | undefined {
+    const resolution = this.resolve(platform, dictionary);
+    if (resolution.missing) return undefined;
+    const key = `${tableKey(resolution.platform)}/${tableKey(resolution.dictionary)}`;
+    const held = this.byVfs.get(key);
+    if (held !== undefined) return held;
+    const records = this.tables
+      .get(tableKey(resolution.platform))
+      ?.get(tableKey(resolution.dictionary))
+      ?.get("FTBL");
+    if (records === undefined) return undefined;
+    const byVfs = new Map<number, FileTableEntry>();
+    for (const [fileID, record] of records) {
+      const entry = fileTableEntry(fileID, record);
+      if (entry === undefined) continue;
+      const current = byVfs.get(entry.vfsID);
+      if (current === undefined || entry.fileID < current.fileID) byVfs.set(entry.vfsID, entry);
+    }
+    this.byVfs.set(key, byVfs);
+    return byVfs;
   }
 
   /**

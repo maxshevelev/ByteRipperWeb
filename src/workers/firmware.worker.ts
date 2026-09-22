@@ -57,6 +57,9 @@ import {
   removeMicrocodeAt,
   replaceMicrocodeAt,
 } from "@/tools/fit/fitEditor";
+import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
+import { EFSFileNames } from "@/tools/me/efsFileNames";
+import { MFSFileNames } from "@/tools/me/mfsFileNames";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
@@ -879,21 +882,58 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           request.huffmanText === undefined ? undefined : parsedDictionaries(request.huffmanText);
         const table =
           request.fileTableText === undefined ? undefined : parsedFileTable(request.fileTableText);
+        const database =
+          request.databaseText === undefined ? undefined : MEADatabase.parse(request.databaseText);
+        const analysis = analyzeMeRegion({
+          bytes,
+          baseOffset: regionOffset,
+          ...(database === undefined ? {} : { database }),
+          ...(dictionaries === undefined ? {} : { huffmanDictionaries: dictionaries }),
+          ...(table === undefined ? {} : { fileTable: table }),
+        });
         post({
           kind: "meAnalyze",
           id: request.id,
           regionOffset,
-          analysis: analyzeMeRegion({
-            bytes,
-            baseOffset: regionOffset,
-            ...(request.databaseText === undefined
-              ? {}
-              : { database: MEADatabase.parse(request.databaseText) }),
-            ...(dictionaries === undefined ? {} : { huffmanDictionaries: dictionaries }),
-            ...(table === undefined ? {} : { fileTable: table }),
-          }),
+          analysis,
           problem: undefined,
         });
+        return;
+      }
+
+      // The names an analysis cannot give itself, looked up in `FileTable.dat`
+      // off the main thread, as upstream does (`MEReads.fileNames`): the table
+      // is parsed here, where it is already parsed for the analysis, and the
+      // panel never holds it.
+      //
+      // @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileNames
+      case "meFileNames": {
+        const table =
+          request.fileTableText === undefined ? undefined : parsedFileTable(request.fileTableText);
+        if (table === undefined || table.isEmpty) {
+          post({ kind: "meFileNames", id: request.id, mfs: undefined, efs: undefined, config: undefined });
+          return;
+        }
+        const mfs = request.mfs === undefined ? undefined : MFSFileNames.forVolume(table, request.mfs);
+        const efs =
+          request.efs === undefined
+            ? undefined
+            : EFSFileNames.forVolume({
+                table,
+                volume: request.efs,
+                platform: request.platform,
+                dictionary: request.dictionary,
+              });
+        const config =
+          request.configIDs.length === 0
+            ? undefined
+            : ConfigRecordPaths.forFileIDs({
+                table,
+                fileIDs: request.configIDs,
+                platform: request.platform,
+                dictionary: request.dictionary,
+              });
+        post({ kind: "meFileNames", id: request.id, mfs, efs, config });
         return;
       }
 

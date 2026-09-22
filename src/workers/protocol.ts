@@ -20,8 +20,12 @@
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 
 import type { FITReport } from "@/firmware/fit/fitTable";
+import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import type { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
+import type { EFSFileNames } from "@/tools/me/efsFileNames";
+import type { MFSFileNames } from "@/tools/me/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
 
 /** A job number. Monotonic per worker client; never reused. */
@@ -503,6 +507,27 @@ export interface MeAnalyzeRequest {
   readonly fileTableText: string | undefined;
 }
 
+/**
+ * The names an analysis cannot give itself, looked up in `FileTable.dat`.
+ *
+ * The *volumes* and the config record IDs cross, not the analysis: this is the
+ * follow-up ask that names the files of the analysis the previous ask returned.
+ * The table's *text* crosses with them, the way `meAnalyze`'s does — the worker
+ * is where the table is parsed, and the panel never holds it.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileNames
+ */
+export interface MeFileNamesRequest {
+  readonly kind: "meFileNames";
+  readonly id: JobId;
+  readonly mfs: MFSVolume | undefined;
+  readonly efs: EFSVolume | undefined;
+  readonly configIDs: readonly number[];
+  readonly platform: number;
+  readonly dictionary: number;
+  readonly fileTableText: string | undefined;
+}
+
 /** The ME region's digests — three passes over it, so only when somebody asks. */
 export interface MeChecksumsRequest {
   readonly kind: "meChecksums";
@@ -525,6 +550,7 @@ export type FirmwareWorkerRequest =
   | FitReadRequest
   | FitEditRequest
   | MeAnalyzeRequest
+  | MeFileNamesRequest
   | CancelRequest;
 
 /**
@@ -747,6 +773,21 @@ export interface MeAnalyzeResponse {
   readonly problem: string | undefined;
 }
 
+/**
+ * The names the table gave the volumes it was asked about. `undefined` for a
+ * volume the table does not describe — the panel reads that as its `.none`, a
+ * volume whose rows keep the numbers their own bytes carry.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileNames
+ */
+export interface MeFileNamesResponse {
+  readonly kind: "meFileNames";
+  readonly id: JobId;
+  readonly mfs: MFSFileNames | undefined;
+  readonly efs: EFSFileNames | undefined;
+  readonly config: ConfigRecordPaths | undefined;
+}
+
 /** The digests of the same bytes the analysis read, uppercase hex; nothing where none could be read. */
 export interface MeChecksumsResponse {
   readonly kind: "meChecksums";
@@ -758,6 +799,7 @@ export interface MeChecksumsResponse {
 
 export type FirmwareWorkerResponse =
   | MeAnalyzeResponse
+  | MeFileNamesResponse
   | MeChecksumsResponse
   | FitEditResponse
   | FitReportResponse
