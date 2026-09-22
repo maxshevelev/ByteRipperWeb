@@ -911,10 +911,17 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         const table =
           request.fileTableText === undefined ? undefined : parsedFileTable(request.fileTableText);
         if (table === undefined || table.isEmpty) {
-          post({ kind: "meFileNames", id: request.id, mfs: undefined, efs: undefined, config: undefined });
+          post({
+            kind: "meFileNames",
+            id: request.id,
+            mfs: undefined,
+            efs: undefined,
+            config: undefined,
+          });
           return;
         }
-        const mfs = request.mfs === undefined ? undefined : MFSFileNames.forVolume(table, request.mfs);
+        const mfs =
+          request.mfs === undefined ? undefined : MFSFileNames.forVolume(table, request.mfs);
         const efs =
           request.efs === undefined
             ? undefined

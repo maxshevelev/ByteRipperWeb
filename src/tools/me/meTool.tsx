@@ -447,10 +447,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),
     [analysis, checksums, names, efsNames, configPaths]
   );
-  const blocks = useMemo(
-    () => (analysis === undefined ? [] : buildSummary(analysis)),
-    [analysis]
-  );
+  const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);
   const selected = focus === undefined ? undefined : meaNodeAt(tree, pathOf(focus));
 
