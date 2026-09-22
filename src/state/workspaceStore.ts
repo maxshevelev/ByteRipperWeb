@@ -693,7 +693,7 @@ export function dismissAlert(): void {
  */
 export function canRenamePane(pane: PaneId): boolean {
   const slot = paneState(pane);
-  return slot !== undefined && slot.untitled;
+  return slot?.untitled === true;
 }
 
 /**

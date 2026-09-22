@@ -206,6 +206,11 @@ export function forgetPartMinimap(pane: PaneId): void {
   currentJob[pane] = undefined;
   builtFor[pane] = undefined;
   density[pane] = undefined;
+  // And the rebuild an edit in it had coalesced: it would wake for a surface
+  // that is no longer there.
+  const pending = editTimers.get(pane);
+  if (pending !== undefined) clearTimeout(pending);
+  editTimers.delete(pane);
   workers.get(pane)?.terminate();
   workers.delete(pane);
   minimapStore.update((state) => {

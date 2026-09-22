@@ -240,29 +240,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
       case "firmwareFailed":
         // Whoever was waiting on this worker is told so rather than left
         // holding a promise that will never settle.
-        fitWaiters.get(pane)?.(undefined);
-        fitWaiters.delete(pane);
-        spaceBytesWaiters.get(pane)?.(undefined);
-        spaceBytesWaiters.delete(pane);
-        layoutWaiters.get(pane)?.({ layout: IMAGE_LAYOUT, rebuild: undefined });
-        layoutWaiters.delete(pane);
-        rebuildWaiters.get(pane)?.(undefined);
-        rebuildWaiters.delete(pane);
-        rebuildProgress.delete(pane);
-        fitEditWaiters.get(pane)?.({
-          kind: "fitEdit",
-          id: response.id,
-          name: undefined,
-          writes: [],
-          problem: response.problem,
-          summary: undefined,
-          landed: undefined,
-        });
-        fitEditWaiters.delete(pane);
-        meWaiters.get(pane)?.(undefined);
-        meWaiters.delete(pane);
-        checksumWaiters.get(pane)?.(undefined);
-        checksumWaiters.delete(pane);
+        dropAsks(pane, { id: response.id, problem: response.problem });
         update(pane, { status: "failed", problem: response.problem });
         return;
     }
@@ -284,6 +262,49 @@ function send(pane: PaneId, request: FirmwareWorkerRequest): void {
  * asks (a node's children, the addresses, a detail, a repair) keep the shared
  * job, because several of them run at once and none supersedes another.
  */
+/**
+ * Settles every one-at-a-time ask this pane has outstanding.
+ *
+ * Called where the pane's job moves on without an answer: the worker failed, or
+ * the tree it was asked about has been replaced — a parse or an invalidation
+ * takes the job with it, so the reply to a question asked of the old tree is
+ * dropped on arrival and the caller would wait for ever. None of them can be
+ * answered now, and saying so is what lets the caller give up and say why.
+ */
+function dropAsks(pane: PaneId, failure?: { readonly id: number; readonly problem: string }): void {
+  fitWaiters.get(pane)?.(undefined);
+  fitWaiters.delete(pane);
+  spaceBytesWaiters.get(pane)?.(undefined);
+  spaceBytesWaiters.delete(pane);
+  layoutWaiters.get(pane)?.({ layout: IMAGE_LAYOUT, rebuild: undefined });
+  layoutWaiters.delete(pane);
+  offsetWaiters.get(pane)?.(undefined);
+  offsetWaiters.delete(pane);
+  rebuildWaiters.get(pane)?.(undefined);
+  rebuildWaiters.delete(pane);
+  rebuildProgress.delete(pane);
+  // The one ask with something to say beyond "no": a failed edit carries the
+  // worker's own reason, which the panel shows.
+  fitEditWaiters.get(pane)?.(
+    failure === undefined
+      ? undefined
+      : {
+          kind: "fitEdit",
+          id: failure.id,
+          name: undefined,
+          writes: [],
+          problem: failure.problem,
+          summary: undefined,
+          landed: undefined,
+        }
+  );
+  fitEditWaiters.delete(pane);
+  meWaiters.get(pane)?.(undefined);
+  meWaiters.delete(pane);
+  checksumWaiters.get(pane)?.(undefined);
+  checksumWaiters.delete(pane);
+}
+
 function nextAskJob(pane: PaneId): number {
   const held = ensureWorker(pane);
   held.job += 1;
@@ -300,6 +321,9 @@ function nextAskJob(pane: PaneId): number {
 export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayout): void {
   const held = ensureWorker(pane);
   held.job += 1;
+  // The job this bump supersedes may have been somebody's question; its reply
+  // is dropped on arrival, so the asker is told now rather than left waiting.
+  dropAsks(pane);
   update(pane, {
     status: "parsing",
     fraction: 0,
@@ -811,7 +835,9 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
   // this supersedes is dropped rather than applied to a tree it knows nothing
   // about — the stale-session guard.
   held.job += 1;
-  // Nothing that was being read is being read against this tree any more.
+  // Nothing that was being read is being read against this tree any more —
+  // including the one-at-a-time asks, whose replies this bump drops.
+  dropAsks(pane);
   update(pane, { expanding: new Set() });
   held.worker.postMessage({
     kind: "firmwareInvalidate",
