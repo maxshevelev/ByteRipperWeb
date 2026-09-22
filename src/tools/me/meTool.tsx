@@ -24,6 +24,7 @@ import {
 } from "@/state/meDatabaseStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
+import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { ConfigRecordPaths } from "@/tools/me/configRecordPaths";
 import { EFSFileNames } from "@/tools/me/efsFileNames";
@@ -75,7 +76,9 @@ type Tab = "summary" | "tree";
 
 /**
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState
- * @upstream-differs it keeps the open rows too
+ * @upstream-differs it keeps the open rows too, and the analysis itself —
+ * upstream's cache lives on the pane's holder and survives the park, where here
+ * the park is the only box a panel switch cannot reach past
  */
 interface Parked {
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.tabIndex */
@@ -83,6 +86,16 @@ interface Parked {
   readonly open: ReadonlySet<string>;
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.focusPath */
   readonly focus: string | undefined;
+  /** The analysis as it stood, or nothing while it was still running. */
+  readonly result: Result;
+  /** The region's digests, if they had been asked for. */
+  readonly checksums: MEAChecksums | undefined;
+  /**
+   * The file's content generation the analysis was read against: a parked
+   * analysis is only the answer to the file it was asked of, and a file that
+   * moved since is a file it was not.
+   */
+  readonly generation: number;
 }
 
 /**
@@ -97,7 +110,16 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
   if (held.tab !== "summary" && held.tab !== "tree") return undefined;
   if (!(held.open instanceof Set)) return undefined;
   if (held.focus !== undefined && typeof held.focus !== "string") return undefined;
-  return { tab: held.tab, open: held.open, focus: held.focus };
+  if (typeof held.generation !== "number") return undefined;
+  if (held.result === undefined || typeof held.result.phase !== "string") return undefined;
+  return {
+    tab: held.tab,
+    open: held.open,
+    focus: held.focus,
+    result: held.result,
+    checksums: held.checksums,
+    generation: held.generation,
+  };
 }
 
 type Result =
@@ -201,12 +223,23 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const huffman = useStore(huffmanDictionaryStore);
   const fileTable = useStore(fileTableStore);
   const park = restoredParked(context.restored);
+  // The analysis is only the answer to the file it was read against: a file
+  // that moved since the park is a file it was not, and the park is not
+  // restored for one. A park that was still running is not an answer at all.
+  const generation = paneState(pane)?.document?.contentGeneration;
+  const restored =
+    park !== undefined &&
+    generation !== undefined &&
+    park.generation === generation &&
+    park.result.phase !== "waiting"
+      ? park
+      : undefined;
   const [tab, setTab] = useState<Tab>(park?.tab ?? "summary");
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
   const [focus, setFocus] = useState<string | undefined>(park?.focus);
-  const [result, setResult] = useState<Result>({ phase: "waiting" });
+  const [result, setResult] = useState<Result>(restored?.result ?? { phase: "waiting" });
   const [busy, setBusy] = useState(false);
-  const [checksums, setChecksums] = useState<MEAChecksums | undefined>(undefined);
+  const [checksums, setChecksums] = useState<MEAChecksums | undefined>(restored?.checksums);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
   const { widths, resize, reset: resetWidths } = useColumnWidths(ME_COLUMNS);
   const [showsMarkings, setShowsMarkings] = useShowsMarkings(MEA_PANEL);
@@ -214,6 +247,16 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   /** Which analysis a reply belongs to: a reply to a superseded one is dropped. */
   const request = useRef(0);
   const askedChecksums = useRef(false);
+  /**
+   * The file and the database the result on screen was read against — the gate
+   * that keeps a restored analysis from being re-run while it is still the
+   * answer, and lets it go the moment either has moved.
+   */
+  const resultFor = useRef<{ generation: number; database: string | undefined } | undefined>(
+    restored !== undefined
+      ? { generation: restored.generation, database: database.text }
+      : undefined
+  );
   const treeRef = useRef<HTMLDivElement | null>(null);
   const summaryRef = useRef<HTMLDivElement | null>(null);
 
@@ -230,12 +273,21 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
 
   /**
    * What this session would hand back if it ended now: the tab that was up, the
-   * rows that were open and the row in focus.
+   * rows that were open and the row in focus — and the analysis itself, read
+   * against the file's generation, so a panel put away and brought back is the
+   * panel that was left rather than a second reading of the same bytes.
    *
    * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.parkedState
-   * @upstream-differs it keeps the open rows too
+   * @upstream-differs it keeps the open rows and the analysis too
    */
-  useParkedToolState(pane, () => ({ tab, open, focus }));
+  useParkedToolState(pane, () => ({
+    tab,
+    open,
+    focus,
+    result,
+    checksums,
+    generation: paneState(pane)?.document?.contentGeneration ?? 0,
+  }));
 
   const databaseText = database.text;
   const huffmanText = huffman.text;
@@ -255,6 +307,12 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           ? { phase: "done", analysis: found.analysis }
           : { phase: "failed", problem: found.problem }
       );
+      // The answer is the one for the file and the database it was read
+      // against: the gate keeps it until either moves.
+      resultFor.current = {
+        generation: paneState(pane)?.document?.contentGeneration ?? 0,
+        database: databaseText,
+      };
     });
   }, [pane, databaseText, huffmanText, fileTableText]);
 
@@ -269,8 +327,19 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       request.current++;
       setBusy(false);
       setResult({ phase: "failed", problem: firmwareProblem ?? "That image could not be read." });
+      resultFor.current = undefined;
       return;
     }
+    // The answer on screen is the one for the file and the database it was read
+    // against: while both still hold, a re-read of the same bytes is a second
+    // reading of data nothing changed, and the panel keeps what it has rather
+    // than re-running the most expensive read it makes.
+    const currentGeneration = paneState(pane)?.document?.contentGeneration;
+    const valid =
+      resultFor.current !== undefined &&
+      resultFor.current.generation === currentGeneration &&
+      resultFor.current.database === databaseText;
+    if (valid) return;
     if (status !== "ready" || roots === undefined) {
       // The image is being read, and whatever the panel holds was read against
       // the bytes before — an analysis of a file that is no longer the one on
@@ -282,10 +351,11 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       request.current++;
       setBusy(false);
       setResult({ phase: "waiting" });
+      resultFor.current = undefined;
       return;
     }
     analyze();
-  }, [roots, status, firmwareProblem, analyze]);
+  }, [roots, status, firmwareProblem, analyze, databaseText, pane]);
 
   useEffect(() => {
     if (notice === undefined) return;
