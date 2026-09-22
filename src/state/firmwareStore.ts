@@ -276,6 +276,21 @@ function send(pane: PaneId, request: FirmwareWorkerRequest): void {
 }
 
 /**
+ * A one-at-a-time ask — a buffer's bytes, a part's reading, a rebuild plan, a
+ * node's path, a FIT table or edit, an ME analysis or digests — supersedes the
+ * pane's previous one, so it takes a job of its own: the reply to the one it
+ * supersedes then carries a job that is no longer current and is dropped,
+ * rather than settling the waiter that has just replaced it. The many-at-a-time
+ * asks (a node's children, the addresses, a detail, a repair) keep the shared
+ * job, because several of them run at once and none supersedes another.
+ */
+function nextAskJob(pane: PaneId): number {
+  const held = ensureWorker(pane);
+  held.job += 1;
+  return held.job;
+}
+
+/**
  * Parses the pane's current content.
  *
  * The blob is the file itself while the document is clean, and a snapshot of
@@ -369,7 +384,7 @@ export function findFirmwareNodeAt(
     // A second ask supersedes the first, which is then told nothing was found.
     offsetWaiters.get(pane)?.(undefined);
     offsetWaiters.set(pane, resolve);
-    send(pane, { kind: "firmwareNodeAtOffset", id: workers[pane]?.job ?? 0, offset });
+    send(pane, { kind: "firmwareNodeAtOffset", id: nextAskJob(pane), offset });
   });
 }
 
@@ -406,8 +421,10 @@ export async function readSpaceBytes(
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return undefined;
   return new Promise<Uint8Array | undefined>((resolve) => {
+    // A second ask supersedes the first, which is then told nothing came back.
+    spaceBytesWaiters.get(pane)?.(undefined);
     spaceBytesWaiters.set(pane, resolve);
-    send(pane, { kind: "firmwareSpaceBytes", id: workers[pane]?.job ?? 0, space, range });
+    send(pane, { kind: "firmwareSpaceBytes", id: nextAskJob(pane), space, range });
   });
 }
 
@@ -454,8 +471,10 @@ export async function askFirmwarePart(
     return { layout: IMAGE_LAYOUT, rebuild: undefined };
   }
   return new Promise<PartReading>((resolve) => {
+    // A second ask supersedes the first, which is then told the image as-is.
+    layoutWaiters.get(pane)?.({ layout: IMAGE_LAYOUT, rebuild: undefined });
     layoutWaiters.set(pane, resolve);
-    send(pane, { kind: "firmwareLayout", id: workers[pane]?.job ?? 0, ...target });
+    send(pane, { kind: "firmwareLayout", id: nextAskJob(pane), ...target });
   });
 }
 
@@ -483,11 +502,13 @@ export async function askFirmwareRebuild(
   const content = await currentContent(pane);
   if (content === undefined) return undefined;
   return new Promise<FirmwareRebuildResponse | undefined>((resolve) => {
+    // A second ask supersedes the first, which is then told nothing was planned.
+    rebuildWaiters.get(pane)?.(undefined);
     rebuildWaiters.set(pane, resolve);
     if (onProgress !== undefined) rebuildProgress.set(pane, onProgress);
     send(pane, {
       kind: "firmwareRebuild",
-      id: workers[pane]?.job ?? 0,
+      id: nextAskJob(pane),
       content,
       bytes,
       target: {
@@ -556,10 +577,11 @@ export async function fixFirmwareChecksum(
 export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  const job = workers[pane]?.job ?? 0;
   return new Promise((resolve) => {
+    // A second ask supersedes the first, which is then told no table was read.
+    fitWaiters.get(pane)?.(undefined);
     fitWaiters.set(pane, resolve);
-    send(pane, { kind: "fitRead", id: job });
+    send(pane, { kind: "fitRead", id: nextAskJob(pane) });
   });
 }
 
@@ -619,10 +641,17 @@ export function analyzePaneMe(
 ): Promise<MeAnalyzeResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  const job = workers[pane]?.job ?? 0;
   return new Promise((resolve) => {
+    // A second ask supersedes the first, which is then told nothing was analysed.
+    meWaiters.get(pane)?.(undefined);
     meWaiters.set(pane, resolve);
-    send(pane, { kind: "meAnalyze", id: job, databaseText, huffmanText, fileTableText });
+    send(pane, {
+      kind: "meAnalyze",
+      id: nextAskJob(pane),
+      databaseText,
+      huffmanText,
+      fileTableText,
+    });
   });
 }
 
@@ -636,11 +665,10 @@ const meWaiters = new Map<PaneId, (response: MeAnalyzeResponse | undefined) => v
 export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  const job = workers[pane]?.job ?? 0;
   return new Promise((resolve) => {
     checksumWaiters.get(pane)?.(undefined);
     checksumWaiters.set(pane, resolve);
-    send(pane, { kind: "meChecksums", id: job });
+    send(pane, { kind: "meChecksums", id: nextAskJob(pane) });
   });
 }
 
