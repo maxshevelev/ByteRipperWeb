@@ -96,6 +96,22 @@ export class EFSFileNames {
   });
 
   /**
+   * The same value, back from the worker that looked it up: a structured clone
+   * carries the fields and not the class.
+   *
+   * @web-only upstream's lookup crosses an actor boundary, which keeps the type
+   */
+  static received(held: EFSFileNames): EFSFileNames {
+    return new EFSFileNames({
+      names: held.names,
+      records: held.records,
+      resolution: held.resolution,
+      revision: held.revision,
+      hasTable: held.hasTable,
+    });
+  }
+
+  /**
    * The names for one volume, looked up once up front.
    *
    * `platform` and `dictionary` are the **MFS** volume's, not this volume's own

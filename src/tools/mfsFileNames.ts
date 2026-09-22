@@ -58,6 +58,19 @@ export class MFSFileNames {
   static readonly none = new MFSFileNames(new Map(), undefined);
 
   /**
+   * The same value, back from the worker that looked it up.
+   *
+   * A structured clone carries the fields and not the class, so what arrives
+   * has this shape and none of its behaviour. Rebuilding it here is what keeps
+   * the boundary from leaking into every row that asks a name for a file.
+   *
+   * @web-only upstream's lookup crosses an actor boundary, which keeps the type
+   */
+  static received(held: MFSFileNames): MFSFileNames {
+    return new MFSFileNames(held.entries, held.resolution);
+  }
+
+  /**
    * The names for one volume: every present file's index looked up once, up
    * front, so the rows are built from a value and not from a search.
    *

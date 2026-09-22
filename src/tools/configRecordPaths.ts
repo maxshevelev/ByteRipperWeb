@@ -50,6 +50,16 @@ export class ConfigRecordPaths {
   static readonly none = new ConfigRecordPaths(new Map(), undefined);
 
   /**
+   * The same value, back from the worker that looked it up: a structured clone
+   * carries the fields and not the class.
+   *
+   * @web-only upstream's lookup crosses an actor boundary, which keeps the type
+   */
+  static received(held: ConfigRecordPaths): ConfigRecordPaths {
+    return new ConfigRecordPaths(held.paths, held.resolution);
+  }
+
+  /**
    * The paths for one set of records, looked up once up front.
    *
    * `platform` and `dictionary` are the MFS volume header's, as upstream passes

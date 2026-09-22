@@ -7,7 +7,10 @@ import { discardParkedStateFor } from "@/state/parkedToolState";
 import { createStore } from "@/state/store";
 import { applyTransaction } from "@/state/toolEdits";
 import { type PaneId, paneState } from "@/state/workspaceStore";
+import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/contentChange";
+import { EFSFileNames } from "@/tools/efsFileNames";
+import { MFSFileNames } from "@/tools/mfsFileNames";
 import type {
   FirmwareDetailResponse,
   FirmwareProtectedRangesResponse,
@@ -181,7 +184,17 @@ function ensureWorker(pane: PaneId): PaneWorker {
         return;
       }
       case "meFileNames": {
-        meFileNamesWaiters.get(pane)?.(response);
+        // The three name tables are values with behaviour, and a structured
+        // clone carries only their fields: what arrives has the right shape and
+        // none of the methods the rows call. They are put back together here,
+        // at the boundary, rather than by every panel that asks.
+        meFileNamesWaiters.get(pane)?.({
+          ...response,
+          mfs: response.mfs === undefined ? undefined : MFSFileNames.received(response.mfs),
+          efs: response.efs === undefined ? undefined : EFSFileNames.received(response.efs),
+          config:
+            response.config === undefined ? undefined : ConfigRecordPaths.received(response.config),
+        });
         meFileNamesWaiters.delete(pane);
         return;
       }
