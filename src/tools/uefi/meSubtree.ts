@@ -184,6 +184,14 @@ export interface MeSubtree {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.loadChecksums
    */
   readonly rowPicked: (node: MEANode) => void;
+  /**
+   * There is no ME region to present any more: the file in the pane was
+   * replaced by one without it. Everything read of the last file goes, and the
+   * region is not opened again until a reader opens one.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.contentChanged
+   */
+  readonly close: () => void;
 }
 
 /**
@@ -211,6 +219,8 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
   const [configPaths, setConfigPaths] = useState<ConfigRecordPaths>(ConfigRecordPaths.none);
   /** Which analysis a landing belongs to: a landing a later one superseded is dropped. */
   const run = useRef(0);
+  /** Whether the region is open at all, so closing it twice does nothing. */
+  const isOpen = useRef(false);
   const fileNamesJob = useRef(0);
   const askedChecksums = useRef(false);
 
@@ -322,8 +332,28 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
    * nothing and then never open again.
    */
   const open = useCallback(() => {
+    isOpen.current = true;
     setWanted(true);
     setIsReading(true);
+  }, []);
+
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.contentChanged
+   */
+  const close = useCallback(() => {
+    if (!isOpen.current) return;
+    isOpen.current = false;
+    // Nothing in flight belongs to this panel any more.
+    run.current++;
+    askedChecksums.current = false;
+    setWanted(false);
+    setIsReading(false);
+    setAnalysis(undefined);
+    setProblem(undefined);
+    setChecksums(undefined);
+    setNames(MFSFileNames.none);
+    setEfsNames(EFSFileNames.none);
+    setConfigPaths(ConfigRecordPaths.none);
   }, []);
 
   const rowPicked = useCallback(
@@ -339,7 +369,7 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
     [pane]
   );
 
-  return { roots, problem, isReading, open, rowPicked };
+  return { roots, problem, isReading, open, rowPicked, close };
 }
 
 /** The node an ME row's key names, in the presented sub-tree. */

@@ -25,7 +25,6 @@ import {
 } from "@/state/meDatabaseStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
-import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
@@ -217,14 +216,20 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const request = useRef(0);
   const askedChecksums = useRef(false);
   /**
-   * The file and the database the result on screen was read against — the gate
-   * that keeps the panel from asking again while what it holds is still the
-   * answer, and lets it go the moment either has moved. The reading itself is
-   * the pane's, and is cached there; this is only about what is on screen.
+   * The analysis on screen, to tell a re-ask that came back with the same one
+   * from a genuinely new reading.
+   *
+   * Not a gate: whether a reading has to be made again is the *pane's* question
+   * and is answered where the reading is kept (`analyzePaneMe`), which is
+   * upstream's arrangement too — its session re-parses on every content change
+   * and the pane's cache is what makes that cheap. A gate of the panel's own
+   * was answering it a second time and getting it wrong: it keyed on the
+   * document's content generation, and a document that has just been replaced
+   * counts from zero again, so a file dropped over this one read as the file
+   * that was already here and the panel kept the analysis of the file that had
+   * gone.
    */
-  const resultFor = useRef<{ generation: number; database: string | undefined } | undefined>(
-    undefined
-  );
+  const shown = useRef<FirmwareAnalysis | undefined>(undefined);
   const treeRef = useRef<HTMLDivElement | null>(null);
   const summaryRef = useRef<HTMLDivElement | null>(null);
 
@@ -262,19 +267,20 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       if (job !== request.current) return;
       setBusy(false);
       if (found === undefined) return;
-      askedChecksums.current = false;
-      setChecksums(undefined);
+      // A new analysis is a new question, and the digests it held were about
+      // the bytes it read — but the pane answers a re-ask of the same question
+      // with the very reading that is on screen, and throwing the digests away
+      // for that would send the Checksums row back to "Loading…" for nothing.
+      if (found.analysis !== shown.current) {
+        askedChecksums.current = false;
+        setChecksums(undefined);
+      }
+      shown.current = found.problem === undefined ? found.analysis : undefined;
       setResult(
         found.problem === undefined
           ? { phase: "done", analysis: found.analysis }
           : { phase: "failed", problem: found.problem }
       );
-      // The answer is the one for the file and the database it was read
-      // against: the gate keeps it until either moves.
-      resultFor.current = {
-        generation: paneState(pane)?.document?.contentGeneration ?? 0,
-        database: databaseText,
-      };
     });
   }, [pane, databaseText, huffmanText, fileTableText]);
 
@@ -289,19 +295,9 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       request.current++;
       setBusy(false);
       setResult({ phase: "failed", problem: firmwareProblem ?? "That image could not be read." });
-      resultFor.current = undefined;
+      shown.current = undefined;
       return;
     }
-    // The answer on screen is the one for the file and the database it was read
-    // against: while both still hold, a re-read of the same bytes is a second
-    // reading of data nothing changed, and the panel keeps what it has rather
-    // than re-running the most expensive read it makes.
-    const currentGeneration = paneState(pane)?.document?.contentGeneration;
-    const valid =
-      resultFor.current !== undefined &&
-      resultFor.current.generation === currentGeneration &&
-      resultFor.current.database === databaseText;
-    if (valid) return;
     if (status !== "ready" || roots === undefined) {
       // The image is being read, and whatever the panel holds was read against
       // the bytes before — an analysis of a file that is no longer the one on
@@ -313,11 +309,11 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       request.current++;
       setBusy(false);
       setResult({ phase: "waiting" });
-      resultFor.current = undefined;
+      shown.current = undefined;
       return;
     }
     analyze();
-  }, [roots, status, firmwareProblem, analyze, databaseText, pane]);
+  }, [roots, status, firmwareProblem, analyze]);
 
   useEffect(() => {
     if (notice === undefined) return;

@@ -30,10 +30,14 @@ class FakeWorker {
 
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { analyzePaneMe, closeFirmware, noteFirmwareContentChange, openFirmware } = await import(
-  "@/state/firmwareStore"
-);
-const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
+const {
+  analyzePaneMe,
+  closeFirmware,
+  noteFirmwareContentChange,
+  noteFirmwareOperations,
+  openFirmware,
+} = await import("@/state/firmwareStore");
+const { editingHooks, openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 const reply = (response: unknown) => {
   for (const listener of listeners) listener({ data: response });
@@ -134,6 +138,37 @@ describe("the pane's ME analysis", () => {
 
   // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANewDatabaseDropsTheCachedAnalysis
   // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANewDatabaseMakesTheUEFIPanelReadTheRegionAgain
+  // The gesture the whole chain exists for: a file dropped on "Replace current
+  // file", which is the same call as opening one into the pane. The document is
+  // new and counts its changes from zero again, so nothing about the key says
+  // the reading is stale — the reload the open sends is what says it.
+  it("is read again when a file is opened over the one it read", async () => {
+    editingHooks.onContentChange = noteFirmwareOperations;
+    try {
+      const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
+      answerAnalysis();
+      await first;
+
+      openInPane("a", {
+        name: "other.bin",
+        size: 0x40,
+        lastModified: 0,
+        source: new Blob([new Uint8Array(0x40)]),
+      });
+      // The open goes to the worker through the same delivery, and the tree is
+      // ready again once it answers.
+      for (let turn = 0; turn < 8; turn++) await Promise.resolve();
+      const parse = sent("openFirmware").at(-1);
+      if (parse === undefined) throw new Error("the open should have been re-parsed");
+      reply({ kind: "firmwareRoots", id: parse.id, size: 0x40, roots: [], diagnostics: [] });
+
+      void analyzePaneMe("a", "MEA.dat", undefined, undefined);
+      expect(sent("meAnalyze")).toHaveLength(2);
+    } finally {
+      editingHooks.onContentChange = undefined;
+    }
+  });
+
   it("is read again against a newer database", async () => {
     const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
     answerAnalysis();

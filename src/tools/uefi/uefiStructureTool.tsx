@@ -403,6 +403,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const me = useMeSubtree(context.pane, status === "ready");
   const meRoots = me.roots;
   const meIsReading = me.isReading;
+  const closeMe = me.close;
 
   /**
    * The region's row the reader opened, while the analysis behind it runs. The
@@ -577,6 +578,20 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     openedForParkedFocus.current = true;
     toggle(region);
   }, [meFocus, meRoots, meOpening, status, roots, toggle]);
+
+  // The file in the pane was replaced by one with no ME region: there is no row
+  // to graft a sub-tree under any more, so what the last file left goes with it
+  // — the reading, and the focus that named one of its rows. Kept, that focus
+  // would hold a detail on screen for a row the outline does not list.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.contentChanged
+  useEffect(() => {
+    if (status !== "ready" || roots === undefined) return;
+    if (meRegionPath(roots) !== undefined) return;
+    openedForParkedFocus.current = false;
+    setMeFocus(undefined);
+    closeMe();
+  }, [status, roots, closeMe]);
 
   /**
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSelect
