@@ -77,9 +77,7 @@ type Tab = "summary" | "tree";
 
 /**
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState
- * @upstream-differs it keeps the open rows too, and the analysis itself —
- * upstream's cache lives on the pane's holder and survives the park, where here
- * the park is the only box a panel switch cannot reach past
+ * @upstream-differs it keeps the open rows too, where upstream's live on the pane
  */
 interface Parked {
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.tabIndex */
@@ -87,16 +85,6 @@ interface Parked {
   readonly open: ReadonlySet<string>;
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.focusPath */
   readonly focus: string | undefined;
-  /** The analysis as it stood, or nothing while it was still running. */
-  readonly result: Result;
-  /** The region's digests, if they had been asked for. */
-  readonly checksums: MEAChecksums | undefined;
-  /**
-   * The file's content generation the analysis was read against: a parked
-   * analysis is only the answer to the file it was asked of, and a file that
-   * moved since is a file it was not.
-   */
-  readonly generation: number;
 }
 
 /**
@@ -111,16 +99,7 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
   if (held.tab !== "summary" && held.tab !== "tree") return undefined;
   if (!(held.open instanceof Set)) return undefined;
   if (held.focus !== undefined && typeof held.focus !== "string") return undefined;
-  if (typeof held.generation !== "number") return undefined;
-  if (held.result === undefined || typeof held.result.phase !== "string") return undefined;
-  return {
-    tab: held.tab,
-    open: held.open,
-    focus: held.focus,
-    result: held.result,
-    checksums: held.checksums,
-    generation: held.generation,
-  };
+  return { tab: held.tab, open: held.open, focus: held.focus };
 }
 
 type Result =
@@ -224,23 +203,12 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const huffman = useStore(huffmanDictionaryStore);
   const fileTable = useStore(fileTableStore);
   const park = restoredParked(context.restored);
-  // The analysis is only the answer to the file it was read against: a file
-  // that moved since the park is a file it was not, and the park is not
-  // restored for one. A park that was still running is not an answer at all.
-  const generation = paneState(pane)?.document?.contentGeneration;
-  const restored =
-    park !== undefined &&
-    generation !== undefined &&
-    park.generation === generation &&
-    park.result.phase !== "waiting"
-      ? park
-      : undefined;
   const [tab, setTab] = useState<Tab>(park?.tab ?? "summary");
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
   const [focus, setFocus] = useState<string | undefined>(park?.focus);
-  const [result, setResult] = useState<Result>(restored?.result ?? { phase: "waiting" });
+  const [result, setResult] = useState<Result>({ phase: "waiting" });
   const [busy, setBusy] = useState(false);
-  const [checksums, setChecksums] = useState<MEAChecksums | undefined>(restored?.checksums);
+  const [checksums, setChecksums] = useState<MEAChecksums | undefined>(undefined);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
   const { widths, resize, reset: resetWidths } = useColumnWidths(ME_COLUMNS);
   const [showsMarkings, setShowsMarkings] = useShowsMarkings(MEA_PANEL);
@@ -250,13 +218,12 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const askedChecksums = useRef(false);
   /**
    * The file and the database the result on screen was read against — the gate
-   * that keeps a restored analysis from being re-run while it is still the
-   * answer, and lets it go the moment either has moved.
+   * that keeps the panel from asking again while what it holds is still the
+   * answer, and lets it go the moment either has moved. The reading itself is
+   * the pane's, and is cached there; this is only about what is on screen.
    */
   const resultFor = useRef<{ generation: number; database: string | undefined } | undefined>(
-    restored !== undefined
-      ? { generation: restored.generation, database: database.text }
-      : undefined
+    undefined
   );
   const treeRef = useRef<HTMLDivElement | null>(null);
   const summaryRef = useRef<HTMLDivElement | null>(null);
@@ -274,21 +241,15 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
 
   /**
    * What this session would hand back if it ended now: the tab that was up, the
-   * rows that were open and the row in focus — and the analysis itself, read
-   * against the file's generation, so a panel put away and brought back is the
-   * panel that was left rather than a second reading of the same bytes.
+   * rows that were open and the row in focus. Not the analysis — that is the
+   * pane's, cached in the firmware store the way upstream caches it on the
+   * pane's own holder, so a panel put away and brought back is answered from
+   * there rather than reading the region a second time.
    *
    * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.parkedState
-   * @upstream-differs it keeps the open rows and the analysis too
+   * @upstream-differs it keeps the open rows too
    */
-  useParkedToolState(pane, () => ({
-    tab,
-    open,
-    focus,
-    result,
-    checksums,
-    generation: paneState(pane)?.document?.contentGeneration ?? 0,
-  }));
+  useParkedToolState(pane, () => ({ tab, open, focus }));
 
   const databaseText = database.text;
   const huffmanText = huffman.text;

@@ -659,15 +659,69 @@ export async function editPaneFit(
 }
 
 /**
+ * An analysis as it was read, and what it was read against — the pane's own
+ * cache, so the two panels that present the ME region share one reading of it
+ * rather than each making the most expensive read the application makes.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysis
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysisRegion
+ * @upstream-differs the file's content generation and the database text in place
+ * of the region's byte range: upstream drops the cache when an edit lands inside
+ * the region and when the database source says it has a newer one, and both of
+ * those are answered here by the key missing
+ */
+interface CachedMeAnalysis {
+  readonly generation: number;
+  readonly database: string | undefined;
+  readonly response: MeAnalyzeResponse;
+}
+
+/** The last analysis of each pane's ME region. */
+const meAnalysisCache = new Map<PaneId, CachedMeAnalysis>();
+
+/**
+ * The analysis being read right now, and what it is being read against.
+ *
+ * Two panels on one file ask for the same region in the same moment — the UEFI
+ * Structure opening it, the ME Analyzer re-reading on the switch to it — and
+ * both would otherwise find the cache empty and read the whole region. The
+ * second ask awaits this instead.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.analysisInFlight
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.analysisInFlightRegion
+ */
+const meAnalysisInFlight = new Map<
+  PaneId,
+  {
+    readonly generation: number;
+    readonly database: string | undefined;
+    readonly promise: Promise<MeAnalyzeResponse | undefined>;
+  }
+>();
+
+/** What the pane's ME region was last read as, for a caller that only wants a hit. */
+const meGenerationOf = (pane: PaneId): number => paneState(pane)?.document.contentGeneration ?? 0;
+
+/**
  * Analyses the pane's ME region, against the database and the Huffman
- * dictionaries when there are some.
+ * dictionaries when there are some — or hands back the analysis already made of
+ * these bytes against this database.
  *
  * Both files cross to the worker as text rather than parsed: parsing belongs
  * with the parser, and this side has no business holding a few thousand lines it
  * never reads.
  *
+ * The cache is the pane's rather than a panel's, which is upstream's own
+ * arrangement and the whole reason the UEFI Structure can open the ME region
+ * without reading it again: a panel switch, a second panel, and a session put
+ * away and brought back all find the same answer. It is dropped by its key
+ * rather than by an event — an edit bumps the file's content generation, and a
+ * newer database is a different text — so nothing has to remember to clear it.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.meAnalysis
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedMEAnalysis
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.setCachedMEAnalysis
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.meAnalysis
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.cachedMEAnalysis
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.setCachedMEAnalysis
  */
@@ -679,7 +733,14 @@ export function analyzePaneMe(
 ): Promise<MeAnalyzeResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  return new Promise((resolve) => {
+  const generation = meGenerationOf(pane);
+  const cached = meAnalysisCache.get(pane);
+  if (cached?.generation === generation && cached.database === databaseText) {
+    return Promise.resolve(cached.response);
+  }
+  const flight = meAnalysisInFlight.get(pane);
+  if (flight?.generation === generation && flight.database === databaseText) return flight.promise;
+  const promise = new Promise<MeAnalyzeResponse | undefined>((resolve) => {
     // A second ask supersedes the first, which is then told nothing was analysed.
     meWaiters.get(pane)?.(undefined);
     meWaiters.set(pane, resolve);
@@ -690,7 +751,18 @@ export function analyzePaneMe(
       huffmanText,
       fileTableText,
     });
+  }).then((response) => {
+    // Only the ask that started it clears it: an edit may have dropped this
+    // marker and a later ask put its own in its place.
+    if (meAnalysisInFlight.get(pane)?.promise === promise) meAnalysisInFlight.delete(pane);
+    // An answer about bytes that have since moved is not this file's answer.
+    if (response !== undefined && meGenerationOf(pane) === generation) {
+      meAnalysisCache.set(pane, { generation, database: databaseText, response });
+    }
+    return response;
   });
+  meAnalysisInFlight.set(pane, { generation, database: databaseText, promise });
+  return promise;
 }
 
 /** Who is waiting for an ME analysis, by pane. */
@@ -698,16 +770,56 @@ const meWaiters = new Map<PaneId, (response: MeAnalyzeResponse | undefined) => v
 
 /**
  * The ME region's digests — asked for only when somebody looks at them, since
- * they are three passes over the region.
+ * they are three passes over the region — and kept with the analysis they
+ * belong to, so the second panel to look at the Checksums row is answered
+ * rather than reading the region three more times.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.loadChecksums
+ * @upstream-differs upstream puts the digests into the cached analysis itself
+ * (`FirmwareAnalysis.checksums`); here they are an input to the presentation, so
+ * the pane caches them beside the analysis rather than inside it
  */
 export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  return new Promise((resolve) => {
+  const generation = meGenerationOf(pane);
+  const cached = meChecksumsCache.get(pane);
+  if (cached?.generation === generation) return Promise.resolve(cached.response);
+  const flight = meChecksumsInFlight.get(pane);
+  if (flight?.generation === generation) return flight.promise;
+  const promise = new Promise<MeChecksumsResponse | undefined>((resolve) => {
     checksumWaiters.get(pane)?.(undefined);
     checksumWaiters.set(pane, resolve);
     send(pane, { kind: "meChecksums", id: nextAskJob(pane) });
+  }).then((response) => {
+    if (meChecksumsInFlight.get(pane)?.promise === promise) meChecksumsInFlight.delete(pane);
+    if (response !== undefined && meGenerationOf(pane) === generation) {
+      meChecksumsCache.set(pane, { generation, response });
+    }
+    return response;
   });
+  meChecksumsInFlight.set(pane, { generation, promise });
+  return promise;
+}
+
+/** The region's digests as last computed, by pane. */
+const meChecksumsCache = new Map<PaneId, { generation: number; response: MeChecksumsResponse }>();
+const meChecksumsInFlight = new Map<
+  PaneId,
+  { readonly generation: number; readonly promise: Promise<MeChecksumsResponse | undefined> }
+>();
+
+/**
+ * Everything the pane's ME region was read as, dropped: the pane is gone, or
+ * what it holds is no longer what was read.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
+ */
+function forgetMeAnalysis(pane: PaneId): void {
+  meAnalysisCache.delete(pane);
+  meAnalysisInFlight.delete(pane);
+  meChecksumsCache.delete(pane);
+  meChecksumsInFlight.delete(pane);
 }
 
 /** Who is waiting for the ME region's digests, by pane. */
@@ -818,7 +930,16 @@ export function noteFirmwareContentChange(pane: PaneId, change: ToolContentChang
   //
   // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneReloaded
   // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.discardParkedState
-  if (change.kind === "reloaded") discardParkedStateFor(pane);
+  if (change.kind === "reloaded") {
+    discardParkedStateFor(pane);
+    // And the reading of its ME region, for the same reason and one more: the
+    // cache is keyed by the document's content generation, and a document that
+    // has just been replaced starts counting again from zero — so a key that
+    // still matched would answer about the file that was here before.
+    //
+    // @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
+    forgetMeAnalysis(pane);
+  }
   // Nothing is reading this pane's tree, so there is nothing to tell — and a
   // tree opened later is read from the content as it is then. Without this the
   // map below would hold a change for every pane anyone has ever edited.
@@ -907,6 +1028,7 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
 export function closeFirmware(pane: PaneId): void {
   workers[pane]?.worker.terminate();
   delete workers[pane];
+  forgetMeAnalysis(pane);
   firmwareStore.update((state) => ({ panes: { ...state.panes, [pane]: undefined } }));
 }
 
