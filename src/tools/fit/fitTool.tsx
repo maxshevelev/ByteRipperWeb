@@ -22,6 +22,7 @@ import type { ToolSessionState } from "@/state/parkedToolState";
 import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { FIT_COLUMNS, FIT_MIN_WIDTH, fittedColumnWidths } from "@/tools/fit/fitColumns";
 import {
   displayNumber,
   EMPTY_DISPLAY,
@@ -53,7 +54,7 @@ import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
-import { type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
+import { useColumnWidths } from "@/ui/toolPanel/columnWidths";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -74,30 +75,6 @@ type FitEdit = FitEditRequest["edit"];
  *
  * Ported from `Modules/FITTool/FITToolUI`.
  */
-
-/**
- * Upstream's columns, their widths laid out for 11-point text and scaled to this
- * panel's 13 pixels.
- *
- * The columns are fixed and the table scrolls sideways when they do not fit, so
- * the table is never narrower than what it was laid out for — which is not what
- * upstream does with a wide panel. There "Points at" alone takes the slack and
- * Size and Type give way to their floors on a narrow one (`fitColumnsToThePanel`,
- * `yieldingColumns`); that is G43 in `Design/GAPS.md` and still open. What is
- * here is the dragging and the floors, not the fitting.
- *
- * `min` is where a column's text starts to be cut short: the row number and the
- * eight hex digits of an address not at all, the rest earlier.
- *
- * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.entryColumns
- */
-const FIT_COLUMNS: readonly TableColumn[] = [
-  { id: "index", title: "#", width: 24, min: 24 },
-  { id: "type", title: "Type", width: 113, min: 64 },
-  { id: "address", title: "Address", width: 90, min: 90 },
-  { id: "size", title: "Size", width: 99, min: 48 },
-  { id: "target", title: "Points at", width: 355, min: 96 },
-];
 
 /** How many findings are shown before the list scrolls. */
 const MAX_PROBLEM_ROWS = 8;
@@ -210,6 +187,34 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const [busy, setBusy] = useState(false);
   const [tableShare, setTableShare] = useState(storedTableShare);
   const { widths, resize, reset: resetWidths } = useColumnWidths(FIT_COLUMNS);
+  /**
+   * How much room the list has for its columns, watched so the table follows a
+   * panel the reader is dragging narrower or wider. `clientWidth` and not the
+   * border box: it is the room inside the scroller, less whatever a vertical
+   * scrollbar is taking.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.fitColumnsToThePanel
+   */
+  const [listWidth, setListWidth] = useState(0);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const listRef = useCallback((element: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (element === null) return;
+    setListWidth(element.clientWidth);
+    const observer = new ResizeObserver(() => setListWidth(element.clientWidth));
+    observer.observe(element);
+    observerRef.current = observer;
+  }, []);
+  /**
+   * The widths the table draws at: "Points at" takes what the others leave, and
+   * Size and then Type give way when it cannot. What a drag sets is `widths` —
+   * the width a column was given — and this is where that lands on screen.
+   */
+  const drawnWidths = useMemo(
+    () => fittedColumnWidths(FIT_COLUMNS, widths, listWidth),
+    [widths, listWidth]
+  );
   /**
    * Whether the table paints its rows — the legend's Show Markings switch,
    * which is remembered beside the legend's own state.
@@ -641,15 +646,16 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           {/* biome-ignore lint/a11y/useSemanticElements: the grid role sits on the scroller that takes the keyboard; a <table> may not carry it */}
           <div
             className="fit-entries"
+            ref={listRef}
             role="grid"
             aria-label="FIT entries"
             tabIndex={0}
             onKeyDown={onKeyDown}
           >
-            <table className="fit-table">
+            <table className="fit-table" style={{ minWidth: FIT_MIN_WIDTH }}>
               <colgroup>
                 {FIT_COLUMNS.map((column) => (
-                  <col key={column.id} style={{ width: widths[column.id] ?? column.width }} />
+                  <col key={column.id} style={{ width: drawnWidths[column.id] ?? column.width }} />
                 ))}
               </colgroup>
               <thead>

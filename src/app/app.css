@@ -3143,10 +3143,13 @@ button.uefi-title {
   outline-offset: -2px;
 }
 
-/* Fixed widths, and the table scrolls sideways when they do not fit. */
+/* The widths are the panel's to decide (`fittedColumnWidths`) and they add up to
+   the room it has, so the table is simply as wide as the list. Its floor — the
+   columns' floors together — is set where that sum is known, and past it there
+   is nothing left to give: the row stays wider than the panel and the scroller
+   does its job. */
 .fit-table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
 }
