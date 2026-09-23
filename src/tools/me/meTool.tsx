@@ -43,7 +43,7 @@ import {
   presentMEA,
 } from "@/tools/meaTree";
 import { MEA_TREE_MARKS } from "@/tools/meaTreeMarks";
-import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
+import { fileTableWanted, MFSFileNames, meFileNamesAsk } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
@@ -333,26 +333,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     if (wantsDictionaries) loadHuffmanDictionaries();
   }, [wantsDictionaries]);
 
-  // Every ID-keyed Configuration record in the analysis, wherever it came from:
-  // the FITC partition's payload and a newer volume's own 6/7 streams are keyed
-  // into the same table.
-  const configIDs = useMemo(
-    () => [
-      ...(analysis?.oemConfiguration?.recordsByID ?? []).map((one) => one.fileID),
-      ...(analysis?.mfsVolume?.configurationsByID ?? []).flatMap((stream) =>
-        stream.records.map((one) => one.fileID)
-      ),
-    ],
-    [analysis]
-  );
-
   // FileTable.dat only for an analysis that needs it — a volume that cannot
   // name its own files, an EFS volume (which lists nothing without it), or
   // ID-keyed Configuration records that need it for a path — and asked for
   // *after* the analysis, which is what says so. Most dumps never need it, and
   // it is the largest of the three databases. Asked once per analysis: what is
   // held answers at once with the day's check behind it.
-  const wantsNames = analysis !== undefined && fileTableWanted(analysis, configIDs);
+  const wantsNames = analysis !== undefined && fileTableWanted(analysis);
   useEffect(() => {
     if (wantsNames) loadFileTable();
   }, [wantsNames]);
@@ -376,18 +363,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     setEfsNames(EFSFileNames.none);
     setConfigPaths(ConfigRecordPaths.none);
     if (analysis === undefined || fileTableText === undefined) return;
-    const wantsMFS =
-      analysis.mfsVolume !== undefined &&
-      analysis.mfsVolume.usesFTBL === true &&
-      analysis.mfsVolume.files.length > 0;
-    const wantsEFS = analysis.efsVolume !== undefined;
-    const wantsConfig = configIDs.length > 0;
-    if (!wantsMFS && !wantsEFS && !wantsConfig) return;
+    const ask = meFileNamesAsk(analysis);
+    if (ask === undefined) return;
     const job = ++fileNamesJob.current;
     void fileNamesPaneMe(pane, {
-      mfs: wantsMFS ? analysis.mfsVolume : undefined,
-      efs: wantsEFS ? analysis.efsVolume : undefined,
-      configIDs: wantsConfig ? configIDs : [],
+      mfs: ask.mfs,
+      efs: ask.efs,
+      configIDs: ask.configIDs,
       platform: analysis.mfsVolume?.ftblPlatform ?? -1,
       dictionary: analysis.mfsVolume?.ftblDictionary ?? -1,
       fileTableText,
@@ -398,7 +380,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       setEfsNames(found.efs ?? EFSFileNames.none);
       setConfigPaths(found.config ?? ConfigRecordPaths.none);
     });
-  }, [analysis, configIDs, fileTableText, pane]);
+  }, [analysis, fileTableText, pane]);
   const tree = useMemo(
     () =>
       analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),

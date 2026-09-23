@@ -17,7 +17,7 @@ import {
   meaNodeAt,
   presentMEA,
 } from "@/tools/meaTree";
-import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
+import { fileTableWanted, MFSFileNames, meFileNamesAsk } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { WireNode } from "@/workers/protocol";
 
@@ -317,20 +317,9 @@ export function useMeSubtree(
     if (wantsDictionaries) loadHuffmanDictionaries();
   }, [wantsDictionaries]);
 
-  // Every ID-keyed Configuration record in the analysis, wherever it came from.
-  const configIDs = useMemo(
-    () => [
-      ...(analysis?.oemConfiguration?.recordsByID ?? []).map((one) => one.fileID),
-      ...(analysis?.mfsVolume?.configurationsByID ?? []).flatMap((stream) =>
-        stream.records.map((one) => one.fileID)
-      ),
-    ],
-    [analysis]
-  );
-
   // FileTable.dat only for an analysis that needs it, and asked for after the
   // analysis — most dumps never need it, and it is the largest of the files.
-  const wantsNames = analysis !== undefined && fileTableWanted(analysis, configIDs);
+  const wantsNames = analysis !== undefined && fileTableWanted(analysis);
   useEffect(() => {
     if (wantsNames) loadFileTable();
   }, [wantsNames]);
@@ -343,18 +332,13 @@ export function useMeSubtree(
     setEfsNames(EFSFileNames.none);
     setConfigPaths(ConfigRecordPaths.none);
     if (analysis === undefined || fileTableText === undefined) return;
-    const wantsMFS =
-      analysis.mfsVolume !== undefined &&
-      analysis.mfsVolume.usesFTBL === true &&
-      analysis.mfsVolume.files.length > 0;
-    const wantsEFS = analysis.efsVolume !== undefined;
-    const wantsConfig = configIDs.length > 0;
-    if (!wantsMFS && !wantsEFS && !wantsConfig) return;
+    const ask = meFileNamesAsk(analysis);
+    if (ask === undefined) return;
     const job = ++fileNamesJob.current;
     void fileNamesPaneMe(pane, {
-      mfs: wantsMFS ? analysis.mfsVolume : undefined,
-      efs: wantsEFS ? analysis.efsVolume : undefined,
-      configIDs: wantsConfig ? configIDs : [],
+      mfs: ask.mfs,
+      efs: ask.efs,
+      configIDs: ask.configIDs,
       platform: analysis.mfsVolume?.ftblPlatform ?? -1,
       dictionary: analysis.mfsVolume?.ftblDictionary ?? -1,
       fileTableText,
@@ -365,7 +349,7 @@ export function useMeSubtree(
       setEfsNames(found.efs ?? EFSFileNames.none);
       setConfigPaths(found.config ?? ConfigRecordPaths.none);
     });
-  }, [analysis, configIDs, fileTableText, pane]);
+  }, [analysis, fileTableText, pane]);
 
   const roots = useMemo(
     () =>

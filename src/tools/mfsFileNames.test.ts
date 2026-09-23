@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
-import type { EFSVolume, MFSIntegrityTable, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type {
+  EFSVolume,
+  MFSConfigIDRecord,
+  MFSIntegrityTable,
+  MFSVolume,
+  OEMConfiguration,
+} from "@/firmware/me/models/fileSystemFacts";
 import { analysisWith } from "@/tools/meaTesting";
 import { type MEANode, presentMEA } from "@/tools/meaTree";
-import { fileTableWanted, MFSFileNames } from "@/tools/mfsFileNames";
+import { fileTableWanted, MFSFileNames, meConfigIDs, meFileNamesAsk } from "@/tools/mfsFileNames";
 
 /**
  * `MFSFileNames` + the file rows it names — the panel's half of upstream's
@@ -100,6 +106,29 @@ const efsVolumeFixture = (): EFSVolume => ({
   dataPageFooterCRCsValid: true,
   matchesMFSDictionary: undefined,
   files: [],
+});
+
+/** One ID-keyed Configuration record — the path it stands for is a table row. */
+const configRecord = (fileID: number): MFSConfigIDRecord => ({
+  fileID,
+  offset: 0,
+  size: 0x10,
+  oemConfigurable: false,
+  unknownFlags: 0,
+});
+
+/** The FITC partition's header, cut to what a test of the ask touches. */
+const oemFixture = (): OEMConfiguration => ({
+  offset: 0x48_0000,
+  headerRevision: 1,
+  dataLength: 0x80,
+  headerCRCStored: 0,
+  headerCRCValid: true,
+  dataCRCStored: 0,
+  dataCRCValid: true,
+  configLength: undefined,
+  paddingAllFF: true,
+  payloadOffset: 0x48_0010,
 });
 
 /** The tail an FTBL volume's flagged files end with, as the engine reads it. */
@@ -265,24 +294,95 @@ describe("MFSFileNames rows", () => {
     expect(row?.children).toEqual([]);
   });
 
-  // Upstream asks this in `MEAParkedState.loadFileNames`, a private function
-  // that no anchor can name — the guard is spelled out in `fileTableWanted`.
+  // Upstream asks this in its private `loadFileNames` in each tool, a function
+  // no anchor can name — the guard is spelled out in `fileTableWanted`, and the
+  // IDs it is asked about come out of the analysis the same way.
   it("is asked for exactly the analyses that need it", () => {
     // An FTBL volume with files cannot name them.
-    expect(fileTableWanted(analysis(volume()), [])).toBe(true);
+    expect(fileTableWanted(analysis(volume()))).toBe(true);
     // A legacy volume names its own through the home directory.
     const legacy = analysisWith({ mfsVolume: { ...volume(), usesFTBL: false } });
-    expect(fileTableWanted(legacy, [])).toBe(false);
+    expect(fileTableWanted(legacy)).toBe(false);
     // An FTBL volume with no present files has nothing to name.
-    expect(fileTableWanted(analysis(volume(4, 0x0a, [])), [])).toBe(false);
+    expect(fileTableWanted(analysis(volume(4, 0x0a, [])))).toBe(false);
     // An EFS volume is the sharper case: without the table it lists nothing at
     // all, so this is not about a name.
     const withEfs = analysisWith({ efsVolume: efsVolumeFixture() });
-    expect(fileTableWanted(withEfs, [])).toBe(true);
-    // And an ID-keyed Configuration record needs it for a path.
-    expect(fileTableWanted(analysisWith(), [0x1008_0a00])).toBe(true);
+    expect(fileTableWanted(withEfs)).toBe(true);
+    // And an ID-keyed Configuration record needs it for a path — from the
+    // FITC partition, or from the volume's own 6/7 streams.
+    expect(
+      fileTableWanted(
+        analysisWith({
+          oemConfiguration: { ...oemFixture(), recordsByID: [configRecord(0x1008_0a00)] },
+        })
+      )
+    ).toBe(true);
+    expect(
+      fileTableWanted(
+        analysisWith({
+          mfsVolume: {
+            ...volume(4, 0x0a, []),
+            configurationsByID: [{ owningFile: 7, records: [configRecord(0x1008_0a00)] }],
+          },
+        })
+      )
+    ).toBe(true);
     // Nothing at all in the image: no reason to spend 5 MB.
-    expect(fileTableWanted(analysisWith(), [])).toBe(false);
+    expect(fileTableWanted(analysisWith())).toBe(false);
+  });
+
+  // @web-only upstream's `loadFileNames` is a private function in each tool, so
+  // the ID gathering and the ask it assembles have no single anchor to name.
+  describe("the ask both panels share", () => {
+    it("gathers the IDs from wherever the records came from", () => {
+      const both = analysisWith({
+        mfsVolume: {
+          ...volume(4, 0x0a, [63]),
+          configurationsByID: [
+            { owningFile: 6, records: [configRecord(0x1000_3500)] },
+            { owningFile: 7, records: [configRecord(0x1008_0a00)] },
+          ],
+        },
+        oemConfiguration: { ...oemFixture(), recordsByID: [configRecord(0x1004_0000)] },
+      });
+      expect(meConfigIDs(both)).toEqual([0x1004_0000, 0x1000_3500, 0x1008_0a00]);
+      // The FITC half first, then the volume's streams in the order they were
+      // decoded — the table keys them apart by ID, so the order only says who
+      // was read when, never which path a record stands for.
+      expect(meConfigIDs(analysisWith())).toEqual([]);
+    });
+
+    it("asks only for the halves the analysis has", () => {
+      const ftbl = analysis(volume());
+      expect(meFileNamesAsk(ftbl)).toEqual({
+        mfs: ftbl.mfsVolume,
+        efs: undefined,
+        configIDs: [],
+      });
+      const withEfs = analysisWith({ efsVolume: efsVolumeFixture() });
+      expect(meFileNamesAsk(withEfs)).toEqual({
+        mfs: undefined,
+        efs: withEfs.efsVolume,
+        configIDs: [],
+      });
+      const config = analysisWith({
+        oemConfiguration: { ...oemFixture(), recordsByID: [configRecord(0x1008_0a00)] },
+      });
+      expect(meFileNamesAsk(config)).toEqual({
+        mfs: undefined,
+        efs: undefined,
+        configIDs: [0x1008_0a00],
+      });
+    });
+
+    it("does not ask where nothing needs the table", () => {
+      expect(meFileNamesAsk(analysisWith())).toBeUndefined();
+      expect(
+        meFileNamesAsk(analysisWith({ mfsVolume: { ...volume(), usesFTBL: false } }))
+      ).toBeUndefined();
+      expect(meFileNamesAsk(analysis(volume(4, 0x0a, [])))).toBeUndefined();
+    });
   });
 
   // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MFSFileNamesTests.swift#MFSFileNamesTests.testTheVolumeSaysWhichTableNamedItsFiles

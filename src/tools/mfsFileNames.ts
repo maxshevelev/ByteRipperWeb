@@ -1,5 +1,5 @@
 import type { FileTable, FileTableEntry, FileTableResolution } from "@/firmware/me/data/fileTable";
-import type { MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 
 /**
@@ -142,6 +142,70 @@ export class MFSFileNames {
 }
 
 /**
+ * Every ID-keyed Configuration record in the analysis, wherever it came from:
+ * the FITC partition's payload and a newer volume's own 6/7 streams are keyed
+ * into the same table.
+ *
+ * Upstream's two panels each spell this out in their own private
+ * `loadFileNames` (`MEAToolModule.swift`, `UEFIToolModule.swift`); the project
+ * rule — code two tools both need moves to shared code — gathers it here,
+ * beside the question these IDs answer.
+ *
+ * @web-only upstream's is a private function in each tool, so no single anchor
+ * names it
+ */
+export function meConfigIDs(analysis: FirmwareAnalysis): readonly number[] {
+  return [
+    ...(analysis.oemConfiguration?.recordsByID ?? []).map((one) => one.fileID),
+    ...(analysis.mfsVolume?.configurationsByID ?? []).flatMap((stream) =>
+      stream.records.map((one) => one.fileID)
+    ),
+  ];
+}
+
+/**
+ * What the follow-up ask for the names is, when it is asked at all: the
+ * volumes to look up and the config record IDs to give paths for, the way
+ * upstream's `loadFileNames` spells them.
+ *
+ * Three things need the table — an FTBL-mode MFS volume that cannot name its
+ * own files, an EFS volume that lists nothing without it, and an ID-keyed
+ * Configuration record that has no path without it — and nothing else is
+ * worth 5 MB. The answer is what the analysis itself carries, which is why it
+ * is asked after the analysis and only for the halves the analysis has.
+ *
+ * Upstream spells this in its private `loadFileNames` in each tool
+ * (`MEAToolModule.swift`, `UEFIToolModule.swift`), one copy per panel; the
+ * project rule — code two tools both need moves to shared code — makes this
+ * the one the two panels ask, so a change to the naming policy is made once.
+ *
+ * @web-only upstream's is a private function in each tool, so no single anchor
+ * names it
+ */
+export interface MeFileNamesAsk {
+  /** The MFS volume to look up, when the volume needs the table. */
+  readonly mfs: MFSVolume | undefined;
+  /** The EFS volume, when the analysis has one. */
+  readonly efs: EFSVolume | undefined;
+  /** The config record IDs to give paths for, when there are any. */
+  readonly configIDs: readonly number[];
+}
+
+export function meFileNamesAsk(analysis: FirmwareAnalysis): MeFileNamesAsk | undefined {
+  const mfs = analysis.mfsVolume;
+  const wantsMFS = mfs?.usesFTBL === true && mfs.files.length > 0;
+  const wantsEFS = analysis.efsVolume !== undefined;
+  const configIDs = meConfigIDs(analysis);
+  const wantsConfig = configIDs.length > 0;
+  if (!wantsMFS && !wantsEFS && !wantsConfig) return undefined;
+  return {
+    mfs: wantsMFS ? mfs : undefined,
+    efs: wantsEFS ? analysis.efsVolume : undefined,
+    configIDs: wantsConfig ? configIDs : [],
+  };
+}
+
+/**
  * Whether this analysis has anything that needs `FileTable.dat` — the one
  * reading that makes the panel ask for it at all.
  *
@@ -154,18 +218,16 @@ export class MFSFileNames {
  * nothing to put a name on; neither is worth 5 MB.
  *
  * Asked after the analysis rather than with it, and only once per analysis,
- * because the answer is what the analysis itself carries.
+ * because the answer is what the analysis itself carries. The IDs it is asked
+ * about come out of the analysis too, which is what makes the question a
+ * function of the analysis alone.
  *
- * Upstream asks the same question in `MEAParkedState.loadFileNames` — a private
- * function, so no anchor names it, and the guard is spelled out here as
- * `huffmanDictionariesWanted` spells out its own. The Configuration half is not
- * in that function's own guard: there the file IDs come from the analysis the
- * caller has already gathered, and here they are passed in for the same reason.
+ * Upstream asks the same question in its private `loadFileNames` in each tool
+ * (`MEAToolModule.swift`, `UEFIToolModule.swift`) — no single anchor names it —
+ * and it is spelled out here as `huffmanDictionariesWanted` spells out its own.
  */
-export function fileTableWanted(analysis: FirmwareAnalysis, configIDs: readonly number[]): boolean {
-  const mfs = analysis.mfsVolume;
-  const wantsMFS = mfs?.usesFTBL === true && mfs.files.length > 0;
-  return wantsMFS || analysis.efsVolume !== undefined || configIDs.length > 0;
+export function fileTableWanted(analysis: FirmwareAnalysis): boolean {
+  return meFileNamesAsk(analysis) !== undefined;
 }
 
 /** Two upper-case hex digits — the form the file keys platform and dictionary by. */

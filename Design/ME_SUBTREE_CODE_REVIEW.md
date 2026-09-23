@@ -12,9 +12,9 @@ documented where they stand. Anchors pass
 tests are green. Finding #1 — the analysis cache not counting the data files
 the worker reads — was real and is **fixed** (2026-09-23), the record below
 updated to say how. Finding #2 (the file-table naming policy written twice)
-and #3 (`fileNamesPaneMe` has no pane-level cache) stand open; #3 is a
-recorded `later —`. Two further findings from the review run checked out false
-— they are documented here so they are not chased again.
+both **fixed** (2026-09-24), #3 recorded as G58 in GAPS.md. Two further
+findings from the review run checked out false — they are documented here so
+they are not chased again.
 
 ## Findings
 
@@ -76,21 +76,33 @@ not the answer to the new question.
 ### 2. "Does this analysis need the file table" is written twice
 
 The `configIDs` memo and the `wantsMFS` / `wantsEFS` / `wantsConfig` guards
-are copied verbatim into the two panels:
+were copied verbatim into the two panels:
 `src/tools/me/meTool.tsx:372-401` and `src/tools/uefi/meSubtree.ts:272-303`.
 Any change to the naming policy — a new record stream contributing config
-IDs, a new volume condition — must be made in both files or the two panels
-name the same files differently. This is the exact case of the project rule
-*code two tools both need moves to shared code*; it belongs beside
-`fileTableWanted` in the shared ME presentation code.
+IDs, a new volume condition — had to be made in both files or the two panels
+would have named the same files differently. This is the exact case of the
+project rule *code two tools both need moves to shared code*.
 
-### 3. `fileNamesPaneMe` has no pane-level cache — `later —`
+**Fixed (2026-09-24).** The policy is the shared `meConfigIDs` and
+`meFileNamesAsk` in `src/tools/mfsFileNames.ts`, beside `fileTableWanted`,
+which now takes the analysis alone — the IDs it is asked about come out of the
+analysis too, which is what makes the question a function of the analysis
+alone. The two panels ask the one function and send what it answers. Upstream
+spells this in its private `loadFileNames` in each tool, so the shared
+declarations are `@web-only` (no single anchor names it). `mfsFileNames.test.ts`
+covers the ID gathering from both streams and the ask's selection of the
+halves the analysis has.
 
-`firmwareStore.ts:852` sends a full worker trip that re-parses FileTable.dat —
+### 3. `fileNamesPaneMe` has no pane-level cache — G58
+
+`firmwareStore.ts` sends a full worker trip that re-parses FileTable.dat —
 the largest of the three databases — once per panel mount, and the panels stay
 mounted while parked. The analysis and the digests are each asked once per
-pane; the names are asked once per panel. Record a `later —` row in GAPS.md:
-cache the names beside the analysis, keyed the way the analysis is.
+pane; the names are asked once per panel. Recorded as G58 in GAPS.md (P3,
+open): cache the names beside the analysis, keyed the way the analysis is.
+Upstream never re-parses — its `MEReads.fileNames` reads the table from the
+data source's in-memory cache, and its private `loadFileNames` re-asks only a
+half whose lookup it does not already hold.
 
 ## Checked and found not to be
 
