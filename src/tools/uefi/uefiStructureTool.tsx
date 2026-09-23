@@ -400,7 +400,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * The ME region's sub-tree, read once per pane and shared with the ME
    * Analyzer. Nothing is read until a reader opens the region's row.
    */
-  const me = useMeSubtree(context.pane, status === "ready");
+  const me = useMeSubtree(context.pane, status === "ready", roots);
   const meRoots = me.roots;
   const meIsReading = me.isReading;
   const closeMe = me.close;

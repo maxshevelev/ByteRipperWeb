@@ -9,10 +9,12 @@ ME region when the file under it is replaced. Reviewed 2026-09-23.
 `ME_REGION_IN_UEFI_TREE.md` says it would, and all three overrulings are
 documented where they stand. Anchors pass
 (`python3 Skills/port-from-byteripper/scripts/check_anchors.py`), the series'
-tests are green (79/79 in `meAnalysisCache`, `meSubtree`, `meaTree`,
-`uefiNodeDetail`). Two findings below are real, one is a recorded smell, and
-two further findings from the review run checked out false — they are
-documented here so they are not chased again.
+tests are green. Finding #1 — the analysis cache not counting the data files
+the worker reads — was real and is **fixed** (2026-09-23), the record below
+updated to say how. Finding #2 (the file-table naming policy written twice)
+and #3 (`fileNamesPaneMe` has no pane-level cache) stand open; #3 is a
+recorded `later —`. Two further findings from the review run checked out false
+— they are documented here so they are not chased again.
 
 ## Findings
 
@@ -28,34 +30,48 @@ about the same bytes: decompressed sizes, checksum marks, FTBL file splitting).
 Consequences, both verified against the code:
 
 - **The grafted sub-tree never catches up to the ME panel.** `useMeSubtree`
-  asks `analyzePaneMe(pane, databaseText, undefined, undefined)`
-  (`meSubtree.ts:259`) and its effect's dependencies are
-  `[wanted, ready, pane, databaseText]` (`meSubtree.ts:270`) — the two texts
-  are read into `fileTableText` a few lines above but never asked with and
-  never re-asked for. Scenario: open the ME region from the UEFI panel only;
-  the first, dictionary-less analysis is cached. The ME Analyzer panel (whose
-  effect includes `huffmanText` and `fileTableText` in its dependencies,
-  `meTool.tsx:285`) re-asks when the dictionaries land — and is answered from
-  the cache: same generation, same database. It shows `$CPD` modules without
+  asked `analyzePaneMe(pane, databaseText, undefined, undefined)`
+  (`meSubtree.ts`) and its effect's dependencies were
+  `[wanted, ready, pane, databaseText]` — the two texts were read into
+  `fileTableText` a few lines above but never asked with and never re-asked
+  for. Scenario: open the ME region from the UEFI panel only; the first,
+  dictionary-less analysis is cached. The ME Analyzer panel (whose effect
+  includes `huffmanText` and `fileTableText` in its dependencies,
+  `meTool.tsx:285`) re-asks when the dictionaries land — and was answered from
+  the cache: same generation, same database. It showed `$CPD` modules without
   their decompressed size and marks. Two panels, two readings of the same
   bytes — the opposite of the "one shared analysis" the series exists to build.
-- **The ME panel also does not catch up after an edit, on its own.** Its
-  re-read effect depends on `[roots, status, firmwareProblem, analyze]`
-  (`meTool.tsx:286-314`); after a byte edit the tree is re-read in place and
-  `roots` is the same array of the same shape while the panel's `analyze`
-  callback is stable, so the effect does not re-run and the superseding
-  `request.current++` never happens. The panel keeps the previous file
-  generation's analysis until the dictionaries or the table arrive — and
-  those arrive only *after* an analysis exists (`meTool.tsx:328-334`), so for
-  a dump with no MFS/EFS/FTBL the window is open indefinitely: the panel never
-  re-reads the region after an edit at all.
+- **The grafted sub-tree did not re-read after an in-region edit.** The ME
+  tool re-reads because its re-read effect depends on `roots`, which a byte
+  edit replaces (`firmwareInvalidate` drops the subtrees the edit made stale
+  and hands a fresh array, `firmwareStore.ts`); the sub-tree's analyze effect
+  had no content-change signal — `ready` (status) stays `ready` across an
+  in-place edit — so the grafted tree held the previous reading while the ME
+  panel was fresh. (The original draft of this review blamed the ME panel here;
+  the panel was the one that re-read. The sub-tree was the laggard.)
+
+**Fixed (2026-09-23).** The cache key in `analyzePaneMe` now counts all four
+worker inputs — `(generation, database, huffman, fileTable)` — so a reading
+made before one of the data files landed is not the answer to the question
+that now includes it, and the in-flight dedup matches on the same four.
+`useMeSubtree` now asks for the complete analysis: it reads the Huffman
+dictionary store, loads `Huffman.dat` when the analysis wants it (the same
+`huffmanDictionariesWanted` the ME tool uses), passes all four texts, and
+depends on the UEFI `roots` — so an in-region edit re-reads it the way the ME
+tool does. A `shown` ref guards the digest reset the way the ME tool's does:
+adding `roots` to the dependencies makes the effect re-run on every unrelated
+branch expansion (the store hands a fresh array for that too), and without the
+guard each would throw the digests away and send the Checksums row back to
+"Loading…". Covered by three new cases in `meAnalysisCache.test.ts`
+(dictionaries land → re-read; table lands → re-read; the same four inputs →
+one reading for both panels).
 
 Upstream keeps the analysis on `PaneUEFIState` and any content change is a
-reparse that begins with a fresh reading; here the pane-level cache is only
-dropped on a document replacement (`reloaded` → `forgetMeAnalysis`) and on
-`closeFirmware`. Fix direction: key the cache on all four worker inputs — or
-drop it on a reparse the way `reloaded` does — and make the ME panel's
-re-read effect fire on a content generation it does not already hold.
+reparse that begins with a fresh reading; here the pane-level cache is dropped
+on a document replacement (`reloaded` → `forgetMeAnalysis`) and on
+`closeFirmware`, and a byte edit is answered by the key missing — an edit bumps
+the file's content generation, so the cached answer, keyed on the old one, is
+not the answer to the new question.
 
 ### 2. "Does this analysis need the file table" is written twice
 

@@ -177,4 +177,42 @@ describe("the pane's ME analysis", () => {
     void analyzePaneMe("a", "MEA.dat — newer", undefined, undefined);
     expect(sent("meAnalyze")).toHaveLength(2);
   });
+
+  // The dictionaries change what the analysis says of a Huffman module, and they
+  // land out of step with the image and the database — a reading made before
+  // they arrived must not stand as the answer to the question that now includes
+  // them. Same for the FileTable, which changes which files an FTBL volume reads.
+  it("is read again when the Huffman dictionaries land", async () => {
+    const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
+    answerAnalysis();
+    await first;
+
+    void analyzePaneMe("a", "MEA.dat", "Huffman.dat", undefined);
+    expect(sent("meAnalyze")).toHaveLength(2);
+  });
+
+  it("is read again when the FileTable lands", async () => {
+    const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
+    answerAnalysis();
+    await first;
+
+    void analyzePaneMe("a", "MEA.dat", undefined, "FileTable.dat");
+    expect(sent("meAnalyze")).toHaveLength(2);
+  });
+
+  // And the re-read, once it has landed, is the answer the second panel is
+  // handed: the same four inputs are one question, so the UEFI sub-tree asking
+  // after the dictionaries and the table are in hand is answered from the pane
+  // rather than reading the region a second time.
+  it("answers the second panel from a reading made with the data files in hand", async () => {
+    const first = analyzePaneMe("a", "MEA.dat", "Huffman.dat", "FileTable.dat");
+    answerAnalysis();
+    await expect(first).resolves.toMatchObject({ regionOffset: 0x1000 });
+    expect(sent("meAnalyze")).toHaveLength(1);
+
+    await expect(
+      analyzePaneMe("a", "MEA.dat", "Huffman.dat", "FileTable.dat")
+    ).resolves.toMatchObject({ regionOffset: 0x1000 });
+    expect(sent("meAnalyze")).toHaveLength(1);
+  });
 });

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import { analyzePaneMe, checksumPaneMe, fileNamesPaneMe } from "@/state/firmwareStore";
+import { huffmanDictionaryStore, loadHuffmanDictionaries } from "@/state/huffmanDictionaryStore";
 import { loadMEDatabase, meDatabaseStore } from "@/state/meDatabaseStore";
 import { useStore } from "@/state/useStore";
 import type { PaneId } from "@/state/workspaceStore";
@@ -205,8 +207,13 @@ export interface MeSubtree {
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.loadFileNames
  * @upstream-differs a hook, where upstream's session holds the same state in fields
  */
-export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
+export function useMeSubtree(
+  pane: PaneId,
+  ready: boolean,
+  uefiRoots: readonly WireNode[] | undefined
+): MeSubtree {
   const database = useStore(meDatabaseStore);
+  const huffman = useStore(huffmanDictionaryStore);
   const fileTable = useStore(fileTableStore);
   /** Whether the reader has opened the region at all. */
   const [wanted, setWanted] = useState(false);
@@ -223,8 +230,21 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
   const isOpen = useRef(false);
   const fileNamesJob = useRef(0);
   const askedChecksums = useRef(false);
+  /**
+   * The analysis on screen, to tell a re-ask that came back with the same one
+   * from a genuinely new reading. A tree change the region did not feel — an
+   * unrelated branch expanding — re-runs the ask, and the pane answers it from
+   * the cache with the very reading that is on screen; throwing the digests it
+   * held away for that would send the Checksums row back to "Loading…" for
+   * nothing. Not a gate: whether the reading is still the answer is the pane's
+   * question, answered where the reading is kept (`analyzePaneMe`).
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession
+   */
+  const shown = useRef<FirmwareAnalysis | undefined>(undefined);
 
   const databaseText = database.text;
+  const huffmanText = huffman.text;
   const fileTableText = fileTable.body?.text;
 
   // The database is fetched when the region is opened and not before, the way
@@ -233,13 +253,21 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
     if (wanted) loadMEDatabase();
   }, [wanted]);
 
-  // Read again when the image changes and when the database lands: MEA.dat
-  // turns a structure into an identity, and it must not wait for a click. The
-  // reading is the pane's — a second panel, or a re-open of this one, is
-  // answered from there rather than reading the region again.
+  // Read again when the image changes and when a data file lands: MEA.dat turns
+  // a structure into an identity, Huffman.dat and FileTable.dat let the modules
+  // be checked and the FTBL files named, and none of them must wait for a
+  // click. The tree is the content's own change signal — a byte edit hands a
+  // fresh one (`firmwareInvalidate` drops and re-reads only what the edit
+  // made stale) — so a region the edit touched is re-read without a click, and
+  // a region it did not touch is answered from the pane rather than re-read.
+  // The reading is the pane's — a second panel, or a re-open of this one, is
+  // answered from there rather than reading the region again. The ask crosses
+  // every data file it has: the pane's cache is keyed on all of them, so a
+  // reading made before one of them landed is not the answer to the question
+  // that now includes it.
   useEffect(() => {
     if (!wanted) return;
-    if (!ready) {
+    if (!ready || uefiRoots === undefined) {
       // The image is being read again — an edit landed, or the pane's content
       // was replaced. Whatever this holds describes the bytes as they were, so
       // it goes rather than standing there unmarked; the ask below runs again
@@ -252,22 +280,42 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
       setIsReading(false);
       setAnalysis(undefined);
       setProblem(undefined);
+      shown.current = undefined;
       return;
     }
     const job = ++run.current;
     setIsReading(true);
-    void analyzePaneMe(pane, databaseText, undefined, undefined).then((found) => {
+    void analyzePaneMe(pane, databaseText, huffmanText, fileTableText).then((found) => {
       if (job !== run.current) return;
       setIsReading(false);
       if (found === undefined) return;
       // A new analysis is a new question: the digests it held were about the
-      // bytes it read, and they go with it.
-      askedChecksums.current = false;
-      setChecksums(undefined);
+      // bytes it read, and they go with it — but the pane answers a re-ask of
+      // the same question with the very reading that is on screen, and a tree
+      // change the region did not feel is just such a re-ask. Throwing the
+      // digests away for that would send the Checksums row back to "Loading…"
+      // for nothing.
+      if (found.analysis !== shown.current) {
+        askedChecksums.current = false;
+        setChecksums(undefined);
+      }
+      shown.current = found.problem === undefined ? found.analysis : undefined;
       setAnalysis(found.analysis);
       setProblem(found.problem);
     });
-  }, [wanted, ready, pane, databaseText]);
+  }, [wanted, ready, uefiRoots, pane, databaseText, huffmanText, fileTableText]);
+
+  // Huffman.dat only for an analysis that has something to decompress with it,
+  // the way the ME Analyzer fetches it and no other: most dumps never ask, and
+  // the question — whether this region has a Huffman module the check can read
+  // — is the analysis' own, so it is asked of the analysis rather than the
+  // image. The dictionaries land out of step with the image, so the ask above
+  // runs again when they do, and the pane's cache — keyed on them — hands the
+  // second panel the same re-read rather than a dictionary-less standing-in.
+  const wantsDictionaries = analysis !== undefined && huffmanDictionariesWanted(analysis);
+  useEffect(() => {
+    if (wantsDictionaries) loadHuffmanDictionaries();
+  }, [wantsDictionaries]);
 
   // Every ID-keyed Configuration record in the analysis, wherever it came from.
   const configIDs = useMemo(
@@ -346,6 +394,7 @@ export function useMeSubtree(pane: PaneId, ready: boolean): MeSubtree {
     // Nothing in flight belongs to this panel any more.
     run.current++;
     askedChecksums.current = false;
+    shown.current = undefined;
     setWanted(false);
     setIsReading(false);
     setAnalysis(undefined);

@@ -678,14 +678,21 @@ export async function editPaneFit(
  *
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysis
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedAnalysisRegion
- * @upstream-differs the file's content generation and the database text in place
- * of the region's byte range: upstream drops the cache when an edit lands inside
- * the region and when the database source says it has a newer one, and both of
- * those are answered here by the key missing
+ * @upstream-differs the file's content generation and the three data files in
+ * place of the region's byte range: upstream drops the cache when an edit lands
+ * inside the region and when the database source says it has a newer one, and
+ * both of those are answered here by the key missing. The key must count
+ * *every* input the worker's `meAnalyze` reads — the database, the Huffman
+ * dictionaries and the FileTable — or a reading made before one of them loaded
+ * stands as the answer to the question that now includes it: the dictionaries
+ * change what the analysis says of a Huffman module, and the table changes which
+ * files an FTBL volume reads.
  */
 interface CachedMeAnalysis {
   readonly generation: number;
   readonly database: string | undefined;
+  readonly huffman: string | undefined;
+  readonly fileTable: string | undefined;
   readonly response: MeAnalyzeResponse;
 }
 
@@ -708,6 +715,8 @@ const meAnalysisInFlight = new Map<
   {
     readonly generation: number;
     readonly database: string | undefined;
+    readonly huffman: string | undefined;
+    readonly fileTable: string | undefined;
     readonly promise: Promise<MeAnalyzeResponse | undefined>;
   }
 >();
@@ -748,11 +757,23 @@ export function analyzePaneMe(
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
   const generation = meGenerationOf(pane);
   const cached = meAnalysisCache.get(pane);
-  if (cached?.generation === generation && cached.database === databaseText) {
+  if (
+    cached?.generation === generation &&
+    cached.database === databaseText &&
+    cached.huffman === huffmanText &&
+    cached.fileTable === fileTableText
+  ) {
     return Promise.resolve(cached.response);
   }
   const flight = meAnalysisInFlight.get(pane);
-  if (flight?.generation === generation && flight.database === databaseText) return flight.promise;
+  if (
+    flight?.generation === generation &&
+    flight.database === databaseText &&
+    flight.huffman === huffmanText &&
+    flight.fileTable === fileTableText
+  ) {
+    return flight.promise;
+  }
   const promise = new Promise<MeAnalyzeResponse | undefined>((resolve) => {
     // A second ask supersedes the first, which is then told nothing was analysed.
     meWaiters.get(pane)?.(undefined);
@@ -770,11 +791,23 @@ export function analyzePaneMe(
     if (meAnalysisInFlight.get(pane)?.promise === promise) meAnalysisInFlight.delete(pane);
     // An answer about bytes that have since moved is not this file's answer.
     if (response !== undefined && meGenerationOf(pane) === generation) {
-      meAnalysisCache.set(pane, { generation, database: databaseText, response });
+      meAnalysisCache.set(pane, {
+        generation,
+        database: databaseText,
+        huffman: huffmanText,
+        fileTable: fileTableText,
+        response,
+      });
     }
     return response;
   });
-  meAnalysisInFlight.set(pane, { generation, database: databaseText, promise });
+  meAnalysisInFlight.set(pane, {
+    generation,
+    database: databaseText,
+    huffman: huffmanText,
+    fileTable: fileTableText,
+    promise,
+  });
   return promise;
 }
 
