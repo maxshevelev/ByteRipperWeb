@@ -5,6 +5,8 @@ import {
   menuState,
   paneChoices,
   paneClosed,
+  paneDropTitle,
+  panelTakesDrops,
   panesSwapped,
   selectorEnabled,
   selectPane,
@@ -414,5 +416,67 @@ describe("a panel's own session", () => {
 
     expect(on("panes").activeIdentifier).toBe(STUB_B);
     expect(on("panes").boundPane).toBe("a");
+  });
+});
+
+/**
+ * What the panel says a drop would do, which is the whole of what it decides:
+ * the drop itself is the same door the header's selector and the pane's own
+ * Replace Current File band use.
+ *
+ * @upstream ByteRipperTests/ToolPanelDropTests.swift#ToolPanelDropTests
+ */
+describe("a drop on the tool panel", () => {
+  const bytes = Uint8Array.from({ length: 16 }, (_, index) => index);
+
+  function twoFilesAndATool(): void {
+    openEmptyInPane("a", "works.bin");
+    openEmptyInPane("b", "fails.bin");
+    setActivePane("a");
+    activate(STUB_A);
+  }
+
+  // @upstream ByteRipperTests/ToolPanelDropTests.swift#ToolPanelDropTests.testAPaneDroppedOnThePanelMovesTheToolToIt
+  it("says which file the pane in flight would make it read", () => {
+    twoFilesAndATool();
+
+    expect(paneDropTitle("panes", "b")).toBe(`Show ${STUB_A} for fails.bin`);
+  });
+
+  // @upstream ByteRipperTests/ToolPanelDropTests.swift#ToolPanelDropTests.testThePanelRefusesTheParticularPaneItIsAlreadyReading
+  it("refuses the particular pane it is already reading", () => {
+    twoFilesAndATool();
+
+    expect(paneDropTitle("panes", "a")).toBeUndefined();
+    // And it follows the session rather than the file: moving the tool moves
+    // which of the two is refused.
+    selectPane("b");
+    expect(paneDropTitle("panes", "b")).toBeUndefined();
+    expect(paneDropTitle("panes", "a")).toBe(`Show ${STUB_A} for works.bin`);
+  });
+
+  it("refuses a pane that is not open, and one with no tool to show", () => {
+    openEmptyInPane("a", "works.bin");
+    activate(STUB_A);
+
+    expect(paneDropTitle("panes", "b")).toBeUndefined();
+
+    activate(undefined);
+    expect(paneDropTitle("panes", "b")).toBeUndefined();
+  });
+
+  // A part has no file to replace, and the pane a drop would reach for is one
+  // of the workspace's, under the panel and out of sight.
+  // @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.pinnedPane
+  it("is refused outright on a part's own panel", () => {
+    openEmptyInPane("a", "works.bin");
+    openEmptyInPane("b", "fails.bin");
+    const part = openPart(bytes, "body.bin");
+    raisePart(part);
+    activate(STUB_A, part);
+
+    expect(panelTakesDrops("panes")).toBe(true);
+    expect(panelTakesDrops(part)).toBe(false);
+    expect(paneDropTitle(part, "b")).toBeUndefined();
   });
 });

@@ -2490,8 +2490,19 @@ textarea,
 }
 
 .tool-panel-body {
+  position: relative;
   min-height: 0;
   overflow: hidden;
+}
+
+/* The panel's own drop zone, over the tool's view and inset from the panel's
+   edges as upstream insets it (8 points). Never hit-testable: the panel itself
+   is the drop region, and the zone only says what letting go would do. */
+.tool-panel-drop {
+  position: absolute;
+  inset: 8px;
+  z-index: 3;
+  pointer-events: none;
 }
 
 .tool-empty {

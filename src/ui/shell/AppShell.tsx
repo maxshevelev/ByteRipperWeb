@@ -1915,6 +1915,16 @@ export function AppShell() {
             if (isSlot(pane)) setActivePane(pane);
             revealIn(pane, start);
           }}
+          // A file dropped on the panel replaces the file the panel is reading
+          // — the same thing, through the same door, as dropping it on that
+          // pane's Replace Current File band.
+          // @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.wireToolPanel
+          onFilesDropped={(pane, event) => {
+            if (event.dataTransfer === null) return;
+            acceptDroppedFiles(event.dataTransfer, (files) =>
+              handleComparisonBandDrop(pane, "replace", files)
+            );
+          }}
         />
       ) : null}
       <main

@@ -1375,14 +1375,9 @@
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.bodyFloor": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.headerHeight": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.viewDidChangeEffectiveAppearance": "n/a — CSS custom properties follow the theme by themselves",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dragging*": "later — drops on the panel: a file replacing the bound pane's",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.takesDrops": "later — G14 with the drops themselves: upstream's flag is what turns them off on a fragment panel's own tool panel, and here there are none to turn off yet",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.prepareForDragOperation": "later — drops on the panel",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.performDragOperation": "later — drops on the panel",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onDropFiles": "later — drops on the panel",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.prepareForDragOperation": "n/a — AppKit asks once more before it routes the drop; a browser's drop handler is the only ask, and the panel refuses in dragover by not preventing the default",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onDropPane": "n/a — the port links the panel to a pane through the panel's own control (\"Link to file panel\") rather than by dropping a pane on it",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.paneDropTitle": "n/a — the port links the panel to a pane through the panel's own control (\"Link to file panel\") rather than by dropping a pane on it",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZone*": "later — drops on the panel",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.contentView": "n/a — test accessor of the AppKit view",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.headerFill": "n/a — test accessor of the AppKit view",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.headerIcon": "n/a — test accessor of the AppKit view",
@@ -1435,7 +1430,10 @@
         "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.readOnly": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
         "ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openFilePart": "later — G51: the seam's other form, for a node of the file rather than of a buffer",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.surface": "n/a — the controller holds one session per surface, keyed by SurfaceId, rather than one controller per surface holding its own",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)"
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.draggingEnded": "n/a — AppKit ends a drag twice, on exit and on end; a browser fires dragleave for the one and nothing for the other, and the drop handler takes the zone down itself",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneCaption": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneIsRefusing": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided"
       }
     },
     {

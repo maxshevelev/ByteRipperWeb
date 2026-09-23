@@ -18,6 +18,7 @@ import {
   type SlotId,
   type SurfaceId,
   surfaceOf,
+  WORKSPACE_SURFACE,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { clearZones } from "@/state/zoneStore";
@@ -446,6 +447,37 @@ export function paneChoices(
     isBound: boundPane === pane,
     isEnabled: panes[pane] !== undefined,
   }));
+}
+
+/**
+ * Whether the panel takes drops at all.
+ *
+ * A part's panel does not: a part has no file to replace, and the pane a drop
+ * would reach for is one of the workspace's, under the panel and out of sight.
+ * Upstream says the same thing by the surface having a pinned pane.
+ *
+ * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.takesDrops
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.pinnedPane
+ * @upstream-differs the surface's own identity answers it, where upstream sets a flag on the panel when the surface is pinned
+ */
+export const panelTakesDrops = (surface: SurfaceId): boolean => surface === WORKSPACE_SURFACE;
+
+/**
+ * What dropping `pane` on the panel would say, or nothing for one the panel
+ * will not take. Its own pane is the one it will not: the tool is already
+ * reading that file, and a drop that changes nothing is a gesture that looks
+ * broken.
+ *
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneDropTitle
+ */
+export function paneDropTitle(surface: SurfaceId, pane: SlotId): string | undefined {
+  if (!panelTakesDrops(surface)) return undefined;
+  const session = sessionOn(toolController.getSnapshot(), surface);
+  const module = activeModule(session);
+  if (module === undefined || session.boundPane === pane) return undefined;
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  if (slot === undefined) return undefined;
+  return `Show ${module.title} for ${slot.name}`;
 }
 
 /**
