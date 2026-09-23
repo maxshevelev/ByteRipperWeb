@@ -12,9 +12,10 @@ documented where they stand. Anchors pass
 tests are green. Finding #1 — the analysis cache not counting the data files
 the worker reads — was real and is **fixed** (2026-09-23), the record below
 updated to say how. Finding #2 (the file-table naming policy written twice)
-both **fixed** (2026-09-24), #3 recorded as G58 in GAPS.md. Two further
-findings from the review run checked out false — they are documented here so
-they are not chased again.
+both **fixed** (2026-09-24), and #3 is **closed as G58** (the names are the
+pane's now, keyed the way the analysis is). Two further findings from the
+review run checked out false — they are documented here so they are not
+chased again.
 
 ## Findings
 
@@ -93,16 +94,20 @@ declarations are `@web-only` (no single anchor names it). `mfsFileNames.test.ts`
 covers the ID gathering from both streams and the ask's selection of the
 halves the analysis has.
 
-### 3. `fileNamesPaneMe` has no pane-level cache — G58
+### 3. `fileNamesPaneMe` has no pane-level cache — **closed as G58**
 
-`firmwareStore.ts` sends a full worker trip that re-parses FileTable.dat —
-the largest of the three databases — once per panel mount, and the panels stay
+`firmwareStore.ts` sent a full worker trip that re-parses FileTable.dat — the
+largest of the three databases — once per panel mount, and the panels stay
 mounted while parked. The analysis and the digests are each asked once per
-pane; the names are asked once per panel. Recorded as G58 in GAPS.md (P3,
-open): cache the names beside the analysis, keyed the way the analysis is.
-Upstream never re-parses — its `MEReads.fileNames` reads the table from the
-data source's in-memory cache, and its private `loadFileNames` re-asks only a
-half whose lookup it does not already hold.
+pane; the names were asked once per panel.
+
+**Closed (2026-09-24, G58).** The names are kept by the pane the way the
+analysis and the digests are, keyed the same four inputs, so a re-ask is
+answered from the pane rather than re-sent. Upstream never re-parses — its
+`MEReads.fileNames` reads the table from the data source's in-memory cache,
+and its private `loadFileNames` re-asks only a half whose lookup it does not
+already hold — so this brings the web's names to the same "asked once per
+pane" rule the analysis already obeys. The row is in GAPS.md's Closed list.
 
 ## Checked and found not to be
 

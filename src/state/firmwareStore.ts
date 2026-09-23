@@ -696,6 +696,23 @@ interface CachedMeAnalysis {
   readonly response: MeAnalyzeResponse;
 }
 
+/**
+ * What the pane's analysis said its files are called, and what it was said against.
+ *
+ * The ask is a function of the analysis (the volumes and config record IDs it
+ * carries) and the `FileTable.dat` it is looked up in, both of which are
+ * functions of the same four inputs the analysis is keyed by. Keying the names
+ * by those four means a re-ask is answered from the pane rather than re-parsing
+ * the largest of the databases, the way the analysis and the digests are.
+ */
+interface CachedMeFileNames {
+  readonly generation: number;
+  readonly database: string | undefined;
+  readonly huffman: string | undefined;
+  readonly fileTable: string | undefined;
+  readonly response: MeFileNamesResponse;
+}
+
 /** The last analysis of each pane's ME region. */
 const meAnalysisCache = new Map<PaneId, CachedMeAnalysis>();
 
@@ -855,6 +872,19 @@ const meChecksumsInFlight = new Map<
   { readonly generation: number; readonly promise: Promise<MeChecksumsResponse | undefined> }
 >();
 
+/** The names an analysis' files were last looked up as, by pane. */
+const meFileNamesCache = new Map<PaneId, CachedMeFileNames>();
+const meFileNamesInFlight = new Map<
+  PaneId,
+  {
+    readonly generation: number;
+    readonly database: string | undefined;
+    readonly huffman: string | undefined;
+    readonly fileTable: string | undefined;
+    readonly promise: Promise<MeFileNamesResponse | undefined>;
+  }
+>();
+
 /**
  * Everything the pane's ME region was read as, dropped: the pane is gone, or
  * what it holds is no longer what was read.
@@ -866,6 +896,8 @@ function forgetMeAnalysis(pane: PaneId): void {
   meAnalysisInFlight.delete(pane);
   meChecksumsCache.delete(pane);
   meChecksumsInFlight.delete(pane);
+  meFileNamesCache.delete(pane);
+  meFileNamesInFlight.delete(pane);
 }
 
 /** Who is waiting for the ME region's digests, by pane. */
@@ -879,8 +911,16 @@ const checksumWaiters = new Map<PaneId, (response: MeChecksumsResponse | undefin
  * where the table is parsed, and the panel never holds it. A second ask
  * supersedes the first, the way the analysis's does.
  *
+ * The names are kept by the pane the way the analysis is, and keyed the same
+ * way: the ask is a function of the analysis (G58), which is a function of the
+ * document's generation and the three data files, so a re-ask is answered from
+ * the pane rather than re-sending — and re-parsing — the largest of the
+ * databases. Upstream never re-parses: it reads the table from the data
+ * source's in-memory cache, and keeps the looked-up names on the session.
+ *
  * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileNames
- * @upstream-differs the web's store bridge for the ask upstream's session makes inline
+ * @upstream-differs the web's store bridge for the ask upstream's session makes inline,
+ * kept by the pane the way the analysis is rather than on the session
  */
 export function fileNamesPaneMe(
   pane: PaneId,
@@ -890,12 +930,34 @@ export function fileNamesPaneMe(
     readonly configIDs: readonly number[];
     readonly platform: number;
     readonly dictionary: number;
+    readonly databaseText: string | undefined;
+    readonly huffmanText: string | undefined;
     readonly fileTableText: string | undefined;
   }
 ): Promise<MeFileNamesResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  return new Promise((resolve) => {
+  const generation = meGenerationOf(pane);
+  const cached = meFileNamesCache.get(pane);
+  if (
+    cached?.generation === generation &&
+    cached.database === options.databaseText &&
+    cached.huffman === options.huffmanText &&
+    cached.fileTable === options.fileTableText
+  ) {
+    return Promise.resolve(cached.response);
+  }
+  const flight = meFileNamesInFlight.get(pane);
+  if (
+    flight?.generation === generation &&
+    flight.database === options.databaseText &&
+    flight.huffman === options.huffmanText &&
+    flight.fileTable === options.fileTableText
+  ) {
+    return flight.promise;
+  }
+  const promise = new Promise<MeFileNamesResponse | undefined>((resolve) => {
+    // A second ask supersedes the first, which is then told nothing was named.
     meFileNamesWaiters.get(pane)?.(undefined);
     meFileNamesWaiters.set(pane, resolve);
     send(pane, {
@@ -908,7 +970,30 @@ export function fileNamesPaneMe(
       dictionary: options.dictionary,
       fileTableText: options.fileTableText,
     });
+  }).then((response) => {
+    // Only the ask that started it clears it: an edit may have dropped this
+    // marker and a later ask put its own in its place.
+    if (meFileNamesInFlight.get(pane)?.promise === promise) meFileNamesInFlight.delete(pane);
+    // An answer about bytes that have since moved is not this file's answer.
+    if (response !== undefined && meGenerationOf(pane) === generation) {
+      meFileNamesCache.set(pane, {
+        generation,
+        database: options.databaseText,
+        huffman: options.huffmanText,
+        fileTable: options.fileTableText,
+        response,
+      });
+    }
+    return response;
   });
+  meFileNamesInFlight.set(pane, {
+    generation,
+    database: options.databaseText,
+    huffman: options.huffmanText,
+    fileTable: options.fileTableText,
+    promise,
+  });
+  return promise;
 }
 
 /** Who is waiting for an analysis's names, by pane. */

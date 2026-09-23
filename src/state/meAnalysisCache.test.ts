@@ -33,6 +33,7 @@ class FakeWorker {
 const {
   analyzePaneMe,
   closeFirmware,
+  fileNamesPaneMe,
   noteFirmwareContentChange,
   noteFirmwareOperations,
   openFirmware,
@@ -44,6 +45,22 @@ const reply = (response: unknown) => {
 };
 
 const sent = (kind: string) => posted.filter((request) => request.kind === kind);
+
+/** The one thing a names ask can be answered with: nothing found for any file. */
+const fileNamesResponse = (id: number) => ({
+  kind: "meFileNames",
+  id,
+  mfs: undefined,
+  efs: undefined,
+  config: undefined,
+});
+
+/** Answers the names ask that is outstanding, as the worker would. */
+function answerFileNames(): void {
+  const ask = sent("meFileNames").at(-1);
+  if (ask === undefined) throw new Error("a names ask should have been sent");
+  reply(fileNamesResponse(ask.id));
+}
 
 /** Answers the ME ask that is outstanding, as the worker would. */
 function answerAnalysis(): void {
@@ -214,5 +231,82 @@ describe("the pane's ME analysis", () => {
       analyzePaneMe("a", "MEA.dat", "Huffman.dat", "FileTable.dat")
     ).resolves.toMatchObject({ regionOffset: 0x1000 });
     expect(sent("meAnalyze")).toHaveLength(1);
+  });
+});
+
+// G58: the names are kept by the pane the way the analysis is. The ask is a
+// function of the analysis (the volumes and config record IDs it carries) and
+// the FileTable it is looked up in, both of which are functions of the same four
+// inputs the analysis is keyed by, so a re-ask is answered from the pane rather
+// than re-sending — and re-parsing — the largest of the databases.
+describe("the pane's ME names (G58)", () => {
+  // The cache keys on the four data-file inputs and the generation, not the
+  // volume's content, so the volumes can be absent and the ask still stands.
+  const ask = (fileTableText: string | undefined = "FileTable.dat") =>
+    fileNamesPaneMe("a", {
+      mfs: undefined,
+      efs: undefined,
+      configIDs: [0x1000_3500],
+      platform: 4,
+      dictionary: 0x0a,
+      databaseText: "MEA.dat",
+      huffmanText: undefined,
+      fileTableText,
+    });
+
+  it("is looked up once for the same bytes and the same data files", async () => {
+    const first = ask();
+    answerFileNames();
+    await expect(first).resolves.toMatchObject({ kind: "meFileNames" });
+    expect(sent("meFileNames")).toHaveLength(1);
+
+    // The second panel asks the same question and is answered from the pane.
+    await expect(ask()).resolves.toMatchObject({ kind: "meFileNames" });
+    expect(sent("meFileNames")).toHaveLength(1);
+  });
+
+  it("is looked up again once the bytes have moved", async () => {
+    const first = ask();
+    answerFileNames();
+    await first;
+
+    const document = workspaceStore.getSnapshot().panes.a?.document;
+    if (document === undefined) throw new Error("pane A should be open");
+    await document.overwrite(0, new Uint8Array([1]));
+
+    void ask();
+    expect(sent("meFileNames")).toHaveLength(2);
+  });
+
+  it("is looked up again against a newer FileTable", async () => {
+    const first = ask();
+    answerFileNames();
+    await first;
+
+    void ask("FileTable.dat — newer");
+    expect(sent("meFileNames")).toHaveLength(2);
+  });
+
+  it("is dropped with the pane, so a replaced file starts from nothing", async () => {
+    const first = ask();
+    answerFileNames();
+    await first;
+
+    noteFirmwareContentChange("a", { kind: "reloaded" });
+
+    void ask();
+    expect(sent("meFileNames")).toHaveLength(2);
+  });
+
+  // And two panels asking at once join one lookup, the way the analysis does.
+  it("answers two panels asking at once with one lookup", async () => {
+    const one = ask();
+    const two = ask();
+    expect(sent("meFileNames")).toHaveLength(1);
+
+    answerFileNames();
+
+    await expect(one).resolves.toMatchObject({ kind: "meFileNames" });
+    await expect(two).resolves.toMatchObject({ kind: "meFileNames" });
   });
 });

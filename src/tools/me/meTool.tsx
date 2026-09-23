@@ -372,6 +372,8 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       configIDs: ask.configIDs,
       platform: analysis.mfsVolume?.ftblPlatform ?? -1,
       dictionary: analysis.mfsVolume?.ftblDictionary ?? -1,
+      databaseText,
+      huffmanText,
       fileTableText,
     }).then((found) => {
       if (job !== fileNamesJob.current) return;
@@ -380,7 +382,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       setEfsNames(found.efs ?? EFSFileNames.none);
       setConfigPaths(found.config ?? ConfigRecordPaths.none);
     });
-  }, [analysis, fileTableText, pane]);
+  }, [analysis, databaseText, huffmanText, fileTableText, pane]);
   const tree = useMemo(
     () =>
       analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),
