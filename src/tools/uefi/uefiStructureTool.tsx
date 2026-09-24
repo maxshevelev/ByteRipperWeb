@@ -762,14 +762,26 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * nobody has opened yet is opened for the reveal rather than answered for by
    * the node above it.
    *
+   * A reveal that moves off an ME row clears the zone map rather than
+   * republishing: the zones on screen belong to the half just left, so they
+   * cannot stay, and the new node's own zone cannot replace them either —
+   * focusing a zone is what makes the dump scroll to its start, and for a node
+   * the caret sits deep in, that is a scroll away from the byte the reveal was
+   * asked about. An empty map clears them and moves nothing, because the dump's
+   * scroll follows a focus and an empty map has none.
+   *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegionForReveal
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showUEFIFocus
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealAtCaret = useCallback(async () => {
     const slot = paneState(context.pane);
     if (slot === undefined) return;
     const caret = slot.document.selection.start;
+    // Captured before the UEFI half unsets it: a reveal that comes from an ME
+    // row is a crossing, and a crossing clears the zone map (G59).
+    const crossedHalves = meFocus !== undefined;
     // The ME half first, because the walk below has never heard of it.
     const mePath = mePathCovering(meRoots, caret);
     if (mePath !== undefined) {
@@ -817,7 +829,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     setMeFocus(undefined);
     askFirmwareDetail(context.pane, path);
     setScrollTarget(key);
-  }, [context.pane, me, meRoots, roots, toggle]);
+    if (crossedHalves) clearZones(context.pane);
+  }, [context.pane, me, meFocus, meRoots, roots, toggle]);
 
   // Brings a row the panel chose itself into view, once it is in the list.
   useEffect(() => {
