@@ -20,7 +20,12 @@ import {
 import type { PaneId } from "@/state/paneId";
 import { useStore } from "@/state/useStore";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
-import { rowDescription, selectionAfterChange, visibleRowCount } from "@/ui/dialogs/bookmarkList";
+import {
+  bookmarksUnavailable,
+  rowDescription,
+  selectionAfterChange,
+  visibleRowCount,
+} from "@/ui/dialogs/bookmarkList";
 import { Dialog } from "@/ui/dialogs/Dialog";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -311,6 +316,18 @@ export function GoToDialog({
   };
 
   const empty = marks.length === 0;
+  /**
+   * Why this pane's bookmark list is closed, or nothing when it is open
+   * (§20.7).
+   *
+   * Only a decompressed body reaches this with a reason: its bytes are what a
+   * compressed section unpacks to, so no offset in them is an offset in the
+   * file the marks are about. Saying so is the point — an empty list would read
+   * as "you have not made any", which is a different thing entirely.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarksUnavailableMessage
+   */
+  const unavailable = bookmarksUnavailable(pane);
 
   return (
     <Dialog
@@ -356,17 +373,28 @@ export function GoToDialog({
           ))}
         </datalist>
 
-        <span className="goto-list-label">Bookmarks</span>
+        {/* Dimmed over a closed list, the way a disabled control's title is: the
+            half of the form that still works must be the one that looks alive. */}
+        <span className="goto-list-label" data-closed={unavailable === undefined ? undefined : ""}>
+          Bookmarks
+        </span>
         <div className="bookmark-table" ref={tableRef}>
           {/* A listbox: these rows are picked, and the arrows and Return are how. */}
+          {/* A closed list is closed to the keyboard and the mouse as well as to
+              the eye (§20.7): Tab walks past it, the arrows and Return mean
+              nothing in it, and it offers no menu — there is no bookmark here
+              for any of them to act on, and a live-looking list over an
+              explanation of why there is none would be the form arguing with
+              itself. */}
           <div
             className="bookmark-list"
             ref={listRef}
             role="listbox"
             aria-label="Bookmarks"
-            tabIndex={0}
+            aria-disabled={unavailable === undefined ? undefined : true}
+            tabIndex={unavailable === undefined ? 0 : -1}
             style={{ height: visibleRowCount(marks.length) * ROW_HEIGHT + 2 }}
-            onKeyDown={onListKeyDown}
+            {...(unavailable === undefined ? { onKeyDown: onListKeyDown } : {})}
           >
             {marks.map((mark) => (
               // biome-ignore lint/a11y/useFocusableInteractive: the listbox holds the focus; its options are picked with the arrows
@@ -399,7 +427,10 @@ export function GoToDialog({
               </div>
             ))}
           </div>
-          {empty ? (
+          {unavailable !== undefined ? (
+            <p className="bookmark-empty">{unavailable}</p>
+          ) : empty ? (
+            // @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.noBookmarksYetText
             <p className="bookmark-empty">
               No bookmarks yet. {platform === "apple" ? "⌘D" : "Ctrl+D"} marks the row your caret is
               on, so you can come back to it.

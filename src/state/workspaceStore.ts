@@ -20,7 +20,6 @@ import {
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
-import { forgetPartBookmarks } from "@/state/bookmarksStore";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { noteDocumentChanged } from "@/state/editStore";
 import {
@@ -986,9 +985,10 @@ export function foldParts(): void {
  */
 export function closePart(pane: PartId): void {
   clearSegments(pane);
-  // The part's own marks go with it: they are offsets into bytes nothing holds
-  // any more, and nothing wrote them down.
-  forgetPartBookmarks(pane);
+  // The marks stay: they were never the part's. A panel reads the workspace's
+  // list at the part's offsets (§20.7), so closing the panel closes a window
+  // onto the marks, not the marks themselves — the same row is still marked in
+  // the dump the part came out of.
   workspaceStore.update((state) => {
     const parts = { ...state.parts };
     delete parts[pane];

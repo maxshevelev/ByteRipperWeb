@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import {
@@ -8,11 +8,20 @@ import {
   bookmarks,
   bookmarksIn,
   bookmarksStore,
-  forgetPartBookmarks,
+  marksFor,
   moveBookmark,
   pointerRow,
   removeBookmark,
 } from "@/state/bookmarksStore";
+import { EMPTY_DOCK } from "@/state/fragmentDock";
+import { openLinkedPart } from "@/state/openLinkedPart";
+import {
+  closePart,
+  openEmptyInPane,
+  type PartId,
+  paneState,
+  workspaceStore,
+} from "@/state/workspaceStore";
 
 /**
  * §20.6 — moving a mark with the pointer, as far as the store decides it.
@@ -158,70 +167,169 @@ describe("a mark dragged across a row boundary", () => {
 });
 
 /**
- * A part opened over a file is a surface of its own, and so are its marks: its
- * offsets start at zero, and a mark made in one would name an unrelated row of
- * the file behind it. Upstream gives a fragment panel a `BookmarkStore` of its
- * own for exactly this.
+ * §20.7 — a fragment panel reads the workspace's list at the part's offsets.
  *
- * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkStore
+ * A bookmark is a row of a *file*, and a panel is a window onto that file: a
+ * row marked in the dump is marked in the part taken out of it, and marking it
+ * in either place marks it in the other. A decompressed body is the exception —
+ * its bytes are not the file's bytes, so it reads no list and adds to none.
+ *
+ * Ported from the half of upstream's `BookmarkSpaceTests` that drives a panel;
+ * the arithmetic is in `core/bookmarks/bookmarkSpace.test.ts`.
+ *
+ * @upstream ByteRipperTests/BookmarkSpaceTests.swift#BookmarkSpaceTests
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarks
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.bookmarkSpace
  */
-describe("a part's own marks", () => {
-  const part = "part:1" as const;
-  const other = "part:2" as const;
-
-  beforeEach(() => {
-    forgetPartBookmarks(part);
-    forgetPartBookmarks(other);
+describe("a panel's view of the list", () => {
+  afterEach(() => {
+    for (const panel of workspaceStore.getSnapshot().dock.panels) closePart(`part:${panel}`);
+    workspaceStore.update((state) => ({
+      ...state,
+      panes: { a: undefined, b: undefined },
+      parts: {},
+      dock: EMPTY_DOCK,
+    }));
   });
 
-  it("are not the workspace's, at the same offset", () => {
-    addBookmark("a", 0x40, "in the file");
+  /** A file of `length` bytes in pane A. */
+  async function fileInA(length = 0x2000): Promise<void> {
+    openEmptyInPane("a", "bios.bin");
+    const slot = paneState("a");
+    if (slot === undefined) throw new Error("pane A should be open");
+    await slot.document.insert(
+      0,
+      Uint8Array.from({ length }, (_, index) => index & 0xff)
+    );
+  }
+
+  /** Takes `[start, end)` of pane A out as a part. */
+  async function partOfA(start: number, end: number, kind?: "decompressed"): Promise<PartId> {
+    const slot = paneState("a");
+    if (slot === undefined) throw new Error("pane A should be open");
+    return openLinkedPart({
+      parent: "a",
+      bytes: await slot.document.read(start, end - start),
+      name: "zone.bin",
+      source: [start, end],
+      partName: "zone",
+      ...(kind === undefined ? {} : { kind }),
+    });
+  }
+
+  // A mark made in the dump is the same mark in the part taken out of it, at
+  // the address the part has it at.
+  // @upstream ByteRipperTests/BookmarkSpaceTests.swift#BookmarkSpaceTests.testAMarkInEitherPlaceRepaintsTheOther
+  it("shows the dump's marks at the part's offsets", async () => {
+    await fileInA();
+    const part = await partOfA(0x1000, 0x1100);
+
+    addBookmark("a", 0x1040, "in the file");
+
+    expect(bookmarkAt(part, 0x40)?.name).toBe("in the file");
+    expect(bookmarksIn(bookmarksStore.getSnapshot(), part)).toEqual([
+      { row: 0x40, name: "in the file" },
+    ]);
+  });
+
+  // And the other way: a mark made in the panel is a mark on the file's row.
+  // @upstream ByteRipperTests/BookmarkSpaceTests.swift#BookmarkSpaceTests.testAMarkInEitherPlaceRepaintsTheOther
+  it("puts a mark made in the part on the file's row", async () => {
+    await fileInA();
+    const part = await partOfA(0x1000, 0x1100);
+
     addBookmark(part, 0x40, "in the part");
 
-    expect(bookmarkAt("a", 0x40)?.name).toBe("in the file");
-    expect(bookmarkAt(part, 0x40)?.name).toBe("in the part");
-    expect(bookmarksIn(bookmarksStore.getSnapshot(), "a").map((mark) => mark.name)).toEqual([
-      "in the file",
-    ]);
-    expect(bookmarksIn(bookmarksStore.getSnapshot(), part).map((mark) => mark.name)).toEqual([
-      "in the part",
-    ]);
+    expect(bookmarkAt("a", 0x1040)?.name).toBe("in the part");
+    expect(bookmarkAt("b", 0x1040)?.name).toBe("in the part");
   });
 
   /** Both of the workspace's panes read one list: a mark is an absolute offset. */
-  it("leave the two file slots sharing theirs", () => {
+  it("leaves the two file slots sharing theirs", async () => {
+    await fileInA();
     addBookmark("a", 0x40, "shared");
 
     expect(bookmarkAt("b", 0x40)?.name).toBe("shared");
-    expect(bookmarkAt(part, 0x40)).toBeUndefined();
   });
 
-  it("are two lists for two parts", () => {
-    addBookmark(part, 0x10, "first");
-    addBookmark(other, 0x10, "second");
+  // A mark on a row above the part is not a mark in the part, and stays in the
+  // list either way.
+  // @upstream ByteRipperTests/BookmarkSpaceTests.swift#BookmarkSpaceTests.testMarksBeforeThePartAreNotInIt
+  it("leaves out the marks that fall before the part", async () => {
+    await fileInA();
+    const part = await partOfA(0x1000, 0x1100);
 
-    expect(bookmarkAt(part, 0x10)?.name).toBe("first");
-    expect(bookmarkAt(other, 0x10)?.name).toBe("second");
-  });
-
-  /** They go with the part, and nothing of the workspace's goes with them. */
-  it("are forgotten when the part closes", () => {
-    addBookmark("a", 0x40, "kept");
-    addBookmark(part, 0x40, "going");
-
-    forgetPartBookmarks(part);
+    addBookmark("a", 0x10, "above");
 
     expect(bookmarksIn(bookmarksStore.getSnapshot(), part)).toEqual([]);
-    expect(bookmarkAt(part, 0x40)).toBeUndefined();
-    expect(bookmarkAt("a", 0x40)?.name).toBe("kept");
+    expect(bookmarkAt("a", 0x10)?.name).toBe("above");
   });
 
-  /** And a part opened later starts with none, whatever the last one held. */
-  it("start empty for the next part to take that id", () => {
-    addBookmark(part, 0x40, "going");
-    forgetPartBookmarks(part);
+  /** A part opened out of a part composes, without anything counting the depth. */
+  it("composes the offsets of a part taken out of a part", async () => {
+    await fileInA();
+    const outer = await partOfA(0x1000, 0x1100);
+    const outerSlot = paneState(outer);
+    if (outerSlot === undefined) throw new Error("the part should be open");
+    const inner = await openLinkedPart({
+      parent: outer,
+      bytes: await outerSlot.document.read(0x40, 0x20),
+      name: "inner.bin",
+      source: [0x40, 0x60],
+      partName: "inner",
+    });
 
+    addBookmark(inner, 0, "deep");
+
+    expect(bookmarkAt("a", 0x1040)?.name).toBe("deep");
+    expect(bookmarkAt(outer, 0x40)?.name).toBe("deep");
+  });
+
+  /**
+   * The marks stay when the panel closes: they were never the part's. Upstream
+   * closes a window onto the list, not the list.
+   */
+  it("keeps the marks when the part closes", async () => {
+    await fileInA();
+    const part = await partOfA(0x1000, 0x1100);
+    addBookmark(part, 0x40, "made in the part");
+
+    closePart(part);
+
+    expect(bookmarkAt("a", 0x1040)?.name).toBe("made in the part");
+  });
+
+  /**
+   * A decompressed body has no space at all: its bytes are what a section
+   * unpacks to, so no offset in them is an offset in the file. Nothing is
+   * drawn, and nothing can be made.
+   */
+  it("gives a decompressed body no list at all", async () => {
+    await fileInA();
+    const part = await partOfA(0x1000, 0x1100, "decompressed");
+
+    expect(marksFor(part)).toBeUndefined();
+    expect(addBookmark(part, 0x40, "nowhere")).toBeUndefined();
+    expect(bookmarkAt(part, 0x40)).toBeUndefined();
     expect(bookmarksIn(bookmarksStore.getSnapshot(), part)).toEqual([]);
+    // And the file's own list is untouched by the attempt.
+    expect(bookmarks.bookmarks).toEqual([]);
+  });
+
+  /** And so does anything opened out of one. */
+  it("gives a part of a decompressed body none either", async () => {
+    await fileInA();
+    const body = await partOfA(0x1000, 0x1100, "decompressed");
+    const bodySlot = paneState(body);
+    if (bodySlot === undefined) throw new Error("the part should be open");
+    const inner = await openLinkedPart({
+      parent: body,
+      bytes: await bodySlot.document.read(0, 0x20),
+      name: "inner.bin",
+      source: [0, 0x20],
+      partName: "inner",
+    });
+
+    expect(marksFor(inner)).toBeUndefined();
   });
 });

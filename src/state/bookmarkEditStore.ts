@@ -180,7 +180,7 @@ export function editedBookmarkRow(text: string, row: number): number | undefined
  *
  * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.onCommit
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.BookmarkEditRequest.commit
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyBookmarkEdit
+ * @upstream ByteRipperApp/Bookmarks/BookmarkSpace.swift#BookmarkSpace.edit
  */
 export function commitBookmarkEdit(target: number, name: string): BookmarkEditSession | undefined {
   const session = current();

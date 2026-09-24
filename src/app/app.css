@@ -1132,6 +1132,9 @@ textarea,
   width: max-content;
   max-width: 24rem;
   margin: 0;
+  /* Two lines in a panel: the mark's name, then the address the same row has in
+     the file the mark belongs to (§20.7). */
+  white-space: pre-line;
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
   background: var(--bookmark);
@@ -1479,6 +1482,12 @@ textarea,
 .goto-list-label {
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* Dimmed over a closed list (§20.7), the way a disabled control's title is: the
+   half of the form that still works must be the one that looks alive. */
+.goto-list-label[data-closed] {
+  opacity: 0.55;
 }
 
 .goto-offset input {

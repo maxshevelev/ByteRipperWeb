@@ -1,3 +1,6 @@
+import { marksFor } from "@/state/bookmarksStore";
+import type { PaneId } from "@/state/paneId";
+import { paneState } from "@/state/workspaceStore";
 /**
  * The arithmetic of the Go To form's bookmark list, kept apart from the dialog
  * so it can be tested without one.
@@ -55,3 +58,24 @@ export function rowDescription(bytes: Uint8Array | undefined): string {
 
 /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.pastEndOfFileText */
 export const PAST_END_OF_FILE = "Past the end of the file";
+
+/**
+ * Why a pane's bookmark list is closed, or nothing when it is open (§20.7).
+ *
+ * Only a decompressed body reaches this with a reason: its bytes are what a
+ * compressed section unpacks to, so no offset in them is an offset in the file
+ * the marks are about. Saying so is the point — an empty list would read as
+ * "you have not made any", which is a different thing entirely.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarksUnavailableMessage
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.unavailable
+ */
+export function bookmarksUnavailable(pane: PaneId): string | undefined {
+  if (marksFor(pane) !== undefined) return undefined;
+  const origin = paneState(pane)?.origin;
+  if (origin === undefined) return "Bookmarks are not available here.";
+  return (
+    `Bookmarks are not available here: these bytes were decompressed from ` +
+    `\u201C${origin.partName}\u201D, so no offset in them is an offset in ${origin.parentName}.`
+  );
+}

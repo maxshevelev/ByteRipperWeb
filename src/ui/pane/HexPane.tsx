@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
@@ -29,6 +29,7 @@ import {
   bookmarkAt,
   bookmarksIn,
   bookmarksStore,
+  bookmarkTooltip,
   moveBookmark,
   pointerRow,
 } from "@/state/bookmarksStore";
@@ -1415,9 +1416,15 @@ export function HexPane({
     scheduleDraw();
   }, [zones, scheduleDraw]);
 
-  // This pane's own marks: the workspace's for a file slot, the part's own for
-  // a part, whose offsets are its own (`bookmarksIn`).
-  const marks = bookmarksIn(useStore(bookmarksStore), paneId);
+  // This pane's marks: the workspace's list, read at this pane's own offsets —
+  // a file slot's are the list as it is, a panel's are the part's (§20.7).
+  // Memoised on the published list, because a panel's are derived and a fresh
+  // array every render would repaint the dump every render.
+  const publishedMarks = useStore(bookmarksStore).bookmarks;
+  const marks = useMemo(
+    () => bookmarksIn({ bookmarks: publishedMarks, recent: [] }, paneId),
+    [publishedMarks, paneId]
+  );
   useEffect(() => {
     rendererRef.current?.setBookmarks(new Set(marks.map((mark) => mark.row)));
     scheduleDraw();
@@ -1550,8 +1557,11 @@ export function HexPane({
         return;
       }
       const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
-      const mark = bookmarkAt(paneId, row);
-      if (mark === undefined || mark.name.length === 0) {
+      // Not the mark's name: in a panel the tip also carries the address the
+      // same row has in the file the mark belongs to, which is the one thing
+      // the panel's own Offset column cannot show (§20.7).
+      const tip = bookmarkTooltip(paneId, row);
+      if (tip.length === 0) {
         setMarkTip(undefined);
         return;
       }
@@ -1561,7 +1571,7 @@ export function HexPane({
       // mark rather than over it: the address it names is the one thing the tip
       // must not hide.
       setMarkTip({
-        name: mark.name,
+        name: tip,
         top: (row / BYTES_PER_ROW) * layout.rowHeight - top + host.scrollTop,
         left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
       });

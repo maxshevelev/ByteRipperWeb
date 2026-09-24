@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
-import { bookmarkAt, bookmarksStore } from "@/state/bookmarksStore";
+import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
@@ -286,9 +286,11 @@ export function Toolbar({
 
     active === undefined ? undefined : { kind: "separator" },
     active === undefined ? undefined : { kind: "heading", label: "Bookmarks" },
-    // The marks of whatever is in front: the workspace's own for its panes, the
-    // part's own for a part.
-    active === undefined
+    // The marks of whatever is in front, read at its own offsets: the
+    // workspace's list for its panes, the same list at the part's offsets for a
+    // panel (§20.7). A panel showing a decompressed body has none, and ⌘D is
+    // off there — there is no row of the file to mark.
+    active === undefined || marksFor(front) === undefined
       ? undefined
       : {
           label:

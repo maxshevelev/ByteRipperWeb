@@ -1,8 +1,10 @@
+import { BookmarkSpace } from "@/core/bookmarks/bookmarkSpace";
 import { type Bookmark, BookmarkStore, rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { hexAddress } from "@/core/text/hexText";
 import { openKeyValueStore } from "@/platform/storage/keyValueStore";
 import { isSlot, type PaneId } from "@/state/paneId";
 import { createStore } from "@/state/store";
+import { paneState } from "@/state/workspaceStore";
 
 /**
  * The workspace's bookmarks, and what keeps them across a reload.
@@ -12,11 +14,16 @@ import { createStore } from "@/state/store";
  * both panes of a comparison. Upstream scopes them to a window; a browser tab
  * *is* the window (D11).
  *
- * **A part is the exception, and it is upstream's own:** a fragment panel gets
- * a `BookmarkStore` of its own, because a part's offsets start at zero and a
- * mark made in one would name an unrelated row of the file behind it. Those
- * marks live and die with the part — they are nowhere on disk, and a part is
- * not something a reload brings back.
+ * **A fragment panel reads the same list, at the part's offsets** (§20.7). A
+ * bookmark is a row of a *file*, and a panel is a window onto that file, not a
+ * different one: a row marked in the dump is marked in the part taken out of
+ * it, and marking it in either place marks it in the other. `BookmarkSpace` is
+ * the whole of the translation — the list, plus the pane's byte 0 in it.
+ *
+ * **A decompressed body is the exception**, and the only one: its bytes are
+ * what a section unpacks to, so no offset in them is an offset in the file. A
+ * pane showing one is given no space at all, and with none there is nothing to
+ * draw and nothing to make.
  *
  * They outlive the file, deliberately. Closing a dump and opening it again is
  * something a person does constantly while working — a save through another
@@ -39,10 +46,12 @@ import { createStore } from "@/state/store";
 const RECENT_LIMIT = 10;
 
 export interface BookmarksState {
-  /** The workspace's own marks: both of its panes read these. */
+  /**
+   * The workspace's marks, at the workspace's own offsets. Every surface reads
+   * these — the two panes as they are, a fragment panel through its own
+   * {@link BookmarkSpace}.
+   */
   readonly bookmarks: readonly Bookmark[];
-  /** Each open part's own marks, by the pane it is read as. */
-  readonly parts: Readonly<Record<string, readonly Bookmark[]>>;
   /**
    * Addresses this workspace has been sent to, newest first.
    *
@@ -56,61 +65,73 @@ export interface BookmarksState {
   readonly recent: readonly number[];
 }
 
-/** The store the workspace's own panes, the minimap and the dialogs read. */
+/** The list the workspace's panes, its panels, the minimap and the dialogs read. */
 export const bookmarks = new BookmarkStore();
 
-/** A part's own store, made when its pane first asks and dropped with the part. */
-const partStores = new Map<string, BookmarkStore>();
+/** Nothing, shared, so a pane with no marks hands back the same array every time. */
+const NO_MARKS: readonly Bookmark[] = [];
 
 /**
- * The marks a pane's dump draws, marks and unmarks: the workspace's for one of
- * its own panes, and the part's own for a part.
+ * Where a pane's marks live: the workspace's list, at that pane's own offsets
+ * (§20.7).
  *
+ * The list is shared, so a mark made in the dump shows in the panel at the
+ * offset the part has it at, and one made in the panel shows in the dump at the
+ * offset the file has it at. The offset is the parent's own plus the part's
+ * within it, which is what makes a part opened out of a part come out right
+ * without this having to know how deep it is.
+ *
+ * Nothing — no marks at all — for a decompressed body, and for anything opened
+ * out of one: its bytes are not the file's bytes, so the file's offsets do not
+ * reach them and a mark in either place would mean nothing in the other.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.bookmarkSpace
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkStore
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarks
  */
-export function marksFor(pane: PaneId): BookmarkStore {
-  if (isSlot(pane)) return bookmarks;
-  const held = partStores.get(pane);
-  if (held !== undefined) return held;
-  const made = new BookmarkStore();
-  made.onChange = () => publishPart(pane, made);
-  partStores.set(pane, made);
-  return made;
+export function marksFor(pane: PaneId): BookmarkSpace | undefined {
+  const origin = isSlot(pane) ? undefined : paneState(pane)?.origin;
+  // Not a part of anything: it reads the workspace's list as the dump does, at
+  // the dump's own offsets.
+  if (origin === undefined) return new BookmarkSpace(bookmarks);
+  if (origin.kind !== "copy") return undefined;
+  const parent = marksFor(origin.parent);
+  if (parent === undefined) return undefined;
+  return new BookmarkSpace(parent.store, parent.origin + origin.sourceRange[0]);
 }
 
 /**
  * The marks of one pane, out of a snapshot the caller already has — what a
  * component subscribed to the store draws.
+ *
+ * Derived from the one published list rather than from the live store, so the
+ * answer is a function of the snapshot: a caller that memoises on the snapshot
+ * gets a stable array, and the panes redraw when the list changes rather than
+ * on every render.
  */
-export const bookmarksIn = (state: BookmarksState, pane: PaneId): readonly Bookmark[] =>
-  isSlot(pane) ? state.bookmarks : (state.parts[pane] ?? []);
-
-/**
- * A part is gone: its marks go with it. Nothing is written, because nothing of
- * a part's was ever written.
- */
-export function forgetPartBookmarks(pane: PaneId): void {
-  if (isSlot(pane) || !partStores.has(pane)) return;
-  partStores.delete(pane);
-  bookmarksStore.update((state) => {
-    const parts = { ...state.parts };
-    delete parts[pane];
-    return { ...state, parts };
-  });
-}
+export const bookmarksIn = (state: BookmarksState, pane: PaneId): readonly Bookmark[] => {
+  const space = marksFor(pane);
+  if (space === undefined) return NO_MARKS;
+  if (!space.isShifted) return state.bookmarks;
+  const rows: Bookmark[] = [];
+  for (const mark of state.bookmarks) {
+    const local = space.localRowOf(mark.row);
+    if (local !== undefined) rows.push({ row: local, name: mark.name });
+  }
+  return rows;
+};
 
 /**
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.onBookmarksChanged
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkStore
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarks
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onBookmarksChanged
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.bookmarksChanged
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmarkedRows
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmark
  */
 export const bookmarksStore = createStore<BookmarksState>({
   bookmarks: [],
-  parts: {},
   recent: [],
 });
 
@@ -150,18 +171,6 @@ function publish(): void {
 }
 
 bookmarks.onChange = () => publish();
-
-/**
- * The same for a part's marks — published, never written: a part is not
- * something a reload brings back, and a record of marks into bytes nothing
- * holds any more would be a record nothing could ever read.
- */
-function publishPart(pane: PaneId, store: BookmarkStore): void {
-  bookmarksStore.update((state) => ({
-    ...state,
-    parts: { ...state.parts, [pane]: [...store.bookmarks] },
-  }));
-}
 
 let writing: Promise<void> | undefined;
 let writeAgain = false;
@@ -231,20 +240,22 @@ async function sweep(): Promise<void> {
  * toggle, with no popover. ⌘D and a double-click go through
  * `bookmarkEditStore`, which names the mark it makes.
  *
- * Every command below takes the pane it is about, because which marks it means
- * is not a property of the offset: the same number is a row of the workspace's
- * file and a row of a part, and they are different places.
+ * Every command below takes the pane it is about, because which row it means is
+ * not a property of the offset: the same number is a row of the workspace's
+ * file and a row of a part, and the two are different rows of the one list. A
+ * pane with no list at all — a decompressed body — answers each of them with
+ * nothing done.
  */
 export function toggleBookmark(pane: PaneId, offset: number): Bookmark | undefined {
-  return marksFor(pane).toggle(offset);
+  return marksFor(pane)?.toggle(offset);
 }
 
-export function addBookmark(pane: PaneId, offset: number, name = ""): Bookmark {
-  return marksFor(pane).add(offset, name);
+export function addBookmark(pane: PaneId, offset: number, name = ""): Bookmark | undefined {
+  return marksFor(pane)?.add(offset, name);
 }
 
 export function removeBookmark(pane: PaneId, offset: number): boolean {
-  return marksFor(pane).remove(offset);
+  return marksFor(pane)?.remove(offset) ?? false;
 }
 
 export function editBookmark(
@@ -253,7 +264,7 @@ export function editBookmark(
   to: number,
   name: string
 ): Bookmark | undefined {
-  return marksFor(pane).edit(from, to, name);
+  return marksFor(pane)?.edit(from, to, name);
 }
 
 export function moveBookmark(
@@ -262,7 +273,7 @@ export function moveBookmark(
   to: number,
   lastRow: number
 ): number | undefined {
-  return marksFor(pane).move(from, to, lastRow);
+  return marksFor(pane)?.move(from, to, lastRow);
 }
 
 /**
@@ -299,7 +310,54 @@ export function pointerRow(y: number, comingFrom: number, rowHeight: number): nu
 
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkRowBytes */
 export function bookmarkAt(pane: PaneId, offset: number): Bookmark | undefined {
-  return marksFor(pane).at(offset);
+  return marksFor(pane)?.at(offset);
+}
+
+/**
+ * The file this pane's bookmarks belong to: the document at the far end of the
+ * chain of parts this pane was opened out of, whose offsets the list is in.
+ * Nothing for a pane that is itself that document.
+ *
+ * Walked rather than remembered, so it follows a rename in the parent the way
+ * the origin's own header link does.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.bookmarkHostName
+ */
+export function bookmarkHostName(pane: PaneId): string | undefined {
+  let next = paneState(pane)?.origin?.parent;
+  let name: string | undefined;
+  while (next !== undefined) {
+    const state = paneState(next);
+    name = state?.name;
+    next = state?.origin?.parent;
+  }
+  return name;
+}
+
+/**
+ * What the mark's tooltip says on the row containing `offset`, and nothing when
+ * there is nothing to say (§20.2, §20.7).
+ *
+ * In a pane showing a file whole that is the mark's name and nothing else: the
+ * address is drawn on the mark, right under the pointer, and a tooltip
+ * repeating it would explain a thing to itself. In a fragment panel the address
+ * under the pointer is the *part's*, so the tooltip adds the one the same row
+ * has in the file the mark belongs to — which is the address the reader will
+ * come back to it by, and the only place the panel says it. That line shows for
+ * an unnamed mark too, because there it is not a repetition of anything.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmarkTooltip
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmarkTooltip
+ */
+export function bookmarkTooltip(pane: PaneId, offset: number): string {
+  const space = marksFor(pane);
+  const mark = space?.at(offset);
+  if (space === undefined || mark === undefined) return "";
+  if (!space.isShifted) return mark.name;
+  const there = hexAddress(space.storeRowOf(offset));
+  const host = bookmarkHostName(pane);
+  const line = host === undefined ? there : `${there} in ${host}`;
+  return mark.name.length === 0 ? line : `${mark.name}\n${line}`;
 }
 
 /**

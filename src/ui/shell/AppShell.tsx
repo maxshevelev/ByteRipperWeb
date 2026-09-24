@@ -10,7 +10,7 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
-import { bookmarksStore, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
+import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { restoreFavorites } from "@/state/favoritesStore";
@@ -694,11 +694,13 @@ export function AppShell() {
           // The pane's own handler has this too, but only while the dump has
           // the keyboard — and marking a row is a workspace command.
           event.preventDefault();
-          // The marks of whatever is in front: a part's own where a panel is
-          // up, the workspace's where none is.
+          // The marks of whatever is in front, read at its own offsets: the
+          // workspace's list for its panes, the same list at the part's offsets
+          // for a panel (§20.7). A panel showing a decompressed body has none,
+          // and both keys are off there — there is no row of the file to mark.
           const inFront = paneInFront();
           const slot = paneState(inFront);
-          if (slot === undefined) return;
+          if (slot === undefined || marksFor(inFront) === undefined) return;
           // ⇧⌘D edits the caret row's mark; ⌘D marks and names it, or unmarks it.
           if (event.shiftKey) editBookmarkInPane(inFront, slot.document.selection.start);
           else toggleBookmarkInPane(inFront, slot.document.selection.start);
