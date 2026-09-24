@@ -79,7 +79,9 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 
 ### 1.6 The window's chrome: the readout and the palette
 
-Nothing open: the last row, G42, is in [Closed](#3-closed).
+| ID | Gap | Upstream | Size | Depends on | Priority | Status |
+|---|---|---|---|---|---|---|
+| G62 | **Open Recent.** Upstream's `749ca8e` adds File ▸ Open Recent: the ten most recently opened files, most recent first, recorded where a file actually lands in a pane, with dead entries greyed out and a **Clear Menu** row. Per-machine, in `UserDefaults`, never synced. **The web edition cannot keep a path** — a page never sees one — so the list is of `FileSystemFileHandle`s in IndexedDB, which is the pattern ANALYSIS.md already records for security-scoped bookmarks: re-opening asks the browser for permission again, one click rather than nothing. That makes it **Chromium-only in any useful sense**: Firefox and Safari have no File System Access API, so a list there could show names and do nothing with them, and the honest answer is to keep the list off where it cannot act. Two upstream behaviours have no counterpart: `pruneMissing` cannot stat a file without asking for permission first, so a dead entry is found only when it is picked; and there is no File menu here, so the list belongs in the toolbar's menu and the empty state. Also the closest thing to the "Session restore" open question in ANALYSIS.md § Open questions, and worth deciding with it. | `RecentFilesStore.swift`, `OpenRecentMenuController.swift` | 4 | Which engines it is offered on (§2.2) | P3 | open |
 
 ### 1.7 Accessibility
 
@@ -131,6 +133,7 @@ Nothing open: the last row, G42, is in [Closed](#3-closed).
 | Feature | How the web edition does it | Recorded in |
 |---|---|---|
 | Save in place | Chromium writes back through the file handle; Firefox and Safari save by download, and the interface says so. | ANALYSIS.md, D7 |
+| Open Recent | A page never sees a path, so the list holds `FileSystemFileHandle`s in IndexedDB and re-opening re-asks for permission — Chromium only. Firefox and Safari keep no handle, so the list is not offered there rather than offered dead (G62). | ANALYSIS.md § Security-scoped bookmarks |
 | Save All segments into a folder | Chromium: a directory picker and one write per segment. Elsewhere: a ZIP download. | ANALYSIS.md § Segments and joining |
 | Save Segment / Save Selection | Chromium: save picker. Elsewhere: download. | ANALYSIS.md |
 | Revert to Saved | Re-reads the `File` or handle; outside Chromium a stale `File` means picking the file again. | ANALYSIS.md § Editing |
