@@ -274,9 +274,17 @@ async function request(
 ): Promise<Response> {
   const headers = new Headers();
   if (validator !== undefined) headers.set("If-None-Match", validator);
-  // GitHub asks for one, and an anonymous request without it is answered less
-  // kindly.
-  headers.set("User-Agent", "ByteRipper");
+  // **No `User-Agent` here, though the desktop sends one.** `URLSession` sends
+  // no useful agent unless told to, and GitHub answers an anonymous caller less
+  // kindly; a browser always sends its own, so there is nothing to supply — and
+  // supplying one is not free. `User-Agent` is not a CORS-safelisted request
+  // header, so setting it makes the request non-simple and sends a preflight
+  // ahead of it, and `raw.githubusercontent.com` answers *every* preflight
+  // `403` with no `access-control-allow-headers` — the same refusal that keeps
+  // `If-None-Match` out of these requests. Measured: Safari honours a
+  // script-set agent and so failed every database fetch with `TypeError: Load
+  // failed`, while Chromium strips the header as a forbidden one and never
+  // preflighted, which is why only one engine showed it.
   let response: Response;
   try {
     response = await fetch(url, {

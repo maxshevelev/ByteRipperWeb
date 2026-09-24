@@ -98,10 +98,15 @@ describe("a conditional request for a body", () => {
     const answer = await remoteSource(URL).check(undefined);
 
     expect(answer).toEqual({ kind: "fresh", text: "A,one\n", validator: '"v1"' });
-    // Nothing to present, so the request asks for the whole body — and it asks
-    // in the way GitHub wants to be asked.
+    // Nothing to present, so the request asks for the whole body.
     expect(sent(fetcher).get("If-None-Match")).toBeNull();
-    expect(sent(fetcher).get("User-Agent")).toBe("ByteRipper");
+    // And it carries no header of its own at all: anything outside the CORS
+    // safelist sends a preflight ahead of the request, and
+    // `raw.githubusercontent.com` answers every preflight 403. A `User-Agent`
+    // set here — the one the desktop sends — failed every database fetch in
+    // Safari, which honours it, while Chromium stripped it and hid the fault.
+    expect(sent(fetcher).get("User-Agent")).toBeNull();
+    expect([...sent(fetcher).keys()]).toEqual([]);
     // Nothing was asked about a body this script could name, so the browser is
     // asked to revalidate — see the case below.
     expect(cacheModeOf(fetcher)).toBe("no-cache");
