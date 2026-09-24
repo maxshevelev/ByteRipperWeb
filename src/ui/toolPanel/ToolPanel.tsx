@@ -131,8 +131,16 @@ export function ToolPanel({
     if (carried === "file") beginFileDrag();
     setDragOver(true);
     if (zoneTitle() === undefined) {
+      // Cancelled even though it refuses, and `none` is what refuses it: the
+      // drop never fires and nothing happens, which is the refusal upstream
+      // gives. Cancelling is what tells the browser this page is handling the
+      // drag at all — and the `stopPropagation` above has taken the event away
+      // from the window's own handler, which was the only thing cancelling it. A
+      // dragover left uncancelled here is one the browser answers by navigating
+      // to the file, taking the workspace and every unsaved edit with it.
+      event.preventDefault();
       event.dataTransfer.dropEffect = "none";
-      return; // no `preventDefault`: the drop never happens here
+      return;
     }
     event.preventDefault();
     event.dataTransfer.dropEffect = carried === "pane" ? "move" : "copy";
