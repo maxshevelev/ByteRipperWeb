@@ -700,17 +700,57 @@ interface CachedMeAnalysis {
  * What the pane's analysis said its files are called, and what it was said against.
  *
  * The ask is a function of the analysis (the volumes and config record IDs it
- * carries) and the `FileTable.dat` it is looked up in, both of which are
- * functions of the same four inputs the analysis is keyed by. Keying the names
- * by those four means a re-ask is answered from the pane rather than re-parsing
- * the largest of the databases, the way the analysis and the digests are.
+ * carries) and the `FileTable.dat` it is looked up in, and the analysis is a
+ * function of the four inputs it is itself keyed by — so the names are kept by
+ * the pane the way the analysis and the digests are, and a re-ask is answered
+ * from the pane rather than re-parsing the largest of the databases.
+ *
+ * The key is the four inputs *and the ask*, though, because a panel does not
+ * hold the two in step: its names effect runs the moment a data file lands,
+ * with the analysis that is still on screen, while the re-reading that file
+ * asked for is still in the worker. Keyed by the four alone, the answer to the
+ * *old* analysis' ask is filed under the new inputs, and the analysis that
+ * arrives a moment later — the one those inputs belong to — is handed the names
+ * of the volumes it replaced.
  */
 interface CachedMeFileNames {
   readonly generation: number;
   readonly database: string | undefined;
   readonly huffman: string | undefined;
   readonly fileTable: string | undefined;
+  readonly ask: MeFileNamesQuestion;
   readonly response: MeFileNamesResponse;
+}
+
+/**
+ * The half of a names ask that is not a data file: what the worker's
+ * `meFileNames` actually reads, all of it out of the analysis on screen.
+ */
+interface MeFileNamesQuestion {
+  readonly mfs: MFSVolume | undefined;
+  readonly efs: EFSVolume | undefined;
+  readonly configIDs: readonly number[];
+  readonly platform: number;
+  readonly dictionary: number;
+}
+
+/**
+ * Whether two asks are the same question.
+ *
+ * The volumes go by identity: both panels build their ask out of the same
+ * analysis — the pane's own cached one — so one reading hands out one pair of
+ * objects and a different reading a different pair. The IDs are gathered afresh
+ * on every ask (`meConfigIDs`), so those go by their values.
+ */
+function sameQuestion(one: MeFileNamesQuestion, two: MeFileNamesQuestion): boolean {
+  return (
+    one.mfs === two.mfs &&
+    one.efs === two.efs &&
+    one.platform === two.platform &&
+    one.dictionary === two.dictionary &&
+    one.configIDs.length === two.configIDs.length &&
+    one.configIDs.every((id, at) => id === two.configIDs[at])
+  );
 }
 
 /** The last analysis of each pane's ME region. */
@@ -881,6 +921,7 @@ const meFileNamesInFlight = new Map<
     readonly database: string | undefined;
     readonly huffman: string | undefined;
     readonly fileTable: string | undefined;
+    readonly ask: MeFileNamesQuestion;
     readonly promise: Promise<MeFileNamesResponse | undefined>;
   }
 >();
@@ -912,9 +953,10 @@ const checksumWaiters = new Map<PaneId, (response: MeChecksumsResponse | undefin
  * supersedes the first, the way the analysis's does.
  *
  * The names are kept by the pane the way the analysis is, and keyed the same
- * way: the ask is a function of the analysis (G58), which is a function of the
- * document's generation and the three data files, so a re-ask is answered from
- * the pane rather than re-sending — and re-parsing — the largest of the
+ * way (G58) — on the document's generation and the three data files, and on the
+ * ask itself, which is the analysis' half of the question and is not always in
+ * step with the other four (see `CachedMeFileNames`). So a re-ask is answered
+ * from the pane rather than re-sending — and re-parsing — the largest of the
  * databases. Upstream never re-parses: it reads the table from the data
  * source's in-memory cache, and keeps the looked-up names on the session.
  *
@@ -938,12 +980,20 @@ export function fileNamesPaneMe(
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
   const generation = meGenerationOf(pane);
+  const ask: MeFileNamesQuestion = {
+    mfs: options.mfs,
+    efs: options.efs,
+    configIDs: options.configIDs,
+    platform: options.platform,
+    dictionary: options.dictionary,
+  };
   const cached = meFileNamesCache.get(pane);
   if (
     cached?.generation === generation &&
     cached.database === options.databaseText &&
     cached.huffman === options.huffmanText &&
-    cached.fileTable === options.fileTableText
+    cached.fileTable === options.fileTableText &&
+    sameQuestion(cached.ask, ask)
   ) {
     return Promise.resolve(cached.response);
   }
@@ -952,7 +1002,8 @@ export function fileNamesPaneMe(
     flight?.generation === generation &&
     flight.database === options.databaseText &&
     flight.huffman === options.huffmanText &&
-    flight.fileTable === options.fileTableText
+    flight.fileTable === options.fileTableText &&
+    sameQuestion(flight.ask, ask)
   ) {
     return flight.promise;
   }
@@ -981,6 +1032,7 @@ export function fileNamesPaneMe(
         database: options.databaseText,
         huffman: options.huffmanText,
         fileTable: options.fileTableText,
+        ask,
         response,
       });
     }
@@ -991,6 +1043,7 @@ export function fileNamesPaneMe(
     database: options.databaseText,
     huffman: options.huffmanText,
     fileTable: options.fileTableText,
+    ask,
     promise,
   });
   return promise;

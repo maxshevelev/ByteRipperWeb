@@ -240,13 +240,17 @@ describe("the pane's ME analysis", () => {
 // inputs the analysis is keyed by, so a re-ask is answered from the pane rather
 // than re-sending — and re-parsing — the largest of the databases.
 describe("the pane's ME names (G58)", () => {
-  // The cache keys on the four data-file inputs and the generation, not the
-  // volume's content, so the volumes can be absent and the ask still stands.
-  const ask = (fileTableText: string | undefined = "FileTable.dat") =>
+  // The cache keys on the generation, the four data-file inputs and the ask
+  // itself; the volumes go by identity, so they can be absent and the ask still
+  // stands on its record IDs.
+  const ask = (
+    fileTableText: string | undefined = "FileTable.dat",
+    configIDs: readonly number[] = [0x1000_3500]
+  ) =>
     fileNamesPaneMe("a", {
       mfs: undefined,
       efs: undefined,
-      configIDs: [0x1000_3500],
+      configIDs,
       platform: 4,
       dictionary: 0x0a,
       databaseText: "MEA.dat",
@@ -284,6 +288,20 @@ describe("the pane's ME names (G58)", () => {
     await first;
 
     void ask("FileTable.dat — newer");
+    expect(sent("meFileNames")).toHaveLength(2);
+  });
+
+  // The four inputs alone are not the question. A panel's names effect runs the
+  // moment a data file lands — with the analysis still on screen, while the
+  // re-reading that file asked for is still in the worker — so the answer to
+  // the old analysis' ask would otherwise be filed under the new inputs and
+  // handed to the analysis those inputs belong to.
+  it("is looked up again for a different analysis under the same data files", async () => {
+    const first = ask();
+    answerFileNames();
+    await first;
+
+    void ask("FileTable.dat", [0x1000_3500, 0x1000_3600]);
     expect(sent("meFileNames")).toHaveLength(2);
   });
 
