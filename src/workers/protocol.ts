@@ -487,6 +487,8 @@ export interface FitEditRequest {
  * main thread has no business holding a few thousand lines it never reads.
  * Absent is allowed — an analysis without one reports every structural fact and
  * identifies nothing, which is exactly what an offline bench gets.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.analyze
  */
 export interface MeAnalyzeRequest {
   readonly kind: "meAnalyze";
@@ -788,7 +790,12 @@ export interface MeFileNamesResponse {
   readonly config: ConfigRecordPaths | undefined;
 }
 
-/** The digests of the same bytes the analysis read, uppercase hex; nothing where none could be read. */
+/**
+ * The digests of the same bytes the analysis read, uppercase hex; nothing where
+ * none could be read.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.checksums
+ */
 export interface MeChecksumsResponse {
   readonly kind: "meChecksums";
   readonly id: JobId;

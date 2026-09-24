@@ -21,6 +21,10 @@
       "why": "Window and tab management: one workspace per browser tab (D11)."
     },
     {
+      "prefix": "ByteRipperApp/Window/HeaderButton",
+      "why": "An NSButton factory (the shared ✕ and ⌄, `HeaderButton.make`): AppKit button furniture. The web's shared mark is the CloseButton component (src/ui/shell/CloseButton.tsx), the fold is the G53 ⌄, and both were ported on the strength of the factory's callers."
+    },
+    {
       "prefix": "ByteRipperApp/Documents/DocumentArbitration",
       "why": "A browser cannot know a file is open in another tab."
     },
@@ -118,6 +122,10 @@
     },
     {
       "prefix": "Packages/MEFirmware/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Packages/MEReads/Package.swift",
       "why": "SwiftPM manifest."
     },
     {
@@ -556,6 +564,28 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads",
         "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.Entry.init": "n/a — an object literal; there is nothing to construct",
         "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.EFSEntry.init": "n/a — an object literal; there is nothing to construct"
+      }
+    },
+    {
+      "swift": "Packages/MEReads",
+      "web": [
+        "src/workers/firmware.worker.ts",
+        "src/workers/protocol.ts",
+        "src/state/firmwareStore.ts",
+        "src/firmware/me/layout/flashDescriptor.ts"
+      ],
+      "status": "ported",
+      "note": "The one home for the reads both ME panels make over the region: the bytes the engine is handed, where they begin in the file, the analysis, the digests and the FileTable's names, with the whole-file fallback where no descriptor is. Upstream split it out of the two tool-modules in `e4dbb04` because the reading was written twice and had drifted; the web never had two copies — the worker is the home it dedupes to, one `meRegionBytes()` and one `meAnalyze`/`meChecksums`/`meFileNames` message each, and the region the fallback reads from is the flash descriptor's own `meRegion`. The anchor lives on the message's types and the worker's `meRegionBytes`: the request is the ask, the response is the answer, and the bytes they cross are the regionBytes with their regionBase. The seam upstream names `dataSource` is the web's data-file delivery: the texts travel in the message the store sends, so the source is a message field, not a swappable object — the tests install theirs the same way, through the store.",
+      "files": {
+        "Sources/MEReads/MEReads.swift": "src/workers/firmware.worker.ts",
+        "Tests/MEReadsTests/MEReadsTests.swift": "src/firmware/me/layout/fpt.test.ts"
+      },
+      "unported": {
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.dataSource": "n/a — the data files travel as the message's texts (databaseText, huffmanText, fileTableText); there is no object to swap in",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.readAll": "n/a — the worker keeps the whole image chunked in its storage and reads the region it needs; nothing is materialised as one buffer",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.readRange": "n/a — the worker reads through its reader, which is the chunked storage",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.describe": "n/a — the worker's own catch names the failure in the message's `problem` field, in the app's own words",
+        "Packages/MEReads/Tests/MEReadsTests/MEReadsTests.swift#MEReadsTests*": "n/a — the region's own resolution is what the buffer choice reads, and it is covered where it is: the flash descriptor's `meRegion` in src/firmware/uefi/descriptorInfo.test.ts and the $FPT search the whole-file fallback relies on in src/firmware/me/layout/fpt.test.ts; the web has no materialised buffer to choose"
       }
     },
     {

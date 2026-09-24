@@ -399,6 +399,9 @@ function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
  * not gigabytes. Which region is the descriptor's business, and a bare region is
  * its own. The checksums read the same bytes, so the digests describe the buffer
  * the analysis was made from.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.regionBytes
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.regionBase
  */
 function meRegionBytes():
   | { readonly bytes: Uint8Array; readonly regionOffset: number }
