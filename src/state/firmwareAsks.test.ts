@@ -38,7 +38,9 @@ class FakeWorker {
 
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { askFirmwarePart, openFirmware, readSpaceBytes } = await import("@/state/firmwareStore");
+const { analyzePaneMe, askFirmwarePart, openFirmware, readSpaceBytes } = await import(
+  "@/state/firmwareStore"
+);
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 const reply = (response: unknown) => {
@@ -95,5 +97,33 @@ describe("an ask whose answer cannot come", () => {
     reply({ kind: "firmwareSpaceBytes", id: asks[0]?.id, bytes: new Uint8Array([1]) });
     reply({ kind: "firmwareSpaceBytes", id: asks[1]?.id, bytes: new Uint8Array([2]) });
     await expect(second).resolves.toEqual(new Uint8Array([2]));
+  });
+
+  /**
+   * An ask of one kind does not supersede an ask of another. The pane's job
+   * counter is shared by every kind, and gating each reply on it threw away the
+   * answer to a question nothing had replaced: the ME panel's analysis was
+   * still running when the panel asked the same image for its file names, so
+   * the analysis's reply was dropped, its waiter was never settled, and
+   * "Reading ME…" stayed on screen for ever. Measured on a CSME 16 dump, whose
+   * FTBL volume is what makes the panel ask for names at all.
+   */
+  it("is not superseded by an ask of another kind", async () => {
+    const analysis = analyzePaneMe("a", "db", undefined, undefined);
+    const ask = sent("meAnalyze").at(-1);
+    if (ask === undefined) throw new Error("the analysis should have been sent");
+
+    // The panel asks the same image something else while the analysis runs.
+    readSpaceBytes("a", [0x10]);
+
+    // The analysis's own reply still belongs to it.
+    reply({
+      kind: "meAnalyze",
+      id: ask.id,
+      regionOffset: 0,
+      analysis: undefined,
+      problem: "nothing here",
+    });
+    await expect(analysis).resolves.toMatchObject({ problem: "nothing here" });
   });
 });

@@ -101,6 +101,12 @@ export function firmwareFor(pane: PaneId): PaneFirmware | undefined {
 interface PaneWorker {
   readonly worker: Worker;
   job: number;
+  /**
+   * The job of this pane's most recent one-at-a-time ask, by the response kind
+   * that answers it. What makes "superseded" mean *by another ask of the same
+   * kind*, rather than by any ask at all.
+   */
+  readonly latest: Map<string, number>;
 }
 
 const workers: Partial<Record<PaneId, PaneWorker>> = {};
@@ -112,11 +118,18 @@ function ensureWorker(pane: PaneId): PaneWorker {
   const worker = new Worker(new URL("../workers/firmware.worker.ts", import.meta.url), {
     type: "module",
   });
-  const held: PaneWorker = { worker, job: 0 };
+  const held: PaneWorker = { worker, job: 0, latest: new Map() };
   worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) => {
     const response = event.data;
-    // A reply to a superseded job is an answer to an old question.
-    if (response.id !== held.job) return;
+    // A reply to a superseded job is an answer to an old question — and what
+    // supersedes a one-at-a-time ask is *another ask of its own kind*, not any
+    // ask at all. The pane's job counter is shared, so gating every reply on it
+    // dropped the answer to a question nothing had replaced: an ME analysis
+    // still running when the panel asked for the same image's file names had
+    // its reply thrown away and its waiter left for ever, which is the "Reading
+    // ME…" that never finished on a dump whose names are fetched.
+    const latest = held.latest.get(response.kind);
+    if (latest === undefined ? response.id !== held.job : response.id !== latest) return;
 
     switch (response.kind) {
       case "firmwareProgress":
@@ -292,6 +305,11 @@ function send(pane: PaneId, request: FirmwareWorkerRequest): void {
  * answered now, and saying so is what lets the caller give up and say why.
  */
 function dropAsks(pane: PaneId, failure?: { readonly id: number; readonly problem: string }): void {
+  // The freshest job of every kind goes with them. Each of those asks was about
+  // a tree that is being replaced, so its reply must be dropped on arrival —
+  // which is the stale-session guard, and it only holds while nothing still
+  // calls itself the freshest of its kind.
+  workers[pane]?.latest.clear();
   fitWaiters.get(pane)?.(undefined);
   fitWaiters.delete(pane);
   spaceBytesWaiters.get(pane)?.(undefined);
@@ -327,9 +345,15 @@ function dropAsks(pane: PaneId, failure?: { readonly id: number; readonly proble
   meFileNamesWaiters.delete(pane);
 }
 
-function nextAskJob(pane: PaneId): number {
+/**
+ * A job of this ask's own, recorded under the response kind that will answer
+ * it: `answeredBy` is that kind, which is the ask's own name except where the
+ * worker answers under another (`fitRead` comes back as a `fitReport`).
+ */
+function nextAskJob(pane: PaneId, answeredBy: string): number {
   const held = ensureWorker(pane);
   held.job += 1;
+  held.latest.set(answeredBy, held.job);
   return held.job;
 }
 
@@ -430,7 +454,11 @@ export function findFirmwareNodeAt(
     // A second ask supersedes the first, which is then told nothing was found.
     offsetWaiters.get(pane)?.(undefined);
     offsetWaiters.set(pane, resolve);
-    send(pane, { kind: "firmwareNodeAtOffset", id: nextAskJob(pane), offset });
+    send(pane, {
+      kind: "firmwareNodeAtOffset",
+      id: nextAskJob(pane, "firmwareNodeAtOffset"),
+      offset,
+    });
   });
 }
 
@@ -470,7 +498,12 @@ export async function readSpaceBytes(
     // A second ask supersedes the first, which is then told nothing came back.
     spaceBytesWaiters.get(pane)?.(undefined);
     spaceBytesWaiters.set(pane, resolve);
-    send(pane, { kind: "firmwareSpaceBytes", id: nextAskJob(pane), space, range });
+    send(pane, {
+      kind: "firmwareSpaceBytes",
+      id: nextAskJob(pane, "firmwareSpaceBytes"),
+      space,
+      range,
+    });
   });
 }
 
@@ -520,7 +553,7 @@ export async function askFirmwarePart(
     // A second ask supersedes the first, which is then told the image as-is.
     layoutWaiters.get(pane)?.({ layout: IMAGE_LAYOUT, rebuild: undefined });
     layoutWaiters.set(pane, resolve);
-    send(pane, { kind: "firmwareLayout", id: nextAskJob(pane), ...target });
+    send(pane, { kind: "firmwareLayout", id: nextAskJob(pane, "firmwareLayout"), ...target });
   });
 }
 
@@ -554,7 +587,7 @@ export async function askFirmwareRebuild(
     if (onProgress !== undefined) rebuildProgress.set(pane, onProgress);
     send(pane, {
       kind: "firmwareRebuild",
-      id: nextAskJob(pane),
+      id: nextAskJob(pane, "firmwareRebuild"),
       content,
       bytes,
       target: {
@@ -627,7 +660,7 @@ export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
     // A second ask supersedes the first, which is then told no table was read.
     fitWaiters.get(pane)?.(undefined);
     fitWaiters.set(pane, resolve);
-    send(pane, { kind: "fitRead", id: nextAskJob(pane) });
+    send(pane, { kind: "fitRead", id: nextAskJob(pane, "fitReport") });
   });
 }
 
@@ -653,7 +686,7 @@ export async function editPaneFit(
     // the newer one is the one that counts, and its plan is the one applied.
     fitEditWaiters.get(pane)?.(undefined);
     fitEditWaiters.set(pane, resolve);
-    send(pane, { kind: "fitEdit", id: nextAskJob(pane), edit });
+    send(pane, { kind: "fitEdit", id: nextAskJob(pane, "fitEdit"), edit });
   });
   if (planned === undefined) {
     return { problem: undefined, summary: undefined };
@@ -837,7 +870,7 @@ export function analyzePaneMe(
     meWaiters.set(pane, resolve);
     send(pane, {
       kind: "meAnalyze",
-      id: nextAskJob(pane),
+      id: nextAskJob(pane, "meAnalyze"),
       databaseText,
       huffmanText,
       fileTableText,
@@ -893,7 +926,7 @@ export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | unde
   const promise = new Promise<MeChecksumsResponse | undefined>((resolve) => {
     checksumWaiters.get(pane)?.(undefined);
     checksumWaiters.set(pane, resolve);
-    send(pane, { kind: "meChecksums", id: nextAskJob(pane) });
+    send(pane, { kind: "meChecksums", id: nextAskJob(pane, "meChecksums") });
   }).then((response) => {
     if (meChecksumsInFlight.get(pane)?.promise === promise) meChecksumsInFlight.delete(pane);
     if (response !== undefined && meGenerationOf(pane) === generation) {
@@ -1013,7 +1046,7 @@ export function fileNamesPaneMe(
     meFileNamesWaiters.set(pane, resolve);
     send(pane, {
       kind: "meFileNames",
-      id: nextAskJob(pane),
+      id: nextAskJob(pane, "meFileNames"),
       mfs: options.mfs,
       efs: options.efs,
       configIDs: options.configIDs,
