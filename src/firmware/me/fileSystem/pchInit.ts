@@ -88,8 +88,11 @@ export interface PCHIdentity {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.NamedRecord
  */
 interface NamedRecord {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.NamedRecord.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.NamedRecord.offset */
   readonly offset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.NamedRecord.size */
   readonly size: number;
 }
 
