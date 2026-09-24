@@ -1677,8 +1677,7 @@
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.resolveAndStartAccess": "n/a — the macOS sandbox's security-scoped bookmarks",
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.load": "n/a — the macOS sandbox's security-scoped bookmarks",
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.loadOrder": "n/a — the macOS sandbox's security-scoped bookmarks",
-        "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.pruneNow": "n/a — the macOS sandbox's security-scoped bookmarks",
-        "ByteRipperApp/Documents/RecentFilesStore.swift#*": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on"
+        "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.pruneNow": "n/a — the macOS sandbox's security-scoped bookmarks"
       }
     },
     {
@@ -1778,8 +1777,7 @@
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.increaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.decreaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.validateMenuItem": "n/a — it only dims Zoom In and Zoom Out, and the browser's page zoom is the zoom (ANALYSIS.md)",
-        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)",
-        "ByteRipperApp/App/OpenRecentMenuController.swift#*": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on"
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)"
       }
     },
     {
@@ -4445,9 +4443,7 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRebuildsCompleted": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonIndexBuild": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapSegmentMenu": "later — G50: the gutter's menus on a panel's map, which upstream has off behind a flag",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.forgetPaneView": "n/a — React unmounts a pane's view with the surface that rendered it; there is no table of views to forget",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.openRecentFile": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.clearRecentFiles": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.forgetPaneView": "n/a — React unmounts a pane's view with the surface that rendered it; there is no table of views to forget"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
