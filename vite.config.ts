@@ -60,6 +60,15 @@ export default defineConfig(({ mode }) => {
       // `// @vitest-environment jsdom`, and brings the dependency with it.
       environment: "node",
       include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+      // A timeout is here to catch a test that hangs, not a machine that is
+      // busy. Nearly every test in this suite is instantaneous, but a handful
+      // do real work — LZMA at its maximum level, the SHA-384 and SHA-512
+      // vectors, a megabyte joined through the piece table — and those take
+      // about a second each on an idle machine. Vitest runs one worker per
+      // core, so on a full one they take several, and the default five seconds
+      // failed them at random rather than the run after a genuine regression.
+      // Twenty is long enough that only a test that will never finish hits it.
+      testTimeout: 20_000,
     },
   };
 });

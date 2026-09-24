@@ -24,6 +24,30 @@ const documentOf = (bytes: number[]) =>
 
 const content = async (doc: BinaryDocument) => asArray(await readAll(doc.storage));
 
+/**
+ * Two byte arrays compared byte by byte, reporting the first offset that
+ * differs.
+ *
+ * `toEqual` is the right assertion for the short arrays everywhere else in this
+ * suite, but it walks every element building a diff that a megabyte of bytes
+ * could never usefully print. This says the same thing in milliseconds — and
+ * says it better, since the first offset that differs is the whole of what a
+ * reader wants out of that diff.
+ */
+function expectSameBytes(actual: Uint8Array, expected: Uint8Array): void {
+  if (actual.length !== expected.length) {
+    expect.fail(`expected ${expected.length} bytes, got ${actual.length}`);
+  }
+  const asHex = (byte: number) => `0x${byte.toString(16).padStart(2, "0")}`;
+  for (let at = 0; at < expected.length; at++) {
+    const got = actual[at] ?? 0;
+    const want = expected[at] ?? 0;
+    if (got !== want) {
+      expect.fail(`byte ${at} of ${expected.length} is ${asHex(got)}, expected ${asHex(want)}`);
+    }
+  }
+}
+
 describe("a freshly opened document", () => {
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testOpenExposesSizeAndIdentity
   it("exposes its size and nothing to undo", () => {
@@ -684,6 +708,12 @@ describe("joining another file in", () => {
   // A chunk bigger than the overlay's inline budget makes the storage fold
   // itself into a fresh base mid-join. Every byte still lands, and the scratch
   // copy proves the fold happened.
+  //
+  // A megabyte is the size upstream uses, and the join itself costs about two
+  // milliseconds at that size. What used to make this the slowest test in the
+  // suite was the assertion rather than the work: `toEqual` over a million
+  // bytes took two seconds, which under the parallel suite tripped the
+  // five-second timeout about every other run. Hence `expectSameBytes`.
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testAJoinLargerThanTheAddBufferBudgetStillLands
   it("still lands every byte when a chunk overflows the add buffer's budget", async () => {
     const size = 1024 * 1024 + 1;
@@ -701,7 +731,7 @@ describe("joining another file in", () => {
     const expected = new Uint8Array(size + 16);
     expected.set(source);
     expected.set(countingBytes(16, 0x10), size);
-    expect(await readAll(doc.storage)).toEqual(expected);
+    expectSameBytes(await readAll(doc.storage), expected);
     expect(scratch.writeCount).toBeGreaterThanOrEqual(1);
   });
 
