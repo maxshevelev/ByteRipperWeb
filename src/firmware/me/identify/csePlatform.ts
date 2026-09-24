@@ -7,8 +7,8 @@ import type { FirmwareFamily } from "@/firmware/me/models/firmwareFacts";
  * initialisation table*: where one exists it already says which chipset and
  * stepping the firmware initialises, and naming a platform beside it would be a
  * second, vaguer answer to a question already answered. That gate is why the row
- * is absent on most CSME images and present on the ones whose file system holds
- * no such table.
+ * is absent on most CSME images and present on the ones that carry no such
+ * table in either stream that can hold one.
  *
  * Not ported: the SPS names, which upstream takes from an extension's SKU cell
  * before falling back to the initialisation table, and the GSC ones. Those
@@ -19,17 +19,14 @@ import type { FirmwareFamily } from "@/firmware/me/models/firmwareFacts";
  */
 
 /**
- * What is known about the image's chipset initialisation table — the thing
- * whose presence decides whether a CSME platform is named at all.
- *
- * `unknown` is the honest answer for a file-table volume that holds files: a
- * full decode of its configuration would find any initialisation table in it,
- * and until that is ported this engine cannot say the table is *absent*. Naming
- * a platform on a "maybe" would print a row upstream leaves off.
+ * Whether the image carries a chipset initialisation table — the thing whose
+ * presence decides whether a CSME platform is named at all. Answered from the
+ * decoded aggregate, which by then has read both of the streams that can hold
+ * one: the MFS volume's low-level file 6 and the FTPR `intl.cfg` module.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Identify/CSEPlatform.swift#CSEPlatformNames.ChipsetInitTable
  */
-export type ChipsetInitTable = "present" | "absent" | "unknown";
+export type ChipsetInitTable = "present" | "absent";
 
 /**
  * The platform name, or nothing when this family and version name none.

@@ -1,4 +1,4 @@
-import type { MFSBackup, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type { MFSBackup, MFSPCHInit, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type {
   BootPartition,
   CodePartition,
@@ -54,6 +54,7 @@ export function analysisWith(overrides: Partial<FirmwareAnalysis> = {}): Firmwar
     fwUpdateSupport: undefined,
     independentFirmware: undefined,
     mfsVolume: undefined,
+    chipsetInit: undefined,
     mfsBackup: undefined,
     efsVolume: undefined,
     oemConfiguration: undefined,
@@ -135,6 +136,20 @@ export const codePartitionFixture = (
  * A legacy MFS volume with one present file, and the chipset initialisation
  * aggregate when a test wants one.
  */
+/**
+ * The image's final Chipset Initialization aggregate — what the Chipset row
+ * reads. A legacy image's is the copy its MFS volume holds, so a fixture sets
+ * both, the way the engine fills them.
+ */
+export function chipsetInitFixture(
+  chipsets: readonly { name: string; steppings: string }[]
+): MFSPCHInit {
+  return {
+    records: [],
+    chipsets: chipsets.map((one) => ({ chipset: one.name, steppings: one.steppings })),
+  };
+}
+
 export function mfsVolumeFixture(chipset?: { name: string; steppings: string }): MFSVolume {
   return {
     offset: 0x7_0000,

@@ -313,7 +313,15 @@ export interface MFSVolume {
   readonly homeDirectory: MFSHomeDirectory | undefined;
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.reservedIntegrity */
   readonly reservedIntegrity: readonly MFSReservedFileIntegrity[];
-  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.pchInit */
+  /**
+   * What *this volume's* own file-6 Intel Configuration held (upstream's
+   * `mfs_cfg_anl` over low-level file 6, either record layout). The image's
+   * final answer is `FirmwareAnalysis.chipsetInit`, which the FTPR `intl.cfg`
+   * may replace this with; an FTBL volume carries no file 6 and so leaves this
+   * undefined while the image still names a chipset.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSVolume.pchInit
+   */
   readonly pchInit: MFSPCHInit | undefined;
 }
 

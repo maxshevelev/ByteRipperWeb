@@ -40,6 +40,7 @@ import {
   ftblFileIntegrity,
   homeDirectory,
   type MFSConfigDecode,
+  type MFSConfigIDDecode,
   type MFSRawConfigIDRecord,
   type MFSRawConfigRecord,
   type MFSVolumeInfo,
@@ -49,7 +50,12 @@ import {
   vfsStartsAtZero,
 } from "@/firmware/me/fileSystem/mfs";
 import { parseMfsBackup } from "@/firmware/me/fileSystem/mfsBackup";
-import { decodePchInit } from "@/firmware/me/fileSystem/pchInit";
+import {
+  decodePchInit,
+  decodePchInitByID,
+  decodePchInitStream,
+  type PCHNaming,
+} from "@/firmware/me/fileSystem/pchInit";
 import { type ChipsetInitTable, csePlatformName } from "@/firmware/me/identify/csePlatform";
 import { identify } from "@/firmware/me/identify/identifier";
 import {
@@ -76,6 +82,7 @@ import type {
   MFSBackup,
   MFSConfigIDRecord,
   MFSConfigRecord,
+  MFSPCHInit,
   MFSVolume,
   OEMConfiguration,
 } from "@/firmware/me/models/fileSystemFacts";
@@ -612,6 +619,8 @@ function analyze(
       fwUpdateSupport: undefined,
       independentFirmware: undefined,
       mfsVolume: fileSystems.mfsVolume,
+      // Read in phase 9, which this path — no manifest — never reaches.
+      chipsetInit: undefined,
       mfsBackup: fileSystems.mfsBackup,
       efsVolume: fileSystems.efsVolume,
       oemConfiguration: fileSystems.oemConfiguration,
@@ -843,6 +852,7 @@ function analyze(
   // for the identity rather than guessing the stride from the layout, which
   // would read one struct as the other and print a table of nonsense.
   let mfsConfigurations: readonly MFSConfigDecode[] = [];
+  let mfsConfigurationsByID: readonly MFSConfigIDDecode[] = [];
   if (mfsVolume !== undefined && mfsInfo !== undefined) {
     const decoded = configurations({
       files: mfsInfo.files,
@@ -852,6 +862,7 @@ function analyze(
       platform: mfsInfo.ftblPlatform,
     });
     mfsConfigurations = decoded.byName;
+    mfsConfigurationsByID = decoded.byID;
     mfsVolume = {
       ...mfsVolume,
       configurations: decoded.byName.map((one) => ({
@@ -937,19 +948,67 @@ function analyze(
         reservedIntegrity: reservedIntegrity({ ...layoutOf, isAFS: false }),
       };
     }
-    mfsVolume = {
-      ...mfsVolume,
-      pchInit: decodePchInit(mfsInfo.files, mfsConfigurations, {
-        variant,
-        major,
-        minor,
-        build: identity.build,
-        year: manifest.year,
-        month: manifest.month,
-        day: manifest.day,
-      }),
-    };
   }
+
+  // Phase 9 (identity-gated, database for the ID-keyed layouts): the Intel
+  // Configuration's Chipset Initialization Tables (upstream
+  // mphytbl/pch_init_anl). Only the tables' *stepping letters* are
+  // identity-gated (variant/major/minor/build + the manifest date decide
+  // absolute vs bitfield vs build rules), so the decode is deferred past
+  // identity. Unlike the Home Directory it is not gated on `vfsStartsAtZero` —
+  // a config stream is read wherever its files start.
+  //
+  // Two sources, in upstream's own order: the MFS volume's low-level file 6
+  // first, then the FTPR `intl.cfg` module, which *replaces* whatever the
+  // volume said — with its own empty answer too, exactly as `ext_anl`
+  // overwrites `pch_init_final` (MEA.py 5999–6009). A CSME 15/16 FTBL volume
+  // carries no file 6 at all, so `intl.cfg` is the only copy it has.
+  // Best-effort throughout: no mphytbl record, or no file table to recognise
+  // one by, gives nothing and no Issues.
+  const pchIdentity = {
+    variant: identity.variant,
+    major: identity.major,
+    minor: identity.minor,
+    build: identity.build,
+    year: manifest.year,
+    month: manifest.month,
+    day: manifest.day,
+  };
+  const pchNaming: PCHNaming = {
+    fileTable,
+    platform: mfsInfo?.ftblPlatform ?? -1,
+    dictionary: mfsInfo?.ftblDictionary ?? -1,
+  };
+  const pchRecordSize = configRecordSize(
+    identity.variant,
+    identity.major,
+    identity.minor,
+    mfsInfo?.ftblPlatform ?? -1
+  );
+  if (mfsInfo !== undefined) {
+    const own =
+      pchRecordSize === 0x1c
+        ? decodePchInit(mfsInfo.files, mfsConfigurations, pchIdentity)
+        : decodePchInitByID(mfsInfo.files, mfsConfigurationsByID, pchNaming, pchIdentity);
+    if (mfsVolume !== undefined) mfsVolume = { ...mfsVolume, pchInit: own };
+  }
+  // The image's final answer. Unlike upstream's, it needs no volume to hang on:
+  // `chipsetInit` is a field of the analysis, so an image with an `intl.cfg`
+  // and no MFS at all — which upstream reads and then has nowhere to keep —
+  // still names its chipset here. The reach of that is bounded by who fetches
+  // the database: this engine is handed `FileTable.dat` rather than fetching it
+  // (`fileTableWanted`, which asks the analysis), and an image whose *only*
+  // reason to want one is an ID-keyed `intl.cfg` asks for nothing, so it is
+  // named only when the table is already held. No dump in upstream's set is
+  // one, and upstream drops the case outright.
+  // @upstream-differs upstream drops the FTPR answer when the image has no MFS
+  // volume, because its own field lives on `MFSVolume`; the model this port
+  // gained in `chipsetInit` has no such place to lose it
+  const intelConfiguration = moduleBody("intl.cfg", codePartition, bytes, baseOffset);
+  const chipsetInit =
+    intelConfiguration === undefined
+      ? mfsVolume?.pchInit
+      : decodePchInitStream(intelConfiguration, pchRecordSize, pchNaming, pchIdentity);
 
   // The Unlock Token Flags. An image may carry a debug unlock token as an FPT
   // partition named "UTOK" or "STKN", and such a partition may *end* with a
@@ -981,6 +1040,7 @@ function analyze(
     presentFileIndices: (mfsInfo?.files ?? [])
       .filter((one) => one.content.length > 0)
       .map((one) => one.index),
+    efsHoldsFiles: (efsVolumeForWalk?.files?.at(-1)?.storedSize ?? 0) > 0,
     hasConfiguration: configurationPresent,
   });
 
@@ -1044,7 +1104,7 @@ function analyze(
         family: identity.family,
         major: identity.major,
         minor: identity.minor,
-        chipsetInitTable: chipsetInitTable(mfsVolume),
+        chipsetInitTable: chipsetInitTable(chipsetInit),
       }),
     databaseName: identity.databaseName,
     arbSvn: facts.arbSvn,
@@ -1075,6 +1135,7 @@ function analyze(
     fwUpdateSupport: fwUpdate,
     independentFirmware: independent.length === 0 ? undefined : independent,
     mfsVolume,
+    chipsetInit,
     mfsBackup: fileSystems.mfsBackup,
     efsVolume: efsVolumeForWalk,
     oemConfiguration: oemConfiguration,
@@ -1152,16 +1213,44 @@ function csmeSkuText(
 }
 
 /**
- * What is known about the image's chipset initialisation table.
+ * Whether the image carries a chipset initialisation table — the thing that
+ * decides whether a CSME platform is named at all. Both of the streams that can
+ * hold one (the volume's file 6, the FTPR `intl.cfg`) have been read by the
+ * time this is asked, so the aggregate answers it outright: upstream's own gate
+ * is the emptiness of `pch_init_final`.
  *
- * The decoded tables when there are some, "absent" when the volume was read and
- * holds none — and "unknown" for a file-table volume with files in it, whose
- * configuration needs `FileTable.dat` to read and may well carry one.
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.chipsetInitTable
  */
-function chipsetInitTable(volume: MFSVolume | undefined): ChipsetInitTable {
-  if ((volume?.pchInit?.chipsets.length ?? 0) > 0) return "present";
-  if (volume?.usesFTBL === true && volume.presentFileCount > 0) return "unknown";
-  return "absent";
+function chipsetInitTable(chipsetInit: MFSPCHInit | undefined): ChipsetInitTable {
+  return (chipsetInit?.chipsets.length ?? 0) > 0 ? "present" : "absent";
+}
+
+/**
+ * One `$CPD` module's bytes as they sit in the region: the module directory's
+ * own offset from the `$CPD` base, its own size, and no decompression — the
+ * configuration modules read this way are stored plain, and upstream slices
+ * them straight out of the buffer (MEA.py 5999). Nothing when the partition
+ * carries no such module, when the module is empty the way upstream's
+ * `entry_empty` counts empty (no bytes, or all 0xFF), or when its extent runs
+ * past the region.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.moduleBody
+ */
+function moduleBody(
+  name: string,
+  partition: CodePartition | undefined,
+  bytes: Uint8Array,
+  baseOffset: number
+): Uint8Array | undefined {
+  const module = partition?.modules.find((one) => one.name === name);
+  if (module === undefined || module.size <= 0) return undefined;
+  // A row here carries the module's *absolute* offset, where upstream's carries
+  // one relative to the `$CPD` base and adds the partition's; the byte range is
+  // the same one either way.
+  const start = module.offset - baseOffset;
+  if (start < 0 || start + module.size > bytes.length) return undefined;
+  const body = bytes.subarray(start, start + module.size);
+  return body.every((one) => one === 0xff) ? undefined : body;
 }
 
 // MARK: - The file systems

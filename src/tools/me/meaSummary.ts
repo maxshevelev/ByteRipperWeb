@@ -117,10 +117,10 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   if (identified) fact("Type", axisType(a.type));
   // 5 · SKU.
   fact("SKU", a.sku);
-  // 6 · One chipset row: the initialisation tables' last chipset, else the
+  // 6 · One chipset row: every chipset the initialisation tables named, else the
   // recorded stepping letters, else upstream's own "Unknown".
   if (identified && hasChipsetRow(a)) {
-    const chipset = chipsetCell(a.mfsVolume?.pchInit);
+    const chipset = chipsetCell(a.chipsetInit);
     if (chipset !== undefined) add("Chipset", shown(chipset));
     else if (nonEmpty(a.chipsetStepping)) {
       add("Chipset Stepping", shown(chipsetSteppingText(a.chipsetStepping)));
@@ -349,14 +349,23 @@ function meuVersion(a: FirmwareAnalysis): string | undefined {
 }
 
 /**
- * The Chipset cell: the last chipset of the initialisation tables as the console
- * writes it — "CNP/CMP-H B,A" — or the chipset alone when it has no letters.
+ * The Chipset cell, over the image's *final* aggregate (the FTPR `intl.cfg`
+ * replaces the MFS volume's own copy, so `mfsVolume.pchInit` is not always the
+ * answer): **every** chipset the initialisation tables named, each as
+ * `"<chipset> <letters,comma-joined>"` and one per line. That is upstream's own
+ * cell — it prints `pch_init_final[-1][0]`, the total row its aggregation
+ * appends, which is exactly this join (MEA.py 9126–9130). An image with one
+ * chipset, which is most of them, reads as that one chipset; a chipset that
+ * carried no stepping letters reads as its name alone.
  */
 function chipsetCell(pchInit: MFSPCHInit | undefined): string | undefined {
-  const last = pchInit?.chipsets.at(-1);
-  if (last === undefined || last.chipset.length === 0) return undefined;
-  const letters = [...last.steppings].join(",");
-  return letters.length === 0 ? last.chipset : `${last.chipset} ${letters}`;
+  const rows = (pchInit?.chipsets ?? [])
+    .filter((one) => one.chipset.length > 0)
+    .map((one) => {
+      const letters = [...one.steppings].join(",");
+      return letters.length === 0 ? one.chipset : `${one.chipset} ${letters}`;
+    });
+  return rows.length === 0 ? undefined : rows.join("\n");
 }
 
 function axisType(type: FirmwareAnalysis["type"]): string | undefined {

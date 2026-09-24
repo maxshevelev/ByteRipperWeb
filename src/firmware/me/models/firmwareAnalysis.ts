@@ -2,6 +2,7 @@ import type { ManifestFormat } from "@/firmware/me/layout/manifest";
 import type {
   EFSVolume,
   MFSBackup,
+  MFSPCHInit,
   MFSVolume,
   OEMConfiguration,
 } from "@/firmware/me/models/fileSystemFacts";
@@ -492,6 +493,21 @@ export interface FirmwareAnalysis {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.mfsVolume
    */
   readonly mfsVolume: MFSVolume | undefined;
+  /**
+   * Chipset Initialization Tables (row 6a, upstream `pch_init_final`): the
+   * image's *final* answer, after every Intel Configuration that carries one
+   * has been read in upstream's own order — the MFS volume's low-level file 6
+   * first, then the FTPR `$CPD` module `intl.cfg`, which replaces it with
+   * whatever it yields, nothing included (MEA.py 5999–6009).
+   *
+   * Distinct from `mfsVolume.pchInit`, which stays what *that volume* held: on
+   * a CSME 15/16 image the volume holds nothing at all and this is the only
+   * chipset there is, and where both exist and disagree this one is the answer
+   * the Chipset row and the Chipset Support gate read.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.chipsetInit
+   */
+  readonly chipsetInit: MFSPCHInit | undefined;
   /**
    * An MFS backup area: an "MFSB" partition, or a main MFS region in backup state.
    *

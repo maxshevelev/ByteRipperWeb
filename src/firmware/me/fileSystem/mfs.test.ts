@@ -912,8 +912,9 @@ describe("the File System State", () => {
   const state = (
     presentFileIndices: readonly number[],
     usesFTBL = false,
-    hasConfiguration = false
-  ) => mfsState({ usesFTBL, presentFileIndices, hasConfiguration });
+    hasConfiguration = false,
+    efsHoldsFiles = false
+  ) => mfsState({ usesFTBL, presentFileIndices, efsHoldsFiles, hasConfiguration });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testLegacyIndexSetMapsToInitialized
   it("is Initialized for any reserved file", () => {
@@ -948,5 +949,23 @@ describe("the File System State", () => {
   it("reads no index on a file-table volume", () => {
     expect(state([8], true)).toBe("unconfigured");
     expect(state([7, 9], true)).toBe("unconfigured");
+  });
+
+  // A written EFS raises the state to Initialized from wherever it stood
+  // (`efs_init`, MEA.py 13050) — which is how a CSME 15/16 image reaches
+  // Initialized at all, its own FAT indices saying nothing.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testAWrittenEFSRaisesTheStateToInitialized
+  it("is raised to Initialized by a written EFS", () => {
+    expect(state([0, 1, 2], true, false, true)).toBe("initialized");
+    expect(state([], false, false, true)).toBe("initialized");
+  });
+
+  // Upstream reaches the configuration raise through an `elif`, so a state the
+  // EFS already lifted never sees it — and a legacy volume that was Initialized
+  // by its own indices is not lifted twice.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testTheEFSRaiseTakesPrecedenceOverTheConfigurationOne
+  it("lets the EFS raise take precedence over the configuration one", () => {
+    expect(state([7], false, true, true)).toBe("initialized");
+    expect(state([8], false, false, true)).toBe("initialized");
   });
 });

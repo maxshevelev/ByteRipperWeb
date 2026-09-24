@@ -1,4 +1,12 @@
-import type { MFSConfigDecode, MFSLowLevelFile } from "@/firmware/me/fileSystem/mfs";
+import type { FileTable } from "@/firmware/me/data/fileTable";
+import {
+  decodeConfigIDRecords,
+  decodeConfigRecords,
+  type MFSConfigDecode,
+  type MFSConfigIDDecode,
+  type MFSLowLevelFile,
+  type MFSRawConfigIDRecord,
+} from "@/firmware/me/fileSystem/mfs";
 import type {
   MFSPCHInit,
   MFSPCHInitChipset,
@@ -6,14 +14,31 @@ import type {
 } from "@/firmware/me/models/fileSystemFacts";
 
 /**
- * The chipset initialisation tables of a legacy volume's Intel Configuration —
- * upstream `mphytbl` and `pch_init_anl`.
+ * The chipset initialisation tables of an Intel Configuration stream — upstream
+ * `mphytbl` and `pch_init_anl`.
  *
- * File 6's configuration stream lists file records named `mphytbl*`; each one's
- * content, sliced out of file 6 by the record's offset and size, is a table whose
- * first bytes name a chipset, a stepping nibble and a table revision. Which rule
- * reads the nibble is decided by the identity and the manifest's date, so this
- * runs after identification. A file-table volume never gets here.
+ * A configuration stream is a list of *file* records over one blob of bytes:
+ * each record says where its file's content sits inside that same blob. A
+ * record named `mphytbl*` is a chipset init table, whose first bytes name a
+ * chipset, a stepping nibble and a table revision. Which rule reads the nibble
+ * is decided by the identity and the manifest's date, so this runs after
+ * identification.
+ *
+ * Three streams carry one, and upstream reads all three through the same
+ * `mfs_cfg_anl`:
+ *
+ * - the MFS volume's low-level file 6 in the **named** (0x1C) layout (CSME
+ *   11/12 and their analogues), whose records spell the file name themselves;
+ * - the same file 6 in the **ID-keyed** (0xC) layout (CSME 13–16), whose
+ *   records carry a File ID and are named by the `FTBL` row `FileTable.dat`
+ *   keys under it;
+ * - the FTPR `$CPD` module **`intl.cfg`**, which is file 6 kept as a module.
+ *
+ * The third one *wins*: upstream prefers the FTPR copy over the MFS one and
+ * overwrites `pch_init_final` with whatever it yields, empty included (MEA.py
+ * 5999–6009). That is the only source a CSME 15/16 image has — its FTBL volume
+ * carries no file 6 at all, which is why those images read no chipset until
+ * `intl.cfg` is read.
  *
  * Ported from `Packages/MEFirmware/FileSystem/PCHInit.swift`.
  */
@@ -57,7 +82,29 @@ export interface PCHIdentity {
 }
 
 /**
- * The tables of file 6, or nothing when its configuration lists none.
+ * One configuration record reduced to what the chipset scan needs: what the
+ * file is called, and where its bytes sit in the stream carrying it.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.NamedRecord
+ */
+interface NamedRecord {
+  readonly name: string;
+  readonly offset: number;
+  readonly size: number;
+}
+
+/** How the ID-keyed layouts look a record's name up in `FileTable.dat`. */
+export interface PCHNaming {
+  readonly fileTable: FileTable | undefined;
+  readonly platform: number;
+  readonly dictionary: number;
+}
+
+/**
+ * The **named** (0x1C) Intel Configuration of an MFS volume: low-level file 6
+ * and the records the volume decode already read out of it. Nothing when the
+ * volume carries no file 6, no configuration owned by it, or no `mphytbl*`
+ * record in it.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.decode
  */
@@ -69,25 +116,114 @@ export function decodePchInit(
   const intel = files.find((one) => one.index === 6);
   const config = configurations.find((one) => one.owningFile === 6);
   if (intel === undefined || config === undefined) return undefined;
+  const records = config.records
+    .filter((one) => !one.isFolder)
+    .map((one) => ({ name: one.name, offset: one.offset, size: one.size }));
+  return decodeStream(intel.content, records, identity);
+}
 
-  const records: MFSPCHInitRecord[] = [];
-  for (const record of config.records) {
+/**
+ * The **ID-keyed** (0xC) Intel Configuration of an MFS volume: the same
+ * low-level file 6, whose records name nothing themselves — the `FTBL` row
+ * `FileTable.dat` keys under each record's File ID does (upstream
+ * `mfs_cfg_anl`'s 0xC branch, MEA.py 8546). Without a table no record can be
+ * recognised as a chipset table, and the answer is nothing rather than a guess.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.decode
+ */
+export function decodePchInitByID(
+  files: readonly MFSLowLevelFile[],
+  configurationsByID: readonly MFSConfigIDDecode[],
+  naming: PCHNaming,
+  identity: PCHIdentity
+): MFSPCHInit | undefined {
+  const intel = files.find((one) => one.index === 6);
+  const config = configurationsByID.find((one) => one.owningFile === 6);
+  if (intel === undefined || config === undefined) return undefined;
+  return decodeStream(intel.content, named(config.records, naming), identity);
+}
+
+/**
+ * An Intel Configuration read straight off its own bytes — the FTPR `$CPD`
+ * module `intl.cfg`, which upstream hands to `mfs_cfg_anl` exactly as it hands
+ * it a volume's file 6 (MEA.py 6008). `recordSize` is the identity's own
+ * `get_cfg_rec_size`: the 0xC layout needs the file table to name its records,
+ * the 0x1C one does not.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.decode
+ */
+export function decodePchInitStream(
+  stream: Uint8Array,
+  recordSize: number,
+  naming: PCHNaming,
+  identity: PCHIdentity
+): MFSPCHInit | undefined {
+  const records =
+    recordSize === 0x1c
+      ? (decodeConfigRecords(stream) ?? [])
+          .filter((one) => !one.isFolder)
+          .map((one) => ({ name: one.name, offset: one.offset, size: one.size }))
+      : named(decodeConfigIDRecords(stream) ?? [], naming);
+  return decodeStream(stream, records, identity);
+}
+
+/**
+ * What `FileTable.dat` calls each ID-keyed record's file, as the *base name*
+ * upstream tests (`rec_name = os.path.basename(rec_file)`, MEA.py 8552). A
+ * record the table has no row for reads as upstream's own `/Unknown/<ID>.bin`
+ * fallback, which no chipset table is ever called.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.named
+ */
+function named(
+  records: readonly MFSRawConfigIDRecord[],
+  naming: PCHNaming
+): readonly NamedRecord[] {
+  return records.map((record) => {
+    const path = naming.fileTable?.recordForFileID(
+      record.fileID,
+      naming.platform,
+      naming.dictionary
+    )?.path;
+    const name =
+      path === undefined
+        ? `${record.fileID.toString(16).toUpperCase().padStart(8, "0")}.bin`
+        : (path.split("/").at(-1) ?? "");
+    return { name, offset: record.offset, size: record.size };
+  });
+}
+
+/**
+ * One configuration stream → the Chipset Initialization Table facts. Nothing
+ * when the stream holds no `mphytbl*` file with bytes behind it: upstream's
+ * `pch_init_info` then stays empty and `pch_init_anl` returns its empty list.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/PCHInit.swift#PCHInitDecoder.decode
+ */
+function decodeStream(
+  stream: Uint8Array,
+  records: readonly NamedRecord[],
+  identity: PCHIdentity
+): MFSPCHInit | undefined {
+  const decoded: MFSPCHInitRecord[] = [];
+  for (const record of records) {
     if (
-      record.isFolder ||
       !record.name.startsWith("mphytbl") ||
       record.size <= 0 ||
       record.offset < 0 ||
-      record.offset + record.size > intel.content.length
+      record.offset + record.size > stream.length
     ) {
       continue;
     }
-    const decoded = decodePchTable(
-      intel.content.subarray(record.offset, record.offset + record.size),
+    const table = decodePchTable(
+      stream.subarray(record.offset, record.offset + record.size),
       identity
     );
-    if (decoded !== undefined) records.push(decoded);
+    if (table !== undefined) decoded.push(table);
   }
-  return records.length === 0 ? undefined : { records, chipsets: aggregatePchInit(records) };
+  return decoded.length === 0
+    ? undefined
+    : { records: decoded, chipsets: aggregatePchInit(decoded) };
 }
 
 /**

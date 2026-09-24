@@ -3,6 +3,7 @@ import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
   analysisWith,
   bootFixture,
+  chipsetInitFixture,
   codePartitionFixture,
   manifestFixture,
   mfsBackupFixture,
@@ -44,6 +45,52 @@ describe("group presence and order", () => {
     );
     // Checksums is the exception: it is the row selected to ask for the digests.
     expect(titles(roots)).toEqual(["Firmware", "Regions (FPT)", "Checksums"]);
+  });
+
+  // The image's final Chipset Initialization tables get a root of their own
+  // only when the MFS volume's node is not already showing them — which is the
+  // CSME 15/16 shape, where the FTPR `intl.cfg` is the only copy.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testChipsetInitIsARootOnlyWhenTheVolumeDoesNotShowIt
+  it("gives the chipset tables a root only when the volume does not show them", () => {
+    const tables = chipsetInitFixture([{ name: "ADP-LP", steppings: "A" }]);
+
+    // No volume copy: the root carries it.
+    const fromFTPR = presentMEA(analysisWith({ chipsetInit: tables }), undefined);
+    const root = find("Chipset Initialization", fromFTPR);
+    expect(root?.children?.map((one) => one.title)).toEqual(["ADP-LP"]);
+    expect(field("Chipsets", root)).toBe("1");
+
+    // The volume holds the same tables: one node, under the volume.
+    const fromVolume = presentMEA(
+      analysisWith({
+        mfsVolume: mfsVolumeFixture({ name: "ADP-LP", steppings: "A" }),
+        chipsetInit: tables,
+      }),
+      undefined
+    );
+    expect(find("Chipset Initialization", fromVolume)).toBeUndefined();
+    expect(
+      find("Chipset Initialization", find("File System (MFS)", fromVolume)?.children)
+    ).toBeDefined();
+
+    // The two disagree — the FTPR copy replaced the volume's — so each is shown
+    // where it came from.
+    const disagreeing = presentMEA(
+      analysisWith({
+        mfsVolume: mfsVolumeFixture({ name: "TGP-LP", steppings: "B" }),
+        chipsetInit: tables,
+      }),
+      undefined
+    );
+    expect(find("Chipset Initialization", disagreeing)?.children?.map((one) => one.title)).toEqual([
+      "ADP-LP",
+    ]);
+    expect(
+      find(
+        "Chipset Initialization",
+        find("File System (MFS)", disagreeing)?.children
+      )?.children?.map((one) => one.title)
+    ).toEqual(["TGP-LP"]);
   });
 
   // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testStructuralGroupsAppearInFixedOrder

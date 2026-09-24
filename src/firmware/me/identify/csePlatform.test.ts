@@ -32,11 +32,7 @@ describe("csePlatformName", () => {
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/CSEPlatformTests.swift#CSEPlatformTests.testTheInitialisationTableTakesTheRowInstead
   it("leaves the row to a chipset initialisation table where there is one", () => {
-    // And says nothing where it cannot tell: a file system this engine cannot
-    // read might hold one, and naming a platform on a maybe would print a row
-    // upstream leaves off.
     expect(name("csme", 16, 1, "present")).toBeUndefined();
-    expect(name("csme", 16, 1, "unknown")).toBeUndefined();
     expect(name("csme", 16, 1, "absent")).toBe("ADP/RPP");
   });
 

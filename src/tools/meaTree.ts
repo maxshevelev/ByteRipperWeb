@@ -3,6 +3,7 @@ import type {
   MFSConfigIDRecord,
   MFSFile,
   MFSHomeRecord,
+  MFSPCHInit,
 } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { versionText } from "@/firmware/me/models/firmwareFacts";
@@ -190,6 +191,7 @@ export function presentMEA(
     manifest(analysis),
     mfsVolume(analysis, names, configPaths),
     // The fact groups — everything else a dump carried, each only when present.
+    chipsetInitGroup(analysis),
     backupGroup(analysis),
     efsGroup(analysis, efsNames),
     oemGroup(analysis, configPaths),
@@ -643,21 +645,7 @@ function mfsVolume(
       children: home.entries.map(homeRow),
     });
   }
-  if (vol.pchInit !== undefined) {
-    const pch = vol.pchInit;
-    children.push({
-      title: "Chipset Initialization",
-      fields: new Fields().add("Records", pch.records.length).add("Chipsets", pch.chipsets.length)
-        .rows,
-      children: pch.chipsets.map(
-        (one): Draft => ({
-          title: one.chipset,
-          subtitle: one.steppings,
-          fields: [field("Chipset", one.chipset), field("Steppings", one.steppings)],
-        })
-      ),
-    });
-  }
+  if (vol.pchInit !== undefined) children.push(pchGroup(vol.pchInit));
   if (vol.reservedIntegrity.length > 0) {
     const rows = vol.reservedIntegrity.map(
       (one, index): Draft => ({ title: `Integrity ${index + 1}`, fields: valueFields(one) })
@@ -756,6 +744,76 @@ function homeRow(record: MFSHomeRecord): Draft {
 }
 
 // MARK: - Fact groups
+
+/**
+ * The image's *final* Chipset Initialization Tables, as a root of their own —
+ * but only when they are not the ones the MFS volume's node already shows. A
+ * legacy image reads its tables out of the volume and says so there; a CSME
+ * 15/16 one has them from the FTPR `intl.cfg` and no volume node to put them
+ * under, and an image whose two copies disagree gets both rows, each where it
+ * came from.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.chipsetInitGroup
+ */
+function chipsetInitGroup(a: FirmwareAnalysis): Draft | undefined {
+  const chipsetInit = a.chipsetInit;
+  if (chipsetInit === undefined) return undefined;
+  const own = a.mfsVolume?.pchInit;
+  return own !== undefined && samePchInit(chipsetInit, own) ? undefined : pchGroup(chipsetInit);
+}
+
+/**
+ * Whether two aggregates say the same thing — upstream compares the values
+ * themselves, which are `Equatable` structs; here that is a field-by-field
+ * comparison of what the two carry.
+ *
+ * @web-only upstream's `!=` on an Equatable struct has no counterpart on an
+ * object type
+ */
+function samePchInit(one: MFSPCHInit, other: MFSPCHInit): boolean {
+  return (
+    one.records.length === other.records.length &&
+    one.chipsets.length === other.chipsets.length &&
+    one.records.every((record, index) => {
+      const against = other.records[index];
+      return (
+        against !== undefined &&
+        record.chipset === against.chipset &&
+        record.stepping === against.stepping &&
+        record.revision === against.revision
+      );
+    }) &&
+    one.chipsets.every((chipset, index) => {
+      const against = other.chipsets[index];
+      return (
+        against !== undefined &&
+        chipset.chipset === against.chipset &&
+        chipset.steppings === against.steppings
+      );
+    })
+  );
+}
+
+/**
+ * One aggregate's node: how many tables and chipsets it holds, and a row per
+ * chipset.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.pchGroup
+ */
+function pchGroup(pch: MFSPCHInit): Draft {
+  return {
+    title: "Chipset Initialization",
+    fields: new Fields().add("Records", pch.records.length).add("Chipsets", pch.chipsets.length)
+      .rows,
+    children: pch.chipsets.map(
+      (one): Draft => ({
+        title: one.chipset,
+        subtitle: one.steppings,
+        fields: [field("Chipset", one.chipset), field("Steppings", one.steppings)],
+      })
+    ),
+  };
+}
 
 const BACKUP_FILE_NAMES: Readonly<Record<number, string>> = {
   6: "Intel Configuration",

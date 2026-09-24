@@ -546,12 +546,19 @@ function utf8Lossy(bytes: Uint8Array): string {
  *
  * 1. the reserved low-level files the volume holds — 0–5 or 8 mean initialised,
  *    7 or 9 configured. A file-table volume has no reserved files by index at
- *    all: upstream's own loop breaks out before reading one.
- * 2. failing that, a configuration partition of any kind — a `fitc.cfg` module,
- *    a FITC, CDMD or MFSB partition — means at least configured.
- *
- * Not ported: an EFS volume holding file contents raises the state to
- * Initialized, but which bytes of an EFS are a file only `FileTable.dat` says.
+ *    all: upstream's own loop breaks out before reading one, so nothing is
+ *    claimed from indices there;
+ * 2. an EFS volume that holds file contents raises the state to Initialized
+ *    from wherever it stood (`efs_init`, 13050) — which bytes of an EFS are a
+ *    file is a question only the `FileTable.dat` EFST table answers, so this
+ *    one is the volume's *decoded* file list, not a fact of the flash.
+ *    `efsHoldsFiles` is upstream's own `bool(file_data_all)`: its loop keeps
+ *    only the last entry it read, so what it tests is whether the **last** EFS
+ *    file has bytes;
+ * 3. failing both, a configuration partition of any kind — a `fitc.cfg` module,
+ *    a FITC, CDMD or MFSB partition — means at least configured. Upstream
+ *    reaches this one through an `elif`, so a volume raised by step 2 never
+ *    sees it.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder.state
@@ -559,6 +566,7 @@ function utf8Lossy(bytes: Uint8Array): string {
 export function mfsState(options: {
   readonly usesFTBL: boolean;
   readonly presentFileIndices: readonly number[];
+  readonly efsHoldsFiles: boolean;
   readonly hasConfiguration: boolean;
 }): MFSState {
   let state: MFSState = "unconfigured";
@@ -569,7 +577,11 @@ export function mfsState(options: {
       state = "configured";
     }
   }
-  if (state === "unconfigured" && options.hasConfiguration) state = "configured";
+  if (state !== "initialized" && options.efsHoldsFiles) {
+    state = "initialized";
+  } else if (state === "unconfigured" && options.hasConfiguration) {
+    state = "configured";
+  }
   return state;
 }
 

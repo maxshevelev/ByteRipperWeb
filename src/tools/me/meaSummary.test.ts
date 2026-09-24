@@ -11,6 +11,7 @@ import {
 import {
   analysisWith,
   bootFixture,
+  chipsetInitFixture,
   manifestFixture,
   mfsVolumeFixture,
   versionWith,
@@ -51,6 +52,7 @@ describe("the primary table, filled in", () => {
         sku: "Consumer H",
         mfsState: "initialized",
         mfsVolume: mfsVolumeFixture({ name: "CNP/CMP-H", steppings: "BA" }),
+        chipsetInit: chipsetInitFixture([{ name: "CNP/CMP-H", steppings: "BA" }]),
         bootPartitions: [bootFixture(true)],
         firmwareSizeBytes: 0x27_c000,
         fwUpdateSupport: "no",
@@ -180,8 +182,20 @@ describe("the primary table, filled in", () => {
 
   // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testChipsetRowsWhenThereAreLettersOrNot
   it("chooses the chipset row upstream's way", () => {
-    const bare = identified({ mfsVolume: mfsVolumeFixture({ name: "CNP/CMP-H", steppings: "" }) });
+    const bare = identified({
+      mfsVolume: mfsVolumeFixture({ name: "CNP/CMP-H", steppings: "" }),
+      chipsetInit: chipsetInitFixture([{ name: "CNP/CMP-H", steppings: "" }]),
+    });
     expect(value("Chipset", tableRows(bare))).toEqual(shown("CNP/CMP-H"));
+
+    // Every chipset the tables named, one per line — upstream's own total cell.
+    const several = identified({
+      chipsetInit: chipsetInitFixture([
+        { name: "SPT/KBP-LP", steppings: "C" },
+        { name: "SPT-H", steppings: "BA" },
+      ]),
+    });
+    expect(value("Chipset", tableRows(several))).toEqual(shown("SPT/KBP-LP C\nSPT-H B,A"));
 
     const stepped = tableRows(identified({ chipsetStepping: "BA" }));
     expect(value("Chipset Stepping", stepped)).toEqual(shown("B, A"));
@@ -195,11 +209,20 @@ describe("the primary table, filled in", () => {
     expect(value("Chipset", unnamed)).toBeUndefined();
     expect(value("Chipset Stepping", unnamed)).toBeUndefined();
 
+    // A CSME 15/16 image: the tables came from the FTPR `intl.cfg`, so the MFS
+    // volume holds none and the row reads the image's own aggregate.
+    const fromFTPR = identified({
+      mfsVolume: mfsVolumeFixture(),
+      chipsetInit: chipsetInitFixture([{ name: "ADP-LP", steppings: "A" }]),
+    });
+    expect(value("Chipset", tableRows(fromFTPR))).toEqual(shown("ADP-LP A"));
+
     const pchc = tableRows(
       identified({
         family: "pchc",
         variant: "PCHC",
         mfsVolume: mfsVolumeFixture({ name: "CNP/CMP-H", steppings: "BA" }),
+        chipsetInit: chipsetInitFixture([{ name: "CNP/CMP-H", steppings: "BA" }]),
       })
     );
     expect(value("Chipset", pchc)).toBeUndefined();

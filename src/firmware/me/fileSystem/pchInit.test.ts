@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { MFSConfigDecode, MFSRawConfigRecord } from "@/firmware/me/fileSystem/mfs";
+import { FileTable } from "@/firmware/me/data/fileTable";
+import {
+  decodeConfigIDRecords,
+  type MFSConfigDecode,
+  type MFSConfigIDDecode,
+  type MFSRawConfigRecord,
+} from "@/firmware/me/fileSystem/mfs";
 import {
   aggregatePchInit,
   decodePchInit,
+  decodePchInitByID,
+  decodePchInitStream,
   decodePchTable,
   type PCHIdentity,
 } from "@/firmware/me/fileSystem/pchInit";
@@ -304,5 +312,174 @@ describe("decodePchInit", () => {
     expect(
       decodePchInit([{ index: 6, content: new Uint8Array(8) }], own7, csme12Early2018)
     ).toBeUndefined();
+  });
+});
+
+/**
+ * The `FTBL` half of a real table, cut to the two rows these tests join on: the
+ * chipset table's File ID and one that is not it. Copied from `FileTable.dat`
+ * platform `10` / dictionary `0A` — what a CSME 16.1 volume header points at.
+ */
+const FTBL_JSON = JSON.stringify({
+  "10": {
+    "0A": {
+      FTBL: {
+        "10038900": "/home/chipsetinit/mphytbl,1,0,0,1576,316,55,6,33554848",
+        "1003A200": "/home/bup/bup_sku/hw_binding,0,0,0,0,0,0,7,0",
+      },
+    },
+  },
+});
+
+const le32 = (value: number): readonly number[] => [
+  value & 0xff,
+  (value >> 8) & 0xff,
+  (value >> 16) & 0xff,
+  (value >> 24) & 0xff,
+];
+const le16 = (value: number): readonly number[] => [value & 0xff, (value >> 8) & 0xff];
+
+/**
+ * One ID-keyed (0xC) Configuration stream: the record count, that many
+ * `MFS_Config_Record_0xC` entries, then the bytes they point at — with offsets
+ * into the whole stream, the way a real one's are.
+ */
+function idStream(entries: readonly { id: number; body: Uint8Array }[]): Uint8Array {
+  const head: number[] = [...le32(entries.length)];
+  const body: number[] = [];
+  const base = 4 + entries.length * 0xc;
+  for (const entry of entries) {
+    head.push(
+      ...le32(entry.id),
+      ...le32(base + body.length),
+      ...le16(entry.body.length),
+      ...le16(0)
+    );
+    body.push(...entry.body);
+  }
+  return Uint8Array.from([...head, ...body]);
+}
+
+/**
+ * The same stream in the named (0x1C) layout, for the FTPR copy of a legacy
+ * image's file 6.
+ */
+function namedStream(entries: readonly { name: string; body: Uint8Array }[]): Uint8Array {
+  const head: number[] = [...le32(entries.length)];
+  const body: number[] = [];
+  const base = 4 + entries.length * 0x1c;
+  for (const entry of entries) {
+    const name = [...entry.name].map((one) => one.charCodeAt(0)).slice(0, 0xc);
+    head.push(
+      ...name,
+      ...new Array(0xc - name.length).fill(0), // @0x00 FileName
+      ...le16(0), // @0x0C Reserved
+      ...le16(0), // @0x0E AccessMode (RecordType 0 = file)
+      ...le16(0), // @0x10 DeployOptions
+      ...le16(entry.body.length), // @0x12 FileSize
+      ...le16(0), // @0x14 OwnerUserID
+      ...le16(0), // @0x16 OwnerGroupID
+      ...le32(base + body.length) // @0x18 FileOffset
+    );
+    body.push(...entry.body);
+  }
+  return Uint8Array.from([...head, ...body]);
+}
+
+const idConfig = (stream: Uint8Array): MFSConfigIDDecode[] => [
+  { owningFile: 6, records: decodeConfigIDRecords(stream) ?? [] },
+];
+
+const csme16: PCHIdentity = {
+  variant: "CSME",
+  major: 16,
+  minor: 1,
+  build: 1991,
+  year: 2022,
+  month: 8,
+  day: 29,
+};
+
+const adpNaming = (fileTable: FileTable | undefined) => ({
+  fileTable,
+  platform: 0x10,
+  dictionary: 0x0a,
+});
+
+describe("the ID-keyed Intel Configuration", () => {
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PCHInitTests.swift#PCHInitTests.testIDKeyedFileSixIsNamedThroughTheFileTable
+  it("names file 6's records through FileTable.dat", () => {
+    const stream = idStream([
+      { id: 0x1003_a200, body: Uint8Array.of(0, 0, 0, 0) },
+      { id: 0x1003_8900, body: newTable(0x12, 0, 8) },
+    ]);
+    const out = decodePchInitByID(
+      [{ index: 6, content: stream }],
+      idConfig(stream),
+      adpNaming(FileTable.parse(FTBL_JSON)),
+      csme16
+    );
+    expect(out?.chipsets.map((one) => one.chipset)).toEqual(["ADP-LP"]);
+    expect(out?.chipsets.map((one) => one.steppings)).toEqual(["A"]);
+  });
+
+  // Without the table no record can be recognised as a chipset table: the ID is
+  // all the stream says, and upstream's own fallback name for an unkeyed row
+  // (`/Unknown/<ID>.bin`) is not one.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PCHInitTests.swift#PCHInitTests.testIDKeyedFileSixWithoutATableNamesNothing
+  it("names nothing without the table", () => {
+    const stream = idStream([{ id: 0x1003_8900, body: newTable(0x12, 0, 8) }]);
+    expect(
+      decodePchInitByID(
+        [{ index: 6, content: stream }],
+        idConfig(stream),
+        adpNaming(undefined),
+        csme16
+      )
+    ).toBeUndefined();
+  });
+});
+
+describe("the FTPR intl.cfg stream", () => {
+  // The CSME 15/16 case: the volume carries no file 6 at all and the FTPR
+  // module is the only Intel Configuration there is.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PCHInitTests.swift#PCHInitTests.testIntelConfigurationStreamReadsTheIDKeyedLayout
+  it("reads the ID-keyed layout", () => {
+    const stream = idStream([
+      { id: 0x1003_a200, body: Uint8Array.of(0) },
+      { id: 0x1003_8900, body: newTable(0x12, 0, 8) },
+    ]);
+    const out = decodePchInitStream(stream, 0xc, adpNaming(FileTable.parse(FTBL_JSON)), csme16);
+    expect(out?.chipsets.map((one) => one.chipset)).toEqual(["ADP-LP"]);
+    expect(out?.chipsets.map((one) => one.steppings)).toEqual(["A"]);
+  });
+
+  // A record with no bytes behind it is not a table: upstream's `and rec_data`
+  // drops it, which is why the CSME 16 oracle reads no chipset although its
+  // `intl.cfg` does list an `mphytbl` row.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PCHInitTests.swift#PCHInitTests.testAZeroLengthChipsetRecordIsSkipped
+  it("skips a zero-length chipset record", () => {
+    const stream = idStream([{ id: 0x1003_8900, body: new Uint8Array(0) }]);
+    expect(
+      decodePchInitStream(stream, 0xc, adpNaming(FileTable.parse(FTBL_JSON)), csme16)
+    ).toBeUndefined();
+  });
+
+  // The same module in the named layout — a legacy image whose FTPR keeps a
+  // copy of file 6 needs no table to read it.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/PCHInitTests.swift#PCHInitTests.testIntelConfigurationStreamReadsTheNamedLayout
+  it("reads the named layout", () => {
+    const stream = namedStream([
+      { name: "other", body: Uint8Array.of(0, 0, 0, 0) },
+      { name: "mphytbl0", body: oldTable(0xc, 0x5, 4) },
+    ]);
+    const out = decodePchInitStream(
+      stream,
+      0x1c,
+      { fileTable: undefined, platform: -1, dictionary: -1 },
+      { variant: "CSME", major: 12, minor: 0, build: 1091, year: 2018, month: 1, day: 25 }
+    );
+    expect(out?.chipsets.map((one) => one.chipset)).toEqual(["CNP/CMP-LP"]);
+    expect(out?.chipsets.map((one) => one.steppings)).toEqual(["CA"]);
   });
 });
