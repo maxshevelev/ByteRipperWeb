@@ -154,7 +154,7 @@ function sourceGuard(pane: PaneId, target: "name" | "folder") {
  * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.savePiece
  * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.saveSegment
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePiece
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSaveSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuSaveSegment
  */
 export async function savePiece(pane: PaneId, piece: Segment): Promise<void> {
   const slot = paneState(pane);
@@ -466,7 +466,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
  * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.replacePiece
  * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.replaceSegmentFromFile
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.replacePiece
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuReplaceSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuReplaceSegment
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.replaceSegment
  */
 export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promise<void> {

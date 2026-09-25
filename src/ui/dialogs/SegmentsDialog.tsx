@@ -30,6 +30,14 @@ import { observeHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 export interface SegmentsDialogProps {
   readonly open: boolean;
   readonly pane: PaneId;
+  /**
+   * The piece to open in rename, when the caller asks for one (§21.4) — "Edit
+   * Segment" from the offset menu lands here. Absent for a plain open.
+   *
+   * @upstream-differs a form field; upstream's offset "Edit" opens an anchored
+   * popover, which a browser has no room for.
+   */
+  readonly initiallyEditing?: number | undefined;
   /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.addCutPressed */
   readonly onAddCut: () => void;
   /**
@@ -71,6 +79,7 @@ export interface SegmentsDialogProps {
 export function SegmentsDialog({
   open,
   pane,
+  initiallyEditing,
   onAddCut,
   onSaveAll,
   onSelectPiece,
@@ -92,8 +101,12 @@ export function SegmentsDialog({
   useEffect(() => observeHexColors(() => setTints(readSegmentTints())), []);
 
   useEffect(() => {
-    if (open) setRenaming(undefined);
-  }, [open]);
+    if (!open) return;
+    // A plain open clears the in-progress rename; one asked for from the offset
+    // menu's "Edit Segment" opens straight into that piece's name field (§21.4).
+    setRenaming(initiallyEditing);
+    if (initiallyEditing !== undefined) setSelected(initiallyEditing);
+  }, [open, initiallyEditing]);
 
   /**
    * How each linked piece stands to the file it came from — the red mark and

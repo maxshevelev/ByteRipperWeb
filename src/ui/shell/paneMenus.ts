@@ -1,5 +1,5 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
-import { mergeTitle } from "@/core/segments/segmentation";
+import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
@@ -23,7 +23,15 @@ import {
 } from "@/state/workspaceStore";
 import { zonesFor } from "@/state/zoneStore";
 import { type Zone, zonesContaining } from "@/tools/zone";
-import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
+import {
+  mergePiece,
+  pieceAt,
+  replacePieceFromFile,
+  revertPiece,
+  savePiece,
+} from "@/ui/segments/segmentCommands";
+import { selectPiece } from "@/ui/segments/segmentMenu";
+import { segmentSource } from "@/state/segmentSources";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -93,6 +101,8 @@ export interface PaneMenuActions {
   /** Selects a zone the open tool published, and shows it. */
   readonly onSelectZone: (pane: PaneId, zone: Zone) => void;
   readonly onSegments: (pane: PaneId) => void;
+  /** Opens the segments form with this piece's name field focused (§21.4). */
+  readonly onEditSegment: (pane: PaneId, pieceIndex: number) => void;
   /** Append File… / Insert File at Start… (§22). */
   readonly onJoin: (pane: SlotId, position: "start" | "end") => void;
   /** A problem: a title and a message, in the window's own alert. */
@@ -352,12 +362,17 @@ function zoneItems(
 }
 
 /**
- * The segment block (§21.3): cut here, or merge the piece this byte is in.
+ * The segment block (§21.3): cut here — and, when the right-clicked byte is in a
+ * piece, that piece's own items beside it, the same set the strip's menu offers
+ * for the piece under the pointer (Save / Replace / Select / Edit) plus Merge and,
+ * where the piece came from a file, Revert back to it.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addSegmentMenuItems
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuSelectSegment
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuEditSegment
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuRemoveSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuSaveSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuReplaceSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuSelectSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuEditSegment
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuRemoveSegment
  */
 function segmentItems(
   pane: PaneId,
@@ -366,20 +381,50 @@ function segmentItems(
 ): (MenuEntry | undefined)[] {
   const piece = pieceAt(pane, offset);
   const pieces = segmentsFor(pane)?.segments.length ?? 0;
-  return [
+  const items: (MenuEntry | undefined)[] = [
     {
       label: `Split Here at ${hexAddress(offset)}…`,
       onSelect: () => actions.onSplitHere(pane, offset),
     },
-    piece === undefined
-      ? undefined
-      : {
-          label: mergeTitle(piece.index),
-          disabled: pieces < 2,
-          onSelect: () => mergePiece(pane, piece.index),
-        },
-    { label: "Segments…", onSelect: () => actions.onSegments(pane) },
   ];
+  if (piece !== undefined) {
+    const label = segmentLabel(piece.index);
+    // The piece's own items, the strip's menu's set, acting on the piece the byte
+    // sits in rather than the piece under the pointer (§21.3).
+    items.push(
+      { kind: "separator" },
+      { label: `Save Segment ${label}…`, onSelect: () => void savePiece(pane, piece) },
+      {
+        label: `Replace Segment ${label} from File…`,
+        onSelect: () => void replacePieceFromFile(pane, piece),
+      },
+      { kind: "separator" },
+      { label: `Select Segment ${label}`, onSelect: () => selectPiece(pane, piece) },
+      {
+        label: `Edit Segment ${label}`,
+        onSelect: () => actions.onEditSegment(pane, piece.index),
+      },
+      {
+        label: mergeTitle(piece.index),
+        disabled: pieces < 2,
+        onSelect: () => mergePiece(pane, piece.index),
+      },
+    );
+    // Revert back to the file the piece came from (§21.7): the source file's item,
+    // present wherever the piece has one.
+    const source = segmentSource(pane, piece);
+    if (source !== undefined) {
+      items.push(
+        { kind: "separator" },
+        {
+          label: `Revert Segment ${label} to “${source.name}”`,
+          onSelect: () => void revertPiece(pane, piece),
+        },
+      );
+    }
+  }
+  items.push({ label: "Segments…", onSelect: () => actions.onSegments(pane) });
+  return items;
 }
 
 /**

@@ -60,6 +60,7 @@ const actions = {
   onSplitHere: () => {},
   onSelectZone: () => {},
   onSegments: () => {},
+  onEditSegment: () => {},
   onJoin: () => {},
   onProblem: () => {},
   onMessage: () => {},

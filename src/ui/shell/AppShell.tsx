@@ -574,7 +574,10 @@ export function AppShell() {
   /** The pane and offset a cut was asked for at, or nothing. */
   const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
   /** The pane whose segments form is open, or nothing. */
-  const [segmentsPane, setSegmentsPane] = useState<PaneId | undefined>(undefined);
+  const [segmentsPane, setSegmentsPane] = useState<{
+    pane: PaneId;
+    editingPiece?: number;
+  } | undefined>(undefined);
   /**
    * The tool on the left of the workspace's own panes, or None. A panel over
    * them draws its own, from its own session (G50).
@@ -1717,7 +1720,8 @@ export function AppShell() {
         zoneSelected(pane, zone.id);
       },
       onJoin: (pane, position) => void doJoin(pane, position),
-      onSegments: (pane) => setSegmentsPane(pane),
+      onSegments: (pane) => setSegmentsPane({ pane }),
+      onEditSegment: (pane, pieceIndex) => setSegmentsPane({ pane, editingPiece: pieceIndex }),
       onProblem: reportAlert,
       onMessage: showTransientMessage,
     }),
@@ -1950,7 +1954,7 @@ export function AppShell() {
         onJoin={(position) => void doJoin(activePane, position)}
         // The partition is the document's, so these three mean the part while
         // one is in front of the dump.
-        onSegments={() => setSegmentsPane(front)}
+        onSegments={() => setSegmentsPane({ pane: front })}
         onSplitHere={() => setCutAt({ pane: front, offset: paneState(front)?.document.caret ?? 0 })}
         onSaveAllSegments={() => void doSaveAllSegments(front)}
         onToggleBookmark={() => {
@@ -2112,14 +2116,15 @@ export function AppShell() {
       />
       <SegmentsDialog
         open={segmentsPane !== undefined}
-        pane={segmentsPane ?? front}
+        pane={segmentsPane?.pane ?? front}
+        initiallyEditing={segmentsPane?.editingPiece}
         onAddCut={() => {
-          const pane = segmentsPane ?? front;
+          const pane = segmentsPane?.pane ?? front;
           setCutAt({ pane, offset: paneIn(state, pane)?.document.caret ?? 0 });
         }}
-        onSaveAll={() => void doSaveAllSegments(segmentsPane ?? front)}
+        onSaveAll={() => void doSaveAllSegments(segmentsPane?.pane ?? front)}
         onSelectPiece={(piece) => {
-          const pane = segmentsPane ?? front;
+          const pane = segmentsPane?.pane ?? front;
           const slot = paneIn(state, pane);
           if (slot === undefined) return;
           void slot.typing.setSelection(piece.start, piece.end);
