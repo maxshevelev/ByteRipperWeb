@@ -21,13 +21,8 @@ import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import type { Segment } from "@/core/segments/segmentation";
 import { applySegments, noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import {
-  baselineFor,
-  baselineMarksAnything,
-  baselineReferenceAt,
-  clearSources,
-  segmentSource,
-} from "@/state/segmentSources";
+import { baselineMarksAnything, baselineReferenceAt } from "@/core/segments/baseline";
+import { baselineFor, clearSources, segmentSource } from "@/state/segmentSources";
 import { forgetActs, undoLast } from "@/state/undoRouter";
 import {
   editingHooks,

@@ -7,14 +7,22 @@
  */
 
 import { describe, expect, test } from "vitest";
+import { NO_BASELINE, type ModifiedBaseline } from "@/core/segments/baseline";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overviewBuild";
+
+/** The baseline of a document that has a file behind it: the file itself. */
+const savedBaseline = (storage: MemoryBackedStorage): ModifiedBaseline => ({
+  spans: [{ start: 0, end: storage.size, storage, sourceOffset: 0 }],
+  beyondFrom: storage.size,
+});
 
 async function picture(bytes: Uint8Array, rowCount: number, extra: Partial<OverviewSource> = {}) {
   const source: OverviewSource = {
     size: bytes.length,
     storage: new MemoryBackedStorage(bytes),
+    baseline: NO_BASELINE,
     ...extra,
   };
   const built = await buildOverviewRows(source, bytes.length, rowCount, {
@@ -136,7 +144,7 @@ describe("the modified mask", () => {
     now[600] = 0x42;
 
     const { modified } = await picture(now, 64, {
-      saved: new MemoryBackedStorage(saved),
+      baseline: savedBaseline(new MemoryBackedStorage(saved)),
       edited: [{ start: 600, end: 601 }],
     });
 
@@ -151,7 +159,7 @@ describe("the modified mask", () => {
     const now = saved.slice();
 
     const { modified } = await picture(now, 64, {
-      saved: new MemoryBackedStorage(saved),
+      baseline: savedBaseline(new MemoryBackedStorage(saved)),
       edited: [{ start: 600, end: 601 }],
     });
 
@@ -161,7 +169,7 @@ describe("the modified mask", () => {
   test("an untitled document has nothing to be modified against", async () => {
     const bytes = new Uint8Array(1024).fill(0x41);
     const { modified } = await picture(bytes, 64, {
-      isUntitled: true,
+      baseline: NO_BASELINE,
       edited: [{ start: 0, end: 1024 }],
     });
     expect([...modified].every((word) => word === 0)).toBe(true);
@@ -177,6 +185,7 @@ test("a cell past this file's end is neither modified nor different", async () =
     {
       size: bytes.length,
       storage: new MemoryBackedStorage(bytes),
+      baseline: NO_BASELINE,
       differences: () => [{ kind: "different", start: 512, end: 1024 }],
     },
     extent,
@@ -193,7 +202,7 @@ test("a build can be cancelled", async () => {
   const bytes = new Uint8Array(64 * 1024).fill(0x41);
   await expect(
     buildOverviewRows(
-      { size: bytes.length, storage: new MemoryBackedStorage(bytes) },
+      { size: bytes.length, storage: new MemoryBackedStorage(bytes), baseline: NO_BASELINE },
       bytes.length,
       500,
       { from: 0, to: 500 },
@@ -219,7 +228,12 @@ test("the masks can be rebuilt without re-reading the file for density", async (
   };
 
   const built = await buildOverviewRows(
-    { size: bytes.length, storage, differences: () => [{ kind: "different", start: 0, end: 32 }] },
+    {
+      size: bytes.length,
+      storage,
+      baseline: NO_BASELINE,
+      differences: () => [{ kind: "different", start: 0, end: 32 }],
+    },
     bytes.length,
     64,
     { from: 0, to: 64 },

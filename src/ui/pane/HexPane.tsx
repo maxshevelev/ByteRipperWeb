@@ -40,6 +40,7 @@ import { toggleMinimap } from "@/state/minimapStore";
 import { endDrag as endPaneDrag, beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
+import { baselineFor } from "@/state/segmentSources";
 import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
@@ -819,17 +820,23 @@ export function HexPane({
     return doc.onSelectionChanged(apply);
   }, [doc, scheduleDraw, onSelectionChanged, typing]);
 
+  // The pieces and the links they carry, which is what the baseline's spans
+  // are built from. Read here rather than where the tints use it, because the
+  // red foreground moves when a cut moves a piece's link as well.
+  const partition = useStore(segmentsStore).panes[paneId]?.partition;
+
   /**
    * The red foreground, and the pane's unsaved marker.
    *
-   * The red comes from comparing each byte with the file on disk, which the
-   * renderer does itself — this only has to hand it the saved file and repaint
-   * when the bytes move.
+   * The red comes from comparing each byte with its baseline — the file on
+   * disk, or, an image with no file of its own, the files its pieces came from
+   * (§21.7) — which the renderer does itself: this only has to hand it the
+   * baseline and repaint when the bytes move or a piece's link does.
    */
   useEffect(() => {
-    rendererRef.current?.setSavedSource(saved);
+    rendererRef.current?.setBaseline(baselineFor(paneId));
     scheduleDraw();
-  }, [saved, scheduleDraw]);
+  }, [saved, partition, paneId, scheduleDraw]);
 
   useEffect(() => {
     const apply = () => {
@@ -1442,7 +1449,6 @@ export function HexPane({
    * is a second list, and a cut does not move when the theme does. So the effect
    * hears about both — the partition, and `themeRevision`.
    */
-  const partition = useStore(segmentsStore).panes[paneId]?.partition;
   // biome-ignore lint/correctness/useExhaustiveDependencies: `themeRevision` is the reason to look again, not something the body reads — the tints the effect stamps are the theme's, and the revision is how it hears that they moved
   useEffect(() => {
     const pieces = partition?.segments ?? [];

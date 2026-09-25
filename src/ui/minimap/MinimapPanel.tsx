@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  baselineReferenceAt,
+  type BaselineSpan,
+  type ModifiedBaseline,
+} from "@/core/segments/baseline";
 import type { Segment } from "@/core/segments/segmentation";
 import { hexAddress } from "@/core/text/hexText";
 import {
@@ -48,6 +53,7 @@ import {
   setMinimapWidth,
 } from "@/state/minimapStore";
 import { segmentsStore } from "@/state/segmentsStore";
+import { baselineFor } from "@/state/segmentSources";
 import { zoneSelected } from "@/state/toolController";
 import { useStore } from "@/state/useStore";
 import {
@@ -443,6 +449,63 @@ function placementFor(stacked: boolean, openCount: number, index: number): MapPl
 }
 
 /**
+ * The baseline's reference bytes for the window `[start, start + length)`,
+ * one read per span the window touches (§21.7). A row inside a joined half is
+ * measured against that half's own file, and the row's stretch of it comes in
+ * whole.
+ *
+ * @upstream-differs upstream's detail re-asks the pane's own `hexByteStates`,
+ * which reads the references out of the baseline's `Block`; the web's window is
+ * a couple of thousand bytes, read straight from the spans
+ */
+async function baselineReferences(
+  baseline: ModifiedBaseline,
+  start: number,
+  length: number
+): Promise<Map<BaselineSpan, { sourceAt: number; bytes: Uint8Array }>> {
+  const references = new Map<BaselineSpan, { sourceAt: number; bytes: Uint8Array }>();
+  for (const span of baseline.spans) {
+    const from = Math.max(start, span.start);
+    const to = Math.min(start + length, span.end);
+    if (to <= from) continue;
+    const sourceAt = span.sourceOffset + (from - span.start);
+    const limit =
+      span.sourceLimit !== undefined
+        ? Math.min(span.sourceLimit, span.storage.size)
+        : span.storage.size;
+    const readLength = Math.max(0, Math.min(to - from, limit - sourceAt));
+    const bytes =
+      readLength > 0
+        ? await span.storage.read(sourceAt, readLength).catch(() => new Uint8Array(0))
+        : new Uint8Array(0);
+    references.set(span, { sourceAt, bytes });
+  }
+  return references;
+}
+
+/**
+ * Whether the byte at `offset` is modified against the baseline's references
+ * (§21.7): new past the baseline's own end, new past the end of the source its
+ * span was taken from, different from the reference, and never marked where
+ * the baseline does not answer at all.
+ */
+function modifiedAgainst(
+  baseline: ModifiedBaseline,
+  references: ReadonlyMap<BaselineSpan, { sourceAt: number; bytes: Uint8Array }>,
+  offset: number,
+  byte: number
+): boolean {
+  const reference = baselineReferenceAt(baseline, offset);
+  if (reference.kind === "unmarked") return false;
+  if (reference.kind === "beyond") return true;
+  const pre = references.get(reference.span);
+  if (pre === undefined) return true;
+  const at = reference.sourceAt - pre.sourceAt;
+  if (at >= pre.bytes.length) return true;
+  return (pre.bytes[at] ?? 0) !== byte;
+}
+
+/**
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.Map
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.maps
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setMaps
@@ -495,6 +558,9 @@ function MinimapCanvas({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [cells, setCells] = useState<CellState[]>([]);
   const slot = paneIn(workspace, pane);
+  // The pieces the detail's baseline is built from: a cut moving a piece's
+  // link moves the marks, and the window's bytes do not.
+  const partition = useStore(segmentsStore).panes[pane]?.partition;
 
   // The colours are read from the theme rather than hard-coded, and re-read
   // when it changes — the same contract the hex grid's palette has.
@@ -550,12 +616,11 @@ function MinimapCanvas({
 
     void (async () => {
       const bytes = await slot.document.read(start, length);
-      const saved =
-        slot.saved === undefined
-          ? undefined
-          : await slot.saved
-              .read(start, Math.min(length, Math.max(0, slot.saved.size - start)))
-              .catch(() => undefined);
+      // What the window's bytes are measured against (§21.7): the saved file,
+      // or — an image with no file of its own — the files its pieces came
+      // from, one read per span the window touches.
+      const baseline = baselineFor(pane);
+      const references = await baselineReferences(baseline, start, bytes.length);
       if (cancelled) return;
 
       // The comparison's own answer for this window, read once rather than
@@ -574,9 +639,10 @@ function MinimapCanvas({
         const byte = bytes[i] ?? 0;
         next.push({
           significant: byte !== 0x00 && byte !== 0xff,
-          // The M4 rule, unchanged: a byte is modified when it differs from the
-          // saved file, not when it came from the edit buffer.
-          modified: saved !== undefined && i < saved.length && saved[i] !== byte,
+          // The M4 rule, unchanged: a byte is modified when it differs from
+          // what its baseline answers for it, not when it came from the edit
+          // buffer.
+          modified: modifiedAgainst(baseline, references, start + i, byte),
           different: differing[i] === 1,
         });
       }
@@ -586,7 +652,7 @@ function MinimapCanvas({
     return () => {
       cancelled = true;
     };
-  }, [mode, slot, topRow, windowRows, differences]);
+  }, [mode, slot, pane, topRow, windowRows, differences, partition]);
 
   // The marks of the pane this map is about: a part's are its own, and the
   // workspace's would name rows of a file this map is not drawing.

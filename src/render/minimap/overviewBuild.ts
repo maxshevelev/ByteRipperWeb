@@ -16,6 +16,10 @@
  */
 
 import type { DiffBlock } from "@/core/diff/diffBlock";
+import {
+  baselineMarksAnything,
+  type ModifiedBaseline,
+} from "@/core/segments/baseline";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { MINIMAP_COLUMNS, OverviewBinning, type RowRange } from "@/render/minimap/overviewBinning";
 
@@ -34,10 +38,14 @@ export interface OverviewSource {
   /** This file's own length, which is not the extent when two are open. */
   readonly size: number;
   readonly storage: ByteStorage | undefined;
-  /** The file as last saved, for the modified mask. Absent for a new file. */
-  readonly saved?: ByteStorage | undefined;
-  /** A document that has never been on disk: nothing in it counts as modified. */
-  readonly isUntitled?: boolean;
+  /**
+   * What the bytes are painted modified against (§21.7): the saved file, or —
+   * an image with no file of its own, the one a join leaves — each linked
+   * piece's own source.
+   *
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.OverviewSource.baseline
+   */
+  readonly baseline: ModifiedBaseline;
   /** Where the edit buffer supplied bytes — the rows an edit can have reached. */
   readonly edited?: readonly ByteRange[];
   /** The comparison's blocks overlapping a byte window. */
@@ -163,16 +171,16 @@ export async function buildOverviewRows(
   }
   options.onRows?.(rows.to - reported);
 
-  // Modified: where the byte differs from the saved copy — the same rule the
-  // panes paint by — inside the rows an edit can have reached.
+  // Modified: where the byte differs from what its baseline answers for it —
+  // the same rule the panes paint by (§21.7) — inside the rows an edit can
+  // have reached.
   //
   // Cell by cell rather than byte by byte: an insert or a delete shifts every
   // byte after it, so the edited ranges cover the file's whole tail. Bytes
-  // outside them cannot differ from the saved copy, so comparing a cell whole
-  // is safe — the untouched part of it compares equal and contributes nothing.
+  // outside them cannot differ from the baseline, so comparing a cell whole is
+  // safe — the untouched part of it compares equal and contributes nothing.
   const edited = source.edited ?? [];
-  if (source.isUntitled !== true && edited.length > 0) {
-    const savedSize = source.saved?.size ?? 0;
+  if (baselineMarksAnything(source.baseline) && edited.length > 0) {
     for (let row = rows.from; row < rows.to; row++) {
       stop();
       const rowStart = binning.startOfRow(row);
@@ -187,24 +195,17 @@ export async function buildOverviewRows(
       const read = await readRow(row);
       if (read === undefined) continue;
       const bytes = read.bytes;
-      const saved =
-        source.saved === undefined
-          ? new Uint8Array(0)
-          : await source.saved
-              .read(rowStart, Math.min(readEnd, savedSize) - rowStart)
-              .catch(() => new Uint8Array(0));
+      // What the row's bytes are measured against, one read per span the row
+      // touches: a row inside a joined half is measured against that half's
+      // own file.
+      const mask = await modifiedMask(source.baseline, rowStart, bytes);
       const index = row - rows.from;
 
       if (span < MINIMAP_COLUMNS) {
         // Fewer bytes than cells: compare the handful of bytes and stretch each
         // one over the cells it covers.
         for (let offsetInRow = 0; offsetInRow < bytes.length; offsetInRow++) {
-          const absolute = rowStart + offsetInRow;
-          const changed =
-            absolute >= savedSize ||
-            offsetInRow >= saved.length ||
-            saved[offsetInRow] !== bytes[offsetInRow];
-          if (!changed) continue;
+          if ((mask[offsetInRow] ?? 0) === 0) continue;
           const [first, last] = binning.stretchedColumns(offsetInRow, span);
           let word = modified[index] ?? 0;
           for (let column = first; column <= last; column++) word |= 1 << column;
@@ -217,13 +218,8 @@ export async function buildOverviewRows(
         const from = Math.floor((span * column) / MINIMAP_COLUMNS);
         const to = Math.min(Math.floor((span * (column + 1)) / MINIMAP_COLUMNS), bytes.length);
         if (from >= to) continue;
-        // Bytes past the saved file's end are new by definition.
-        if (rowStart + to > savedSize || saved.length < to) {
-          modified[index] = (modified[index] ?? 0) | (1 << column);
-          continue;
-        }
         for (let at = from; at < to; at++) {
-          if (saved[at] !== bytes[at]) {
+          if ((mask[at] ?? 0) !== 0) {
             modified[index] = (modified[index] ?? 0) | (1 << column);
             break;
           }
@@ -265,6 +261,62 @@ export async function buildOverviewRows(
   }
 
   return { density, modified, different };
+}
+
+/**
+ * A bit per byte of `bytes`, which stand at `[start, start + bytes.length)`:
+ * one where the byte is modified against the baseline — new past the
+ * baseline's own end, new past the end of the source its span was taken from,
+ * or different from the reference. A byte the baseline does not answer for
+ * stays zero, as an untitled document's bytes always did.
+ *
+ * One read per span the row touches, rather than per byte: a row inside a
+ * joined half is measured against that half's own file, and the row's stretch
+ * of it comes in whole.
+ *
+ * @upstream-differs upstream compares the row's slice against its `Block`'s
+ * reference buffer with a `memcmp`; the web walks the spans through its own
+ * reads
+ */
+async function modifiedMask(
+  baseline: ModifiedBaseline,
+  start: number,
+  bytes: Uint8Array
+): Promise<Uint8Array> {
+  const mask = new Uint8Array(bytes.length);
+  const beyondFrom = baseline.beyondFrom;
+  if (beyondFrom !== undefined) {
+    for (let i = 0; i < bytes.length; i++) {
+      if (start + i >= beyondFrom) mask[i] = 1;
+    }
+  }
+  for (const span of baseline.spans) {
+    const docFrom = Math.max(start, span.start);
+    const docTo = Math.min(start + bytes.length, span.end);
+    if (docTo <= docFrom) continue;
+    const sourceAt = span.sourceOffset + (docFrom - span.start);
+    const limit =
+      span.sourceLimit !== undefined
+        ? Math.min(span.sourceLimit, span.storage.size)
+        : span.storage.size;
+    const length = Math.max(0, Math.min(docTo - docFrom, limit - sourceAt));
+    const reference =
+      length > 0
+        ? await span.storage.read(sourceAt, length).catch(() => new Uint8Array(0))
+        : new Uint8Array(0);
+    for (let offset = docFrom; offset < docTo; offset++) {
+      const i = offset - start;
+      const sourceOffset = sourceAt + (offset - docFrom);
+      if (sourceOffset >= limit || sourceOffset - sourceAt >= reference.length) {
+        // Past the span's own source — an insert grew the piece — or the
+        // reference came up short: read as new, as the saved file did.
+        mask[i] = 1;
+        continue;
+      }
+      if ((reference[sourceOffset - sourceAt] ?? 0) !== (bytes[i] ?? 0)) mask[i] = 1;
+    }
+  }
+  return mask;
 }
 
 /**

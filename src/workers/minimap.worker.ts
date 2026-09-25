@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import { NO_BASELINE } from "@/core/segments/baseline";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { buildOverviewRows, OverviewCancelled } from "@/render/minimap/overviewBuild";
@@ -41,7 +42,9 @@ async function run(request: Extract<MinimapWorkerRequest, { kind: "overview" }>)
     let done = 0;
     let lastReported = 0;
     const built = await buildOverviewRows(
-      { size: storage.size, storage },
+      // The density pass alone: the masks are rebuilt on the main thread from
+      // the pane's baseline, which the worker cannot hold.
+      { size: storage.size, storage, baseline: NO_BASELINE },
       request.extent,
       request.rowCount,
       { from: 0, to: request.rowCount },

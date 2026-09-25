@@ -2,10 +2,11 @@
  * What a pane's pieces came from (§21.7).
  *
  * Ported from `SegmentSources.swift` — the registry a partition's
- * `SegmentSourceID`s stand for, and `ModifiedBaseline`, what a byte is painted
- * against — and from the link half of `PaneViewModel.swift`: how a piece stands
- * to its source, the donor a revert restores from, and the answer to "is saving
- * here about to write over a source?".
+ * `SegmentSourceID`s stand for — and from the link half of `PaneViewModel.swift`:
+ * what a pane's bytes are painted against, how a piece stands to its source,
+ * the donor a revert restores from, and the answer to "is saving here about to
+ * write over a source?". The baseline's value lives in
+ * `src/core/segments/baseline.ts`, where the renderers read it from.
  *
  * One registry per pane, at module level: the pane here is a record in the
  * workspace store, and the registry has to outlive every snapshot the undo
@@ -15,6 +16,7 @@
  * partition and forgets the joins, and swaps them where the slots do.
  */
 
+import { NO_BASELINE, type BaselineSpan, type ModifiedBaseline } from "@/core/segments/baseline";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
@@ -242,81 +244,29 @@ export function swapSources(): void {
 // MARK: - The baseline (§21.7)
 
 /**
- * One stretch of the document, answered by one storage: the byte at `offset`
- * is measured against `storage`'s byte at `sourceOffset + (offset - start)`.
- *
- * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span
- */
-export interface BaselineSpan {
-  /** @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span.range (its lower bound) */
-  readonly start: number;
-  /** @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span.range (its upper bound) */
-  readonly end: number;
-  /** @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span.storage */
-  readonly storage: ByteStorage;
-  /** @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span.sourceOffset */
-  readonly sourceOffset: number;
-  /**
-   * Where the span's stretch of the source ends. Bytes of the document past
-   * this one are inside the span but came from nowhere — an insert grew the
-   * piece beyond what it was taken from — and read as new.
-   *
-   * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span.sourceLimit
-   * @upstream-differs the half-open range as two offsets, per D13, rather than a `Range` value
-   */
-  readonly sourceLimit?: number | undefined;
-}
-
-/**
- * What a pane's bytes are painted against, as one value (§21.7).
- *
- * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline
- */
-export interface ModifiedBaseline {
-  /** @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.spans */
-  readonly spans: readonly BaselineSpan[];
-  /**
-   * The offset from which every byte is new, whatever the spans say.
-   *
-   * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.beyondFrom
-   */
-  readonly beyondFrom?: number | undefined;
-}
-
-/** @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.none */
-export const NO_BASELINE: ModifiedBaseline = { spans: [] };
-
-/**
- * Whether anything in this baseline paints a byte modified at all: a file's
- * against the file, a joined image's against its pieces.
- *
- * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.marksAnything
- */
-export function baselineMarksAnything(baseline: ModifiedBaseline): boolean {
-  return baseline.spans.length > 0 || baseline.beyondFrom !== undefined;
-}
-
-/**
  * What this pane's bytes are painted against, as one value (§21.7).
  *
  * The document's saved file answers it while there is one: "modified" means
- * "not saved yet", and only the file the next save writes to can say that. With
- * no file behind the document — the image a join leaves — the question has no
- * answer at the document's level, and the pieces answer it themselves: each
+ * "not saved yet", and only the file the next save writes to can say that.
+ * With no file behind the document — the image a join leaves — the question has
+ * no answer at the document's level, and the pieces answer it themselves: each
  * linked piece is measured against the file its bytes came from, so a dump
  * joined out of two chips still shows what has been patched in each half.
  * Pieces with no link are left unmarked, the way an untitled document's bytes
  * always were.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.modifiedBaseline
- * @upstream-differs a function over the pane's record, the pane being a record here rather than an object
+ * @upstream-differs upstream asks `isUntitled`, which its document flips when a join
+ * takes the file away; the web's `untitled` means "nothing on disk to save as",
+ * and a join does not flip it, so the web asks the same question of `saved`
+ * instead — a join leaves `saved` undefined, and a save puts it back
  */
 export function baselineFor(pane: PaneId): ModifiedBaseline {
   const slot = paneState(pane);
   if (slot === undefined) return NO_BASELINE;
-  const links = segmentLinkSpans(pane, slot);
+  const saved = slot.saved;
+  const links = saved === undefined ? linkSpans(pane) : [];
   if (links.length === 0) {
-    const saved = slot.saved;
     if (saved === undefined) return NO_BASELINE;
     // A file behind the document answers the whole of it, and past its end
     // every byte is new.
@@ -326,12 +276,10 @@ export function baselineFor(pane: PaneId): ModifiedBaseline {
     };
   }
   // An image with no file of its own is answered by its pieces. Where it still
-  // has a reference of its own — a tab opened from a part of another document,
-  // joined to since (§6) — that reference answers the stretches no piece came
-  // from, so joining into such a tab does not blank the marks on the part it
-  // started as.
-  const spans: BaselineSpan[] = [...links];
-  const saved = slot.saved;
+  // has a reference of its own — a document whose pieces were joined but whose
+  // opening bytes are still held — that reference answers the stretches no
+  // piece came from.
+  const spans = [...links];
   if (saved !== undefined && saved.size > 0) {
     // The gaps between the linked pieces, in file order — `links` is built from
     // the pieces, so it already is.
@@ -352,17 +300,11 @@ export function baselineFor(pane: PaneId): ModifiedBaseline {
 }
 
 /**
- * The linked pieces as baseline spans, in file order. Empty while the document
- * has a file of its own: "modified" then means "not saved yet", and only the
- * file the next save writes to can answer that (§21.7).
+ * The linked pieces as baseline spans, in file order.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentLinkSpans
- * @upstream-differs upstream's guard is "the document is untitled" (it has no URL); the web's
- * file of its own is the pane's saved storage, and a join detaches it the same
- * way — so the answer is the same, asked of what the web keeps
  */
-function segmentLinkSpans(pane: PaneId, slot: PaneState): BaselineSpan[] {
-  if (slot.saved !== undefined) return [];
+function linkSpans(pane: PaneId): BaselineSpan[] {
   const pieces = segmentsFor(pane)?.segments ?? [];
   const spans: BaselineSpan[] = [];
   for (const piece of pieces) {
@@ -383,53 +325,6 @@ function segmentLinkSpans(pane: PaneId, slot: PaneState): BaselineSpan[] {
     });
   }
   return spans;
-}
-
-/**
- * What one byte of the document is measured against.
- *
- * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Reference
- * @upstream-differs the byte case names the reader offset to read, not the byte itself: the web's
- * reads are `peek`/`read`-based, and the consumer compares. There is no
- * `Block` — the web's consumers walk the spans through their own reads
- */
-export type BaselineReference =
-  /** Nothing is: the byte has no reference and is never painted modified. */
-  | { readonly kind: "unmarked" }
-  /** The reference holds a byte at `sourceAt` in `span.storage`. */
-  | { readonly kind: "byte"; readonly sourceAt: number; readonly span: BaselineSpan }
-  /** The reference ends before this offset: the byte is new here. */
-  | { readonly kind: "beyond" };
-
-/**
- * The answer for one document offset (§21.7).
- *
- * The spans are sorted and non-overlapping — a file behind the document is one
- * span, and the pieces tile the file — so the first span that reaches `offset`
- * is the answer, and the spans after it can be left alone.
- *
- * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.references
- * @upstream-differs one offset at a time, rather than a run of them: the web's consumers
- * (the hex row, the minimap's detail, the overview) each ask for the stretch
- * they draw
- */
-export function baselineReferenceAt(
-  baseline: ModifiedBaseline,
-  offset: number
-): BaselineReference {
-  const beyondFrom = baseline.beyondFrom;
-  if (beyondFrom !== undefined && offset >= beyondFrom) return { kind: "beyond" };
-  for (const span of baseline.spans) {
-    if (offset < span.start || offset >= span.end) continue;
-    const sourceAt = span.sourceOffset + (offset - span.start);
-    const limit =
-      span.sourceLimit !== undefined
-        ? Math.min(span.sourceLimit, span.storage.size)
-        : span.storage.size;
-    if (sourceAt >= limit) return { kind: "beyond" };
-    return { kind: "byte", sourceAt, span };
-  }
-  return { kind: "unmarked" };
 }
 
 // MARK: - How a piece stands to its source (§21.7)

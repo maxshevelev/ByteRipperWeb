@@ -1,4 +1,5 @@
 import type { MatchSet } from "@/core/search/matchSet";
+import { NO_BASELINE } from "@/core/segments/baseline";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { currentMatchMarks, matchOverlayMarks } from "@/render/minimap/matchOverlay";
 import {
@@ -12,6 +13,7 @@ import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overviewBuild";
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
+import { baselineFor } from "@/state/segmentSources";
 import { createStore } from "@/state/store";
 import {
   frontSurface,
@@ -458,7 +460,9 @@ async function buildHere(pane: PaneId, extent: number, rowCount: number): Promis
 
   try {
     const built = await buildOverviewRows(
-      { size: slot.document.size, storage: slot.document },
+      // The density picture alone: the masks come back through the pane's
+      // baseline, which the overview holds for the mask pass.
+      { size: slot.document.size, storage: slot.document, baseline: NO_BASELINE },
       extent,
       rowCount,
       { from: 0, to: rowCount },
@@ -539,8 +543,9 @@ async function refreshMasksOnce(surface: SurfaceId): Promise<void> {
     const source: OverviewSource = {
       size: slot.document.size,
       storage: slot.document,
-      saved: slot.saved,
-      isUntitled: slot.saved === undefined,
+      // What the bytes are painted modified against (§21.7): the saved file,
+      // or — an image with no file of its own — the files its pieces came from.
+      baseline: baselineFor(pane),
       edited: overlay instanceof EditOverlayStorage ? overlay.changedRanges : [],
       differences:
         differences === undefined ? undefined : (start, end) => differences.blocksIn(start, end),

@@ -1,4 +1,6 @@
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
+import { NO_BASELINE, type ModifiedBaseline } from "@/core/segments/baseline";
+import type { ByteStorage } from "@/core/storage/byteStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { addressString } from "@/core/text/offsetParser";
 import {
@@ -285,19 +287,25 @@ export class HexGridRenderer {
   };
   private selection: HexGridSelection = { start: 0, end: 0 };
   /**
-   * The file as it was last saved, for deciding which bytes are unsaved edits.
+   * What this pane's bytes are painted modified against (§21.7): the file as it
+   * was last saved, or — an image with no file of its own, the one a join
+   * leaves — the sources its pieces came from.
    *
-   * A byte is modified when it differs from the byte at the same offset in this
-   * source — compared per byte, not looked up in a record of which ranges were
-   * written. Those are not the same question: undo writes the original values
-   * back *through the edit buffer*, so a range-based answer keeps calling them
-   * modified long after they have gone back to what the file holds.
+   * A byte is modified when it differs from the byte at the same offset in the
+   * span that answers for it — compared per byte, not looked up in a record of
+   * which ranges were written. Those are not the same question: undo writes the
+   * original values back *through the edit buffer*, so a range-based answer
+   * keeps calling them modified long after they have gone back to what the file
+   * holds.
    *
-   * Absent for a document that was never on disk — a new file, a duplicate —
-   * where every byte would otherwise compare as modified. The unsaved marker in
-   * the pane's readout already says what needs saying there.
+   * Empty for a document that was never on disk and no piece came from anywhere
+   * — a new file, a manual split — where every byte would otherwise compare as
+   * modified. The unsaved marker in the pane's readout already says what needs
+   * saying there.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline
    */
-  private savedSource: HexGridSource | undefined;
+  private baseline: ModifiedBaseline = NO_BASELINE;
   /** The comparison, when there is one. Differing bytes take the orange wash. */
   private differences: DiffBlockIndex | undefined;
   /** Where the other pane's selection falls at these offsets. */
@@ -635,9 +643,12 @@ export class HexGridRenderer {
     this.contextMenuAnchor = anchor;
   }
 
-  /** The file as it was last saved. `undefined` means nothing is an edit yet. */
-  setSavedSource(source: HexGridSource | undefined): void {
-    this.savedSource = source;
+  /**
+   * What the red foreground is measured against (§21.7). An empty baseline
+   * means nothing is an edit yet.
+   */
+  setBaseline(baseline: ModifiedBaseline): void {
+    this.baseline = baseline;
     this.invalidateAll();
   }
 
@@ -881,10 +892,12 @@ export class HexGridRenderer {
     }
 
     const bytes = this.source?.peek(rowStart, available);
-    const saved = this.savedSource?.peek(rowStart, available);
-    // Not knowing yet is not the same as not modified: paint the row when the
-    // saved bytes are in, rather than showing black ink that turns red later.
-    const savedPending = this.savedSource !== undefined && saved === undefined;
+    // What the row's bytes are measured against (§21.7): each span the row
+    // touches, peeked at the source position it opens at. Not knowing yet is
+    // not the same as not modified: paint the row when its references are in,
+    // rather than showing black ink that turns red later.
+    const refs = rowReferences(this.baseline, rowStart, available);
+    const refsPending = refs.some((ref) => ref.peeked === undefined);
 
     if (bytes === undefined) {
       // Not resident. A placeholder band rather than a blank row, so a fast
@@ -895,17 +908,12 @@ export class HexGridRenderer {
       return false;
     }
 
-    const savedSize = this.savedSource?.size ?? 0;
     const indicator = this.currentMatch;
     const pending = this.pendingLowNibbleColumn(rowStart, size);
     for (let column = 0; column < bytes.length; column++) {
       const byte = bytes[column] ?? 0;
       const offset = rowStart + column;
-      const modified =
-        this.savedSource === undefined || saved === undefined
-          ? false
-          : // Past the saved file's end, every byte is new.
-            offset >= savedSize || saved[column] !== byte;
+      const modified = modifiedAgainstRefs(this.baseline, refs, offset, byte);
       const onIndicator =
         indicator !== undefined && offset >= indicator.start && offset < indicator.end;
       const role = byteInk(byte, modified, onIndicator);
@@ -930,7 +938,7 @@ export class HexGridRenderer {
     }
     if (available < BYTES_PER_ROW) this.paintEofHatch(available, BYTES_PER_ROW, y);
     this.paintOutlines(rowStart, y);
-    return !savedPending;
+    return !refsPending;
   }
 
   /**
@@ -1700,20 +1708,17 @@ export class HexGridRenderer {
     const to = Math.min(size, (end + screens) * BYTES_PER_ROW);
     if (to <= from) return;
 
-    const saved = this.savedSource;
+    // The baseline's readers the window touches and has not read yet (§21.7):
+    // a joined image's halves come in the same way the document does, one span
+    // at a time, at the source position each one opens at.
+    const needed = baselineReadsAhead(this.baseline, from, to);
+    const sourcePending = source.peek(from, to - from) === undefined;
     // Already resident on both sides: nothing to wait for, no frame to schedule.
-    if (
-      source.peek(from, to - from) !== undefined &&
-      (saved === undefined || saved.peek(from, Math.min(to, saved.size) - from) !== undefined)
-    ) {
-      return;
-    }
+    if (!sourcePending && needed.length === 0) return;
 
     this.prefetching = Promise.all([
-      source.prefetch(from, to - from),
-      saved === undefined || from >= saved.size
-        ? Promise.resolve()
-        : saved.prefetch(from, Math.min(to, saved.size) - from),
+      ...(sourcePending ? [source.prefetch(from, to - from)] : []),
+      ...needed.map((one) => one.storage.prefetch(one.at, one.length)),
     ])
       .then(() => undefined)
       .catch(() => undefined)
@@ -1737,6 +1742,105 @@ function sameContextMenuAnchor(
 ): boolean {
   if (left === undefined || right === undefined) return left === right;
   return left.offset === right.offset && left.framesByte === right.framesByte;
+}
+
+/** One span a row of the document touches, and the reference it answers with. */
+interface RowReference {
+  /** The stretch of the document this span answers, clipped to the row. */
+  readonly from: number;
+  readonly to: number;
+  /** The source position `from` opens at. */
+  readonly sourceAt: number;
+  /** Where the span's own source ends: the document bytes past it read as new. */
+  readonly limit: number;
+  /** The span's bytes at `sourceAt`, out of its cache — `undefined` while cold. */
+  readonly peeked: Uint8Array | undefined;
+}
+
+/**
+ * The spans a row of the document touches, each peeked at the source position
+ * it opens at (§21.7). A span the row does not reach is not peeked: a joined
+ * image's other half stays out of its cache while it is off screen.
+ */
+function rowReferences(
+  baseline: ModifiedBaseline,
+  rowStart: number,
+  available: number
+): RowReference[] {
+  const rowEnd = rowStart + available;
+  const refs: RowReference[] = [];
+  for (const span of baseline.spans) {
+    const from = Math.max(rowStart, span.start);
+    const to = Math.min(rowEnd, span.end);
+    if (to <= from) continue;
+    const sourceAt = span.sourceOffset + (from - span.start);
+    const limit =
+      span.sourceLimit !== undefined
+        ? Math.min(span.sourceLimit, span.storage.size)
+        : span.storage.size;
+    const length = Math.max(0, Math.min(to - from, limit - sourceAt));
+    refs.push({
+      from,
+      to,
+      sourceAt,
+      limit,
+      peeked: length > 0 ? span.storage.peek(sourceAt, length) : new Uint8Array(0),
+    });
+  }
+  return refs;
+}
+
+/**
+ * Whether the byte at `offset` is painted modified against the row's
+ * references (§21.7): new past the baseline's own end, new past the end of the
+ * source its span was taken from, different from the reference, and never
+ * marked where the baseline does not answer at all. A reference that has not
+ * been read yet is not modified — the row is not painted while it is cold.
+ */
+function modifiedAgainstRefs(
+  baseline: ModifiedBaseline,
+  refs: readonly RowReference[],
+  offset: number,
+  byte: number
+): boolean {
+  const beyondFrom = baseline.beyondFrom;
+  if (beyondFrom !== undefined && offset >= beyondFrom) return true;
+  const ref = refs.find((one) => offset >= one.from && offset < one.to);
+  if (ref === undefined) return false;
+  const sourceAt = ref.sourceAt + (offset - ref.from);
+  if (sourceAt >= ref.limit) return true;
+  if (ref.peeked === undefined) return false;
+  const theirs = ref.peeked[sourceAt - ref.sourceAt];
+  return theirs === undefined || theirs !== byte;
+}
+
+/**
+ * The spans a read-ahead window touches and has not read yet (§21.7), each at
+ * the source position it opens at: the baseline's readers come in with the
+ * document, one span at a time.
+ */
+function baselineReadsAhead(
+  baseline: ModifiedBaseline,
+  from: number,
+  to: number
+): { storage: ByteStorage; at: number; length: number }[] {
+  const reads: { storage: ByteStorage; at: number; length: number }[] = [];
+  for (const span of baseline.spans) {
+    const docFrom = Math.max(from, span.start);
+    const docTo = Math.min(to, span.end);
+    if (docTo <= docFrom) continue;
+    const at = span.sourceOffset + (docFrom - span.start);
+    const limit =
+      span.sourceLimit !== undefined
+        ? Math.min(span.sourceLimit, span.storage.size)
+        : span.storage.size;
+    const length = Math.max(0, Math.min(docTo - docFrom, limit - at));
+    if (length === 0) continue;
+    if (span.storage.peek(at, length) === undefined) {
+      reads.push({ storage: span.storage, at, length });
+    }
+  }
+  return reads;
 }
 
 /**
