@@ -376,7 +376,6 @@ function segmentItems(
       : {
           label: mergeTitle(piece.index),
           disabled: pieces < 2,
-          destructive: true,
           onSelect: () => mergePiece(pane, piece.index),
         },
     { label: "Segments…", onSelect: () => actions.onSegments(pane) },

@@ -113,7 +113,13 @@ export function SegmentsDialog({
   useEffect(() => {
     if (!open) return;
     const gen = ++linkFetch.current;
-    const linked = pieces.filter((piece) => piece.link !== undefined);
+    // Derived from `partition` (a dep), not the render's `pieces`: `pieces` is
+    // `partition.segments`, a getter that hands out a fresh array on every
+    // render, so keying on it re-ran this effect on every repaint and each
+    // `setLinkStates` below fed the next one — the form spun itself
+    // unresponsive. `partition` is a stable object that changes only when the
+    // partition actually does.
+    const linked = (partition?.segments ?? []).filter((piece) => piece.link !== undefined);
     if (linked.length === 0) {
       setLinkStates(new Map());
       return;
@@ -129,7 +135,7 @@ export function SegmentsDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, pieces, pane]);
+  }, [open, partition, pane]);
 
   /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.validateMenuItem */
   const rowMenu = (piece: Segment) =>

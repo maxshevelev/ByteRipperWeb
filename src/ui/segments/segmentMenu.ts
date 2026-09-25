@@ -57,7 +57,6 @@ export function pieceMenu(options: {
       : { label: `Edit Segment ${label}`, onSelect: () => options.onEdit?.(piece) },
     {
       label: mergeTitle(piece.index),
-      destructive: true,
       disabled: pieceCount < 2,
       onSelect: () => mergePiece(pane, piece.index),
     },
