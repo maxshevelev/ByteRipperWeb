@@ -20,6 +20,113 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 
 /**
+ * Which file a piece's bytes came from (§21.7).
+ *
+ * An id rather than the file itself: the partition is a value that undo copies
+ * and compares, and a reader — let alone a URL — has no place in one. What the
+ * id stands for lives in the pane's source registry
+ * (`src/state/segmentSources.ts`), which outlives every snapshot, so an undo
+ * that brings a piece back brings its link back with it.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentSourceID
+ */
+export interface SegmentSourceID {
+  /** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentSourceID.raw */
+  readonly raw: number;
+}
+
+/**
+ * A piece's link to the file its bytes came from (§21.7): which file, and the
+ * stretch of that file the piece stands for.
+ *
+ * The extent is the piece's *extent in the source*, which is not always the
+ * piece's own length: an insert inside the piece leaves the piece longer than
+ * the stretch it came from, and a delete leaves it shorter. That difference is
+ * exactly what Revert Segment asks about before it restores the source's
+ * length, so it is kept rather than derived.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentLink
+ */
+export class SegmentLink {
+  /** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentLink.source */
+  readonly source: SegmentSourceID;
+  /**
+   * The stretch of the source the piece stands for, half-open `[start, end)`.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentLink.sourceRange
+   * @upstream-differs the half-open range as two offsets, per D13, rather than
+   * a `Range` value
+   */
+  readonly start: number;
+  readonly end: number;
+
+  /**
+   * Upstream's struct carries the implicit memberwise initializer here; there
+   * is no declaration to anchor, so the constructor is plain.
+   */
+  constructor(source: SegmentSourceID, start: number, end: number) {
+    this.source = source;
+    this.start = start;
+    this.end = end;
+  }
+
+  /**
+   * The source offset the piece's byte at `offset` stands for, given the piece
+   * opens at `pieceStart`. Past the link's extent the answer is undefined —
+   * those bytes came from nowhere the link knows about.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentLink.sourceOffset
+   */
+  sourceOffset(offset: number, pieceStart: number): number | undefined {
+    if (offset < pieceStart) return undefined;
+    const within = offset - pieceStart;
+    if (within >= this.end - this.start) return undefined;
+    return this.start + within;
+  }
+
+  /**
+   * The same link shifted by `delta` in the source — what a boundary move does
+   * to a piece that gains or loses bytes at its front. Undefined when the shift
+   * would take the extent before the source's start or past its own end: the
+   * piece's bytes then stand in no fixed relation to the file, and a link that
+   * lies is worse than none.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentLink.shiftedStart
+   */
+  shiftedStart(delta: number): SegmentLink | undefined {
+    const lower = this.start + delta;
+    if (lower < 0 || lower > this.end) return undefined;
+    return new SegmentLink(this.source, lower, this.end);
+  }
+
+  /**
+   * The same link with its extent grown or shrunk at the far end — what a
+   * boundary move does to the piece *before* the cut, which gains or loses
+   * bytes at its tail. Never shrinks past its own start.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentLink.resizedEnd
+   */
+  resizedEnd(delta: number): SegmentLink {
+    const upper = this.end + delta;
+    return new SegmentLink(this.source, this.start, Math.max(upper, this.start));
+  }
+
+  /**
+   * Whether `other` is the same link: same source, same extent.
+   *
+   * @upstream-differs upstream's synthesized `Equatable` conformance
+   */
+  equals(other: SegmentLink | undefined): boolean {
+    return (
+      other !== undefined &&
+      this.source.raw === other.source.raw &&
+      this.start === other.start &&
+      this.end === other.end
+    );
+  }
+}
+
+/**
  * One piece as the partition stores it: where it opens and what it is called.
  *
  * @upstream ByteRipperApp/Segments/SegmentStore.swift#Piece
@@ -37,6 +144,12 @@ export interface Piece {
    * @upstream ByteRipperApp/Segments/SegmentStore.swift#Piece.name
    */
   readonly name: string;
+  /**
+   * The file the piece's bytes came from, when they came from one (§21.7).
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Piece.link
+   */
+  readonly link?: SegmentLink | undefined;
 }
 
 /**
@@ -64,6 +177,12 @@ export interface Segment {
    * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.name
    */
   readonly name: string;
+  /**
+   * The file the piece's bytes came from, when they came from one (§21.7).
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.link
+   */
+  readonly link?: SegmentLink | undefined;
 }
 
 /**
@@ -180,6 +299,7 @@ export class Segmentation {
       start: piece.start,
       end: this.pieces[index + 1]?.start ?? this.contentSize,
       name: piece.name,
+      link: piece.link,
     }));
   }
 
@@ -208,12 +328,77 @@ export class Segmentation {
     return index === undefined ? undefined : this.segments[index];
   }
 
+  // Links (§21.7)
+
+  /**
+   * A link over `[start, end)`, or `undefined` when the range is empty: a link
+   * that stands for no bytes of the source says nothing, and Revert Segment
+   * would have nothing to restore from it.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.nonEmptyLink
+   * @upstream-differs the half-open range as two offsets, per D13, rather than
+   * a `Range` value
+   */
+  static nonEmptyLink(
+    source: SegmentSourceID,
+    start: number,
+    end: number
+  ): SegmentLink | undefined {
+    if (start >= end) return undefined;
+    return new SegmentLink(source, start, end);
+  }
+
+  /**
+   * Links the piece at `index` to `link` (undefined unlinks it). The one way a
+   * link is set: a join, a replace-from-file, or the detach that turns the
+   * pane's own file into a source (§21.7).
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.setLink
+   */
+  setLink(link: SegmentLink | undefined, index: number): Segmentation {
+    const piece = this.pieces[index];
+    if (piece === undefined) return this;
+    const pieces = [...this.pieces];
+    pieces[index] = { start: piece.start, name: piece.name, link };
+    return new Segmentation(this.contentSize, pieces);
+  }
+
+  /**
+   * Links every piece that has no link yet to `source`, each at its own
+   * offsets — what a join does to the content the pane already held when that
+   * content was a file the join is about to detach from (§21.7, §22.2). Pieces
+   * that already carry a link (an earlier join's) keep it.
+   *
+   * `undefined` when nothing changed: a partition already fully linked to the
+   * source, or with a piece too empty to link, stays a no-op the caller can
+   * skip.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.linkUnlinkedPieces
+   */
+  linkUnlinkedPieces(source: SegmentSourceID): Segmentation | undefined {
+    const ends = this.pieces.slice(1).map((piece) => piece.start);
+    ends.push(this.contentSize);
+    let changed = false;
+    const pieces = this.pieces.map((piece, index) => {
+      if (piece.link !== undefined) return piece;
+      const link = Segmentation.nonEmptyLink(source, piece.start, ends[index] ?? 0);
+      if (link === undefined) return piece;
+      changed = true;
+      return { start: piece.start, name: piece.name, link };
+    });
+    return changed ? new Segmentation(this.contentSize, pieces) : undefined;
+  }
+
   /**
    * Adds a cut at `offset`, splitting the piece that contains it. The earlier
    * piece keeps its name; the new one starts unnamed.
    *
    * Refused at 0, at EOF, or where a cut already is — every piece must stay
    * non-empty.
+   *
+   * A link splits with the piece (§21.7): both halves came from the same file,
+   * at the offsets they sit at in it — which is why a cut inside a joined half
+   * leaves two pieces that each still know where they came from.
    *
    * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.addCut
    */
@@ -222,9 +407,26 @@ export class Segmentation {
     if (this.pieces.some((piece) => piece.start === offset)) return undefined;
     const index = this.indexContaining(offset);
     if (index === undefined) return undefined;
+    const cut = this.pieces[index];
+    if (cut === undefined) return undefined;
 
+    let newLink: SegmentLink | undefined;
+    let kept = cut;
+    if (cut.link !== undefined) {
+      // Where the cut falls in the source: the document bytes the earlier half
+      // keeps, clamped to the extent the link actually covers (an insert can
+      // leave the piece longer than its source).
+      const taken = Math.min(offset - cut.start, cut.link.end - cut.link.start);
+      const split = cut.link.start + taken;
+      kept = {
+        start: cut.start,
+        name: cut.name,
+        link: Segmentation.nonEmptyLink(cut.link.source, cut.link.start, split),
+      };
+      newLink = Segmentation.nonEmptyLink(cut.link.source, split, cut.link.end);
+    }
     const pieces = [...this.pieces];
-    pieces.splice(index + 1, 0, { start: offset, name: "" });
+    pieces.splice(index, 1, kept, { start: offset, name: "", link: newLink });
     return new Segmentation(this.contentSize, pieces);
   }
 
@@ -240,7 +442,14 @@ export class Segmentation {
   removeCut(offset: number): Segmentation | undefined {
     const index = this.pieces.findIndex((piece) => piece.start === offset);
     if (index < 1) return undefined;
+    const before = this.pieces[index - 1];
+    if (before === undefined) return undefined;
+    // The earlier piece absorbs the later one's bytes, so its extent in its
+    // own source grows by as many (§21.7): the absorbed piece's link goes with
+    // it, the way its name does.
+    const end = this.pieces[index + 1]?.start ?? this.contentSize;
     const pieces = [...this.pieces];
+    pieces[index - 1] = { start: before.start, name: before.name, link: before.link?.resizedEnd(end - offset) };
     pieces.splice(index, 1);
     return new Segmentation(this.contentSize, pieces);
   }
@@ -255,13 +464,35 @@ export class Segmentation {
    */
   removePiece(index: number): Segmentation | undefined {
     if (this.pieces.length <= 1 || index < 0 || index >= this.pieces.length) return undefined;
+    const removedStart = this.pieces[index]?.start ?? 0;
+    const removedEnd = this.pieces[index + 1]?.start ?? this.contentSize;
     const pieces = [...this.pieces];
     if (index === 0) {
       const below = pieces[1];
       if (below === undefined) return undefined;
-      pieces[1] = { start: 0, name: below.name };
+      // The piece below absorbs S0 and takes its place: it reopens at 0 and
+      // keeps its own name, so what was S1 is now S0. It gains S0's bytes at
+      // its front, so its extent in its source opens that much earlier — and
+      // where the source has no room for them, the link is dropped rather than
+      // left claiming bytes that are not its (§21.7).
+      pieces[1] = {
+        start: 0,
+        name: below.name,
+        link: below.link?.shiftedStart(-(removedEnd - removedStart)),
+      };
       pieces.shift();
     } else {
+      const above = pieces[index - 1];
+      if (above !== undefined) {
+        // The piece above absorbs it and keeps its name; the removed piece is
+        // simply dropped from the partition. Its bytes join the piece above,
+        // whose extent in its own source grows to match (§21.7).
+        pieces[index - 1] = {
+          start: above.start,
+          name: above.name,
+          link: above.link?.resizedEnd(removedEnd - removedStart),
+        };
+      }
       pieces.splice(index, 1);
     }
     return new Segmentation(this.contentSize, pieces);
@@ -286,10 +517,17 @@ export class Segmentation {
     const upper = this.pieces[index + 1]?.start ?? this.contentSize;
     if (offset <= lower || offset >= upper) return undefined;
 
+    const moved = this.pieces[index];
+    const before = this.pieces[index - 1];
+    if (moved === undefined || before === undefined) return undefined;
+    // The boundary slides without the bytes moving, so both pieces' extents in
+    // their sources slide with it (§21.7): the piece that opens here gains or
+    // loses bytes at its front, the one before it at its tail. A slide that
+    // would take a front past its source's start drops the link.
+    const delta = offset - from;
     const pieces = [...this.pieces];
-    const moved = pieces[index];
-    if (moved === undefined) return undefined;
-    pieces[index] = { start: offset, name: moved.name };
+    pieces[index] = { start: offset, name: moved.name, link: moved.link?.shiftedStart(delta) };
+    pieces[index - 1] = { start: before.start, name: before.name, link: before.link?.resizedEnd(delta) };
     return new Segmentation(this.contentSize, pieces);
   }
 
@@ -303,7 +541,7 @@ export class Segmentation {
     const piece = this.pieces[index];
     if (piece === undefined) return this;
     const pieces = [...this.pieces];
-    pieces[index] = { start: piece.start, name: name.trim() };
+    pieces[index] = { start: piece.start, name: name.trim(), link: piece.link };
     return new Segmentation(this.contentSize, pieces);
   }
 
@@ -336,12 +574,46 @@ export class Segmentation {
       const pieces = this.pieces.map((piece) => {
         if (piece.start <= at) return piece;
         moved = true;
-        return { start: piece.start + length, name: piece.name };
+        // The link is untouched: the piece's bytes stand for the same stretch
+        // of their source, only at a later offset (§21.7).
+        return { start: piece.start + length, name: piece.name, link: piece.link };
       });
       return { partition: new Segmentation(newSize, pieces), moved };
     }
 
     return this.applyDelete(edit.start, edit.end, newSize);
+  }
+
+  /**
+   * Applies an insert whose bytes belong to the piece at `index` although they
+   * landed on its closing boundary — what a swap that made a piece longer does
+   * (§21.6, §21.7).
+   *
+   * The ordinary insert rule gives bytes added at a cut to the piece that
+   * *starts* there, which is right for an edit made at that offset and wrong
+   * for this one: the bytes replaced a piece, so they are that piece's. Every
+   * piece after it moves by `length`, and its own extent in its source grows
+   * with it.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segmentation.applyGrowth
+   */
+  applyGrowth(index: number, length: number, newSize: number): Segmentation {
+    if (this.pieces[index] === undefined || length <= 0) {
+      return new Segmentation(newSize, this.pieces);
+    }
+    const pieces = this.pieces.map((piece, i) => {
+      if (i <= index) return piece;
+      return { start: piece.start + length, name: piece.name, link: piece.link };
+    });
+    const grown = pieces[index];
+    if (grown !== undefined) {
+      pieces[index] = {
+        start: grown.start,
+        name: grown.name,
+        link: grown.link?.resizedEnd(length),
+      };
+    }
+    return new Segmentation(newSize, pieces);
   }
 
   /**
@@ -387,17 +659,27 @@ export class Segmentation {
       }
 
       const newStart = hasPrefix ? start : suffixStart - length;
-      // The name it keeps: the first piece in the run that opens before the
+      // The name it keeps: the first piece *of this run* that opens before the
       // deletion — a run beginning inside it keeps the name of the piece that
-      // opens at its shifted start.
+      // opens at its shifted start. Searched from `i`, not from 0: the pieces
+      // before the run are not in it, and piece 0 opens before every deletion,
+      // so starting at 0 gave every later run piece 0's name.
       let nameIndex = j;
-      for (let k = 0; k <= j; k++) {
+      for (let k = i; k <= j; k++) {
         if ((bounds[k] ?? 0) < lo) {
           nameIndex = k;
           break;
         }
       }
-      survivors.push({ start: newStart, name: this.pieces[nameIndex]?.name ?? "" });
+      // The link follows the name (§21.7), and moves only when the piece it
+      // names lost its head to the deletion: a run that keeps its head still
+      // opens on the byte it always did, and one that starts past the deletion
+      // moved whole — in both cases its extent in its source is unchanged.
+      const anchor = bounds[nameIndex] ?? 0;
+      const named = this.pieces[nameIndex];
+      const link =
+        anchor >= lo && anchor < hi ? named?.link?.shiftedStart(hi - anchor) : named?.link;
+      survivors.push({ start: newStart, name: named?.name ?? "", link });
       i = j + 1;
     }
 
