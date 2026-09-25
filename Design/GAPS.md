@@ -93,7 +93,7 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 
 | ID | Gap | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|
-| G24 | **App flow tests.** Upstream's UI flow tests have no counterpart: the project has no component or end-to-end tests. | ~1000 upstream tests | A test dependency (Playwright, or a DOM test runner) — needs its reason written down | P2 | decision |
+| G24 | **App flow tests.** Upstream's UI flow tests have no counterpart: the project has no component or end-to-end tests. The newest instance is the segment-link app flow — `SegmentLinkCommandTests` (the strip menu's revert, the length question) and `SegmentSourceWriteGuardTests` (a save asked again for a name): their *state* is unit-tested (the command in `segmentCommands.test.ts`, the guard in `segmentSources.test.ts`), but the dialog that drives it — the length question, the save panel re-shown after a refusal — is the platform layer's. | ~1000 upstream tests | A test dependency (Playwright, or a DOM test runner) — needs its reason written down | P2 | decision |
 | G25 | **Modules without tests of their own:** `fileSink`, `duplicatePane`, attaching a join's file on undo and redo, `efiGuid`, `nvramGuids`, `ProgressSink`, the lazy UEFI tree, `firmwareTypeClassifier`, `manifestSelection`, the ME database stores, `BlobByteSource`, the UEFI checksum check, the seam. | ~15 upstream test files | — | P2 | open |
 | G26 | **Cross-browser pass and error states end to end:** Chromium, Firefox, Safari; offline with no cached database, a stale `File`, a file changed on disk, a declined permission — every capability difference announced by the app. | — | — | P1 | open |
 | G28 | **The benchmark table on a low-end machine** as well as a fast one. | — | — | P2 | open |

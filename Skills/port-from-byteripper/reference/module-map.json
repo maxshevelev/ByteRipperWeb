@@ -218,7 +218,8 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/LibraryMergeTests.swift": "src/core/sync/syncMerge.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PatternLibraryTests.swift": "src/core/search/patternLibrary.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift": "src/core/search/searchPatternEntry.test.ts",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/VersionVectorTests.swift": "src/core/sync/versionVector.test.ts"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/VersionVectorTests.swift": "src/core/sync/versionVector.test.ts",
+        "SlicedStorage.swift": "src/core/storage/slicedStorage.ts"
       },
       "unported": {
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot.*": "n/a — the snapshot is a scratch file read through a ByteSource (EditOverlayStorage.contentSnapshot), so it has no reader type of its own",
@@ -1132,7 +1133,11 @@
           "src/ui/dialogs/SegmentsDialog.tsx",
           "src/ui/segments/segmentMenu.ts"
         ],
-        "CutEditPopover.swift": "src/ui/dialogs/CutDialog.tsx"
+        "CutEditPopover.swift": "src/ui/dialogs/CutDialog.tsx",
+        "SegmentSources.swift": [
+          "src/state/segmentSources.ts",
+          "src/core/segments/baseline.ts"
+        ]
       },
       "note": "Across at M7. The partition is immutable here where Swift's is a mutating value type, which is what makes the pane's own undo a stack of whole partitions rather than a log of changes to one. Cuts are undoable, which upstream's are not: Cmd/Ctrl+Z takes back whichever of the pane's two histories acted last (src/state/undoRouter.ts). They cannot be one history — the document's dirty state is a function of its own, and a cut changes no byte and must not make a file look unsaved. The popover is a dialog: a browser has no popover worth the machinery, and the offset is in the form. The form's row menu and the minimap strip's menu are one function (src/ui/segments/segmentMenu.ts), as upstream intends by building them the same shape.",
       "unported": {
@@ -1156,7 +1161,28 @@
         "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.viewDidAppear": "n/a — AppKit view plumbing",
         "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.show": "n/a — a dialog, not a popover",
         "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.control": "n/a — AppKit view plumbing",
-        "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.popoverDidClose": "n/a — a dialog, not a popover"
+        "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.popoverDidClose": "n/a — a dialog, not a popover",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.beyond": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.bytes": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.covered": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.init": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.isFullyCovered": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.isUnreferenced": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.range": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.reference": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Block.touchesBeyond": "n/a — the web reads a byte through its chunk bridge against the one span that covers it; there is no whole-slice `Block` to memcmp",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.block": "n/a — the per-range `Block` is not ported; the web reads byte-by-byte through the spans (see `ModifiedBaseline.Block`)",
+        "ByteRipperApp/Segments/SegmentSources.swift#ModifiedBaseline.Span.init": "n/a — a span is an object literal; there is nothing to construct",
+        "ByteRipperApp/Segments/SegmentSources.swift#SegmentSources.adopt": "n/a — the web's `duplicatePane` resets the partition (`resetSegments`), so a copy has no sources to adopt",
+        "ByteRipperApp/Segments/SegmentSources.swift#SegmentSources.existingID": "the web's `sourceIDForFile` mints or reuses in one step; upstream's two-phase `id(for:)` / `existingID(for:)` split is not kept",
+        "ByteRipperApp/Segments/SegmentSources.swift#SegmentSources.invalidate": "n/a — the web keys its link-state cache to the pane's committed undo serial, so a per-source invalidation is not needed",
+        "ByteRipperApp/Segments/SegmentStore.swift#Piece.init": "n/a — the web's `Piece` is an object literal; there is nothing to construct",
+        "ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.setLink": "n/a — the web holds the partition as an immutable `Segmentation` snapshot; the observable `SegmentStore`'s pass-through mutators are not ported (the equivalent runs on the `Segmentation` value)",
+        "ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.linkUnlinkedPieces": "n/a — the web holds the partition as an immutable `Segmentation` snapshot; the observable `SegmentStore`'s pass-through mutators are not ported (the equivalent runs on the `Segmentation` value)",
+        "ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.applyGrowth": "n/a — the web holds the partition as an immutable `Segmentation` snapshot; the observable `SegmentStore`'s pass-through mutators are not ported (the equivalent runs on the `Segmentation` value)",
+        "ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.revertPiece": "n/a — the form carries no revert closure; the web's dialog drives `revertPiece` in `segmentCommands`",
+        "ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.revertSegmentToSource": "n/a — the AppKit menu action; the web's row menu calls `revertPiece` in `segmentCommands`"
       }
     },
     {
@@ -1360,7 +1386,11 @@
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.resetCursorRects": "n/a — AppKit cursor rects; `cursor: pointer` in the stylesheet",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
         "ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDownwardDragThresholdPassed": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
-        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkSymbolName": "later — the three states of a part's link to its parent (G4 in Design/GAPS.md)"
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkSymbolName": "later — the three states of a part's link to its parent (G4 in Design/GAPS.md)",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.sourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.refreshSourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onSegmentSourceChanged": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentSources": "n/a — the web keeps one registry per pane at module level (`segmentSources`), not as a `PaneViewModel` member"
       }
     },
     {
@@ -4047,7 +4077,9 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowDoesNotScrollBackToTheSelection": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingIntoAnUnopenedMERegionOpensItAndPicksTheRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAMappableMENodePublishesItsRange": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAnInfoLeafMENodePublishesNoZone": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAnInfoLeafMENodePublishesNoZone": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/SegmentLinkTests.swift#SegmentLinkCommandTests": "later — an app flow test (the strip menu's revert and the length question are the platform layer's); its two source-changed-prompt tests are n/a — a page holds its bytes in memory, so no source changes behind its back",
+        "ByteRipperTests/SegmentLinkTests.swift#SegmentSourceWriteGuardTests": "later — an app flow test; the guard's state is unit-tested in `segmentSources.test.ts`, but the save panel's re-show loop is the platform layer's"
       }
     },
     {
@@ -4441,7 +4473,10 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRebuildsCompleted": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonIndexBuild": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapSegmentMenu": "later — G50: the gutter's menus on a panel's map, which upstream has off behind a flag",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.forgetPaneView": "n/a — React unmounts a pane's view with the surface that rendered it; there is no table of views to forget"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.forgetPaneView": "n/a — React unmounts a pane's view with the surface that rendered it; there is no table of views to forget",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSegmentSourceChange": "n/a — the Reload / Keep prompt a changed source would raise; a page holds its bytes in memory, so no source changes behind its back",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuRevertSegment": "n/a — the AppKit action behind the minimap strip's revert; the web's strip menu is the shared piece menu that calls `revertPiece`",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.revertSegmentAtOffset": "n/a — the AppKit action behind the offset menu's revert; the web's offset menu is the shared piece menu that calls `revertPiece`"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
