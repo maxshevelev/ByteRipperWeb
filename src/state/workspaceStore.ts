@@ -1,5 +1,6 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocument";
+import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
 import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
 import type { UndoOperation } from "@/core/edit/undoHistory";
@@ -47,9 +48,9 @@ import {
   applySegments,
   clearSegments,
   resetSegments,
-  segmentsFor,
   swapSegments,
 } from "@/state/segmentsStore";
+import { clearSources, sourceIDForFile, swapSources } from "@/state/segmentSources";
 import {
   DEFAULT_GROUPING_GAP,
   DEFAULT_TEXT_DECODING,
@@ -519,6 +520,8 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
     // A file arrives as one piece covering it, whatever the pane held before.
     forgetJoins(pane);
     resetSegments(pane, document.size);
+    // And every source the old file's pieces pointed at goes with it.
+    clearSources(pane);
     // Opening replaces the storage wholesale, so anything read from the file
     // this pane was showing is about a file that is no longer here.
     signalFullInvalidation(pane);
@@ -537,6 +540,7 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
 export function closePane(pane: SlotId): void {
   forgetJoins(pane);
   clearSegments(pane);
+  clearSources(pane);
   workspaceStore.update((state) => ({
     ...state,
     panes: { ...state.panes, [pane]: undefined },
@@ -556,6 +560,7 @@ export function closePane(pane: SlotId): void {
  */
 export function swapPanes(): void {
   swapSegments();
+  swapSources();
   workspaceStore.update((state) => ({
     ...state,
     panes: { a: state.panes.b, b: state.panes.a },
@@ -826,9 +831,12 @@ export async function duplicatePane(from: SlotId): Promise<void> {
     activePane: into,
   }));
   // The copy is a document of its own: it starts as one piece, and the
-  // original's cuts stay with the original.
+  // original's cuts stay with the original. The copy reads a snapshot of the
+  // original's bytes, so a source the original's pieces pointed at is not the
+  // copy's — the copy's pieces have no link at all.
   forgetJoins(into);
   resetSegments(into, document.size);
+  clearSources(into);
   noteDocumentChanged();
   // The pane the copy lands in is showing bytes that were not there a moment
   // ago, whatever it was reading before. The source pane is untouched, and has
@@ -880,6 +888,7 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
   }));
   forgetJoins(pane);
   resetSegments(pane, 0);
+  clearSources(pane);
   // A new document replaces the storage wholesale, exactly as an open does:
   // the pane's file is gone from under whatever was reading it.
   signalFullInvalidation(pane);
@@ -942,6 +951,9 @@ export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigi
     },
     dock: opened.dock,
   }));
+  // A part is a document of its own: if the pane it landed in was one, its
+  // sources go with the document it was.
+  clearSources(pane);
   return pane;
 }
 
@@ -985,6 +997,7 @@ export function foldParts(): void {
  */
 export function closePart(pane: PartId): void {
   clearSegments(pane);
+  clearSources(pane);
   // The marks stay: they were never the part's. A panel reads the workspace's
   // list at the part's offsets (§20.7), so closing the panel closes a window
   // onto the marks, not the marks themselves — the same row is still marked in
@@ -1066,6 +1079,7 @@ export async function revertPane(pane: PaneId): Promise<void> {
   // Reverting throws the edits away, and the cuts travelled with them.
   if (isSlot(pane)) forgetJoins(pane);
   resetSegments(pane, slot.document.size);
+  clearSources(pane);
   noteDocumentChanged();
 }
 
@@ -1122,6 +1136,13 @@ export interface JoinRequest {
   /** What the joined bytes came from, for the piece that holds them. */
   readonly sourceName: string;
   readonly position: JoinPosition;
+  /**
+   * The file the donor's bytes are being read from, when there is one (§21.7):
+   * the joined piece links to it, so the image the join leaves still knows which
+   * half came from which chip and can be measured against it. A donor that is
+   * not a file joins without a link.
+   */
+  readonly sourceFile?: OpenedFile | undefined;
 }
 
 /**
@@ -1158,6 +1179,18 @@ async function performJoin(request: JoinRequest): Promise<void> {
     writable: slot.writable,
   };
 
+  // The join is about to take the document's file away from it (§22.2), so
+  // that file becomes what the content the pane already holds is measured
+  // against: every piece that has no source of its own is linked to it, at the
+  // offsets it sits at there (§21.7). Done before the insert, while those
+  // offsets are still the file's, and after the snapshot, so undoing the join
+  // — which gives the file back — takes the links with it.
+  const preJoinSource = slot.untitled ? undefined : sourceIDForFile(pane, slot.file);
+  if (preJoinSource !== undefined) {
+    applySegments(pane, (partition) => partition.linkUnlinkedPieces(preJoinSource));
+  }
+  const joinedSource = request.sourceFile === undefined ? undefined : sourceIDForFile(pane, request.sourceFile);
+
   const serial = await slot.document.join(source, position);
 
   // The base every worker reads is the file the pane was opened from, and after
@@ -1190,7 +1223,7 @@ async function performJoin(request: JoinRequest): Promise<void> {
   // offsets stopped meaning what they meant.
   const anchor = position === "start" ? 0 : sizeBefore;
   editingHooks.onEdit?.(pane, { kind: "insert", at: anchor, length: sourceSize });
-  seamCut({ pane, position, sizeBefore, sourceSize, sourceName, originalName: before.name });
+  seamCut({ pane, position, sizeBefore, sourceSize, sourceName, joinedSource });
   noteDocumentChanged();
 }
 
@@ -1217,29 +1250,38 @@ function seamCut(options: {
   sizeBefore: number;
   sourceSize: number;
   sourceName: string;
-  originalName: string;
+  joinedSource: SegmentSourceID | undefined;
 }): void {
-  const { pane, position, sizeBefore, sourceSize, sourceName } = options;
+  const { pane, position, sizeBefore, sourceSize, sourceName, joinedSource } = options;
+  // The joined bytes stand for the whole of their source, whatever length it
+  // has — and where there is no source behind them, they stand for nothing.
+  const link =
+    joinedSource === undefined ? undefined : new SegmentLink(joinedSource, 0, sourceSize);
   // A pane that was empty holds nothing but the source, so there is one piece
   // and it is the source's — a cut at 0 or at the end would be refused anyway.
   if (sizeBefore === 0) {
-    applySegments(pane, (partition) => partition.rename(0, sourceName));
+    applySegments(pane, (partition) => partition.rename(0, sourceName).setLink(link, 0));
     return;
   }
   const seam = position === "start" ? sourceSize : sizeBefore;
-  // For an insert at the start the cut splits the piece that opens at 0: the
-  // earlier half (the new bytes) keeps that piece's name and the later half
-  // (the original content) is left unnamed. So the original name is taken from
-  // the piece before the cut, not from the pane, which has already been renamed.
-  const originalName =
-    position === "start" ? (segmentsFor(pane)?.segments[0]?.name ?? "") : options.originalName;
 
   applySegments(pane, (partition) => {
     const cut = partition.addCut(seam);
     if (cut === undefined) return undefined;
-    return position === "start"
-      ? cut.rename(0, sourceName).rename(1, originalName)
-      : cut.rename(0, originalName).rename(1, sourceName);
+    if (position === "start") {
+      // The cut splits the piece that opens at 0: piece 0 is the joined bytes
+      // (take the source's name); piece 1 is the original content (addCut left
+      // it unnamed, so name it — with the name the piece had before the cut,
+      // not the pane's, which has already been renamed).
+      const originalName = cut.segments[0]?.name ?? "";
+      return cut.rename(0, sourceName).rename(1, originalName).setLink(link, 0);
+    }
+    // The joined bytes are the last piece — the cut at the old end split the
+    // piece that ran to it, whichever piece that was. The content the pane
+    // already held keeps its own names (addCut left them alone), and the new
+    // tail takes the source's.
+    const joined = cut.segments.length - 1;
+    return cut.rename(joined, sourceName).setLink(link, joined);
   });
 }
 

@@ -4,11 +4,12 @@ import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
+import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
-import { sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
+import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
@@ -1221,9 +1222,15 @@ export function AppShell() {
    * joins without asking, as its menu's Append File… already does
    */
   const joinInto = useCallback(
-    async (pane: SlotId, position: JoinPosition, source: ByteStorage, sourceName: string) => {
+    async (
+      pane: SlotId,
+      position: JoinPosition,
+      source: ByteStorage,
+      sourceName: string,
+      sourceFile?: OpenedFile | undefined
+    ) => {
       try {
-        await joinIntoPane({ pane, source, sourceName, position });
+        await joinIntoPane({ pane, source, sourceName, position, sourceFile });
         revealSeam(pane);
       } catch (error) {
         if (error instanceof JoinEmpty) {
@@ -1237,6 +1244,47 @@ export function AppShell() {
       }
     },
     [revealSeam]
+  );
+
+  /**
+   * A pane dropped on another pane's band: a copy of that pane's content into
+   * the other one (§22.4).
+   *
+   * The donor here is a pane, and its file — if it has one — is not what the
+   * copy is: the copy is the pane's *content at the moment of the join*, which
+   * the source pane may go on to edit. So the joined piece is linked to a
+   * snapshot of that content, named after the pane: the image measures itself
+   * against what was actually copied (§21.7). Where the browser grants no
+   * private storage to put a snapshot in, the join goes ahead without a link.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performPaneDrop
+   * @upstream-differs upstream joins the source pane's *file* — the document's URL — so both
+   * halves are measured against what is on disk; the web snapshots the content,
+   * because the source pane's file may be a private snapshot of its own and the
+   * source pane may be edited afterwards
+   */
+  const paneJoinInto = useCallback(
+    async (pane: SlotId, position: JoinPosition, source: PaneState) => {
+      let sourceFile: OpenedFile | undefined;
+      if (OpfsScratchStore.isAvailable()) {
+        try {
+          const snapshot = await (
+            source.document.storage as EditOverlayStorage
+          ).contentSnapshot(new OpfsScratchStore());
+          sourceFile = {
+            name: source.name,
+            size: snapshot.size,
+            lastModified: Date.now(),
+            source: snapshot,
+          };
+        } catch {
+          // A link to the source pane's own file would measure the copy against
+          // bytes it never had: the join still copies, and goes on without a link.
+        }
+      }
+      await joinInto(pane, position, source.document.storage, source.name, sourceFile);
+    },
+    [joinInto]
   );
 
   /**
@@ -1261,7 +1309,8 @@ export function AppShell() {
           pane,
           position,
           new FileBackedStorage(picked.source, new ChunkCache()),
-          picked.name
+          picked.name,
+          picked
         );
       } catch (error) {
         reportAlert(
@@ -1372,7 +1421,7 @@ export function AppShell() {
         case "join": {
           const source = panes[dragging];
           if (source === undefined) return;
-          void joinInto(target, outcome.at, source.document.storage, source.name);
+          void paneJoinInto(target, outcome.at, source);
           return;
         }
         case "duplicate": {
@@ -1406,7 +1455,7 @@ export function AppShell() {
           return;
       }
     },
-    [joinInto, paneDropOutcomeFor]
+    [paneDropOutcomeFor, paneJoinInto]
   );
 
   /**
@@ -1471,7 +1520,8 @@ export function AppShell() {
           target,
           band === "insertAtStart" ? "start" : "end",
           new FileBackedStorage(first.source, new ChunkCache()),
-          first.name
+          first.name,
+          first
         );
         noteIgnored(extra.length, "join");
         return;
@@ -1498,7 +1548,8 @@ export function AppShell() {
           target,
           band === "insertAtStart" ? "start" : "end",
           new FileBackedStorage(first.source, new ChunkCache()),
-          first.name
+          first.name,
+          first
         );
         noteIgnored(extra.length, "join");
         return;
