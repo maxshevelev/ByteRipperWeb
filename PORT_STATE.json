@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "c450b2e51e4a23617640e48d4bd15415482b5513",
-  "baselineNote": "Let a segment remember the file it came from (2026-09-24)"
+  "baseCommit": "e3be3e21e3bd7bdc2073b1df3cab02fe3a31b826",
+  "baselineNote": "Leave the offset menu's segment block to Split Here until the pane is cut (2026-09-25)"
 }
