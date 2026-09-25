@@ -362,10 +362,11 @@ function zoneItems(
 }
 
 /**
- * The segment block (§21.3): cut here — and, when the right-clicked byte is in a
- * piece, that piece's own items beside it, the same set the strip's menu offers
- * for the piece under the pointer (Save / Replace / Select / Edit) plus Merge and,
- * where the piece came from a file, Revert back to it.
+ * The segment block (§21.3): Split Here for the position — and, once the pane is
+ * cut into more than one piece, that piece's own items beside it, the same set the
+ * strip's menu offers for the piece under the pointer (Save / Replace / Select /
+ * Edit) plus Merge, and, where the piece came from a file, Revert back to it: the
+ * source file's item, so it shows even with no cuts.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addSegmentMenuItems
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuSaveSegment
@@ -387,7 +388,12 @@ function segmentItems(
       onSelect: () => actions.onSplitHere(pane, offset),
     },
   ];
-  if (piece !== undefined) {
+  // The rest of the block works on a partition: with no cuts there is one
+  // whole-file piece and nothing to save out, swap, select, rename or merge, so
+  // the block is Split Here alone (§21.3). Merge rides with the piece's items —
+  // upstream has it beside them, but the web's "Merge S# into S#" names the piece
+  // and so has nothing to show where there is none.
+  if (pieces > 1 && piece !== undefined) {
     const label = segmentLabel(piece.index);
     // The piece's own items, the strip's menu's set, acting on the piece the byte
     // sits in rather than the piece under the pointer (§21.3).
@@ -406,12 +412,15 @@ function segmentItems(
       },
       {
         label: mergeTitle(piece.index),
-        disabled: pieces < 2,
         onSelect: () => mergePiece(pane, piece.index),
       },
     );
-    // Revert back to the file the piece came from (§21.7): the source file's item,
-    // present wherever the piece has one.
+  }
+  // Revert back to the file the piece came from (§21.7): the source file's item,
+  // excepted from the partition gate — a whole-file piece can still have been
+  // replaced from one.
+  if (piece !== undefined) {
+    const label = segmentLabel(piece.index);
     const source = segmentSource(pane, piece);
     if (source !== undefined) {
       items.push(
