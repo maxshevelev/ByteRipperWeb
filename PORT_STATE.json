@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "d8f0a65974b4f4d1806e06ab727e0be1f10cf6ef",
-  "baselineNote": "Let a fragment panel read the window's bookmarks at the part's offsets (2026-09-24)"
+  "baseCommit": "c450b2e51e4a23617640e48d4bd15415482b5513",
+  "baselineNote": "Let a segment remember the file it came from (2026-09-24)"
 }
