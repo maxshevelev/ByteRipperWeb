@@ -61,6 +61,93 @@ describe("the bytes after a swap", () => {
   });
 });
 
+describe("a swap that changes the length", () => {
+  // A longer donor writes the stretch both sides have in place and adds the
+  // rest at the piece's tail, so the bytes after the piece move by exactly the
+  // difference and nothing inside it is disturbed.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testALongerDonorAddsItsTailAtThePiecesEnd
+  it("adds the longer donor's tail at the piece's end", async () => {
+    const document = documentOf(countingBytes(16));
+    const donor = storageOver(new Uint8Array([0xa0, 0xa1, 0xa2, 0xa3]));
+
+    const outcome = await replaceSegment({
+      document,
+      start: 4,
+      end: 6,
+      donor,
+      allowingLengthChange: true,
+    });
+
+    expect(outcome).toEqual({ kind: "inserted", at: 6, length: 2 });
+    expect(document.size).toBe(18);
+    const bytes = await content(document);
+    expect(bytes.slice(4, 8)).toEqual([0xa0, 0xa1, 0xa2, 0xa3]);
+    // the bytes after the piece moved right by the difference
+    expect(bytes.slice(8, 10)).toEqual([0x06, 0x07]);
+    // and the bytes before it did not move at all
+    expect(bytes.slice(0, 4)).toEqual([0x00, 0x01, 0x02, 0x03]);
+  });
+
+  // A shorter donor removes the leftover from the piece's tail, and the bytes
+  // after it move left by the difference.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testAShorterDonorCutsThePiecesTail
+  it("cuts the shorter donor's leftover off the piece's tail", async () => {
+    const document = documentOf(countingBytes(16));
+    const donor = storageOver(new Uint8Array([0xa0, 0xa1]));
+
+    const outcome = await replaceSegment({
+      document,
+      start: 4,
+      end: 8,
+      donor,
+      allowingLengthChange: true,
+    });
+
+    expect(outcome).toEqual({ kind: "deleted", start: 6, end: 8 });
+    expect(document.size).toBe(14);
+    const bytes = await content(document);
+    expect(bytes.slice(4, 6)).toEqual([0xa0, 0xa1]);
+    // the bytes after the piece moved left by the difference
+    expect(bytes.slice(6, 8)).toEqual([0x08, 0x09]);
+  });
+
+  // The whole of a length-changing swap — the overwrite and the tail — is one
+  // transaction, so undo takes it back in one step.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testALengthChangingSwapIsOneTransaction
+  it("is taken back by a single undo, length change and all", async () => {
+    const document = documentOf(countingBytes(16));
+    const donor = storageOver(new Uint8Array([0xa0, 0xa1, 0xa2, 0xa3]));
+    await replaceSegment({
+      document,
+      start: 4,
+      end: 6,
+      donor,
+      allowingLengthChange: true,
+    });
+
+    expect(await document.undo()).toBeDefined();
+
+    expect(document.size).toBe(16);
+    expect(await content(document)).toEqual(asArray(countingBytes(16)));
+    // one step took the whole swap back
+    expect(document.canUndo).toBe(false);
+  });
+
+  // Without being asked for by name, a mismatch is still refused before a byte
+  // is written: making it an insert-and-shift is a decision.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SegmentReplacerTests.swift#SegmentReplacerTests.testAMismatchIsStillRefusedByDefault
+  it("still refuses a mismatch when the length change was not asked for", async () => {
+    const document = documentOf(countingBytes(16));
+    const donor = storageOver(new Uint8Array([0xa0, 0xa1]));
+
+    const error = await replaceSegment({ document, start: 4, end: 8, donor }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(SegmentLengthMismatch);
+    expect(error).toMatchObject({ pieceLength: 4, donorLength: 2 });
+    expect(document.size).toBe(16);
+  });
+});
+
 // @upstream ByteRipperTests/SegmentReplaceTests.swift#SegmentReplaceTests.testOneUndoRestoresTheSwap
 describe("the swap as one undo step", () => {
   // The whole swap is one transaction, so one undo takes it all back — however
