@@ -24,7 +24,13 @@ import { noteEdit } from "@/state/diffStore";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { noteMinimapEdit } from "@/state/minimapStore";
 import { applySegments, segmentLabel, segmentsFor } from "@/state/segmentsStore";
-import { segmentRevertDonor, segmentSource, sourceIDForFile } from "@/state/segmentSources";
+import {
+  linkedSourceNamed,
+  segmentRevertDonor,
+  segmentSource,
+  sourceIDForFile,
+  sourceWriteConflict,
+} from "@/state/segmentSources";
 import { noteSearchEdit } from "@/state/searchStore";
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { groupActs } from "@/state/undoRouter";
@@ -122,6 +128,27 @@ function baseName(pane: PaneId): string {
 }
 
 /**
+ * The guard a save's picker is given (§21.7): does the file it names come from
+ * a source some piece was taken out of? A match is refused — the source is
+ * named, and the picker is sent back up, because another name is the only
+ * answer that helps — and anything else passes. A write must not replace a
+ * source: the sources are the dumps the image was built out of.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.writeAvoidsSources
+ * @upstream-differs the guard is asked by name, where upstream's is asked by the
+ * save panel's URL — a page has no path, only the name
+ */
+function sourceGuard(pane: PaneId, target: "name" | "folder") {
+  return (handle: FileSystemFileHandle): Promise<boolean> => {
+    const source = linkedSourceNamed(pane, handle.name);
+    if (source === undefined) return Promise.resolve(true);
+    const words = sourceWriteConflict([source.name], target);
+    reportAlert(words.title, words.message);
+    return Promise.resolve(false);
+  };
+}
+
+/**
  * Save Segment…: one piece to a file the user chooses (§21.5).
  *
  * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.savePiece
@@ -134,7 +161,15 @@ export async function savePiece(pane: PaneId, piece: Segment): Promise<void> {
   if (slot === undefined) return;
   const name = `${baseName(pane)}_${segmentLabel(piece.index)}.bin`;
   try {
-    const outcome = await saveRange(slot.document.storage, piece.start, piece.end, name);
+    // A name that would replace this piece's own source sends the panel back
+    // up, the way Save As does (§21.7) — the useful answer is another name.
+    const outcome = await saveRange(
+      slot.document.storage,
+      piece.start,
+      piece.end,
+      name,
+      sourceGuard(pane, "name")
+    );
     // Upstream saves into the folder the user chose and says nothing: the file
     // is there. A download is the case that needs words — the copy went
     // somewhere the user did not point at, and no folder holds it.
@@ -187,13 +222,30 @@ export async function saveAllPieces(
   };
   try {
     if (detectFileCapabilities().canPickDirectory) {
-      const directory = await pickDirectory();
-      if (directory === undefined) return;
-      const preview = previewWrite(parts, await namesIn(directory));
-      if (!(await confirm(writeTitle(parts.length), messageFor(preview)))) return;
-      await write(directorySink(directory));
-      // Upstream writes the files and stops there: the folder holds them, and a
-      // confirmation would have to interrupt to say what the user can see.
+      for (;;) {
+        const directory = await pickDirectory();
+        if (directory === undefined) return;
+        // A folder in which one of those names is a segment's source sends the
+        // panel back up (§21.7). The folder is the only thing this command asks
+        // for, so it is the only thing there is to change — and the write is all
+        // or nothing (§21.5), so one name landing on a source stops the set.
+        const conflicts = new Set<string>();
+        for (const part of parts) {
+          const source = linkedSourceNamed(pane, part.name);
+          if (source !== undefined) conflicts.add(source.name);
+        }
+        if (conflicts.size > 0) {
+          const words = sourceWriteConflict([...conflicts], "folder");
+          reportAlert(words.title, words.message);
+          continue;
+        }
+        const preview = previewWrite(parts, await namesIn(directory));
+        if (!(await confirm(writeTitle(parts.length), messageFor(preview)))) return;
+        await write(directorySink(directory));
+        // Upstream writes the files and stops there: the folder holds them, and
+        // a confirmation would have to interrupt to say what the user can see.
+        break;
+      }
     } else {
       const preview = previewWrite(parts);
       const archive = `${baseName(pane)}_segments.zip`;

@@ -22,7 +22,13 @@ import type { OpenedFile } from "@/platform/files/openedFile";
 import type { Segment } from "@/core/segments/segmentation";
 import { applySegments, noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { baselineMarksAnything, baselineReferenceAt } from "@/core/segments/baseline";
-import { baselineFor, clearSources, segmentSource } from "@/state/segmentSources";
+import {
+  baselineFor,
+  clearSources,
+  linkedSourceNamed,
+  segmentSource,
+  sourceWriteConflict,
+} from "@/state/segmentSources";
 import { forgetActs, undoLast } from "@/state/undoRouter";
 import {
   editingHooks,
@@ -281,5 +287,55 @@ describe("what the bytes are painted against", () => {
       await modifiedAt(19),
       "a patch in the donor's half is measured against the donor"
     ).toBe(true);
+  });
+});
+
+// @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testSavingOverASourceIsRefused
+describe("a save must not write over a source", () => {
+  // The donor and the file a join detached from are both sources a save has to
+  // stop; any other name is fine.
+  // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testSavingOverASourceIsRefused
+  it("names the donor and the file the join detached from, and nothing else", async () => {
+    const original = file("chip1.bin", new Uint8Array(16).fill(0xaa));
+    const donor = file("chip2.bin", new Uint8Array(8).fill(0xbb));
+    openInPane("a", original);
+    await joinIntoPane({
+      pane: "a",
+      source: donorStorage(donor.source),
+      sourceName: donor.name,
+      position: "end",
+      sourceFile: donor,
+    });
+
+    expect(
+      linkedSourceNamed("a", donor.name)?.name,
+      "the donor is a source, so a save over it has to be stopped"
+    ).toBe("chip2.bin");
+    expect(
+      linkedSourceNamed("a", original.name)?.name,
+      "and so is the file the join detached from"
+    ).toBe("chip1.bin");
+    expect(linkedSourceNamed("a", "elsewhere.bin"), "any other name is fine").toBeUndefined();
+  });
+
+  // A piece with no source names nothing, so there is nothing a save could
+  // write over.
+  it("names nothing for a pane whose pieces came from no file", () => {
+    openEmptyInPane("a");
+    expect(linkedSourceNamed("a", "chip1.bin")).toBeUndefined();
+  });
+
+  // The words a refused write says: the source's name, and what writing there
+  // would do — singular for one, plural for several, and the right thing to
+  // choose another of.
+  it("says the conflict by name, singular and plural", () => {
+    const one = sourceWriteConflict(["chip1.bin"], "name");
+    expect(one.title).toBe("“chip1.bin” is a segment’s source");
+    expect(one.message).toContain("Choose another name");
+
+    const two = sourceWriteConflict(["chip1.bin", "chip2.bin"], "folder");
+    expect(two.title).toBe("2 of these names are segment sources");
+    expect(two.message).toContain("“chip1.bin”, “chip2.bin”");
+    expect(two.message).toContain("Choose another folder");
   });
 });

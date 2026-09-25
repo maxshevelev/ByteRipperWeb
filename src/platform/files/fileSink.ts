@@ -61,6 +61,13 @@ export interface SaveRequest {
    */
   readonly baseSize?: number | undefined;
   readonly capabilities?: FileCapabilities;
+  /**
+   * Asked about the file the picker chose, before anything is written (§21.7).
+   * A guard that returns false sends the picker back up to choose again — the
+   * one answer that helps is another file. Absent where there is nothing to
+   * guard against (a document with no segment sources behind it).
+   */
+  readonly validateTarget?: ((handle: FileSystemFileHandle) => Promise<boolean>) | undefined;
 }
 
 /**
@@ -101,19 +108,25 @@ export async function saveAs(request: SaveRequest): Promise<SaveOutcome> {
     return await download(request);
   }
 
-  let handle: FileSystemFileHandle;
-  try {
-    const options: SaveFilePickerOptions = { suggestedName: request.name };
-    handle = await picker(options);
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return { kind: "cancelled" };
-    throw error;
-  }
+  for (;;) {
+    let handle: FileSystemFileHandle;
+    try {
+      const options: SaveFilePickerOptions = { suggestedName: request.name };
+      handle = await picker(options);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return { kind: "cancelled" };
+      throw error;
+    }
+    // A name that would replace a segment's source sends the panel back up,
+    // the way Save As does (§21.7) — the useful answer is another name.
+    const validate = request.validateTarget;
+    if (validate !== undefined && !(await validate(handle))) continue;
 
-  // A new file holds none of the old bytes, so there is nothing to patch: the
-  // whole content is written whatever the document's changed ranges say.
-  await writeThrough(handle, { ...request, changedRanges: undefined, handle });
-  return { kind: "savedAs", file: openedFileFrom(await handle.getFile(), handle) };
+    // A new file holds none of the old bytes, so there is nothing to patch: the
+    // whole content is written whatever the document's changed ranges say.
+    await writeThrough(handle, { ...request, changedRanges: undefined, handle });
+    return { kind: "savedAs", file: openedFileFrom(await handle.getFile(), handle) };
+  }
 }
 
 /**

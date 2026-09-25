@@ -137,18 +137,6 @@ export function sourceName(pane: PaneId, id: SegmentSourceID): string | undefine
 }
 
 /**
- * The source `file` already stands for in this pane's registry, without minting
- * a new one — the write guard's first question.
- *
- * @upstream ByteRipperApp/Segments/SegmentSources.swift#SegmentSources.existingID
- */
-export function existingSource(pane: PaneId, file: OpenedFile): SourceRecord | undefined {
-  const registry = registries.get(pane);
-  const raw = registry?.idsByKey.get(file.handle ?? file.source);
-  return raw === undefined ? undefined : registry?.records.get(raw);
-}
-
-/**
  * The open reader for `id`: a chunked read of the file, opened once and kept.
  * `undefined` for a source this pane never minted.
  *
@@ -193,17 +181,46 @@ export function linkedSources(pane: PaneId): SegmentSourceID[] {
 }
 
 /**
- * The source a save to `file` would write over, when some piece is linked to
- * it — the write guard's answer (§21.7). A save must not: the sources are the
- * dumps the image was built out of, and replacing one with the image leaves a
- * link pointing at its own result.
+ * The linked source whose file is named `name`, when one exists — the write
+ * guard's question (§21.7). A save must not write over a source: the sources
+ * are the dumps the image was built out of, and replacing one with a piece of
+ * the image leaves a link pointing at its own result and the dump it was read
+ * from gone.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.linkedSource
+ * @upstream-differs upstream matches the target by its full path — the URL the
+ * save panel names — and a save to a different path is fine. A page has no
+ * stable path to compare, so the file's name is the only identity a save target
+ * and a source share: a same-name target is the source, and a different name is
+ * fine. It is the safe direction — a same name in a different folder is refused
+ * rather than written over.
  */
-export function linkedSourceAt(pane: PaneId, file: OpenedFile): SourceRecord | undefined {
-  const record = existingSource(pane, file);
-  if (record === undefined) return undefined;
-  return linkedSources(pane).some((id) => id.raw === record.id.raw) ? record : undefined;
+export function linkedSourceNamed(pane: PaneId, name: string): SourceRecord | undefined {
+  return linkedSources(pane)
+    .map((id) => sourceInfo(pane, id))
+    .find((record) => record !== undefined && record.name === name);
+}
+
+/**
+ * The words a refused write says: the source's name, and what writing there
+ * would do — replace the file a segment is measured against — and the one
+ * answer that helps, another name. Singular or plural by how many sources the
+ * target lands on.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.writeAvoidsSources
+ */
+export function sourceWriteConflict(
+  names: readonly string[],
+  target: "name" | "folder"
+): { readonly title: string; readonly message: string } {
+  const quoted = names.map((name) => `“${name}”`).join(", ");
+  const title =
+    names.length === 1 ? `${quoted} is a segment’s source` : `${names.length} of these names are segment sources`;
+  const fileWord = names.length === 1 ? "file that segment is" : "files those segments are";
+  const message =
+    `This dump has ${names.length === 1 ? "a segment" : "segments"} that came from ${quoted}, ` +
+    `and writing there would replace the ${fileWord} measured against. Choose another ${target}.`;
+  return { title, message };
 }
 
 /**

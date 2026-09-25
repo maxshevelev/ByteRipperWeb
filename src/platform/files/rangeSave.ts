@@ -18,11 +18,20 @@ export type RangeSaveOutcome = "saved" | "downloaded" | "cancelled";
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.savePaneSelectionAs
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.exportName
  */
+/**
+ * Asked about the file the picker chose, before anything is written (§21.7). A
+ * guard that returns false sends the picker back up to choose again — the one
+ * answer that helps is another file. Absent where there is nothing to guard
+ * against (a save with no segment sources behind it).
+ */
+export type SaveTargetGuard = (handle: FileSystemFileHandle) => Promise<boolean>;
+
 export async function saveRange(
   storage: ByteStorage,
   start: number,
   end: number,
-  suggestedName: string
+  suggestedName: string,
+  validateTarget?: SaveTargetGuard
 ): Promise<RangeSaveOutcome> {
   const picker = fileSystemAccess().showSaveFilePicker;
   if (picker === undefined) {
@@ -32,24 +41,30 @@ export async function saveRange(
     return "downloaded";
   }
 
-  let handle: FileSystemFileHandle;
-  try {
-    const options: SaveFilePickerOptions = { suggestedName };
-    handle = await picker(options);
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
-    throw error;
-  }
+  for (;;) {
+    let handle: FileSystemFileHandle;
+    try {
+      const options: SaveFilePickerOptions = { suggestedName };
+      handle = await picker(options);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+      throw error;
+    }
+    // A name that would replace a segment's source sends the panel back up, the
+    // way Save As does (§21.7): the useful answer is another name, and asking
+    // for it is the whole of the remedy.
+    if (validateTarget !== undefined && !(await validateTarget(handle))) continue;
 
-  const stream = await handle.createWritable();
-  try {
-    for await (const chunk of rangeStream(storage, start, end)) await stream.write(chunk);
-    await stream.close();
-  } catch (error) {
-    // Abort discards the swap file, so a failed write leaves the chosen file as
-    // it was rather than half-filled.
-    await stream.abort().catch(() => undefined);
-    throw error;
+    const stream = await handle.createWritable();
+    try {
+      for await (const chunk of rangeStream(storage, start, end)) await stream.write(chunk);
+      await stream.close();
+    } catch (error) {
+      // Abort discards the swap file, so a failed write leaves the chosen file as
+      // it was rather than half-filled.
+      await stream.abort().catch(() => undefined);
+      throw error;
+    }
+    return "saved";
   }
-  return "saved";
 }

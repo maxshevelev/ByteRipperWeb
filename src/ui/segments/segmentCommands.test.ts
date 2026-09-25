@@ -9,7 +9,7 @@
  * here as the question being declined: a refused length change changes nothing.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import type { ByteSource } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";

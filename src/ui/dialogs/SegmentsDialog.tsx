@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Segment } from "@/core/segments/segmentation";
 import { segmentLabel } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
 import { hexAddress } from "@/core/text/hexText";
 import { segmentsStore } from "@/state/segmentsStore";
+import {
+  type SegmentLinkState,
+  segmentLinkState,
+  segmentSource,
+} from "@/state/segmentSources";
 import { useStore } from "@/state/useStore";
 import type { PaneId } from "@/state/workspaceStore";
+import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { Dialog } from "@/ui/dialogs/Dialog";
 import { mergeAll, mergePiece, renamePiece } from "@/ui/segments/segmentCommands";
 import { pieceMenu } from "@/ui/segments/segmentMenu";
@@ -89,6 +95,42 @@ export function SegmentsDialog({
     if (open) setRenaming(undefined);
   }, [open]);
 
+  /**
+   * How each linked piece stands to the file it came from — the red mark and
+   * the bracketed reason the Name column wears (§21.7). Fetched per piece when
+   * the form opens or the partition moves; a piece with no source has no entry,
+   * and a verdict still on its way is read as intact — the name is known now,
+   * the colour catches up a beat later.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.linkedName
+   * @upstream-differs the verdict is a promise the form awaits, where upstream's
+   * reads a property its pane view model already holds
+   */
+  const [linkStates, setLinkStates] = useState<Map<number, SegmentLinkState | undefined>>(
+    new Map()
+  );
+  const linkFetch = useRef(0);
+  useEffect(() => {
+    if (!open) return;
+    const gen = ++linkFetch.current;
+    const linked = pieces.filter((piece) => piece.link !== undefined);
+    if (linked.length === 0) {
+      setLinkStates(new Map());
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(
+        linked.map(async (piece) => [piece.index, await segmentLinkState(pane, piece)] as const)
+      );
+      if (cancelled || gen !== linkFetch.current) return;
+      setLinkStates(new Map(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, pieces, pane]);
+
   /** @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.validateMenuItem */
   const rowMenu = (piece: Segment) =>
     pieceMenu({
@@ -101,6 +143,56 @@ export function SegmentsDialog({
       },
       onEdit: (chosen) => setRenaming(chosen.index),
     });
+
+  /**
+   * The Name column for one piece (§21.7): its own name when it has one that
+   * is not the file's, then the link glyph and the file it came from. While it
+   * still is that file's bytes the run is quiet; once it is not, it goes red
+   * with the app's broken-link mark and the reason in brackets — the same two
+   * marks and the same red the pane header's link to a parent wears.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.linkedName
+   * @upstream-differs a plain run of spans and the app's own drawn glyphs, where
+   * upstream composes an attributed string from the platform's symbols
+   */
+  const nameCell = (piece: Segment) => {
+    const source = piece.link === undefined ? undefined : segmentSource(pane, piece);
+    if (source === undefined) return <>{piece.name}</>;
+    const state = linkStates.get(piece.index);
+    const intact = state === undefined || state.kind === "matching";
+    const reason = linkReason(state);
+    const explanation = linkExplanation(state, source.name, piece);
+    return (
+      <span
+        className="segment-link"
+        data-state={intact ? "intact" : "broken"}
+        title={explanation}
+        aria-label={explanation}
+      >
+        {piece.name !== "" && piece.name !== source.name && (
+          <span className="segment-link-own">{piece.name}</span>
+        )}
+        <svg
+          className="segment-link-glyph"
+          viewBox="0 0 12 12"
+          width="12"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          {intact ? <LinkShapes /> : <BrokenLinkShapes />}
+        </svg>
+        <span className="segment-link-source">
+          {source.name}
+          {reason !== undefined ? ` (${reason})` : ""}
+        </span>
+      </span>
+    );
+  };
 
   return (
     <Dialog open={open} title="Segments" onClose={onClose}>
@@ -162,7 +254,7 @@ export function SegmentsDialog({
                         }}
                       />
                     ) : (
-                      piece.name
+                      nameCell(piece)
                     )}
                   </td>
                 </tr>
@@ -206,4 +298,53 @@ export function SegmentsDialog({
       </div>
     </Dialog>
   );
+}
+
+/**
+ * The bracketed word beside a linked file's name: why the piece is no longer
+ * what that file holds. Nil while it still is, and for a verdict still on its
+ * way (read as intact).
+ *
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.linkReason
+ */
+function linkReason(state: SegmentLinkState | undefined): string | undefined {
+  switch (state?.kind) {
+    case "edited":
+      return "edited";
+    case "lengthChanged":
+      return "length changed";
+    case "missing":
+      return "file missing";
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * What the row says under the pointer — the same shape the pane header's link
+ * explains itself with: where the piece came from, and how it stands to that
+ * file now.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.linkExplanation
+ * @upstream-differs names the file by its name, where upstream's names the URL's
+ * path — a page has no path
+ */
+function linkExplanation(
+  state: SegmentLinkState | undefined,
+  sourceName: string,
+  piece: Segment
+): string {
+  const from = `${segmentLabel(piece.index)} came from “${sourceName}”`;
+  switch (state?.kind) {
+    case "edited":
+      return `${from}, and has been changed since.`;
+    case "lengthChanged":
+      return `${from}, which is ${friendlySize(state.sourceLength)} there against ${friendlySize(
+        state.pieceLength
+      )} here.`;
+    case "missing":
+      return `${from}, which can no longer be read.`;
+    default:
+      return `${from}, and still holds its bytes.`;
+  }
 }

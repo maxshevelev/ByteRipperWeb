@@ -50,7 +50,13 @@ import {
   resetSegments,
   swapSegments,
 } from "@/state/segmentsStore";
-import { clearSources, sourceIDForFile, swapSources } from "@/state/segmentSources";
+import {
+  clearSources,
+  linkedSourceNamed,
+  sourceIDForFile,
+  sourceWriteConflict,
+  swapSources,
+} from "@/state/segmentSources";
 import {
   DEFAULT_GROUPING_GAP,
   DEFAULT_TEXT_DECODING,
@@ -749,6 +755,17 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
     // Patching writes only what changed, and only when writing back to the
     // very file those offsets were measured against.
     changedRanges: overlay.canPatchInPlace ? overlay.changedRanges : undefined,
+    // A save never writes over a file the dump is built out of (§21.7). The
+    // Save As picker is asked, and a name that is a segment's source is sent
+    // back up to choose another; an in-place save writes the file it came from,
+    // which is not a source (a join is what detaches it), so it needs no guard.
+    validateTarget: (handle: FileSystemFileHandle) => {
+      const source = linkedSourceNamed(pane, handle.name);
+      if (source === undefined) return Promise.resolve(true);
+      const words = sourceWriteConflict([source.name], "name");
+      reportAlert(words.title, words.message);
+      return Promise.resolve(false);
+    },
   };
 
   const outcome = as ? await saveFileAs(request) : await saveFile(request);

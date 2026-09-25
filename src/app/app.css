@@ -1462,6 +1462,44 @@ textarea,
   color: var(--text-muted);
 }
 
+/* The Name column's link run (§21.7): the piece's own name, the chain, and the
+   file it came from — the same two marks and the same red the pane header's
+   link to a parent wears, so a link that has come apart reads the same where
+   the header shows it and here. */
+.segment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-muted);
+}
+
+.segment-link-glyph {
+  flex: none;
+}
+
+/* The piece's own name, when it is not simply the file's: the label colour,
+   so it reads as what the user called it, not where it came from. */
+.segment-link-own {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.segment-link-source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The piece no longer is that file's bytes: red, the way the pane header's
+   broken link is. The broken glyph and the brackets carry the same state by
+   form, so it holds under a theme switch and a colour-blind bench. */
+.segment-link[data-state="broken"] {
+  color: var(--semantic-bad);
+}
+
 /* Go To (§10.1, §20.5): upstream's form is at least 460 wide, inset 18. */
 .dialog.goto-dialog {
   width: min(30rem, 90vw);
