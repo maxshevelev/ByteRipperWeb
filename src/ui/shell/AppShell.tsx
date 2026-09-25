@@ -109,7 +109,7 @@ import { HexPane } from "@/ui/pane/HexPane";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
-import { addCut, saveAllPieces } from "@/ui/segments/segmentCommands";
+import { addCut, saveAllPieces, segmentAsks } from "@/ui/segments/segmentCommands";
 import { SettingsDialog, type SettingsTab } from "@/ui/settings/SettingsDialog";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
@@ -608,10 +608,36 @@ export function AppShell() {
   const [writeAsk, setWriteAsk] = useState<
     { title: string; message: string; answer: (yes: boolean) => void } | undefined
   >(undefined);
+  /**
+   * The question a length-changing swap asks — a Revert or a Replace whose file
+   * is a different length than the piece — and the answer it is waiting for. A
+   * promise, like {@link writeAsk}, so the command reads as one sequence: ask,
+   * then swap or leave the dump untouched.
+   */
+  const [lengthAsk, setLengthAsk] = useState<
+    { title: string; message: string; confirmLabel: string } | undefined
+  >(undefined);
+  const lengthAnswer = useRef<((yes: boolean) => void) | undefined>(undefined);
   const search = useStore(searchStore);
   const searchOpen = search.open;
 
   useEffect(() => watchForMinimap(), []);
+
+  // A swap that would change the document's length asks before it moves every
+  // offset after the piece. The question is a module-level hook the commands
+  // reach, the way they reach `editingHooks.confirmShift`; this is the app's
+  // half of it, which draws the dialog.
+  useEffect(() => {
+    segmentAsks.lengthChange = ({ title, message, confirmLabel }) => {
+      setLengthAsk({ title, message, confirmLabel });
+      return new Promise<boolean>((resolve) => {
+        lengthAnswer.current = resolve;
+      });
+    };
+    return () => {
+      segmentAsks.lengthChange = undefined;
+    };
+  }, []);
 
   // The marks this workspace had when it was last open (ANALYSIS.md §
   // Bookmarks). Read once; a failure to read is a workspace with no marks yet,
@@ -2123,6 +2149,22 @@ export function AppShell() {
         onCancel={() => {
           writeAsk?.answer(false);
           setWriteAsk(undefined);
+        }}
+      />
+      <ConfirmDialog
+        open={lengthAsk !== undefined}
+        title={lengthAsk?.title ?? ""}
+        message={lengthAsk?.message ?? ""}
+        confirmLabel={lengthAsk?.confirmLabel}
+        onConfirm={() => {
+          lengthAnswer.current?.(true);
+          lengthAnswer.current = undefined;
+          setLengthAsk(undefined);
+        }}
+        onCancel={() => {
+          lengthAnswer.current?.(false);
+          lengthAnswer.current = undefined;
+          setLengthAsk(undefined);
         }}
       />
       <ContextMenuHost />

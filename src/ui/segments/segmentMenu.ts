@@ -1,6 +1,12 @@
 import { mergeTitle, type Segment, segmentLabel } from "@/core/segments/segmentation";
+import { segmentSource } from "@/state/segmentSources";
 import { type PaneId, paneState } from "@/state/workspaceStore";
-import { mergePiece, replacePieceFromFile, savePiece } from "@/ui/segments/segmentCommands";
+import {
+  mergePiece,
+  replacePieceFromFile,
+  revertPiece,
+  savePiece,
+} from "@/ui/segments/segmentCommands";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -23,12 +29,25 @@ export function pieceMenu(options: {
 }): (MenuEntry | undefined)[] {
   const { pane, piece, pieceCount } = options;
   const label = segmentLabel(piece.index);
+  // The one piece that came from a file can go back to it (§21.7). The source
+  // is asked synchronously: a web menu is synchronous, and a source that has
+  // gone unreadable is the case `revertPiece` answers with its own alert.
+  // @upstream-differs upstream greys the item via `canRevertSegment` (an async
+  // reader check); the web decides presence from the link, which is what a
+  // synchronous menu can read.
+  const source = segmentSource(pane, piece);
   return [
     { label: `Save Segment ${label}…`, onSelect: () => void savePiece(pane, piece) },
     {
       label: `Replace Segment ${label} from File…`,
       onSelect: () => void replacePieceFromFile(pane, piece),
     },
+    source === undefined
+      ? undefined
+      : {
+          label: `Revert Segment ${label} to “${source.name}”`,
+          onSelect: () => void revertPiece(pane, piece),
+        },
     { kind: "separator" },
     options.onReveal === undefined
       ? undefined
