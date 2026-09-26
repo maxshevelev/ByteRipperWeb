@@ -14,6 +14,7 @@ import { BinaryDocument } from "@/core/document/binaryDocument";
 import { MatchSetBuilder } from "@/core/search/matchSet";
 import { findOne, foldedPattern, scanAll } from "@/core/search/searchEngine";
 import { foldingFor, parsePattern } from "@/core/search/searchPattern";
+import { NO_BASELINE } from "@/core/segments/baseline";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
@@ -319,10 +320,15 @@ async function main(): Promise<void> {
         "comparison must not cost it again.",
       measurement: await measure(
         () =>
-          buildOverviewRows({ size: blob.size, storage: storageOf(whole) }, blob.size, rowCount, {
-            from: 0,
-            to: rowCount,
-          }).then(() => undefined),
+          buildOverviewRows(
+            { size: blob.size, storage: storageOf(whole), baseline: NO_BASELINE },
+            blob.size,
+            rowCount,
+            {
+              from: 0,
+              to: rowCount,
+            }
+          ).then(() => undefined),
         { samples: 5, bytes: blob.size }
       ),
     });

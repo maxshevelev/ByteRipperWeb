@@ -111,18 +111,16 @@ function linkSpan(body: string): HelpSpan | undefined {
 /**
  * The address as something the browser will open, or nothing.
  *
- * @upstream-differs upstream builds a `URL` and asks it for its scheme; a
- * browser's `URL` accepts anything with a colon in it, so the scheme is checked
- * before it is parsed and the host is required afterwards
+ * @upstream-differs upstream builds a `URL` and asks it for its scheme; the
+ * domain half keeps no browser type in scope, so the scheme is checked first and
+ * the host is read off by hand: the address up to the first `/`, `?` or `#` must
+ * be more than a bare port
  */
 function webUrl(address: string): string | undefined {
   if (!address.startsWith("https://")) return undefined;
-  try {
-    const parsed = new URL(address);
-    return parsed.host === "" ? undefined : address;
-  } catch {
-    return undefined;
-  }
+  const host = address.slice("https://".length).split(/[/?#]/, 1)[0] ?? "";
+  if (host === "" || host.startsWith(":")) return undefined;
+  return address;
 }
 
 /**

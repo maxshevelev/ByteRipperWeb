@@ -154,11 +154,15 @@ describe("the book as it ships", () => {
     // A book that cites nothing would pass the loop below by saying nothing.
     expect(cited.length, "no page cites a source").toBeGreaterThan(0);
     for (const [where, url] of cited) {
-      const parsed = new URL(url);
-      expect(parsed.protocol, `${where} cites ${url} over something other than https`).toBe(
-        "https:"
-      );
-      expect(parsed.host, `${where} cites ${url}, which has no host`).not.toBe("");
+      // The domain half keeps no browser type in scope, and the test's config is
+      // the domain half's, so the host is read off the way `webUrl` reads it.
+      const host = url.slice("https://".length).split(/[/?#]/, 1)[0];
+      expect(
+        url.startsWith("https://"),
+        `${where} cites ${url} over something other than https`
+      ).toBe(true);
+      expect(host, `${where} cites ${url}, which has no host`).not.toBe("");
+      expect(host, `${where} cites ${url}, which is a port, not a host`).not.toMatch(/^:/);
     }
   });
 

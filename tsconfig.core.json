@@ -8,12 +8,17 @@
     "compile error. Where the domain needs to read bytes out of a File, it takes",
     "a structural interface the platform layer satisfies — see src/core/storage.",
     "",
+    "The one allowed type is `vite/client`: it declares `import.meta.glob`, the",
+    "build-time macro the two bundled files use to code-split the book and the",
+    "catalogues. The macro compiles away at build time, so it reaches no browser",
+    "API at runtime, and vite/client declares no DOM.",
+    "",
     "Run by `npm run typecheck` alongside tsconfig.json; both must pass."
   ],
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2023"],
-    "types": []
+    "types": ["vite/client"]
   },
   "include": ["src/core", "src/firmware"]
 }
