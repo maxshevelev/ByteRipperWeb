@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TOPIC, topicLink } from "@/core/help/helpIds";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
@@ -29,6 +30,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { FavoritesTab } from "@/ui/settings/FavoritesTab";
 import { monospacedFontFamilies } from "@/ui/settings/fontFamilies";
 import {
@@ -382,7 +384,14 @@ function EditingTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">Editing</h3>
+      {/* The only settings tab with a `?`, and upstream's reason holds: this is
+          the one switch with consequences on a bench, turning off the dialogs
+          that stand between a flash dump and a length-changing edit.
+          @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
+      <h3 className="settings-heading">
+        Editing
+        <HelpButton link={topicLink(TOPIC.editing)} shape="inline" />
+      </h3>
       <label className="settings-check">
         <input
           type="checkbox"

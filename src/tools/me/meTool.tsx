@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TOPIC } from "@/core/help/helpIds";
 import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
@@ -1193,5 +1194,6 @@ export const meTool: ToolModule = {
   id: "dev.maxik.tool.me-analyzer",
   title: "ME Analyzer",
   summary: "The Intel Management Engine firmware: its summary and every structure in it.",
+  helpTopic: TOPIC.toolME,
   View: MeToolView,
 };

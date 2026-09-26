@@ -4832,3 +4832,70 @@ button.uefi-title {
     box-shadow: 2px 0 10px rgb(0 0 0 / 0.2);
   }
 }
+
+/* The `?` that opens the help at the page about what it stands beside.
+
+   Two shapes, as upstream has two: the round button a form carries at the start
+   of its actions, and the quiet glyph a panel's chrome has room for. Upstream
+   gets the first from AppKit's own help bezel; a browser has none, so both are
+   drawn here — and both wear the circle the dock's help pill wears, so a reader
+   meets one sign for the help and not three. */
+.help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.help-button svg {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.help-button circle:last-of-type {
+  fill: currentcolor;
+  stroke: none;
+}
+
+.help-button:hover {
+  color: var(--accent);
+}
+
+/* A form's own: the size of the buttons it stands beside, and pushed to the
+   left of the row so the actions that act stay together on the right. */
+.help-button[data-shape="standard"] {
+  width: var(--toolbar-control-height);
+  height: var(--toolbar-control-height);
+  margin-right: auto;
+}
+
+.help-button[data-shape="standard"] svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* A panel's chrome: sized like the icon controls beside it. */
+.help-button[data-shape="inline"] svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* On the empty screen the `?` follows the sentence it belongs to. */
+.empty-state-detail .help-button {
+  margin-left: 6px;
+  vertical-align: -3px;
+}
+
+/* In a settings heading it sits after the words, quiet until wanted. */
+.settings-heading .help-button {
+  margin-left: 6px;
+  vertical-align: -2px;
+}

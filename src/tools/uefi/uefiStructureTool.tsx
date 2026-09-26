@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TOPIC } from "@/core/help/helpIds";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import { DECOMPRESSED_BODY_LAYOUT } from "@/firmware/uefi/rootLayout";
 import { downloadBlob } from "@/platform/files/download";
@@ -1477,5 +1478,6 @@ export const uefiStructureTool: ToolModule = {
   id: "dev.maxik.tool.uefi-structure",
   title: "UEFI Structure",
   summary: "The image as a tree: regions, volumes, files and sections.",
+  helpTopic: TOPIC.toolUEFI,
   View: UefiStructureView,
 };

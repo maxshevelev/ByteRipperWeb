@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { type Bookmark, rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { hexAddress } from "@/core/text/hexText";
 import { parseOffset } from "@/core/text/offsetParser";
 import {
@@ -27,6 +28,7 @@ import {
   visibleRowCount,
 } from "@/ui/dialogs/bookmarkList";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 
@@ -450,6 +452,10 @@ export function GoToDialog({
         </div>
 
         <div className="dialog-actions goto-actions">
+          {/* Both halves of this form answer one question, and the page about
+              the marks is the one that answers it in words.
+              @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
+          <HelpButton link={topicLink(TOPIC.bookmarks)} />
           {state.recent.length > 0 ? (
             <button
               type="button"

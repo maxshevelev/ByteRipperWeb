@@ -27,7 +27,7 @@ import {
   searchHelp,
 } from "@/core/help/helpBook";
 import { type HelpLink, linkKey, sameLink, termLink, topicLink } from "@/core/help/helpIds";
-import { helpSpans, spansPlainText } from "@/core/help/helpMarkup";
+import { helpSpans } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS, type HelpTermGroup } from "@/core/help/helpTopic";
 import {
   closeHelp,
@@ -44,6 +44,7 @@ import {
 import { useStore } from "@/state/useStore";
 import { foldParts } from "@/state/workspaceStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
+import { helpNameOf, plainHelpName } from "@/ui/help/helpNames";
 import { CloseButton } from "@/ui/shell/CloseButton";
 
 /**
@@ -148,17 +149,6 @@ export function HelpPanel() {
   );
 }
 
-/**
- * A name as words alone: a term is written `Flash Partition Table (\`$FPT\`)`,
- * and a row of the contents or a breadcrumb has nowhere to put the quoting.
- *
- * @upstream-differs upstream draws a term's name as the plain string it is, so
- * its backticks reach the reader; here the name is read as the inline markup
- * the content writes it in — set as code on the page's own heading, and struck
- * out of the places that can only hold words
- */
-const plainName = (name: string): string => spansPlainText(helpSpans(name));
-
 /** A name with its quoting drawn, for the one place that has room for it. */
 function Name({ name }: { readonly name: string }) {
   return (
@@ -185,7 +175,7 @@ function whereAmI(book: HelpBook, link: HelpLink | undefined): string {
     const term = helpTerm(book, link.id);
     return term === undefined
       ? "Help"
-      : `${glossaryName(book, term.group)} ▸ ${plainName(term.name)}`;
+      : `${glossaryName(book, term.group)} ▸ ${plainHelpName(term.name)}`;
   }
   const topic = helpTopic(book, link.id);
   const section = book.sections.find((one) => one.topics.includes(link.id));
@@ -251,7 +241,7 @@ function Glossary({
       <ul>
         {terms.map((term) => (
           <li key={term.id}>
-            <Row link={termLink(term.id)} here={here} label={plainName(term.name)} />
+            <Row link={termLink(term.id)} here={here} label={plainHelpName(term.name)} />
           </li>
         ))}
       </ul>
@@ -312,7 +302,7 @@ function Page({ book, link }: { readonly book: HelpBook; readonly link: HelpLink
                 className="help-link"
                 onClick={() => goToHelp(see)}
               >
-                {nameOf(book, see)}
+                {helpNameOf(book, see)}
               </button>
             ))}
           </p>
@@ -335,15 +325,6 @@ function Page({ book, link }: { readonly book: HelpBook; readonly link: HelpLink
 /** What a link into nothing shows. The content tests make this unreachable. */
 const MissingPage = () => <p className="help-waiting">That page has not been written yet.</p>;
 
-/** What a link is called, for a list that shows several of them. */
-function nameOf(book: HelpBook, link: HelpLink): string {
-  if (link.kind === "term") {
-    const term = helpTerm(book, link.id);
-    return term === undefined ? String(link.id) : plainName(term.name);
-  }
-  return helpTopic(book, link.id)?.title ?? String(link.id);
-}
-
 /**
  * What the reader typed, matched over title, summary and body. Pages first,
  * then terms, each in the order the book lists it — no ranking, the book being
@@ -361,7 +342,7 @@ function Results({ book, query }: { readonly book: HelpBook; readonly query: str
       {hits.map((hit) => (
         <li key={linkKey(resultLink(hit))}>
           <button type="button" className="help-result" onClick={() => goToHelp(resultLink(hit))}>
-            <span className="help-result-title">{plainName(resultTitle(hit))}</span>
+            <span className="help-result-title">{plainHelpName(resultTitle(hit))}</span>
             <span className="help-result-summary">{resultSummary(hit)}</span>
           </button>
         </li>

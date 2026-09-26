@@ -1,3 +1,4 @@
+import type { HelpTopicId } from "@/core/help/helpIds";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { NoticeGlyph } from "@/state/noticeStore";
@@ -148,6 +149,18 @@ export interface ToolModule {
   readonly title: string;
   /** One line about what it is for, for the picker. */
   readonly summary: string;
+  /**
+   * Which page of the help explains this instrument — what the `?` in the
+   * panel's header opens.
+   *
+   * Named here so the app draws the button and the module only says where it
+   * goes. A tool-module that names no page is one whose header carries no `?`,
+   * which is how a new instrument exists before anything has been written
+   * about it.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.helpTopic
+   */
+  readonly helpTopic?: HelpTopicId;
   /**
    * The panel's body. Mounted only while the tool is the one on screen.
    *

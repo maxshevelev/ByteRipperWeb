@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
 import { favoritesStore, syncProblem } from "@/state/favoritesStore";
 import { showNotice } from "@/state/noticeStore";
@@ -16,6 +17,7 @@ import {
   toggleSearchResults,
 } from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { AddFavoriteDialog } from "@/ui/search/AddFavoriteDialog";
 import { type MenuSearch, type PatternMenuRow, patternMenuRows } from "@/ui/search/patternMenu";
 import { SearchField } from "@/ui/search/SearchField";
@@ -345,6 +347,11 @@ export function FindBar({
         >
           <ListGlyph />
         </button>
+
+        {/* The `?` before Done, opening the page about searching: hex and text,
+            the encodings, and what the pattern library is for.
+            @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.inline */}
+        <HelpButton link={topicLink(TOPIC.search)} shape="inline" />
 
         <button type="button" className="toolbar-button find-done" onClick={closeSearch}>
           Done

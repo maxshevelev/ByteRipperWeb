@@ -1,7 +1,9 @@
+import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { saveNotice } from "@/platform/files/capabilities";
 import { bookmarksStore } from "@/state/bookmarksStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
 
 /**
@@ -57,6 +59,10 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
       <p className="empty-state-detail">Up to two files can be compared side by side.</p>
       <p className="empty-state-detail">
         {`Files never leave this machine. ${saveNotice(capabilities)}`}
+        {/* The one screen where a reader arrives with "what is this for", which
+            is the question the overview answers.
+            @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.helpButton */}
+        <HelpButton link={topicLink(TOPIC.overview)} />
       </p>
       <BookmarkSection bookmarks={bookmarks} />
     </div>

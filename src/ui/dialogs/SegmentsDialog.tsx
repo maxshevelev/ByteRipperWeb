@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { TOPIC, topicLink } from "@/core/help/helpIds";
 import type { Segment } from "@/core/segments/segmentation";
 import { segmentLabel } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
 import { hexAddress } from "@/core/text/hexText";
+import { type SegmentLinkState, segmentLinkState, segmentSource } from "@/state/segmentSources";
 import { segmentsStore } from "@/state/segmentsStore";
-import {
-  type SegmentLinkState,
-  segmentLinkState,
-  segmentSource,
-} from "@/state/segmentSources";
 import { useStore } from "@/state/useStore";
 import type { PaneId } from "@/state/workspaceStore";
-import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { HelpButton } from "@/ui/help/HelpButton";
+import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { mergeAll, mergePiece, renamePiece } from "@/ui/segments/segmentCommands";
 import { pieceMenu } from "@/ui/segments/segmentMenu";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -286,6 +284,10 @@ export function SegmentsDialog({
         </p>
 
         <div className="dialog-actions">
+          {/* The `?` a form carries sits at the start of its actions, which is
+              where the platform's own round help button goes.
+              @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
+          <HelpButton link={topicLink(TOPIC.segments)} />
           <button type="button" className="toolbar-button" onClick={onAddCut} title="Add a cut">
             Add Cut…
           </button>

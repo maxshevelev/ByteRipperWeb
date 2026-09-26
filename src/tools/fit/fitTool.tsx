@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TOPIC } from "@/core/help/helpIds";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
@@ -877,5 +878,6 @@ export const fitTool: ToolModule = {
   id: "dev.maxik.tool.fit",
   title: "FIT Table",
   summary: "The Firmware Interface Table: what it names, and whether it adds up.",
+  helpTopic: TOPIC.toolFIT,
   View: FitToolView,
 };

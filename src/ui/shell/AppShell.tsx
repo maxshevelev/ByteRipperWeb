@@ -3,8 +3,8 @@ import type { DiffEdit } from "@/core/diff/diffEngine";
 import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
+import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
-import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import type { OpenedFile } from "@/platform/files/openedFile";
@@ -16,6 +16,7 @@ import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffSt
 import { editStore } from "@/state/editStore";
 import { restoreFavorites } from "@/state/favoritesStore";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
+import { showHelp } from "@/state/helpStore";
 import {
   forgetPartMinimap,
   noteMinimapEdit,
@@ -574,10 +575,13 @@ export function AppShell() {
   /** The pane and offset a cut was asked for at, or nothing. */
   const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
   /** The pane whose segments form is open, or nothing. */
-  const [segmentsPane, setSegmentsPane] = useState<{
-    pane: PaneId;
-    editingPiece?: number;
-  } | undefined>(undefined);
+  const [segmentsPane, setSegmentsPane] = useState<
+    | {
+        pane: PaneId;
+        editingPiece?: number;
+      }
+    | undefined
+  >(undefined);
   /**
    * The tool on the left of the workspace's own panes, or None. A panel over
    * them draws its own, from its own session (G50).
@@ -679,6 +683,17 @@ export function AppShell() {
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // The help is the one command that does not need a file: a reader who
+      // has opened nothing yet is exactly who asks for it. F1 is what a web
+      // application is expected to answer, and ⌘/ is the chord that is free —
+      // upstream's ⌘? is ⌘⇧/ in a browser, which several engines have spent.
+      //
+      // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeHelpMenu
+      if (event.key === "F1" || ((event.metaKey || event.ctrlKey) && event.key === "/")) {
+        event.preventDefault();
+        showHelp();
+        return;
+      }
       if (!(event.metaKey || event.ctrlKey)) return;
       // Nothing open to act on: leave the keys to the browser.
       if (workspaceStore.getSnapshot().panes.a === undefined) return;
@@ -1297,9 +1312,9 @@ export function AppShell() {
       let sourceFile: OpenedFile | undefined;
       if (OpfsScratchStore.isAvailable()) {
         try {
-          const snapshot = await (
-            source.document.storage as EditOverlayStorage
-          ).contentSnapshot(new OpfsScratchStore());
+          const snapshot = await (source.document.storage as EditOverlayStorage).contentSnapshot(
+            new OpfsScratchStore()
+          );
           sourceFile = {
             name: source.name,
             size: snapshot.size,

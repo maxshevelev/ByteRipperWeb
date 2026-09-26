@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { topicLink } from "@/core/help/helpIds";
 import { showNotice } from "@/state/noticeStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { beginFileDrag, draggedPaneId, endDrag, paneDragStore } from "@/state/paneDragStore";
@@ -33,6 +34,7 @@ import type { ToolContext } from "@/tools/toolModule";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
 import { singleFileDropTargetTitle } from "@/ui/drag/dragDrop";
 import { dragCarried } from "@/ui/drag/PaneDropBands";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
@@ -285,6 +287,13 @@ export function ToolPanel({
             })}
           </select>
         </span>
+        {/* The `?` beside the ✕, opening the page for the instrument that is
+            running. The module names the page and the panel draws the button,
+            so a new instrument is one line away from having one.
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.helpButton */}
+        {tool.helpTopic === undefined ? null : (
+          <HelpButton link={topicLink(tool.helpTopic)} shape="inline" />
+        )}
         {/* The panel's ✕ is Tools ▸ None by another route.
             @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onClose */}
         <CloseButton label="Close the tool panel" onClick={() => activate(undefined, surface)} />
