@@ -1,4 +1,4 @@
-@source-sha af40a96d41da89cfc9912cca32bce53424dfd4796ae79842567cb383fb9f9f88
+@source-sha 8bfbc3d43887707b6a34bc4585de3f4ba8ccd95c7c446a2506a2717dbf579214
 # Dateien öffnen: A und B
 
 > Der Arbeitsbereich hat zwei Plätze. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden Bereichen.
@@ -31,6 +31,8 @@ Was der Browser dafür gibt, ist ein *Handle* auf die gewählte Datei, und das l
 ## Eine Aufgabe je Browser-Tab
 
 Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**. So hält man mehrere Platinen auf einem Bildschirm auseinander — öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Plätze, eigene Lesezeichen und ein eigenes Widerrufen.
+
+Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; die Größe steht in der Statuszeile darunter. Das ✕ im Kopf schließt diesen Bereich und lässt den anderen offen.
 
 ## Wenn die Datei schon offen ist
 

@@ -38,6 +38,8 @@ What the browser gives in return is a *handle* to the file you picked, and that 
 
 There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of slots, its own bookmarks and its own undo.
 
+Each pane header names its file and whether it has unsaved changes; the status line below it gives the size. The ✕ in the header closes that pane and leaves the other one open.
+
 ## If the file is already open
 
 Opening a file that is already in the other slot is allowed — comparing a file with itself is a legitimate thing to do while editing one copy of it. Opening it into the slot it is already in does nothing.

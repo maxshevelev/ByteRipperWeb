@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "d06d410499855d9b927868ad3d8f20b3e77a1eee",
-  "baselineNote": "Let the glossary own the word a bench actually uses for the chipset (2026-09-26)"
+  "baseCommit": "abc81ea705044e94ccb3eeea0c7f60c80360995f",
+  "baselineNote": "Say what a dump's identity is, and stop claiming more than the bench can show (2026-09-26)"
 }
