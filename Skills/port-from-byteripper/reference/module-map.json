@@ -4877,6 +4877,39 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module",
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.load": "later — G64: reading a file is asynchronous in a browser, so loading is the app's step and the core takes the catalogue already read"
       }
+    },
+    {
+      "swift": "Packages/HelpBook",
+      "web": [
+        "src/core/help"
+      ],
+      "status": "in-progress",
+      "note": "The help book's pure half (Design/HELP.md): the ids, the contents in code, the markup parser, the loader and the search. Structure is code and words are resources, as upstream has it, so the content files come across file for file and a translator who has learnt upstream's book has learnt this one. Two things the browser changes, both in the loader: reading a file is asynchronous, so the reader is an interface handed in rather than FileManager asked — which is also what lets a test give the loader a book of four lines — and a page the contents names but nobody wrote is reported and left out rather than thrown, a browser not being a build and the reader keeping the other thirty-nine. The link types are discriminated unions where upstream has enums with payloads, and the ids are branded strings where upstream wraps them in structs: the same promise that the two kinds cannot be mistaken for one another. The content itself, the panel that shows it and the ? buttons that open it are still to come (G63).",
+      "files": {
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift": "src/core/help/helpIds.ts",
+        "Packages/HelpBook/Sources/HelpBook/HelpContents.swift": "src/core/help/helpContents.ts",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift": "src/core/help/helpTopic.ts",
+        "Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift": "src/core/help/helpMarkup.ts",
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift": "src/core/help/helpBook.ts",
+        "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift": "src/core/help/helpLoader.ts",
+        "Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift": "src/core/help/helpMarkup.test.ts"
+      },
+      "unported": {
+        "Packages/HelpBook/Sources/HelpBook/Help.swift#Help.shared": "later — G63: the book held for the language in force, which is the app's store here rather than a static behind a lock",
+        "Packages/HelpBook/Sources/HelpBook/Help.swift#Help.reload": "later — G63: the same store's business — the web awaits the new book and puts it in place",
+        "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.root": "n/a — the directory inside a bundle; the web's reader is handed the path it wants and owns where content lives",
+        "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.LoadError": "n/a — the web reports a missing page in the book it returns; a throw in a browser would cost the reader the other thirty-nine",
+        "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.LoadError.description": "n/a — the message of an error the web does not throw",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.init": "n/a — the web's topic is an object literal; there is nothing to construct",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.init": "n/a — the web's term is an object literal; there is nothing to construct",
+        "Packages/HelpBook/Sources/HelpBook/HelpContents.swift#HelpSection.init": "n/a — the web's section is an object literal; there is nothing to construct",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.init": "the web's topicId() mints one; the raw-value and label forms are one function here",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.init": "the web's termId() mints one; the raw-value and label forms are one function here",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.<": "n/a — Comparable for sorting ids; nothing here sorts them, the contents being the order",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.<": "n/a — Comparable for sorting ids; a glossary keeps the order its file listed",
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpSearchResult.id": "the web's linkKey() spells the same string, a result being keyed by where it goes",
+        "Packages/HelpBook/Tests/HelpBookTests/HelpContentTests.swift#*": "later — G63: the tests that judge the shipped content — every page in every language, every link resolving — arrive with the content"
+      }
     }
   ]
 }
