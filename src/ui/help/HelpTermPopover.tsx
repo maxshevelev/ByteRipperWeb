@@ -20,7 +20,7 @@ import { helpTerm } from "@/core/help/helpBook";
 import type { HelpLink, HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
-import { helpStore, showHelp } from "@/state/helpStore";
+import { ensureHelpBook, helpStore, showHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
 import { plainHelpName } from "@/ui/help/helpNames";
@@ -38,6 +38,15 @@ export function HelpTermPopover({
   const { book } = useStore(helpStore);
   const popover = useRef<HTMLDialogElement>(null);
   const term = book === undefined ? undefined : helpTerm(book, id);
+
+  // The book is not loaded at startup — it is loaded on the first ask, and a
+  // reader pointing at a word they do not know is asking. Upstream's book is
+  // always in hand when this is shown, because its load is synchronous; here
+  // the ask starts the load, and the dialog appears the moment the book
+  // lands: `term` stops being undefined, and the effect below runs again.
+  useEffect(() => {
+    if (book === undefined) void ensureHelpBook();
+  }, [book]);
 
   // Shown as a modeless dialog: the reader keeps the panel behind it, and the
   // browser's own light dismiss and Escape close it. A modal would take the
