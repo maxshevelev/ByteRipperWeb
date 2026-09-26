@@ -97,6 +97,7 @@
 "Redo" = "Wiederholen";
 "Redo %1$@" = "%1$@ wiederholen";
 "Remove Bookmark" = "Lesezeichen entfernen";
+"Reveal node at caret" = "Den Knoten unter der Einfügemarke zeigen";
 "Revert to Original" = "Auf das Original zurücksetzen";
 "Revert to Saved" = "Auf gesicherten Stand zurücksetzen";
 "Row Height:" = "Zeilenhöhe:";
@@ -117,6 +118,7 @@
 "Settings…" = "Einstellungen…";
 "Show Minimap" = "Minimap einblenden";
 "Show Search Results" = "Suchergebnisse einblenden";
+"Show the node under the caret in the tree" = "Den Knoten unter der Einfügemarke im Baum zeigen";
 "Smaller" = "Kleiner";
 "Smart Search" = "Intelligente Suche";
 "Split Here…" = "Hier trennen…";

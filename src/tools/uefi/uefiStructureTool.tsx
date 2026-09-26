@@ -1106,8 +1106,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           type="button"
           className="uefi-reveal"
           onClick={() => void revealAtCaret()}
-          title="Show the node under the caret in the tree"
-          aria-label="Reveal the node at the caret"
+          title={L("Show the node under the caret in the tree")}
+          aria-label={L("Reveal node at caret")}
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <ScopeShapes />

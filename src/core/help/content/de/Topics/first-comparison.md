@@ -1,4 +1,4 @@
-@source-sha 9861449eaed424cbd0eb1923cca8a9b75d7125643d4191e0b21a8a7c8414f27b
+@source-sha 7ebac7a0846fdd1a05a753e45bf19b3351488db9af7376906f7b87145475c893
 # Ihr erster Vergleich
 
 > Öffnen Sie den schlechten Dump und einen guten und lassen Sie sich zeigen, wo sie auseinandergehen.
@@ -8,7 +8,7 @@
 3. Achten Sie auf die Farbe. Jedes Byte, das sich zwischen beiden Dateien unterscheidet, trägt den Unterschieds-Hintergrund. Eine lange Strecke Farbe heißt, ein ganzer Bereich unterscheidet sich; einzelne verstreute Zellen heißen, ein paar Bytes tun es.
 4. Springen Sie zwischen den Unterschieden statt zu scrollen: **⌥⌘→** zum nächsten, **⌥⌘←** zum vorherigen. Die Statuszeile nennt, wie viel des Images sich unterscheidet — `Unterschiede 0.4%` — als Anteil an der längeren Datei, byteweise gezählt.
 5. Lesen Sie in der Statuszeile den Offset der aktuellen Position. In einem Firmware-Dump sagt Ihnen dieser Offset, *welchen Teil* des Images Sie ansehen.
-6. Schalten Sie einen Werkzeugbereich ein — **UEFI-Struktur** aus dem Menü „Tools“ der Symbolleiste — und die Offsets hören auf, Zahlen zu sein: das Panel benennt die Region oder das Volume, in die jede Adresse fällt.
+6. Schalten Sie einen Werkzeugbereich ein — **UEFI-Struktur** aus dem Menü „Tools“ der Symbolleiste — und die Offsets hören auf, Zahlen zu sein: das Panel zerlegt das Image und legt Ihren Dump als Baum benannter Regionen und Volumes aus. **Den Knoten unter der Einfügemarke im Baum zeigen** im Kopf des Bereichs beantwortet, in welchen Knoten dieses Baums die Adresse fällt, auf der Sie stehen.
 
 ## Das Ergebnis lesen
 

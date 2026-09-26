@@ -97,6 +97,7 @@
 "Redo" = "Повторить";
 "Redo %1$@" = "Повторить: %1$@";
 "Remove Bookmark" = "Удалить закладку";
+"Reveal node at caret" = "Показать узел под курсором";
 "Revert to Original" = "Вернуться к исходному";
 "Revert to Saved" = "Вернуться к сохранённому";
 "Row Height:" = "Высота строки:";
@@ -117,6 +118,7 @@
 "Settings…" = "Настройки…";
 "Show Minimap" = "Показать миникарту";
 "Show Search Results" = "Показать результаты поиска";
+"Show the node under the caret in the tree" = "Показать в дереве узел под курсором";
 "Smaller" = "Мельче";
 "Smart Search" = "Умный поиск";
 "Split Here…" = "Разрезать здесь…";

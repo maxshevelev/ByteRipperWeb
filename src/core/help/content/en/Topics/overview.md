@@ -6,9 +6,9 @@
 @covers menu.help.book
 @covers toolbar.help
 
-ByteRipper opens one or two binary files and shows every byte of them. When two files are open it compares them **byte by byte at the same address**, and paints every place they disagree.
+ByteRipper opens one or two binary files, shows every byte of them and lets you edit any of them. When two files are open it compares them **byte by byte at the same address**, and paints every place they disagree.
 
-That is the whole idea. On a repair bench the file is usually a **dump** — the contents of a BIOS chip, an EC chip or an ME region, read off the board with a programmer. The question is almost never "what does this file mean" but "what is wrong with this one compared to one that boots".
+That is the whole idea. On a repair bench the file is usually a **dump** — the contents of a BIOS chip, an EC chip or an ME region, read off the board with a programmer or taken from the internet. The question is almost never "what does this file mean" but "what is wrong with this one compared to one that boots".
 
 ## What it is good at
 
@@ -16,11 +16,11 @@ That is the whole idea. On a repair bench the file is usually a **dump** — the
 - Finding the handful of bytes that actually differ between two firmware versions.
 - Patching a few bytes by hand and writing the file back out for the programmer.
 - Taking a firmware image apart — its regions, its volumes, its Intel ME partitions — to see what is in it and whether it is intact.
-- Cutting a piece out of a dump (one region, one module) and saving it as its own file.
+- Cutting a piece out of a dump (one region, one module) and saving it as its own file, or putting it into another dump.
 
 ## What it deliberately does not do
 
-ByteRipper compares by address only. It never tries to find the same block of bytes at a different address, and never shifts one file against the other to make the differences look smaller.
+ByteRipper compares by absolute address only. It never tries to find the same block of bytes at a different address, and never shifts one file against the other to make the differences look smaller.
 
 That is on purpose. A flash dump has a fixed layout: an address is a position on the chip, and a byte that moved is a byte in the wrong place, not a byte that matched. A tool that "aligned" two dumps would hide exactly the faults worth finding.
 

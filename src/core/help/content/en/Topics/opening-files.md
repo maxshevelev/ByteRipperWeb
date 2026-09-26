@@ -36,7 +36,7 @@ What the browser gives in return is a *handle* to the file you picked, and that 
 
 ## One job per browser tab
 
-There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo.
+There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one tab, EC dumps in the next.
 
 Each pane header names its file and whether it has unsaved changes; the status line below it gives the size. The ✕ in the header closes that pane and leaves the other one open.
 
@@ -44,7 +44,7 @@ Each pane header names its file and whether it has unsaved changes; the status l
 
 Nothing is refused here, because there is nothing this workspace can consult:
 
-- **In the other pane** — allowed, and useful: the two panes are two documents over one file, so you can edit one of them and watch the comparison against the other.
+- **In the other pane** — allowed, and useful: the two panes are two documents over one file, so you can edit one of them and watch the comparison against the other. Your own edits show in red anyway; and when two copies side by side are what you want, **File ▸ Duplicate** makes one in the other pane.
 - **In another browser tab** — that tab is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.
 - **In this very pane** — it re-reads the file, which is how a dump is picked up again after a programmer has rewritten it.
 

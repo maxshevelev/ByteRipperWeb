@@ -1,11 +1,11 @@
-@source-sha 8fb40b8c6a23271db11ca502cf2a2452dd12857bb919fc073b72bd8ef8430096
+@source-sha d066c130aef0839bd10ec178860b11017f0f76fa85e5d751bbb6866db0e6e211
 # Wofür ByteRipper da ist
 
 > Ein Hex-Editor rund um die eine Frage, die ein Reparaturplatz den ganzen Tag stellt: worin unterscheidet sich der Inhalt dieses Chips von dem, der funktioniert?
 
-ByteRipper öffnet eine oder zwei Binärdateien und zeigt jedes Byte darin. Sind zwei Dateien offen, vergleicht es sie **Byte für Byte an derselben Adresse** und färbt jede Stelle, an der sie auseinandergehen.
+ByteRipper öffnet eine oder zwei Binärdateien, zeigt jedes Byte darin und lässt Sie jedes davon ändern. Sind zwei Dateien offen, vergleicht es sie **Byte für Byte an derselben Adresse** und färbt jede Stelle, an der sie auseinandergehen.
 
-Das ist die ganze Idee. Am Reparaturplatz ist die Datei meist ein **Dump** — der Inhalt eines BIOS-Chips, eines EC-Chips oder einer ME-Region, mit einem Programmer von der Platine gelesen. Die Frage lautet fast nie „was bedeutet diese Datei“, sondern „was ist an dieser anders als an einer, die startet“.
+Das ist die ganze Idee. Am Reparaturplatz ist die Datei meist ein **Dump** — der Inhalt eines BIOS-Chips, eines EC-Chips oder einer ME-Region, mit einem Programmer von der Platine gelesen oder aus dem Netz geholt. Die Frage lautet fast nie „was bedeutet diese Datei“, sondern „was ist an dieser anders als an einer, die startet“.
 
 ## Worin es gut ist
 
@@ -13,11 +13,11 @@ Das ist die ganze Idee. Am Reparaturplatz ist die Datei meist ein **Dump** — d
 - Die paar Bytes finden, die sich zwischen zwei Firmware-Versionen tatsächlich unterscheiden.
 - Ein paar Bytes von Hand korrigieren und die Datei für den Programmer wieder ausgeben.
 - Ein Firmware-Image auseinandernehmen — seine Regionen, seine Volumes, seine Intel-ME-Partitionen — um zu sehen, was darin ist und ob es unversehrt ist.
-- Ein Stück aus einem Dump schneiden (eine Region, ein Modul) und als eigene Datei sichern.
+- Ein Stück aus einem Dump schneiden (eine Region, ein Modul) und als eigene Datei sichern oder in einen anderen Dump setzen.
 
 ## Was es mit Absicht nicht tut
 
-ByteRipper vergleicht nur nach Adresse. Es sucht nie denselben Byte-Block an einer anderen Adresse und verschiebt nie eine Datei gegen die andere, damit die Unterschiede kleiner aussehen.
+ByteRipper vergleicht nur nach absoluter Adresse. Es sucht nie denselben Byte-Block an einer anderen Adresse und verschiebt nie eine Datei gegen die andere, damit die Unterschiede kleiner aussehen.
 
 Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung: eine Adresse ist eine Position auf dem Chip, und ein verschobenes Byte ist ein Byte an der falschen Stelle, kein übereinstimmendes. Ein Werkzeug, das zwei Dumps „ausrichtet“, verbirgt genau die Fehler, die zu finden sind.
 
