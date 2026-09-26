@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
 import { favoritesStore, syncProblem } from "@/state/favoritesStore";
 import { showNotice } from "@/state/noticeStore";
@@ -242,7 +243,7 @@ export function FindBar({
           inputRef={inputRef}
           className={FIND_INPUT_CLASS}
           defaultValue={state.query}
-          placeholder="Find bytes or text…"
+          placeholder={L("Find bytes or text…")}
           rows={menuRows}
           onEdit={editQuery}
           onChoose={choose}
@@ -250,7 +251,7 @@ export function FindBar({
         />
         <select
           className="find-encoding"
-          aria-label="Encoding"
+          aria-label={L("Encoding")}
           value={state.encoding}
           onChange={(event) => setSearchEncoding(event.target.value as SearchEncoding)}
           title={
@@ -272,7 +273,7 @@ export function FindBar({
           type="button"
           className={`find-glyph${state.smart ? " is-on" : ""}`}
           aria-pressed={state.smart}
-          aria-label="Smart Search"
+          aria-label={L("Smart Search")}
           title={
             state.smart
               ? "Smart Search — the encoding is whichever one finds a match"
@@ -288,7 +289,7 @@ export function FindBar({
             type="button"
             className={`find-glyph${state.caseSensitive ? " is-on" : ""}`}
             aria-pressed={state.caseSensitive}
-            aria-label="Case Sensitive"
+            aria-label={L("Case Sensitive")}
             title={
               state.caseSensitive
                 ? "Case Sensitive — matching exactly"
@@ -311,12 +312,12 @@ export function FindBar({
         )}
 
         <fieldset className="find-nav">
-          <legend className="visually-hidden">Find Previous / Find Next</legend>
+          <legend className="visually-hidden">{L("Find Previous / Find Next")}</legend>
           <button
             type="button"
             className="find-nav-button"
-            aria-label="Find Previous"
-            title="Find Previous"
+            aria-label={L("Find Previous")}
+            title={L("Find Previous")}
             disabled={!navLive}
             onClick={() => navigate("backward")}
           >
@@ -325,8 +326,8 @@ export function FindBar({
           <button
             type="button"
             className="find-nav-button"
-            aria-label="Find Next"
-            title="Find Next"
+            aria-label={L("Find Next")}
+            title={L("Find Next")}
             disabled={!navLive}
             onClick={() => navigate("forward")}
           >
@@ -339,9 +340,9 @@ export function FindBar({
         <button
           type="button"
           className={`find-glyph${results.resultsShown ? " is-on" : ""}`}
-          aria-label="Search Results"
+          aria-label={L("Search Results")}
           aria-pressed={results.resultsShown}
-          title={results.resultsShown ? "Hide Search Results" : "Show Search Results"}
+          title={results.resultsShown ? L("Hide Search Results") : L("Show Search Results")}
           disabled={!navLive}
           onClick={() => toggleSearchResults(inputRef.current?.value ?? state.query)}
         >
@@ -354,7 +355,7 @@ export function FindBar({
         <HelpButton link={topicLink(TOPIC.search)} shape="inline" />
 
         <button type="button" className="toolbar-button find-done" onClick={closeSearch}>
-          Done
+          {L("Done")}
         </button>
       </form>
       {/* Beside the bar's form, never inside it: a form nested in a form is not

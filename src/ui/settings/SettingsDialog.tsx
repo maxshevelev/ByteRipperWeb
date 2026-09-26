@@ -6,6 +6,7 @@ import {
   resolveLanguage,
   storedLanguageChoice,
 } from "@/core/localization/appLanguage";
+import { L } from "@/core/localization/localization";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
@@ -63,14 +64,22 @@ export type SettingsTab =
  * opens a file, which is the operating system's to decide rather than a web
  * page's.
  */
-const TABS: readonly { readonly id: SettingsTab; readonly label: string }[] = [
-  { id: "appearance", label: "Appearance" },
-  { id: "layout", label: "Layout" },
-  { id: "comparison", label: "Comparison" },
-  { id: "editing", label: "Editing" },
-  { id: "textDecoding", label: "Text Decoding" },
-  { id: "favorites", label: "Favorites" },
-  { id: "language", label: "Language" },
+/**
+ * The tabs, in upstream's toolbar order, built when the dialog is drawn.
+ *
+ * **A function, not a constant.** `L` at module scope is read once, when the
+ * module loads, and would keep the language the page started in — which is the
+ * one mistake `Design/LOCALIZATION.md` names by hand, and this tab strip is
+ * where it was made.
+ */
+const tabs = (): readonly { readonly id: SettingsTab; readonly label: string }[] => [
+  { id: "appearance", label: L("Appearance") },
+  { id: "layout", label: L("Layout") },
+  { id: "comparison", label: L("Comparison") },
+  { id: "editing", label: L("Editing") },
+  { id: "textDecoding", label: L("Text Decoding") },
+  { id: "favorites", label: L("Favorites") },
+  { id: "language", label: L("Language") },
 ];
 
 export interface SettingsDialogProps {
@@ -129,13 +138,13 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
   return (
     <Dialog
       open={open}
-      title="ByteRipper Settings"
+      title={L("ByteRipper Settings")}
       onClose={onClose}
       className="settings-dialog"
       closeButton
     >
-      <div className="settings-tabs" role="tablist" aria-label="Settings">
-        {TABS.map((one) => (
+      <div className="settings-tabs" role="tablist" aria-label={L("Settings")}>
+        {tabs().map((one) => (
           <button
             key={one.id}
             type="button"
@@ -206,9 +215,9 @@ function AppearanceTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">Appearance</h3>
+      <h3 className="settings-heading">{L("Appearance")}</h3>
       <div className="settings-grid">
-        <label htmlFor="settings-font">Font:</label>
+        <label htmlFor="settings-font">{L("Font:")}</label>
         <div className="settings-row">
           <select
             id="settings-font"
@@ -226,7 +235,7 @@ function AppearanceTab() {
           <span className="settings-stepper">
             <button
               type="button"
-              aria-label="Larger"
+              aria-label={L("Larger")}
               disabled={fontSize >= FONT_SIZE_RANGE.upper}
               onClick={() => stepTo(fontSize + FONT_SIZE_STEP)}
             >
@@ -234,7 +243,7 @@ function AppearanceTab() {
             </button>
             <button
               type="button"
-              aria-label="Smaller"
+              aria-label={L("Smaller")}
               disabled={fontSize <= FONT_SIZE_RANGE.lower}
               onClick={() => stepTo(fontSize - FONT_SIZE_STEP)}
             >
@@ -244,7 +253,7 @@ function AppearanceTab() {
           <span className="settings-value">{formatFontSize(fontSize)}</span>
         </div>
 
-        <label htmlFor="settings-row-height">Row Height:</label>
+        <label htmlFor="settings-row-height">{L("Row Height:")}</label>
         <div className="settings-row">
           <input
             id="settings-row-height"
@@ -261,7 +270,7 @@ function AppearanceTab() {
           <span className="settings-value">{formatScale(rowHeightScale)}</span>
         </div>
 
-        <label htmlFor="settings-theme">Theme:</label>
+        <label htmlFor="settings-theme">{L("Theme:")}</label>
         <select
           id="settings-theme"
           className="settings-select"
@@ -276,8 +285,9 @@ function AppearanceTab() {
         </select>
       </div>
       <p className="settings-caption">
-        The hex dump's font and row pitch. A smaller Row Height packs more rows onto the screen.
-        Theme applies to the whole app.
+        {L(
+          "The hex dump's font and row pitch. A smaller Row Height packs more rows onto the screen. Theme applies to the whole app."
+        )}
       </p>
     </section>
   );
@@ -301,9 +311,9 @@ function LayoutTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">Layout</h3>
+      <h3 className="settings-heading">{L("Layout")}</h3>
       <div className="settings-grid">
-        <label htmlFor="settings-layout">Layout Direction:</label>
+        <label htmlFor="settings-layout">{L("Layout Direction:")}</label>
         <select
           id="settings-layout"
           className="settings-select"
@@ -316,7 +326,7 @@ function LayoutTab() {
           <option value="stacked">Top / Bottom</option>
         </select>
 
-        <label htmlFor="settings-word-size">Word Size:</label>
+        <label htmlFor="settings-word-size">{L("Word Size:")}</label>
         <select
           id="settings-word-size"
           className="settings-select"
@@ -331,7 +341,7 @@ function LayoutTab() {
         </select>
       </div>
       <p className="settings-caption">
-        Both apply to the hex views already open, and are what the next visit opens with.
+        {L("Both apply to the hex views already open, and are what the next visit opens with.")}
       </p>
     </section>
   );
@@ -352,9 +362,9 @@ function ComparisonTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">Comparison</h3>
+      <h3 className="settings-heading">{L("Comparison")}</h3>
       <div className="settings-grid">
-        <label htmlFor="settings-grouping">Group Differences Within:</label>
+        <label htmlFor="settings-grouping">{L("Group Differences Within:")}</label>
         <select
           id="settings-grouping"
           className="settings-select"
@@ -369,9 +379,9 @@ function ComparisonTab() {
         </select>
       </div>
       <p className="settings-caption">
-        Next / Previous Difference steps between changes, not bytes: differing bytes closer together
-        than this belong to one change. A smaller value stops more often. Byte highlighting is
-        always per byte.
+        {L(
+          "Next / Previous Difference steps between changes, not bytes: differing bytes closer together than this belong to one change. A smaller value stops more often. Byte highlighting is always per byte."
+        )}
       </p>
     </section>
   );
@@ -411,9 +421,9 @@ function LanguageTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">Language</h3>
+      <h3 className="settings-heading">{L("Language")}</h3>
       <label className="settings-row">
-        <span className="settings-label">Language:</span>
+        <span className="settings-label">{L("Language:")}</span>
         <select
           className="settings-select"
           value={language}
@@ -421,7 +431,9 @@ function LanguageTab() {
         >
           {/* Naming what it currently resolves to, so "the browser's own" is
               not a choice a reader has to guess the outcome of. */}
-          <option value="system">{`Same as the browser (${languageOwnName(follows)})`}</option>
+          <option value="system">
+            {L("Same as the browser (%1$@)", languageOwnName(follows))}
+          </option>
           {APP_LANGUAGES.map((one) => (
             <option key={one} value={one}>
               {languageOwnName(one)}
@@ -430,9 +442,9 @@ function LanguageTab() {
         </select>
       </label>
       <p className="settings-caption">
-        The words change at once — there is no relaunch, because reloading the page would ask you to
-        open every dump again. The help is translated with the rest, and a page that has not been
-        translated yet is shown in English rather than left blank.
+        {L(
+          "The words change at once — there is no relaunch, because reloading the page would ask you to open every dump again. The help is translated with the rest, and a page that has not been translated yet is shown in English rather than left blank."
+        )}
       </p>
     </section>
   );
@@ -457,12 +469,12 @@ function EditingTab() {
           checked={confirmShiftingEdits}
           onChange={(event) => setConfirmShiftingEdits(event.target.checked)}
         />
-        Ask before edits that shift the file
+        {L("Ask before edits that shift the file")}
       </label>
       <p className="settings-caption">
-        Insert mode, Paste Insert and Delete Bytes move every byte after the edit, so they ask
-        first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode
-        still shows INS in the pane's status line.
+        {L(
+          "Insert mode, Paste Insert and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line."
+        )}
       </p>
     </section>
   );
@@ -507,9 +519,9 @@ function TextDecodingTab() {
   return (
     <section className="settings-decoding">
       <div className="settings-decoding-controls">
-        <h3 className="settings-heading">Text Decoding</h3>
+        <h3 className="settings-heading">{L("Text Decoding")}</h3>
         <div className="settings-grid">
-          <label htmlFor="settings-table">Decoding table:</label>
+          <label htmlFor="settings-table">{L("Decoding table:")}</label>
           <select
             id="settings-table"
             className="settings-select"
@@ -528,7 +540,7 @@ function TextDecodingTab() {
             ))}
           </select>
 
-          <label htmlFor="settings-placeholder">Placeholder character:</label>
+          <label htmlFor="settings-placeholder">{L("Placeholder character:")}</label>
           <div className="settings-row">
             <input
               id="settings-placeholder"
@@ -552,7 +564,9 @@ function TextDecodingTab() {
           </div>
         </div>
         <p className="settings-caption">
-          All 256 byte values decoded with the current table. Row headers are the byte value in hex.
+          {L(
+            "All 256 byte values decoded with the current table. Row headers are the byte value in hex."
+          )}
         </p>
         <button type="button" className="toolbar-button" onClick={resetTextDecoding}>
           Reset to Defaults
@@ -589,7 +603,7 @@ const SIXTEEN = Array.from({ length: 16 }, (_, index) => index);
  */
 function TextDecodingPreview({ decoder }: { readonly decoder: ByteDecoder }) {
   return (
-    <div className="settings-preview" role="img" aria-label="Every byte value, decoded">
+    <div className="settings-preview" role="img" aria-label={L("Every byte value, decoded")}>
       {SIXTEEN.map((row) => (
         <div key={row} className="settings-preview-row">
           <span className="settings-preview-header">{hex2(row * 16)}</span>

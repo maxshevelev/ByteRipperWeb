@@ -40,6 +40,7 @@ import {
   useSelectionForFind,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
+import { languageStore } from "@/state/settingsStore";
 import { paneClosed, sessionOn, toolController, zoneSelected } from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
@@ -262,6 +263,21 @@ export interface RevealRequest {
  * @upstream-differs the shell is a React component over the stores
  */
 export function AppShell() {
+  // **The chrome is rebuilt when the language changes, and nothing else is.**
+  //
+  // A label, a menu item and a column heading are all words read when they were
+  // built, so the honest way to change language is to build them again — and
+  // since every one of them is rendered under this component, one subscription
+  // here is the whole mechanism. Not a remount: a reader who changes the
+  // language from the Settings dialog must not have that dialog vanish, and the
+  // panes must not be thrown away and rebuilt to change a word.
+  //
+  // Upstream answers this with *Relaunch Now*; a relaunch here is a page reload,
+  // and a reloaded page has no files (`Design/LOCALIZATION.md`).
+  //
+  // @web-only upstream rebuilds its menu bar and offers the relaunch for the rest
+  useStore(languageStore);
+
   const state = useStore(workspaceStore);
   const diff = useStore(diffStore);
   // An insert or a delete changes a document's length, and each pane has to

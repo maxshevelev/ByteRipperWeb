@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { TOPIC, termId, termLink, topicLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
@@ -215,19 +216,19 @@ export function Toolbar({
     // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showSettings
     // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.settingsWindowController
     // @upstream-differs an item in the command menu, with no key equivalent
-    { label: "Settings…", onSelect: onSettings },
+    { label: L("Settings…"), onSelect: onSettings },
     { kind: "separator" },
-    { kind: "heading", label: "File" },
-    { label: "New", onSelect: onNew },
-    { label: "Open…", onSelect: () => onOpen() },
+    { kind: "heading", label: L("File", { context: "menu" }) },
+    { label: L("New"), onSelect: onNew },
+    { label: L("Open…"), onSelect: () => onOpen() },
     anyOpen && state.panes.b === undefined
-      ? { label: "Compare with…", disabled: !panesReachable, onSelect: () => onOpen("b") }
+      ? { label: L("Compare with…"), disabled: !panesReachable, onSelect: () => onOpen("b") }
       : undefined,
     { kind: "separator" },
     active === undefined
       ? undefined
       : {
-          label: verb,
+          label: verb === "Save" ? L("Save") : L("Download"),
           disabled: !dirty && verb === "Save",
           onSelect: onSave,
         },
@@ -244,21 +245,21 @@ export function Toolbar({
     active === undefined
       ? undefined
       : {
-          label: "Insert File at Start…",
+          label: L("Insert File at Start…"),
           disabled: !panesReachable,
           onSelect: () => onJoin("start"),
         },
     active === undefined
       ? undefined
-      : { label: "Append File…", disabled: !panesReachable, onSelect: () => onJoin("end") },
+      : { label: L("Append File…"), disabled: !panesReachable, onSelect: () => onJoin("end") },
     { kind: "separator" },
     active === undefined
       ? undefined
-      : { label: "Duplicate", disabled: !panesReachable, onSelect: onDuplicate },
-    active === undefined ? undefined : { label: "Close", onSelect: onClose },
+      : { label: L("Duplicate"), disabled: !panesReachable, onSelect: onDuplicate },
+    active === undefined ? undefined : { label: L("Close"), onSelect: onClose },
 
     { kind: "separator" },
-    { kind: "heading", label: "Edit" },
+    { kind: "heading", label: L("Edit", { context: "menu" }) },
     // Named by what they take back, where the step carries a name: a tool's
     // transaction names itself, so this reads `Undo Fix FIT Checksum` rather
     // than leaving the user to remember what the last thing was. Absent rather
@@ -266,28 +267,30 @@ export function Toolbar({
     undoable === undefined
       ? undefined
       : {
-          label: undoable.label === undefined ? "Undo" : `Undo ${undoable.label}`,
+          label: undoable.label === undefined ? L("Undo") : L("Undo %1$@", undoable.label),
           shortcut: "⌘Z",
           onSelect: () => void undoLast(front, false),
         },
     redoable === undefined
       ? undefined
       : {
-          label: redoable.label === undefined ? "Redo" : `Redo ${redoable.label}`,
+          label: redoable.label === undefined ? L("Redo") : L("Redo %1$@", redoable.label),
           shortcut: "⇧⌘Z",
           onSelect: () => void redoLast(front),
         },
     undoable === undefined && redoable === undefined ? undefined : { kind: "separator" },
-    active === undefined ? undefined : { label: "Fill Selection with…", onSelect: onFill },
-    active === undefined ? undefined : { label: "Delete Bytes…", onSelect: onDeleteBytes },
+    active === undefined ? undefined : { label: L("Fill Selection with…"), onSelect: onFill },
+    active === undefined ? undefined : { label: L("Delete Bytes…"), onSelect: onDeleteBytes },
     active === undefined ? undefined : { kind: "separator" },
-    active === undefined ? undefined : { label: "Find…", shortcut: "⌘F", onSelect: onFind },
+    active === undefined ? undefined : { label: L("Find…"), shortcut: "⌘F", onSelect: onFind },
     active === undefined
       ? undefined
-      : { label: "Go To Position…", shortcut: "⌘L", onSelect: onGoTo },
+      : { label: L("Go To Position…"), shortcut: "⌘L", onSelect: onGoTo },
 
     active === undefined ? undefined : { kind: "separator" },
-    active === undefined ? undefined : { kind: "heading", label: "Bookmarks" },
+    active === undefined
+      ? undefined
+      : { kind: "heading", label: L("Bookmarks", { context: "menu" }) },
     // The marks of whatever is in front, read at its own offsets: the
     // workspace's list for its panes, the same list at the part's offsets for a
     // panel (§20.7). A panel showing a decompressed body has none, and ⌘D is
@@ -304,32 +307,34 @@ export function Toolbar({
         },
     active === undefined
       ? undefined
-      : { label: "Bookmarks…", shortcut: "⌥⌘B", onSelect: onBookmarks },
+      : { label: L("Bookmarks…"), shortcut: "⌥⌘B", onSelect: onBookmarks },
 
     active === undefined ? undefined : { kind: "separator" },
-    active === undefined ? undefined : { kind: "heading", label: "Segments" },
-    active === undefined ? undefined : { label: "Split Here…", onSelect: onSplitHere },
+    active === undefined
+      ? undefined
+      : { kind: "heading", label: L("Segments", { context: "menu" }) },
+    active === undefined ? undefined : { label: L("Split Here…"), onSelect: onSplitHere },
     active === undefined
       ? undefined
       : {
-          label: "Merge",
+          label: L("Merge"),
           disabled: pieceCount < 2,
           onSelect: () => {
             const piece = pieceAt(front, active.document.caret);
             if (piece !== undefined) mergePiece(front, piece.index);
           },
         },
-    active === undefined ? undefined : { label: "Segments…", onSelect: onSegments },
+    active === undefined ? undefined : { label: L("Segments…"), onSelect: onSegments },
     active === undefined
       ? undefined
       : {
-          label: "Save All as Separate Files…",
+          label: L("Save All as Separate Files…"),
           disabled: pieceCount < 2,
           onSelect: onSaveAllSegments,
         },
 
     { kind: "separator" },
-    { kind: "heading", label: "View" },
+    { kind: "heading", label: L("View", { context: "menu" }) },
     bothOpen
       ? {
           label: state.layout === "sideBySide" ? "Stack the Panes" : "Put the Panes Side by Side",
@@ -339,7 +344,7 @@ export function Toolbar({
       : undefined,
     bothOpen
       ? {
-          label: "Swap Panes",
+          label: L("Swap Panes"),
           disabled: !panesReachable,
           onSelect: () => {
             panesSwapped();
@@ -357,34 +362,38 @@ export function Toolbar({
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen
       ? {
-          label: "Next Difference",
+          label: L("Next Difference"),
           disabled: !canNavigate,
           onSelect: () => onNavigate("difference", 1),
         }
       : undefined,
     bothOpen
       ? {
-          label: "Previous Difference",
+          label: L("Previous Difference"),
           disabled: !canNavigate,
           onSelect: () => onNavigate("difference", -1),
         }
       : undefined,
     bothOpen
-      ? { label: "Next Same Block", disabled: !canNavigate, onSelect: () => onNavigate("same", 1) }
+      ? {
+          label: L("Next Same Block"),
+          disabled: !canNavigate,
+          onSelect: () => onNavigate("same", 1),
+        }
       : undefined,
     bothOpen
       ? {
-          label: "Previous Same Block",
+          label: L("Previous Same Block"),
           disabled: !canNavigate,
           onSelect: () => onNavigate("same", -1),
         }
       : undefined,
 
     bothOpen ? { kind: "separator" } : undefined,
-    bothOpen ? { kind: "heading", label: "Grouping distance" } : undefined,
+    bothOpen ? { kind: "heading", label: L("Grouping distance") } : undefined,
     ...(bothOpen
       ? GROUPING_GAP_CHOICES.map((gap) => ({
-          label: `${gap} bytes`,
+          label: L("%1$@ bytes", gap),
           checked: state.groupingGap === gap,
           exclusive: true,
           onSelect: () => setGroupingGap(gap),
@@ -403,17 +412,17 @@ export function Toolbar({
     // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeHelpMenu
     // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showHelpBook
     { kind: "separator" },
-    { kind: "heading", label: "Help" },
-    { label: "ByteRipper Help", onSelect: () => showHelp(topicLink(TOPIC.overview)) },
-    { label: "Getting Started", onSelect: () => showHelp(topicLink(TOPIC.firstComparison)) },
-    { label: "Bench Rules", onSelect: () => showHelp(topicLink(TOPIC.benchSafety)) },
+    { kind: "heading", label: L("Help", { context: "menu" }) },
+    { label: L("ByteRipper Help"), onSelect: () => showHelp(topicLink(TOPIC.overview)) },
+    { label: L("Getting Started"), onSelect: () => showHelp(topicLink(TOPIC.firstComparison)) },
+    { label: L("Bench Rules"), onSelect: () => showHelp(topicLink(TOPIC.benchSafety)) },
     {
-      label: "Glossary: UEFI Images",
+      label: L("Glossary: UEFI Images"),
       onSelect: () => showHelp(termLink(termId("flash-descriptor"))),
     },
-    { label: "Glossary: Intel ME", onSelect: () => showHelp(termLink(termId("fpt"))) },
+    { label: L("Glossary: Intel ME"), onSelect: () => showHelp(termLink(termId("fpt"))) },
     {
-      label: "Where This Knowledge Comes From",
+      label: L("Where This Knowledge Comes From"),
       onSelect: () => showHelp(topicLink(TOPIC.provenance)),
     },
   ]);
@@ -450,7 +459,7 @@ export function Toolbar({
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateMenuItem
   const toolEntries = compactEntries([
     {
-      label: "None",
+      label: L("None"),
       checked: menuState(undefined, active !== undefined).checked,
       exclusive: true,
       onSelect: () => activate(undefined),
@@ -583,7 +592,7 @@ export function Toolbar({
               className="toolbar-select"
               value={state.wordSize}
               onChange={(event) => setWordSize(wordSizeFrom(Number(event.target.value)))}
-              aria-label="Word Size"
+              aria-label={L("Word Size")}
               title="Bytes per word in the hex grid"
             >
               {WORD_SIZES.map((size) => (
@@ -635,7 +644,7 @@ export function Toolbar({
             key={key}
             className="toolbar-identical"
             role="status"
-            aria-label="Files are identical"
+            aria-label={L("Files are identical")}
           >
             <IdenticalGlyph />
             Files are identical

@@ -1,3 +1,5 @@
+import { L } from "@/core/localization/localization";
+
 /**
  * What this browser can do with files, detected once.
  *
@@ -107,7 +109,7 @@ export function saveExplanation(capabilities: FileCapabilities, hasHandle = true
  * to hang a save verb on
  */
 export function saveNotice(capabilities: FileCapabilities): string {
-  return capabilities.canSaveInPlace ? "Saves in place." : "Saves by downloading a copy.";
+  return capabilities.canSaveInPlace ? L("Saves in place.") : L("Saves by downloading a copy.");
 }
 
 export const fileSystemAccess = (scope: unknown = globalThis): FileSystemAccessWindow =>

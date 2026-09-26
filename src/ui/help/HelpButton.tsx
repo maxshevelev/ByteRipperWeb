@@ -22,6 +22,7 @@
 
 import { helpTerm, helpTopic } from "@/core/help/helpBook";
 import type { HelpLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { helpStore, showHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import { helpNameOf } from "@/ui/help/helpNames";
@@ -74,7 +75,7 @@ export function HelpButton({ link, shape = "standard", label, onOpen }: HelpButt
   // tooltip says where the button goes rather than "Help".
   //
   // @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.describe
-  const says = label ?? `Help: ${helpNameOf(book, link)}`;
+  const says = label ?? L("Help: %1$@", helpNameOf(book, link));
 
   return (
     <button

@@ -1,4 +1,5 @@
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { saveNotice } from "@/platform/files/capabilities";
 import { bookmarksStore } from "@/state/bookmarksStore";
 import { useStore } from "@/state/useStore";
@@ -50,15 +51,15 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
         type="button"
         className="empty-state-icon"
         onClick={onOpen}
-        aria-label="Open File"
-        title="Open File"
+        aria-label={L("Open File")}
+        title={L("Open File")}
       >
         <OpenFileGlyph />
       </button>
-      <p className="empty-state-headline">Drop files here</p>
-      <p className="empty-state-detail">Up to two files can be compared side by side.</p>
+      <p className="empty-state-headline">{L("Drop files here")}</p>
+      <p className="empty-state-detail">{L("Up to two files can be compared side by side.")}</p>
       <p className="empty-state-detail">
-        {`Files never leave this machine. ${saveNotice(capabilities)}`}
+        {`${L("Files never leave this machine.")} ${saveNotice(capabilities)}`}
         {/* The one screen where a reader arrives with "what is this for", which
             is the question the overview answers.
             @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.helpButton */}
@@ -91,7 +92,7 @@ function BookmarkSection({
 }) {
   if (bookmarks.length === 0) return null;
   return (
-    <section className="empty-state-bookmarks" aria-label="Bookmarks">
+    <section className="empty-state-bookmarks" aria-label={L("Bookmarks")}>
       <h2 className="empty-state-bookmarks-heading">{bookmarkHeading(bookmarks.length)}</h2>
       <div className="empty-state-bookmarks-list">
         {bookmarkRows(bookmarks).map((row) => (

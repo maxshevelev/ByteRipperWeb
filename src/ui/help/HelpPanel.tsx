@@ -29,6 +29,7 @@ import {
 import { type HelpLink, linkKey, sameLink, termLink, topicLink } from "@/core/help/helpIds";
 import { helpSpans } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS, type HelpTermGroup } from "@/core/help/helpTopic";
+import { L } from "@/core/localization/localization";
 import {
   closeHelp,
   goToHelp,
@@ -77,7 +78,7 @@ export function HelpPanel() {
   const results = book === undefined || query.trim() === "" ? [] : searchHelp(book, query);
 
   return (
-    <section className="help-panel" aria-label="Help">
+    <section className="help-panel" aria-label={L("Help", { context: "panel" })}>
       <header className="help-bar">
         <div className="help-history">
           <button
@@ -85,8 +86,8 @@ export function HelpPanel() {
             className="help-step"
             onClick={helpBack}
             disabled={!helpCanGoBack(state)}
-            aria-label="Back"
-            title="Back"
+            aria-label={L("Back")}
+            title={L("Back")}
           >
             ‹
           </button>
@@ -95,8 +96,8 @@ export function HelpPanel() {
             className="help-step"
             onClick={helpForward}
             disabled={!helpCanGoForward(state)}
-            aria-label="Forward"
-            title="Forward"
+            aria-label={L("Forward")}
+            title={L("Forward")}
           >
             ›
           </button>
@@ -107,24 +108,26 @@ export function HelpPanel() {
           onClick={toggleHelpContents}
           aria-expanded={state.contentsOpen}
         >
-          Contents
+          {L("Contents")}
         </button>
-        <h2 className="help-where">{book === undefined ? "Help" : whereAmI(book, here)}</h2>
+        <h2 className="help-where">
+          {book === undefined ? L("Help", { context: "panel" }) : whereAmI(book, here)}
+        </h2>
         <input
           ref={search}
           type="search"
           className="help-search"
           value={query}
-          placeholder="Search the help"
-          aria-label="Search the help"
+          placeholder={L("Search the help")}
+          aria-label={L("Search the help")}
           onChange={(event) => setHelpQuery(event.target.value)}
         />
         <button
           type="button"
           className="help-fold"
           onClick={foldParts}
-          aria-label="Fold the help down"
-          title="Fold the help down"
+          aria-label={L("Fold the help down")}
+          title={L("Fold the help down")}
         >
           ⌄
         </button>
@@ -136,7 +139,7 @@ export function HelpPanel() {
         <div className="help-page" ref={page}>
           {book === undefined ? (
             <p className="help-waiting">
-              {state.loading ? "Fetching the help…" : "The help is not available."}
+              {state.loading ? L("Fetching the help…") : L("The help is not available.")}
             </p>
           ) : results.length > 0 || query.trim() !== "" ? (
             <Results book={book} query={query} />
@@ -170,16 +173,16 @@ function Name({ name }: { readonly name: string }) {
 
 /** The section and the page, so a reader who arrived by a link knows where they are. */
 function whereAmI(book: HelpBook, link: HelpLink | undefined): string {
-  if (link === undefined) return "Help";
+  if (link === undefined) return L("Help", { context: "panel" });
   if (link.kind === "term") {
     const term = helpTerm(book, link.id);
     return term === undefined
-      ? "Help"
+      ? L("Help", { context: "panel" })
       : `${glossaryName(book, term.group)} ▸ ${plainHelpName(term.name)}`;
   }
   const topic = helpTopic(book, link.id);
   const section = book.sections.find((one) => one.topics.includes(link.id));
-  if (topic === undefined) return "Help";
+  if (topic === undefined) return L("Help", { context: "panel" });
   return section === undefined ? topic.title : `${section.name} ▸ ${topic.title}`;
 }
 
@@ -197,7 +200,7 @@ function Contents({
   readonly here: HelpLink | undefined;
 }) {
   return (
-    <nav className="help-contents" aria-label="Contents">
+    <nav className="help-contents" aria-label={L("Contents")}>
       {book.sections.map((section) => (
         <details key={section.id} open>
           <summary>{section.name}</summary>
@@ -294,7 +297,7 @@ function Page({ book, link }: { readonly book: HelpBook; readonly link: HelpLink
         <HelpBlocks blocks={term.blocks} onFollow={goToHelp} />
         {term.seeAlso.length === 0 ? null : (
           <p className="help-see-also">
-            <span className="help-see-also-label">See also:</span>
+            <span className="help-see-also-label">{L("See also:")}</span>
             {term.seeAlso.map((see) => (
               <button
                 key={linkKey(see)}
@@ -323,7 +326,9 @@ function Page({ book, link }: { readonly book: HelpBook; readonly link: HelpLink
 }
 
 /** What a link into nothing shows. The content tests make this unreachable. */
-const MissingPage = () => <p className="help-waiting">That page has not been written yet.</p>;
+const MissingPage = () => (
+  <p className="help-waiting">{L("That page has not been written yet.")}</p>
+);
 
 /**
  * What the reader typed, matched over title, summary and body. Pages first,
@@ -335,10 +340,10 @@ const MissingPage = () => <p className="help-waiting">That page has not been wri
 function Results({ book, query }: { readonly book: HelpBook; readonly query: string }) {
   const hits = searchHelp(book, query);
   if (hits.length === 0) {
-    return <p className="help-waiting">Nothing in the help matches “{query.trim()}”.</p>;
+    return <p className="help-waiting">{L("Nothing in the help matches “%1$@”.", query.trim())}</p>;
   }
   return (
-    <ul className="help-results" aria-label="Search results">
+    <ul className="help-results" aria-label={L("Search results")}>
       {hits.map((hit) => (
         <li key={linkKey(resultLink(hit))}>
           <button type="button" className="help-result" onClick={() => goToHelp(resultLink(hit))}>

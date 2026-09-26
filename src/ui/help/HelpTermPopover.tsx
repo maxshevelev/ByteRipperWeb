@@ -19,6 +19,7 @@ import { useEffect, useRef } from "react";
 import { helpTerm } from "@/core/help/helpBook";
 import type { HelpLink, HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { helpStore, showHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
@@ -97,7 +98,7 @@ export function HelpTermPopover({
         className="toolbar-button help-popover-more"
         onClick={() => follow(termLink(id))}
       >
-        Open in Help
+        {L("Open in Help")}
       </button>
     </dialog>
   );
