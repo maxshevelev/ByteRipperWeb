@@ -70,10 +70,54 @@ export function rangeValue(
   return offset >= 0 && size > 0 ? { start: offset, end: offset + size } : undefined;
 }
 
+/**
+ * The things a curated node counts in its subtitle.
+ *
+ * A closed set and not a noun to append an "s" to: Russian has three forms
+ * where English has two, and no rule gets from "region" to «регионов». Each
+ * case is two whole phrases a translator can write out.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.CountedNoun
+ */
+export type CountedNoun =
+  | "entry"
+  | "row"
+  | "block"
+  | "module"
+  | "file"
+  | "image"
+  | "issue"
+  | "record"
+  | "region"
+  | "table"
+  | "partition";
+
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.count */
-export function countText(count: number, noun: string): string {
-  if (count === 1) return `1 ${noun}`;
-  return noun.endsWith("y") ? `${count} ${noun.slice(0, -1)}ies` : `${count} ${noun}s`;
+export function countText(count: number, noun: CountedNoun): string {
+  switch (noun) {
+    case "entry":
+      return count === 1 ? "1 entry" : `${count} entries`;
+    case "row":
+      return count === 1 ? "1 row" : `${count} rows`;
+    case "block":
+      return count === 1 ? "1 block" : `${count} blocks`;
+    case "module":
+      return count === 1 ? "1 module" : `${count} modules`;
+    case "file":
+      return count === 1 ? "1 file" : `${count} files`;
+    case "image":
+      return count === 1 ? "1 image" : `${count} images`;
+    case "issue":
+      return count === 1 ? "1 issue" : `${count} issues`;
+    case "record":
+      return count === 1 ? "1 record" : `${count} records`;
+    case "region":
+      return count === 1 ? "1 region" : `${count} regions`;
+    case "table":
+      return count === 1 ? "1 table" : `${count} tables`;
+    case "partition":
+      return count === 1 ? "1 partition" : `${count} partitions`;
+  }
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.yesNo */

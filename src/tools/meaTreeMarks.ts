@@ -12,7 +12,7 @@ import {
 } from "@/tools/toolRowMarks";
 
 /**
- * What a row of the ME Full Tree wears besides its text
+ * What a row of the ME Full Info tree wears besides its text
  * (`Design/ROW_MARKS.md` §5.3), decided here so it is tested without a window,
  * in the icons of the one catalogue every firmware panel draws from.
  *

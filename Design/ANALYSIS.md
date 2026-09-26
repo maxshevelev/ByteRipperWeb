@@ -157,7 +157,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Microcode catalogue by CPUID, revision, date | Same | Fetched live from `api.github.com/.../CPUMicrocodes/git/trees` plus `raw.githubusercontent.com`, as upstream does. Both answer with `Access-Control-Allow-Origin: *`, so a browser can read them. |
 | **ME Analyzer**: family, version, SKU, chipset, stepping, dates, stock/update/extracted | Same | Port of `MEFirmware` (17.4k lines). |
 | Health rows: RSA signature, partition tables, EFS, MFS, filesystem state | Same | Includes the RSA modpow and CSE Huffman decompression — see the performance budget. |
-| Full Tree view | Same | |
+| Full Info view | Same | |
 | Copy summary as rich text | Adapted | Clipboard API writes `text/html` plus `text/plain`. The `text/plain` spelling cannot carry a weight at all, and the `text/html` one is a bare table with no styling of its own, so a status-toned value's bold does not travel with the copy as upstream's RTF carries it — the panel and its picture have it, the clipboard does not. |
 | Screenshot the summary as a picture | Same | Rendered to a canvas and downloaded, which is what a forum post needs anyway. |
 | `MEA.dat` / `Huffman.dat` databases, live-fetched as upstream publishes | Same | Same policy as the desktop: lazy, single-flight, no cache. See [Third-party data](#third-party-data). |

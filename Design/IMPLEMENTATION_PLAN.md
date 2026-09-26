@@ -340,7 +340,7 @@ states are visible and accurate.
    use native `BigInt`) and `Decompress/Huffman.swift` (CSE Huffman).
 3. Health rows as plain Yes/No or coloured words: RSA signature, partition
    tables, EFS and its page bookkeeping, MFS dictionary, filesystem state.
-4. Full Tree; Copy as rich text; Screenshot as a picture.
+4. Full Info; Copy as rich text; Screenshot as a picture.
 5. `MEA.dat` and `Huffman.dat` behind the cached source (D10), with their date
    shown in the panel header.
 6. Tests ported from `Packages/MEFirmware/Tests`, including `RSATests` and

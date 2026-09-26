@@ -43,7 +43,7 @@ import type { ToolValueTone } from "@/tools/toolValueTone";
 import type { ZoneMap } from "@/tools/zone";
 
 /**
- * The «Full Tree» tab: a `FirmwareAnalysis` as a curated tree. Ported from
+ * The «Full Info» tab: a `FirmwareAnalysis` as a curated tree. Ported from
  * upstream's `MEANode`, `MEACurator`, `MEAValueText` and `MEAZones`.
  *
  * Hand-named groups in a fixed order, one per structure the analysis carries —

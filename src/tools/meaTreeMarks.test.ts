@@ -6,7 +6,7 @@ import { type MEANode, presentMEA } from "@/tools/meaTree";
 import { MEA_TREE_MARKS, type MEAStorage, metadataMarks } from "@/tools/meaTreeMarks";
 
 /**
- * What the ME Full Tree's rows wear (`ROW_MARKS.md` §5.3), read off the tree the
+ * What the ME Full Info tree's rows wear (`ROW_MARKS.md` §5.3), read off the tree the
  * curator presents — so the marks are tested where the panel takes them, which
  * is upstream's `MEATreeMarksTests`.
  */

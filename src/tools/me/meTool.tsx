@@ -64,7 +64,7 @@ import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMark
  * Laid out as upstream's `MEAToolViewController`: two tabs over one content
  * area. «Summary» is MEA's own console table — the facts a bench asks for, in
  * the order the console prints them — with a copy of it as text and as a
- * picture beside the tabs. «Full Tree» is every structure the analysis read,
+ * picture beside the tabs. «Full Info» is every structure the analysis read,
  * grouped and in reading order, with the detail of the row in focus under a
  * divider that is the reader's to move. A line under both says what is being
  * read or fetched, and what went wrong.
@@ -590,7 +590,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
             Summary
           </TabButton>
           <TabButton tab="tree" current={tab} onChoose={setTab}>
-            Full Tree
+            Full Info
           </TabButton>
         </div>
         {tab === "summary" && hasContent ? (
@@ -624,7 +624,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       <div
         className="me-content"
         role="tabpanel"
-        aria-label={tab === "summary" ? "Summary" : "Full Tree"}
+        aria-label={tab === "summary" ? "Summary" : "Full Info"}
       >
         {result.phase === "waiting" ? (
           // Two waits wear one placeholder upstream, because upstream's own is

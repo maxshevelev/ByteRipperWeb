@@ -353,7 +353,7 @@ export function microcodeFields(
     row("CPUID", microcodeCpuid(header.processorSignature)),
     row("Processor", microcodeProcessorText(header.processorSignature)),
     // "Update revision", so it does not read as the same thing as a FIT entry's
-    // own Revision.
+    // own Version.
     row("Update revision", hexText(header.updateRevision)),
     row("Date", microcodeDate(header)),
     row("Platform IDs", hexText(header.platformIDs)),
