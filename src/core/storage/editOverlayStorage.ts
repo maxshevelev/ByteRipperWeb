@@ -222,6 +222,7 @@ export class EditOverlayStorage implements EditableByteStorage {
   }
 
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.insert */
+  // help: menu.edit.paste-insert
   async insert(at: number, bytes: Uint8Array): Promise<void> {
     if (bytes.length === 0) return;
     const offset = Math.min(Math.max(at, 0), this.table.size);

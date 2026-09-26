@@ -878,6 +878,7 @@ export const fitTool: ToolModule = {
   id: "dev.maxik.tool.fit",
   title: "FIT Table",
   summary: "The Firmware Interface Table: what it names, and whether it adds up.",
+  // help: panel.fit
   helpTopic: TOPIC.toolFIT,
   View: FitToolView,
 };

@@ -141,6 +141,7 @@ export function resolveHexKey(
     switch (event.key) {
       case "a":
       case "A":
+        // help: menu.edit.select-all
         return { kind: "selectAll" };
       case "l":
       case "L":
@@ -174,9 +175,11 @@ export function resolveHexKey(
         return extend ? { kind: "saveAs" } : { kind: "save" };
       case "c":
       case "C":
+        // help: menu.edit.copy
         return { kind: "copy" };
       case "v":
       case "V":
+        // help: menu.edit.paste
         return { kind: "paste" };
       // The Mac's caret jumps. They work elsewhere too under Ctrl, where they
       // cost nothing: Ctrl+arrow is not spoken for in a browser.
@@ -229,6 +232,7 @@ export function resolveHexKey(
     case "Backspace":
       return { kind: "delete", forward: false };
     case "Insert":
+      // help: menu.edit.insert-mode
       return { kind: "toggleInsertMode" };
     case "Tab":
       // Between the hex column and the decoded-text column. The browser's own

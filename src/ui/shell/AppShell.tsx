@@ -446,6 +446,7 @@ export function AppShell() {
      * where no band lies is simply not accepted; the web has opened a file there since before there
      * were bands, and a drop that silently did nothing would be a regression rather than a port
      */
+    // help: shell.drop-zones
     const onDrop = (event: DragEvent) => {
       if (event.dataTransfer === null) return;
       event.preventDefault();
@@ -1040,6 +1041,7 @@ export function AppShell() {
           message:
             `It has changes ${origin.parentName} has not got. ` +
             "Closing this panel without putting them back loses them.",
+          // help: menu.file.update-in-parent
           confirmLabel: "Update in Parent",
           otherLabel: "Close Anyway",
           answer: resolve,

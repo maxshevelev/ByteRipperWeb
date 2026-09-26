@@ -3,7 +3,6 @@
 > Sixteen bytes to a row, the address on the left, the text on the right.
 
 @covers menu.view.word-size
-@covers menu.view.zoom
 @covers settings.appearance
 @covers settings.text-decoding
 

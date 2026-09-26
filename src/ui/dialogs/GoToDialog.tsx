@@ -332,6 +332,7 @@ export function GoToDialog({
   const unavailable = bookmarksUnavailable(pane);
 
   return (
+    // help: dialog.go-to
     <Dialog
       open={open}
       title="Go To"

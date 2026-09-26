@@ -197,6 +197,7 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#AppearanceSettingsViewController.themeChanged
  * @upstream-differs a React tab over the settings store; the stepper is two buttons beside the value
  */
+// help: settings.appearance
 function AppearanceTab() {
   const { fontFamily, fontSize, rowHeightScale, theme } = useStore(settingsStore);
   const families = useMemo(() => monospacedFontFamilies(), []);
@@ -306,6 +307,7 @@ function AppearanceTab() {
  * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettingsViewController.wordSizeChanged
  * @upstream-differs the direction applies to the panes already open, since a tab holds one comparison
  */
+// help: settings.layout
 function LayoutTab() {
   const { layout, wordSize } = useStore(workspaceStore);
 
@@ -357,6 +359,7 @@ function LayoutTab() {
  * @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettingsViewController.syncControls
  * @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettingsViewController.groupingChanged
  */
+// help: settings.comparison
 function ComparisonTab() {
   const { groupingGap } = useStore(workspaceStore);
 
@@ -412,6 +415,7 @@ function ComparisonTab() {
  * @upstream ByteRipperApp/Settings/LanguageSettingsViewController.swift#LanguageSettingsViewController
  * @upstream-differs no Relaunch Now, and the caption says why
  */
+// help: settings.language
 function LanguageTab() {
   const { language } = useStore(settingsStore);
   const follows = resolveLanguage(
@@ -450,6 +454,7 @@ function LanguageTab() {
   );
 }
 
+// help: settings.editing
 function EditingTab() {
   const { confirmShiftingEdits } = useStore(workspaceStore);
 
@@ -502,6 +507,7 @@ function EditingTab() {
  * @upstream ByteRipperApp/Settings/TextDecodingSettingsViewController.swift#TextDecodingSettingsViewController.apply
  * @upstream ByteRipperApp/Settings/TextDecodingSettingsViewController.swift#TextDecodingSettingsViewController.showValidationError
  */
+// help: settings.text-decoding
 function TextDecodingTab() {
   const { textDecoding } = useStore(settingsStore);
   const [text, setText] = useState(textDecoding.placeholder);

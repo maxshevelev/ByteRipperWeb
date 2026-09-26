@@ -38,6 +38,7 @@ import { HelpPanel } from "@/ui/help/HelpPanel";
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wireFragmentPaneView
  */
+// help: shell.fragments
 export function FragmentPanels({
   renderPane,
   onClose,

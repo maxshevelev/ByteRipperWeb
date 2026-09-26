@@ -103,6 +103,7 @@ export function offersShowMarkings(marks: readonly ToolRowMark[]): boolean {
   });
 }
 
+// help: panel.row-marks-legend
 export function ToolRowMarksLegend({
   panel,
   marks,

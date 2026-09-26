@@ -82,6 +82,7 @@ export function ToolDetail({
                   the thing the button is about.
                   @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.termButton */}
               {helpTerm === undefined ? null : (
+                // help: panel.node-term
                 <span className="tool-detail-term" ref={termButton}>
                   <HelpButton
                     link={termLink(helpTerm)}

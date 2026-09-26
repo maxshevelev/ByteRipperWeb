@@ -22,6 +22,7 @@
 export type ZoneKind = "plain";
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone */
+// help: panel.zones
 export interface Zone {
   /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.id */
   readonly id: string;

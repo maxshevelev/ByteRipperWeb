@@ -93,6 +93,7 @@ interface Row {
  * @upstream ByteRipperApp/Search/SearchResultsViewController.swift#SearchResultsViewController.closePressed
  * @upstream ByteRipperApp/Search/SearchResultsViewController.swift#SearchResultsViewController.messageLabel
  */
+// help: shell.search-results
 export function SearchResults({
   pane,
   matches,

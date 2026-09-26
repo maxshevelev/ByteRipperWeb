@@ -46,6 +46,7 @@ export const DEFAULT_LIMITS: Limits = { maxDepth: 16, maxDecompressedSize: 128 *
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#ProgressSink
  */
+// help: worker.progress
 export class ProgressSink {
   private readonly total: number;
   private readonly report: (fraction: number) => void;

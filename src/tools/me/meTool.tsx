@@ -1198,6 +1198,7 @@ export const meTool: ToolModule = {
   id: "dev.maxik.tool.me-analyzer",
   title: "ME Analyzer",
   summary: "The Intel Management Engine firmware: its summary and every structure in it.",
+  // help: panel.me
   helpTopic: TOPIC.toolME,
   View: MeToolView,
 };

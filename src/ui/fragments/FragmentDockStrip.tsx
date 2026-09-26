@@ -138,6 +138,7 @@ export function FragmentDockStrip({
   readonly onClose: (id: PanelId) => void;
 }) {
   return (
+    // help: shell.fragment-dock
     <ul className="fragment-dock" aria-label="Panels">
       {items.map((item) => (
         <FragmentPill

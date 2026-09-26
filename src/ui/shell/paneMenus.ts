@@ -9,6 +9,7 @@ import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditSt
 import { bookmarkAt, marksFor } from "@/state/bookmarksStore";
 import { askFirmwarePart } from "@/state/firmwareStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
+import { segmentSource } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
 import {
   canRevertToOriginal,
@@ -31,7 +32,6 @@ import {
   savePiece,
 } from "@/ui/segments/segmentCommands";
 import { selectPiece } from "@/ui/segments/segmentMenu";
-import { segmentSource } from "@/state/segmentSources";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -286,6 +286,7 @@ export function dumpMenu(
     { label: "Copy Offset", onSelect: () => void copyText(hexAddress(offset)) },
     { kind: "separator" },
     {
+      // help: menu.edit.select-block
       label: `Select Block from Here at ${hexAddress(offset)}…`,
       onSelect: () => actions.onSelectBlockFrom(pane, offset),
     },
@@ -413,7 +414,7 @@ function segmentItems(
       {
         label: mergeTitle(piece.index),
         onSelect: () => mergePiece(pane, piece.index),
-      },
+      }
     );
   }
   // Revert back to the file the piece came from (§21.7): the source file's item,
@@ -428,7 +429,7 @@ function segmentItems(
         {
           label: `Revert Segment ${label} to “${source.name}”`,
           onSelect: () => void revertPiece(pane, piece),
-        },
+        }
       );
     }
   }

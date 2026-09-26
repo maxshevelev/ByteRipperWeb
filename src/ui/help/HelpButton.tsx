@@ -80,6 +80,7 @@ export function HelpButton({ link, shape = "standard", label, onOpen }: HelpButt
   return (
     <button
       type="button"
+      // help: panel.help-button
       className="help-button"
       data-shape={shape}
       onClick={() => (onOpen === undefined ? showHelp(link) : onOpen())}

@@ -246,6 +246,7 @@ async function sweep(): Promise<void> {
  * pane with no list at all — a decompressed body — answers each of them with
  * nothing done.
  */
+// help: menu.edit.bookmark-toggle
 export function toggleBookmark(pane: PaneId, offset: number): Bookmark | undefined {
   return marksFor(pane)?.toggle(offset);
 }

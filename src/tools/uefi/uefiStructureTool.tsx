@@ -1205,6 +1205,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                       marksOf(node).problem === undefined || node.space.length !== 0
                         ? undefined
                         : {
+                            // help: panel.uefi.fix-checksum
                             label: "Fix Checksum",
                             onSelect: () => {
                               void fixFirmwareChecksum(
@@ -1491,6 +1492,7 @@ export const uefiStructureTool: ToolModule = {
   id: "dev.maxik.tool.uefi-structure",
   title: "UEFI Structure",
   summary: "The image as a tree: regions, volumes, files and sections.",
+  // help: panel.uefi
   helpTopic: TOPIC.toolUEFI,
   View: UefiStructureView,
 };

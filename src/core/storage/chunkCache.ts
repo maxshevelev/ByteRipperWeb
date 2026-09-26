@@ -43,6 +43,7 @@ export const DEFAULT_CHUNK_CACHE_CONFIG: ChunkCacheConfig = {
 };
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache */
+// help: core.storage.chunked
 export class ChunkCache {
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.config */
   readonly config: ChunkCacheConfig;

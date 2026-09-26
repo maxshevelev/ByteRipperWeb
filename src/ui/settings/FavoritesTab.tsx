@@ -157,6 +157,7 @@ export function locationLine(state: FavoritesState): {
  * @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.resolveButton
  * @upstream-differs rows of inputs, reordered by dragging a row or with Alt+↑/↓; This Was Me is offered for an earlier file of this browser's, and nothing else in the folder is shown; Export and Import, and a read-only fetch from a folder, are the web's own
  */
+// help: settings.favorites
 export function FavoritesTab() {
   const library = useStore(favoritesStore);
   const { favorites, pendingImport, conflicts, folder } = library;

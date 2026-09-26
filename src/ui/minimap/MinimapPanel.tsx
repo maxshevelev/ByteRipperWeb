@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  baselineReferenceAt,
   type BaselineSpan,
+  baselineReferenceAt,
   type ModifiedBaseline,
 } from "@/core/segments/baseline";
 import type { Segment } from "@/core/segments/segmentation";
@@ -52,8 +52,8 @@ import {
   setMinimapRows,
   setMinimapWidth,
 } from "@/state/minimapStore";
-import { segmentsStore } from "@/state/segmentsStore";
 import { baselineFor } from "@/state/segmentSources";
+import { segmentsStore } from "@/state/segmentsStore";
 import { zoneSelected } from "@/state/toolController";
 import { useStore } from "@/state/useStore";
 import {
@@ -167,6 +167,7 @@ export function MinimapPanel({
        * and the band sits that much higher than the map it is about — which is
        * a band that drifts from the pointer dragging it.
        */}
+      // help: shell.minimap
       <div className="minimap-maps" style={{ marginTop: chrome.gapBelowHeader }}>
         {open.map((pane, index) => (
           <MinimapCanvas
@@ -401,6 +402,7 @@ function MinimapModes({
     <div className="minimap-head" style={height > 0 ? { height, marginTop: offsetTop } : undefined}>
       <fieldset className="minimap-modes">
         <legend className="visually-hidden">Minimap mode</legend>
+        // help: menu.view.minimap-overview
         {(["detail", "overview"] as const).map((mode) => (
           <button
             key={mode}
