@@ -12,7 +12,6 @@ The **Tools** menu turns on one panel at a time, beside the dump. Each one reads
 - **[[topic:tool-uefi|UEFI Structure]]** — the layout of a firmware image: the flash regions, the volumes, the files and sections inside them, the NVRAM stores.
 - **[[topic:tool-me|ME Analyzer]]** — what the Intel Management Engine firmware in the image is: its version, its partitions, its configuration.
 - **[[topic:tool-fit|FIT Table]]** — the Firmware Interface Table, and whether its entries still point at what they claim.
-- **[[topic:tool-zones|Zone Sketch]]** — mark out areas of an unfamiliar image by hand.
 
 ## What they have in common
 

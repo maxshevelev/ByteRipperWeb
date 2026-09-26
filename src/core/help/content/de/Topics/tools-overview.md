@@ -1,4 +1,4 @@
-@source-sha b3112a4bcd7f3ece8567a9bd03137e06a9d65b1484c80d3b8593953f7a218f9e
+@source-sha 25027a3c810187d26403bd87c3cf119938856df28ba22d09863e37a167865c81
 # Die Werkzeugbereiche
 
 > Werkzeuge, die den geöffneten Dump lesen und sagen, was darin ist.
@@ -8,7 +8,6 @@ Das Menü **Werkzeuge** schaltet jeweils ein Panel neben dem Dump ein. Jedes lie
 - **[[topic:tool-uefi|UEFI-Struktur]]** — die Aufteilung eines Firmware-Images: die Flash-Regionen, die Volumes, die Dateien und Sektionen darin, die NVRAM-Speicher.
 - **[[topic:tool-me|ME Analyzer]]** — was für eine Intel-Management-Engine-Firmware im Image steckt: ihre Version, ihre Partitionen, ihre Konfiguration.
 - **[[topic:tool-fit|FIT-Tabelle]]** — die Firmware Interface Table und ob ihre Einträge noch auf das zeigen, was sie behaupten.
-- **[[topic:tool-zones|Zonen-Skizze]]** — die Bereiche eines unbekannten Images von Hand markieren.
 
 ## Was sie gemeinsam haben
 

@@ -468,5 +468,3 @@ Worth knowing on a bench because it means an image may legitimately contain two 
 Not an error. Vendors put their own data in firmware images all the time, and an EC image or an option ROM inside a BIOS region is a format of its own.
 
 It is, however, where to look when something does not add up: a region that should be volumes and reads as non-UEFI data is a corrupted region.
-
-@see topic:tool-zones

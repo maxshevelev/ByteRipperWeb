@@ -73,7 +73,6 @@ When you select a row in a tool panel, the panel publishes that row's byte range
 A zone is an outline rather than a background fill, so it never hides a difference or an unsaved edit underneath it.
 
 @see topic:tools-overview
-@see topic:tool-zones
 
 @term flash-chip
 @name SPI flash chip

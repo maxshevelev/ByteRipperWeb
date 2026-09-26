@@ -59,7 +59,6 @@ export const HELP_SECTIONS: readonly HelpSectionShape[] = [
       TOPIC.toolUEFI,
       TOPIC.toolME,
       TOPIC.toolFIT,
-      TOPIC.toolZones,
       TOPIC.databases,
       TOPIC.provenance,
     ],

@@ -88,7 +88,6 @@ export const TOPIC = {
   toolUEFI: topicId("tool-uefi"),
   toolME: topicId("tool-me"),
   toolFIT: topicId("tool-fit"),
-  toolZones: topicId("tool-zones"),
   databases: topicId("databases"),
   provenance: topicId("provenance"),
 

@@ -22,7 +22,11 @@
 export type ZoneKind = "plain";
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone */
-// help: panel.zones
+// Upstream's book carried a page about the zones' one user, the Zone Sketch
+// panel, and the panel's module anchored it. This app does not offer that
+// panel (upstream's debug-only demonstration, an `n/a` in the module map), and
+// an anchor is a promise that the book explains a thing the user can reach —
+// so the shared type carries no anchor of its own.
 export interface Zone {
   /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.id */
   readonly id: string;

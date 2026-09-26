@@ -1,4 +1,4 @@
-@source-sha fb0b9898f97fa429b401607ea695bebaea419713f8962a1598723c5eb927ed9d
+@source-sha 72cf79a79ce3cab7869173f2568cd35e3fe227aab65d20a029dc4ad0d8cbe6b1
 @term dump
 @name Dump
 @short Der Inhalt eines Chips, in eine Datei ausgelesen.
@@ -74,7 +74,6 @@ Wählen Sie eine Zeile in einem Werkzeugbereich, veröffentlicht er deren Byte-B
 Eine Zone ist ein Umriss und keine Hintergrundfüllung, verdeckt also nie einen Unterschied oder eine ungesicherte Änderung darunter.
 
 @see topic:tools-overview
-@see topic:tool-zones
 
 @term flash-chip
 @name SPI-Flash-Chip
