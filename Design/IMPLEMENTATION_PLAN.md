@@ -437,6 +437,22 @@ back — without meeting one English sentence that is not a format name; the
 language changes with the files still open; and `help_coverage.py` reports no
 page missing, no catalogue behind, and no key with an interpolation in it.
 
+**Where it stands (2026-09-26).** Steps 1–6 and 8–9 are done: the lookup, the
+language setting, the book's core, the English content, the panel in the dock,
+the `?` buttons and the term popovers, the Russian and German book, and the
+coverage skill. `help_coverage.py` reports 66 anchors declared and 66 covered,
+every translation current and both catalogues complete.
+
+Step 7 — the sweep — has done the surfaces a bench meets first: the toolbar's
+whole menu, the empty screen, the find bar, the settings and the help panel's
+own chrome. **What is still English is the deeper chrome**: the pane header and
+status line, the dialogs (Go To, Fill, Select Block, Segments, Cut, the alerts
+and confirmations), the firmware panels' own columns and rows, and the strings
+the workers build. Those are the long tail of this milestone rather than a gap
+of their own; the mechanism is proven and the catalogue is where the words go.
+A worker holds no catalogue yet, which is the one piece of plumbing that must
+land with the first worker-built string that needs it (`LOCALIZATION.md`).
+
 ---
 
 ## 18. Build and run

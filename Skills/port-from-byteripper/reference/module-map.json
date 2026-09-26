@@ -4856,26 +4856,21 @@
       "web": [
         "src/core/localization"
       ],
-      "status": "in-progress",
-      "note": "The language the app speaks (Design/LOCALIZATION.md). The lookup is across whole — the key is the English text, the placeholders are positional, and a context disambiguates one English word that is two elsewhere — in upstream's own .strings format, so a sentence the two editions share is carried across rather than re-typed. Two things the browser changes. The catalogue is installed rather than loaded on first use: a file arrives over a promise here, so it is awaited at startup and on a change of language, and L stays the synchronous call a render may make. And the choice resolves against navigator.languages rather than Locale.preferredLanguages, by upstream's own rule. LanguageChoice collapses to the spelling it is stored as, the two raw forms not colliding. Where the choice is kept, and the re-render, the canvas repaint and the workers' catalogues that follow a change of it, are the app's (G64); this module is the words and the arithmetic over them.",
+      "status": "ported",
+      "note": "The language the app speaks (Design/LOCALIZATION.md). The lookup is across whole — the key is the English text, the placeholders are positional, and a context disambiguates one English word that is two elsewhere — in upstream's own .strings format, so a sentence the two editions share is carried across rather than re-typed. Two things the browser changes. The catalogue is installed rather than loaded on first use: a file arrives over a promise here, so it is awaited at startup and on a change of language, and L stays the synchronous call a render may make. And the choice resolves against navigator.languages rather than Locale.preferredLanguages, by upstream's own rule. LanguageChoice collapses to the spelling it is stored as, the two raw forms not colliding. Where the choice is kept, and the re-render, the canvas repaint and the workers' catalogues that follow a change of it, are the app's (G64); this module is the words and the arithmetic over them. The choice, the resolution against navigator.languages and the catalogue's loading are in src/state/settingsStore.ts (setLanguage, applyLanguage, languageStore); the catalogues themselves are code-split, one file per language, in upstream's own .strings format.",
       "files": {
         "Packages/Localization/Sources/Localization/AppLanguage.swift": "src/core/localization/appLanguage.ts",
         "Packages/Localization/Sources/Localization/StringsFile.swift": "src/core/localization/stringsFile.ts",
         "Packages/Localization/Sources/Localization/Localization.swift": "src/core/localization/localization.ts",
-        "Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift": "src/core/localization/localization.test.ts"
+        "Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift": "src/core/localization/localization.test.ts",
+        "Packages/Localization/Sources/Localization/Resources": "src/core/localization/catalogues"
       },
       "unported": {
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.didChange": "n/a — a NotificationCenter name; the web announces a change of language through the settings store every view already reads",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.didChange": "n/a — a NotificationCenter name; the web announces a change through languageStore, which the shell subscribes to",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.choiceKey": "n/a — the defaults key; the choice is a field of the web's settings store, which owns its own persistence",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.defaults": "n/a — UserDefaults, replaceable so a test can drive resolution; the web's core reads no store at all, tests installing a catalogue directly",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "later — G64: navigator.languages, read where the choice is resolved rather than held here",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.choice": "later — G64: the choice lives in the settings store with the theme, not in this module",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.set": "later — G64: the app's, not the catalogue's — it writes the choice, reloads and announces",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.reload": "later — G64: the web awaits the new catalogue and installs it, which is the app's step rather than this module's",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "later — G64: needs the choice and navigator.languages, both of which are the app's",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.language": "the web's currentLanguage() reads it off the catalogue in force, there being no lazily loaded one to ask",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module",
-        "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.load": "later — G64: reading a file is asynchronous in a browser, so loading is the app's step and the core takes the catalogue already read"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module"
       }
     },
     {
@@ -4883,8 +4878,8 @@
       "web": [
         "src/core/help"
       ],
-      "status": "in-progress",
-      "note": "The help book's pure half (Design/HELP.md): the ids, the contents in code, the markup parser, the loader and the search. Structure is code and words are resources, as upstream has it, so the content files come across file for file and a translator who has learnt upstream's book has learnt this one. Two things the browser changes, both in the loader: reading a file is asynchronous, so the reader is an interface handed in rather than FileManager asked — which is also what lets a test give the loader a book of four lines — and a page the contents names but nobody wrote is reported and left out rather than thrown, a browser not being a build and the reader keeping the other thirty-nine. The link types are discriminated unions where upstream has enums with payloads, and the ids are branded strings where upstream wraps them in structs: the same promise that the two kinds cannot be mistaken for one another. The content itself, the panel that shows it and the ? buttons that open it are still to come (G63).",
+      "status": "ported",
+      "note": "The help book's pure half (Design/HELP.md): the ids, the contents in code, the markup parser, the loader and the search. Structure is code and words are resources, as upstream has it, so the content files come across file for file and a translator who has learnt upstream's book has learnt this one. Two things the browser changes, both in the loader: reading a file is asynchronous, so the reader is an interface handed in rather than FileManager asked — which is also what lets a test give the loader a book of four lines — and a page the contents names but nobody wrote is reported and left out rather than thrown, a browser not being a build and the reader keeping the other thirty-nine. The link types are discriminated unions where upstream has enums with payloads, and the ids are branded strings where upstream wraps them in structs: the same promise that the two kinds cannot be mistaken for one another. The content itself, the panel that shows it and the ? buttons that open it are still to come (G63). The content is across in all three languages, with the pages the browser changes rewritten rather than translated — the Finder, a save that writes in place, a relaunch, Open Recent (Design/HELP.md). HelpContentTests comes with it, and Skills/help-coverage checks the rest: every page written, every link resolving, every translation's @source-sha current.",
       "files": {
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift": "src/core/help/helpIds.ts",
         "Packages/HelpBook/Sources/HelpBook/HelpContents.swift": "src/core/help/helpContents.ts",
@@ -4892,11 +4887,13 @@
         "Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift": "src/core/help/helpMarkup.ts",
         "Packages/HelpBook/Sources/HelpBook/HelpBook.swift": "src/core/help/helpBook.ts",
         "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift": "src/core/help/helpLoader.ts",
-        "Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift": "src/core/help/helpMarkup.test.ts"
+        "Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift": "src/core/help/helpMarkup.test.ts",
+        "Packages/HelpBook/Sources/HelpBook/Resources/Help": "src/core/help/content",
+        "Packages/HelpBook/Sources/HelpBook/Tests/HelpBookTests/HelpContentTests.swift": "src/core/help/helpContent.test.ts"
       },
       "unported": {
-        "Packages/HelpBook/Sources/HelpBook/Help.swift#Help.shared": "later — G63: the book held for the language in force, which is the app's store here rather than a static behind a lock",
-        "Packages/HelpBook/Sources/HelpBook/Help.swift#Help.reload": "later — G63: the same store's business — the web awaits the new book and puts it in place",
+        "Packages/HelpBook/Sources/HelpBook/Help.swift#Help.shared": "n/a — a static behind a lock, loaded on first use; the web's book lives in helpStore, which awaits it and holds it for the language in force",
+        "Packages/HelpBook/Sources/HelpBook/Help.swift#Help.reload": "n/a — the same store's reloadHelpBook(), which the language subscription calls",
         "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.root": "n/a — the directory inside a bundle; the web's reader is handed the path it wants and owns where content lives",
         "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.LoadError": "n/a — the web reports a missing page in the book it returns; a throw in a browser would cost the reader the other thirty-nine",
         "Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.LoadError.description": "n/a — the message of an error the web does not throw",
@@ -4907,8 +4904,7 @@
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.init": "the web's termId() mints one; the raw-value and label forms are one function here",
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.<": "n/a — Comparable for sorting ids; nothing here sorts them, the contents being the order",
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.<": "n/a — Comparable for sorting ids; a glossary keeps the order its file listed",
-        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpSearchResult.id": "the web's linkKey() spells the same string, a result being keyed by where it goes",
-        "Packages/HelpBook/Tests/HelpBookTests/HelpContentTests.swift#*": "later — G63: the tests that judge the shipped content — every page in every language, every link resolving — arrive with the content"
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpSearchResult.id": "the web's linkKey() spells the same string, a result being keyed by where it goes"
       }
     },
     {
@@ -4930,7 +4926,7 @@
       },
       "unported": {
         "Packages/HelpUI/Sources/HelpUI/ControlHelp.swift#*": "later — G63: upstream's one way of giving a control a tooltip and a help term; the web's controls carry title and aria-label today",
-        "Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#*": "later — G63: the presenter owns a window and its place on screen; the web's panel is the dock's, and showHelp() is what a ? calls",
+        "Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#*": "n/a — the presenter owns a window and its place on screen; there are no windows here, and the panel's place is the dock's (showHelp() is what a ? calls)",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size": "n/a — the point sizes an attributed string needs; the web's are in app.css, which is where every other size in this port lives",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.line": "n/a — one run of spans ended with a newline so a paragraph style applies; an element does that by being one",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.title": "n/a — the attributes of a heading; the web's h1 and its rule",
@@ -4953,6 +4949,19 @@
       "files": {
         "Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift": "src/tools/uefi/uefiHelpTerms.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift": "src/tools/uefi/uefiHelpTerms.test.ts"
+      },
+      "unported": {}
+    },
+    {
+      "swift": "Skills/help-coverage",
+      "web": [
+        "Skills/help-coverage"
+      ],
+      "status": "ported",
+      "note": "The check that the app, its help and its translations have not drifted apart: functionality with no page, a page for something the app lost, a translation whose @source-sha no longer matches the English it was made from, and a key the code asks for that a catalogue has not got. Upstream's three gaps and its fingerprint, over this repository's layout and TypeScript — the hash is computed exactly as upstream computes it, so a page can be carried between the two and blessed in either. The one thing the port had to add is a boundary in the L( pattern: URL( ends in L(, and every new URL(\"../workers/…\") read as a string somebody had to translate (measured).",
+      "files": {
+        "Skills/help-coverage/SKILL.md": "Skills/help-coverage/SKILL.md",
+        "Skills/help-coverage/scripts/help_coverage.py": "Skills/help-coverage/scripts/help_coverage.py"
       },
       "unported": {}
     }
