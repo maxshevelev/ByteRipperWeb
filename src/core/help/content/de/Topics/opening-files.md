@@ -1,9 +1,9 @@
-@source-sha 0c3c36c2a469360eb7016387dfe38b4c2d80fd7d7db98b92bdaa1e6c63ab7c7c
+@source-sha b5270853a1e213348993944843ad2953ddf29fcb55d197276e1b021f8926d573
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
 
-Der Arbeitsbereich hält zwei Dateibereiche, **Datei A** und **Datei B**. Wie viele davon eine Datei halten, entscheidet, was geschieht:
+Der Arbeitsbereich hält zwei Dateibereiche. Wie viele davon eine Datei halten, entscheidet, was geschieht:
 
 - **Eine Datei offen** — Einzeldateimodus. Der Arbeitsbereich ist ein Hex-Editor für diese Datei; Bearbeiten, Suchen und die Werkzeugbereiche arbeiten wie gewohnt.
 - **Zwei Dateien offen** — Vergleichsmodus. Die beiden Dumps stehen nebeneinander (oder übereinander, siehe **Darstellung ▸ Bereiche nebeneinander**), und jedes abweichende Byte ist eingefärbt.

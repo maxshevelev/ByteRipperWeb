@@ -25,7 +25,7 @@ The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyz
 Right-click a node:
 
 - **Open** the node, or just its body, as a [[topic:fragments|fragment panel]].
-- **Open Decompressed…** / **Export** for a compressed section — what those bytes actually expand to.
+- **Open Decompressed Body** / **Export Decompressed Body…** for a compressed section — what those bytes actually expand to. A node inside one offers the same for its own **Bytes**.
 
 ## Padding
 

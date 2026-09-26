@@ -9,7 +9,7 @@
 @covers menu.file.close
 @covers shell.drop-zones
 
-The workspace holds two file panes, **File A** and **File B**. How many of them hold a file decides what the workspace is:
+The workspace holds two file panes. How many of them hold a file decides what the workspace is:
 
 - **One file open** — single-file mode. The workspace is a hex editor for that file, and all the editing, searching and tool panels work normally.
 - **Two files open** — comparison mode. The two dumps sit side by side (or one above the other, see **View ▸ Put the Panes Side by Side**) and every differing byte is painted.

@@ -35,6 +35,8 @@
 "menu|Edit" = "Bearbeiten";
 "Editing" = "Bearbeiten";
 "Encoding" = "Codierung";
+"Export Decompressed Body…" = "Entpackten Rumpf exportieren…";
+"Export Decompressed Bytes…" = "Entpackte Bytes exportieren…";
 "Every byte value, decoded" = "Jeder Bytewert, dekodiert";
 "Favorites" = "Favoriten";
 "Fetching the help…" = "Hilfe wird geladen…";
@@ -76,8 +78,14 @@
 "Next Same Block" = "Nächster gleicher Block";
 "None" = "Keine";
 "Nothing in the help matches “%1$@”." = "In der Hilfe passt nichts zu „%1$@“.";
+"Open Body of “%1$@”" = "Rumpf von „%1$@“ öffnen";
+"Open Decompressed Body" = "Entpackten Rumpf öffnen";
+"Open Decompressed Bytes" = "Entpackte Bytes öffnen";
 "Open File" = "Datei öffnen";
 "Open in Help" = "In der Hilfe öffnen";
+"Open Node" = "Knoten öffnen";
+"Open Node Body" = "Knotenrumpf öffnen";
+"Open “%1$@”" = "„%1$@“ öffnen";
 "Open…" = "Öffnen…";
 "Panels" = "Panels";
 "Placeholder character:" = "Platzhalterzeichen:";

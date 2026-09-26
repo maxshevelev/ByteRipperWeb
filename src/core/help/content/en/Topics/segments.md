@@ -22,7 +22,7 @@ Pieces are labelled **S0, S1, S2 …** in file order, and renumber themselves wh
 
 ## Saving the pieces
 
-The Segments form can **save all pieces as separate files** in one go. That, together with [[topic:join-duplicate|Append File…]], is the bench workflow for a board with two SPI chips:
+The Segments form can **Save All as Separate Files…** in one go. That, together with [[topic:join-duplicate|Append File…]], is the bench workflow for a board with two SPI chips:
 
 1. Read both chips, giving two files.
 2. Open one and **Append File…** the other — now the whole BIOS is one image.

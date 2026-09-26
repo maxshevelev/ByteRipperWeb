@@ -3,7 +3,7 @@
 > Open the bad dump and a good one, and let the app show you where they disagree.
 
 1. Open the dump you are diagnosing: the open button on the empty screen, **File ▸ Open…** in the toolbar's menu, or drag the file onto the workspace.
-2. Open the second one the same way, or ask for it by name with **File ▸ Compare with…**. It lands in the other half — the app now has **File A** on the left and **File B** on the right.
+2. Open the second one the same way, or ask for it by name with **File ▸ Compare with…**. It lands in the other file pane — there are two of them now, and the comparison is on.
 3. Look at the colour. Every byte that differs between the two files is painted with the difference background. A long stretch of colour means a whole area differs; a scattering of single cells means a few bytes do.
 4. Jump between the differences instead of scrolling: **⌥⌘→** goes to the next one, **⌥⌘←** to the previous one. The status bar reads how much of the image differs — `differing 0.4%` — which is a share of the longer file, counted per byte.
 5. Read the offset of the current position in the status bar. On a firmware dump that offset is what tells you *which part* of the image you are looking at.

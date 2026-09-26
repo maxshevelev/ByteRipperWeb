@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { ZoneMap } from "@/tools/zone";
 
@@ -116,8 +117,8 @@ export function decompressedExport(node: CompressedSectionNode): DecompressedExp
       space: [...node.space, node.header[0]],
       range: undefined,
       suggestedName: `${marked}.bin`,
-      menuTitle: "Export Decompressed Body…",
-      openTitle: "Open Decompressed Body",
+      menuTitle: L("Export Decompressed Body…"),
+      openTitle: L("Open Decompressed Body"),
     };
   }
   if (node.space.length !== 0) {
@@ -125,8 +126,8 @@ export function decompressedExport(node: CompressedSectionNode): DecompressedExp
       space: node.space,
       range: [node.header[0], Math.max(node.header[1], node.body[1], node.tail[1])],
       suggestedName: `${marked}.bin`,
-      menuTitle: "Export Decompressed Bytes…",
-      openTitle: "Open Decompressed Bytes",
+      menuTitle: L("Export Decompressed Bytes…"),
+      openTitle: L("Open Decompressed Bytes"),
     };
   }
   return undefined;
@@ -212,8 +213,10 @@ export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefine
   const range = body ? node.body : whole;
   if (range[1] <= range[0]) return undefined;
   if (body && range[0] === whole[0] && range[1] === whole[1]) return undefined;
-  if (node.name.length === 0) return body ? "Open Node Body" : "Open Node";
-  return body ? `Open Body of “${node.name}”` : `Open “${node.name}”`;
+  // The name is poured in, never spelled into the key: a key built at run time
+  // is a key no translator can find.
+  if (node.name.length === 0) return body ? L("Open Node Body") : L("Open Node");
+  return body ? L("Open Body of “%1$@”", node.name) : L("Open “%1$@”", node.name);
 }
 
 /**

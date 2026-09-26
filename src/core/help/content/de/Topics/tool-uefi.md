@@ -1,4 +1,4 @@
-@source-sha 145645efd113f4594da44c8cb2dad067b3324c5da7444eaae52edf35b4022cce
+@source-sha 63a3a5f1d3517e3162f59a8e99a2c47cbc98ee9ccf33138c121c349cd2a72757
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -23,7 +23,7 @@ Die Zeile der **ME-Region** öffnet sich in dieselbe Analyse, die der [[topic:to
 Rechtsklick auf einen Knoten:
 
 - Den Knoten **öffnen**, oder nur seinen Rumpf, als [[topic:fragments|Fragment-Bereich]].
-- **Entpackt öffnen…** / **Exportieren** bei einer komprimierten Sektion — das, wozu diese Bytes sich tatsächlich entfalten.
+- **Entpackten Rumpf öffnen** / **Entpackten Rumpf exportieren…** bei einer komprimierten Sektion — das, wozu diese Bytes sich tatsächlich entfalten. Ein Knoten darin bietet dasselbe für seine eigenen **Bytes**.
 
 ## Padding
 

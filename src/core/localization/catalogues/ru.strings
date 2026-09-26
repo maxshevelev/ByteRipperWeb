@@ -35,6 +35,8 @@
 "menu|Edit" = "Правка";
 "Editing" = "Редактирование";
 "Encoding" = "Кодировка";
+"Export Decompressed Body…" = "Выгрузить распакованное тело…";
+"Export Decompressed Bytes…" = "Выгрузить распакованные байты…";
 "Every byte value, decoded" = "Каждое значение байта в расшифровке";
 "Favorites" = "Избранное";
 "Fetching the help…" = "Загружается справка…";
@@ -76,8 +78,14 @@
 "Next Same Block" = "Следующий совпадающий блок";
 "None" = "Нет";
 "Nothing in the help matches “%1$@”." = "В справке ничего не найдено по запросу «%1$@».";
+"Open Body of “%1$@”" = "Открыть тело «%1$@»";
+"Open Decompressed Body" = "Открыть распакованное тело";
+"Open Decompressed Bytes" = "Открыть распакованные байты";
 "Open File" = "Открыть файл";
 "Open in Help" = "Открыть в справке";
+"Open Node" = "Открыть узел";
+"Open Node Body" = "Открыть тело узла";
+"Open “%1$@”" = "Открыть «%1$@»";
 "Open…" = "Открыть…";
 "Panels" = "Панели";
 "Placeholder character:" = "Символ-заполнитель:";
