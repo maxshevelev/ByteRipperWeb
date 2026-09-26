@@ -61,19 +61,6 @@ import {
 import { useKeyboardInput } from "@/ui/shell/useKeyboardInput";
 
 /**
- * What the tool picker says when no tool-module is running: its own name.
- *
- * The item always says what it holds — the name of the tool-module in force,
- * or "Tools" while there is none. A wrench on its own is a picture the reader
- * has to recognise before they can use it, and this is the one item in the
- * toolbar whose whole job is naming what the tab is working with; going blank
- * at rest is exactly when it is least obvious.
- *
- * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.noToolTitle
- */
-const noToolTitle = "Tools";
-
-/**
  * A web page has no menu bar (D12), so the commands live behind one button at
  * the head of the toolbar, in the sections the macOS app's menu bar uses.
  *
@@ -548,18 +535,22 @@ export function Toolbar({
         // `noToolTitle`), so the button always says what the tab is working
         // with rather than going blank. A pull-down, with its chevron: it opens
         // a list to choose from rather than acting at once.
+        //
+        // "Tools" and the tooltip resolve here at render, because the language
+        // can switch while the page is up; the tool's own name does so in its
+        // module — a getter that asks the language on every access.
         return (
           <MenuButton
             key={key}
             pullDown
             className="toolbar-tools"
-            ariaLabel="Tools"
-            title="The tool-module this tab is working with"
+            ariaLabel={L("Tools")}
+            title={L("The tool-module this tab is working with")}
             disabled={disabled}
             label={
               <>
                 <ToolsGlyph />
-                <span>{activeTool?.title ?? noToolTitle}</span>
+                <span>{activeTool ? activeTool.title : L("Tools")}</span>
               </>
             }
             entries={toolEntries}

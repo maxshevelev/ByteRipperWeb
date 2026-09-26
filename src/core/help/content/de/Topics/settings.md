@@ -1,7 +1,7 @@
 @source-sha 742c8c47650714308970a424928759c7be15d84cfd6d1e989092ce1fa11f8caa
 # Einstellungen
 
-> **Datei ▸ Einstellungen…** im Menü der Symbolleiste — das, was sich das Programm merkt.
+> **Ablage ▸ Einstellungen…** im Menü der Symbolleiste — das, was sich das Programm merkt.
 
 Ein ⌘, gibt es hier nicht: im Browser gehört dieser Griff den Einstellungen des Browsers, also liegen die des Programms in seinem Menü.
 

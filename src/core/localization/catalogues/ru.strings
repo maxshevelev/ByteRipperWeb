@@ -49,6 +49,7 @@
 "Find Previous" = "Найти ранее";
 "Find Previous / Find Next" = "Назад / вперёд по совпадениям";
 "Find…" = "Найти…";
+"FIT Table" = "Таблица FIT";
 "Fold the help down" = "Свернуть справку";
 "Font:" = "Шрифт:";
 "Forward" = "Вперёд";
@@ -64,12 +65,13 @@
 "Hide Minimap" = "Скрыть миникарту";
 "Hide Search Results" = "Скрыть результаты поиска";
 "Insert File at Start…" = "Вставить файл в начало…";
-"Insert mode, Paste Insert and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line." = "Режим вставки, «Вставить со сдвигом» и «Удалить байты» двигают все байты после правки, поэтому спрашивают заранее. Выключите — и диалога не будет; правки останутся отменяемыми, а режим вставки по-прежнему показывает INS в строке состояния панели.";
+"Insert mode, a paste in it, and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line." = "Режим вставки, вставка в нём и «Удалить байты» двигают все байты после правки, поэтому спрашивают заранее. Выключите — и диалога не будет; правки останутся отменяемыми, а режим вставки по-прежнему показывает INS в строке состояния панели.";
 "Language" = "Язык";
 "Language:" = "Язык:";
 "Larger" = "Крупнее";
 "Layout" = "Расположение";
 "Layout Direction:" = "Направление панелей:";
+"ME Analyzer" = "ME Analyzer";
 "Merge" = "Объединить";
 "menu|Merge %1$@ into %2$@" = "Объединить %1$@ с %2$@";
 "New" = "Новый файл";
@@ -110,6 +112,7 @@
 "See also:" = "См. также:";
 "menu|Segments" = "Сегменты";
 "Segments…" = "Сегменты…";
+"Select Block from Here at %1$@…" = "Выделить блок отсюда, с %1$@…";
 "Settings" = "Настройки";
 "Settings…" = "Настройки…";
 "Show Minimap" = "Показать миникарту";
@@ -123,8 +126,11 @@
 "That page has not been written yet." = "Эта страница ещё не написана.";
 "The help is not available." = "Справка недоступна.";
 "The hex dump's font and row pitch. A smaller Row Height packs more rows onto the screen. Theme applies to the whole app." = "Шрифт и шаг строк hex-дампа. Меньшая высота строки умещает на экран больше строк. Тема действует на всю программу.";
+"The tool-module this tab is working with" = "Выбор инструментальной панели";
 "The words change at once — there is no relaunch, because reloading the page would ask you to open every dump again. The help is translated with the rest, and a page that has not been translated yet is shown in English rather than left blank." = "Слова меняются сразу — перезапуска нет: перезагрузка страницы заставила бы открывать каждый дамп заново. Справка переводится вместе с остальным, а непереведённая страница показывается по-английски, а не пустой.";
 "Theme:" = "Тема:";
+"Tools" = "Инструменты";
+"UEFI Structure" = "Структура UEFI";
 "Undo" = "Отменить";
 "Undo %1$@" = "Отменить: %1$@";
 "Unsaved changes" = "Несохранённые изменения";

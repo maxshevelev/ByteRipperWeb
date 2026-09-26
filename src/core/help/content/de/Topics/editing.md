@@ -1,4 +1,4 @@
-@source-sha 71381adbb0304afe32ab0e3265e91696ff3c13269afcf0b0605b0e7d9b9b7475
+@source-sha 89ac9964c0b8979f7b747c623dbf13b0f58fe74cb5a1fbcf4fc6ce4e2d383614
 # Bytes bearbeiten
 
 > Schreiben Sie über das, was da ist. Alles, was die Länge der Datei ändert, fragt vorher.
@@ -20,9 +20,8 @@ Für einen Dump ist das die richtige Vorgabe. In einem Firmware-Image ist eine A
 
 Es gibt sie, und jeder fragt, bevor er handelt:
 
-- **Bearbeiten ▸ Einsetzen mit Verschieben…** — einsetzen und alles dahinter verschieben.
 - **Bearbeiten ▸ Bytes löschen…** — wirklich löschen und alles dahinter verschieben.
-- **Einfügemodus** — ein Tippmodus, in dem Tasten einfügen und löschen statt zu überschreiben. Das Feld **OVR** rechts in der Statuszeile des Bereichs schaltet ihn ein und aus, ebenso die **Einfg**-Taste; einen Menüpunkt wie die macOS-Ausgabe gibt es hier nicht, weil die Statuszeile den Modus ohnehin zeigt. Er fragt einmal je Datei statt bei jedem Anschlag, zeigt INS in der Statuszeile und ändert die Form der Einfügemarke.
+- **Einfügemodus** — ein Tippmodus, in dem Tasten einfügen und löschen statt zu überschreiben, und ⌘V in die Datei einfügt statt darüber. Das Feld **OVR** rechts in der Statuszeile des Bereichs schaltet ihn ein und aus, ebenso die **Einfg**-Taste; einen Menüpunkt wie die macOS-Ausgabe gibt es hier nicht, weil die Statuszeile den Modus ohnehin zeigt. Er fragt einmal je Datei statt bei jedem Anschlag, zeigt INS in der Statuszeile und ändert die Form der Einfügemarke.
 
 Die Rückfragen lassen sich in den [[topic:settings|Einstellungen ▸ Bearbeiten]] abschalten oder über das Kästchen „Nicht mehr fragen“ im Dialog selbst. Sie sind eingeschaltet, weil genau diese Änderungen einen strukturierten Dump still ruinieren.
 

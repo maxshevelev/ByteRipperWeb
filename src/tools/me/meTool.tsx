@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
@@ -1196,7 +1197,11 @@ function summaryPicture(
  */
 export const meTool: ToolModule = {
   id: "dev.maxik.tool.me-analyzer",
-  title: "ME Analyzer",
+  // Resolved on every access: the page can switch language while the panel is
+  // open, and a name computed once at import would go stale.
+  get title() {
+    return L("ME Analyzer");
+  },
   summary: "The Intel Management Engine firmware: its summary and every structure in it.",
   // help: panel.me
   helpTopic: TOPIC.toolME,

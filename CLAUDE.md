@@ -68,6 +68,14 @@ Important rules:
   drawing lags, fix what is repainted; do not cache what was painted.
 - One workspace per browser tab. No in-app tabs, no window management, no pane
   dragging — that was a deliberate decision, not an omission.
+- **A name the help puts in bold is a promise.** After renaming anything
+  user-visible, or editing a help page that quotes the interface, also run:
+  `python3 Skills/help-names/scripts/help_names.py`
+  It looks up every `**Menu ▸ Item**` the book names in that language's
+  catalogue (`src/core/localization/catalogues/<language>.strings`). A miss is
+  the page drifting from the app, the app needing the page's better name, or a
+  control reaching the screen without `L()` — which `help-coverage` cannot see,
+  since it only knows the strings that went through `L()`.
 
 Skills:
 - Skills live in the repo, committed under `Skills/<name>/`: `SKILL.md`

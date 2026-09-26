@@ -478,7 +478,7 @@ function EditingTab() {
       </label>
       <p className="settings-caption">
         {L(
-          "Insert mode, Paste Insert and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line."
+          "Insert mode, a paste in it, and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line."
         )}
       </p>
     </section>

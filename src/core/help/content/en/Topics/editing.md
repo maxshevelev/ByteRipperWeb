@@ -29,9 +29,8 @@ That is the right default for a dump. In a firmware image an address is a positi
 
 These exist, and each one asks before it acts:
 
-- **Edit ▸ Paste Insert…** — paste, shifting everything after it.
 - **Edit ▸ Delete Bytes…** — a real deletion, shifting everything after it.
-- **Insert mode** — a typing mode where keys insert and delete instead of overwriting. The **OVR** box at the right of the pane's status line turns it on and off, and so does the **Insert** key; upstream has a menu item for it and the web does not, the status line being where the mode is already shown. It asks once per file rather than per keystroke, says INS in the status line, and changes the shape of the caret.
+- **Insert mode** — a typing mode where keys insert and delete instead of overwriting, and ⌘V pastes into the file rather than over it. The **OVR** box at the right of the pane's status line turns it on and off, and so does the **Insert** key; upstream has a menu item for it and the web does not, the status line being where the mode is already shown. It asks once per file rather than per keystroke, says INS in the status line, and changes the shape of the caret.
 
 The confirmations can be switched off in [[topic:settings|Settings ▸ Editing]] or with the "do not ask again" box on the dialog itself. They are on by default because these are exactly the edits that quietly ruin a structured dump.
 

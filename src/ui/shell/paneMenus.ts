@@ -288,7 +288,9 @@ export function dumpMenu(
     { kind: "separator" },
     {
       // help: menu.edit.select-block
-      label: `Select Block from Here at ${hexAddress(offset)}…`,
+      // The address is poured in, never spelled into the key: a key built at
+      // run time is a key no translator can find.
+      label: L("Select Block from Here at %1$@…", hexAddress(offset)),
       onSelect: () => actions.onSelectBlockFrom(pane, offset),
     },
     ...extra,

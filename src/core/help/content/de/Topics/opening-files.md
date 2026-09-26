@@ -1,4 +1,4 @@
-@source-sha b5270853a1e213348993944843ad2953ddf29fcb55d197276e1b021f8926d573
+@source-sha d407f28df83ea9f536e2085b045795334377d9a2971f8cbb74488e97123109d6
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -12,10 +12,10 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 
 ## Wege, einen Dump zu öffnen
 
-- **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Datei ▸ Öffnen…** im Menü der Symbolleiste.
-- **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie landet — in diesen Bereich oder daneben. Zwei Dateien auf einmal füllen beide Bereiche.
-- **Datei ▸ Vergleichen mit…** öffnet einen zweiten Dump in den freien Bereich: der Vergleich in einem Schritt.
-- **Datei ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
+- **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Ablage ▸ Öffnen…** im Menü der Symbolleiste. Sind beide Bereiche leer, füllen die ersten beiden gewählten Dateien sie; ist einer frei, geht die Datei dorthin; sind beide belegt, ersetzt sie den **aktiven** Bereich. Was darüber hinaus gewählt ist, wird nicht geöffnet.
+- **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie landet — in diesen Bereich oder daneben. Zwei Dateien auf einmal: die zweite öffnet im anderen Bereich, sofern dieser frei ist.
+- **Ablage ▸ Vergleichen mit…** öffnet einen zweiten Dump in den freien Bereich: der Vergleich in einem Schritt.
+- **Ablage ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
 
 ## Wonach der Browser fragt, und wonach er wieder fragt
 

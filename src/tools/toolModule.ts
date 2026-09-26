@@ -144,7 +144,14 @@ export interface ToolModule {
   /**
    * What the panel's tab says.
    *
+   * The modules resolve it on every access — a getter around `L` — because
+   * the page can switch language while the panel is open, and a name computed
+   * once would go stale. Upstream wraps the key at definition, a `static let`
+   * evaluated once, and that is safe there only because a language change
+   * relaunches the app.
+   *
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.title
+   * @upstream-differs a getter that asks the language at access, where upstream is a `static let` evaluated once — the page switches language live
    */
   readonly title: string;
   /** One line about what it is for, for the picker. */

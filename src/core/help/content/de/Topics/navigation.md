@@ -1,4 +1,4 @@
-@source-sha 743f0a5764df8209167b4835702e78eab1395fe3604f287281836657f7c75882
+@source-sha 17b29d20a296d6df29e9447b132515733e64ef20cfc42d4aafec4b2d7228c573
 # Sich bewegen
 
 > Zwischen Unterschieden springen, zu einer Adresse springen oder auf einem Byte stehen und ablesen, wo man ist.
@@ -25,7 +25,7 @@ Im Vergleichsmodus bewegt der Sprung **beide** Bereiche: sie sind an dieselbe Ad
 
 ## Einen Block auswählen
 
-**Bearbeiten ▸ Block auswählen…** wählt einen Bereich über Zahlen statt über die Maus: Anfang und Ende, oder Anfang und Länge. Beide Felder nehmen Hex mit `0x` und schlichtes Dezimal. Das ist der verlässliche Weg, eine Region auszuwählen, deren Grenzen Sie in einem Werkzeugbereich abgelesen haben.
+**Block ab hier auswählen, bei…** steht im Kontextmenü des Bereichs: der Punkt nennt die Adresse unter der Maus, und der Dialog öffnet sich mit ihr schon ausgefüllt. Er wählt einen Bereich über Zahlen statt über die Maus: der Anfang steht schon, es fehlt nur das Ende oder die Länge. Beide Felder nehmen Hex mit `0x` und schlichtes Dezimal. Das ist der verlässliche Weg, eine Region auszuwählen, deren Grenzen Sie in einem Werkzeugbereich abgelesen haben.
 
 ! Bereiche sind intern halboffen — die Endadresse ist das erste Byte, das **nicht** dazugehört. Dialoge dürfen ein einschließendes Ende anbieten; sie rechnen es um.
 

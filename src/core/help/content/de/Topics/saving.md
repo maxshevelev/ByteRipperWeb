@@ -8,10 +8,10 @@
 - **Sichern** (⌘S) schreibt das Dokument des Bereichs in die Datei zurück, aus der es stammt. Chromium-Browser können das.
 - **Herunterladen** (⌘S) gibt den bearbeiteten Dump stattdessen an die Downloads des Browsers. Firefox und Safari können nicht in eine Datei schreiben, die eine Seite geöffnet hat; dort heißt Sichern genau das — die geöffnete Datei bleibt unberührt, und die bearbeitete Kopie landet bei Ihren Downloads.
 - **Sichern unter… / Herunterladen als…** schreibt an einen neuen Ort. Nach „Sichern unter…“ folgt der Bereich der neuen Datei; nach „Herunterladen als…“ nicht, denn eine heruntergeladene Kopie sieht die Seite nie wieder.
-- **Datei ▸ Auf gesicherten Stand zurück** verwirft Ihre Änderungen und liest die Datei neu. Für einen Bereich, dessen Bytes anderswoher stammen — ein Teil, ein Zusammenfügen —, heißt es **Auf Original zurück**.
+- **Ablage ▸ Auf gesicherten Stand zurücksetzen** verwirft Ihre Änderungen und liest die Datei neu. Für einen Bereich, dessen Bytes anderswoher stammen — ein Teil, ein Zusammenfügen —, heißt es **Auf das Original zurücksetzen**.
 - **In der Quelle aktualisieren** ist das dritte Ziel: für eine [[topic:fragments|Teilansicht]] schreibt es den Teil in das Image zurück, aus dem er stammt, statt in eine Datei.
 
-! Eine per Ziehen abgelegte Datei und eine Datei aus einem Browser ohne File System Access API werden **heruntergeladen**, auch wo das Programm sonst an Ort und Stelle sichern könnte — es gibt kein Handle, durch das geschrieben werden kann. Öffnen Sie sie über **Datei ▸ Öffnen…**, wenn Sie Sichern statt Herunterladen wollen.
+! Eine per Ziehen abgelegte Datei und eine Datei aus einem Browser ohne File System Access API werden **heruntergeladen**, auch wo das Programm sonst an Ort und Stelle sichern könnte — es gibt kein Handle, durch das geschrieben werden kann. Öffnen Sie sie über **Ablage ▸ Öffnen…**, wenn Sie Sichern statt Herunterladen wollen.
 
 ## Was ungesichert ist
 
@@ -25,7 +25,7 @@ Das Programm merkt, wenn die geöffnete Datei ersetzt wurde — etwa weil Ihre P
 
 Manche Dokumente sind bewusst unbenannt und haben nichts, wohin sie zurückgeschrieben werden könnten, also fragt ⌘S, wohin damit:
 
-- **Datei ▸ Neue Datei**.
+- **Ablage ▸ Neue Datei**.
 - Das Ergebnis eines [[topic:join-duplicate|Zusammenfügens]]: aus zwei Dumps entsteht ein *neues* Image, und ein versehentliches ⌘S darf es nicht über eine der Hälften schreiben.
 - Das Ergebnis von **Duplizieren**.
 - Ein Teil, der aus einem Image geöffnet wurde.

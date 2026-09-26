@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import { DECOMPRESSED_BODY_LAYOUT } from "@/firmware/uefi/rootLayout";
 import { downloadBlob } from "@/platform/files/download";
@@ -1490,7 +1491,11 @@ function TreeRow({
  */
 export const uefiStructureTool: ToolModule = {
   id: "dev.maxik.tool.uefi-structure",
-  title: "UEFI Structure",
+  // Resolved on every access: the page can switch language while the panel is
+  // open, and a name computed once at import would go stale.
+  get title() {
+    return L("UEFI Structure");
+  },
   summary: "The image as a tree: regions, volumes, files and sections.",
   // help: panel.uefi
   helpTopic: TOPIC.toolUEFI,

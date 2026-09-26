@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
@@ -876,7 +877,11 @@ const problemKey = (problem: FITProblem): string =>
  */
 export const fitTool: ToolModule = {
   id: "dev.maxik.tool.fit",
-  title: "FIT Table",
+  // Resolved on every access: the page can switch language while the panel is
+  // open, and a name computed once at import would go stale.
+  get title() {
+    return L("FIT Table");
+  },
   summary: "The Firmware Interface Table: what it names, and whether it adds up.",
   // help: panel.fit
   helpTopic: TOPIC.toolFIT,

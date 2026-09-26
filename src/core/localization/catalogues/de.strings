@@ -49,6 +49,7 @@
 "Find Previous" = "Rückwärts suchen";
 "Find Previous / Find Next" = "Vorheriger / nächster Treffer";
 "Find…" = "Suchen…";
+"FIT Table" = "FIT-Tabelle";
 "Fold the help down" = "Hilfe einklappen";
 "Font:" = "Schrift:";
 "Forward" = "Vorwärts";
@@ -64,12 +65,13 @@
 "Hide Minimap" = "Minimap ausblenden";
 "Hide Search Results" = "Suchergebnisse ausblenden";
 "Insert File at Start…" = "Datei am Anfang einfügen…";
-"Insert mode, Paste Insert and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line." = "Einfügemodus, „Einfügen mit Verschieben“ und „Bytes löschen“ verschieben jedes Byte nach der Änderung und fragen deshalb vorher. Ausgeschaltet entfällt der Dialog — die Änderungen bleiben widerrufbar, und der Einfügemodus zeigt weiterhin INS in der Statuszeile.";
+"Insert mode, a paste in it, and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line." = "Der Einfügemodus, ein Einfügen in ihm und „Bytes löschen“ verschieben jedes Byte nach der Änderung und fragen deshalb vorher. Ausgeschaltet entfällt der Dialog — die Änderungen bleiben widerrufbar, und der Einfügemodus zeigt weiterhin INS in der Statuszeile.";
 "Language" = "Sprache";
 "Language:" = "Sprache:";
 "Larger" = "Größer";
 "Layout" = "Aufteilung";
 "Layout Direction:" = "Anordnung:";
+"ME Analyzer" = "ME Analyzer";
 "Merge" = "Zusammenführen";
 "menu|Merge %1$@ into %2$@" = "%1$@ mit %2$@ zusammenführen";
 "New" = "Neue Datei";
@@ -110,6 +112,7 @@
 "See also:" = "Siehe auch:";
 "menu|Segments" = "Segmente";
 "Segments…" = "Segmente…";
+"Select Block from Here at %1$@…" = "Block ab hier auswählen, bei %1$@…";
 "Settings" = "Einstellungen";
 "Settings…" = "Einstellungen…";
 "Show Minimap" = "Minimap einblenden";
@@ -123,8 +126,11 @@
 "That page has not been written yet." = "Diese Seite ist noch nicht geschrieben.";
 "The help is not available." = "Die Hilfe ist nicht verfügbar.";
 "The hex dump's font and row pitch. A smaller Row Height packs more rows onto the screen. Theme applies to the whole app." = "Schrift und Zeilenabstand des Hex-Dumps. Eine kleinere Zeilenhöhe bringt mehr Zeilen auf den Bildschirm. Das Erscheinungsbild gilt für die ganze App.";
+"The tool-module this tab is working with" = "Das Werkzeug, mit dem dieser Tab arbeitet";
 "The words change at once — there is no relaunch, because reloading the page would ask you to open every dump again. The help is translated with the rest, and a page that has not been translated yet is shown in English rather than left blank." = "Die Wörter wechseln sofort — es gibt keinen Neustart, denn ein Neuladen der Seite würde jeden Dump erneut abfragen. Die Hilfe wird mitübersetzt; eine noch nicht übersetzte Seite erscheint auf Englisch statt leer.";
 "Theme:" = "Erscheinungsbild:";
+"Tools" = "Werkzeuge";
+"UEFI Structure" = "UEFI-Struktur";
 "Undo" = "Widerrufen";
 "Undo %1$@" = "%1$@ widerrufen";
 "Unsaved changes" = "Ungesicherte Änderungen";

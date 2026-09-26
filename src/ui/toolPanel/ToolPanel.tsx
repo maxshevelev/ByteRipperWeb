@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { topicLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { showNotice } from "@/state/noticeStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { beginFileDrag, draggedPaneId, endDrag, paneDragStore } from "@/state/paneDragStore";
@@ -220,7 +221,7 @@ export function ToolPanel({
     // pointer while nothing is being dragged.
     <aside
       className="tool-panel"
-      aria-label="Tools"
+      aria-label={L("Tools")}
       style={{ width }}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -229,6 +230,8 @@ export function ToolPanel({
       {/* @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setTitle */}
       <header className="tool-panel-head">
         <ToolsIcon />
+        {/* The title asks the language on every access — the module's getter —
+            so it can switch while the page is up. */}
         <span className="tool-panel-title">{tool.title}</span>
         {/* The header answers the panel's open question — which file the tool
             reads and writes — and is where that file is changed: in a
