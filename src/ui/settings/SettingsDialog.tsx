@@ -412,7 +412,7 @@ function ComparisonTab() {
  * change where they stand and the tab says so rather than offering a button
  * that would cost the reader their files (`Design/LOCALIZATION.md`).
  *
- * @upstream ByteRipperApp/Settings/LanguageSettingsViewController.swift#LanguageSettingsViewController
+ * @upstream ByteRipperApp/Settings/LanguageSettings.swift#LanguageSettingsViewController
  * @upstream-differs no Relaunch Now, and the caption says why
  */
 // help: settings.language

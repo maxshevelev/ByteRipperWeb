@@ -4902,8 +4902,6 @@
         "Packages/HelpBook/Sources/HelpBook/HelpContents.swift#HelpSection.init": "n/a — the web's section is an object literal; there is nothing to construct",
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.init": "the web's topicId() mints one; the raw-value and label forms are one function here",
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.init": "the web's termId() mints one; the raw-value and label forms are one function here",
-        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.<": "n/a — Comparable for sorting ids; nothing here sorts them, the contents being the order",
-        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.<": "n/a — Comparable for sorting ids; a glossary keeps the order its file listed",
         "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpSearchResult.id": "the web's linkKey() spells the same string, a result being keyed by where it goes"
       }
     },
@@ -4933,7 +4931,6 @@
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.paragraph": "n/a — the attributes of a paragraph; the web's p and its rule",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.listItem": "n/a — a marker glued to a line with a tab stop; the web's ul and ol draw and number their own",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.caution": "n/a — the attributes of a caution; the web's rule beside the prose",
-        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.window*": "n/a — a window's frame, its autosave name and its delegate; a browser tab has none of it",
         "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.opens": "n/a — the destination read back for upstream's own tests; the web's button takes it as a prop, which a test reads from the element",
         "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.present": "n/a — an NSPopover's placement off a view; the web's dialog is positioned under the button that opened it",
         "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.loadView": "n/a — AppKit view plumbing; the web's popover is what it renders"

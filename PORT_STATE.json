@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "e3be3e21e3bd7bdc2073b1df3cab02fe3a31b826",
-  "baselineNote": "Leave the offset menu's segment block to Split Here until the pane is cut (2026-09-25)"
+  "baseCommit": "d06d410499855d9b927868ad3d8f20b3e77a1eee",
+  "baselineNote": "Let the glossary own the word a bench actually uses for the chipset (2026-09-26)"
 }

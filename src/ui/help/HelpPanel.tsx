@@ -9,7 +9,7 @@
  * hold both.
  *
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController
- * @upstream Packages/HelpUI/Sources/HelpUI/HelpContentsOutline.swift#HelpContentsOutline
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController
  * @upstream-differs a panel in the dock rather than a window, and the outline
  * is a column that collapses rather than a sidebar that is always there
  */
@@ -190,7 +190,7 @@ function whereAmI(book: HelpBook, link: HelpLink | undefined): string {
  * The contents: the sections in the order the book lists them, then the three
  * glossaries with their words.
  *
- * @upstream Packages/HelpUI/Sources/HelpUI/HelpContentsOutline.swift#HelpContentsOutline.reload
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController
  */
 function Contents({
   book,
@@ -335,7 +335,7 @@ const MissingPage = () => (
  * then terms, each in the order the book lists it — no ranking, the book being
  * forty pages.
  *
- * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.runSearch
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.search
  */
 function Results({ book, query }: { readonly book: HelpBook; readonly query: string }) {
   const hits = searchHelp(book, query);

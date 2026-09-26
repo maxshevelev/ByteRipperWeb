@@ -42,7 +42,7 @@ export interface HelpTopic {
  */
 export type HelpTermGroup = "general" | "uefi" | "me";
 
-/** @upstream Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTermGroup.allCases */
+/** @upstream Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTermGroup */
 export const HELP_TERM_GROUPS: readonly HelpTermGroup[] = ["general", "uefi", "me"];
 
 /**

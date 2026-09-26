@@ -13,7 +13,7 @@ export type AppLanguage = "en" | "ru" | "de";
 /**
  * Every language the app ships, in the order a list offers them.
  *
- * @upstream Packages/Localization/Sources/Localization/AppLanguage.swift#AppLanguage.allCases
+ * @upstream Packages/Localization/Sources/Localization/AppLanguage.swift#AppLanguage
  */
 export const APP_LANGUAGES: readonly AppLanguage[] = ["en", "ru", "de"];
 

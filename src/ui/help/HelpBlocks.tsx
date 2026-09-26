@@ -19,7 +19,7 @@ import type { HelpBlock, HelpSpan } from "@/core/help/helpMarkup";
 /**
  * One run of text.
  *
- * @upstream Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.attributed
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.render
  */
 function Span({
   span,
@@ -72,7 +72,7 @@ function Spans({
 /**
  * One block of a page.
  *
- * @upstream Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.append
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.render
  */
 function Block({
   block,

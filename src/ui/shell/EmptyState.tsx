@@ -64,7 +64,7 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
         {`${L("Files never leave this machine.")} ${saveNotice(capabilities)}`}
         {/* The one screen where a reader arrives with "what is this for", which
             is the question the overview answers.
-            @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.helpButton */}
+            @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.setUp */}
         <HelpButton link={topicLink(TOPIC.overview)} />
       </p>
       <BookmarkSection bookmarks={bookmarks} />

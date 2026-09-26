@@ -9,7 +9,7 @@
  * never download it.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/Help.swift#Help
- * @upstream ByteRipperApp/App/HelpPresenter.swift#HelpPresenter
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#HelpPresenter
  * @upstream-differs upstream's `Help.shared` loads the book synchronously on
  * first use and its window controller keeps the reader's place; a browser has
  * neither a synchronous read nor a second window, so the book arrives over a
@@ -60,9 +60,9 @@ export const helpStore = createStore<HelpState>({
 /** Where the reader is, or nothing when the panel has just opened. */
 export const helpHere = (state: HelpState): HelpLink | undefined => state.trail[state.at];
 
-/** @upstream ByteRipperApp/App/HelpWindowController.swift#HelpWindowController.canGoBack */
+/** @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.goBack */
 export const helpCanGoBack = (state: HelpState): boolean => state.at > 0;
-/** @upstream ByteRipperApp/App/HelpWindowController.swift#HelpWindowController.canGoForward */
+/** @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.goForward */
 export const helpCanGoForward = (state: HelpState): boolean => state.at < state.trail.length - 1;
 
 /** The load in flight, so two asks in one gesture do not read the book twice. */
@@ -114,7 +114,7 @@ export function reloadHelpBook(): void {
  * cold is asking.
  *
  * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showHelpBook
- * @upstream ByteRipperApp/App/HelpPresenter.swift#HelpPresenter.show
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#HelpPresenter.show
  */
 export function showHelp(link?: HelpLink): void {
   openHelpPanel();
@@ -150,14 +150,14 @@ export function goToHelp(link: HelpLink): void {
   });
 }
 
-/** @upstream ByteRipperApp/App/HelpWindowController.swift#HelpWindowController.goBack */
+/** @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.goBack */
 export function helpBack(): void {
   helpStore.update((state) =>
     helpCanGoBack(state) ? { ...state, at: state.at - 1, contentsOpen: false } : state
   );
 }
 
-/** @upstream ByteRipperApp/App/HelpWindowController.swift#HelpWindowController.goForward */
+/** @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.goForward */
 export function helpForward(): void {
   helpStore.update((state) =>
     helpCanGoForward(state) ? { ...state, at: state.at + 1, contentsOpen: false } : state
