@@ -58,11 +58,16 @@ export function HelpTermPopover({
     // Under the button that opened it, and pulled back inside the panel when
     // the button is near its right edge — a popover half off the panel is one
     // whose sentence cannot be read.
+    //
+    // The dialog stands in the detail's own coordinates, which scroll with it:
+    // its `top` is measured from the box's content, not from the part of the
+    // box that is visible, so what has been scrolled out is added back in.
     if (anchor !== null) {
       const at = anchor.getBoundingClientRect();
       const parent = element.offsetParent?.getBoundingClientRect();
-      const left = at.left - (parent?.left ?? 0);
-      element.style.top = `${at.bottom - (parent?.top ?? 0) + 4}px`;
+      const left = at.left - (parent?.left ?? 0) + (element.offsetParent?.scrollLeft ?? 0);
+      const top = at.bottom - (parent?.top ?? 0) + (element.offsetParent?.scrollTop ?? 0) + 4;
+      element.style.top = `${top}px`;
       element.style.left = `${Math.max(4, Math.min(left, (parent?.width ?? left) - 300))}px`;
     }
     const dismiss = (event: MouseEvent) => {

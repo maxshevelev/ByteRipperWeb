@@ -4958,9 +4958,11 @@ button.uefi-title {
 
 /* The `?` beside a detail's title, level with the name it explains and
    scrolling with it — a reader who has scrolled past the name is no longer
-   looking at the thing the button is about. */
+   looking at the thing the button is about.
+   Not positioned: the popover it opens is measured against the detail's
+   own box, and a containing block the size of the button is a window the
+   size of the button. */
 .tool-detail-term {
-  position: relative;
   margin-left: 6px;
   vertical-align: -2px;
 }
