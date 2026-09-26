@@ -38,6 +38,16 @@ export interface HelpButtonProps {
   readonly shape?: "standard" | "inline";
   /** A label of the caller's own, where the page's title is not what to say. */
   readonly label?: string;
+  /**
+   * What the click does, where it is not "open the book at that page" — the
+   * one caller being a firmware panel's detail list, whose `?` answers in
+   * place with a popover rather than sending the reader away from the tree
+   * they are reading (`HelpTermPopover`).
+   *
+   * The button still knows its destination, so what it says it opens and what
+   * the popover shows cannot drift apart.
+   */
+  readonly onOpen?: () => void;
 }
 
 /**
@@ -50,7 +60,7 @@ export interface HelpButtonProps {
  * round: the button is drawn until the book says the page is missing, which it
  * can only do once it is here.
  */
-export function HelpButton({ link, shape = "standard", label }: HelpButtonProps) {
+export function HelpButton({ link, shape = "standard", label, onOpen }: HelpButtonProps) {
   const { book } = useStore(helpStore);
   if (book !== undefined) {
     const exists =
@@ -71,7 +81,7 @@ export function HelpButton({ link, shape = "standard", label }: HelpButtonProps)
       type="button"
       className="help-button"
       data-shape={shape}
-      onClick={() => showHelp(link)}
+      onClick={() => (onOpen === undefined ? showHelp(link) : onOpen())}
       title={says}
       aria-label={says}
     >

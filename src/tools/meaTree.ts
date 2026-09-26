@@ -1,3 +1,4 @@
+import { type HelpTermId, termId } from "@/core/help/helpIds";
 import type {
   EFSFile,
   MFSConfigIDRecord,
@@ -116,6 +117,19 @@ export interface MEANode {
    * @upstream-differs absent reads as none
    */
   readonly marks: ToolRowMarks | undefined;
+  /**
+   * Which glossary entry says what this row *is* — what the `?` beside the
+   * detail list opens for it.
+   *
+   * Decided here, with the name, because this is the one place that knows a row
+   * is the partition table rather than a row that happens to be called
+   * "Regions (FPT)". Absent for a row whose own name is the whole answer (a
+   * file called `home/bup/si_features` is not a term), and the panel then draws
+   * no button rather than one that opens nothing.
+   *
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.helpTerm
+   */
+  readonly helpTerm: HelpTermId | undefined;
 }
 
 /** The region's digests, which the analysis leaves out until they are asked for. */
@@ -143,6 +157,7 @@ interface Draft {
   readonly children?: readonly Draft[];
   readonly isEmptySection?: boolean;
   readonly marks?: ToolRowMarks;
+  readonly helpTerm?: HelpTermId;
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.init */
@@ -216,6 +231,7 @@ function finish(draft: Draft, path: readonly number[]): MEANode {
     children: (draft.children ?? []).map((child, index) => finish(child, [...path, index])),
     isEmptySection: draft.isEmptySection ?? false,
     marks: draft.marks,
+    helpTerm: draft.helpTerm,
   };
 }
 
@@ -316,6 +332,7 @@ function firmware(a: FirmwareAnalysis): Draft {
   }
   return {
     title: "Firmware",
+    helpTerm: termId("me"),
     subtitle: `${familyText(a.family)} · ${version}`,
     fields: fields.rows,
   };
@@ -361,7 +378,12 @@ function regions(a: FirmwareAnalysis): Draft | undefined {
       isEmptySection: region.size === 0,
     })
   );
-  return { title: "Regions (FPT)", subtitle: countText(rows.length, "region"), children: rows };
+  return {
+    title: "Regions (FPT)",
+    subtitle: countText(rows.length, "region"),
+    children: rows,
+    helpTerm: termId("fpt"),
+  };
 }
 
 function cseLayout(a: FirmwareAnalysis): Draft | undefined {
@@ -383,6 +405,7 @@ function cseLayout(a: FirmwareAnalysis): Draft | undefined {
   );
   return {
     title: "CSE Layout Table",
+    helpTerm: termId("cse-layout-table"),
     subtitle: countText(table.partitions.length, "partition"),
     fields: new Fields()
       .add("Offset", offsetText(table.offset))
@@ -441,6 +464,7 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
   });
   return {
     title: "Boot Partitions (BPDT)",
+    helpTerm: termId("bpdt"),
     subtitle: countText(tables.length, "table"),
     children: rows,
   };
@@ -489,6 +513,7 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
   }
   return {
     title: "Code Partition ($CPD)",
+    helpTerm: termId("cpd"),
     subtitle: `${cp.name} · ${cp.headerVersion === 1 ? "R1" : "R2"}`,
     fields: header.rows,
     children,
@@ -563,6 +588,7 @@ function manifest(a: FirmwareAnalysis): Draft | undefined {
   if (m === undefined) return undefined;
   return {
     title: "Manifest",
+    helpTerm: termId("manifest"),
     subtitle: `${m.tag} · ${manifestFormatText(m.format)}`,
     fields: new Fields()
       .add("Tag", m.tag)
@@ -658,6 +684,7 @@ function mfsVolume(
   }
   return {
     title: "File System (MFS)",
+    helpTerm: termId("mfs"),
     subtitle: countText(vol.presentFileCount, "file"),
     fields: header.rows,
     children,
@@ -803,6 +830,7 @@ function samePchInit(one: MFSPCHInit, other: MFSPCHInit): boolean {
 function pchGroup(pch: MFSPCHInit): Draft {
   return {
     title: "Chipset Initialization",
+    helpTerm: termId("pch-init"),
     fields: new Fields().add("Records", pch.records.length).add("Chipsets", pch.chipsets.length)
       .rows,
     children: pch.chipsets.map(
@@ -866,7 +894,13 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
         .add("Data CRC Valid", yesNo(entry.dataCRCValid)).rows,
     };
   });
-  return { title: "MFS Backup", subtitle: format, fields: fields.rows, children: rows };
+  return {
+    title: "MFS Backup",
+    subtitle: format,
+    fields: fields.rows,
+    children: rows,
+    helpTerm: termId("mfs-backup"),
+  };
 }
 
 function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
@@ -888,6 +922,7 @@ function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
   }
   return {
     title: "EFS Volume",
+    helpTerm: termId("efs"),
     subtitle: offsetText(efs.offset),
     fields,
     children,
@@ -989,6 +1024,7 @@ function oemGroup(
   }
   return {
     title: "OEM Configuration",
+    helpTerm: termId("oem-config"),
     subtitle: offsetText(oem.offset),
     fields,
     children,
@@ -1011,6 +1047,7 @@ function unlockTokenGroups(a: FirmwareAnalysis): Draft[] {
   return tokens.map(
     (token): Draft => ({
       title: tokens.length === 1 ? "Unlock Token" : `Unlock Token (${token.partition})`,
+      helpTerm: termId("utok"),
       subtitle: offsetText(token.offset),
       range: rangeValue(token.offset, UNLOCK_TOKEN_FLAGS_SIZE),
       fields: new Fields()
@@ -1118,6 +1155,7 @@ function mmeGroup(a: FirmwareAnalysis): Draft | undefined {
   if (dir === undefined) return undefined;
   return {
     title: "$MME Directory",
+    helpTerm: termId("mme"),
     fields: new Fields()
       .add("Manifest", dir.manifestTag)
       .add("Offset", offsetText(dir.offset))
@@ -1131,7 +1169,9 @@ function mmeGroup(a: FirmwareAnalysis): Draft | undefined {
 
 function gscGroup(a: FirmwareAnalysis): Draft | undefined {
   const gsc = a.gscInfo;
-  return gsc === undefined ? undefined : { title: "GSC Info", fields: valueFields(gsc) };
+  return gsc === undefined
+    ? undefined
+    : { title: "GSC Info", fields: valueFields(gsc), helpTerm: termId("gsc") };
 }
 
 function oromGroup(a: FirmwareAnalysis): Draft | undefined {
@@ -1144,7 +1184,12 @@ function oromGroup(a: FirmwareAnalysis): Draft | undefined {
       fields: valueFields(image),
     })
   );
-  return { title: "OROM Images", subtitle: countText(rows.length, "image"), children: rows };
+  return {
+    title: "OROM Images",
+    subtitle: countText(rows.length, "image"),
+    children: rows,
+    helpTerm: termId("orom"),
+  };
 }
 
 function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
@@ -1196,6 +1241,7 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
   }
   return {
     title: "RBE/PM Metadata",
+    helpTerm: termId("rbe-pm"),
     subtitle: countText(rows.length, "row"),
     fields,
     children: nodes,

@@ -50,6 +50,7 @@ function meNode(over: Partial<MEANode> & { path: readonly number[]; title: strin
     children: [],
     isEmptySection: false,
     marks: undefined,
+    helpTerm: undefined,
     ...over,
   };
 }

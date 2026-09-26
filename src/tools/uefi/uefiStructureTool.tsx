@@ -37,6 +37,7 @@ import {
   meRegionPath,
   useMeSubtree,
 } from "@/tools/uefi/meSubtree";
+import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import {
   type DecompressedExport,
   decompressedExport,
@@ -1050,6 +1051,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const title = presented.title;
   const titleKey = title === undefined ? undefined : pathKey(title.id);
   const shown = selected === undefined ? undefined : state.detail;
+  // The row the detail is about, for the `?` that says what kind of thing it
+  // is: the detail itself is text the worker built and carries no kind.
+  const selectedNode = rows.find((row) => row.key === selected)?.node;
   // Which half of the selection the detail is about. An ME row's detail is its
   // own curated fields, which the worker knows nothing of; a UEFI node's is the
   // header the worker read back.
@@ -1265,6 +1269,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           subject={meFocus ?? (shown === undefined ? undefined : pathKey(shown.node))}
           detail={meShown !== undefined ? meDetail(meShown) : (shown?.detail ?? EMPTY_DETAIL)}
           placeholder="Select a node to see what it is."
+          // The ME sub-tree's rows carry their own term, decided by the
+          // curator; every other row's is a function of its kind and subtype.
+          helpTerm={
+            meShown !== undefined
+              ? meShown.helpTerm
+              : selectedNode === undefined
+                ? undefined
+                : uefiHelpTerm(selectedNode)
+          }
         />
       </div>
 

@@ -4924,11 +4924,11 @@
         "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift": "src/ui/help/HelpBlocks.tsx",
         "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift": "src/ui/help/HelpPanel.tsx",
         "Packages/HelpUI/Sources/HelpUI/HelpContentsOutline.swift": "src/ui/help/HelpPanel.tsx",
-        "Packages/HelpBook/Sources/HelpBook/Help.swift": "src/state/helpStore.ts"
+        "Packages/HelpBook/Sources/HelpBook/Help.swift": "src/state/helpStore.ts",
+        "Packages/HelpUI/Sources/HelpUI/HelpButton.swift": "src/ui/help/HelpButton.tsx",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift": "src/ui/help/HelpTermPopover.tsx"
       },
       "unported": {
-        "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#*": "later — G63: the ? beside the thing it explains, and the panels that carry one",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#*": "later — G63: the popover a firmware row's ? opens, which arrives with those buttons",
         "Packages/HelpUI/Sources/HelpUI/ControlHelp.swift#*": "later — G63: upstream's one way of giving a control a tooltip and a help term; the web's controls carry title and aria-label today",
         "Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#*": "later — G63: the presenter owns a window and its place on screen; the web's panel is the dock's, and showHelp() is what a ? calls",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size": "n/a — the point sizes an attributed string needs; the web's are in app.css, which is where every other size in this port lives",
@@ -4937,8 +4937,24 @@
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.paragraph": "n/a — the attributes of a paragraph; the web's p and its rule",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.listItem": "n/a — a marker glued to a line with a tab stop; the web's ul and ol draw and number their own",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.caution": "n/a — the attributes of a caution; the web's rule beside the prose",
-        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.window*": "n/a — a window's frame, its autosave name and its delegate; a browser tab has none of it"
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.window*": "n/a — a window's frame, its autosave name and its delegate; a browser tab has none of it",
+        "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.opens": "n/a — the destination read back for upstream's own tests; the web's button takes it as a prop, which a test reads from the element",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.present": "n/a — an NSPopover's placement off a view; the web's dialog is positioned under the button that opened it",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.loadView": "n/a — AppKit view plumbing; the web's popover is what it renders"
       }
+    },
+    {
+      "swift": "Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift",
+      "web": [
+        "src/tools/uefi/uefiHelpTerms.ts"
+      ],
+      "status": "ported",
+      "note": "Which glossary entry explains a node of the UEFI tree, by its kind and subtype, so the ? beside the detail list answers \"what is this row\". Across whole, including the two decisions worth keeping: a region goes to that region's own entry rather than to regions in general, and a pad file is not a file. It takes the kind and the subtype rather than the UEFINode, because the panel asks about a node that came over the wire from the worker, and those are the same two facts without the ranges.",
+      "files": {
+        "Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift": "src/tools/uefi/uefiHelpTerms.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift": "src/tools/uefi/uefiHelpTerms.test.ts"
+      },
+      "unported": {}
     }
   ]
 }

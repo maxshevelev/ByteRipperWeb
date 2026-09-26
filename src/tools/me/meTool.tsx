@@ -731,6 +731,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               subject={focus}
               detail={detailOf(selected)}
               placeholder="Select a row to see what it is."
+              // Decided by the curator, with the name: this is the one place
+              // that knows a row is the partition table rather than a row that
+              // happens to be called "Regions (FPT)".
+              helpTerm={selected?.helpTerm}
             />
           </div>
         )}

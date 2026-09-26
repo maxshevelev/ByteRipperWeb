@@ -4899,3 +4899,54 @@ button.uefi-title {
   margin-left: 6px;
   vertical-align: -2px;
 }
+
+/* The popover a firmware row's `?` opens: one word, explained where it is being
+   read. A `<dialog>` shown modelessly, so the browser's own Escape and the
+   panel behind it both keep working — upstream's is an NSPopover with an arrow,
+   which a browser has no equivalent of. */
+.help-popover {
+  position: absolute;
+  z-index: 30;
+  width: min(320px, calc(100% - 16px));
+  max-height: 60%;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.22);
+}
+
+.help-popover-name {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.help-popover-summary {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.help-popover-body .help-paragraph,
+.help-popover-body .help-bullets,
+.help-popover-body .help-steps {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.help-popover-more {
+  margin-top: 6px;
+}
+
+/* The `?` beside a detail's title, level with the name it explains and
+   scrolling with it — a reader who has scrolled past the name is no longer
+   looking at the thing the button is about. */
+.tool-detail-term {
+  position: relative;
+  margin-left: 6px;
+  vertical-align: -2px;
+}

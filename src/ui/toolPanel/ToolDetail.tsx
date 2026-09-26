@@ -1,5 +1,9 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { HelpTermId } from "@/core/help/helpIds";
+import { termLink } from "@/core/help/helpIds";
 import type { DetailSymbol, DetailTable, NodeDetail } from "@/tools/toolDetail";
+import { HelpButton } from "@/ui/help/HelpButton";
+import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 
 /**
  * A panel's detail: a title, a column of label/value rows, and the tables after
@@ -25,15 +29,32 @@ export function ToolDetail({
   subject,
   detail,
   placeholder,
+  helpTerm,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
   readonly detail: NodeDetail;
   readonly placeholder: string;
+  /**
+   * Which glossary entry says what the row in focus *is*, where the panel knows
+   * one. The `?` is drawn only for a row that has one — a file called
+   * `home/bup/si_features` is not a term, and a button that opened a page about
+   * files would answer a question nobody asked.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.setTerm
+   */
+  readonly helpTerm?: HelpTermId | undefined;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shownSubject = useRef<string | undefined>(undefined);
+  const termButton = useRef<HTMLSpanElement | null>(null);
+  const [termShown, setTermShown] = useState(false);
   const hasRows = detail.fields.length > 0;
+
+  // The popover belongs to the row it was opened for: moving to another row
+  // with it up would leave a sentence about the row that is gone.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the subject changing is the whole condition
+  useLayoutEffect(() => setTermShown(false), [subject, helpTerm]);
 
   useLayoutEffect(() => {
     if (!hasRows) {
@@ -53,7 +74,32 @@ export function ToolDetail({
         </p>
       ) : (
         <div className="tool-detail-content">
-          {detail.title.length === 0 ? null : <h3 className="tool-detail-title">{detail.title}</h3>}
+          {detail.title.length === 0 ? null : (
+            <h3 className="tool-detail-title">
+              {detail.title}
+              {/* Level with the name it explains, and scrolling with it: a
+                  reader who has scrolled past the name is no longer looking at
+                  the thing the button is about.
+                  @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.termButton */}
+              {helpTerm === undefined ? null : (
+                <span className="tool-detail-term" ref={termButton}>
+                  <HelpButton
+                    link={termLink(helpTerm)}
+                    shape="inline"
+                    label={`What ${detail.title} is`}
+                    onOpen={() => setTermShown((shown) => !shown)}
+                  />
+                  {termShown ? (
+                    <HelpTermPopover
+                      term={helpTerm}
+                      anchor={termButton.current}
+                      onClose={() => setTermShown(false)}
+                    />
+                  ) : null}
+                </span>
+              )}
+            </h3>
+          )}
           <dl className="tool-detail-fields">
             {/* A label is said once per node, so it is the row's identity. */}
             {detail.fields.map((one) => (
