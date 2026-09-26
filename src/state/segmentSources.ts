@@ -16,15 +16,15 @@
  * partition and forgets the joins, and swaps them where the slots do.
  */
 
-import { NO_BASELINE, type BaselineSpan, type ModifiedBaseline } from "@/core/segments/baseline";
+import { type BaselineSpan, type ModifiedBaseline, NO_BASELINE } from "@/core/segments/baseline";
+import type { Segment, SegmentLink, SegmentSourceID } from "@/core/segments/segmentation";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { SlicedStorage } from "@/core/storage/slicedStorage";
-import type { Segment, SegmentLink, SegmentSourceID } from "@/core/segments/segmentation";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { segmentsFor } from "@/state/segmentsStore";
-import { paneState, type PaneId, type PaneState } from "@/state/workspaceStore";
+import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
 // MARK: - The registry (§21.7)
 
@@ -74,7 +74,10 @@ interface PaneSources {
    *
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.linkStateCache
    */
-  readonly linkCache: Map<string, { readonly generation: number; readonly state: SegmentLinkState }>;
+  readonly linkCache: Map<
+    string,
+    { readonly generation: number; readonly state: SegmentLinkState }
+  >;
 }
 
 /** @upstream ByteRipperApp/Segments/SegmentSources.swift#SegmentSources (the pane's one) */
@@ -215,7 +218,9 @@ export function sourceWriteConflict(
 ): { readonly title: string; readonly message: string } {
   const quoted = names.map((name) => `“${name}”`).join(", ");
   const title =
-    names.length === 1 ? `${quoted} is a segment’s source` : `${names.length} of these names are segment sources`;
+    names.length === 1
+      ? `${quoted} is a segment’s source`
+      : `${names.length} of these names are segment sources`;
   const fileWord = names.length === 1 ? "file that segment is" : "files those segments are";
   const message =
     `This dump has ${names.length === 1 ? "a segment" : "segments"} that came from ${quoted}, ` +

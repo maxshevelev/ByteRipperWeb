@@ -180,12 +180,10 @@ export function SegmentsDialog({
     const reason = linkReason(state);
     const explanation = linkExplanation(state, source.name, piece);
     return (
-      <span
-        className="segment-link"
-        data-state={intact ? "intact" : "broken"}
-        title={explanation}
-        aria-label={explanation}
-      >
+      // A generic span carries no accessible name, so the explanation rides on
+      // the title and the cell's own text — the source name, which is always
+      // there.
+      <span className="segment-link" data-state={intact ? "intact" : "broken"} title={explanation}>
         {piece.name !== "" && piece.name !== source.name && (
           <span className="segment-link-own">{piece.name}</span>
         )}

@@ -9,9 +9,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  type Segment,
   Segmentation,
   SegmentLink,
-  type Segment,
   type SegmentSourceID,
   wholeFile,
 } from "@/core/segments/segmentation";
@@ -37,12 +37,14 @@ describe("the link's arithmetic", () => {
   it("splits the link with the piece when a cut lands inside it", () => {
     const split = linkedWholeFile().addCut(6);
     if (split === undefined) throw new Error("the cut was refused");
-    expect(piece(split, 0).link?.equals(linked(0, 6)), "the earlier half keeps the source's first six bytes").toBe(
-      true
-    );
-    expect(piece(split, 1).link?.equals(linked(6, 16)), "and the new piece opens six bytes into the same file").toBe(
-      true
-    );
+    expect(
+      piece(split, 0).link?.equals(linked(0, 6)),
+      "the earlier half keeps the source's first six bytes"
+    ).toBe(true);
+    expect(
+      piece(split, 1).link?.equals(linked(6, 16)),
+      "and the new piece opens six bytes into the same file"
+    ).toBe(true);
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testMergingGrowsTheAbsorbingPiecesExtent
@@ -50,9 +52,10 @@ describe("the link's arithmetic", () => {
     const merged = linkedWholeFile().addCut(6)?.removePiece(1);
     if (merged === undefined) throw new Error("the merge was refused");
     expect(merged.segments.length).toBe(1);
-    expect(piece(merged, 0).link?.equals(linked(0, 16)), "S0 absorbed S1's bytes, so its extent in the file covers them again").toBe(
-      true
-    );
+    expect(
+      piece(merged, 0).link?.equals(linked(0, 16)),
+      "S0 absorbed S1's bytes, so its extent in the file covers them again"
+    ).toBe(true);
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testMergingTheFirstPieceShiftsTheSurvivorsExtentBack
@@ -60,9 +63,10 @@ describe("the link's arithmetic", () => {
     const merged = linkedWholeFile().addCut(6)?.removePiece(0);
     if (merged === undefined) throw new Error("the merge was refused");
     expect(extents(merged)).toEqual([[0, 16]]);
-    expect(piece(merged, 0).link?.equals(linked(0, 16)), "what was S1 reopens at the file start, and so does its extent").toBe(
-      true
-    );
+    expect(
+      piece(merged, 0).link?.equals(linked(0, 16)),
+      "what was S1 reopens at the file start, and so does its extent"
+    ).toBe(true);
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testMergingTheFirstPieceDropsALinkThatWouldUnderflow
@@ -73,7 +77,10 @@ describe("the link's arithmetic", () => {
     ]);
     const merged = partition.removePiece(0);
     if (merged === undefined) throw new Error("the merge was refused");
-    expect(piece(merged, 0).link, "the piece now opens eight bytes before anything its source holds").toBeUndefined();
+    expect(
+      piece(merged, 0).link,
+      "the piece now opens eight bytes before anything its source holds"
+    ).toBeUndefined();
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testMovingACutSlidesBothExtents
@@ -94,12 +101,14 @@ describe("the link's arithmetic", () => {
       [0, 10],
       [10, 20],
     ]);
-    expect(piece(edited, 0).link?.equals(linked(0, 6)), "the piece grew with the insert, but its extent did not").toBe(
-      true
-    );
-    expect(piece(edited, 1).link?.equals(linked(6, 16)), "and the piece after it moved whole, extent untouched").toBe(
-      true
-    );
+    expect(
+      piece(edited, 0).link?.equals(linked(0, 6)),
+      "the piece grew with the insert, but its extent did not"
+    ).toBe(true);
+    expect(
+      piece(edited, 1).link?.equals(linked(6, 16)),
+      "and the piece after it moved whole, extent untouched"
+    ).toBe(true);
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testADeleteMovesOnlyATrimmedHead
@@ -108,12 +117,14 @@ describe("the link's arithmetic", () => {
       .addCut(8)
       ?.applyEdit({ kind: "delete", start: 8, end: 11 }, 13).partition;
     if (edited === undefined) throw new Error("the delete was refused");
-    expect(piece(edited, 0).link?.equals(linked(0, 8)), "S0 still opens where it did, so its extent is unchanged").toBe(
-      true
-    );
-    expect(piece(edited, 1).link?.equals(linked(11, 16)), "S1 lost its first three bytes, so it opens three bytes later in the file").toBe(
-      true
-    );
+    expect(
+      piece(edited, 0).link?.equals(linked(0, 8)),
+      "S0 still opens where it did, so its extent is unchanged"
+    ).toBe(true);
+    expect(
+      piece(edited, 1).link?.equals(linked(11, 16)),
+      "S1 lost its first three bytes, so it opens three bytes later in the file"
+    ).toBe(true);
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testADeleteBeforeACutLeavesTheLaterPiecesAlone

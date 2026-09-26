@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, test } from "vitest";
-import { NO_BASELINE, type ModifiedBaseline } from "@/core/segments/baseline";
+import { type ModifiedBaseline, NO_BASELINE } from "@/core/segments/baseline";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overviewBuild";

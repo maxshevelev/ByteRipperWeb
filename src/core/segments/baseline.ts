@@ -104,10 +104,7 @@ export type BaselineReference =
  * (the hex row, the minimap's detail, the overview) each ask for the stretch
  * they draw
  */
-export function baselineReferenceAt(
-  baseline: ModifiedBaseline,
-  offset: number
-): BaselineReference {
+export function baselineReferenceAt(baseline: ModifiedBaseline, offset: number): BaselineReference {
   const beyondFrom = baseline.beyondFrom;
   if (beyondFrom !== undefined && offset >= beyondFrom) return { kind: "beyond" };
   for (const span of baseline.spans) {

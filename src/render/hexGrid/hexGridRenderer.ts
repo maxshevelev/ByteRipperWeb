@@ -1,5 +1,5 @@
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
-import { NO_BASELINE, type ModifiedBaseline } from "@/core/segments/baseline";
+import { type ModifiedBaseline, NO_BASELINE } from "@/core/segments/baseline";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { addressString } from "@/core/text/offsetParser";

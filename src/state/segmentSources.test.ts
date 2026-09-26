@@ -15,13 +15,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { baselineMarksAnything, baselineReferenceAt } from "@/core/segments/baseline";
+import type { Segment } from "@/core/segments/segmentation";
 import type { ByteSource } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type { OpenedFile } from "@/platform/files/openedFile";
-import type { Segment } from "@/core/segments/segmentation";
-import { applySegments, noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import { baselineMarksAnything, baselineReferenceAt } from "@/core/segments/baseline";
 import {
   baselineFor,
   clearSources,
@@ -29,6 +28,7 @@ import {
   segmentSource,
   sourceWriteConflict,
 } from "@/state/segmentSources";
+import { applySegments, noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { forgetActs, undoLast } from "@/state/undoRouter";
 import {
   editingHooks,
@@ -46,8 +46,7 @@ const file = (name: string, bytes: Uint8Array<ArrayBuffer>): OpenedFile => ({
   source: new Blob([bytes]),
 });
 
-const donorStorage = (source: ByteSource) =>
-  new FileBackedStorage(source, new ChunkCache());
+const donorStorage = (source: ByteSource) => new FileBackedStorage(source, new ChunkCache());
 
 const pieces = (pane: "a") => segmentsFor(pane)?.segments ?? [];
 
@@ -128,9 +127,10 @@ describe("a join links both sides", () => {
     const original = file("chip1.bin", new Uint8Array(16).fill(0xaa));
     const donor = file("chip2.bin", new Uint8Array(8).fill(0xbb));
     openInPane("a", original);
-    expect(applySegments("a", (partition) => partition.addCut(8)), "the dump is cut before the join").toBe(
-      true
-    );
+    expect(
+      applySegments("a", (partition) => partition.addCut(8)),
+      "the dump is cut before the join"
+    ).toBe(true);
     await joinIntoPane({
       pane: "a",
       source: donorStorage(donor.source),
@@ -140,17 +140,13 @@ describe("a join links both sides", () => {
     });
 
     expect(pieces("a").length).toBe(3);
-    expect(
-      piece(2).name,
-      "the joined bytes are the last piece, and wear the donor's name"
-    ).toBe("chip2.bin");
+    expect(piece(2).name, "the joined bytes are the last piece, and wear the donor's name").toBe(
+      "chip2.bin"
+    );
     expect(segmentSource("a", piece(2))?.name).toBe("chip2.bin");
     expect(piece(2).link?.start).toBe(0);
     expect(piece(2).link?.end).toBe(8);
-    expect(
-      piece(1).name,
-      "the pane's own pieces keep the names they had"
-    ).toBe("");
+    expect(piece(1).name, "the pane's own pieces keep the names they had").toBe("");
   });
 
   // @upstream ByteRipperTests/SegmentLinkTests.swift#SegmentLinkTests.testUndoingAJoinTakesTheLinksWithIt
@@ -170,7 +166,10 @@ describe("a join links both sides", () => {
 
     const parts = pieces("a");
     expect(parts.length).toBe(1);
-    expect(parts[0]?.link, "the pane is attached to its file again, so nothing needs a link").toBeUndefined();
+    expect(
+      parts[0]?.link,
+      "the pane is attached to its file again, so nothing needs a link"
+    ).toBeUndefined();
     expect(paneState("a")?.untitled).toBe(false);
   });
 });
@@ -192,10 +191,7 @@ describe("what the bytes are painted against", () => {
       position: "end",
       sourceFile: donor,
     });
-    expect(
-      paneState("a")?.saved,
-      "a join leaves an image with no file of its own"
-    ).toBeUndefined();
+    expect(paneState("a")?.saved, "a join leaves an image with no file of its own").toBeUndefined();
     expect(
       baselineMarksAnything(baselineFor("a")),
       "and it is still painted against something"
@@ -249,11 +245,11 @@ describe("what the bytes are painted against", () => {
       };
     });
 
+    expect(await modifiedAt(2), "the patch is on disk now, so nothing is unsaved").toBe(false);
     expect(
-      await modifiedAt(2),
-      "the patch is on disk now, so nothing is unsaved"
-    ).toBe(false);
-    expect(pieces("a")[0]?.link, "but the piece still knows where its bytes came from").toBeDefined();
+      pieces("a")[0]?.link,
+      "but the piece still knows where its bytes came from"
+    ).toBeDefined();
   });
 
   // A piece nothing brought in is never painted modified in an untitled image
@@ -277,16 +273,12 @@ describe("what the bytes are painted against", () => {
       sourceFile: donor,
     });
 
-    expect(
-      await modifiedAt(2),
-      "the bytes that came from nowhere are unmarked"
-    ).toBe(false);
+    expect(await modifiedAt(2), "the bytes that came from nowhere are unmarked").toBe(false);
     expect(await modifiedAt(19), "and the donor's still match its file").toBe(false);
     await document.overwrite(19, new Uint8Array([0x02]));
-    expect(
-      await modifiedAt(19),
-      "a patch in the donor's half is measured against the donor"
-    ).toBe(true);
+    expect(await modifiedAt(19), "a patch in the donor's half is measured against the donor").toBe(
+      true
+    );
   });
 });
 

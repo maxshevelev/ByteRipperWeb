@@ -449,7 +449,11 @@ export class Segmentation {
     // it, the way its name does.
     const end = this.pieces[index + 1]?.start ?? this.contentSize;
     const pieces = [...this.pieces];
-    pieces[index - 1] = { start: before.start, name: before.name, link: before.link?.resizedEnd(end - offset) };
+    pieces[index - 1] = {
+      start: before.start,
+      name: before.name,
+      link: before.link?.resizedEnd(end - offset),
+    };
     pieces.splice(index, 1);
     return new Segmentation(this.contentSize, pieces);
   }
@@ -527,7 +531,11 @@ export class Segmentation {
     const delta = offset - from;
     const pieces = [...this.pieces];
     pieces[index] = { start: offset, name: moved.name, link: moved.link?.shiftedStart(delta) };
-    pieces[index - 1] = { start: before.start, name: before.name, link: before.link?.resizedEnd(delta) };
+    pieces[index - 1] = {
+      start: before.start,
+      name: before.name,
+      link: before.link?.resizedEnd(delta),
+    };
     return new Segmentation(this.contentSize, pieces);
   }
 

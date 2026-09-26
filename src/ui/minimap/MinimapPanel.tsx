@@ -603,6 +603,7 @@ function MinimapCanvas({
   // mean invalidating them.
   // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.byteStates
   // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.invalidateCells
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `partition` is the reason to look again, not something the body reads — `baselineFor` reads its links through the store, and re-segmenting is what moves what the bytes are compared against
   useEffect(() => {
     if (mode !== "detail" || slot === undefined || windowRows <= 0) {
       setCells([]);

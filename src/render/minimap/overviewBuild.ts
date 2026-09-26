@@ -16,10 +16,7 @@
  */
 
 import type { DiffBlock } from "@/core/diff/diffBlock";
-import {
-  baselineMarksAnything,
-  type ModifiedBaseline,
-} from "@/core/segments/baseline";
+import { baselineMarksAnything, type ModifiedBaseline } from "@/core/segments/baseline";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { MINIMAP_COLUMNS, OverviewBinning, type RowRange } from "@/render/minimap/overviewBinning";
 

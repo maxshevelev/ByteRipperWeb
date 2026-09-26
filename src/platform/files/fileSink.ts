@@ -114,7 +114,8 @@ export async function saveAs(request: SaveRequest): Promise<SaveOutcome> {
       const options: SaveFilePickerOptions = { suggestedName: request.name };
       handle = await picker(options);
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return { kind: "cancelled" };
+      if (error instanceof DOMException && error.name === "AbortError")
+        return { kind: "cancelled" };
       throw error;
     }
     // A name that would replace a segment's source sends the panel back up,

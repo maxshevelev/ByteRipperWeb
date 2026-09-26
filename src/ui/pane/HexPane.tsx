@@ -833,6 +833,7 @@ export function HexPane({
    * (§21.7) — which the renderer does itself: this only has to hand it the
    * baseline and repaint when the bytes move or a piece's link does.
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `saved` and `partition` are the reasons to look again, not something the body reads — `baselineFor` reads both through the store, and saving or re-segmenting is what moves the red
   useEffect(() => {
     rendererRef.current?.setBaseline(baselineFor(paneId));
     scheduleDraw();
