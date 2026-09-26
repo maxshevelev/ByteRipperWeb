@@ -89,6 +89,14 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 |---|---|---|---|---|---|---|
 | G23 | **The dump announces** its title, the caret's address and the byte's value (today a fixed label); the minimap more than an `aria-label`. | `HexView.swift`, `MinimapView.swift` | ~5 | — | P2 | open |
 
+### 1.9 Help and languages (M13)
+
+| ID | Gap | Upstream | Size | Depends on | Priority | Status |
+|---|---|---|---|---|---|---|
+| G63 | **The help book.** Upstream's `6b9f45d` gives the app a book of about forty pages and three glossaries, keyed by stable ids, with a `?` beside the thing each page explains — the landing screen, a tool panel's header, a firmware row's term, the find bar, the Segments and Go To forms, Settings ▸ Editing. Structure is code (`HelpContents`, `HelpTopicID`, `HelpTermID`); words are content files under `Resources/Help/<language>/`, in six rules of Markdown with `[[topic:id]]` and `[[term:id]]` links. **The web shows it in a pill in the fragment dock** rather than a window it has not got, and **rewrites the pages the browser changes** — the Finder, a save that writes in place, a relaunch, Open Recent. Ported as `src/core/help/` (pure, upstream's `HelpBook`) and `src/ui/help/` (upstream's `HelpUI`); the design, the navigation and the list of pages that need correcting are in `Design/HELP.md`. | `Packages/HelpBook/*`, `Packages/HelpUI/*`, `Design/HELP.md` | ~1100 + 33 content files | — | P2 | open |
+| G64 | **The language the app speaks.** Upstream's `0a959d2` adds English, Russian and German, keyed by the English the app already said: `L("Drop files here")`, positional `%1$@` placeholders, a `context` for one English word that is two elsewhere, and one `.strings` catalogue per language. **The web resolves against `navigator.languages`** and **changes language where it stands**: upstream offers *Relaunch Now*, and a relaunch here is a page reload, which has no files — so the chrome re-renders, the canvas repaints, the workers are handed the new catalogue and text already built from words is rebuilt. Ported as `src/core/localization/`, in upstream's own `.strings` format so a string can be carried between the two repositories untyped. `Design/LOCALIZATION.md`. | `Packages/Localization/*`, `Design/LOCALIZATION.md`, 757 keys × 2 | ~300 + the sweep over `src/ui/` | — | P2 | open |
+| G65 | **A page with a URL.** `#help/opening-files` would be a link a colleague can be sent — the one thing the web edition can do here that the Mac app cannot. The workspace has no routing at all today, and putting the help's pages under the reader's Back button is a decision about the whole app rather than about the help. | — | ~3 | G63; whether the workspace takes a router at all | P3 | decision |
+
 ### 1.8 Tests, hardening and delivery (M12)
 
 | ID | Gap | Size | Depends on | Priority | Status |
@@ -138,6 +146,9 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 | Save Segment / Save Selection | Chromium: save picker. Elsewhere: download. | ANALYSIS.md |
 | Revert to Saved | Re-reads the `File` or handle; outside Chromium a stale `File` means picking the file again. | ANALYSIS.md § Editing |
 | External change detection | On access (`NotReadableError`) and by `lastModified`, not by a watcher. | ANALYSIS.md |
+| The help book | Upstream opens a window; the web edition has one workspace per tab and no window management, so the book takes a pill in the fragment dock and opens as the panel over the panes. A term is still a popover beside the row that asked. | HELP.md § Where the book is shown |
+| The Help menu | There is no menu bar: upstream's five destinations become a Help block in the toolbar's menu. `F1` and `⌘/` open the book, where upstream has `⌘?` — in a browser that chord is `⌘⇧/`, which is already spent. | HELP.md § Where the help is reachable from |
+| Changing the language | No relaunch. A reload would ask for every open file again, so the app changes language where it stands: the chrome re-renders, the canvas repaints, the workers are handed the new catalogue, and text already built from words is rebuilt. | LOCALIZATION.md § No relaunch |
 | Access to files across launches | Handles kept in IndexedDB; the browser asks for permission once per visit. | ANALYSIS.md |
 | Duplicate | The copy shares the chunk source in memory and diverges on edit, instead of an APFS clone. | ANALYSIS.md |
 | Copy | Hex text everywhere, plus the raw bytes as a web custom type where the browser allows it (Chromium). | ANALYSIS.md § Clipboard |

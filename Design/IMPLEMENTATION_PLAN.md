@@ -97,10 +97,12 @@ M0 Scaffolding & benchmarks
                                                            └─▶ M10 ME Analyzer
                                                                  └─▶ M11 Settings & pattern library
                                                                        └─▶ M12 Hardening
+                                                                             └─▶ M13 Help & languages
 ```
 
 M5, M6 and M7 are independent of each other and can be reordered freely. M9 and
-M10 both need M8's tree and nothing of each other.
+M10 both need M8's tree and nothing of each other. M13 needs M8's panels for the
+places its `?` buttons go, and nothing of M12.
 
 ---
 
@@ -391,7 +393,53 @@ no capability difference discovered by a user rather than announced by the app.
 
 ---
 
-## 17. Build and run
+## 17. Milestone 13 — The help book, and the languages it is read in
+
+Upstream's `749ca8e`…`d06d410`: a help book keyed by stable ids, and English,
+Russian and German. The two arrive together because each is what makes the
+other worth having. The decisions are in `Design/HELP.md` and
+`Design/LOCALIZATION.md`, both of which record where the browser changes them.
+
+1. **The lookup** (`src/core/localization/`, pure): the `.strings` parser, the
+   catalogue, `L(key)` / `L(key, {context})` / `L(key, …args)` with positional
+   placeholders, `AppLanguage`, and the choice resolved against
+   `navigator.languages`. Upstream's `LocalizationTests` come across whole.
+2. **The app speaks it**: the language in the settings store and in Settings ▸
+   Language; the re-render, the canvas repaint, the catalogue posted to the
+   workers, and the built text rebuilt — no relaunch, because a reload has no
+   files.
+3. **The book's core** (`src/core/help/`, pure): the ids, the contents in code,
+   the markup parser, the loader with its per-file English fallback, and the
+   search over title, summary and body. `HelpMarkupTests` and
+   `HelpContentTests` come across whole; the latter is what makes a missing
+   translation a failing test.
+4. **The English content**, ported page for page and then corrected against
+   `ANALYSIS.md` §2 — the Finder, the save that writes in place, the relaunch
+   and the recent files are all things this edition does differently or not at
+   all (`HELP.md` § The content is rewritten where the web differs).
+5. **The panel** (`src/ui/help/`): a pill in the fragment dock and the page over
+   the panes — contents column, breadcrumb, back and forward, search, and the
+   term popover anchored beside the row that raised it.
+6. **The ways in**: the toolbar menu's Help block, the empty state's `?`, a
+   tool panel's header, a detail list's row term (`meaNode.helpTerm`,
+   `uefiHelpTerms`), the find bar, the Segments and Go To forms, Settings ▸
+   Editing. `F1` and `⌘/` open the book.
+7. **The sweep**: every user-visible string in `src/ui/` through `L`, and the
+   Russian and German catalogues beside it.
+8. **The translated book**: `Help/ru` and `Help/de`, carried over from upstream
+   where the page did not change and translated afresh where it did.
+9. **`Skills/help-coverage/`** ported, and the module map, `GAPS.md` and the
+   anchors brought level with all of it.
+
+**Definition of done:** a bench that reads no English can open a dump, compare
+it, find a difference, read what the ME panel's words mean and put the file
+back — without meeting one English sentence that is not a format name; the
+language changes with the files still open; and `help_coverage.py` reports no
+page missing, no catalogue behind, and no key with an interpolation in it.
+
+---
+
+## 18. Build and run
 
 ```bash
 npm install
@@ -406,7 +454,7 @@ Benchmark fixtures are real firmware dumps and are gitignored. Put at least one
 
 ---
 
-## 18. Staying level with ByteRipper
+## 19. Staying level with ByteRipper
 
 The macOS app keeps moving. Before starting a milestone that ports a module,
 and after finishing one:
@@ -422,7 +470,7 @@ in `Skills/port-from-byteripper/SKILL.md`.
 
 ---
 
-## 19. Open questions
+## 20. Open questions
 
 - **Session restore.** Handles kept in IndexedDB would let a reload offer
   yesterday's pair back with one permission click. Wanted, not before M4.

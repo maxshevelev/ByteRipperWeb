@@ -179,6 +179,20 @@ How every part of the desktop app lands here. Four verdicts:
 | Sandbox, entitlements, notarisation, Gatekeeper | Dropped | The browser *is* the sandbox. This is the point of the project. |
 | Menu bar | Adapted | A toolbar plus a command palette. See below. |
 
+### Help and languages
+
+| Feature | Verdict | Notes |
+| --- | --- | --- |
+| The help book: ~40 pages and three glossaries, keyed by stable ids | Same | Structure in code, words in content files, six rules of markup — upstream's shape whole (`Design/HELP.md`). |
+| A `?` beside the thing it explains | Same | The empty state, a tool panel's header, a firmware row's term, the find bar, the Segments and Go To forms, Settings ▸ Editing. |
+| Where the book is shown | Adapted | Upstream opens a window; there are no windows here, so the book takes a pill in the fragment dock and opens as the panel over the panes. |
+| The Help menu | Adapted | No menu bar: a Help block in the toolbar's menu, and `F1` / `⌘/` for the book, `⌘?` being spent in a browser. |
+| The pages themselves | Adapted | Every page that describes the Finder, a save that writes in place, a relaunch or Open Recent is rewritten for what this edition actually does. The glossaries port verbatim: `$FPT` is `$FPT` everywhere. |
+| English, Russian and German, keyed by the English text | Same | Upstream's `.strings` catalogues and positional placeholders, so a string can be carried between the two repositories (`Design/LOCALIZATION.md`). |
+| Which language | Adapted | Resolved against `navigator.languages` rather than `Locale.preferredLanguages`. |
+| Changing the language | Adapted | No relaunch: a reload would ask for every open file again. The chrome re-renders, the canvas repaints, the workers take the new catalogue, and text already built from words is rebuilt. |
+| Apple Help book, `.help` bundle | Dropped | Upstream did not take it either, for the same reason: a build step nobody maintains by hand. |
+
 ## Browser constraints, stated plainly
 
 ### File access
