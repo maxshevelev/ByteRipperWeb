@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "a379690487eea1716e8c4d3931280d513014c2c2",
-  "baselineNote": "Claim a corner of the work, not the whole of repair (2026-09-26)"
+  "baseCommit": "4e3658749b780b09be83d52f30adf7a42c0c1323",
+  "baselineNote": "Say what happens when a file is already open, which is not that (2026-09-26)"
 }

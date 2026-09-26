@@ -1,6 +1,6 @@
-# Opening Files: A and B
+# Opening Files: One Pane or Two
 
-> The workspace has two slots. One file is simply an editor; a second file adds the comparison. Editing works in both panes either way.
+> The workspace holds two file panes. One file is simply an editor; a second file adds the comparison. Editing works in both panes either way.
 
 @covers shell.empty-state
 @covers menu.file.new
@@ -9,18 +9,18 @@
 @covers menu.file.close
 @covers shell.drop-zones
 
-The workspace holds two file slots, **File A** and **File B**. Which slot a file lands in decides what happens:
+The workspace holds two file panes, **File A** and **File B**. How many of them hold a file decides what the workspace is:
 
 - **One file open** — single-file mode. The workspace is a hex editor for that file, and all the editing, searching and tool panels work normally.
 - **Two files open** — comparison mode. The two dumps sit side by side (or one above the other, see **View ▸ Put the Panes Side by Side**) and every differing byte is painted.
 
-File B is optional. Nothing needs a second file except the comparison itself.
+The second pane is optional. Nothing needs a second file except the comparison itself.
 
 ## Ways to open a dump
 
 - **The open button** on the empty screen, or **File ▸ Open…** in the toolbar's menu.
-- **Drag and drop.** Drag a file onto the workspace and the drop bands show where it will land — into this pane, or beside it. Dropping two files at once fills both slots.
-- **File ▸ Compare with…** opens a second dump into the empty slot, which is the comparison in one step.
+- **Drag and drop.** Drag a file onto the workspace and the drop bands show where it will land — into this pane, or beside it. Dropping two files at once fills both panes.
+- **File ▸ Compare with…** opens a second dump into the empty pane, which is the comparison in one step.
 - **File ▸ New** makes an empty untitled file — somewhere to paste bytes into.
 
 ## What the browser asks for, and asks for again
@@ -36,14 +36,18 @@ What the browser gives in return is a *handle* to the file you picked, and that 
 
 ## One job per browser tab
 
-There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of slots, its own bookmarks and its own undo.
+There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo.
 
 Each pane header names its file and whether it has unsaved changes; the status line below it gives the size. The ✕ in the header closes that pane and leaves the other one open.
 
 ## If the file is already open
 
-Opening a file that is already in the other slot is allowed — comparing a file with itself is a legitimate thing to do while editing one copy of it. Opening it into the slot it is already in does nothing.
+Nothing is refused here, because there is nothing this workspace can consult:
 
-! Replacing a pane that has unsaved edits asks first. There is no undo for a discarded pane.
+- **In the other pane** — allowed, and useful: the two panes are two documents over one file, so you can edit one of them and watch the comparison against the other.
+- **In another browser tab** — that tab is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.
+- **In this very pane** — it re-reads the file, which is how a dump is picked up again after a programmer has rewritten it.
+
+! Replacing a pane that has unsaved edits asks first, whether the file arrives by a drop or through **Open…**. There is no undo for a discarded pane.
 
 See also: [[topic:saving|Saving]], [[topic:join-duplicate|Joining and duplicating]], [[topic:large-files|Large dumps]].

@@ -386,6 +386,18 @@ export function AppShell() {
     const taken = files.slice(0, into === undefined && bothEmpty ? 2 : 1);
     let slot = into ?? slotForNewFile();
     for (const file of taken) {
+      // Replacing an occupied pane throws away whatever is unsaved in it, and
+      // this path had been doing it without a word — the drop onto a pane asks,
+      // and Open… did not, which is the one of the two that gives no warning by
+      // its shape. Asked the same way and in the same words.
+      //
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
+      const occupant = workspaceStore.getSnapshot().panes[slot];
+      if (occupant?.document.isDirty === true) {
+        if (!window.confirm(`${occupant.name} has unsaved edits. Replace it with ${file.name}?`)) {
+          return;
+        }
+      }
       // A report about the file this pane is losing — "Downloaded bios.bin."
       // — would stand over the name of the file arriving in its place.
       forgetTransientMessage(slot);

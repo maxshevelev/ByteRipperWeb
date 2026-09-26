@@ -1,20 +1,20 @@
-@source-sha 38d5a3547456299f4e58f121e6ecf076f94c917f34ab4dc9cf61af20fe5dbdc2
-# Dateien öffnen: A und B
+@source-sha 0c3c36c2a469360eb7016387dfe38b4c2d80fd7d7db98b92bdaa1e6c63ab7c7c
+# Dateien öffnen: ein Bereich oder zwei
 
-> Der Arbeitsbereich hat zwei Plätze. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden Bereichen.
+> Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
 
-Der Arbeitsbereich hält zwei Dateiplätze, **Datei A** und **Datei B**. Auf welchem Platz eine Datei landet, entscheidet, was geschieht:
+Der Arbeitsbereich hält zwei Dateibereiche, **Datei A** und **Datei B**. Wie viele davon eine Datei halten, entscheidet, was geschieht:
 
 - **Eine Datei offen** — Einzeldateimodus. Der Arbeitsbereich ist ein Hex-Editor für diese Datei; Bearbeiten, Suchen und die Werkzeugbereiche arbeiten wie gewohnt.
 - **Zwei Dateien offen** — Vergleichsmodus. Die beiden Dumps stehen nebeneinander (oder übereinander, siehe **Darstellung ▸ Bereiche nebeneinander**), und jedes abweichende Byte ist eingefärbt.
 
-Datei B ist freiwillig. Nichts außer dem Vergleich selbst braucht eine zweite Datei.
+Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht eine zweite Datei.
 
 ## Wege, einen Dump zu öffnen
 
 - **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Datei ▸ Öffnen…** im Menü der Symbolleiste.
-- **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie landet — in diesen Bereich oder daneben. Zwei Dateien auf einmal füllen beide Plätze.
-- **Datei ▸ Vergleichen mit…** öffnet einen zweiten Dump auf dem freien Platz: der Vergleich in einem Schritt.
+- **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie landet — in diesen Bereich oder daneben. Zwei Dateien auf einmal füllen beide Bereiche.
+- **Datei ▸ Vergleichen mit…** öffnet einen zweiten Dump in den freien Bereich: der Vergleich in einem Schritt.
 - **Datei ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
 
 ## Wonach der Browser fragt, und wonach er wieder fragt
@@ -30,14 +30,18 @@ Was der Browser dafür gibt, ist ein *Handle* auf die gewählte Datei, und das l
 
 ## Eine Aufgabe je Browser-Tab
 
-Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**. So hält man mehrere Platinen auf einem Bildschirm auseinander — öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Plätze, eigene Lesezeichen und ein eigenes Widerrufen.
+Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**. So hält man mehrere Platinen auf einem Bildschirm auseinander — öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen.
 
 Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; die Größe steht in der Statuszeile darunter. Das ✕ im Kopf schließt diesen Bereich und lässt den anderen offen.
 
 ## Wenn die Datei schon offen ist
 
-Eine Datei zu öffnen, die bereits auf dem anderen Platz liegt, ist erlaubt — eine Datei mit sich selbst zu vergleichen, während man eine Kopie bearbeitet, ist ein legitimes Vorgehen. Sie auf den Platz zu öffnen, auf dem sie schon liegt, tut nichts.
+Hier wird nichts abgelehnt, denn es gibt niemanden zu fragen:
 
-! Einen Bereich mit ungesicherten Änderungen zu ersetzen, fragt vorher. Für einen verworfenen Bereich gibt es kein Widerrufen.
+- **Im anderen Bereich** — erlaubt, und nützlich: die beiden Bereiche sind zwei Dokumente über einer Datei, also lässt sich eines bearbeiten und der Vergleich zum anderen dabei mitlesen.
+- **In einem anderen Browser-Tab** — jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.
+- **In genau diesem Bereich** — die Datei wird neu gelesen; so nimmt man einen Dump wieder auf, nachdem ein Programmer ihn überschrieben hat.
+
+! Einen Bereich mit ungesicherten Änderungen zu ersetzen, fragt vorher — ob die Datei per Ziehen kommt oder über **Öffnen…**. Für einen verworfenen Bereich gibt es kein Widerrufen.
 
 Siehe auch: [[topic:saving|Sichern]], [[topic:join-duplicate|Zusammenfügen und Duplizieren]], [[topic:large-files|Große Dumps]].
