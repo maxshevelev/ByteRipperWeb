@@ -22,6 +22,7 @@ import { helpDestinationExists } from "@/core/help/helpBook";
 import { type HelpLink, sameLink, TOPIC, topicLink } from "@/core/help/helpIds";
 import { HELP_FALLBACK_LANGUAGE, loadHelpBook } from "@/core/help/helpLoader";
 import { currentLanguage } from "@/core/localization/localization";
+import { languageStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { closeHelpPanel, openHelpPanel } from "@/state/workspaceStore";
 
@@ -197,3 +198,15 @@ export function helpHasPage(link: HelpLink): boolean {
   const book = helpStore.getSnapshot().book;
   return book !== undefined && helpDestinationExists(book, link);
 }
+
+/**
+ * The book follows the language, which is the one part of the app that changes
+ * it without anything being rebuilt: every page is built from the book when it
+ * is shown, so dropping the book is the whole of it.
+ *
+ * Subscribed here rather than called by the setting, so the words and the book
+ * cannot fall out of step through a call site somebody forgot.
+ *
+ * @upstream Packages/HelpBook/Sources/HelpBook/Help.swift#Help.shared
+ */
+languageStore.subscribe(() => reloadHelpBook());

@@ -54,6 +54,7 @@ import {
 } from "@/state/segmentSources";
 import { applySegments, clearSegments, resetSegments, swapSegments } from "@/state/segmentsStore";
 import {
+  applyLanguage,
   DEFAULT_GROUPING_GAP,
   DEFAULT_TEXT_DECODING,
   forgetGroupingGap,
@@ -663,6 +664,10 @@ export function resetComparisonSettings(): void {
  */
 export async function restoreSettings(): Promise<void> {
   const stored = await loadSettings();
+  // And the words for the language that choice resolves to, before anything is
+  // drawn: a label drawn in English and then again in Russian is a flicker
+  // nobody asked for.
+  await applyLanguage(settingsStore.getSnapshot().language);
   workspaceStore.update((state) => ({
     ...state,
     wordSize: stored.wordSize,

@@ -1,3 +1,10 @@
+import {
+  type LanguageChoice,
+  resolveLanguage,
+  storedLanguageChoice,
+} from "@/core/localization/appLanguage";
+import { loadCatalogue } from "@/core/localization/bundledCatalogues";
+import { installCatalogue } from "@/core/localization/localization";
 import { DEFAULT_PLACEHOLDER } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS, DEFAULT_DECODER_IDENTIFIER } from "@/core/text/byteDecoderRegistry";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
@@ -101,6 +108,14 @@ export const APP_THEMES: readonly AppTheme[] = ["system", "light", "dark"];
 
 /** @upstream ByteRipperApp/App/AppTheme.swift#AppTheme.userDefaultsKey */
 export const THEME_KEY = "AppTheme";
+
+/**
+ * Where the language choice is kept — upstream's own defaults key, so a reader
+ * who uses both editions on one bench finds the same name in both.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.choiceKey
+ */
+export const LANGUAGE_KEY = "AppLanguage";
 
 /** @upstream ByteRipperApp/App/AppTheme.swift#AppTheme.title */
 export function themeTitle(theme: AppTheme): string {
@@ -272,6 +287,12 @@ export interface SettingsState {
   readonly rowHeightScale: number;
   readonly fontSize: number;
   readonly theme: AppTheme;
+  /**
+   * The language the app speaks, or the decision to follow the browser.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.choice
+   */
+  readonly language: LanguageChoice;
   readonly textDecoding: TextDecodingSettings;
 }
 
@@ -280,6 +301,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   rowHeightScale: DEFAULT_ROW_HEIGHT_SCALE,
   fontSize: DEFAULT_FONT_SIZE,
   theme: "system",
+  language: "system",
   textDecoding: DEFAULT_TEXT_DECODING,
 };
 
@@ -317,6 +339,7 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
     rowHeightScale,
     fontSize,
     theme,
+    language,
     identifier,
     placeholder,
     wordSize,
@@ -329,6 +352,7 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
       ROW_HEIGHT_SCALE_KEY,
       FONT_SIZE_KEY,
       THEME_KEY,
+      LANGUAGE_KEY,
       DECODER_IDENTIFIER_KEY,
       PLACEHOLDER_KEY,
       WORD_SIZE_KEY,
@@ -343,6 +367,7 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
     rowHeightScale: rowHeightScaleFrom(rowHeightScale),
     fontSize: fontSizeFrom(fontSize),
     theme: themeFrom(theme),
+    language: storedLanguageChoice(typeof language === "string" ? language : undefined),
     textDecoding: textDecodingFrom(identifier, placeholder),
   }));
   applyAppearance(settingsStore.getSnapshot());
@@ -425,6 +450,49 @@ export function setTheme(theme: AppTheme): void {
   settingsStore.update((state) => ({ ...state, theme }));
   applyTheme(theme);
 }
+
+/**
+ * Records the language and puts its words in force.
+ *
+ * Nothing is reloaded: upstream offers *Relaunch Now* because a Mac app reopens
+ * its documents, and a reload here would ask for every open dump again
+ * (`Design/LOCALIZATION.md`). So the catalogue is fetched, installed, and the
+ * chrome rebuilt around it, with the workspace's own stores untouched.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.set
+ */
+export async function setLanguage(language: LanguageChoice): Promise<void> {
+  if (settingsStore.getSnapshot().language === language) return;
+  remember(LANGUAGE_KEY, language);
+  settingsStore.update((state) => ({ ...state, language }));
+  await applyLanguage(language);
+}
+
+/**
+ * Loads the words for `choice` and puts them in force, announcing the change so
+ * everything built from words is built again.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.reload
+ */
+export async function applyLanguage(choice: LanguageChoice): Promise<void> {
+  const language = resolveLanguage(
+    choice,
+    typeof navigator === "undefined" ? [] : navigator.languages
+  );
+  installCatalogue(await loadCatalogue(language));
+  if (typeof document !== "undefined") document.documentElement.lang = language;
+  languageStore.update((version) => version + 1);
+}
+
+/**
+ * How many times the language has changed. A view reads it to be rebuilt when
+ * it does — the one thing every view has in common being that its words were
+ * read when it was built.
+ *
+ * @web-only upstream posts `Localization.didChange` and rebuilds the menu bar;
+ * a React tree needs something it can subscribe to
+ */
+export const languageStore = createStore<number>(0);
 
 /** @upstream ByteRipperApp/App/AppTheme.swift#AppTheme.resetToDefaults */
 export function resetTheme(): void {

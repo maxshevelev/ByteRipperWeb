@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import {
+  APP_LANGUAGES,
+  languageOwnName,
+  resolveLanguage,
+  storedLanguageChoice,
+} from "@/core/localization/appLanguage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
@@ -13,6 +19,7 @@ import {
   resetTextDecoding,
   SYSTEM_FONT,
   setAppearance,
+  setLanguage,
   setTextDecoding,
   setTheme,
   settingsStore,
@@ -48,7 +55,8 @@ export type SettingsTab =
   | "comparison"
   | "editing"
   | "textDecoding"
-  | "favorites";
+  | "favorites"
+  | "language";
 
 /**
  * The tabs, in upstream's toolbar order. File Types sets which application
@@ -62,6 +70,7 @@ const TABS: readonly { readonly id: SettingsTab; readonly label: string }[] = [
   { id: "editing", label: "Editing" },
   { id: "textDecoding", label: "Text Decoding" },
   { id: "favorites", label: "Favorites" },
+  { id: "language", label: "Language" },
 ];
 
 export interface SettingsDialogProps {
@@ -149,6 +158,7 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
           {tab === "editing" ? <EditingTab /> : null}
           {tab === "textDecoding" ? <TextDecodingTab /> : null}
           {tab === "favorites" ? <FavoritesTab /> : null}
+          {tab === "language" ? <LanguageTab /> : null}
         </div>
       ) : null}
     </Dialog>
@@ -379,6 +389,55 @@ function ComparisonTab() {
  * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.warnsBeforeShiftingEdits
  * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.warnChanged
  */
+/**
+ * Settings ▸ Language: the browser's own, or one of the three, each named in
+ * itself — a reader hunting for their own language must not have to read
+ * another one to find it.
+ *
+ * **No relaunch.** Upstream's tab offers one, because a Mac app reopens its
+ * documents; a reload here would ask for every open dump again, so the words
+ * change where they stand and the tab says so rather than offering a button
+ * that would cost the reader their files (`Design/LOCALIZATION.md`).
+ *
+ * @upstream ByteRipperApp/Settings/LanguageSettingsViewController.swift#LanguageSettingsViewController
+ * @upstream-differs no Relaunch Now, and the caption says why
+ */
+function LanguageTab() {
+  const { language } = useStore(settingsStore);
+  const follows = resolveLanguage(
+    "system",
+    typeof navigator === "undefined" ? [] : navigator.languages
+  );
+
+  return (
+    <section>
+      <h3 className="settings-heading">Language</h3>
+      <label className="settings-row">
+        <span className="settings-label">Language:</span>
+        <select
+          className="settings-select"
+          value={language}
+          onChange={(event) => void setLanguage(storedLanguageChoice(event.target.value))}
+        >
+          {/* Naming what it currently resolves to, so "the browser's own" is
+              not a choice a reader has to guess the outcome of. */}
+          <option value="system">{`Same as the browser (${languageOwnName(follows)})`}</option>
+          {APP_LANGUAGES.map((one) => (
+            <option key={one} value={one}>
+              {languageOwnName(one)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="settings-caption">
+        The words change at once — there is no relaunch, because reloading the page would ask you to
+        open every dump again. The help is translated with the rest, and a page that has not been
+        translated yet is shown in English rather than left blank.
+      </p>
+    </section>
+  );
+}
+
 function EditingTab() {
   const { confirmShiftingEdits } = useStore(workspaceStore);
 
