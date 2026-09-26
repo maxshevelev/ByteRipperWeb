@@ -56,11 +56,11 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
       >
         <OpenFileGlyph />
       </button>
-      // help: shell.empty-state
+      {/* help: shell.empty-state */}
       <p className="empty-state-headline">{L("Drop files here")}</p>
       <p className="empty-state-detail">{L("Up to two files can be compared side by side.")}</p>
       <p className="empty-state-detail">
-        // help: platform.save-capability
+        {/* help: platform.save-capability */}
         {`${L("Files never leave this machine.")} ${saveNotice(capabilities)}`}
         {/* The one screen where a reader arrives with "what is this for", which
             is the question the overview answers.

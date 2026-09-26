@@ -40,6 +40,14 @@ It is declared **twice**, once on each side of the gap:
   { label: L("Append File…"), onSelect: () => onJoin("end") },
   ```
 
+  **Inside JSX it wears JSX's own comment**, because a `//` line between two
+  elements is not a comment there — it is text, and it is drawn on screen:
+
+  ```tsx
+  {/* help: shell.empty-state */}
+  <p className="empty-state-headline">{L("Drop files here")}</p>
+  ```
+
 - **In the help**, in the page or term that explains it:
 
   ```

@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { PanelId } from "@/state/fragmentDock";
 import { CloseButton } from "@/ui/shell/CloseButton";
 
@@ -108,13 +109,13 @@ function FragmentPill({
         <span className="fragment-pill-name">{item.title}</span>
         {/* A dot, not a word: the pill has room for a name and no more. */}
         {item.hasChanges ? (
-          <span className="fragment-pill-dot" role="img" aria-label="Unsaved changes">
+          <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")}>
             •
           </span>
         ) : null}
       </button>
       <CloseButton
-        label={item.isHelp === true ? "Close the help" : `Close ${item.title}`}
+        label={item.isHelp === true ? L("Close the help") : L("Close %1$@", item.title)}
         onClick={onClose}
       />
     </li>
@@ -137,9 +138,9 @@ export function FragmentDockStrip({
   /** @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.onClose */
   readonly onClose: (id: PanelId) => void;
 }) {
+  // help: shell.fragment-dock
   return (
-    // help: shell.fragment-dock
-    <ul className="fragment-dock" aria-label="Panels">
+    <ul className="fragment-dock" aria-label={L("Panels")}>
       {items.map((item) => (
         <FragmentPill
           key={item.id}

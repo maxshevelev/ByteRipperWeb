@@ -225,10 +225,10 @@ export function FindBar({
     editQuery("");
   };
 
+  // help: shell.find-bar
   return (
     // `<search>` is the element the role names, and it is a landmark: a screen
     // reader can jump straight to the find bar rather than walking the dump.
-    // help: shell.find-bar
     <search className="find-bar">
       <form className="find-form" onSubmit={submit}>
         <span className="find-label" aria-hidden="true">

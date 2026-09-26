@@ -39,8 +39,8 @@ import { toggleMinimap } from "@/state/minimapStore";
 // for a selection, and the two must not be confused for each other.
 import { endDrag as endPaneDrag, beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
-import { segmentsStore } from "@/state/segmentsStore";
 import { baselineFor } from "@/state/segmentSources";
+import { segmentsStore } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";

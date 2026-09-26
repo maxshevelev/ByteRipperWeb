@@ -17,6 +17,8 @@
 "ByteRipper Settings" = "Настройки ByteRipper";
 "Case Sensitive" = "С учётом регистра";
 "Close" = "Закрыть";
+"Close %1$@" = "Закрыть %1$@";
+"Close the help" = "Закрыть справку";
 "Close “%1$@”?" = "Закрыть «%1$@»?";
 "Compare with…" = "Сравнить с…";
 "Comparison" = "Сравнение";
@@ -76,6 +78,7 @@
 "Open File" = "Открыть файл";
 "Open in Help" = "Открыть в справке";
 "Open…" = "Открыть…";
+"Panels" = "Панели";
 "Placeholder character:" = "Символ-заполнитель:";
 "Previous Difference" = "Предыдущее различие";
 "Previous Same Block" = "Предыдущий совпадающий блок";
@@ -112,6 +115,7 @@
 "Theme:" = "Тема:";
 "Undo" = "Отменить";
 "Undo %1$@" = "Отменить: %1$@";
+"Unsaved changes" = "Несохранённые изменения";
 "Up to two files can be compared side by side." = "Сравнивать можно два файла одновременно.";
 "menu|View" = "Вид";
 "Where This Knowledge Comes From" = "Откуда взяты эти знания";

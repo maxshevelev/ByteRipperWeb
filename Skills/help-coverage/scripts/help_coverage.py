@@ -42,8 +42,12 @@ SOURCE_ROOTS = ["src"]
 SKIP_PARTS = {"node_modules", "dist", "content", "catalogues"}
 SOURCE_SUFFIXES = (".ts", ".tsx")
 
-# `// help: some.anchor`, anywhere on a line.
-ANCHOR_IN_CODE = re.compile(r"//\s*help:\s*([a-z0-9][a-z0-9.\-]*)")
+# `// help: some.anchor`, anywhere on a line — and `{/* help: … */}`, which is
+# what the same marker has to be written as inside JSX. A `//` line between two
+# elements is not a comment there, it is text, and it was rendered on the empty
+# screen (measured), so both shapes are read and both are correct in their
+# place.
+ANCHOR_IN_CODE = re.compile(r"(?://|/\*)\s*help:\s*([a-z0-9][a-z0-9.\-]*)")
 # `@covers some.anchor` on its own line in a help file.
 ANCHOR_IN_HELP = re.compile(r"^@covers\s+([a-z0-9][a-z0-9.\-]*)\s*$", re.M)
 # `@source-sha <hex>` in a translated file.

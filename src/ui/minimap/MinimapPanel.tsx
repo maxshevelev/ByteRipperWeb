@@ -167,7 +167,7 @@ export function MinimapPanel({
        * and the band sits that much higher than the map it is about — which is
        * a band that drifts from the pointer dragging it.
        */}
-      // help: shell.minimap
+      {/* help: shell.minimap */}
       <div className="minimap-maps" style={{ marginTop: chrome.gapBelowHeader }}>
         {open.map((pane, index) => (
           <MinimapCanvas
@@ -402,7 +402,7 @@ function MinimapModes({
     <div className="minimap-head" style={height > 0 ? { height, marginTop: offsetTop } : undefined}>
       <fieldset className="minimap-modes">
         <legend className="visually-hidden">Minimap mode</legend>
-        // help: menu.view.minimap-overview
+        {/* help: menu.view.minimap-overview */}
         {(["detail", "overview"] as const).map((mode) => (
           <button
             key={mode}

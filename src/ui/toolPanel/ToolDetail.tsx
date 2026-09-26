@@ -81,8 +81,8 @@ export function ToolDetail({
                   reader who has scrolled past the name is no longer looking at
                   the thing the button is about.
                   @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.termButton */}
+              {/* help: panel.node-term */}
               {helpTerm === undefined ? null : (
-                // help: panel.node-term
                 <span className="tool-detail-term" ref={termButton}>
                   <HelpButton
                     link={termLink(helpTerm)}

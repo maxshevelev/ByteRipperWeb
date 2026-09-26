@@ -1,4 +1,5 @@
 import type React from "react";
+import { L } from "@/core/localization/localization";
 import { closeHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import {
@@ -59,7 +60,10 @@ export function FragmentPanels({
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.refreshDock
   const items: DockItem[] = state.dock.panels.map((id) => ({
     id,
-    title: id === state.helpPanel ? "Help" : (state.parts[partPane(id)]?.name ?? ""),
+    title:
+      id === state.helpPanel
+        ? L("Help", { context: "panel" })
+        : (state.parts[partPane(id)]?.name ?? ""),
     isHelp: id === state.helpPanel,
     isUp: state.dock.expanded === id,
     // The dot is "the parent has not got these bytes", which is the link's

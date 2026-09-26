@@ -1,9 +1,9 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { type Segment, SegmentLink } from "@/core/segments/segmentation";
 import {
-  type SegmentReplaceOutcome,
   replaceSegment,
   SegmentLengthMismatch,
+  type SegmentReplaceOutcome,
 } from "@/core/segments/segmentReplacer";
 import {
   type Part,
@@ -21,9 +21,9 @@ import { openFiles } from "@/platform/files/openFile";
 import { directorySink, namesIn, pickDirectory, zipSink } from "@/platform/files/partSinks";
 import { saveRange } from "@/platform/files/rangeSave";
 import { noteEdit } from "@/state/diffStore";
-import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { noteMinimapEdit } from "@/state/minimapStore";
-import { applySegments, segmentLabel, segmentsFor } from "@/state/segmentsStore";
+import { BackgroundOperation, beginOperation } from "@/state/operationStore";
+import { noteSearchEdit } from "@/state/searchStore";
 import {
   linkedSourceNamed,
   segmentRevertDonor,
@@ -31,7 +31,7 @@ import {
   sourceIDForFile,
   sourceWriteConflict,
 } from "@/state/segmentSources";
-import { noteSearchEdit } from "@/state/searchStore";
+import { applySegments, segmentLabel, segmentsFor } from "@/state/segmentsStore";
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { groupActs } from "@/state/undoRouter";
 import { type PaneId, paneState, reportAlert } from "@/state/workspaceStore";
@@ -362,10 +362,7 @@ function notifySwap(pane: PaneId, piece: Segment, outcome: SegmentReplaceOutcome
       // after it moves whole — links and all (§21.7). The ordinary `.insert`
       // rule would hand them to the piece that starts at the boundary (§21.2),
       // which is right for an edit made there and wrong for a swap.
-      applySegments(
-        pane,
-        (partition) => partition.applyGrowth(piece.index, outcome.length, size)
-      );
+      applySegments(pane, (partition) => partition.applyGrowth(piece.index, outcome.length, size));
       content({ kind: "insert", at: outcome.at, length: outcome.length });
       return;
     case "deleted":
@@ -373,10 +370,8 @@ function notifySwap(pane: PaneId, piece: Segment, outcome: SegmentReplaceOutcome
       applySegments(
         pane,
         (partition) =>
-          partition.applyEdit(
-            { kind: "delete", start: outcome.start, end: outcome.end },
-            size
-          ).partition
+          partition.applyEdit({ kind: "delete", start: outcome.start, end: outcome.end }, size)
+            .partition
       );
       content({ kind: "delete", start: outcome.start, end: outcome.end });
       return;
@@ -437,13 +432,11 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
       notifySwap(pane, piece, outcome);
       // The bytes are still that file's — but the file may now be a different
       // length than the piece was, so the link re-records what it now spans.
-      applySegments(
-        pane,
-        (partition) =>
-          partition.setLink(
-            new SegmentLink(link.source, link.start, link.start + donor.size),
-            Math.min(piece.index, partition.segments.length - 1)
-          )
+      applySegments(pane, (partition) =>
+        partition.setLink(
+          new SegmentLink(link.source, link.start, link.start + donor.size),
+          Math.min(piece.index, partition.segments.length - 1)
+        )
       );
     });
   } catch (error) {
@@ -488,13 +481,11 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
       });
       notifySwap(pane, piece, outcome);
       // The bytes now come from the file the user pointed at, at its own length.
-      applySegments(
-        pane,
-        (partition) =>
-          partition.setLink(
-            new SegmentLink(sourceIDForFile(pane, donor), 0, storage.size),
-            Math.min(piece.index, partition.segments.length - 1)
-          )
+      applySegments(pane, (partition) =>
+        partition.setLink(
+          new SegmentLink(sourceIDForFile(pane, donor), 0, storage.size),
+          Math.min(piece.index, partition.segments.length - 1)
+        )
       );
     });
   };

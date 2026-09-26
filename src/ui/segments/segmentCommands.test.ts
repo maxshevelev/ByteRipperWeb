@@ -10,13 +10,13 @@
  */
 
 import { afterEach, beforeEach, expect, it } from "vitest";
+import type { Segment } from "@/core/segments/segmentation";
 import type { ByteSource } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type { OpenedFile } from "@/platform/files/openedFile";
-import type { Segment } from "@/core/segments/segmentation";
-import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { clearSources, segmentLinkState } from "@/state/segmentSources";
+import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { forgetActs } from "@/state/undoRouter";
 import {
   editingHooks,

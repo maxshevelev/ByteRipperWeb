@@ -17,6 +17,8 @@
 "ByteRipper Settings" = "ByteRipper-Einstellungen";
 "Case Sensitive" = "Groß-/Kleinschreibung beachten";
 "Close" = "Schließen";
+"Close %1$@" = "%1$@ schließen";
+"Close the help" = "Hilfe schließen";
 "Close “%1$@”?" = "„%1$@“ schließen?";
 "Compare with…" = "Vergleichen mit…";
 "Comparison" = "Vergleich";
@@ -76,6 +78,7 @@
 "Open File" = "Datei öffnen";
 "Open in Help" = "In der Hilfe öffnen";
 "Open…" = "Öffnen…";
+"Panels" = "Panels";
 "Placeholder character:" = "Platzhalterzeichen:";
 "Previous Difference" = "Vorheriger Unterschied";
 "Previous Same Block" = "Vorheriger gleicher Block";
@@ -112,6 +115,7 @@
 "Theme:" = "Erscheinungsbild:";
 "Undo" = "Widerrufen";
 "Undo %1$@" = "%1$@ widerrufen";
+"Unsaved changes" = "Ungesicherte Änderungen";
 "Up to two files can be compared side by side." = "Zwei Dateien lassen sich nebeneinander vergleichen.";
 "menu|View" = "Darstellung";
 "Where This Knowledge Comes From" = "Woher dieses Wissen stammt";
