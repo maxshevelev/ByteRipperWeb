@@ -45,6 +45,16 @@ export interface DockItem {
    * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.hasChanges
    */
   readonly hasChanges: boolean;
+  /**
+   * Whether this pill is the help book rather than a part of a dump.
+   *
+   * The dock holds identity and order and nothing else, so the one thing it
+   * has to know is which glyph to draw and what to call the ✕ — a book is not
+   * a document, and "Close chip.bin" is not what closing it does.
+   *
+   * @web-only upstream's book is a window and never reaches a dock
+   */
+  readonly isHelp?: boolean;
 }
 
 /**
@@ -79,12 +89,22 @@ function FragmentPill({
         title={item.title}
         aria-pressed={item.isUp}
       >
-        {/* Upstream's `doc` symbol. The part is a document like any other, and
-            the pill is where it waits. */}
-        <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
-          <path d="M9.3 1.5v3.2h3.2" />
-        </svg>
+        {item.isHelp === true ? (
+          // A question mark in a circle: the sign the `?` buttons wear, so the
+          // pill the book waits in is recognisably the same thing they open.
+          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.2" />
+            <path d="M6.1 6.1a1.9 1.9 0 1 1 2.5 1.8c-.5.2-.8.6-.8 1.1v.4" />
+            <circle cx="7.8" cy="11.6" r="0.75" />
+          </svg>
+        ) : (
+          /* Upstream's `doc` symbol. The part is a document like any other, and
+             the pill is where it waits. */
+          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
+            <path d="M9.3 1.5v3.2h3.2" />
+          </svg>
+        )}
         <span className="fragment-pill-name">{item.title}</span>
         {/* A dot, not a word: the pill has room for a name and no more. */}
         {item.hasChanges ? (
@@ -93,7 +113,10 @@ function FragmentPill({
           </span>
         ) : null}
       </button>
-      <CloseButton label={`Close ${item.title}`} onClick={onClose} />
+      <CloseButton
+        label={item.isHelp === true ? "Close the help" : `Close ${item.title}`}
+        onClick={onClose}
+      />
     </li>
   );
 }
@@ -115,7 +138,7 @@ export function FragmentDockStrip({
   readonly onClose: (id: PanelId) => void;
 }) {
   return (
-    <ul className="fragment-dock" aria-label="Fragment panels">
+    <ul className="fragment-dock" aria-label="Panels">
       {items.map((item) => (
         <FragmentPill
           key={item.id}

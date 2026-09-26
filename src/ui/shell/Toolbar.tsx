@@ -1,9 +1,11 @@
 import { useRef } from "react";
+import { TOPIC, termId, termLink, topicLink } from "@/core/help/helpIds";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
+import { showHelp } from "@/state/helpStore";
 import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
@@ -388,6 +390,32 @@ export function Toolbar({
           onSelect: () => setGroupingGap(gap),
         }))
       : []),
+
+    // The Help menu, which has nowhere else to go: there is no menu bar here.
+    // Upstream's five destinations, in upstream's order — the book, the two
+    // pages a bench walks in through, the two glossaries, and where the
+    // knowledge comes from. Each carries a `HelpLink` and nothing matches on a
+    // title (`Design/HELP.md`).
+    //
+    // No ⌘? beside the first: in a browser that chord is ⌘⇧/, which several
+    // engines have spent. F1 and ⌘/ open the book instead.
+    //
+    // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeHelpMenu
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showHelpBook
+    { kind: "separator" },
+    { kind: "heading", label: "Help" },
+    { label: "ByteRipper Help", onSelect: () => showHelp(topicLink(TOPIC.overview)) },
+    { label: "Getting Started", onSelect: () => showHelp(topicLink(TOPIC.firstComparison)) },
+    { label: "Bench Rules", onSelect: () => showHelp(topicLink(TOPIC.benchSafety)) },
+    {
+      label: "Glossary: UEFI Images",
+      onSelect: () => showHelp(termLink(termId("flash-descriptor"))),
+    },
+    { label: "Glossary: Intel ME", onSelect: () => showHelp(termLink(termId("fpt"))) },
+    {
+      label: "Where This Knowledge Comes From",
+      onSelect: () => showHelp(topicLink(TOPIC.provenance)),
+    },
   ]);
 
   // The plaque's last determined answer, held through a rebuild.

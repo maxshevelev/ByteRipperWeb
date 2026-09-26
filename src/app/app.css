@@ -4514,3 +4514,321 @@ button.uefi-title {
 .fragment-pill[data-up] .close-button {
   color: inherit;
 }
+
+/* ============================================================================
+   The help book, in the panel over the panes (`Design/HELP.md`).
+
+   Upstream's is a window with an outline down its side; this is a panel that is
+   wide and short, so the contents is a column beside the page and folds into a
+   button when there is no room for both. Everything here is the panel's own —
+   nothing in it is drawn on a canvas, and none of it is a hex grid.
+   ============================================================================ */
+
+.help-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  background: var(--surface);
+}
+
+/* The bar: where the reader is, how they got here, and the two ways out. */
+.help-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.help-history {
+  display: flex;
+  gap: 2px;
+}
+
+.help-step,
+.help-fold,
+.help-contents-toggle {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.help-step {
+  /* The arrows are glyphs of the reader's font, so the box is what gives them a
+     size a pointer can hit. */
+  min-width: 26px;
+  font-size: 16px;
+}
+
+.help-step:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.help-step:not(:disabled):hover,
+.help-fold:hover,
+.help-contents-toggle:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.help-contents-toggle {
+  /* Only useful when the column beside the page has been folded away, which is
+     a question of width and so is asked in the media query below. */
+  display: none;
+}
+
+.help-where {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.help-search {
+  flex: 0 1 220px;
+  min-width: 90px;
+  height: var(--toolbar-control-height);
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.help-body {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* The contents. Its own scroller, so a long glossary does not take the page
+   with it. */
+.help-contents {
+  overflow: auto;
+  padding: 10px 6px 16px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-raised);
+  font-size: 12px;
+}
+
+.help-contents details {
+  margin-bottom: 4px;
+}
+
+.help-contents summary {
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 600;
+  list-style: revert;
+}
+
+.help-contents ul {
+  margin: 0;
+  padding: 0 0 4px 10px;
+  list-style: none;
+}
+
+.help-row {
+  display: block;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.help-row:hover {
+  background: var(--surface-sunken);
+}
+
+/* The page the reader is on, carried by weight as well as by fill: a colour
+   alone would not survive a theme switch or a colour-blind reader. */
+.help-row[data-current] {
+  background: var(--selection);
+  font-weight: 700;
+}
+
+.help-page {
+  overflow: auto;
+  padding: 18px 26px 32px;
+}
+
+.help-article {
+  /* A measure, not a width: prose set across a 1600px workspace is prose nobody
+     finishes a line of. */
+  max-width: 62ch;
+}
+
+.help-title {
+  margin: 0 0 6px;
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.help-summary {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.help-heading {
+  margin: 20px 0 6px;
+  font-size: 14px;
+}
+
+.help-paragraph,
+.help-bullets,
+.help-steps {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.help-bullets,
+.help-steps {
+  padding-left: 22px;
+}
+
+.help-bullets li,
+.help-steps li {
+  margin-bottom: 4px;
+}
+
+/* A caution is drawn apart from the prose: the rule beside it is the shape, and
+   the colour is what the rest of the app already means by "be careful". */
+.help-caution {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--semantic-caution);
+  border-radius: 0 6px 6px 0;
+  background: var(--surface-raised);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.help-code {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  font-family: var(--hex-font-family, ui-monospace, monospace);
+  font-size: 0.92em;
+}
+
+/* A link inside the prose is a button, because it goes nowhere a browser knows
+   about — but it has to read as a link, so it wears the accent and an underline
+   rather than a button's box. */
+.help-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.help-see-also {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.help-see-also-label {
+  color: var(--text-muted);
+}
+
+.help-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 62ch;
+}
+
+.help-result {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.help-result:hover {
+  background: var(--surface-raised);
+}
+
+.help-result-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.help-result-summary {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.help-waiting {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Narrow: the same width question the panes have, and the same answer — the
+   column goes, and the button that brings it back appears. Held open, it lies
+   over the page rather than squeezing it. */
+@media (max-width: 720px) {
+  .help-contents-toggle {
+    display: block;
+  }
+
+  .help-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .help-contents {
+    display: none;
+  }
+
+  .help-body[data-contents] .help-contents {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    inset: 0 auto 0 0;
+    width: 232px;
+    box-shadow: 2px 0 10px rgb(0 0 0 / 0.2);
+  }
+}

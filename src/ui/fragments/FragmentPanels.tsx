@@ -1,19 +1,28 @@
 import type React from "react";
+import { closeHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import {
   type PaneState,
   type PartId,
   partPane,
+  toggleHelpPanel,
   togglePart,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
 import { FragmentPanel, FragmentPanelHost } from "@/ui/fragments/FragmentPanelView";
 import { usePartsWithChanges } from "@/ui/fragments/usePartLink";
+import { HelpPanel } from "@/ui/help/HelpPanel";
 
 /**
- * The workspace's fragment panels: the dock of pills, and the one panel that is
- * up over the panes (`Design/GAPS.md` G48).
+ * The workspace's panels: the dock of pills, and the one panel that is up over
+ * the panes (`Design/GAPS.md` G48).
+ *
+ * Nearly all of them are fragments — parts taken out of a file — and one of
+ * them may be the help book, which holds no bytes and is drawn by its own
+ * component (`Design/HELP.md`). The dock itself knows the difference only well
+ * enough to draw the right pill: what a panel *is* has always been the state
+ * kept against its id, and the book is a second kind of that state.
  *
  * It is a fragment of two grid items rather than one box, because the two
  * belong in different rows of the shell: the panel lies over the panes, the
@@ -49,30 +58,39 @@ export function FragmentPanels({
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.refreshDock
   const items: DockItem[] = state.dock.panels.map((id) => ({
     id,
-    title: state.parts[partPane(id)]?.name ?? "",
+    title: id === state.helpPanel ? "Help" : (state.parts[partPane(id)]?.name ?? ""),
+    isHelp: id === state.helpPanel,
     isUp: state.dock.expanded === id,
     // The dot is "the parent has not got these bytes", which is the link's
     // question; a part with no link falls back to its own unsaved work, which
     // is upstream's own fallback.
-    hasChanges: unreturned.has(partPane(id)),
+    // A book has no bytes to give back, so it never wears the dot.
+    hasChanges: id !== state.helpPanel && unreturned.has(partPane(id)),
   }));
   if (items.length === 0) return null;
 
   const up = state.dock.expanded;
-  const pane: PartId | undefined = up === undefined ? undefined : partPane(up);
+  const helpIsUp = up !== undefined && up === state.helpPanel;
+  const pane: PartId | undefined = up === undefined || helpIsUp ? undefined : partPane(up);
   const part = pane === undefined ? undefined : state.parts[pane];
 
   return (
     <>
-      {pane !== undefined && part !== undefined ? (
+      {helpIsUp ? (
+        <FragmentPanelHost>
+          <FragmentPanel>
+            <HelpPanel />
+          </FragmentPanel>
+        </FragmentPanelHost>
+      ) : pane !== undefined && part !== undefined ? (
         <FragmentPanelHost>
           <FragmentPanel>{renderPane(pane, part)}</FragmentPanel>
         </FragmentPanelHost>
       ) : null}
       <FragmentDockStrip
         items={items}
-        onSelect={(id) => togglePart(partPane(id))}
-        onClose={(id) => onClose(partPane(id))}
+        onSelect={(id) => (id === state.helpPanel ? toggleHelpPanel() : togglePart(partPane(id)))}
+        onClose={(id) => (id === state.helpPanel ? closeHelp() : onClose(partPane(id)))}
       />
     </>
   );

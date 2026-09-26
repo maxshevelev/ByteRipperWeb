@@ -1,9 +1,9 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocument";
-import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
 import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
@@ -29,6 +29,7 @@ import {
   expandPanel,
   type FragmentDock,
   openPanel,
+  type PanelId,
   removePanel,
 } from "@/state/fragmentDock";
 import {
@@ -45,18 +46,13 @@ import {
 } from "@/state/paneId";
 import { sanitizedPaneName } from "@/state/paneName";
 import {
-  applySegments,
-  clearSegments,
-  resetSegments,
-  swapSegments,
-} from "@/state/segmentsStore";
-import {
   clearSources,
   linkedSourceNamed,
   sourceIDForFile,
   sourceWriteConflict,
   swapSources,
 } from "@/state/segmentSources";
+import { applySegments, clearSegments, resetSegments, swapSegments } from "@/state/segmentsStore";
 import {
   DEFAULT_GROUPING_GAP,
   DEFAULT_TEXT_DECODING,
@@ -276,6 +272,20 @@ export interface WorkspaceState {
    */
   readonly dock: FragmentDock;
   /**
+   * The panel the help book is in, while there is one.
+   *
+   * The dock holds identity and order and nothing else, so a panel that is not
+   * a part costs it nothing: what a panel *is* lives in the state kept against
+   * its id, and this is that state for the one panel that holds no bytes. At
+   * most one, because two copies of one book are not two things — asking for
+   * help again raises the pill there is (`Design/HELP.md`).
+   *
+   * @web-only upstream opens a window; there are none here, and the dock is
+   * already the workspace's answer to something else to look at without giving
+   * up the panes
+   */
+  readonly helpPanel: PanelId | undefined;
+  /**
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
    */
@@ -345,6 +355,7 @@ export const workspaceStore = createStore<WorkspaceState>({
   panes: { a: undefined, b: undefined },
   parts: {},
   dock: EMPTY_DOCK,
+  helpPanel: undefined,
   layout: "sideBySide",
   splitFraction: 0.5,
   activePane: "a",
@@ -411,7 +422,9 @@ function withPane(state: WorkspaceState, pane: PaneId, next: PaneState): Workspa
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.frontPane
  */
 export const frontPane = (state: WorkspaceState): PaneId =>
-  state.dock.expanded === undefined ? state.activePane : partPane(state.dock.expanded);
+  state.dock.expanded === undefined || state.dock.expanded === state.helpPanel
+    ? state.activePane
+    : partPane(state.dock.expanded);
 
 /** The same, over the store's current snapshot. */
 export const paneInFront = (): PaneId => frontPane(workspaceStore.getSnapshot());
@@ -975,6 +988,60 @@ export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigi
 }
 
 /**
+ * Opens the help panel, or raises the one that is already in the dock.
+ *
+ * At most one: asking for help twice is asking to read it, not asking for a
+ * second book. The panel holds no pane and no bytes — what it shows is the
+ * help store's business, and the dock's ignorance of what a panel *is* is what
+ * makes that cost nothing here (`Design/HELP.md`).
+ *
+ * @web-only upstream shows the book in a window of its own
+ */
+export function openHelpPanel(): void {
+  workspaceStore.update((state) => {
+    if (state.helpPanel !== undefined) {
+      return { ...state, dock: expandPanel(state.dock, state.helpPanel).dock };
+    }
+    const opened = openPanel(state.dock);
+    return { ...state, dock: opened.dock, helpPanel: opened.id };
+  });
+}
+
+/**
+ * Takes the help out of the dock. The pill goes with it; folding is the pill's
+ * own click, and is not this.
+ *
+ * @web-only upstream closes a window
+ */
+export function closeHelpPanel(): void {
+  workspaceStore.update((state) => {
+    if (state.helpPanel === undefined) return state;
+    return {
+      ...state,
+      dock: removePanel(state.dock, state.helpPanel).dock,
+      helpPanel: undefined,
+    };
+  });
+}
+
+/**
+ * The help pill's own click: the panel that is up folds, and a folded one
+ * rises — the same gesture every other pill answers to.
+ *
+ * @web-only the pill is the web's, upstream's book being a window
+ */
+export function toggleHelpPanel(): void {
+  const state = workspaceStore.getSnapshot();
+  if (state.helpPanel === undefined) return;
+  if (state.dock.expanded === state.helpPanel) foldParts();
+  else
+    workspaceStore.update((now) => ({
+      ...now,
+      dock: now.helpPanel === undefined ? now.dock : expandPanel(now.dock, now.helpPanel).dock,
+    }));
+}
+
+/**
  * Raises the panel holding `pane`, folding whatever was up — one gesture, as
  * the dock hands it back.
  *
@@ -1206,7 +1273,8 @@ async function performJoin(request: JoinRequest): Promise<void> {
   if (preJoinSource !== undefined) {
     applySegments(pane, (partition) => partition.linkUnlinkedPieces(preJoinSource));
   }
-  const joinedSource = request.sourceFile === undefined ? undefined : sourceIDForFile(pane, request.sourceFile);
+  const joinedSource =
+    request.sourceFile === undefined ? undefined : sourceIDForFile(pane, request.sourceFile);
 
   const serial = await slot.document.join(source, position);
 
