@@ -9,4 +9,4 @@ Es zerlegt nichts und kennt kein einziges Format. Genau das macht es für die Im
 
 Am Arbeitsplatz macht man das mit Stift und Ausdruck. Hier ist es dasselbe, nur bei der Datei aufgehoben und anklickbar: klicken Sie die Zeile einer Zone, springt der Dump dorthin.
 
-Eine Zone lässt sich auch als [[topic:fragments|Teil-Bereich]] öffnen — die markierten Bytes als eigene Datei —, der schnelle Weg, einen mit dem Auge erkannten Block herauszuholen.
+Eine Zone lässt sich auch als [[topic:fragments|Fragment-Bereich]] öffnen — die markierten Bytes als eigene Datei —, der schnelle Weg, einen mit dem Auge erkannten Block herauszuholen.

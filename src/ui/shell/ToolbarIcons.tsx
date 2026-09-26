@@ -138,3 +138,19 @@ export function MinimapGlyph() {
     </Glyph>
   );
 }
+
+/**
+ * `questionmark.circle` — the same sign the `?` buttons and the dock's help
+ * pill wear, so a reader meets one mark for the help and not three.
+ *
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeHelpItem
+ */
+export function HelpGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...stroke}>
+      <circle cx="8" cy="8" r="6.2" />
+      <path d="M6.1 6.1a1.9 1.9 0 1 1 2.5 1.8c-.5.2-.8.6-.8 1.1v.4" />
+      <circle cx="7.8" cy="11.6" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

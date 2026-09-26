@@ -7,7 +7,7 @@
 3. Look at the colour. Every byte that differs between the two files is painted with the difference background. A long stretch of colour means a whole area differs; a scattering of single cells means a few bytes do.
 4. Jump between the differences instead of scrolling: **⌥⌘→** goes to the next one, **⌥⌘←** to the previous one. The status bar reads how much of the image differs — `differing 0.4%` — which is a share of the longer file, counted per byte.
 5. Read the offset of the current position in the status bar. On a firmware dump that offset is what tells you *which part* of the image you are looking at.
-6. Turn on a firmware panel — **UEFI Structure**, from the toolbar's Tools control — and the offsets stop being numbers: the panel names the region or the volume each address falls in.
+6. Turn on a tool panel — **UEFI Structure**, from the toolbar's Tools control — and the offsets stop being numbers: the panel names the region or the volume each address falls in.
 
 ## Reading the result
 

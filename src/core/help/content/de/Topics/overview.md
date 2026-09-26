@@ -1,4 +1,4 @@
-@source-sha d6ccd1b5b608063ba94d07340905adc6e4355899f89b6b6abdb770fae1500a97
+@source-sha 8fb40b8c6a23271db11ca502cf2a2452dd12857bb919fc073b72bd8ef8430096
 # Wofür ByteRipper da ist
 
 > Ein Hex-Editor rund um die eine Frage, die ein Reparaturplatz den ganzen Tag stellt: worin unterscheidet sich der Inhalt dieses Chips von dem, der funktioniert?
@@ -23,9 +23,13 @@ Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung: eine Adresse ist eine
 
 ! ByteRipper spricht nie mit einem Programmer und schreibt nie auf Hardware. Es bearbeitet Dateien. Den Chip zu lesen und wieder zu beschreiben ist Sache Ihres Programmers.
 
+## Wie Sie dieses Buch öffnen
+
+Das **?** in der Symbolleiste öffnet dieselbe kurze Liste wie der Block **Hilfe** in seinem Menü: diese Seite, den ersten Vergleich, die Regeln am Arbeitsplatz und die Glossare. **F1** und **⌘/** öffnen das Buch von überall aus — auch ohne offene Datei und gleich, was die Tastatur hält.
+
 ## Wie es weitergeht
 
 - [[topic:first-comparison|Ihr erster Vergleich]] — die fünf Minuten, die zeigen, was dieses Programm ist.
 - [[topic:hex-view|Die Hex-Ansicht lesen]] und [[topic:colors|Was die Farben bedeuten]].
-- [[topic:tools-overview|Die Firmware-Panels]], sobald Sie wissen wollen, was im Image steckt und nicht nur, was sich geändert hat.
+- [[topic:tools-overview|Die Werkzeugbereiche]], sobald Sie wissen wollen, was im Image steckt und nicht nur, was sich geändert hat.
 - [[topic:bench-safety|Regeln am Arbeitsplatz]] — Wege, einen Dump zu ruinieren, und wie man sie vermeidet.

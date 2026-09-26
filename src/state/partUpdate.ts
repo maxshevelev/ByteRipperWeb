@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { DocumentOrigin, OriginUpdate } from "@/state/documentOrigin";
 import { askFirmwareRebuild } from "@/state/firmwareStore";
 import { BackgroundOperation, presentBlocking } from "@/state/operationStore";
@@ -188,9 +189,9 @@ export async function updateInParentItem(pane: PaneId): Promise<{
   const slot = paneState(pane);
   const origin = slot?.origin;
   if (slot === undefined || origin === undefined) {
-    return { title: "Update in Parent", enabled: false };
+    return { title: L("Update in Parent"), enabled: false };
   }
-  const title = `Update in “${origin.parentName}”`;
+  const title = L("Update in “%1$@”", origin.parentName);
   const state = await origin.state();
   if (state === "parentClosed") return { title, enabled: false };
   return { title, enabled: await origin.hasChanges(slot.document) };

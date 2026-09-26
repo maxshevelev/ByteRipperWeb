@@ -24,4 +24,4 @@ They also outlive the page: the marks are kept in this browser, so a reload that
 
 ## On the bench
 
-Mark the starts of the regions you care about before you begin — descriptor, ME, BIOS, NVRAM, the block you are about to patch — and the whole job becomes ⌘L and a Return instead of typing addresses. A firmware panel will tell you those addresses: select a node and read its offset.
+Mark the starts of the regions you care about before you begin — descriptor, ME, BIOS, NVRAM, the block you are about to patch — and the whole job becomes ⌘L and a Return instead of typing addresses. A tool panel will tell you those addresses: select a node and read its offset.

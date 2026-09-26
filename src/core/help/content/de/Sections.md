@@ -1,4 +1,4 @@
-@source-sha d4fc47aeb006909b027831636427ffb4f335c5552beae44cfabb2b0e5acaf5f8
+@source-sha 5d592ec137907db0d49b6c8ff0adff24e1763636b869cc1edf81edbc953a1e5c
 @section getting-started
 @name Erste Schritte
 
@@ -9,7 +9,7 @@
 @name Einen Dump ändern
 
 @section firmware
-@name Firmware-Panels
+@name Werkzeugbereiche
 
 @section bench
 @name Am Arbeitsplatz

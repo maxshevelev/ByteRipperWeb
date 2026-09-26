@@ -2,7 +2,7 @@
 
 > Worth reading once, before you trust a panel with a board.
 
-The firmware panels name structures that **no vendor has published a specification for**. Not the Intel ME's partition table, not its manifests, not its file system, not its unlock tokens. What the panels know is reverse engineering, and being straight about that is part of the tool.
+The tool panels name structures that **no vendor has published a specification for**. Not the Intel ME's partition table, not its manifests, not its file system, not its unlock tokens. What the panels know is reverse engineering, and being straight about that is part of the tool.
 
 ## What the decode is based on
 

@@ -8,7 +8,7 @@
 @name Changing a Dump
 
 @section firmware
-@name Firmware Panels
+@name Tool Panels
 
 @section bench
 @name On the Bench

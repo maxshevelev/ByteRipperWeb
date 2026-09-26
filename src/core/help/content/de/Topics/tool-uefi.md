@@ -22,7 +22,7 @@ Die Zeile der **ME-Region** öffnet sich in dieselbe Analyse, die der [[topic:to
 
 Rechtsklick auf einen Knoten:
 
-- Den Knoten **öffnen**, oder nur seinen Rumpf, als [[topic:fragments|Teil-Bereich]].
+- Den Knoten **öffnen**, oder nur seinen Rumpf, als [[topic:fragments|Fragment-Bereich]].
 - **Entpackt öffnen…** / **Exportieren** bei einer komprimierten Sektion — das, wozu diese Bytes sich tatsächlich entfalten.
 
 ## Padding

@@ -1,9 +1,9 @@
-@source-sha f554a20792ad27732b0188dd3b1b190329c972030800a9cb66bbc31782d66f53
+@source-sha e1c4185a14e895bf41b6ba3b6631a67d707c89c3a6cc5c44cc3177c2d38ef7f1
 # Die Online-Kataloge
 
 > Drei öffentliche Listen, die Zahlen im Dump in Namen verwandeln. Ohne sie läuft das Programm.
 
-Ein Teil dessen, was die Firmware-Panels zeigen, steht gar nicht in der Datei — es ist ein Name, den die Gemeinschaft einer Kennung gegeben hat, die die Datei trägt. Dafür lädt ByteRipper über HTTPS von GitHub drei öffentliche Kataloge und behält jeden einen Tag:
+Ein Teil dessen, was die Werkzeugbereiche zeigen, steht gar nicht in der Datei — es ist ein Name, den die Gemeinschaft einer Kennung gegeben hat, die die Datei trägt. Dafür lädt ByteRipper über HTTPS von GitHub drei öffentliche Kataloge und behält jeden einen Tag:
 
 - **UEFI-GUID-Namen** — aus dem UEFITool-Projekt. Sie machen aus einer nackten [[term:guid|GUID]] im [[topic:tool-uefi|UEFI-Panel]] ein „AmiBoardInfo“ oder „DxeCore“.
 - **CPU-Microcode** — aus der Sammlung CPUMicrocodes. Damit werden die Microcode-Updates benannt, die das [[topic:tool-fit|FIT-Panel]] auflistet: welche CPU-Signatur, welche Revision, welches Datum.

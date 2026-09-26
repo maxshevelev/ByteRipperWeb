@@ -23,7 +23,7 @@ A small file opens in Local, a big one in Overview. Overview is only offered whi
 - **Your unsaved edits**.
 - **Search matches**, as strokes of ink, with the current one as a bright plate.
 - **Bookmarked rows**, in the margin.
-- **Zones** published by a [[topic:tools-overview|firmware panel]], so the image's regions are visible as bands.
+- **Zones** published by a [[topic:tools-overview|tool panel]], so the image's regions are visible as bands.
 
 Click anywhere in the map to jump there. Drag the viewport box to scroll.
 

@@ -42,10 +42,36 @@ export function MenuButton({
   readonly pullDown?: boolean | undefined;
 }) {
   const [open, setOpen] = useState(false);
+  /**
+   * Which edge the list hangs from.
+   *
+   * A menu at the head of the bar drops to the right of its button; one near
+   * the other end has to drop to the left of it, or it runs off the window and
+   * loses its words — which is what the help's `?` did the moment it was put
+   * beside the pane arrangement (measured). Asked of the button's place rather
+   * than hard-coded per caller, so a control that moves cannot take a wrong
+   * answer with it.
+   */
+  const [fromRight, setFromRight] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+
+  /**
+   * Opens the list, having first asked where the button is: past the middle of
+   * the window and it hangs from its right edge. Measured at the click rather
+   * than on every render, because it is only the click that can move it — the
+   * toolbar does not reflow while a menu is open.
+   */
+  const show = useCallback(() => {
+    const button = buttonRef.current;
+    if (button !== null) {
+      const at = button.getBoundingClientRect();
+      setFromRight(at.left + at.width / 2 > window.innerWidth / 2);
+    }
+    setOpen(true);
+  }, []);
 
   const close = useCallback((returnFocus: boolean) => {
     setOpen(false);
@@ -85,11 +111,11 @@ export function MenuButton({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         title={title}
-        onClick={() => setOpen((was) => !was)}
+        onClick={() => (open ? close(false) : show())}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" && !open) {
             event.preventDefault();
-            setOpen(true);
+            show();
           }
         }}
       >
@@ -113,7 +139,14 @@ export function MenuButton({
       </button>
 
       {open ? (
-        <div id={menuId} className="menu-popup" role="menu" ref={menuRef} onKeyDown={onMenuKeyDown}>
+        <div
+          id={menuId}
+          className="menu-popup"
+          data-from={fromRight ? "right" : undefined}
+          role="menu"
+          ref={menuRef}
+          onKeyDown={onMenuKeyDown}
+        >
           <MenuItems entries={entries} onChosen={() => close(false)} />
         </div>
       ) : null}

@@ -5,7 +5,7 @@
 @covers shell.fragments
 @covers shell.fragment-dock
 
-When a [[topic:tools-overview|firmware panel]] hands you a part of the image — a region, a volume, one module, the decompressed body of a section — it opens as a **fragment panel**: a panel that rises from the bottom of the workspace, over the dump it came out of.
+When a [[topic:tools-overview|tool panel]] hands you a part of the image — a region, a volume, one module, the decompressed body of a section — it opens as a **fragment panel**: a panel that rises from the bottom of the workspace, over the dump it came out of.
 
 The parent stays visible above it. Folded down, the fragment becomes a pill in the dock along the bottom edge, so the pills in that dock are the parts you have pulled out of *this* image — and the help itself, which uses the same dock.
 

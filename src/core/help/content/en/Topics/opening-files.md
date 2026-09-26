@@ -11,7 +11,7 @@
 
 The workspace holds two file slots, **File A** and **File B**. Which slot a file lands in decides what happens:
 
-- **One file open** — single-file mode. The workspace is a hex editor for that file, and all the editing, searching and firmware panels work normally.
+- **One file open** — single-file mode. The workspace is a hex editor for that file, and all the editing, searching and tool panels work normally.
 - **Two files open** — comparison mode. The two dumps sit side by side (or one above the other, see **View ▸ Put the Panes Side by Side**) and every differing byte is painted.
 
 File B is optional. Nothing needs a second file except the comparison itself.

@@ -27,6 +27,6 @@ A byte that is both different from the other file and edited by you shows **both
 - **Selection** is the standard highlight, and never hides the difference or the red.
 - **Search matches** are filled in the platform's quiet "unfocused selection" grey; the match you are standing on is a raised yellow bubble. A match sitting on a difference reads as a difference — telling the two files apart wins.
 - **A bookmarked row** turns its offset column into a coloured arrow with the address written on it. It marks the row, not the bytes, so it never disturbs the states above.
-- **Zones** — the coloured outlines a [[topic:tools-overview|firmware panel]] draws over the dump — mark a structure's byte range. A zone is an outline and a tint, not a background, so it can sit over differences without hiding them.
+- **Zones** — the coloured outlines a [[topic:tools-overview|tool panel]] draws over the dump — mark a structure's byte range. A zone is an outline and a tint, not a background, so it can sit over differences without hiding them.
 
 ByteRipper follows the system appearance, so all of this has a dark-mode form too. The palette is in [[topic:settings|Settings ▸ Appearance]].

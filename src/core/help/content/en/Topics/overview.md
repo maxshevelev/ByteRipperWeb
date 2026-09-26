@@ -4,6 +4,7 @@
 
 @covers shell.empty-state
 @covers menu.help.book
+@covers toolbar.help
 
 ByteRipper opens one or two binary files and shows every byte of them. When two files are open it compares them **byte by byte at the same address**, and paints every place they disagree.
 
@@ -25,9 +26,13 @@ That is on purpose. A flash dump has a fixed layout: an address is a position on
 
 ! ByteRipper never talks to a programmer and never writes to hardware. It edits files. Reading the chip and writing it back is your programmer's job.
 
+## Reaching this book
+
+The **?** in the toolbar opens the same short list the **Help** block of the toolbar's menu holds: this page, the first comparison, the bench rules and the glossaries. **F1** and **⌘/** open the book from anywhere in the app, with no file open and whatever has the keyboard.
+
 ## Where to go next
 
 - [[topic:first-comparison|Your first comparison]] — the five minutes that show what the app is.
 - [[topic:hex-view|Reading the hex view]] and [[topic:colors|What the colours mean]].
-- [[topic:tools-overview|The firmware panels]], once you want to know what is inside the image rather than only what changed.
+- [[topic:tools-overview|The tool panels]], once you want to know what is inside the image rather than only what changed.
 - [[topic:bench-safety|Bench rules]] — ways to ruin a dump, and how to avoid them.

@@ -1,12 +1,10 @@
 import { useRef } from "react";
-import { TOPIC, termId, termLink, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
-import { showHelp } from "@/state/helpStore";
 import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
@@ -36,6 +34,7 @@ import { TOOLS } from "@/tools/registry";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { wordSizeChoiceTitle } from "@/ui/settings/settingsText";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
+import { helpMenuEntries } from "@/ui/shell/helpMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
 import { revertItem } from "@/ui/shell/paneMenus";
@@ -44,6 +43,7 @@ import {
   FindGlyph,
   ForwardGlyph,
   GoToGlyph,
+  HelpGlyph,
   IdenticalGlyph,
   MinimapGlyph,
   PaneLayoutGlyph,
@@ -442,19 +442,7 @@ export function Toolbar({
     // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showHelpBook
     { kind: "separator" },
     { kind: "heading", label: L("Help", { context: "menu" }) },
-    // help: menu.help.book
-    { label: L("ByteRipper Help"), onSelect: () => showHelp(topicLink(TOPIC.overview)) },
-    { label: L("Getting Started"), onSelect: () => showHelp(topicLink(TOPIC.firstComparison)) },
-    { label: L("Bench Rules"), onSelect: () => showHelp(topicLink(TOPIC.benchSafety)) },
-    {
-      label: L("Glossary: UEFI Images"),
-      onSelect: () => showHelp(termLink(termId("flash-descriptor"))),
-    },
-    { label: L("Glossary: Intel ME"), onSelect: () => showHelp(termLink(termId("fpt"))) },
-    {
-      label: L("Where This Knowledge Comes From"),
-      onSelect: () => showHelp(topicLink(TOPIC.provenance)),
-    },
+    ...helpMenuEntries(),
   ]);
 
   // The plaque's last determined answer, held through a rebuild.
@@ -681,6 +669,32 @@ export function Toolbar({
             <IdenticalGlyph />
             Files are identical
           </span>
+        );
+      // The `?`, between the difference plaque and the pane arrangement: the
+      // book's door where a reader is already looking, which is at the thing
+      // they do not understand rather than in a menu.
+      //
+      // A pull-down rather than a plain button, because the book has more than
+      // one starting point and picking the right one is most of the value — and
+      // the list is `helpMenuEntries()`, the same builder the command menu's
+      // Help block uses, so the two cannot offer different doors.
+      //
+      // Nothing to disable: the book is there whatever the workspace holds,
+      // which is the same reason upstream's item has no validation.
+      //
+      // help: toolbar.help
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeHelpItem
+      case "help":
+        return (
+          <MenuButton
+            key={key}
+            className="toolbar-help"
+            label={<HelpGlyph />}
+            ariaLabel={L("Help", { context: "menu" })}
+            title={L("Where to start reading the help book")}
+            entries={helpMenuEntries()}
+            pullDown
+          />
         );
       case "paneLayout":
         return (

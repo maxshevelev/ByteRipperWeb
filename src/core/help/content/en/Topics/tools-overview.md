@@ -1,4 +1,4 @@
-# The Firmware Panels
+# The Tool Panels
 
 > Instruments that read the open dump and tell you what is in it.
 

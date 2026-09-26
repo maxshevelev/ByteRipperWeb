@@ -117,7 +117,10 @@
 "Undo %1$@" = "Отменить: %1$@";
 "Unsaved changes" = "Несохранённые изменения";
 "Up to two files can be compared side by side." = "Сравнивать можно два файла одновременно.";
+"Update in Parent" = "Записать в исходный файл";
+"Update in “%1$@”" = "Записать в «%1$@»";
 "menu|View" = "Вид";
 "Where This Knowledge Comes From" = "Откуда взяты эти знания";
+"Where to start reading the help book" = "С чего начать в справке";
 "Word Size" = "Размер слова";
 "Word Size:" = "Размер слова:";

@@ -39,4 +39,4 @@ The confirmations can be switched off in [[topic:settings|Settings ▸ Editing]]
 
 ## Undo
 
-Every edit is an undo step (⌘Z), including the big ones: a join, a fill, a write made by a [[topic:tools-overview|firmware panel]], a part put back into its parent. Undo is per document — the dump in front is what ⌘Z takes back, so an edit made inside a [[topic:fragments|fragment panel]] is undone in the part and not in the image behind it.
+Every edit is an undo step (⌘Z), including the big ones: a join, a fill, a write made by a [[topic:tools-overview|tool panel]], a part put back into its parent. Undo is per document — the dump in front is what ⌘Z takes back, so an edit made inside a [[topic:fragments|fragment panel]] is undone in the part and not in the image behind it.

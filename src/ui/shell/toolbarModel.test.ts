@@ -32,6 +32,8 @@ describe("the toolbar's items", () => {
       "flexibleSpace",
       "diffNavigation",
       "space",
+      "help",
+      "space",
       "paneLayout",
       "space",
       "toggleMinimap",
@@ -45,6 +47,8 @@ describe("the toolbar's items", () => {
       "space",
       "wordSize",
       "flexibleSpace",
+      "space",
+      "help",
       "space",
       "paneLayout",
       "space",
@@ -63,6 +67,18 @@ describe("the toolbar's items", () => {
     // allowed list is TOOLBAR_DEFAULT_ITEMS and the assertion is over both.
     const ids: readonly string[] = [...TOOLBAR_DEFAULT_ITEMS, ...toolbarItems(true, false)];
     expect(ids).not.toContain("insertMode");
+  });
+
+  /**
+   * The book is there whatever the workspace holds, which is why the item has
+   * nothing to validate and nothing to hide behind.
+   */
+  // @upstream ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheHelpPullDownCarriesTheHelpMenu
+  it("carry the help in both modes, beside the pane arrangement", () => {
+    for (const items of [toolbarItems(false, false), toolbarItems(true, false)]) {
+      expect(items).toContain("help");
+      expect(items[items.indexOf("help") + 2]).toBe("paneLayout");
+    }
   });
 
   // @upstream ByteRipperTests/ToolsToolbarTests.swift#ToolsToolbarTests.testToolsIsTheLeftmostItem

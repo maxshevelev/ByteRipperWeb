@@ -1,4 +1,4 @@
-@source-sha d5dd40f00b6c7613cf64af7e9ea0da9b6113df4bbf42ccb44f771cfb980078d1
+@source-sha 6abdd5875d7ca323ab1fc033f52954ad5362b08f8e0a302bf9b8d5641b4c9dfa
 # Lesezeichen
 
 > Adressen, zu denen es sich zurückzukommen lohnt: auf der Zeile markiert und von beiden Bereichen geteilt.
@@ -22,4 +22,4 @@ Sie überleben auch die Seite selbst: die Marken liegen in diesem Browser, sodas
 
 ## Am Arbeitsplatz
 
-Markieren Sie vorab die Anfänge der Regionen, die Sie angehen — Descriptor, ME, BIOS, NVRAM, den Block, den Sie ändern wollen — und die ganze Arbeit wird zu ⌘L und Return statt zu getippten Adressen. Die Adressen nennt Ihnen ein Firmware-Panel: Knoten auswählen und Offset ablesen.
+Markieren Sie vorab die Anfänge der Regionen, die Sie angehen — Descriptor, ME, BIOS, NVRAM, den Block, den Sie ändern wollen — und die ganze Arbeit wird zu ⌘L und Return statt zu getippten Adressen. Die Adressen nennt Ihnen ein Werkzeugbereich: Knoten auswählen und Offset ablesen.

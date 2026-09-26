@@ -27,6 +27,7 @@ export type ToolbarItemId =
   | "wordSize"
   | "diffNavigation"
   | "filesIdentical"
+  | "help"
   | "paneLayout"
   | "toggleMinimap"
   | "space"
@@ -53,6 +54,8 @@ export const TOOLBAR_DEFAULT_ITEMS: readonly ToolbarItemId[] = [
   "wordSize",
   "flexibleSpace",
   "diffNavigation",
+  "space",
+  "help",
   "space",
   "paneLayout",
   "space",

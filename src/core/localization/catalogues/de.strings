@@ -117,7 +117,10 @@
 "Undo %1$@" = "%1$@ widerrufen";
 "Unsaved changes" = "Ungesicherte Änderungen";
 "Up to two files can be compared side by side." = "Zwei Dateien lassen sich nebeneinander vergleichen.";
+"Update in Parent" = "In der Quelle aktualisieren";
+"Update in “%1$@”" = "In „%1$@“ aktualisieren";
 "menu|View" = "Darstellung";
 "Where This Knowledge Comes From" = "Woher dieses Wissen stammt";
+"Where to start reading the help book" = "Wo Sie in der Hilfe anfangen";
 "Word Size" = "Wortbreite";
 "Word Size:" = "Wortbreite:";

@@ -386,8 +386,12 @@ textarea,
   color: var(--semantic-good);
 }
 
-/* The Tools pull-down: the wrench, and the tool-module's name beside it. */
-.toolbar-tools {
+/* A pull-down in the bar — Tools with the wrench and the tool-module's name,
+   the help with its `?`: the glyph and the chevron sit on one line, centred
+   against each other. A button left to the text baseline instead drops the
+   chevron below the glyph, which is where the help's first landed. */
+.toolbar-tools,
+.toolbar-help {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1678,6 +1682,11 @@ textarea,
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
+  /* Hangs from the left edge of its button, which is right for the Commands
+     menu at the head of the bar and wrong for the help's `?` near the other
+     end: there the list ran off the window and lost its right-hand words
+     (measured). A menu whose button is in the right half hangs from its right
+     edge instead, which is what every platform's own menu does. */
   z-index: 20;
   min-width: 15rem;
   max-height: min(34rem, 80vh);
@@ -1687,6 +1696,11 @@ textarea,
   border-radius: 7px;
   background: var(--surface-raised);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.menu-popup[data-from="right"] {
+  left: auto;
+  right: 0;
 }
 
 .menu-item {

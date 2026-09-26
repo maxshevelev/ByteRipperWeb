@@ -1,4 +1,4 @@
-@source-sha 50639b45cd239c47487ba73158f9994115e84384ab2392b9c9a01ceab9c59869
+@source-sha cfbcf485f50fb4d9f47b7873056d4ec43b0e3c8c5ae1ae5bc8333beae9bdadf4
 @term dump
 @name Dump
 @short Der Inhalt eines Chips, in eine Datei ausgelesen.
@@ -67,9 +67,9 @@ Für sich genommen bedeutet eine GUID nichts — deshalb lädt das Programm eine
 
 @term zone
 @name Zone
-@short Der farbige Umriss, mit dem ein Firmware-Panel einen Byte-Bereich im Dump markiert.
+@short Der farbige Umriss, mit dem ein Werkzeugbereich einen Byte-Bereich im Dump markiert.
 
-Wählen Sie eine Zeile in einem Firmware-Panel, veröffentlicht das Panel deren Byte-Bereich als Zone: ein Umriss samt Tönung über diesen Bytes in der Hex-Ansicht und ein Band in der [[topic:minimap|Minimap]].
+Wählen Sie eine Zeile in einem Werkzeugbereich, veröffentlicht das Panel deren Byte-Bereich als Zone: ein Umriss samt Tönung über diesen Bytes in der Hex-Ansicht und ein Band in der [[topic:minimap|Minimap]].
 
 Eine Zone ist ein Umriss und keine Hintergrundfüllung, verdeckt also nie einen Unterschied oder eine ungesicherte Änderung darunter.
 

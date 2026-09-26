@@ -1,5 +1,5 @@
-@source-sha fb7c16539ffce83900378c1adbaa5d3b5ddc332ce17ea6026d240bbb17efe491
-# Die Firmware-Panels
+@source-sha b3112a4bcd7f3ece8567a9bd03137e06a9d65b1484c80d3b8593953f7a218f9e
+# Die Werkzeugbereiche
 
 > Werkzeuge, die den geöffneten Dump lesen und sagen, was darin ist.
 
@@ -20,4 +20,4 @@ Das Menü **Werkzeuge** schaltet jeweils ein Panel neben dem Dump ein. Jedes lie
 
 ## Ein Stück herausholen
 
-Klicken Sie einen Knoten mit rechts an, lässt er sich als [[topic:fragments|Teil-Bereich]] öffnen: die Bytes des Knotens als eigenes Dokument über dem Image, aus dem sie stammen. So wird ein einzelnes Modul, eine Region oder eine entpackte Sektion herausgeholt, untersucht und zurückgeschrieben.
+Klicken Sie einen Knoten mit rechts an, lässt er sich als [[topic:fragments|Fragment-Bereich]] öffnen: die Bytes des Knotens als eigenes Dokument über dem Image, aus dem sie stammen. So wird ein einzelnes Modul, eine Region oder eine entpackte Sektion herausgeholt, untersucht und zurückgeschrieben.

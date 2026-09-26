@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
+import { L } from "@/core/localization/localization";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
@@ -1042,7 +1043,7 @@ export function AppShell() {
             `It has changes ${origin.parentName} has not got. ` +
             "Closing this panel without putting them back loses them.",
           // help: menu.file.update-in-parent
-          confirmLabel: "Update in Parent",
+          confirmLabel: L("Update in Parent"),
           otherLabel: "Close Anyway",
           answer: resolve,
         })

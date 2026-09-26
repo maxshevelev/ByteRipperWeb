@@ -1,9 +1,9 @@
-@source-sha 3bf6345b1b6fd8f3a90e2c4a1d92da54b47e5c7cd713814f3e3034c143a90a65
+@source-sha 51a06cfe8bdf01aa38abf63e75edcd17557ec04ceb1bbe21751bd1da916cbcda
 # Woher dieses Wissen stammt
 
 > Einmal zu lesen, bevor Sie einem Panel eine Platine anvertrauen.
 
-Die Firmware-Panels benennen Strukturen, für die **kein Hersteller je eine Spezifikation veröffentlicht hat**. Weder die Partitionstabelle der Intel ME noch ihre Manifeste, ihr Dateisystem oder ihre Unlock-Token. Was die Panels wissen, ist Reverse Engineering, und das offen zu sagen gehört zum Werkzeug.
+Die Werkzeugbereiche benennen Strukturen, für die **kein Hersteller je eine Spezifikation veröffentlicht hat**. Weder die Partitionstabelle der Intel ME noch ihre Manifeste, ihr Dateisystem oder ihre Unlock-Token. Was die Panels wissen, ist Reverse Engineering, und das offen zu sagen gehört zum Werkzeug.
 
 ## Worauf die Zerlegung beruht
 

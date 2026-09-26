@@ -33,7 +33,7 @@ In comparison mode the jump moves **both** panes: they are locked to the same ad
 
 ## Selecting a block
 
-**Edit ▸ Select Block…** selects a range by numbers rather than by dragging: start and end, or start and length. Both accept hex with `0x` and plain decimal. This is the reliable way to select a region whose boundaries you read off a firmware panel.
+**Edit ▸ Select Block…** selects a range by numbers rather than by dragging: start and end, or start and length. Both accept hex with `0x` and plain decimal. This is the reliable way to select a region whose boundaries you read off a tool panel.
 
 ! Ranges inside the app are half-open — the end address is the first byte *not* in the range. Forms may offer an inclusive end; they convert it for you.
 

@@ -2,7 +2,7 @@
 
 > Three public lists that turn numbers in a dump into names. The app works without them.
 
-Some of what the firmware panels show is not in the file at all — it is a name the community has given to an identifier the file carries. ByteRipper fetches three public catalogues for that, over HTTPS from GitHub, and keeps each one for a day:
+Some of what the tool panels show is not in the file at all — it is a name the community has given to an identifier the file carries. ByteRipper fetches three public catalogues for that, over HTTPS from GitHub, and keeps each one for a day:
 
 - **UEFI GUID names** — from the UEFITool project. This is what turns a bare [[term:guid|GUID]] in the [[topic:tool-uefi|UEFI panel]] into "AmiBoardInfo" or "DxeCore".
 - **CPU microcode** — from the CPUMicrocodes collection. It names the microcode updates the [[topic:tool-fit|FIT panel]] lists: which CPU signature, which revision, which date.
