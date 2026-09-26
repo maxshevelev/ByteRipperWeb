@@ -8,7 +8,7 @@
 3. Achten Sie auf die Farbe. Jedes Byte, das sich zwischen beiden Dateien unterscheidet, trägt den Unterschieds-Hintergrund. Eine lange Strecke Farbe heißt, ein ganzer Bereich unterscheidet sich; einzelne verstreute Zellen heißen, ein paar Bytes tun es.
 4. Springen Sie zwischen den Unterschieden statt zu scrollen: **⌥⌘→** zum nächsten, **⌥⌘←** zum vorherigen. Die Statuszeile nennt, wie viel des Images sich unterscheidet — `Unterschiede 0.4%` — als Anteil an der längeren Datei, byteweise gezählt.
 5. Lesen Sie in der Statuszeile den Offset der aktuellen Position. In einem Firmware-Dump sagt Ihnen dieser Offset, *welchen Teil* des Images Sie ansehen.
-6. Schalten Sie ein Werkzeugbereich ein — **UEFI-Struktur** aus dem Menü „Tools“ der Symbolleiste — und die Offsets hören auf, Zahlen zu sein: das Panel benennt die Region oder das Volume, in die jede Adresse fällt.
+6. Schalten Sie einen Werkzeugbereich ein — **UEFI-Struktur** aus dem Menü „Tools“ der Symbolleiste — und die Offsets hören auf, Zahlen zu sein: das Panel benennt die Region oder das Volume, in die jede Adresse fällt.
 
 ## Das Ergebnis lesen
 

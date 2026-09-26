@@ -44,7 +44,13 @@ export const HELP_SECTIONS: readonly HelpSectionShape[] = [
   },
   {
     id: "changing",
-    topics: [TOPIC.editing, TOPIC.saving, TOPIC.joinDuplicate, TOPIC.benchSafety],
+    topics: [
+      TOPIC.editing,
+      TOPIC.saving,
+      TOPIC.joinDuplicate,
+      TOPIC.benchSafety,
+      TOPIC.flashWrites,
+    ],
   },
   {
     id: "firmware",

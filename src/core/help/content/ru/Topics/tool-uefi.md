@@ -7,7 +7,7 @@
 
 ## Дерево
 
-Верхний уровень — раскладка самой микросхемы. На платформе Intel это [[term:flash-descriptor|flash descriptor]] и заданные им [[term:region|регионы]]: [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Внутри BIOS-региона — [[term:volume|тома прошивки]], в них [[term:ffs-file|FFS-файлы]], в тех [[term:section|секции]]; ветку дерево раскрывает по запросу, а не заранее.
+Верхний уровень — раскладка самого чипа. На платформе Intel это [[term:flash-descriptor|flash descriptor]] и заданные им [[term:region|регионы]]: [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Внутри BIOS-региона — [[term:volume|тома прошивки]], в них [[term:ffs-file|FFS-файлы]], в тех [[term:section|секции]]; ветку дерево раскрывает по запросу, а не заранее.
 
 Колонки **Тип** и **Подтип** называют узел так, как его называет эталонный парсер. Колонка **Имя** показывает имя из публичного каталога сообщества для [[term:guid|GUID]] узла, если оно там есть, и сам GUID, если нет.
 

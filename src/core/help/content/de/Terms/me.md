@@ -1,4 +1,4 @@
-@source-sha 61dbfd9aebbadb84caaa5f735d9c335015356c87417feb0cc380a6be1f871a8b
+@source-sha c9691ee7c3610a27c029dd6579e3f1a4fc31dc8e672dc74a3b82253fa0eb6248
 @term me
 @name Intel ME / CSME
 @short Ein kleiner Prozessor im Chipsatz, mit eigener Firmware in einer eigenen Flash-Region.
@@ -19,6 +19,8 @@ Ihre Firmware liegt in der [[term:me-region|ME-Region]] desselben SPI-Chips wie 
 `$FPT` ist die erste Struktur, nach der die Analyse sucht. Jede Zeile nennt eine Partition — mit einem Vier-Zeichen-Namen wie `FTPR`, `NFTP`, `MFS`, `UTOK` — und gibt ihren Offset, ihre Größe und einige Flags an.
 
 Am Arbeitsplatz beantwortet `$FPT` die Frage „ist die Region vollständig?“. Fehlt eine in der Tabelle deklarierte Partition tatsächlich, oder passt ihre Größe nicht, ist die Region abgeschnitten oder beschädigt.
+
+Intels Flash-Werkzeug heißt ebenfalls FPT — Flash Programming Tool. Gemeinsam sind nur die drei Buchstaben: dieses `$FPT` ist eine Tabelle im Image, jenes ein Programm, das Images schreibt.
 
 @see term:cpd
 @see topic:recipe-me-check

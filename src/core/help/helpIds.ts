@@ -81,6 +81,7 @@ export const TOPIC = {
   saving: topicId("saving"),
   joinDuplicate: topicId("join-duplicate"),
   benchSafety: topicId("bench-safety"),
+  flashWrites: topicId("flash-writes"),
 
   // The firmware panels
   toolsOverview: topicId("tools-overview"),

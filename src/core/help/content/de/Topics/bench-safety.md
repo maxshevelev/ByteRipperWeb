@@ -1,11 +1,11 @@
-@source-sha b8cd876c2f7113e8f94f197cb46035ddfdce16278956438872c3efa0b947ec6f
+@source-sha 23abc9023c1f7afb854f2549bf79a5c1e7a35b483a2bd32132679acd7066c164
 # Regeln am Arbeitsplatz
 
 > Wege, einen Dump zu ruinieren (und wie man sie vermeidet).
 
 ## Bewahren Sie das Original
 
-Sichern Sie den ursprünglichen Dump, vom Chip gelesen, genau so, wie er vom Programmer kam, und ändern Sie diese Datei nie. Arbeiten Sie mit einer Kopie — oder nehmen Sie **Ablage ▸ Duplizieren** und ändern Sie das Duplikat. Eine Platine mit ausgefallener Versorgung übersteht ein zweites Lesen vielleicht nicht.
+Sichern Sie den ursprünglichen Dump, vom Chip gelesen, genau so, wie er vom Programmer kam, und ändern Sie diese Datei nie. Arbeiten Sie mit einer Kopie — oder nehmen Sie **Ablage ▸ Duplizieren** und ändern Sie das Duplikat. Ein Chip, der einen Fehler in der Spannungsversorgung hinter sich hat, übersteht ein zweites Lesen vielleicht nicht.
 
 ## Ändern Sie nie die Länge eines Flash-Images
 
@@ -21,9 +21,9 @@ Ein Spenderdump aus dem Netz kann die Identität des Spenders tragen. Schreiben 
 
 Moderne Intel-Plattformen prüfen Teile des Images, bevor die CPU sie ausführt, und der Descriptor kann Regionen gegen Schreiben sperren.
 
-- Hat das Image geschützte Bereiche von [[term:boot-guard|Boot Guard]], sagt das [[topic:tool-uefi|UEFI-Panel]] es in seiner Übersichtszeile. Bytes darin lassen sich nicht ändern, ohne dass die Plattform den Start verweigert: die Signatur passt nicht mehr, und neu berechnen können Sie sie nicht.
-- Die [[term:me-region|ME-Region]] prüft die Engine selbst. Sie von Hand zu ändern ergibt in aller Regel eine Platine, die hängt oder im Takt neu startet, und keine mit geänderter ME.
-- Die Master-Rechte im Descriptor entscheiden, was ein Programmer schreiben darf, der **auf der Platine** läuft. Ein externer Programmer am Chip übergeht sie.
+- Hat das Image geschützte Bereiche von [[term:boot-guard|Boot Guard]], sagt das [[topic:tool-uefi|UEFI-Panel]] es in seiner Übersichtszeile. Bytes darin lassen sich nicht ändern, ohne dass die Plattform den Start verweigert: die Signaturprüfung schlägt fehl, und die Signatur neu berechnen können Sie nicht.
+- Die [[term:me-region|ME-Region]] prüft die Engine selbst, auf dem Die des [[term:pch|Chipsatzes]]. Sie von Hand zu ändern bringt nichts: die Engine nimmt die geänderte Region nicht an, und statt einer Platine mit geänderter ME bekommen Sie eine, die hängt oder im Takt neu startet.
+- Die [[term:flash-master|Master]]-Rechte im Descriptor entscheiden, was **über den Chipsatz** geschrieben werden kann — von einem Werkzeug wie Intel FPT (Flash Programming Tool) oder einem BIOS-Update des Herstellers. Ein Programmer, der am Chip selbst hängt, geht am Chipsatz vorbei und wird nicht gefragt. Ausführlich: [[topic:flash-writes|Wer in den Flash schreibt]].
 
 Das vor dem Ändern zu wissen ist der Unterschied zwischen einer Fünf-Minuten-Reparatur und einem Briefbeschwerer.
 

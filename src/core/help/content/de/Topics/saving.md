@@ -1,4 +1,4 @@
-@source-sha acccce691593f572749d6416e0ddf7b149094679390eec495d31776dad48638f
+@source-sha a8ae29eea8d628394b2a1789f4a76051fb028dcd16d9b857da9b20e717d63838
 # Sichern
 
 > Roter Text heißt, die Änderung gibt es nur hier. Sichern Sie, und sie steht in der Datei — oder, in manchen Browsern, in einer heruntergeladenen Kopie.
@@ -30,4 +30,4 @@ Manche Dokumente sind bewusst unbenannt und haben nichts, wohin sie zurückgesch
 - Das Ergebnis von **Duplizieren**.
 - Ein Teil, der aus einem Image geöffnet wurde.
 
-! Bewahren Sie den Original-Dump auf. Sichern Sie Ihre gepatchte Fassung unter neuem Namen — `board_patched.bin` neben `board_original.bin`. Ein überschriebener Dump ist ein Chip, den Sie erneut lesen müssen, und auf einer Platine mit toter Spannungsschiene gelingt das vielleicht kein zweites Mal.
+! Bewahren Sie den Original-Dump auf. Sichern Sie Ihre gepatchte Fassung unter neuem Namen — `board_patched.bin` neben `board_original.bin`. Ein überschriebener Dump ist ein Chip, den Sie erneut lesen müssen, und nach einem Spannungsfehler gelingt das womöglich kein zweites Mal.

@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "81fb4a252b83cf48aa52e9929b9f975ee5f8a17b",
-  "baselineNote": "Put the help book one click away, in the toolbar (2026-09-26)"
+  "baseCommit": "a379690487eea1716e8c4d3931280d513014c2c2",
+  "baselineNote": "Claim a corner of the work, not the whole of repair (2026-09-26)"
 }

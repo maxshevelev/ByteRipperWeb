@@ -15,6 +15,8 @@
  * - a blank line ends a block; consecutive lines of prose are one paragraph.
  * - `**bold**`, `` `code` ``, `[[topic:id]]`, `[[term:id]]`, and either link
  *   form with `|` and the words to show: `[[term:fpt|the partition table]]`.
+ * - `[[web:https://…|the words to show]]` — a link out to a source. https only:
+ *   a page of ours will not send a reader over plain http.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup
  */
@@ -33,7 +35,17 @@ export type HelpSpan =
   /** Shown monospaced: an offset, a signature, a menu path typed as it is. */
   | { readonly kind: "code"; readonly text: string }
   /** `text` is what the reader sees; `link` is where it goes. */
-  | { readonly kind: "link"; readonly text: string; readonly link: HelpLink };
+  | { readonly kind: "link"; readonly text: string; readonly link: HelpLink }
+  /**
+   * A link out of the book, to a page on the web. Separate from `link` because
+   * the book's own destinations are pages a `?` button or the contents list can
+   * also point at, and neither can point at the web.
+   *
+   * It exists for one job: a page that states something a datasheet does not
+   * document has to say where the claim comes from, and a reader who wants to
+   * check has to be able to get there.
+   */
+  | { readonly kind: "web"; readonly text: string; readonly url: string };
 
 /**
  * One block of a page. A page is a list of these, in the order they were
@@ -71,10 +83,10 @@ function stepBody(line: string): string | undefined {
 }
 
 /**
- * `topic:opening-files`, `term:fpt`, or either with `|the words to show`.
- * Nothing for anything else, which leaves the brackets in the text as written —
- * a page that says `[[` and means it reads as it was typed rather than losing
- * the line.
+ * `topic:opening-files`, `term:fpt`, `web:https://…`, or any of them with
+ * `|the words to show`. Nothing for anything else, which leaves the brackets in
+ * the text as written — a page that says `[[` and means it reads as it was
+ * typed rather than losing the line.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.linkSpan
  */
@@ -82,9 +94,35 @@ function linkSpan(body: string): HelpSpan | undefined {
   const bar = body.indexOf("|");
   const target = (bar === -1 ? body : body.slice(0, bar)).trim();
   const shown = bar === -1 ? "" : body.slice(bar + 1).trim();
+
+  if (target.startsWith("web:")) {
+    // https only, and an address the browser can actually open. A source link
+    // that silently renders as prose is better than one that renders as a link
+    // and goes nowhere.
+    const url = webUrl(target.slice("web:".length));
+    return url === undefined ? undefined : { kind: "web", text: shown === "" ? url : shown, url };
+  }
+
   const link = parseHelpLink(target);
   if (link === undefined) return undefined;
   return { kind: "link", text: shown === "" ? link.id : shown, link };
+}
+
+/**
+ * The address as something the browser will open, or nothing.
+ *
+ * @upstream-differs upstream builds a `URL` and asks it for its scheme; a
+ * browser's `URL` accepts anything with a colon in it, so the scheme is checked
+ * before it is parsed and the host is required afterwards
+ */
+function webUrl(address: string): string | undefined {
+  if (!address.startsWith("https://")) return undefined;
+  try {
+    const parsed = new URL(address);
+    return parsed.host === "" ? undefined : address;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -267,6 +305,34 @@ export function blockPlainText(block: HelpBlock): string {
 /** @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.plainText */
 export const spansPlainText = (spans: readonly HelpSpan[]): string =>
   spans.map((span) => span.text).join("");
+
+/**
+ * Every link out of the book a page carries — what the tests check for shape
+ * rather than for a destination inside the book.
+ *
+ * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.webLinks
+ */
+export function helpWebLinks(blocks: readonly HelpBlock[]): string[] {
+  const urls: string[] = [];
+  const fromSpans = (spans: readonly HelpSpan[]) => {
+    for (const span of spans) if (span.kind === "web") urls.push(span.url);
+  };
+  for (const block of blocks) {
+    switch (block.kind) {
+      case "heading":
+        break;
+      case "paragraph":
+      case "caution":
+        fromSpans(block.spans);
+        break;
+      case "bullets":
+      case "steps":
+        for (const item of block.items) fromSpans(item);
+        break;
+    }
+  }
+  return urls;
+}
 
 /**
  * Everywhere the blocks point. What the tests walk to prove the book has no

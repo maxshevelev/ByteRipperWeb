@@ -1,9 +1,9 @@
-@source-sha dcd4681a1a2ffb8ce2fc44e384f318e60ac50f64064296c78b2841d37bd1d072
+@source-sha 7633b218be3e03ef530bc955599e27375128daf7910555f7655f80d37f130591
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
 
-Der Descriptor liegt ganz am Anfang des Dumps und sagt, wo jede [[term:region|Region]] beginnt und endet, welche Master sie lesen oder beschreiben dürfen und wie die Straps des Chips gesetzt sind.
+Der Descriptor liegt ganz am Anfang des Dumps und sagt, wo jede [[term:region|Region]] beginnt und endet, welche [[term:flash-master|Master]] sie lesen oder beschreiben dürfen und wie die Straps des Chips gesetzt sind.
 
 Er ist die einzige Struktur hier mit echter Hersteller-Dokumentation — beschrieben in Intels Programming Guides zum Chipsatz —, was dem Panel hier mehr als Reverse Engineering unter die Füße legt.
 
@@ -11,6 +11,22 @@ Am Arbeitsplatz schaut man zuerst hierher: ist der Descriptor beschädigt, ist j
 
 @see term:region
 @see topic:tool-uefi
+
+@term flash-master
+@name Flash Master
+@short Ein Gerät auf der Platine, das an den Flash-Chip herankommt: BIOS, ME, GbE oder EC.
+
+Der [[term:flash-descriptor|Descriptor]] vergibt Rechte nicht an Programme, sondern an *Master* — die vier Anfrager, die der Chipsatz auf seinem SPI-Bus auseinanderhält:
+
+- **BIOS** — der Host, also alles, was die CPU ausführt: die Firmware selbst oder ein Flash-Werkzeug unter dem Betriebssystem.
+- **ME** — die [[term:me|Management Engine]], die ihre eigene Region schreibt.
+- **GbE** — der kabelgebundene Netzwerk-Controller, für seine eigene Region.
+- **EC** — der [[term:ec|Embedded Controller]], und nur im Descriptor der Version 2, ab Skylake.
+
+Jeder Master trägt eine Lese- und eine Schreibmaske, ein Bit je [[term:region|Region]]. Die Masken regeln nur das Schreiben über den Chipsatz: ein [[term:programmer|Programmer]] fragt sie nicht, und die Bytes landen in jeder Region. Der Unterschied zeigt sich beim nächsten Start — das [[term:acm|ACM]] prüft den Bootblock, die Engine ihre eigene Region —, und eine Änderung im [[term:ibb|IBB]] oder in der ME-Region ist dann geschrieben und abgewiesen. Was diese Prüfungen nicht abdecken, bleibt geschrieben und läuft.
+
+@see topic:flash-writes
+@see term:flash-descriptor
 
 @term descriptor-mode
 @name Deskriptor-Modus

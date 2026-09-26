@@ -1,4 +1,4 @@
-@source-sha 51a06cfe8bdf01aa38abf63e75edcd17557ec04ceb1bbe21751bd1da916cbcda
+@source-sha ec5cab9e7b5a76e4b5235597586f6df3cd71db2f3d06b5709edad8e152252b00
 # Woher dieses Wissen stammt
 
 > Einmal zu lesen, bevor Sie einem Panel eine Platine anvertrauen.

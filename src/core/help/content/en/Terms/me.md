@@ -19,6 +19,8 @@ Its firmware lives in the [[term:me-region|ME region]] of the same SPI chip as t
 
 On a bench the `$FPT` answers "is this region complete?". If a partition the table declares is not actually there, or its size does not match, the region is truncated or damaged.
 
+Intel's flashing utility is called FPT as well — Flash Programming Tool. The three letters are all the two share: this `$FPT` is a table inside the image, that one is a program that writes images.
+
 @see term:cpd
 @see topic:recipe-me-check
 

@@ -2,7 +2,7 @@
 @name Flash descriptor
 @short The first `0x1000` bytes of an Intel flash image: the map of the chip.
 
-The descriptor sits at the very start of the dump and says where every [[term:region|region]] begins and ends, which masters may read or write each one, and how the chip's own straps are configured.
+The descriptor sits at the very start of the dump and says where every [[term:region|region]] begins and ends, which [[term:flash-master|masters]] may read or write each one, and how the chip's own straps are configured.
 
 It is the one structure here with real vendor documentation — it is described in Intel's chipset programming guides — so what the panel says about it rests on more than reverse engineering.
 
@@ -10,6 +10,22 @@ On a bench it is the first thing to look at: if the descriptor is damaged, every
 
 @see term:region
 @see topic:tool-uefi
+
+@term flash-master
+@name Flash Master
+@short A device on the board that can reach the flash chip: BIOS, ME, GbE or EC.
+
+The [[term:flash-descriptor|descriptor]] does not grant access to programs. It grants it to *masters* — the four requesters the chipset tells apart on its own SPI bus:
+
+- **BIOS** — the host, meaning whatever the CPU is running: the firmware itself, or a flashing utility under the operating system.
+- **ME** — the [[term:me|Management Engine]], writing its own region.
+- **GbE** — the wired network controller, for its own region.
+- **EC** — the [[term:ec|embedded controller]], and only in descriptor version 2, from Skylake on.
+
+Each master carries a read mask and a write mask, one bit per [[term:region|region]]. The masks govern writing through the chipset and nothing else: a [[term:programmer|programmer]] does not ask them, and the bytes go into any region. The difference shows at the next start — the [[term:acm|ACM]] checks the boot block, the engine checks its own region — and an edit inside the [[term:ibb|IBB]] or in the ME region ends up written and rejected. What those checks do not cover stays written, and works.
+
+@see topic:flash-writes
+@see term:flash-descriptor
 
 @term descriptor-mode
 @name Descriptor mode

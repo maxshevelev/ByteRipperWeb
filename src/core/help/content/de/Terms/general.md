@@ -1,4 +1,4 @@
-@source-sha cfbcf485f50fb4d9f47b7873056d4ec43b0e3c8c5ae1ae5bc8333beae9bdadf4
+@source-sha fb0b9898f97fa429b401607ea695bebaea419713f8962a1598723c5eb927ed9d
 @term dump
 @name Dump
 @short Der Inhalt eines Chips, in eine Datei ausgelesen.
@@ -69,7 +69,7 @@ Für sich genommen bedeutet eine GUID nichts — deshalb lädt das Programm eine
 @name Zone
 @short Der farbige Umriss, mit dem ein Werkzeugbereich einen Byte-Bereich im Dump markiert.
 
-Wählen Sie eine Zeile in einem Werkzeugbereich, veröffentlicht das Panel deren Byte-Bereich als Zone: ein Umriss samt Tönung über diesen Bytes in der Hex-Ansicht und ein Band in der [[topic:minimap|Minimap]].
+Wählen Sie eine Zeile in einem Werkzeugbereich, veröffentlicht er deren Byte-Bereich als Zone: ein Umriss samt Tönung über diesen Bytes in der Hex-Ansicht und ein Band in der [[topic:minimap|Minimap]].
 
 Eine Zone ist ein Umriss und keine Hintergrundfüllung, verdeckt also nie einen Unterschied oder eine ungesicherte Änderung darunter.
 
@@ -142,7 +142,7 @@ Manche Plattformen fahren den Bus im Dual- oder Quad-Modus, mit zwei oder vier D
 
 Intels Namen dafür, vom ältesten an: ICH (I/O Controller Hub), dann PCH (Platform Controller Hub). AMDs Gegenstück heißt FCH (Fusion Controller Hub). Alle drei enden auf Hub — deshalb sagt die Werkbank ebenso oft Hub wie Chipsatz.
 
-Hier ist er gleich doppelt wichtig. Den Flash liest der Chipsatz, nicht die CPU, und er setzt auch durch, welcher Master welche [[term:region|Region]] beschreiben darf. Und bei Intel sitzt die [[term:me|Management Engine]] physisch in ihm — zusammen mit den [[term:otp|Fuses]], in denen die [[term:boot-guard|Boot-Guard]]-Konfiguration des Boards liegt.
+Hier ist er gleich doppelt wichtig. Den Flash liest der Chipsatz, nicht die CPU, und er setzt auch durch, welcher [[term:flash-master|Master]] welche [[term:region|Region]] beschreiben darf. Und bei Intel sitzt die [[term:me|Management Engine]] physisch in ihm — zusammen mit den [[term:otp|Fuses]], in denen die [[term:boot-guard|Boot-Guard]]-Konfiguration des Boards liegt.
 
 @see term:region
 @see term:otp

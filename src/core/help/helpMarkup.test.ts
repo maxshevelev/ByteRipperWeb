@@ -108,6 +108,51 @@ describe("the markup a translator has to keep", () => {
     );
   });
 
+  /**
+   * A link out of the book, for a page that has to name where a claim came
+   * from. It is a span of its own, not a `HelpLink`: nothing in the book can
+   * navigate to it.
+   */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testAWebLinkIsItsOwnSpan
+  it("reads a source link as a span of its own", () => {
+    expect(helpSpans("see [[web:https://example.org/guide|the guide]]")).toEqual([
+      text("see "),
+      { kind: "web", text: "the guide", url: "https://example.org/guide" },
+    ]);
+  });
+
+  /**
+   * Without its own words a source link shows the address, which is the honest
+   * fallback: the reader can still see where it goes.
+   */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testAWebLinkWithoutWordsShowsItsAddress
+  it("shows the address when a source link has no words", () => {
+    expect(helpSpans("[[web:https://example.org/x]]")).toEqual([
+      { kind: "web", text: "https://example.org/x", url: "https://example.org/x" },
+    ]);
+  });
+
+  /**
+   * Anything but https stays as written rather than becoming a link. A book of
+   * ours does not send a reader over plain http, and a link that renders but
+   * goes nowhere is worse than visible brackets.
+   */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testOnlyHTTPSBecomesALink
+  it("makes a link of https and of nothing else", () => {
+    expect(helpSpans("[[web:http://example.org]]")).toEqual([text("[[web:http://example.org]]")]);
+    expect(helpSpans("[[web:ftp://example.org]]")).toEqual([text("[[web:ftp://example.org]]")]);
+    // A browser's URL takes anything with a colon in it, so the host is asked
+    // for too: `https://` alone is not somewhere a reader can be sent.
+    expect(helpSpans("[[web:https://]]")).toEqual([text("[[web:https://]]")]);
+  });
+
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testPlainTextReadsAWebLinkAsItsWords
+  it("reads a source link as its words when the page is flattened", () => {
+    expect(
+      helpPlainText(parseHelpMarkup("measured, see [[web:https://example.org|the guide]]"))
+    ).toBe("measured, see the guide");
+  });
+
   /** An emphasis or a quote nobody closed is prose, not a swallowed line. */
   it("leaves an unclosed form as the characters it is", () => {
     expect(helpSpans("**unclosed and `also this")).toEqual([text("**unclosed and `also this")]);

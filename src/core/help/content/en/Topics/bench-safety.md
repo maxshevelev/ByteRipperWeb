@@ -4,7 +4,7 @@
 
 ## Keep the original
 
-Save the original dump, read off the chip, exactly as it came off the programmer, and never edit that file. Work on a copy — or use **File ▸ Duplicate** and patch the duplicate. A board with a failed power rail may not survive a second read.
+Save the original dump, read off the chip, exactly as it came off the programmer, and never edit that file. Work on a copy — or use **File ▸ Duplicate** and patch the duplicate. A chip that has been through a power fault may not survive a second read.
 
 ## Never change the length of a flash image
 
@@ -20,9 +20,9 @@ A donor dump from the internet may carry the donor's identity. Flash it raw and 
 
 Modern Intel platforms verify parts of the image before the CPU runs them, and the flash descriptor can lock regions against writes.
 
-- If the image has [[term:boot-guard|Boot Guard]] protected ranges, the [[topic:tool-uefi|UEFI panel]] says so in its summary line. Bytes inside a protected range cannot be changed without the platform refusing to boot — the signature will not match, and you cannot re-sign it.
-- The [[term:me-region|ME region]] is verified by the engine itself. Patching it by hand generally produces a board that hangs or reboots on a timer rather than a board with a patched ME.
-- The descriptor's own master permissions decide what a flash programmer running *on the board* can write. An external programmer on the chip ignores them.
+- If the image has [[term:boot-guard|Boot Guard]] protected ranges, the [[topic:tool-uefi|UEFI panel]] says so in its summary line. Bytes inside a protected range cannot be changed without the platform refusing to boot — the signature check will fail, and you cannot re-sign it.
+- The [[term:me-region|ME region]] is verified by the engine itself, on the [[term:pch|chipset]] die. Patching it by hand is pointless: the engine will not accept the changed region, and instead of a board with a patched ME you get one that hangs or reboots on a timer.
+- The descriptor's [[term:flash-master|master]] permissions decide what can be written **through the chipset** — by a tool such as Intel FPT (Flash Programming Tool), or by a vendor's BIOS update. A programmer wired to the chip itself goes past the chipset and is not asked. [[topic:flash-writes|Who writes to the flash]] has the whole of it.
 
 Knowing this before you patch is the difference between a five-minute fix and a bricked board.
 

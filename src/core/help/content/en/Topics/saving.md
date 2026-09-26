@@ -35,4 +35,4 @@ Some documents are deliberately untitled and have nowhere to be written back to,
 - The result of **Duplicate**.
 - A part opened out of an image.
 
-! Keep the original dump. Save your patched version under a new name — `board_patched.bin` beside `board_original.bin`. A dump you overwrote is a chip you have to read again, and on a board with a dead power rail that may not be possible twice.
+! Keep the original dump. Save your patched version under a new name — `board_patched.bin` beside `board_original.bin`. A dump you overwrote is a chip you have to read again, and after a power fault that may not be possible twice.

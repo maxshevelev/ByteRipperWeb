@@ -41,6 +41,16 @@ function Span({
           {span.text}
         </button>
       );
+    // A link out of the book is an anchor, which is the one span here that
+    // leaves the app: the browser opens it, in a tab of its own so the reader
+    // does not lose the dump they were reading. `noreferrer` because a page
+    // cited as a source has no business being told where the reader came from.
+    case "web":
+      return (
+        <a className="help-link" href={span.url} target="_blank" rel="noreferrer">
+          {span.text}
+        </a>
+      );
   }
 }
 

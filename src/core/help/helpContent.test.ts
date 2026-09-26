@@ -24,7 +24,7 @@ import {
 import { ALL_HELP_TOPICS, HELP_SECTIONS } from "@/core/help/helpContents";
 import { linkKey, TOPIC, termId } from "@/core/help/helpIds";
 import { loadHelpBook } from "@/core/help/helpLoader";
-import { helpLinksIn, helpPlainText } from "@/core/help/helpMarkup";
+import { helpLinksIn, helpPlainText, helpWebLinks } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS } from "@/core/help/helpTopic";
 
 let book: HelpBook & { readonly missing: readonly string[] };
@@ -134,6 +134,32 @@ describe("the book as it ships", () => {
     expect(hits).toContain(`topic:${TOPIC.recipeChecksums}`);
     expect(hits).toContain("term:checksum");
     expect(searchHelp(book, "   ")).toEqual([]);
+  });
+
+  /**
+   * Source links are checked for shape, not for reachability: a test that went
+   * to the network would fail on a train. https and a host is what a reader
+   * needs to be able to get there at all.
+   */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpContentTests.swift#HelpContentTests.testEverySourceLinkIsUsable
+  it("cites every source over https, at a host", () => {
+    const cited: [string, string][] = [
+      ...helpTopics(book).flatMap((topic) =>
+        helpWebLinks(topic.blocks).map((url): [string, string] => [String(topic.id), url])
+      ),
+      ...helpTerms(book).flatMap((term) =>
+        helpWebLinks(term.blocks).map((url): [string, string] => [`the term ${term.id}`, url])
+      ),
+    ];
+    // A book that cites nothing would pass the loop below by saying nothing.
+    expect(cited.length, "no page cites a source").toBeGreaterThan(0);
+    for (const [where, url] of cited) {
+      const parsed = new URL(url);
+      expect(parsed.protocol, `${where} cites ${url} over something other than https`).toBe(
+        "https:"
+      );
+      expect(parsed.host, `${where} cites ${url}, which has no host`).not.toBe("");
+    }
   });
 
   /**
