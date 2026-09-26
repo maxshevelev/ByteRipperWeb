@@ -4850,6 +4850,33 @@
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.host": "n/a — a surface is an id the stores are keyed by, not an object with an owner",
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.*": "n/a — AppKit split furniture and the accessors over it: the web lays the surface out in CSS and keys its stores by SurfaceId"
       }
+    },
+    {
+      "swift": "Packages/Localization",
+      "web": [
+        "src/core/localization"
+      ],
+      "status": "in-progress",
+      "note": "The language the app speaks (Design/LOCALIZATION.md). The lookup is across whole — the key is the English text, the placeholders are positional, and a context disambiguates one English word that is two elsewhere — in upstream's own .strings format, so a sentence the two editions share is carried across rather than re-typed. Two things the browser changes. The catalogue is installed rather than loaded on first use: a file arrives over a promise here, so it is awaited at startup and on a change of language, and L stays the synchronous call a render may make. And the choice resolves against navigator.languages rather than Locale.preferredLanguages, by upstream's own rule. LanguageChoice collapses to the spelling it is stored as, the two raw forms not colliding. Where the choice is kept, and the re-render, the canvas repaint and the workers' catalogues that follow a change of it, are the app's (G64); this module is the words and the arithmetic over them.",
+      "files": {
+        "Packages/Localization/Sources/Localization/AppLanguage.swift": "src/core/localization/appLanguage.ts",
+        "Packages/Localization/Sources/Localization/StringsFile.swift": "src/core/localization/stringsFile.ts",
+        "Packages/Localization/Sources/Localization/Localization.swift": "src/core/localization/localization.ts",
+        "Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift": "src/core/localization/localization.test.ts"
+      },
+      "unported": {
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.didChange": "n/a — a NotificationCenter name; the web announces a change of language through the settings store every view already reads",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.choiceKey": "n/a — the defaults key; the choice is a field of the web's settings store, which owns its own persistence",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.defaults": "n/a — UserDefaults, replaceable so a test can drive resolution; the web's core reads no store at all, tests installing a catalogue directly",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "later — G64: navigator.languages, read where the choice is resolved rather than held here",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.choice": "later — G64: the choice lives in the settings store with the theme, not in this module",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.set": "later — G64: the app's, not the catalogue's — it writes the choice, reloads and announces",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.reload": "later — G64: the web awaits the new catalogue and installs it, which is the app's step rather than this module's",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "later — G64: needs the choice and navigator.languages, both of which are the app's",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.language": "the web's currentLanguage() reads it off the catalogue in force, there being no lazily loaded one to ask",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module",
+        "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.load": "later — G64: reading a file is asynchronous in a browser, so loading is the app's step and the core takes the catalogue already read"
+      }
     }
   ]
 }
