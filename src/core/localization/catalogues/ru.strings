@@ -3,6 +3,7 @@
    так их называют даташиты, форумы и остальные инструменты.
    Строки, общие с macOS-версией, взяты из её каталога слово в слово. */
 "%1$@ bytes" = "байт: %1$@";
+"Add Bookmark" = "Добавить закладку";
 "All 256 byte values decoded with the current table. Row headers are the byte value in hex." = "Все 256 значений байта в текущей таблице. Заголовки строк — значение байта в hex.";
 "Appearance" = "Внешний вид";
 "Append File…" = "Дописать файл в конец…";
@@ -85,6 +86,9 @@
 "Put the Panes Side by Side" = "Расположить панели рядом";
 "Redo" = "Повторить";
 "Redo %1$@" = "Повторить: %1$@";
+"Remove Bookmark" = "Удалить закладку";
+"Revert to Original" = "Вернуться к исходному";
+"Revert to Saved" = "Вернуться к сохранённому";
 "Row Height:" = "Высота строки:";
 "Same as the browser (%1$@)" = "Как в браузере (%1$@)";
 "Save" = "Сохранить";

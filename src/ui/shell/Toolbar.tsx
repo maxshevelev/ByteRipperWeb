@@ -202,12 +202,21 @@ export function Toolbar({
    * manager this application does not have (D11), and Enter Full Screen is the
    * browser's own key.
    *
+   * The list has a fixed shape, as a menu bar does: a command that does not
+   * apply is greyed, not removed. Upstream builds its menus once and answers
+   * `validateMenuItem` for every item, so Save is always the fourth thing under
+   * File whether or not a file is open — and where the commands hide instead,
+   * the menu of an empty workspace is three rows long and reads as if the
+   * application had lost them. Muscle memory needs the row to stay put; what a
+   * greyed row costs is a glance, what a missing one costs is a search.
+   *
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.build
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeFileMenu
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeEditMenu
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeViewMenu
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeToolsMenu
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateMenuItem
    * @upstream-differs one command menu in the toolbar with File, Edit, Bookmarks, Segments and View sections; the browser keeps the menu bar, and Tools and the word size are the toolbar's alone
    */
   const entries = compactEntries([
@@ -223,201 +232,201 @@ export function Toolbar({
     { label: L("New"), onSelect: onNew },
     // help: menu.file.open
     { label: L("Open…"), onSelect: () => onOpen() },
-    anyOpen && state.panes.b === undefined
-      ? // help: menu.file.compare-with
-        { label: L("Compare with…"), disabled: !panesReachable, onSelect: () => onOpen("b") }
-      : undefined,
+    // Compare with… is the web's own item: upstream opens into a named pane
+    // from the pane's own menu, where this fills the free slot. It works while
+    // exactly one file is open — with two there is no free slot, and with none
+    // the command to reach for is Open….
+    // @web-only the second slot is filled from the command menu, not a pane
+    {
+      // help: menu.file.compare-with
+      label: L("Compare with…"),
+      disabled: !panesReachable || !anyOpen || state.panes.b !== undefined,
+      onSelect: () => onOpen("b"),
+    },
     { kind: "separator" },
-    active === undefined
-      ? undefined
-      : {
-          // help: menu.file.save
-          label: verb === "Save" ? L("Save") : L("Download"),
-          disabled: !dirty && verb === "Save",
-          onSelect: onSave,
-        },
-    active === undefined
-      ? undefined
-      : // help: menu.file.save-as
-        { label: verb === "Save" ? L("Save As…") : L("Download As…"), onSelect: onSaveAs },
+    {
+      // help: menu.file.save
+      label: verb === "Save" ? L("Save") : L("Download"),
+      disabled: active === undefined || (!dirty && verb === "Save"),
+      onSelect: onSave,
+    },
+    {
+      // help: menu.file.save-as
+      label: verb === "Save" ? L("Save As…") : L("Download As…"),
+      disabled: active === undefined,
+      onSelect: onSaveAs,
+    },
     // Revert follows the pane in front like the saves above it, titled for what
     // that pane goes back to. The three below it act on the workspace's own
     // panes instead: a part has no pane beside it.
-    active === undefined
-      ? undefined
-      : // help: menu.file.revert
-        { label: revert.title, disabled: !revert.enabled, onSelect: onRevert },
+    // help: menu.file.revert
+    { label: revert.title, disabled: !revert.enabled, onSelect: onRevert },
     { kind: "separator" },
-    active === undefined
-      ? undefined
-      : {
-          // help: menu.file.insert-at-start
-          label: L("Insert File at Start…"),
-          disabled: !panesReachable,
-          onSelect: () => onJoin("start"),
-        },
-    active === undefined
-      ? undefined
-      : // help: menu.file.append
-        { label: L("Append File…"), disabled: !panesReachable, onSelect: () => onJoin("end") },
+    {
+      // help: menu.file.insert-at-start
+      label: L("Insert File at Start…"),
+      disabled: active === undefined || !panesReachable,
+      onSelect: () => onJoin("start"),
+    },
+    {
+      // help: menu.file.append
+      label: L("Append File…"),
+      disabled: active === undefined || !panesReachable,
+      onSelect: () => onJoin("end"),
+    },
     { kind: "separator" },
-    active === undefined
-      ? undefined
-      : // help: menu.file.duplicate
-        { label: L("Duplicate"), disabled: !panesReachable, onSelect: onDuplicate },
+    {
+      // help: menu.file.duplicate
+      label: L("Duplicate"),
+      disabled: active === undefined || !panesReachable,
+      onSelect: onDuplicate,
+    },
     // help: menu.file.close
-    active === undefined ? undefined : { label: L("Close"), onSelect: onClose },
+    { label: L("Close"), disabled: active === undefined, onSelect: onClose },
 
     { kind: "separator" },
     { kind: "heading", label: L("Edit", { context: "menu" }) },
     // Named by what they take back, where the step carries a name: a tool's
     // transaction names itself, so this reads `Undo Fix FIT Checksum` rather
-    // than leaving the user to remember what the last thing was. Absent rather
-    // than greyed when there is nothing to take back.
-    undoable === undefined
-      ? undefined
-      : {
-          // help: menu.edit.undo
-          label: undoable.label === undefined ? L("Undo") : L("Undo %1$@", undoable.label),
-          shortcut: "⌘Z",
-          onSelect: () => void undoLast(front, false),
-        },
-    redoable === undefined
-      ? undefined
-      : {
-          // help: menu.edit.redo
-          label: redoable.label === undefined ? L("Redo") : L("Redo %1$@", redoable.label),
-          shortcut: "⇧⌘Z",
-          onSelect: () => void redoLast(front),
-        },
-    undoable === undefined && redoable === undefined ? undefined : { kind: "separator" },
+    // than leaving the user to remember what the last thing was. Greyed rather
+    // than absent when there is nothing to take back, and then the bare verb:
+    // an item that comes and goes is one the eye has to search for.
+    {
+      // help: menu.edit.undo
+      label: undoable?.label === undefined ? L("Undo") : L("Undo %1$@", undoable.label),
+      shortcut: "⌘Z",
+      disabled: undoable === undefined,
+      onSelect: () => void undoLast(front, false),
+    },
+    {
+      // help: menu.edit.redo
+      label: redoable?.label === undefined ? L("Redo") : L("Redo %1$@", redoable.label),
+      shortcut: "⇧⌘Z",
+      disabled: redoable === undefined,
+      onSelect: () => void redoLast(front),
+    },
+    { kind: "separator" },
     // help: menu.edit.fill
-    active === undefined ? undefined : { label: L("Fill Selection with…"), onSelect: onFill },
+    { label: L("Fill Selection with…"), disabled: active === undefined, onSelect: onFill },
     // help: menu.edit.delete-bytes
-    active === undefined ? undefined : { label: L("Delete Bytes…"), onSelect: onDeleteBytes },
-    active === undefined ? undefined : { kind: "separator" },
-    // help: menu.edit.find
-    active === undefined ? undefined : { label: L("Find…"), shortcut: "⌘F", onSelect: onFind },
-    active === undefined
-      ? undefined
-      : // help: menu.edit.go-to
-        { label: L("Go To Position…"), shortcut: "⌘L", onSelect: onGoTo },
+    { label: L("Delete Bytes…"), disabled: active === undefined, onSelect: onDeleteBytes },
+    { kind: "separator" },
+    {
+      // help: menu.edit.find
+      label: L("Find…"),
+      shortcut: "⌘F",
+      disabled: active === undefined,
+      onSelect: onFind,
+    },
+    {
+      // help: menu.edit.go-to
+      label: L("Go To Position…"),
+      shortcut: "⌘L",
+      disabled: active === undefined,
+      onSelect: onGoTo,
+    },
 
-    active === undefined ? undefined : { kind: "separator" },
-    active === undefined
-      ? undefined
-      : { kind: "heading", label: L("Bookmarks", { context: "menu" }) },
+    { kind: "separator" },
+    { kind: "heading", label: L("Bookmarks", { context: "menu" }) },
     // The marks of whatever is in front, read at its own offsets: the
     // workspace's list for its panes, the same list at the part's offsets for a
     // panel (§20.7). A panel showing a decompressed body has none, and ⌘D is
     // off there — there is no row of the file to mark.
-    active === undefined || marksFor(front) === undefined
-      ? undefined
-      : {
-          label:
-            bookmarkAt(front, active.document.caret) === undefined
-              ? "Add Bookmark"
-              : "Remove Bookmark",
-          shortcut: "⌘D",
-          onSelect: onToggleBookmark,
-        },
-    active === undefined
-      ? undefined
-      : // help: menu.edit.bookmark-edit
-        { label: L("Bookmarks…"), shortcut: "⌥⌘B", onSelect: onBookmarks },
+    {
+      label:
+        active !== undefined && bookmarkAt(front, active.document.caret) !== undefined
+          ? L("Remove Bookmark")
+          : L("Add Bookmark"),
+      shortcut: "⌘D",
+      disabled: active === undefined || marksFor(front) === undefined,
+      onSelect: onToggleBookmark,
+    },
+    {
+      // help: menu.edit.bookmark-edit
+      label: L("Bookmarks…"),
+      shortcut: "⌥⌘B",
+      disabled: active === undefined,
+      onSelect: onBookmarks,
+    },
 
-    active === undefined ? undefined : { kind: "separator" },
-    active === undefined
-      ? undefined
-      : { kind: "heading", label: L("Segments", { context: "menu" }) },
+    { kind: "separator" },
+    { kind: "heading", label: L("Segments", { context: "menu" }) },
     // help: menu.edit.add-cut
-    active === undefined ? undefined : { label: L("Split Here…"), onSelect: onSplitHere },
-    active === undefined
-      ? undefined
-      : {
-          // help: menu.edit.merge
-          label: L("Merge"),
-          disabled: pieceCount < 2,
-          onSelect: () => {
-            const piece = pieceAt(front, active.document.caret);
-            if (piece !== undefined) mergePiece(front, piece.index);
-          },
-        },
+    { label: L("Split Here…"), disabled: active === undefined, onSelect: onSplitHere },
+    {
+      // help: menu.edit.merge
+      label: L("Merge"),
+      disabled: active === undefined || pieceCount < 2,
+      onSelect: () => {
+        const piece = pieceAt(front, active?.document.caret ?? 0);
+        if (piece !== undefined) mergePiece(front, piece.index);
+      },
+    },
     // help: menu.edit.segments
-    active === undefined ? undefined : { label: L("Segments…"), onSelect: onSegments },
-    active === undefined
-      ? undefined
-      : {
-          // help: dialog.segments
-          label: L("Save All as Separate Files…"),
-          disabled: pieceCount < 2,
-          onSelect: onSaveAllSegments,
-        },
+    { label: L("Segments…"), disabled: active === undefined, onSelect: onSegments },
+    {
+      // help: dialog.segments
+      label: L("Save All as Separate Files…"),
+      disabled: active === undefined || pieceCount < 2,
+      onSelect: onSaveAllSegments,
+    },
 
     { kind: "separator" },
     { kind: "heading", label: L("View", { context: "menu" }) },
-    bothOpen
-      ? {
-          label:
-            // help: menu.view.pane-layout
-            state.layout === "sideBySide" ? L("Stack the Panes") : L("Put the Panes Side by Side"),
-          disabled: !panesReachable,
-          onSelect: () => setLayout(state.layout === "sideBySide" ? "stacked" : "sideBySide"),
-        }
-      : undefined,
-    bothOpen
-      ? {
-          // help: menu.view.swap-panes
-          label: L("Swap Panes"),
-          disabled: !panesReachable,
-          onSelect: () => {
-            panesSwapped();
-            swapPanes();
-          },
-        }
-      : undefined,
-    anyOpen
-      ? {
-          // help: menu.view.minimap
-          label: minimap.visible ? L("Hide Minimap") : L("Show Minimap"),
-          shortcut: "⌘M",
-          onSelect: () => toggleMinimap(),
-        }
-      : undefined,
-    bothOpen ? { kind: "separator" } : undefined,
-    bothOpen
-      ? {
-          // help: menu.view.next-difference
-          label: L("Next Difference"),
-          disabled: !canNavigate,
-          onSelect: () => onNavigate("difference", 1),
-        }
-      : undefined,
-    bothOpen
-      ? {
-          // help: menu.view.previous-difference
-          label: L("Previous Difference"),
-          disabled: !canNavigate,
-          onSelect: () => onNavigate("difference", -1),
-        }
-      : undefined,
-    bothOpen
-      ? {
-          label: L("Next Same Block"),
-          disabled: !canNavigate,
-          // help: menu.view.next-same
-          onSelect: () => onNavigate("same", 1),
-        }
-      : undefined,
-    bothOpen
-      ? {
-          // help: menu.view.previous-same
-          label: L("Previous Same Block"),
-          disabled: !canNavigate,
-          onSelect: () => onNavigate("same", -1),
-        }
-      : undefined,
+    {
+      label:
+        // help: menu.view.pane-layout
+        state.layout === "sideBySide" ? L("Stack the Panes") : L("Put the Panes Side by Side"),
+      disabled: !bothOpen || !panesReachable,
+      onSelect: () => setLayout(state.layout === "sideBySide" ? "stacked" : "sideBySide"),
+    },
+    {
+      // help: menu.view.swap-panes
+      label: L("Swap Panes"),
+      disabled: !bothOpen || !panesReachable,
+      onSelect: () => {
+        panesSwapped();
+        swapPanes();
+      },
+    },
+    {
+      // help: menu.view.minimap
+      label: minimap.visible ? L("Hide Minimap") : L("Show Minimap"),
+      shortcut: "⌘M",
+      onSelect: () => toggleMinimap(),
+    },
+    { kind: "separator" },
+    {
+      // help: menu.view.next-difference
+      label: L("Next Difference"),
+      disabled: !canNavigate,
+      onSelect: () => onNavigate("difference", 1),
+    },
+    {
+      // help: menu.view.previous-difference
+      label: L("Previous Difference"),
+      disabled: !canNavigate,
+      onSelect: () => onNavigate("difference", -1),
+    },
+    {
+      label: L("Next Same Block"),
+      disabled: !canNavigate,
+      // help: menu.view.next-same
+      onSelect: () => onNavigate("same", 1),
+    },
+    {
+      // help: menu.view.previous-same
+      label: L("Previous Same Block"),
+      disabled: !canNavigate,
+      onSelect: () => onNavigate("same", -1),
+    },
 
+    // The grouping distance is the one block that still comes and goes: it is
+    // not upstream's menu item at all but the Comparison settings' own control,
+    // borrowed into the menu beside the navigation it changes. A radio group of
+    // four dead rows under a heading naming something there is nothing to
+    // compare is worse than no heading at all.
+    // @upstream-differs the setting is in the menu here, and only while two files are open
     bothOpen ? { kind: "separator" } : undefined,
     bothOpen ? { kind: "heading", label: L("Grouping distance") } : undefined,
     ...(bothOpen

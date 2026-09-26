@@ -1,4 +1,5 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
+import { L } from "@/core/localization/localization";
 import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
@@ -75,10 +76,10 @@ export function revertItem(pane: PaneState | undefined): {
   readonly title: string;
   readonly enabled: boolean;
 } {
-  if (pane === undefined) return { title: "Revert to Saved", enabled: false };
+  if (pane === undefined) return { title: L("Revert to Saved"), enabled: false };
   const dirty = pane.document.isDirty;
-  if (canRevertToOriginal(pane)) return { title: "Revert to Original", enabled: dirty };
-  return { title: "Revert to Saved", enabled: dirty && !pane.untitled };
+  if (canRevertToOriginal(pane)) return { title: L("Revert to Original"), enabled: dirty };
+  return { title: L("Revert to Saved"), enabled: dirty && !pane.untitled };
 }
 
 /** What the shell can do, handed in so this module holds no state of its own. */

@@ -3,6 +3,7 @@
    so heißen sie in Datenblättern, Foren und den anderen Werkzeugen.
    Mit der macOS-Ausgabe gemeinsame Zeilen stammen Wort für Wort aus deren Katalog. */
 "%1$@ bytes" = "%1$@ Bytes";
+"Add Bookmark" = "Lesezeichen hinzufügen";
 "All 256 byte values decoded with the current table. Row headers are the byte value in hex." = "Alle 256 Byte-Werte, decodiert mit der aktuellen Tabelle. Die Zeilenköpfe sind der Byte-Wert in Hex.";
 "Appearance" = "Darstellung";
 "Append File…" = "Datei anhängen…";
@@ -85,6 +86,9 @@
 "Put the Panes Side by Side" = "Bereiche nebeneinander";
 "Redo" = "Wiederholen";
 "Redo %1$@" = "%1$@ wiederholen";
+"Remove Bookmark" = "Lesezeichen entfernen";
+"Revert to Original" = "Auf das Original zurücksetzen";
+"Revert to Saved" = "Auf gesicherten Stand zurücksetzen";
 "Row Height:" = "Zeilenhöhe:";
 "Same as the browser (%1$@)" = "Wie der Browser (%1$@)";
 "Save" = "Sichern";
