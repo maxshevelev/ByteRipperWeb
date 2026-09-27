@@ -12,7 +12,7 @@ Open the dump, turn on **Tools ▸ ME Analyzer**, and read the Summary tab.
 
 ## Full Info checks
 
-- The [[term:fpt|$FPT]] lists the partitions the region declares. If a partition's bytes are not actually there, or its size does not match what the table says, the region is truncated — a very common result of a bad dump or a partial flash.
+- The [[term:fpt|$FPT]] lists the partitions the region declares. If a partition's bytes are not actually there, or its size does not match what the table says, the region is truncated — possibly the result of a bad dump or a partial flash.
 - The [[term:cpd|code partitions]] and their modules should be present and their sizes consistent.
 - An erased or zero-size section is drawn grey: it is a place in the layout rather than something to read.
 

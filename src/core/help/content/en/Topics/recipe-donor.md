@@ -4,7 +4,7 @@
 
 The aim is almost never to flash the donor image whole. It is to find out **what is broken**, and to move across only that.
 
-1. **Read the patient's chip** and save the dump untouched. Read it twice and compare the two dumps against each other — if they differ, the read is unreliable (bad contact, weak power, a board still partly powered) and nothing after this step means anything.
+1. **Read the patient's chip** and save the dump untouched. Read it twice and compare the two dumps against each other — if they differ, the read is unreliable (bad contact, weak power) and nothing after this step means anything.
 2. **Open the patient and the donor** side by side ([[topic:first-comparison|comparison]]).
 3. **Check the sizes** in the status bars. Different sizes mean different chips or a wrong read — sort that out first.
 4. **Turn on [[topic:tool-uefi|UEFI Structure]]** for the patient. The tree tells you which region each address belongs to.

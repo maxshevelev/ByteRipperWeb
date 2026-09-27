@@ -1,11 +1,11 @@
-@source-sha c87a2b736d8c6c768a558080adc45e6ebb135996ad622774f258b795983a112c
+@source-sha c756ba9370b7e9f087ca0436e1fc01d196441c7357e0dca0bef2fbc4427721a7
 # Zusammenfügen und Duplizieren
 
 > Die Dumps zweier Chips zu einem Image, und eine Vorher-Kopie zum Ändern.
 
 ## Zusammenfügen: die Dumps zweier SPI-Chips zu einem Image
 
-Bei vielen Platinen ist das BIOS auf zwei SPI-Flash-Chips verteilt. Lesen Sie beide, dann:
+Bei vielen Platinen ist das BIOS auf zwei SPI-Flash-Chips verteilt. Lesen Sie beide, öffnen Sie die erste, dann:
 
 - **Ablage ▸ Datei anhängen…** — die Bytes der gewählten Datei kommen hinter den Inhalt des Bereichs.
 - **Ablage ▸ Datei am Anfang einfügen…** — sie kommen davor.

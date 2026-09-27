@@ -30,4 +30,4 @@ In **this browser, on this machine** — not in an account and not in a file you
 - Clearing site data for this page clears the settings with it, along with the bookmarks and the pattern library.
 - There is no File Types tab: which application opens a `.bin` is the operating system's business, and a web page is not offered the job.
 
-Settings apply to the whole workspace rather than to one pane: the font size you pick applies to both dumps, which is deliberate — a dump zoomed in one pane and not in the other would be an invisible second preference.
+Settings apply to the whole workspace rather than to one pane: the font size you pick applies to both dumps.

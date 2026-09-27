@@ -1,6 +1,6 @@
 # Checking and Fixing Checksums
 
-> A structure that carries its own checksum will be rejected if you edit it and leave the old value.
+> A structure that carries its own checksum may be rejected if you edit it and leave the old value.
 
 Many firmware structures carry a [[term:checksum|checksum]] over their own header or body. Change a byte inside one and the checksum no longer matches, and whatever reads that structure — the firmware itself, a flashing tool, a parser — will treat it as damaged.
 

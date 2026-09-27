@@ -1,7 +1,7 @@
-@source-sha 700e7b1f7d94b3dc9c9fcfb8ef794c9bb43511bc47fdb014c77d2d6edce7ab93
+@source-sha 5a2e1848826cfbf71080535fba6b5619af3efc4168fe1fa5a30db7597149836a
 # Prüfsummen prüfen und korrigieren
 
-> Eine Struktur, die ihre eigene Prüfsumme trägt, wird abgewiesen, wenn Sie sie ändern und den alten Wert stehen lassen.
+> Eine Struktur, die ihre eigene Prüfsumme trägt, kann abgewiesen werden, wenn Sie sie ändern und den alten Wert stehen lassen.
 
 Viele Firmware-Strukturen tragen eine [[term:checksum|Prüfsumme]] über ihren eigenen Header oder Rumpf. Ändern Sie ein Byte darin, geht die Prüfsumme nicht mehr auf, und was immer die Struktur liest — die Firmware selbst, ein Flash-Werkzeug, ein Parser — hält sie für beschädigt.
 

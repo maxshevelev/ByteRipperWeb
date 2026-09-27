@@ -1,4 +1,4 @@
-@source-sha 3b39de8caf2720344a192eca9185addb5b3e3e533bca02cee11e58d9de0cf90e
+@source-sha 801fc4fe3c7592912978a6ea2f114310ee8d8dae5b2fd16a03de360d14303de5
 # Eine ME-Region prüfen
 
 > Ist die Engine-Firmware da, ist sie vollständig, und gehört sie zu dieser Platine?
@@ -13,7 +13,7 @@
 
 ## Was in den vollständigen Angaben zu prüfen ist
 
-- Die [[term:fpt|$FPT]] führt die Partitionen auf, die die Region deklariert. Sind die Bytes einer Partition nicht wirklich da, oder passt ihre Größe nicht zur Tabelle, ist die Region abgeschnitten — ein sehr häufiges Ergebnis eines schlechten Dumps oder eines halb geschriebenen Flash.
+- Die [[term:fpt|$FPT]] führt die Partitionen auf, die die Region deklariert. Sind die Bytes einer Partition nicht wirklich da, oder passt ihre Größe nicht zur Tabelle, ist die Region abgeschnitten — womöglich das Ergebnis eines schlechten Dumps oder eines halb geschriebenen Flash.
 - Die [[term:cpd|Code-Partitionen]] und ihre Module sollten vorhanden und in sich stimmig groß sein.
 - Eine gelöschte Sektion oder eine mit Größe null wird grau gezeichnet: sie ist ein Platz in der Aufteilung, nichts zum Lesen.
 

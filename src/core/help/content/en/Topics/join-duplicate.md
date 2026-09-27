@@ -8,7 +8,7 @@
 
 ## Join: the dumps of two SPI chips into one image
 
-Plenty of boards split the BIOS across two SPI flash chips. Read both, then:
+Plenty of boards split the BIOS across two SPI flash chips. Read both, open the first, then:
 
 - **File ▸ Append File…** — the chosen file's bytes go after the pane's content.
 - **File ▸ Insert File at Start…** — they go before it.

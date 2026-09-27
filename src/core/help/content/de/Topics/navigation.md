@@ -1,4 +1,4 @@
-@source-sha 17b29d20a296d6df29e9447b132515733e64ef20cfc42d4aafec4b2d7228c573
+@source-sha 43c614e6c3c79a98970752ca235fb56be4d7e3928de126994374bff5c1b20fb1
 # Sich bewegen
 
 > Zwischen Unterschieden springen, zu einer Adresse springen oder auf einem Byte stehen und ablesen, wo man ist.
@@ -31,7 +31,7 @@ Im Vergleichsmodus bewegt der Sprung **beide** Bereiche: sie sind an dieselbe Ad
 
 ## Den anderen Bereich mitführen
 
-Die beiden Bereiche bleiben gekoppelt: Scrollposition, Einfügemarke und Auswahl. Das macht einen Vergleich lesbar. **Darstellung ▸ Bereiche tauschen** vertauscht A und B, falls Sie sie andersherum geöffnet haben.
+Die beiden Bereiche bleiben gekoppelt: Scrollposition, Einfügemarke und Auswahl. Das macht einen Vergleich lesbar. **Darstellung ▸ Bereiche tauschen** tauscht die Dateien zwischen den Bereichen, falls Sie sie andersherum geöffnet haben.
 
 ## Alles größer machen
 

@@ -1,4 +1,4 @@
-@source-sha 742c8c47650714308970a424928759c7be15d84cfd6d1e989092ce1fa11f8caa
+@source-sha f2ce8e15e53d6edd65055bc09ba2eb1aef4988682f64b2bd8097da492377d8d7
 # Einstellungen
 
 > **Ablage ▸ Einstellungen…** im Menü der Symbolleiste — das, was sich das Programm merkt.
@@ -21,4 +21,4 @@ Ein ⌘, gibt es hier nicht: im Browser gehört dieser Griff den Einstellungen d
 - Die Website-Daten zu löschen, löscht die Einstellungen mit — samt Lesezeichen und Musterbibliothek.
 - Einen Reiter „Dateitypen“ gibt es nicht: womit eine `.bin` geöffnet wird, ist Sache des Betriebssystems, und eine Webseite wird dafür nicht gefragt.
 
-Die Einstellungen gelten für den ganzen Arbeitsbereich, nicht für einen Bereich: die gewählte Schriftgröße gilt für beide Dumps — mit Absicht, denn ein Dump, der in einem Bereich vergrößert wäre und im anderen nicht, wäre eine unsichtbare zweite Einstellung.
+Die Einstellungen gelten für den ganzen Arbeitsbereich, nicht für einen Bereich: die gewählte Schriftgröße gilt für beide Dumps.
