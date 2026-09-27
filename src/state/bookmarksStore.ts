@@ -380,10 +380,5 @@ export function noteVisited(offset: number): void {
   void persist();
 }
 
-export function clearRecentAddresses(): void {
-  bookmarksStore.update((state) => ({ ...state, recent: [] }));
-  void persist();
-}
-
 /** `00001000` — what the lists and the menus call a row. */
 export { hexAddress };

@@ -13,12 +13,7 @@ import {
   cancelBookmarkEdit,
   editBookmarkInList,
 } from "@/state/bookmarkEditStore";
-import {
-  bookmarksIn,
-  bookmarksStore,
-  clearRecentAddresses,
-  removeBookmark,
-} from "@/state/bookmarksStore";
+import { bookmarksIn, bookmarksStore, removeBookmark } from "@/state/bookmarksStore";
 import type { PaneId } from "@/state/paneId";
 import { useStore } from "@/state/useStore";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
@@ -93,7 +88,7 @@ const platform = detectKeyboardPlatform();
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.errorLabel
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.emptyLabel
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.mostRecent
- * @upstream-differs a dialog; the recent addresses are offered in the field's list
+ * @upstream-differs a dialog, and a combobox with a listbox where upstream is an NSComboBox; the recent addresses are offered in the field's list
  */
 export function GoToDialog({
   open,
@@ -131,6 +126,11 @@ export function GoToDialog({
   const rowElements = useRef(new Map<number, HTMLDivElement>());
   const offsetId = useId();
   const errorId = useId();
+  const recentListId = useId();
+  /** The field's list of recent addresses, and the row under the highlight. */
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [recentActive, setRecentActive] = useState(-1);
+  const comboRef = useRef<HTMLDivElement | null>(null);
 
   const bookmarksNow = useRef(marks);
   bookmarksNow.current = marks;
@@ -138,6 +138,8 @@ export function GoToDialog({
   useEffect(() => {
     if (!open) return;
     setText(HEX_PREFIX);
+    setRecentOpen(false);
+    setRecentActive(-1);
     if (focus === "bookmarks") {
       // Opened for the list, the list offers its first bookmark — the lowest
       // address. The jump still takes a Return: a selection is an offer.
@@ -210,6 +212,69 @@ export function GoToDialog({
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (target !== undefined) go(target);
+  };
+
+  /**
+   * A pick from the field's list: the address only fills the field — the jump
+   * is still a Return away, so the list cannot navigate the dump by itself.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.comboBoxSelectionDidChange
+   */
+  const pickRecent = (row: number) => {
+    setRecentOpen(false);
+    setText(`0x${hexAddress(row)}`);
+  };
+
+  // A press anywhere else puts the list away, as a menu does.
+  useEffect(() => {
+    if (!recentOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const root = comboRef.current;
+      if (root !== null && event.target instanceof Node && root.contains(event.target)) return;
+      setRecentOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [recentOpen]);
+
+  /**
+   * The field's own keys while its list is up: ↓ opens and walks, ↑ walks,
+   * Return takes the row under the highlight — and only that, filling the
+   * field, the way a pick does. With the list away the keys are the field's
+   * and the form's: Return submits, Escape is the dialog's.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.offsetCombo
+   */
+  const onOffsetKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    switch (event.key) {
+      case "ArrowDown":
+        if (state.recent.length === 0) return;
+        event.preventDefault();
+        if (recentOpen) setRecentActive((index) => Math.min(index + 1, state.recent.length - 1));
+        else {
+          setRecentActive(0);
+          setRecentOpen(true);
+        }
+        return;
+      case "ArrowUp":
+        if (!recentOpen) return;
+        event.preventDefault();
+        setRecentActive((index) => Math.max(index - 1, 0));
+        return;
+      case "Enter":
+        if (!recentOpen) return;
+        event.preventDefault();
+        if (recentActive >= 0) {
+          const row = state.recent[recentActive];
+          if (row !== undefined) pickRecent(row);
+        }
+        return;
+      case "Escape":
+        if (!recentOpen) return;
+        // The list goes away; the form stays — the next Escape is the dialog's.
+        event.preventDefault();
+        setRecentOpen(false);
+    }
   };
 
   /**
@@ -348,18 +413,62 @@ export function GoToDialog({
           <label className="goto-offset-label" htmlFor={offsetId}>
             {L("Offset:")}
           </label>
-          <input
-            id={offsetId}
-            ref={offsetRef}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            list="goto-recent"
-            inputMode="text"
-            spellCheck={false}
-            autoComplete="off"
-            aria-invalid={problem !== undefined}
-            aria-describedby={errorId}
-          />
+          <div className="goto-combo" ref={comboRef}>
+            <input
+              id={offsetId}
+              ref={offsetRef}
+              value={text}
+              onChange={(event) => {
+                // Typing is the field's own business: the list goes away, as
+                // one does while typing in a combobox.
+                setText(event.target.value);
+                setRecentOpen(false);
+              }}
+              inputMode="text"
+              spellCheck={false}
+              autoComplete="off"
+              aria-invalid={problem !== undefined}
+              aria-describedby={errorId}
+              role="combobox"
+              aria-expanded={recentOpen}
+              aria-controls={recentOpen ? recentListId : undefined}
+              aria-autocomplete="none"
+              aria-activedescendant={
+                recentOpen && recentActive >= 0 ? `${recentListId}-${recentActive}` : undefined
+              }
+              onKeyDown={onOffsetKeyDown}
+            />
+            {/* The addresses this workspace has already been sent to, offered
+                back rather than retyped: the field's own list, a combobox's. */}
+            {recentOpen && state.recent.length > 0 ? (
+              <div
+                id={recentListId}
+                className="menu-popup goto-combo-popup"
+                role="listbox"
+                aria-label="Recent addresses"
+              >
+                {state.recent.map((row, index) => (
+                  <div
+                    key={row}
+                    id={`${recentListId}-${index}`}
+                    role="option"
+                    tabIndex={-1}
+                    aria-selected={recentActive === index}
+                    className={`goto-combo-option${recentActive === index ? " is-active" : ""}`}
+                    // Chosen on the press, which also keeps the focus in the
+                    // field; the keyboard walks the rows through the combobox.
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      pickRecent(row);
+                    }}
+                    onPointerEnter={() => setRecentActive(index)}
+                  >
+                    {`0x${hexAddress(row)}`}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <button type="submit" className="toolbar-button" disabled={target === undefined}>
             {L("Go To")}
           </button>
@@ -369,13 +478,6 @@ export function GoToDialog({
             {problem ?? ""}
           </p>
         </form>
-        {/* The addresses this workspace has already been sent to, offered back
-            rather than retyped. */}
-        <datalist id="goto-recent">
-          {state.recent.map((row) => (
-            <option key={row} value={`0x${hexAddress(row)}`} />
-          ))}
-        </datalist>
 
         {/* Dimmed over a closed list, the way a disabled control's title is: the
             half of the form that still works must be the one that looks alive. */}
@@ -458,15 +560,6 @@ export function GoToDialog({
               the marks is the one that answers it in words.
               @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
           <HelpButton link={topicLink(TOPIC.bookmarks)} />
-          {state.recent.length > 0 ? (
-            <button
-              type="button"
-              className="toolbar-button is-quiet"
-              onClick={clearRecentAddresses}
-            >
-              Clear Recent Addresses
-            </button>
-          ) : null}
           {/* Close, not Cancel: nothing here is undone by leaving. A bookmark
               edited or removed from the list already is. */}
           <button type="button" className="toolbar-button" onClick={close}>

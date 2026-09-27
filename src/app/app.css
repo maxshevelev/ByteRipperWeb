@@ -1571,7 +1571,15 @@ textarea,
   opacity: 0.55;
 }
 
-.goto-offset input {
+/* The field's wrapper: the grid's column is the combobox, and the popup hangs
+   off the field, an NSComboBox's list. */
+.goto-combo {
+  position: relative;
+  min-width: 0;
+}
+
+.goto-combo input {
+  width: 100%;
   min-width: 0;
   font: inherit;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -1580,6 +1588,26 @@ textarea,
   border-radius: 5px;
   background: var(--surface-sunken);
   color: var(--text);
+}
+
+/* The recent addresses: as wide as the field, never wider than the list. */
+.goto-combo-popup {
+  min-width: 100%;
+  max-height: 12rem;
+}
+
+.goto-combo-option {
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.goto-combo-option.is-active {
+  background: var(--selection);
 }
 
 .goto-error {
