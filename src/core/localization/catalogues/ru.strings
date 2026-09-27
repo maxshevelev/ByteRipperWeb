@@ -164,6 +164,7 @@
 "Revert Segment %1$@ to “%2$@”" = "Восстановить сегмент %1$@ из «%2$@»";
 "Revert to Original" = "Вернуться к исходному";
 "Revert to Saved" = "Вернуться к сохранённому";
+"Right-click a piece to save it, replace it from a file, select it, rename it, or merge it." = "Кликните правой кнопкой по сегменту, чтобы сохранить его, заменить из файла, выбрать, переименовать или объединить.";
 "Row Height:" = "Высота строки:";
 "Same as the browser (%1$@)" = "Как в браузере (%1$@)";
 "Save" = "Сохранить";

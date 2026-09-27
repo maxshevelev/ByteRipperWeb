@@ -349,8 +349,14 @@ export function SegmentsDialog({
             −
           </button>
         </div>
+        {/* The form's own line — upstream's form has none, its `?` button is
+            its only help — so its words, like the cut dialog's, are its own
+            and carry their own translations.
+            @web-only the form's help line; upstream's form has none */}
         <p className="dialog-help">
-          Right-click a piece to save it, replace it from a file, select it, rename it, or merge it.
+          {L(
+            "Right-click a piece to save it, replace it from a file, select it, rename it, or merge it."
+          )}
         </p>
 
         <div className="dialog-actions">

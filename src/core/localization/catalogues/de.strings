@@ -164,6 +164,7 @@
 "Revert Segment %1$@ to “%2$@”" = "Segment %1$@ auf „%2$@“ zurücksetzen";
 "Revert to Original" = "Auf das Original zurücksetzen";
 "Revert to Saved" = "Auf gesicherten Stand zurücksetzen";
+"Right-click a piece to save it, replace it from a file, select it, rename it, or merge it." = "Klicken Sie mit der rechten Maustaste auf ein Stück, um es zu speichern, aus einer Datei zu ersetzen, auszuwählen, umzubenennen oder zusammenzuführen.";
 "Row Height:" = "Zeilenhöhe:";
 "Same as the browser (%1$@)" = "Wie der Browser (%1$@)";
 "Save" = "Sichern";
