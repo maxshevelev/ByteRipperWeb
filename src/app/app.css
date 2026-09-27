@@ -1003,8 +1003,11 @@ textarea,
   font: inherit;
 }
 
-/* A dialog that holds the focus itself is not a control, so it is not ringed. */
-.dialog:focus {
+/* A dialog that holds the focus itself is not a control, so it is not ringed.
+   The term popover is one: its focus lands on the shell on the way in, and
+   the controls inside it keep their own rings when the reader tabs to them. */
+.dialog:focus,
+.help-popover:focus {
   outline: none;
 }
 
