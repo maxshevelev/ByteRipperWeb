@@ -388,7 +388,7 @@ function segmentItems(
   const pieces = segmentsFor(pane)?.segments.length ?? 0;
   const items: (MenuEntry | undefined)[] = [
     {
-      label: `Split Here at ${hexAddress(offset)}…`,
+      label: L("Split Here at %1$@", hexAddress(offset)),
       onSelect: () => actions.onSplitHere(pane, offset),
     },
   ];

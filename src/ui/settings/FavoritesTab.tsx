@@ -569,8 +569,9 @@ export function FavoritesTab() {
       <div className="favorites-footer">
         <button
           type="button"
-          className="toolbar-button"
-          aria-label="Add a favorite"
+          className="table-addremove"
+          aria-label={L("Add Pattern")}
+          title={L("Add a pattern")}
           disabled={readOnly}
           onClick={add}
         >
@@ -578,8 +579,9 @@ export function FavoritesTab() {
         </button>
         <button
           type="button"
-          className="toolbar-button"
-          aria-label="Remove the selected favorite"
+          className="table-addremove"
+          aria-label={L("Remove Pattern")}
+          title={L("Remove the selected pattern")}
           disabled={readOnly || selected === undefined || selected >= rows.length}
           onClick={remove}
         >

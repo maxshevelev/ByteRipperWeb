@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import type { Segment } from "@/core/segments/segmentation";
-import { segmentLabel } from "@/core/segments/segmentation";
+import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
 import { hexAddress } from "@/core/text/hexText";
 import { type SegmentLinkState, segmentLinkState, segmentSource } from "@/state/segmentSources";
@@ -163,6 +163,53 @@ export function SegmentsDialog({
     });
 
   /**
+   * The `−`'s act: the piece goes, the neighbour takes over the partition's
+   * room — and the selection, the row that slid up into its place, or the new
+   * last row.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeSegment
+   */
+  const removePiece = (index: number) => {
+    if (pieces.length < 2) return;
+    mergePiece(pane, index);
+    setSelected(Math.min(index, pieces.length - 2));
+  };
+
+  /**
+   * The list's own keys (§21.4): Return goes to the selected piece's start —
+   * the form closes first, the row it lands on has to be visible — and ⌫
+   * removes the piece. A key from inside the rename field is the field's: a
+   * Return there commits the name, it does not jump to the piece.
+   *
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentTableView.keyDown
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.goToSelectedSegment
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.removeSelectedSegment
+   */
+  const onRowKey = (event: React.KeyboardEvent<HTMLTableRowElement>, piece: Segment) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onSelectPiece(piece);
+      onClose();
+      return;
+    }
+    if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      removePiece(piece.index);
+    }
+  };
+
+  /**
+   * The `−`'s tooltip and accessible name: the selected piece and the neighbour
+   * it merges into — "Merge S1 into S0" — so the icon-only button says what it
+   * will do. With nothing selected there is no piece to name, so it falls back
+   * to "Merge".
+   *
+   * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.updateRemoveButton
+   */
+  const minusTitle = pieces[selected] === undefined ? L("Merge") : mergeTitle(selected);
+
+  /**
    * The Name column for one piece (§21.7): its own name when it has one that
    * is not the file's, then the link glyph and the file it came from. While it
    * still is that file's bytes the run is quiet; once it is not, it goes red
@@ -216,21 +263,20 @@ export function SegmentsDialog({
         <div className="segments-scroll">
           <table className="panel-table segments-table">
             <caption className="visually-hidden">{L("Segments")}</caption>
-            <thead>
-              <tr>
-                <th scope="col">Piece</th>
-                <th scope="col">{L("Start")}</th>
-                <th scope="col">{L("Size")}</th>
-                <th scope="col">{L("Name")}</th>
-              </tr>
-            </thead>
+            {/* No head row: the columns are self-evident (a label, an address,
+                a size, a name), and a head of one word each would spend more
+                room than it says.
+                @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.makeTable */}
             <tbody>
               {pieces.map((piece) => (
                 <tr
                   key={piece.start}
+                  tabIndex={0}
                   data-selected={selected === piece.index ? "" : undefined}
                   onPointerDown={() => setSelected(piece.index)}
+                  onFocus={() => setSelected(piece.index)}
                   onDoubleClick={() => setRenaming(piece.index)}
+                  onKeyDown={(event) => onRowKey(event, piece)}
                   onContextMenu={(event) => {
                     setSelected(piece.index);
                     openContextMenu(event, rowMenu(piece));
@@ -278,6 +324,31 @@ export function SegmentsDialog({
             </tbody>
           </table>
         </div>
+        {/* The +/− under the list: a hairline, then two icon-only buttons at
+            the left — + opens the cut, − removes the selected piece. Neither
+            has words of its own; the tooltip says what the icon will do.
+            @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.makeFooter */}
+        <div className="segments-footer">
+          <button
+            type="button"
+            className="table-addremove"
+            aria-label={L("Add Cut")}
+            title={L("Add Cut…")}
+            onClick={onAddCut}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="table-addremove"
+            aria-label={minusTitle}
+            title={minusTitle}
+            disabled={pieces.length < 2 || pieces[selected] === undefined}
+            onClick={() => removePiece(selected)}
+          >
+            −
+          </button>
+        </div>
         <p className="dialog-help">
           Right-click a piece to save it, replace it from a file, select it, rename it, or merge it.
         </p>
@@ -287,18 +358,6 @@ export function SegmentsDialog({
               where the platform's own round help button goes.
               @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
           <HelpButton link={topicLink(TOPIC.segments)} />
-          <button type="button" className="toolbar-button" onClick={onAddCut} title="Add a cut">
-            {L("Add Cut…")}
-          </button>
-          <button
-            type="button"
-            className="toolbar-button"
-            disabled={pieces.length < 2}
-            onClick={() => mergePiece(pane, selected)}
-            title="Merge the selected piece into its neighbour"
-          >
-            {L("Merge")}
-          </button>
           <button
             type="button"
             className="toolbar-button"
@@ -308,7 +367,15 @@ export function SegmentsDialog({
             {L("Merge All")}
           </button>
           <span className="toolbar-spacer" />
-          <button type="button" className="toolbar-button" onClick={onSaveAll}>
+          {/* With one piece there is nothing to separate, so the write stays
+              disabled — the button row acts on the whole partition.
+              @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.updateRemoveButton */}
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={pieces.length < 2}
+            onClick={onSaveAll}
+          >
             {L("Save All as Separate Files…")}
           </button>
           <button type="button" className="toolbar-button" onClick={onClose}>

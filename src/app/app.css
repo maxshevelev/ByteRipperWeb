@@ -427,6 +427,38 @@ textarea,
 }
 
 /*
+ * The table's +/− button (§21.4): a small borderless icon, square so the plus
+ * and the minus come out the same size, in a subdued grey so it reads as a
+ * control rather than a word. The Segments form's footer and the favorites
+ * wear it; it has no words of its own — the tooltip says what it will do.
+ */
+.table-addremove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.table-addremove:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.table-addremove:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/*
  * The word size: the bar's one native `<select>`, dressed as the buttons beside
  * it. It stays a `<select>` because that is the one built-in single-choice list
  * HTML has, and the same control upstream's `NSPopUpButton(pullsDown: false)`
@@ -1425,11 +1457,15 @@ textarea,
   width: 100%;
 }
 
-/* The head stays put while the rows scroll under it. */
-.segments-table thead th {
-  position: sticky;
-  top: 0;
-  background: var(--surface-sunken);
+/* The +/− under the list: a hairline across, the two icon buttons at the
+   left, the same row the favorites' +/− sit in. */
+.segments-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
 }
 
 .segments-table tbody tr[data-selected] {
