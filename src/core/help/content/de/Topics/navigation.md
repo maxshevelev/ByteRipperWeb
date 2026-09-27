@@ -1,4 +1,4 @@
-@source-sha 43c614e6c3c79a98970752ca235fb56be4d7e3928de126994374bff5c1b20fb1
+@source-sha 900e9186644849c8c99bef8ff79f8a287b9be066661ab72229e8136bd2e55376
 # Sich bewegen
 
 > Zwischen Unterschieden springen, zu einer Adresse springen oder auf einem Byte stehen und ablesen, wo man ist.
@@ -19,7 +19,7 @@ Ein „Unterschied“ ist beim Springen eine ganze Folge abweichender Bytes, nic
 - `0x1FE00` — hexadezimal, mit dem Präfix `0x` (es steht schon im Feld).
 - `130560` — dezimal, ohne Präfix.
 
-Das Feld merkt sich die letzten zehn Adressen, zu denen Sie gesprungen sind. Darunter liegt die [[topic:bookmarks|Lesezeichenliste]] — Tab bringt die Tastatur dorthin, Return springt zum ausgewählten Lesezeichen. Beide Hälften sind ein Formular, weil sie eine Frage beantworten.
+Das Feld merkt sich die letzten zehn Adressen, zu denen Sie gesprungen sind: der Pfeil am rechten Rand des Feldes — oder ↓ — klappt die Liste auf, und eine Auswahl füllt nur das Feld, der Sprung bleibt ein Return. Darunter liegt die [[topic:bookmarks|Lesezeichenliste]] — Tab bringt die Tastatur dorthin, Return springt zum ausgewählten Lesezeichen. Beide Hälften sind ein Formular, weil sie eine Frage beantworten.
 
 Im Vergleichsmodus bewegt der Sprung **beide** Bereiche: sie sind an dieselbe Adresse gebunden, und genau das macht die Ansicht nebeneinander überhaupt sinnvoll.
 

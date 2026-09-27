@@ -27,7 +27,7 @@ A "difference" for navigation is a whole run of differing bytes, not each byte i
 - `0x1FE00` — hex, with the `0x` prefix (already in the field).
 - `130560` — decimal, without a prefix.
 
-The field remembers the last ten addresses you jumped to. Below it is the [[topic:bookmarks|bookmark list]] — Tab moves the keyboard there, and Return jumps to the selected mark. Both halves are one form because they answer one question.
+The field remembers the last ten addresses you jumped to: the arrow at its right edge — or ↓ — drops them down, and picking one only fills the field, so the jump is still a Return. Below it is the [[topic:bookmarks|bookmark list]] — Tab moves the keyboard there, and Return jumps to the selected mark. Both halves are one form because they answer one question.
 
 In comparison mode the jump moves **both** panes: they are locked to the same address, which is what makes the side-by-side view mean anything.
 

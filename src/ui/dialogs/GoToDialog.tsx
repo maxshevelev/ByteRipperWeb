@@ -88,7 +88,7 @@ const platform = detectKeyboardPlatform();
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.errorLabel
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.emptyLabel
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.mostRecent
- * @upstream-differs a dialog, and a combobox with a listbox where upstream is an NSComboBox; the recent addresses are offered in the field's list
+ * @upstream-differs a dialog, and a combobox with an arrow and a listbox where upstream is an NSComboBox; the recent addresses are offered in the field's list
  */
 export function GoToDialog({
   open,
@@ -131,6 +131,7 @@ export function GoToDialog({
   const [recentOpen, setRecentOpen] = useState(false);
   const [recentActive, setRecentActive] = useState(-1);
   const comboRef = useRef<HTMLDivElement | null>(null);
+  const hasRecent = state.recent.length > 0;
 
   const bookmarksNow = useRef(marks);
   bookmarksNow.current = marks;
@@ -238,7 +239,7 @@ export function GoToDialog({
   }, [recentOpen]);
 
   /**
-   * The field's own keys. The list drops down on the field's focus; while it is
+   * The field's own keys. ↓ drops the list down, as the arrow does; while it is
    * up, ↓ and ↑ walk the rows from the top, and Return takes the row under the
    * highlight — and only that, filling the field, the way a pick does. With
    * nothing under the highlight, Return is the form's: it submits the typed
@@ -250,7 +251,7 @@ export function GoToDialog({
   const onOffsetKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     switch (event.key) {
       case "ArrowDown":
-        if (state.recent.length === 0) return;
+        if (!hasRecent) return;
         event.preventDefault();
         if (recentOpen) setRecentActive((index) => Math.min(index + 1, state.recent.length - 1));
         else {
@@ -437,21 +438,38 @@ export function GoToDialog({
               aria-activedescendant={
                 recentOpen && recentActive >= 0 ? `${recentListId}-${recentActive}` : undefined
               }
-              // A combobox offers its list to the field that has the focus, so
-              // opening Go To drops the recent addresses straight down — and
-              // losing the focus (Tab, the Bookmarks list) puts them away.
-              onFocus={() => {
-                if (state.recent.length > 0) {
-                  setRecentActive(-1);
-                  setRecentOpen(true);
-                }
-              }}
+              // The list belongs to the arrow and to ↓, not to the focus: a
+              // combobox's field is a field until it is asked for its list, and
+              // ⌘L opening Go To onto a dropped list would bury the bookmarks
+              // under it. Losing the focus (Tab, the Bookmarks list) puts the
+              // list away.
               onBlur={() => setRecentOpen(false)}
               onKeyDown={onOffsetKeyDown}
             />
+            {/* The arrow an NSComboBox wears: what says this field has a list
+                at all. Off when nothing has been typed yet — an arrow that
+                drops an empty list is an arrow that lies. Not a tab stop and
+                never the focus: the press keeps the caret in the field, so
+                Return after a pick still submits from where it was typed. */}
+            <button
+              type="button"
+              className="goto-combo-arrow"
+              tabIndex={-1}
+              disabled={!hasRecent}
+              aria-hidden="true"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                if (!hasRecent) return;
+                offsetRef.current?.focus({ preventScroll: true });
+                setRecentActive(-1);
+                setRecentOpen((up) => !up);
+              }}
+            >
+              ▾
+            </button>
             {/* The addresses this workspace has already been sent to, offered
                 back rather than retyped: the field's own list, a combobox's. */}
-            {recentOpen && state.recent.length > 0 ? (
+            {recentOpen && hasRecent ? (
               <div
                 id={recentListId}
                 className="menu-popup goto-combo-popup"

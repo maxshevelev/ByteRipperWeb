@@ -1583,11 +1583,44 @@ textarea,
   min-width: 0;
   font: inherit;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  padding: 0.3rem 0.5rem;
+  /* Room at the right for the arrow, so a long address runs under nothing. */
+  padding: 0.3rem 1.7rem 0.3rem 0.5rem;
   border: 1px solid var(--border-strong);
   border-radius: 5px;
   background: var(--surface-sunken);
   color: var(--text);
+}
+
+/* The arrow an NSComboBox wears, inside the field's frame at its right edge:
+   what tells the reader this field has a list before they press anything. It
+   sits on the field's own ground rather than a button's, because it is part of
+   the field — a raised button here would read as a second control. */
+.goto-combo-arrow {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.goto-combo-arrow:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+/* Nothing jumped to yet: the arrow is there, so the field still reads as a
+   combobox, but it is plainly off rather than dropping an empty list. */
+.goto-combo-arrow:disabled {
+  color: var(--text-faint);
+  cursor: default;
 }
 
 /* The recent addresses: the field's own dropdown, an NSComboBox's list. It
