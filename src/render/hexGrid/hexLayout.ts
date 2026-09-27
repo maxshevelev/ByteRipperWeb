@@ -1,4 +1,5 @@
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+import { L } from "@/core/localization/localization";
 
 /** @upstream ByteRipperApp/Hex/HexLayout.swift#HexLayout.bytesPerRow */
 export { BYTES_PER_ROW };
@@ -35,9 +36,24 @@ export const WORD_SIZES: readonly WordSize[] = [1, 2, 4, 8];
 /**
  * How a word size is named in the menu: "1 Byte", "2 Bytes".
  *
+ * One whole phrase per size rather than a number glued to a singular or plural:
+ * English has two plural forms here and Russian three, and «1 байт, 2 байта,
+ * 8 байт» cannot be reached from the size and an "s".
+ *
  * @upstream ByteRipperApp/Hex/WordSize.swift#WordSize.title
  */
-export const wordSizeTitle = (size: WordSize): string => `${size} ${size === 1 ? "Byte" : "Bytes"}`;
+export const wordSizeTitle = (size: WordSize): string => {
+  switch (size) {
+    case 1:
+      return L("1 Byte");
+    case 2:
+      return L("2 Bytes");
+    case 4:
+      return L("4 Bytes");
+    case 8:
+      return L("8 Bytes");
+  }
+};
 
 export interface HexLayoutOptions {
   /** Width of one monospaced character. */

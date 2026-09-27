@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
-import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
+import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
@@ -32,7 +32,6 @@ import {
 } from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
-import { wordSizeChoiceTitle } from "@/ui/settings/settingsText";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { helpMenuEntries } from "@/ui/shell/helpMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
@@ -617,7 +616,7 @@ export function Toolbar({
             >
               {WORD_SIZES.map((size) => (
                 <option key={size} value={size}>
-                  {wordSizeChoiceTitle(size)}
+                  {wordSizeTitle(size)}
                 </option>
               ))}
             </select>

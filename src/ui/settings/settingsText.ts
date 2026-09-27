@@ -41,11 +41,6 @@ export function groupingGapTitle(gap: number): string {
   return `${gap} bytes (${rows} row${rows === 1 ? "" : "s"})`;
 }
 
-/** `1 Byte`, `4 Bytes` — the Layout tab's word size choices. */
-export function wordSizeChoiceTitle(size: number): string {
-  return size === 1 ? "1 Byte" : `${size} Bytes`;
-}
-
 /**
  * What is wrong with a placeholder as typed, or nothing when it is one
  * character.

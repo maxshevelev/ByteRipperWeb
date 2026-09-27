@@ -3,6 +3,10 @@
    so heißen sie in Datenblättern, Foren und den anderen Werkzeugen.
    Mit der macOS-Ausgabe gemeinsame Zeilen stammen Wort für Wort aus deren Katalog. */
 "%1$@ bytes" = "%1$@ Bytes";
+"1 Byte" = "1 Byte";
+"2 Bytes" = "2 Bytes";
+"4 Bytes" = "4 Bytes";
+"8 Bytes" = "8 Bytes";
 "Add Bookmark" = "Lesezeichen hinzufügen";
 "All 256 byte values decoded with the current table. Row headers are the byte value in hex." = "Alle 256 Byte-Werte, decodiert mit der aktuellen Tabelle. Die Zeilenköpfe sind der Byte-Wert in Hex.";
 "Appearance" = "Darstellung";

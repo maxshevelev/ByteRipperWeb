@@ -9,7 +9,7 @@ import {
 import { L } from "@/core/localization/localization";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
-import { WORD_SIZES } from "@/render/hexGrid/hexLayout";
+import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import {
   APP_THEMES,
   FONT_SIZE_RANGE,
@@ -47,7 +47,6 @@ import {
   groupingGapTitle,
   placeholderProblem,
   snapRowHeightScale,
-  wordSizeChoiceTitle,
 } from "@/ui/settings/settingsText";
 
 export type SettingsTab =
@@ -337,7 +336,7 @@ function LayoutTab() {
         >
           {WORD_SIZES.map((size) => (
             <option key={size} value={size}>
-              {wordSizeChoiceTitle(size)}
+              {wordSizeTitle(size)}
             </option>
           ))}
         </select>

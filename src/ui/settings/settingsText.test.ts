@@ -6,7 +6,6 @@ import {
   groupingGapTitle,
   placeholderProblem,
   snapRowHeightScale,
-  wordSizeChoiceTitle,
 } from "@/ui/settings/settingsText";
 
 /** The words beside the Settings controls. */
@@ -41,17 +40,6 @@ describe("the comparison tab's choices", () => {
       "32 bytes (2 rows)",
       "64 bytes (4 rows)",
       "256 bytes (16 rows)",
-    ]);
-  });
-});
-
-describe("the layout tab's word sizes", () => {
-  it("say byte in the singular only for one", () => {
-    expect([1, 2, 4, 8].map(wordSizeChoiceTitle)).toEqual([
-      "1 Byte",
-      "2 Bytes",
-      "4 Bytes",
-      "8 Bytes",
     ]);
   });
 });

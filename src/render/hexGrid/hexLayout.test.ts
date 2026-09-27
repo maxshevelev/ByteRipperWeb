@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BYTES_PER_ROW, HexLayout, wordSizeTitle } from "@/render/hexGrid/hexLayout";
+import { BYTES_PER_ROW, HexLayout, WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 
 /**
  * Ported from `HexLayoutTests.swift`.
@@ -85,8 +85,7 @@ describe("word size", () => {
   });
 
   it("names itself for the menu", () => {
-    expect(wordSizeTitle(1)).toBe("1 Byte");
-    expect(wordSizeTitle(8)).toBe("8 Bytes");
+    expect(WORD_SIZES.map(wordSizeTitle)).toEqual(["1 Byte", "2 Bytes", "4 Bytes", "8 Bytes"]);
   });
 });
 
