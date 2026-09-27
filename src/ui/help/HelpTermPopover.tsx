@@ -37,6 +37,7 @@ export function HelpTermPopover({
 }) {
   const { book } = useStore(helpStore);
   const popover = useRef<HTMLDialogElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const term = book === undefined ? undefined : helpTerm(book, id);
 
   // The book is not loaded at startup — it is loaded on the first ask, and a
@@ -54,7 +55,8 @@ export function HelpTermPopover({
   useEffect(() => {
     const element = popover.current;
     if (element === null || term === undefined) return;
-    if (!element.open) element.show();
+    const opened = !element.open;
+    if (opened) element.show();
     // Under the button that opened it, and pulled back inside the panel when
     // the button is near its right edge — a popover half off the panel is one
     // whose sentence cannot be read.
@@ -68,7 +70,22 @@ export function HelpTermPopover({
       const left = at.left - (parent?.left ?? 0) + (element.offsetParent?.scrollLeft ?? 0);
       const top = at.bottom - (parent?.top ?? 0) + (element.offsetParent?.scrollTop ?? 0) + 4;
       element.style.top = `${top}px`;
-      element.style.left = `${Math.max(4, Math.min(left, (parent?.width ?? left) - 300))}px`;
+      // Pulled back so the box, as wide as it has ended up, still fits the
+      // panel — the width comes from the box itself, not from a number in
+      // here that a change to the stylesheet would forget.
+      element.style.left = `${Math.max(
+        4,
+        Math.min(left, (parent?.width ?? left) - element.offsetWidth - 8)
+      )}px`;
+    }
+    // A dialog that appears takes the focus of its first link on the way in,
+    // and the browser scrolls the body to that link — the opening of the
+    // article goes out. The reader asked for the word they were on and wants
+    // to read it from the top: the focus lands on the dialog itself, and the
+    // body starts where the article starts.
+    if (opened) {
+      element.focus({ preventScroll: true });
+      body.current?.scrollTo(0, 0);
     }
     const dismiss = (event: MouseEvent) => {
       if (event.target instanceof Node && element.contains(event.target)) return;
@@ -100,6 +117,7 @@ export function HelpTermPopover({
       ref={popover}
       className="help-popover"
       onCancel={onClose}
+      tabIndex={-1}
       aria-label={plainHelpName(term.name)}
     >
       <h4 className="help-popover-name">{plainHelpName(term.name)}</h4>
