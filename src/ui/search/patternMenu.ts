@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { encodingTitle, parsePattern, type SearchEncoding } from "@/core/search/searchPattern";
 
 /**
@@ -58,8 +59,8 @@ export function searchFlags(search: Pick<MenuSearch, "encoding" | "caseSensitive
 }
 
 /**
- * The rows, in upstream's order: Recent Queries, then Add to Favorites and Clear
- * Recents, then Favorites by name, then Manage Favorites….
+ * The rows, in upstream's order: Recent Queries, then Save Search Pattern and
+ * Clear Recents, then the saved patterns by name, then Manage Search Patterns….
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.rebuildPatternMenu
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.command
@@ -81,7 +82,7 @@ export function patternMenuRows(options: {
   const { recents, favorites, fieldText, problem } = options;
   const rows: PatternMenuRow[] = [];
   if (recents.length > 0) {
-    rows.push({ kind: "heading", key: "recents", label: "Recent Queries", icon: "recent" });
+    rows.push({ kind: "heading", key: "recents", label: L("Recent Queries"), icon: "recent" });
     for (const [index, search] of recents.entries()) rows.push(entryRow(search, "recent", index));
     rows.push({ kind: "separator", key: "after-recents" });
   }
@@ -89,15 +90,26 @@ export function patternMenuRows(options: {
   rows.push({
     kind: "command",
     key: "addToFavorites",
-    label: "Add to Favorites",
+    // Upstream's word for the keeping — "Save Search Pattern", not the web's
+    // older "Add to Favorites"; the menu and the sheet it opens now say the
+    // same thing.
+    label: L("Save Search Pattern"),
     disabled: fieldText.trim().length === 0,
   });
   if (recents.length > 0) {
-    rows.push({ kind: "command", key: "clearRecents", label: "Clear Recents", disabled: false });
+    rows.push({
+      kind: "command",
+      key: "clearRecents",
+      label: L("Clear Recents"),
+      disabled: false,
+    });
   }
   if (favorites.length > 0) {
     rows.push({ kind: "separator", key: "before-favorites" });
-    rows.push({ kind: "heading", key: "favorites", label: "Favorites", icon: "favorite" });
+    // Upstream's heading for the kept patterns is "Search Patterns", the web
+    // had said "Favorites" — the settings' tab still does; the menu now says
+    // what the bar's menu itself is.
+    rows.push({ kind: "heading", key: "favorites", label: L("Search Patterns"), icon: "favorite" });
     for (const [index, search] of favorites.entries()) {
       rows.push(entryRow(search, "favorite", index));
     }
@@ -107,7 +119,7 @@ export function patternMenuRows(options: {
   rows.push({
     kind: "command",
     key: "manageFavorites",
-    label: "Manage Favorites…",
+    label: L("Manage Search Patterns…"),
     disabled: false,
     problem,
   });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { L } from "@/core/localization/localization";
 import { searchPatternEntry } from "@/core/search/searchPatternEntry";
 import { addFavorite, existingFavorite } from "@/state/favoritesStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
@@ -59,11 +60,11 @@ export function AddFavoriteDialog({
   };
 
   return (
-    <Dialog open={search !== undefined} title="Add to Favorites" onClose={onClose}>
+    <Dialog open={search !== undefined} title={L("Save Search Pattern")} onClose={onClose}>
       <form className="dialog-body" onSubmit={submit}>
         <p className="dialog-message">{search === undefined ? "" : keepingDescription(search)}</p>
         <label className="dialog-field">
-          Name:
+          {L("Name:")}
           <input
             autoFocus
             value={name}
@@ -77,10 +78,10 @@ export function AddFavoriteDialog({
         </p>
         <div className="dialog-actions">
           <button type="button" className="toolbar-button" onClick={onClose}>
-            Cancel
+            {L("Cancel")}
           </button>
           <button type="submit" className="toolbar-button">
-            Add
+            {L("Add")}
           </button>
         </div>
       </form>

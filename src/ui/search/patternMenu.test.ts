@@ -37,7 +37,7 @@ describe("a search in the menu", () => {
 });
 
 describe("the search menu", () => {
-  it("lists the recents, their commands, the favourites and Manage Favorites, in that order", () => {
+  it("lists the recents, their commands, the patterns and Manage Search Patterns, in that order", () => {
     const rows = patternMenuRows({ recents: [recent], favorites: [favorite], fieldText: "x" });
     expect(rows.map((row) => row.key)).toEqual([
       "recents",
@@ -53,7 +53,7 @@ describe("the search menu", () => {
     ]);
   });
 
-  it("offers Add to Favorites and Manage Favorites with both lists empty", () => {
+  it("offers Save Search Pattern and Manage Search Patterns with both lists empty", () => {
     const rows = patternMenuRows({ recents: [], favorites: [], fieldText: "" });
     expect(rows.map((row) => row.key)).toEqual([
       "addToFavorites",
@@ -62,7 +62,7 @@ describe("the search menu", () => {
     ]);
   });
 
-  it("dims Add to Favorites while the field is empty", () => {
+  it("dims Save Search Pattern while the field is empty", () => {
     const [add] = patternMenuRows({ recents: [], favorites: [], fieldText: "   " });
     expect(add).toMatchObject({ key: "addToFavorites", disabled: true });
   });
@@ -88,7 +88,7 @@ describe("the library's problem in the menu", () => {
 
   it("is said on the row that leads to where it is settled", () => {
     expect(manage("1 conflicting change")).toMatchObject({
-      label: "Manage Favorites…",
+      label: "Manage Search Patterns…",
       problem: "1 conflicting change",
     });
   });

@@ -85,8 +85,8 @@ export interface SettingsDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
   /**
-   * The tab to open on, when the opener names one — Manage Favorites… in the
-   * find bar's menu lands on the list it promises.
+   * The tab to open on, when the opener names one — Manage Search Patterns… in
+   * the find bar's menu lands on the list it promises.
    *
    * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showFavorites
    */

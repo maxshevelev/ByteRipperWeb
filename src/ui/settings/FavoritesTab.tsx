@@ -428,8 +428,8 @@ export function FavoritesTab() {
         <ol className="favorites-body" aria-label="Favorite patterns">
           {rows.length === 0 ? (
             <li className="favorites-empty">
-              No favorites yet. Keep a search with Add to Favorites in the Find bar's menu, or press
-              +.
+              No favorites yet. Keep a search with Save Search Pattern in the Find bar's menu, or
+              press +.
             </li>
           ) : null}
           {rows.map((entry, index) => (

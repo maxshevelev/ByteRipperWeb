@@ -7,6 +7,9 @@
 "2 Bytes" = "2 Bytes";
 "4 Bytes" = "4 Bytes";
 "8 Bytes" = "8 Bytes";
+"A cut has to fall inside the file, past its first byte." = "Der Schnitt muss innerhalb der Datei liegen, hinter ihrem ersten Byte.";
+"Add" = "Hinzufügen";
+"Add a cut" = "Schnitt hinzufügen";
 "Add a pattern" = "Muster hinzufügen";
 "Add Bookmark" = "Lesezeichen hinzufügen";
 "Add Cut" = "Schnitt hinzufügen";
@@ -27,8 +30,12 @@
 "ByteRipper Help" = "ByteRipper-Hilfe";
 "ByteRipper Settings" = "ByteRipper-Einstellungen";
 "Bytes per word in the hex grid" = "Bytes pro Wort im Hex-Raster";
+"Cancel" = "Abbrechen";
 "Cancel operation" = "Vorgang abbrechen";
 "Case Sensitive" = "Groß-/Kleinschreibung beachten";
+"Case Sensitive — matching exactly" = "Groß-/Kleinschreibung — exakte Übereinstimmung";
+"Case Sensitive — off, upper and lower case match" = "Groß-/Kleinschreibung — aus, Groß und Klein stimmen überein";
+"Clear Recents" = "Zuletzt gesucht löschen";
 "Close" = "Schließen";
 "Close %1$@" = "%1$@ schließen";
 "Close Anyway" = "Trotzdem schließen";
@@ -42,6 +49,8 @@
 "Contents" = "Inhalt";
 "Copy" = "Kopieren";
 "Copy File Name" = "Dateinamen kopieren";
+"Cut" = "Schneiden";
+"Cut at" = "Schnitt bei";
 "theme|Dark" = "Dunkel";
 "Decoding table:" = "Decodiertabelle:";
 "Delete bookmark" = "Lesezeichen löschen";
@@ -70,7 +79,7 @@
 "Files never leave this machine." = "Dateien verlassen diesen Rechner nie.";
 "Fill Selection with…" = "Auswahl füllen mit…";
 "Find" = "Suchen";
-"Find bytes or text…" = "Bytes oder Text…";
+"Find bytes or text" = "Bytes oder Text suchen";
 "Find Next" = "Weitersuchen";
 "Find Previous" = "Rückwärts suchen";
 "Find Previous / Find Next" = "Vorheriger / nächster Treffer";
@@ -105,6 +114,7 @@
 "Legend" = "Legende";
 "Length" = "Länge";
 "theme|Light" = "Hell";
+"Manage Search Patterns…" = "Suchmuster verwalten…";
 "Match Case" = "Groß-/Kleinschreibung";
 "ME Analyzer" = "ME Analyzer";
 "Merge" = "Zusammenführen";
@@ -113,6 +123,8 @@
 "Merge All" = "Alle zusammenführen";
 "Minimap" = "Minimap";
 "Name" = "Name";
+"Name the piece that starts there" = "Name des Stücks, das dort beginnt";
+"Name:" = "Name:";
 "New File" = "Neue Datei";
 "Next / Previous Difference steps between changes, not bytes: differing bytes closer together than this belong to one change. A smaller value stops more often. Byte highlighting is always per byte." = "„Nächster/Vorheriger Unterschied“ springt zwischen Änderungen, nicht zwischen Bytes: abweichende Bytes, die enger beieinanderliegen als hier angegeben, gehören zu einer Änderung. Ein kleinerer Wert hält öfter an. Die Byte-Hervorhebung ist immer byteweise.";
 "Next Diff" = "Nächster Untersch.";
@@ -132,6 +144,7 @@
 "Open Node Body" = "Knotenrumpf öffnen";
 "Open “%1$@”" = "„%1$@“ öffnen";
 "Open…" = "Öffnen…";
+"Optional" = "Optional";
 "Panels" = "Panels";
 "Pattern" = "Muster";
 "Placeholder character:" = "Platzhalterzeichen:";
@@ -139,6 +152,7 @@
 "Previous Difference" = "Vorheriger Unterschied";
 "Previous Same Block" = "Vorheriger gleicher Block";
 "Put the Panes Side by Side" = "Bereiche nebeneinander";
+"Recent Queries" = "Zuletzt gesucht";
 "Redo" = "Wiederholen";
 "Redo %1$@" = "%1$@ wiederholen";
 "Remove Bookmark" = "Lesezeichen entfernen";
@@ -157,10 +171,12 @@
 "Save 1 segment?" = "1 Segment sichern?";
 "Save All as Separate Files…" = "Alle als einzelne Dateien sichern…";
 "Save As…" = "Sichern unter…";
+"Save Search Pattern" = "Suchmuster sichern";
 "Save Segment %1$@…" = "Segment %1$@ sichern…";
 "Save Selection as…" = "Auswahl sichern unter…";
 "Saves by downloading a copy." = "Speichert als heruntergeladene Kopie.";
 "Saves in place." = "Speichert in dieselbe Datei.";
+"Search Patterns" = "Suchmuster";
 "Search Results" = "Suchergebnisse";
 "Search results" = "Suchergebnisse";
 "Search results (%1$@)" = "Suchergebnisse (%1$@)";
@@ -182,6 +198,8 @@
 "Show the node under the caret in the tree" = "Den Knoten unter der Einfügemarke im Baum zeigen";
 "Smaller" = "Kleiner";
 "Smart Search" = "Intelligente Suche";
+"Smart Search — off, searching the chosen encoding only" = "Intelligente Suche — aus, es wird nur in der gewählten Codierung gesucht";
+"Smart Search — the encoding is whichever one finds a match" = "Intelligente Suche — die Codierung ist die, in der etwas gefunden wird";
 "Split Here at %1$@" = "Hier bei %1$@ schneiden";
 "Split Here…" = "Hier trennen…";
 "Stack the Panes" = "Bereiche übereinander";
@@ -192,14 +210,18 @@
 "The file's cuts and pieces" = "Die Schnitte und Teile der Datei";
 "The help is not available." = "Die Hilfe ist nicht verfügbar.";
 "The hex dump's font and row pitch. A smaller Row Height packs more rows onto the screen. Theme applies to the whole app." = "Schrift und Zeilenabstand des Hex-Dumps. Eine kleinere Zeilenhöhe bringt mehr Zeilen auf den Bildschirm. Das Erscheinungsbild gilt für die ganze App.";
+"The piece before the cut keeps its own name." = "Das Stück vor dem Schnitt behält seinen Namen.";
 "The tool-module this tab is working with" = "Das Werkzeug, mit dem dieser Tab arbeitet";
 "The words change at once — there is no relaunch, because reloading the page would ask you to open every dump again. The help is translated with the rest, and a page that has not been translated yet is shown in English rather than left blank." = "Die Wörter wechseln sofort — es gibt keinen Neustart, denn ein Neuladen der Seite würde jeden Dump erneut abfragen. Die Hilfe wird mitübersetzt; eine noch nicht übersetzte Seite erscheint auf Englisch statt leer.";
 "Theme:" = "Erscheinungsbild:";
+"There is already a cut there." = "Dort liegt bereits ein Schnitt.";
 "These files will be replaced:" = "Diese Dateien werden ersetzt:";
 "Toggle Bookmark at %1$@" = "Lesezeichen bei %1$@ ein/aus";
 "Toggle Minimap" = "Minimap ein-/ausblenden";
 "Tools" = "Werkzeuge";
 "Top / Bottom" = "Oben / unten";
+"Type a decimal number, or hex as 1F or 0x1F." = "Geben Sie eine Dezimalzahl oder hexadezimal wie 1F oder 0x1F ein.";
+"Type the offset the new piece starts at." = "Geben Sie an, an welchem Offset das neue Stück beginnt.";
 "UEFI Structure" = "UEFI-Struktur";
 "Undo" = "Widerrufen";
 "Undo %1$@" = "%1$@ widerrufen";

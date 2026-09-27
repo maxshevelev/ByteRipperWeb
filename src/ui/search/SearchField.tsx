@@ -91,7 +91,7 @@ export function SearchField({
         aria-label="Search Menu"
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Recent Queries and Favorites"
+        title="Recent Queries and Search Patterns"
         tabIndex={-1}
         onClick={() => {
           if (open) setOpen(false);

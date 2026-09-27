@@ -575,7 +575,7 @@ export function Toolbar({
           <IconButton
             key={key}
             label={L("Find")}
-            title="Find a byte pattern"
+            title={L("Find bytes or text")}
             pressed={search.open}
             disabled={disabled}
             onClick={() => (search.open ? closeSearch() : onToggleFind())}

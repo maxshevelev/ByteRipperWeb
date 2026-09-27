@@ -89,7 +89,7 @@ export function FindBar({
   onManageFavorites,
 }: {
   readonly onReveal: (offset: number) => void;
-  /** Opens the favourites' list, where Manage Favorites… promises it. */
+  /** Opens the favourites' list, where Manage Search Patterns… promises it. */
   readonly onManageFavorites: () => void;
 }) {
   const state = useStore(searchStore);
@@ -232,19 +232,23 @@ export function FindBar({
     <search className="find-bar">
       <form className="find-form" onSubmit={submit}>
         <span className="find-label" aria-hidden="true">
-          Find
+          {L("Find")}
         </span>
         <label className="visually-hidden" htmlFor={inputId}>
-          Find
+          {L("Find")}
         </label>
         {/* Typing ends the last search and starts nothing: Return searches. The
-            recent queries drop from the magnifier, or on ↓. */}
+            recent queries drop from the magnifier, or on ↓.
+            The placeholder is upstream's word for the find's affordance — the
+            toolbar button's tooltip — doubled as the field's: the field itself
+            has none upstream, the bar's `Find` label names it instead.
+            @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.findItem */}
         <SearchField
           id={inputId}
           inputRef={inputRef}
           className={FIND_INPUT_CLASS}
           defaultValue={state.query}
-          placeholder={L("Find bytes or text…")}
+          placeholder={L("Find bytes or text")}
           rows={menuRows}
           onEdit={editQuery}
           onChoose={choose}
@@ -255,6 +259,10 @@ export function FindBar({
           aria-label={L("Encoding")}
           value={state.encoding}
           onChange={(event) => setSearchEncoding(event.target.value as SearchEncoding)}
+          // Upstream's popup has no tooltip — the label alone names it — so
+          // these two are the bar's own say of it, and stay out of the
+          // catalogue.
+          // @web-only the popup's explanation; upstream's has no tooltip
           title={
             state.smart
               ? "The encoding the search settled on. Picking one starts the next pass from it."
@@ -277,8 +285,8 @@ export function FindBar({
           aria-label={L("Smart Search")}
           title={
             state.smart
-              ? "Smart Search — the encoding is whichever one finds a match"
-              : "Smart Search — off, searching the chosen encoding only"
+              ? L("Smart Search — the encoding is whichever one finds a match")
+              : L("Smart Search — off, searching the chosen encoding only")
           }
           onClick={() => setSmartSearch(!state.smart)}
         >
@@ -293,8 +301,8 @@ export function FindBar({
             aria-label={L("Case Sensitive")}
             title={
               state.caseSensitive
-                ? "Case Sensitive — matching exactly"
-                : "Case Sensitive — off, upper and lower case match"
+                ? L("Case Sensitive — matching exactly")
+                : L("Case Sensitive — off, upper and lower case match")
             }
             onClick={() => setCaseSensitive(!state.caseSensitive)}
           >

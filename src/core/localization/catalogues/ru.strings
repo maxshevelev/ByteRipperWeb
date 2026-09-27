@@ -7,6 +7,9 @@
 "2 Bytes" = "2 байта";
 "4 Bytes" = "4 байта";
 "8 Bytes" = "8 байт";
+"A cut has to fall inside the file, past its first byte." = "Разрез должен приходиться внутрь файла, дальше его первого байта.";
+"Add" = "Добавить";
+"Add a cut" = "Добавить разрез";
 "Add a pattern" = "Добавить шаблон";
 "Add Bookmark" = "Добавить закладку";
 "Add Cut" = "Разрезать";
@@ -27,8 +30,12 @@
 "ByteRipper Help" = "Справка ByteRipper";
 "ByteRipper Settings" = "Настройки ByteRipper";
 "Bytes per word in the hex grid" = "Байт в слове в hex-сетке";
+"Cancel" = "Отмена";
 "Cancel operation" = "Отменить операцию";
 "Case Sensitive" = "С учётом регистра";
+"Case Sensitive — matching exactly" = "С учётом регистра — точное совпадение";
+"Case Sensitive — off, upper and lower case match" = "С учётом регистра — выключено, прописные и строчные совпадают";
+"Clear Recents" = "Очистить недавние";
 "Close" = "Закрыть";
 "Close %1$@" = "Закрыть %1$@";
 "Close Anyway" = "Всё равно закрыть";
@@ -42,6 +49,8 @@
 "Contents" = "Содержание";
 "Copy" = "Скопировать";
 "Copy File Name" = "Скопировать имя файла";
+"Cut" = "Разрезать";
+"Cut at" = "Разрезать по";
 "theme|Dark" = "Тёмная";
 "Decoding table:" = "Таблица декодирования:";
 "Delete bookmark" = "Удалить закладку";
@@ -70,7 +79,7 @@
 "Files never leave this machine." = "Файлы не покидают эту машину.";
 "Fill Selection with…" = "Заполнить выделение…";
 "Find" = "Найти";
-"Find bytes or text…" = "Байты или текст…";
+"Find bytes or text" = "Поиск байтов или текстов";
 "Find Next" = "Найти далее";
 "Find Previous" = "Найти ранее";
 "Find Previous / Find Next" = "Назад / вперёд по совпадениям";
@@ -105,6 +114,7 @@
 "Legend" = "Легенда";
 "Length" = "Длина";
 "theme|Light" = "Светлая";
+"Manage Search Patterns…" = "Управление шаблонами поиска…";
 "Match Case" = "Учитывать регистр";
 "ME Analyzer" = "ME Analyzer";
 "Merge" = "Объединить";
@@ -113,6 +123,8 @@
 "Merge All" = "Объединить всё";
 "Minimap" = "Миникарта";
 "Name" = "Имя";
+"Name the piece that starts there" = "Название сегмента, который начинается там";
+"Name:" = "Имя:";
 "New File" = "Новый файл";
 "Next / Previous Difference steps between changes, not bytes: differing bytes closer together than this belong to one change. A smaller value stops more often. Byte highlighting is always per byte." = "Переход к следующему/предыдущему различию шагает по изменениям, а не по байтам: различающиеся байты ближе этого расстояния считаются одним изменением. Меньшее значение — больше остановок. Подсветка байтов всегда побайтовая.";
 "Next Diff" = "След. различие";
@@ -132,6 +144,7 @@
 "Open Node Body" = "Открыть тело узла";
 "Open “%1$@”" = "Открыть «%1$@»";
 "Open…" = "Открыть…";
+"Optional" = "Необязательно";
 "Panels" = "Панели";
 "Pattern" = "Шаблон";
 "Placeholder character:" = "Символ-заполнитель:";
@@ -139,6 +152,7 @@
 "Previous Difference" = "Предыдущее различие";
 "Previous Same Block" = "Предыдущий совпадающий блок";
 "Put the Panes Side by Side" = "Расположить панели рядом";
+"Recent Queries" = "Недавние запросы";
 "Redo" = "Повторить";
 "Redo %1$@" = "Повторить: %1$@";
 "Remove Bookmark" = "Удалить закладку";
@@ -157,10 +171,12 @@
 "Save 1 segment?" = "Сохранить сегмент?";
 "Save All as Separate Files…" = "Сохранить всё отдельными файлами…";
 "Save As…" = "Сохранить как…";
+"Save Search Pattern" = "Сохранить шаблон поиска";
 "Save Segment %1$@…" = "Сохранить сегмент %1$@…";
 "Save Selection as…" = "Сохранить выделение как…";
 "Saves by downloading a copy." = "Сохраняет, скачивая копию.";
 "Saves in place." = "Сохраняет в тот же файл.";
+"Search Patterns" = "Шаблоны поиска";
 "Search Results" = "Результаты поиска";
 "Search results" = "Результаты поиска";
 "Search results (%1$@)" = "Результаты поиска (%1$@)";
@@ -182,6 +198,8 @@
 "Show the node under the caret in the tree" = "Показать в дереве узел под курсором";
 "Smaller" = "Мельче";
 "Smart Search" = "Умный поиск";
+"Smart Search — off, searching the chosen encoding only" = "Умный поиск — выключен, поиск только в выбранной кодировке";
+"Smart Search — the encoding is whichever one finds a match" = "Умный поиск — кодировка та, в которой нашлось совпадение";
 "Split Here at %1$@" = "Разрезать здесь, по %1$@";
 "Split Here…" = "Разрезать здесь…";
 "Stack the Panes" = "Расположить панели друг над другом";
@@ -192,14 +210,18 @@
 "The file's cuts and pieces" = "Разрезы и сегменты файла";
 "The help is not available." = "Справка недоступна.";
 "The hex dump's font and row pitch. A smaller Row Height packs more rows onto the screen. Theme applies to the whole app." = "Шрифт и шаг строк hex-дампа. Меньшая высота строки умещает на экран больше строк. Тема действует на всю программу.";
+"The piece before the cut keeps its own name." = "Сегмент до разреза сохраняет своё название.";
 "The tool-module this tab is working with" = "Выбор инструментальной панели";
 "The words change at once — there is no relaunch, because reloading the page would ask you to open every dump again. The help is translated with the rest, and a page that has not been translated yet is shown in English rather than left blank." = "Слова меняются сразу — перезапуска нет: перезагрузка страницы заставила бы открывать каждый дамп заново. Справка переводится вместе с остальным, а непереведённая страница показывается по-английски, а не пустой.";
 "Theme:" = "Тема:";
+"There is already a cut there." = "Разрез там уже есть.";
 "These files will be replaced:" = "Эти файлы будут заменены:";
 "Toggle Bookmark at %1$@" = "Закладка на %1$@: вкл/выкл";
 "Toggle Minimap" = "Миникарта вкл/выкл";
 "Tools" = "Инструменты";
 "Top / Bottom" = "Сверху / снизу";
+"Type a decimal number, or hex as 1F or 0x1F." = "Введите десятичное число или шестнадцатеричное — 1F или 0x1F.";
+"Type the offset the new piece starts at." = "Введите смещение, на котором начинается новый сегмент.";
 "UEFI Structure" = "Структура UEFI";
 "Undo" = "Отменить";
 "Undo %1$@" = "Отменить: %1$@";
