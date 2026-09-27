@@ -1,4 +1,4 @@
-@source-sha 801fc4fe3c7592912978a6ea2f114310ee8d8dae5b2fd16a03de360d14303de5
+@source-sha 881c8a0d7f21ce87dd14bb56a1b9d9cd23a18ddbea6fff040ca4681599fcf1e7
 # Eine ME-Region prüfen
 
 > Ist die Engine-Firmware da, ist sie vollständig, und gehört sie zu dieser Platine?
@@ -9,7 +9,7 @@
 
 - **„Nichts in dieser Datei liest sich als Intel-ME-Firmware.“** Entweder hat der Dump keine ME-Region (eine AMD-Platine, eine ältere Plattform, ein EC-Dump) oder die Region wurde gelöscht. Sehen Sie im [[topic:tool-uefi|UEFI-Panel]] nach: gibt es im Descriptor eine ME-Region und ist sie voller `FF`, wurde sie gelöscht oder „gereinigt“.
 - **Eine Version und eine SKU.** Die Region ist da und ihre Header lassen sich zerlegen. Vergleichen Sie die Version mit dem, was die Platine haben sollte — eine Version aus einer anderen Plattform-Generation ist ein Spender-Image von der falschen Maschine.
-- **Meldungen in der Übersicht.** Die Analyse bringt vor, was ihr aufgefallen ist. Lesen Sie sie; sie sind die Kurzfassung dessen, was die vollständigen Angaben erzählen würden.
+- **Meldungen in der Übersicht.** Die Analyse zeigt, was sie sammeln konnte. Sie sind die Kurzfassung der „Vollständigen Angaben" und wiederholen den gewohnten Ausgabestil des Skripts MEA.py aus dem Projekt ME Analyzer. Um diese Information zu behalten oder mit Kollegen zu teilen, können Sie die „Übersicht" als Text oder ein Bildschirmfoto in die Zwischenablage kopieren — mit den zwei Knöpfen in der Tab-Leiste.
 
 ## Was in den vollständigen Angaben zu prüfen ist
 
@@ -23,6 +23,6 @@
 - **Eine ME in Wiederherstellung** zeigt sich auf der Platine als Maschine, die eine halbe Stunde läuft und neu startet. Tut eine Platine das, ist die ME-Region eine gute Stelle zum Nachsehen.
 - **Provisionierte Werte** liegen in der Konfiguration der Region. Eine Spender-ME bringt die des Spenders mit.
 
-! Die ME-Region von Hand zu ändern ist keine Reparatur. Sie wird vor dem Ausführen geprüft, und eine geänderte Region wird abgewiesen statt ausgeführt. Die Reparatur besteht darin, eine passende Region als Ganzes einzusetzen — aus dem Update-Paket des Herstellers für genau dieses Modell oder aus einem bekannt guten Dump derselben Platine — und danach die platinenspezifischen Teile in Ruhe zu lassen ([[topic:recipe-board-data|Platinenspezifische Daten bewahren]]).
+! Die ME-Region von Hand zu ändern ist keine Reparatur. Ihre Integrität wird vor dem Ausführen geprüft, und eine geänderte Region wird abgewiesen statt ausgeführt. Die Reparatur besteht darin, eine passende Region als Ganzes hinüberzuholen — aus dem Update-Paket des Herstellers für genau dieses Modell oder aus einem bekannt guten Dump derselben Platine — und danach die platinenspezifischen Teile in Ruhe zu lassen ([[topic:recipe-board-data|Platinenspezifische Daten bewahren]]).
 
 Die Wörter, die das Panel verwendet, erklärt das ME-Glossar; drücken Sie das **?** neben der Detailliste zu der Zeile, die Sie gerade ansehen.

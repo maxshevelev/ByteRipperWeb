@@ -1,6 +1,6 @@
 # Keeping Board-Unique Data
 
-> A donor image may carry the donor's identity. These are the bytes that must stay yours.
+> A donor image may carry the donor's identity. Listed below is the information that must stay yours on your board.
 
 Almost every dump holds a small amount of data that belongs to **that specific board** and to no other. Flash a donor image raw and you move the donor's identity onto your board.
 

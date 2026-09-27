@@ -1,7 +1,7 @@
-@source-sha 14420ac0e093420693f46c433da8ec0e70c2d9fbc232fee5ca513397719274a4
+@source-sha c9a60a086d6ac65448d5484566093879171e63141cabee70e46b816100bd17ab
 # Platinenspezifische Daten bewahren
 
-> Ein Spender-Image kann die Identität des Spenders tragen. Das sind die Bytes, die Ihre bleiben müssen.
+> Ein Spender-Image kann die Identität des Spenders tragen. Das ist die Information, die auf Ihrer Platine Ihre bleiben muss.
 
 Fast jeder Dump enthält ein wenig Daten, die **genau dieser Platine** gehören und keiner anderen. Schreiben Sie ein Spender-Image roh, verschieben Sie die Identität des Spenders auf Ihre Platine.
 
