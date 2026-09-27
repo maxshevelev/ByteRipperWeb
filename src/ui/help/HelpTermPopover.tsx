@@ -77,6 +77,14 @@ export function HelpTermPopover({
         4,
         Math.min(left, (parent?.width ?? left) - element.offsetWidth - 8)
       )}px`;
+      // The button is at the top of the box it stands in, so the room the
+      // dialog may take is the room left below it, which the stylesheet takes
+      // into the cap beside its own 80%. A dialog that reaches for more is one
+      // the browser answers by scrolling the box down to the link it focuses
+      // on the way in — the title out above, the way out under the box's
+      // bottom.
+      const below = (parent?.height ?? 0) - (at.bottom - (parent?.top ?? 0)) - 8;
+      if (below > 0) element.style.setProperty("--help-popover-room", `${below}px`);
     }
     // A dialog that appears takes the focus of its first link on the way in,
     // and the browser scrolls the body to that link — the opening of the
@@ -121,8 +129,10 @@ export function HelpTermPopover({
       aria-label={plainHelpName(term.name)}
     >
       <h4 className="help-popover-name">{plainHelpName(term.name)}</h4>
-      <p className="help-popover-summary">{term.summary}</p>
-      <div className="help-popover-body">
+      {/* Only the title is pinned: the summary is the article's opening, and
+          a pinned opening takes the room from the scroll it belongs to. */}
+      <div className="help-popover-body" ref={body}>
+        <p className="help-popover-summary">{term.summary}</p>
         <HelpBlocks blocks={term.blocks} onFollow={follow} />
       </div>
       <button

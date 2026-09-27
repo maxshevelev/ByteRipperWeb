@@ -4927,7 +4927,11 @@ button.uefi-title {
   display: flex;
   flex-direction: column;
   width: min(460px, calc(100% - 16px));
-  max-height: 80%;
+  /* The box takes the less of its own 80% and the room left below the button
+     that opened it, which the component sets — a dialog that reaches for
+     room it has not got is one the browser answers by scrolling the reader
+     away from the title. */
+  max-height: min(80%, var(--help-popover-room, 100%));
   margin: 0;
   padding: 12px 14px;
   overflow: hidden;
@@ -4946,7 +4950,6 @@ button.uefi-title {
 }
 
 .help-popover-summary {
-  flex: 0 0 auto;
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--text-muted);
