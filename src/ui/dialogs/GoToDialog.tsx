@@ -238,10 +238,12 @@ export function GoToDialog({
   }, [recentOpen]);
 
   /**
-   * The field's own keys while its list is up: ↓ opens and walks, ↑ walks,
-   * Return takes the row under the highlight — and only that, filling the
-   * field, the way a pick does. With the list away the keys are the field's
-   * and the form's: Return submits, Escape is the dialog's.
+   * The field's own keys. The list drops down on the field's focus; while it is
+   * up, ↓ and ↑ walk the rows from the top, and Return takes the row under the
+   * highlight — and only that, filling the field, the way a pick does. With
+   * nothing under the highlight, Return is the form's: it submits the typed
+   * address. With the list away, Escape is the dialog's; with it up, Escape
+   * only puts the list away.
    *
    * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.offsetCombo
    */
@@ -261,14 +263,13 @@ export function GoToDialog({
         event.preventDefault();
         setRecentActive((index) => Math.max(index - 1, 0));
         return;
-      case "Enter":
-        if (!recentOpen) return;
+      case "Enter": {
+        if (!recentOpen || recentActive < 0) return;
         event.preventDefault();
-        if (recentActive >= 0) {
-          const row = state.recent[recentActive];
-          if (row !== undefined) pickRecent(row);
-        }
+        const row = state.recent[recentActive];
+        if (row !== undefined) pickRecent(row);
         return;
+      }
       case "Escape":
         if (!recentOpen) return;
         // The list goes away; the form stays — the next Escape is the dialog's.
@@ -436,6 +437,16 @@ export function GoToDialog({
               aria-activedescendant={
                 recentOpen && recentActive >= 0 ? `${recentListId}-${recentActive}` : undefined
               }
+              // A combobox offers its list to the field that has the focus, so
+              // opening Go To drops the recent addresses straight down — and
+              // losing the focus (Tab, the Bookmarks list) puts them away.
+              onFocus={() => {
+                if (state.recent.length > 0) {
+                  setRecentActive(-1);
+                  setRecentOpen(true);
+                }
+              }}
+              onBlur={() => setRecentOpen(false)}
               onKeyDown={onOffsetKeyDown}
             />
             {/* The addresses this workspace has already been sent to, offered

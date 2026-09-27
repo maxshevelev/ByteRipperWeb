@@ -1590,10 +1590,20 @@ textarea,
   color: var(--text);
 }
 
-/* The recent addresses: as wide as the field, never wider than the list. */
-.goto-combo-popup {
-  min-width: 100%;
+/* The recent addresses: the field's own dropdown, an NSComboBox's list. It
+   hangs flush off the field's bottom edge and is the field's width — not a
+   floating menu. .menu-popup is a *button's* menu (a gap below, a 15rem floor,
+   a heavier shadow), so this overrides its geometry; the descendant selector is
+   what lets it, since .menu-popup comes later in the sheet. */
+.goto-combo .goto-combo-popup {
+  top: 100%;
+  margin-top: -1px;
+  width: 100%;
+  min-width: 0;
   max-height: 12rem;
+  padding: 0.2rem;
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.14);
 }
 
 .goto-combo-option {
