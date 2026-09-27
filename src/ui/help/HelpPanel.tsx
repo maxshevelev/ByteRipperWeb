@@ -27,7 +27,7 @@ import {
   searchHelp,
 } from "@/core/help/helpBook";
 import { type HelpLink, linkKey, sameLink, termLink, topicLink } from "@/core/help/helpIds";
-import { helpSpans } from "@/core/help/helpMarkup";
+import { helpSpans, spansPlainText } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS, type HelpTermGroup } from "@/core/help/helpTopic";
 import { L } from "@/core/localization/localization";
 import {
@@ -164,7 +164,7 @@ function Name({ name }: { readonly name: string }) {
           </code>
         ) : (
           // biome-ignore lint/suspicious/noArrayIndexKey: the run's place in the name is its identity
-          <span key={index}>{span.text}</span>
+          <span key={index}>{spansPlainText([span])}</span>
         )
       )}
     </>

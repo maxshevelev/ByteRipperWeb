@@ -25,7 +25,8 @@ Finder is a page a bench reading it in Chrome cannot follow.
   the upstream page it came from.
 - **The markup**: the same six rules, the same `[[topic:id]]` and `[[term:id]]`
   links, the same block model. A translator who has learnt upstream's book has
-  learnt this one.
+  learnt this one. Bold may hold words and links — the book's list idiom is
+  `- **[[term:fpt|the table]]** — …` — and bold cannot nest in bold.
 - **The split**: `src/core/help/` is pure TypeScript with no DOM, tested
   without a browser; `src/ui/help/` draws it. That is upstream's
   `HelpBook` / `HelpUI` split with this repository's own directory names.

@@ -15,6 +15,8 @@
  * - a blank line ends a block; consecutive lines of prose are one paragraph.
  * - `**bold**`, `` `code` ``, `[[topic:id]]`, `[[term:id]]`, and either link
  *   form with `|` and the words to show: `[[term:fpt|the partition table]]`.
+ * - bold may hold words and links — the book's list idiom is
+ *   `- **[[term:fpt|the table]]** — …` — but cannot nest in bold.
  * - `[[web:https://…|the words to show]]` — a link out to a source. https only:
  *   a page of ours will not send a reader over plain http.
  *
@@ -31,7 +33,11 @@ import { type HelpLink, termId, termLink, topicId, topicLink } from "@/core/help
  */
 export type HelpSpan =
   | { readonly kind: "text"; readonly text: string }
-  | { readonly kind: "strong"; readonly text: string }
+  /**
+   * Bold is a run of the other forms, not a word: a bolded link stays a link,
+   * only the weight changes. Bold cannot nest in bold.
+   */
+  | { readonly kind: "strong"; readonly spans: readonly HelpSpan[] }
   /** Shown monospaced: an offset, a signature, a menu path typed as it is. */
   | { readonly kind: "code"; readonly text: string }
   /** `text` is what the reader sees; `link` is where it goes. */
@@ -147,9 +153,10 @@ export function parseHelpLink(text: string): HelpLink | undefined {
  * One line of text, cut into its runs.
  *
  * Scanned once, left to right, rather than run through a chain of regular
- * expressions: the four forms cannot nest — a link's text is words, an emphasis
- * holds no code — so a single pass is both the simplest reading and the one
- * with no order-of-application surprises.
+ * expressions: the forms cannot nest, except that emphasis is a run of the
+ * other forms — a bolded link stays a link, only the weight changes. A single
+ * pass is both the simplest reading and the one with no order-of-application
+ * surprises.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.spans
  */
@@ -169,7 +176,9 @@ export function helpSpans(line: string): HelpSpan[] {
       const end = line.indexOf("**", at + 2);
       if (end !== -1) {
         flushPlain();
-        result.push({ kind: "strong", text: line.slice(at + 2, end) });
+        // The bold is a run of the other forms, so the pass goes in again:
+        // a `**[[…]]**` comes out as a link wearing weight, not as words.
+        result.push({ kind: "strong", spans: helpSpans(line.slice(at + 2, end)) });
         at = end + 2;
         continue;
       }
@@ -302,7 +311,12 @@ export function blockPlainText(block: HelpBlock): string {
 
 /** @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.plainText */
 export const spansPlainText = (spans: readonly HelpSpan[]): string =>
-  spans.map((span) => span.text).join("");
+  spans.map((span) => (span.kind === "strong" ? spansPlainText(span.spans) : span.text)).join("");
+
+/** Bold may hold a link, so a flat walk flattens it one level first. */
+function flattened(spans: readonly HelpSpan[]): HelpSpan[] {
+  return spans.flatMap((span) => (span.kind === "strong" ? span.spans : [span]));
+}
 
 /**
  * Every link out of the book a page carries — what the tests check for shape
@@ -313,7 +327,7 @@ export const spansPlainText = (spans: readonly HelpSpan[]): string =>
 export function helpWebLinks(blocks: readonly HelpBlock[]): string[] {
   const urls: string[] = [];
   const fromSpans = (spans: readonly HelpSpan[]) => {
-    for (const span of spans) if (span.kind === "web") urls.push(span.url);
+    for (const span of flattened(spans)) if (span.kind === "web") urls.push(span.url);
   };
   for (const block of blocks) {
     switch (block.kind) {
@@ -341,7 +355,7 @@ export function helpWebLinks(blocks: readonly HelpBlock[]): string[] {
 export function helpLinksIn(blocks: readonly HelpBlock[]): HelpLink[] {
   const links: HelpLink[] = [];
   const fromSpans = (spans: readonly HelpSpan[]) => {
-    for (const span of spans) if (span.kind === "link") links.push(span.link);
+    for (const span of flattened(spans)) if (span.kind === "link") links.push(span.link);
   };
   for (const block of blocks) {
     switch (block.kind) {

@@ -10,13 +10,15 @@ import { parseHelpSections, parseHelpTermFile, parseHelpTopicFile } from "@/core
 import {
   type HelpBlock,
   type HelpSpan,
+  helpLinksIn,
   helpPlainText,
   helpSpans,
+  helpWebLinks,
   parseHelpMarkup,
 } from "@/core/help/helpMarkup";
 
 const text = (value: string): HelpSpan => ({ kind: "text", text: value });
-const strong = (value: string): HelpSpan => ({ kind: "strong", text: value });
+const strong = (...spans: HelpSpan[]): HelpSpan => ({ kind: "strong", spans });
 const code = (value: string): HelpSpan => ({ kind: "code", text: value });
 const paragraph = (...spans: HelpSpan[]): HelpBlock => ({ kind: "paragraph", spans });
 
@@ -75,11 +77,53 @@ describe("the markup a translator has to keep", () => {
   it("reads the inline forms", () => {
     expect(helpSpans("a **b** c `0xFF` d")).toEqual([
       text("a "),
-      strong("b"),
+      strong(text("b")),
       text(" c "),
       code("0xFF"),
       text(" d"),
     ]);
+  });
+
+  /**
+   * Bold is a run of the other forms, not a word: a bolded link stays a link.
+   * This is the book's list idiom — `- **[[term:fpt|the table]]** — …` — and
+   * the parser that swallowed the brackets into the bold is how a page printed
+   * its own source.
+   */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testBoldMayHoldALink
+  it("keeps a link a link when it is bold", () => {
+    expect(helpSpans("**[[term:fpt|the table]]**")).toEqual([
+      strong({ kind: "link", text: "the table", link: { kind: "term", id: termId("fpt") } }),
+    ]);
+  });
+
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testBoldMayHoldWordsAndALink
+  it("keeps words and a link together in a bold", () => {
+    expect(helpSpans("**Config of [[term:fpt|the table]]**")).toEqual([
+      strong(text("Config of "), {
+        kind: "link",
+        text: "the table",
+        link: { kind: "term", id: termId("fpt") },
+      }),
+    ]);
+  });
+
+  /**
+   * A link inside bold still counts as a link: the walk that proves the book
+   * has no link into nothing must descend into bold.
+   */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testLinksDescendIntoBold
+  it("walks the links inside a bold", () => {
+    const blocks = parseHelpMarkup("- **[[topic:settings|Settings]]** — the words");
+    expect(helpLinksIn(blocks)).toEqual([{ kind: "topic", id: topicId("settings") }]);
+    expect(helpPlainText(blocks)).toBe("Settings — the words");
+  });
+
+  /** A source link inside bold keeps its address, for the same reason. */
+  // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testWebLinksDescendIntoBold
+  it("keeps a source link's address inside a bold", () => {
+    const blocks = parseHelpMarkup("see **[[web:https://example.org/guide|the guide]]**");
+    expect(helpWebLinks(blocks)).toEqual(["https://example.org/guide"]);
   });
 
   // @upstream Packages/HelpBook/Tests/HelpBookTests/HelpMarkupTests.swift#HelpMarkupTests.testLinksWithAndWithoutTheirOwnWords

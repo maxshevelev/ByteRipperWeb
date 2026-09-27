@@ -31,8 +31,15 @@ function Span({
   switch (span.kind) {
     case "text":
       return <>{span.text}</>;
+    // A bold span holds a run of the other forms, so the walk is a descent:
+    // a bolded link keeps its link, only the weight changes. The weight is
+    // the element's own — there is no font to ask for a heavier one.
     case "strong":
-      return <strong>{span.text}</strong>;
+      return (
+        <strong>
+          <Spans spans={span.spans} onFollow={onFollow} />
+        </strong>
+      );
     case "code":
       return <code className="help-code">{span.text}</code>;
     case "link":
