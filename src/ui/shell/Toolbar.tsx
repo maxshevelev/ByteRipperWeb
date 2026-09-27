@@ -215,7 +215,7 @@ export function Toolbar({
     { kind: "separator" },
     { kind: "heading", label: L("File", { context: "menu" }) },
     // help: menu.file.new
-    { label: L("New"), onSelect: onNew },
+    { label: L("New File"), onSelect: onNew },
     // help: menu.file.open
     { label: L("Open…"), onSelect: () => onOpen() },
     // Compare with… is the web's own item: upstream opens into a named pane
@@ -559,8 +559,8 @@ export function Toolbar({
         return (
           <IconButton
             key={key}
-            label="Go To"
-            title="Go to an offset or a bookmark"
+            label={L("Go To")}
+            title={L("Go to an offset or a bookmark")}
             disabled={disabled}
             onClick={onGoTo}
           >
@@ -574,7 +574,7 @@ export function Toolbar({
         return (
           <IconButton
             key={key}
-            label="Find"
+            label={L("Find")}
             title="Find a byte pattern"
             pressed={search.open}
             disabled={disabled}
@@ -587,8 +587,8 @@ export function Toolbar({
         return (
           <IconButton
             key={key}
-            label="Segments"
-            title="The file's cuts and pieces"
+            label={L("Segments")}
+            title={L("The file's cuts and pieces")}
             disabled={disabled}
             onClick={onSegments}
           >
@@ -612,7 +612,7 @@ export function Toolbar({
               onChange={(event) => setWordSize(wordSizeFrom(Number(event.target.value)))}
               // help: menu.view.word-size
               aria-label={L("Word Size")}
-              title="Bytes per word in the hex grid"
+              title={L("Bytes per word in the hex grid")}
             >
               {WORD_SIZES.map((size) => (
                 <option key={size} value={size}>
@@ -640,7 +640,7 @@ export function Toolbar({
         return (
           <span key={key} className="toolbar-group">
             <IconButton
-              label="Prev Diff"
+              label={L("Prev Diff")}
               title="Previous difference"
               disabled={!toolbarItemEnabled("previousDifference", context)}
               onClick={() => onNavigate("difference", -1)}
@@ -648,7 +648,7 @@ export function Toolbar({
               <BackwardGlyph />
             </IconButton>
             <IconButton
-              label="Next Diff"
+              label={L("Next Diff")}
               title="Next difference"
               disabled={!toolbarItemEnabled("nextDifference", context)}
               onClick={() => onNavigate("difference", 1)}
@@ -711,7 +711,7 @@ export function Toolbar({
         return (
           <IconButton
             key={key}
-            label="Toggle Minimap"
+            label={L("Toggle Minimap")}
             title="Show or hide the minimap (Cmd/Ctrl+M)"
             pressed={minimap.visible}
             onClick={() => toggleMinimap()}

@@ -323,8 +323,8 @@ function LayoutTab() {
             setLayout(event.target.value === "stacked" ? "stacked" : "sideBySide")
           }
         >
-          <option value="sideBySide">Left / Right</option>
-          <option value="stacked">Top / Bottom</option>
+          <option value="sideBySide">{L("Left / Right")}</option>
+          <option value="stacked">{L("Top / Bottom")}</option>
         </select>
 
         <label htmlFor="settings-word-size">{L("Word Size:")}</label>

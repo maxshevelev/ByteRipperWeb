@@ -152,8 +152,8 @@ export function paneFileMenu(
 
   return [
     ...ofSlot((slot) => [
-      { label: "New File", onSelect: actions.onNew },
-      { label: "Open…", onSelect: () => actions.onOpen(slot) },
+      { label: L("New File"), onSelect: actions.onNew },
+      { label: L("Open…"), onSelect: () => actions.onOpen(slot) },
       { kind: "separator" },
     ]),
     { label: verb, disabled: !dirty && verb === "Save", onSelect: () => actions.onSave(pane) },
@@ -165,7 +165,7 @@ export function paneFileMenu(
     // called, and the only one that writes nothing. A file's name is its file's.
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.renamePaneDocument
     {
-      label: "Rename",
+      label: L("Rename"),
       disabled: !slot.untitled,
       onSelect: () => actions.onRename(pane),
     },
@@ -176,10 +176,10 @@ export function paneFileMenu(
     // The join twins (§22.1). Insert is grouped with the edit commands above;
     // Append sits with it, both acting on THIS pane rather than the active one.
     ...ofSlot((slot) => [
-      { label: "Insert File at Start…", onSelect: () => actions.onJoin(slot, "start") },
-      { label: "Append File…", onSelect: () => actions.onJoin(slot, "end") },
+      { label: L("Insert File at Start…"), onSelect: () => actions.onJoin(slot, "start") },
+      { label: L("Append File…"), onSelect: () => actions.onJoin(slot, "end") },
       { kind: "separator" },
-      { label: "Duplicate", onSelect: () => actions.onDuplicate(slot) },
+      { label: L("Duplicate"), onSelect: () => actions.onDuplicate(slot) },
       { kind: "separator" },
     ]),
     // A part's way home, beside the saves: putting the bytes back where they
@@ -192,8 +192,8 @@ export function paneFileMenu(
     update === undefined ? undefined : { kind: "separator" },
     // Upstream's Copy Full Path and Show in Finder have no counterpart: a
     // browser is told a file's name and nothing else about where it came from.
-    { label: "Copy File Name", onSelect: () => void copyText(slot.name) },
-    { label: "Close", onSelect: () => actions.onClose(pane) },
+    { label: L("Copy File Name"), onSelect: () => void copyText(slot.name) },
+    { label: L("Close"), onSelect: () => actions.onClose(pane) },
     ...ofSlot(() =>
       bothOpen ? [{ kind: "separator" }, { label: "Swap Panes", onSelect: swapPanes }] : []
     ),
@@ -251,7 +251,7 @@ export function statusOffsetMenu(digits: string): MenuEntry[] {
  */
 export function textMenu(selected: string): MenuEntry[] {
   return [
-    { label: "Copy", disabled: selected.length === 0, onSelect: () => void copyText(selected) },
+    { label: L("Copy"), disabled: selected.length === 0, onSelect: () => void copyText(selected) },
   ];
 }
 
@@ -403,15 +403,15 @@ function segmentItems(
     // sits in rather than the piece under the pointer (§21.3).
     items.push(
       { kind: "separator" },
-      { label: `Save Segment ${label}…`, onSelect: () => void savePiece(pane, piece) },
+      { label: L("Save Segment %1$@…", label), onSelect: () => void savePiece(pane, piece) },
       {
-        label: `Replace Segment ${label} from File…`,
+        label: L("Replace Segment %1$@ from File…", label),
         onSelect: () => void replacePieceFromFile(pane, piece),
       },
       { kind: "separator" },
-      { label: `Select Segment ${label}`, onSelect: () => selectPiece(pane, piece) },
+      { label: L("Select Segment %1$@", label), onSelect: () => selectPiece(pane, piece) },
       {
-        label: `Edit Segment ${label}`,
+        label: L("Edit Segment %1$@", label),
         onSelect: () => actions.onEditSegment(pane, piece.index),
       },
       {
@@ -430,13 +430,13 @@ function segmentItems(
       items.push(
         { kind: "separator" },
         {
-          label: `Revert Segment ${label} to “${source.name}”`,
+          label: L("Revert Segment %1$@ to “%2$@”", label, source.name),
           onSelect: () => void revertPiece(pane, piece),
         }
       );
     }
   }
-  items.push({ label: "Segments…", onSelect: () => actions.onSegments(pane) });
+  items.push({ label: L("Segments…"), onSelect: () => actions.onSegments(pane) });
   return items;
 }
 
@@ -458,12 +458,12 @@ function bookmarkItems(pane: PaneId, offset: number): (MenuEntry | undefined)[] 
   const row = rowContaining(offset);
   return [
     {
-      label: `Toggle Bookmark at ${hexAddress(row)}`,
+      label: L("Toggle Bookmark at %1$@", hexAddress(row)),
       onSelect: () => toggleBookmarkInPane(pane, offset),
     },
     bookmarkAt(pane, offset) === undefined
       ? undefined
-      : { label: "Edit Bookmark…", onSelect: () => editBookmarkInPane(pane, offset) },
+      : { label: L("Edit Bookmark…"), onSelect: () => editBookmarkInPane(pane, offset) },
   ];
 }
 
@@ -480,13 +480,13 @@ function selectionItems(
   const { start, end } = slot.document.selection;
   return [
     {
-      label: "Copy",
+      label: L("Copy"),
       onSelect: () => {
         void copySelection(slot, actions);
       },
     },
     {
-      label: "Save Selection as…",
+      label: L("Save Selection as…"),
       onSelect: () =>
         saveRangeAs(
           slot,
@@ -498,8 +498,8 @@ function selectionItems(
           actions
         ),
     },
-    { label: "Fill Selection with…", onSelect: () => actions.onFill(pane) },
-    { label: "Delete Bytes…", onSelect: () => actions.onDeleteBytes(pane), destructive: true },
+    { label: L("Fill Selection with…"), onSelect: () => actions.onFill(pane) },
+    { label: L("Delete Bytes…"), onSelect: () => actions.onDeleteBytes(pane), destructive: true },
   ];
 }
 

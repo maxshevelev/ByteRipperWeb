@@ -3,6 +3,7 @@ import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
+import { L } from "@/core/localization/localization";
 import type { MatchSet } from "@/core/search/matchSet";
 import { segmentReadout } from "@/core/segments/segmentation";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -1940,8 +1941,8 @@ export function HexPane({
           <button
             type="button"
             className="pane-collapse"
-            title="Collapse into the dock"
-            aria-label="Collapse panel"
+            title={L("Collapse into the dock")}
+            aria-label={L("Collapse panel")}
             onClick={onCollapse}
           >
             <svg

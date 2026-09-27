@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { L } from "@/core/localization/localization";
 import { parseOffset } from "@/core/text/offsetParser";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
@@ -131,7 +132,7 @@ export function SelectBlockDialog({
   const startBad = startValue === undefined || startValue > fileSize;
 
   return (
-    <Dialog open={open} title="Select block" onClose={onClose}>
+    <Dialog open={open} title={L("Select Block")} onClose={onClose}>
       <form className="dialog-body" onSubmit={submit}>
         {presetStart === undefined ? (
           <p className="dialog-help">
@@ -184,7 +185,7 @@ export function SelectBlockDialog({
             disabled={mode !== "length"}
             onChange={(event) => setLength(event.target.value)}
             spellCheck={false}
-            aria-label="Length"
+            aria-label={L("Length")}
           />
         </div>
 

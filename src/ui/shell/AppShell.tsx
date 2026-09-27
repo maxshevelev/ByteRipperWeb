@@ -1056,7 +1056,7 @@ export function AppShell() {
             "Closing this panel without putting them back loses them.",
           // help: menu.file.update-in-parent
           confirmLabel: L("Update in Parent"),
-          otherLabel: "Close Anyway",
+          otherLabel: L("Close Anyway"),
           answer: resolve,
         })
       );

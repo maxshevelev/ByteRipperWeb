@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { L } from "@/core/localization/localization";
 import { formatHex, parseHex } from "@/core/text/hexText";
 import { lastFillPattern, saveFillPattern } from "@/state/fillPatternStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
@@ -47,7 +48,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
   };
 
   return (
-    <Dialog open={open} title="Fill selection" onClose={onClose}>
+    <Dialog open={open} title={L("Fill Selection with…")} onClose={onClose}>
       <form className="dialog-body" onSubmit={submit}>
         <label className="dialog-field">
           Pattern

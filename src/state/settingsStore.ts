@@ -4,7 +4,7 @@ import {
   storedLanguageChoice,
 } from "@/core/localization/appLanguage";
 import { loadCatalogue } from "@/core/localization/bundledCatalogues";
-import { installCatalogue } from "@/core/localization/localization";
+import { installCatalogue, L } from "@/core/localization/localization";
 import { DEFAULT_PLACEHOLDER } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS, DEFAULT_DECODER_IDENTIFIER } from "@/core/text/byteDecoderRegistry";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
@@ -121,11 +121,11 @@ export const LANGUAGE_KEY = "AppLanguage";
 export function themeTitle(theme: AppTheme): string {
   switch (theme) {
     case "system":
-      return "System";
+      return L("System", { context: "theme" });
     case "light":
-      return "Light";
+      return L("Light", { context: "theme" });
     case "dark":
-      return "Dark";
+      return L("Dark", { context: "theme" });
   }
 }
 

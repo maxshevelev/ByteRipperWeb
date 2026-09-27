@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { MatchSet } from "@/core/search/matchSet";
 import type { SearchStatus } from "@/state/searchStore";
 
@@ -67,13 +68,14 @@ export function searchResultsTitle(
     case "matches":
     case "tooMany": {
       const searching = matches !== undefined && !matches.isComplete;
-      const count = searching ? `${grouped(content.total)}, searching…` : grouped(content.total);
-      return `Search results (${count})`;
+      return searching
+        ? L("Search results (%1$@, searching…)", grouped(content.total))
+        : L("Search results (%1$@)", grouped(content.total));
     }
     case "searching":
-      return "Search results (searching…)";
+      return L("Search results (searching…)");
     case "empty":
-      return "Search results (0)";
+      return L("Search results (0)");
   }
 }
 

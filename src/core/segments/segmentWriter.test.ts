@@ -117,8 +117,8 @@ describe("the preview shown before anything is written", () => {
   });
 
   it("asks the question in the plural only when it means it", () => {
-    expect(writeTitle(1)).toBe("Save 1 Segment?");
-    expect(writeTitle(2)).toBe("Save 2 Segments?");
+    expect(writeTitle(1)).toBe("Save 1 segment?");
+    expect(writeTitle(2)).toBe("Save 2 segments?");
   });
 });
 

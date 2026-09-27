@@ -30,7 +30,7 @@ The app notices when the file it opened has been replaced — by your programmer
 
 Some documents are deliberately untitled and have nowhere to be written back to, so ⌘S asks where to put them:
 
-- **File ▸ New**.
+- **File ▸ New File**.
 - The result of a [[topic:join-duplicate|join]]: joining two dumps makes a *new* image, and an accidental ⌘S must not write it over one of the halves.
 - The result of **Duplicate**.
 - A part opened out of an image.

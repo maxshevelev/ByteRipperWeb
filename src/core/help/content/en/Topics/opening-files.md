@@ -21,7 +21,7 @@ The second pane is optional. Nothing needs a second file except the comparison i
 - **The open button** on the empty screen, or **File ▸ Open…** in the toolbar's menu. With both panes empty the first two files you pick fill them; with one pane free the file goes there; with both full it replaces the **active** pane. Anything selected beyond that is not opened.
 - **Drag and drop.** Drag a file onto the workspace and the drop bands show where it will land — into this pane, or beside it. Drop two files at once and the second opens in the other pane, if that pane is free.
 - **File ▸ Compare with…** opens a second dump into the empty pane, which is the comparison in one step.
-- **File ▸ New** makes an empty untitled file — somewhere to paste bytes into.
+- **File ▸ New File** makes an empty untitled file — somewhere to paste bytes into.
 
 ## What the browser asks for, and asks for again
 

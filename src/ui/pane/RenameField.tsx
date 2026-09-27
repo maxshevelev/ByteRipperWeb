@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { L } from "@/core/localization/localization";
 
 /**
  * The header's name as a field, in the place the name was: the name is changed
@@ -44,7 +45,7 @@ export function RenameField({
       ref={ref}
       className="pane-name-field"
       defaultValue={name}
-      aria-label="File name"
+      aria-label={L("File name")}
       spellCheck={false}
       onKeyDown={(event) => {
         if (event.key === "Enter") {

@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { mergeTitle, type Segment, segmentLabel } from "@/core/segments/segmentation";
 import { segmentSource } from "@/state/segmentSources";
 import { type PaneId, paneState } from "@/state/workspaceStore";
@@ -17,6 +18,10 @@ import type { MenuEntry } from "@/ui/shell/menuModel";
  * is asking about the same piece, and two menus that drifted apart would be the
  * bug. Every title names the piece, so the menu says what it will act on:
  * "Save Segment S1…", not a bare "Save Segment".
+ *
+ * @upstream ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.makeRowMenu
+ * @upstream-differs the titles are named for the piece when the menu is built, rather than
+ * bare placeholders that `validateMenuItem` renames on show — a web menu has no validation pass
  */
 export function pieceMenu(options: {
   readonly pane: PaneId;
@@ -37,24 +42,24 @@ export function pieceMenu(options: {
   // synchronous menu can read.
   const source = segmentSource(pane, piece);
   return [
-    { label: `Save Segment ${label}…`, onSelect: () => void savePiece(pane, piece) },
+    { label: L("Save Segment %1$@…", label), onSelect: () => void savePiece(pane, piece) },
     {
-      label: `Replace Segment ${label} from File…`,
+      label: L("Replace Segment %1$@ from File…", label),
       onSelect: () => void replacePieceFromFile(pane, piece),
     },
     source === undefined
       ? undefined
       : {
-          label: `Revert Segment ${label} to “${source.name}”`,
+          label: L("Revert Segment %1$@ to “%2$@”", label, source.name),
           onSelect: () => void revertPiece(pane, piece),
         },
     { kind: "separator" },
     options.onReveal === undefined
       ? undefined
-      : { label: `Select Segment ${label}`, onSelect: () => options.onReveal?.(piece) },
+      : { label: L("Select Segment %1$@", label), onSelect: () => options.onReveal?.(piece) },
     options.onEdit === undefined
       ? undefined
-      : { label: `Edit Segment ${label}`, onSelect: () => options.onEdit?.(piece) },
+      : { label: L("Edit Segment %1$@", label), onSelect: () => options.onEdit?.(piece) },
     {
       label: mergeTitle(piece.index),
       disabled: pieceCount < 2,
@@ -67,6 +72,8 @@ export function pieceMenu(options: {
  * Selecting a piece selects its whole range, not a caret at its start (§21.3).
  *
  * Shared, so the strip and the form put the same thing on screen.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuSelectSegment
  */
 export function selectPiece(pane: PaneId, piece: Segment): void {
   const slot = paneState(pane);

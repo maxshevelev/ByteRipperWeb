@@ -22,6 +22,8 @@
  * (`plateSquareWidth`, `plateSquareHeight`) — where the caption's plate is one
  * element here, holding either the words or the symbol.
  */
+import { L } from "@/core/localization/localization";
+
 export interface DropTargetViewProps {
   /**
    * What the zone says it will do, or `undefined` to refuse: a no-entry symbol
@@ -70,7 +72,7 @@ export function DropTargetView({ title, highlighted = false }: DropTargetViewPro
             className="drop-refusal"
             viewBox="0 0 30 30"
             role="img"
-            aria-label="Not allowed here"
+            aria-label={L("Not allowed here")}
             fill="none"
             stroke="currentColor"
           >

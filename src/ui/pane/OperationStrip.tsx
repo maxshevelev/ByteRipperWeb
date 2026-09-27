@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { operationStore } from "@/state/operationStore";
 import { useStore } from "@/state/useStore";
 import type { PaneId } from "@/state/workspaceStore";
@@ -32,8 +33,8 @@ export function OperationStrip({ pane }: { readonly pane: PaneId }) {
       <button
         type="button"
         className="operation-strip-cancel"
-        aria-label="Cancel operation"
-        title="Cancel operation"
+        aria-label={L("Cancel operation")}
+        title={L("Cancel operation")}
         onClick={() => shown.operation.cancel()}
       >
         <svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true">

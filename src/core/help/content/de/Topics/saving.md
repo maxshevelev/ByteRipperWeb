@@ -1,4 +1,4 @@
-@source-sha a8ae29eea8d628394b2a1789f4a76051fb028dcd16d9b857da9b20e717d63838
+@source-sha 346d4ad2213d5120cef1da0ed6e886d46151ee2acf203308707d67e5635dd664
 # Sichern
 
 > Roter Text heißt, die Änderung gibt es nur hier. Sichern Sie, und sie steht in der Datei — oder, in manchen Browsern, in einer heruntergeladenen Kopie.

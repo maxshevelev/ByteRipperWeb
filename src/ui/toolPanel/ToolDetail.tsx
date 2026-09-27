@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import type { DetailSymbol, DetailTable, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
@@ -197,7 +198,7 @@ function DetailTableView({ table }: { readonly table: DetailTable }) {
  */
 export function DoneMark() {
   return (
-    <svg className="tool-detail-done" viewBox="0 0 16 16" role="img" aria-label="Done">
+    <svg className="tool-detail-done" viewBox="0 0 16 16" role="img" aria-label={L("Done")}>
       <path d="M3.2 8.6 6.4 11.8 12.8 4.6" />
     </svg>
   );

@@ -1,4 +1,4 @@
-@source-sha 84bddd4027c406bf96409bf652bec036220fdaf95737b56853bae39822367525
+@source-sha c880821eb524b21d1f441b9ce0d8a7a04673d3e0959d5658b9df9829c705a47b
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.

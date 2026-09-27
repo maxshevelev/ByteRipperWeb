@@ -1,4 +1,5 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
+import { L } from "@/core/localization/localization";
 import { type Segment, SegmentLink } from "@/core/segments/segmentation";
 import {
   replaceSegment,
@@ -275,7 +276,8 @@ export async function saveAllPieces(
 function messageFor(preview: { lines: readonly string[]; replacing: readonly string[] }): string {
   const lines = preview.lines.join("\n");
   if (preview.replacing.length === 0) return lines;
-  return `${lines}\n\nThese files will be replaced:\n${preview.replacing.join("\n")}`;
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSegmentWrite
+  return `${lines}\n\n${L("These files will be replaced:")}\n${preview.replacing.join("\n")}`;
 }
 
 /**

@@ -3,6 +3,7 @@ import { type Bookmark, rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import { hexAddress } from "@/core/text/hexText";
 import { parseOffset } from "@/core/text/offsetParser";
 import {
@@ -179,7 +180,7 @@ export function GoToDialog({
   const problem = untouched
     ? undefined
     : !parsed.ok
-      ? "Invalid offset — use hex with 0x prefix or decimal."
+      ? L("Invalid offset — use hex with 0x prefix or decimal.")
       : parsed.value > fileSize
         ? `This file ends at 0x${fileSize.toString(16).toUpperCase()}.`
         : undefined;
@@ -335,7 +336,7 @@ export function GoToDialog({
   return (
     <Dialog
       open={open}
-      title="Go To"
+      title={L("Go To")}
       className="goto-dialog"
       onClose={close}
       onCancelRequest={onCancelRequest}
@@ -345,7 +346,7 @@ export function GoToDialog({
             action; Return in the field is what submits. */}
         <form className="goto-offset" onSubmit={submit}>
           <label className="goto-offset-label" htmlFor={offsetId}>
-            Offset:
+            {L("Offset:")}
           </label>
           <input
             id={offsetId}
@@ -360,7 +361,7 @@ export function GoToDialog({
             aria-describedby={errorId}
           />
           <button type="submit" className="toolbar-button" disabled={target === undefined}>
-            Go To
+            {L("Go To")}
           </button>
           {/* Always in the layout, empty when nothing is wrong, so the list does
               not move under the pointer as the address is typed. */}
@@ -393,7 +394,7 @@ export function GoToDialog({
             className="bookmark-list"
             ref={listRef}
             role="listbox"
-            aria-label="Bookmarks"
+            aria-label={L("Bookmarks")}
             aria-disabled={unavailable === undefined ? undefined : true}
             tabIndex={unavailable === undefined ? 0 : -1}
             style={{ height: visibleRowCount(marks.length) * ROW_HEIGHT + 2 }}
@@ -469,7 +470,7 @@ export function GoToDialog({
           {/* Close, not Cancel: nothing here is undone by leaving. A bookmark
               edited or removed from the list already is. */}
           <button type="button" className="toolbar-button" onClick={close}>
-            Close
+            {L("Close")}
           </button>
         </div>
       </div>

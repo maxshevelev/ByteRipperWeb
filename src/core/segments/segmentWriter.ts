@@ -21,6 +21,7 @@
  * {@link rangeStream}, which is where that lesson lives.
  */
 
+import { L } from "@/core/localization/localization";
 import { type Segment, segmentLabel } from "@/core/segments/segmentation";
 import type { ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import { CONTENT_CHUNK_SIZE, rangeStream } from "@/core/storage/contentStream";
@@ -132,9 +133,13 @@ export function previewWrite(
   };
 }
 
-/** "Save 2 Segments?" — the confirmation's question. */
+/**
+ * "Save 2 segments?" — the confirmation's question.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSegmentWrite
+ */
 export function writeTitle(count: number): string {
-  return `Save ${count} Segment${count === 1 ? "" : "s"}?`;
+  return count === 1 ? L("Save 1 segment?") : L("Save %1$@ segments?", count);
 }
 
 /**

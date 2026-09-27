@@ -18,6 +18,7 @@
  */
 
 import type { DiffEdit } from "@/core/diff/diffEngine";
+import { L } from "@/core/localization/localization";
 
 /**
  * Which file a piece's bytes came from (§21.7).
@@ -250,7 +251,7 @@ export function segmentReadout(
  * @upstream ByteRipperApp/Segments/SegmentStore.swift#Segment.mergeTitle
  */
 export function mergeTitle(index: number): string {
-  return `Merge ${segmentLabel(index)} into ${segmentLabel(index === 0 ? 1 : index - 1)}`;
+  return L("Merge %1$@ into %2$@", segmentLabel(index), segmentLabel(index === 0 ? 1 : index - 1));
 }
 
 /**

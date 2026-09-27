@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { L } from "@/core/localization/localization";
 import { hexAddress } from "@/core/text/hexText";
 import {
   type BookmarkEditSession,
@@ -156,7 +157,7 @@ export function BookmarkEditPopover({
     >
       <input
         className={`bookmark-popover-offset${edited === undefined ? " is-invalid" : ""}`}
-        aria-label="Bookmark offset"
+        aria-label={L("Bookmark offset")}
         aria-invalid={edited === undefined}
         value={offsetText}
         onChange={(event) => setOffsetText(event.target.value)}
@@ -166,8 +167,8 @@ export function BookmarkEditPopover({
       <input
         ref={nameRef}
         className="bookmark-popover-name"
-        aria-label="Bookmark name"
-        placeholder="Name"
+        aria-label={L("Bookmark name")}
+        placeholder={L("Name")}
         value={name}
         onChange={(event) => setName(event.target.value)}
         spellCheck={false}
@@ -179,7 +180,7 @@ export function BookmarkEditPopover({
         <button
           type="button"
           className="toolbar-button bookmark-popover-delete"
-          aria-label="Delete bookmark"
+          aria-label={L("Delete bookmark")}
           onClick={() => {
             deleteEditedBookmark();
             onKeyboardClose();

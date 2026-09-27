@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import { L } from "@/core/localization/localization";
 import type { Segment } from "@/core/segments/segmentation";
 import { segmentLabel } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
@@ -214,13 +215,13 @@ export function SegmentsDialog({
       <div className="dialog-body">
         <div className="segments-scroll">
           <table className="panel-table segments-table">
-            <caption className="visually-hidden">Segments</caption>
+            <caption className="visually-hidden">{L("Segments")}</caption>
             <thead>
               <tr>
                 <th scope="col">Piece</th>
-                <th scope="col">Start</th>
-                <th scope="col">Size</th>
-                <th scope="col">Name</th>
+                <th scope="col">{L("Start")}</th>
+                <th scope="col">{L("Size")}</th>
+                <th scope="col">{L("Name")}</th>
               </tr>
             </thead>
             <tbody>
@@ -287,7 +288,7 @@ export function SegmentsDialog({
               @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
           <HelpButton link={topicLink(TOPIC.segments)} />
           <button type="button" className="toolbar-button" onClick={onAddCut} title="Add a cut">
-            Add Cut…
+            {L("Add Cut…")}
           </button>
           <button
             type="button"
@@ -296,7 +297,7 @@ export function SegmentsDialog({
             onClick={() => mergePiece(pane, selected)}
             title="Merge the selected piece into its neighbour"
           >
-            Merge
+            {L("Merge")}
           </button>
           <button
             type="button"
@@ -304,14 +305,14 @@ export function SegmentsDialog({
             disabled={pieces.length < 2}
             onClick={() => mergeAll(pane)}
           >
-            Merge All
+            {L("Merge All")}
           </button>
           <span className="toolbar-spacer" />
           <button type="button" className="toolbar-button" onClick={onSaveAll}>
-            Save All as Separate Files…
+            {L("Save All as Separate Files…")}
           </button>
           <button type="button" className="toolbar-button" onClick={onClose}>
-            Close
+            {L("Close")}
           </button>
         </div>
       </div>

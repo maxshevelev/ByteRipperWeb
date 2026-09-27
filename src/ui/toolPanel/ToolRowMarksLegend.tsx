@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { L } from "@/core/localization/localization";
 import {
   channelOrder,
   rowMarkChannel,
@@ -149,7 +150,7 @@ export function ToolRowMarksLegend({
           type="button"
           className="tool-row-marks-disclosure"
           aria-expanded={isExpanded}
-          aria-label="Legend"
+          aria-label={L("Legend")}
           onClick={() => setExpanded(!isExpanded)}
         >
           <DisclosureChevron open={isExpanded} />

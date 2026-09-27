@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { L } from "@/core/localization/localization";
 import type { PatternMenuRow } from "@/ui/search/patternMenu";
 
 /**
@@ -230,8 +231,8 @@ function EntryRow({ row }: { readonly row: Extract<PatternMenuRow, { kind: "entr
         <span
           className="search-field-invalid"
           role="img"
-          aria-label="Invalid pattern"
-          title="Invalid pattern"
+          aria-label={L("Invalid pattern")}
+          title={L("Invalid pattern")}
         >
           !
         </span>

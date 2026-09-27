@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { L } from "@/core/localization/localization";
 import type { LibraryConflict } from "@/core/search/patternLibrary";
 import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
 import type { SearchPatternEntry } from "@/core/search/searchPatternEntry";
@@ -492,8 +493,8 @@ export function FavoritesTab() {
                   key={`name-${entry.name}`}
                   defaultValue={entry.name}
                   readOnly={readOnly}
-                  placeholder="Name"
-                  aria-label="Name"
+                  placeholder={L("Name")}
+                  aria-label={L("Name")}
                   spellCheck={false}
                   onFocus={() => {
                     editing.current = true;
@@ -515,8 +516,8 @@ export function FavoritesTab() {
                   className="favorites-pattern"
                   defaultValue={entry.pattern}
                   readOnly={readOnly}
-                  placeholder="Pattern"
-                  aria-label="Pattern"
+                  placeholder={L("Pattern")}
+                  aria-label={L("Pattern")}
                   spellCheck={false}
                   onFocus={() => {
                     editing.current = true;
@@ -537,7 +538,7 @@ export function FavoritesTab() {
               <span>
                 <select
                   className="settings-select"
-                  aria-label="Encoding"
+                  aria-label={L("Encoding")}
                   value={entry.encoding}
                   disabled={readOnly}
                   onChange={(event) =>
@@ -555,7 +556,7 @@ export function FavoritesTab() {
                 {/* Hex is byte-exact whatever the flag holds: nothing to tick. */}
                 <input
                   type="checkbox"
-                  aria-label="Match Case"
+                  aria-label={L("Match Case")}
                   checked={entry.caseSensitive && entry.encoding !== "hex"}
                   disabled={readOnly || entry.encoding === "hex"}
                   onChange={(event) => apply(commitCase(rows, index, event.target.checked))}

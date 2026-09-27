@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import { L } from "@/core/localization/localization";
 import type { MatchSet } from "@/core/search/matchSet";
 import { formatHex } from "@/core/text/hexText";
 import { hideSearchResults, type SearchStatus, selectMatch } from "@/state/searchStore";
@@ -230,7 +231,12 @@ export function SearchResults({
   const message = searchResultsMessage(content);
 
   return (
-    <aside className="search-results" aria-label="Search results" ref={panelRef} style={{ height }}>
+    <aside
+      className="search-results"
+      aria-label={L("Search results")}
+      ref={panelRef}
+      style={{ height }}
+    >
       {/* biome-ignore lint/a11y/useSemanticElements: an <hr> cannot be dragged */}
       <div
         className="search-results-splitter"
@@ -263,8 +269,8 @@ export function SearchResults({
         <button
           type="button"
           className="search-results-close"
-          aria-label="Close search results"
-          title="Close search results"
+          aria-label={L("Close search results")}
+          title={L("Close search results")}
           onClick={() => hideSearchResults(pane)}
         >
           <svg
@@ -293,9 +299,9 @@ export function SearchResults({
             what a row has to be for the keyboard to reach it.
           */}
           <div className="search-results-head" role="presentation">
-            <span>Offset</span>
-            <span>Excerpt Hex</span>
-            <span>Excerpt Text</span>
+            <span>{L("Offset")}</span>
+            <span>{L("Excerpt Hex")}</span>
+            <span>{L("Excerpt Text")}</span>
           </div>
           <ol className="search-results-list">
             {rows.map((row) => (

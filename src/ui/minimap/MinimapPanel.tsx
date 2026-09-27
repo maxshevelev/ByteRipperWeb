@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { L } from "@/core/localization/localization";
 import {
   type BaselineSpan,
   baselineReferenceAt,
@@ -132,7 +133,7 @@ export function MinimapPanel({
   return (
     <aside
       className={`minimap${stacked ? " is-stacked" : ""}`}
-      aria-label="Minimap"
+      aria-label={L("Minimap")}
       ref={panelRef}
       style={
         {
@@ -1091,7 +1092,7 @@ function MinimapCanvas({
 
   const label =
     slot === undefined
-      ? "Minimap"
+      ? L("Minimap")
       : `Minimap of ${slot.name}, ${mode === "detail" ? "detail" : "overview"}`;
 
   return (
