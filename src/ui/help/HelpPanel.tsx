@@ -46,8 +46,8 @@ import { useStore } from "@/state/useStore";
 import { foldParts } from "@/state/workspaceStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
 import { helpNameOf, plainHelpName } from "@/ui/help/helpNames";
-import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { CloseButton } from "@/ui/shell/CloseButton";
+import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 
 /**
  * The whole panel: a header that says where the reader is and how to leave, and
