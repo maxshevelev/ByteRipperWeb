@@ -20,10 +20,8 @@ import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import {
   frontPane,
-  GROUPING_GAP_CHOICES,
   paneIn,
   type SlotId,
-  setGroupingGap,
   setLayout,
   setWordSize,
   swapPanes,
@@ -426,23 +424,6 @@ export function Toolbar({
       disabled: !canNavigate,
       onSelect: () => onNavigate("same", -1),
     },
-
-    // The grouping distance is the one block that still comes and goes: it is
-    // not upstream's menu item at all but the Comparison settings' own control,
-    // borrowed into the menu beside the navigation it changes. A radio group of
-    // four dead rows under a heading naming something there is nothing to
-    // compare is worse than no heading at all.
-    // @upstream-differs the setting is in the menu here, and only while two files are open
-    bothOpen ? { kind: "separator" } : undefined,
-    bothOpen ? { kind: "heading", label: L("Grouping distance") } : undefined,
-    ...(bothOpen
-      ? GROUPING_GAP_CHOICES.map((gap) => ({
-          label: L("%1$@ bytes", gap),
-          checked: state.groupingGap === gap,
-          exclusive: true,
-          onSelect: () => setGroupingGap(gap),
-        }))
-      : []),
 
     // The Help menu, which has nowhere else to go: there is no menu bar here.
     // Upstream's five destinations, in upstream's order — the book, the two
