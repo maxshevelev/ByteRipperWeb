@@ -1079,7 +1079,7 @@ function delayedAuthenticationMode(raw: number): string {
     case 0:
       return "No";
     case 1:
-      return L("Yes");
+      return "Yes";
     default:
       return `Unknown (${raw})`;
   }

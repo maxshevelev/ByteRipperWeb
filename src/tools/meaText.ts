@@ -122,7 +122,7 @@ export function countText(count: number, noun: CountedNoun): string {
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.yesNo */
-export const yesNo = (value: boolean): string => (value ? L("Yes") : "No");
+export const yesNo = (value: boolean): string => (value ? "Yes" : "No");
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.family */
 export function familyText(family: FirmwareFamily): string {
@@ -282,7 +282,7 @@ export const downgradeBlacklistText = (entry: {
 export function fwUpdateSupportText(value: FWUpdateSupport): string {
   switch (value) {
     case "yes":
-      return L("Yes");
+      return "Yes";
     case "no":
       return "No";
     case "impossible":

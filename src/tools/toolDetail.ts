@@ -128,4 +128,4 @@ export const cell = (text: string, tone: DetailCell["tone"] = "plain"): DetailCe
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Cell.permission
  */
 export const permission = (allowed: boolean): DetailCell =>
-  cell(allowed ? L("Yes") : "No", allowed ? "yes" : "no");
+  cell(allowed ? L("Yes") : L("No"), allowed ? "yes" : "no");
