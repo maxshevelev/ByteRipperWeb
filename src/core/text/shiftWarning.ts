@@ -18,6 +18,8 @@
  * without a view — the dialog that shows it is `ConfirmDialog`.
  */
 
+import { L } from "@/core/localization/localization";
+
 /**
  * The edit that is about to shift every offset after it, as the warning needs
  * it: which command asked, where the shift starts, and how many bytes move.
@@ -67,18 +69,18 @@ export function shiftWarning(edit: ShiftingEdit): ShiftWarning {
     // insert-mode keystroke in a file and asked no more after it is answered.
     case "insert":
       return {
-        title: "Insert?",
+        title: L("Insert?"),
         message: `Inserting at offset ${at} shifts every byte from here on — the file structure may be affected.`,
-        confirmLabel: "Insert",
+        confirmLabel: L("Insert"),
       };
     // Edit ▸ Paste Insert, which is what a paste into an insert-mode pane is.
     // A paste while a selection stands removes those bytes first — the offsets
     // after it shift either way, which is what the sentence is about.
     case "paste":
       return {
-        title: "Paste Insert?",
+        title: L("Paste Insert?"),
         message: `Insert ${edit.count} byte(s) at offset ${at}. Existing bytes from this offset on will shift.`,
-        confirmLabel: "Insert",
+        confirmLabel: L("Insert"),
       };
     // Delete Bytes, and the deletes insert mode carries out: removing bytes
     // moves everything after them left.
@@ -86,7 +88,7 @@ export function shiftWarning(edit: ShiftingEdit): ShiftWarning {
       return {
         title: `Delete ${edit.count} byte(s)?`,
         message: `Bytes from offset ${at} will be removed. Subsequent offsets will shift — the file structure may be affected.`,
-        confirmLabel: "Delete",
+        confirmLabel: L("Delete"),
       };
   }
 }

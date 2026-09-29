@@ -1,4 +1,5 @@
 import type { JoinPosition } from "@/core/document/binaryDocument";
+import { L } from "@/core/localization/localization";
 import type { PaneId, SlotId } from "@/state/workspaceStore";
 
 /**
@@ -43,13 +44,13 @@ export type SingleFileDropTarget = "insertAtStart" | "replace" | "appendAtEnd" |
 export function singleFileDropTargetTitle(target: SingleFileDropTarget): string {
   switch (target) {
     case "insertAtStart":
-      return "Insert at Start";
+      return L("Insert at Start");
     case "replace":
-      return "Replace Current File";
+      return L("Replace Current File");
     case "appendAtEnd":
-      return "Append at End";
+      return L("Append at End");
     case "addSecond":
-      return "Open as Second File";
+      return L("Open as Second File");
   }
 }
 
@@ -346,9 +347,9 @@ export function paneBandTitle(outcome: PaneDropOutcome): string | undefined {
     case "swap":
       return "Swap Panes";
     case "move":
-      return "Move Here";
+      return L("Move Here");
     case "duplicate":
-      return "Duplicate Here";
+      return L("Duplicate Here");
     case "none":
       return undefined;
   }

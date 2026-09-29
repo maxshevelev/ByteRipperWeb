@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { LibraryConflict, LibraryResolution } from "@/core/search/patternLibrary";
 import { encodingTitle } from "@/core/search/searchPattern";
 import type { SearchPatternEntry } from "@/core/search/searchPatternEntry";
@@ -78,8 +79,8 @@ export const IMPORT_WORDING: ConflictWording = {
  */
 export const SHARED_WORDING: ConflictWording = {
   ours: "This Browser",
-  theirs: "Shared Library",
-  theirsChoice: "Shared",
+  theirs: L("Shared Library"),
+  theirsChoice: L("Shared"),
   elsewhere: "on another machine",
   message:
     "This browser and the shared library were both changed before either saw the other. " +
@@ -88,7 +89,7 @@ export const SHARED_WORDING: ConflictWording = {
 
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init */
 export function conflictTitle(count: number): string {
-  return count === 1 ? "One conflicting change" : `${count} conflicting changes`;
+  return count === 1 ? L("One conflicting change") : `${count} conflicting changes`;
 }
 
 /**
@@ -103,14 +104,16 @@ export function conflictSubject(conflict: LibraryConflict): string {
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.ourSide */
 export function ourSide(conflict: LibraryConflict): string {
   if (conflict.kind !== "editedAndDeleted") return entrySummary(conflict.ours);
-  return conflict.deletedHere ? "Deleted here" : `${entrySummary(conflict.entry)} — changed here`;
+  return conflict.deletedHere
+    ? L("Deleted here")
+    : `${entrySummary(conflict.entry)} — changed here`;
 }
 
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.theirSide */
 export function theirSide(conflict: LibraryConflict, wording: ConflictWording): string {
   if (conflict.kind !== "editedAndDeleted") return entrySummary(conflict.theirs);
   if (conflict.deletedHere) return `${entrySummary(conflict.entry)} — changed ${wording.elsewhere}`;
-  return conflict.deletedBy === "" ? "Deleted" : `Deleted ${wording.elsewhere}`;
+  return conflict.deletedBy === "" ? L("Deleted") : `Deleted ${wording.elsewhere}`;
 }
 
 /**
@@ -141,10 +144,12 @@ export function resolutionTitles(
   wording: ConflictWording
 ): readonly string[] {
   if (conflict.kind === "editedAndDeleted") {
-    return conflict.deletedHere ? ["The deletion", "Their version"] : ["Mine", "The deletion"];
+    return conflict.deletedHere
+      ? [L("The deletion"), L("Their version")]
+      : [L("Mine"), L("The deletion")];
   }
   return allowsKeepingBoth(conflict)
-    ? [wording.ours, wording.theirsChoice, "Both"]
+    ? [wording.ours, wording.theirsChoice, L("Both")]
     : [wording.ours, wording.theirsChoice];
 }
 

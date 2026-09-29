@@ -1,4 +1,5 @@
 import type { Bookmark } from "@/core/bookmarks/bookmarkStore";
+import { L } from "@/core/localization/localization";
 import { hexAddress } from "@/core/text/hexText";
 
 /**
@@ -13,7 +14,7 @@ import { hexAddress } from "@/core/text/hexText";
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.setBookmarks
  */
 export function bookmarkHeading(count: number): string {
-  return count === 1 ? "1 Bookmark Here:" : `${count} Bookmarks Here:`;
+  return count === 1 ? L("1 Bookmark Here:") : L("%1$@ Bookmarks Here:", String(count));
 }
 
 export interface BookmarkListRow {
@@ -53,8 +54,10 @@ export function windowTitle(
   const open = [names.a, names.b].filter((name): name is string => name !== undefined);
   const [first, second] = open;
   if (first === undefined) {
-    if (bookmarkCount === 0) return "Empty";
-    return bookmarkCount === 1 ? "Empty (1 Bookmark)" : `Empty (${bookmarkCount} Bookmarks)`;
+    if (bookmarkCount === 0) return L("Empty");
+    return bookmarkCount === 1
+      ? L("Empty (1 Bookmark)")
+      : L("Empty (%1$@ Bookmarks)", String(bookmarkCount));
   }
   return second === undefined ? first : `${first} ↔ ${second}`;
 }

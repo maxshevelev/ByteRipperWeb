@@ -3,6 +3,7 @@ import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocumen
 import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { L } from "@/core/localization/localization";
 import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
@@ -547,7 +548,7 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
     signalFullInvalidation(pane);
   } catch (error) {
     reportAlert(
-      "Could not open file.",
+      L("Could not open file."),
       error instanceof Error ? error.message : "This file could not be opened."
     );
   }

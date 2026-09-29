@@ -405,9 +405,9 @@ function linkReason(state: SegmentLinkState | undefined): string | undefined {
     case "edited":
       return "edited";
     case "lengthChanged":
-      return "length changed";
+      return L("length changed");
     case "missing":
-      return "file missing";
+      return L("file missing");
     default:
       return undefined;
   }

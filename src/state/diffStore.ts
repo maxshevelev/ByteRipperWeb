@@ -7,6 +7,7 @@ import {
   scanDiff,
 } from "@/core/diff/diffEngine";
 import { DiffHunkIndex, type HunkRange } from "@/core/diff/diffHunkIndex";
+import { L } from "@/core/localization/localization";
 import { BackgroundOperation, presentOnActivePane } from "@/state/operationStore";
 import { createStore } from "@/state/store";
 import { reportAlert, workspaceStore } from "@/state/workspaceStore";
@@ -270,7 +271,7 @@ let buildOperation: BackgroundOperation | undefined;
 
 function beginBuildOperation(): void {
   endBuildOperation();
-  const operation = new BackgroundOperation("Indexing…", cancelBuild);
+  const operation = new BackgroundOperation(L("Indexing…"), cancelBuild);
   buildOperation = operation;
   presentOnActivePane(operation);
 }

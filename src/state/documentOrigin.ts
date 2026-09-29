@@ -1,4 +1,5 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import { L } from "@/core/localization/localization";
 import { hexAddress } from "@/core/text/hexText";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
@@ -367,7 +368,7 @@ export class DocumentOrigin {
     if (slot === undefined || state === "parentClosed") {
       return {
         kind: "refused",
-        title: "The parent is closed",
+        title: L("The parent is closed"),
         message: `“${this.parentName}” is no longer open, so there is nothing to put “${this.partName}” back into.`,
       };
     }
@@ -394,7 +395,7 @@ export class DocumentOrigin {
     if (this.kind !== "copy") {
       return {
         kind: "refused",
-        title: "This cannot be put back",
+        title: L("This cannot be put back"),
         message:
           `These bytes were decompressed from “${this.partName}” in ${this.parentName}, ` +
           "and where they belong in it was not recorded when the part was opened.",
@@ -404,7 +405,7 @@ export class DocumentOrigin {
     if (bytes.length !== length) {
       return {
         kind: "refused",
-        title: "The length changed",
+        title: L("The length changed"),
         message:
           `“${this.partName}” is ${hexAddress(length)} bytes in ${this.parentName}, ` +
           `and this part is ${hexAddress(bytes.length)}. A part goes back only at its own length: ` +

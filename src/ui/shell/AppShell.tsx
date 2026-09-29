@@ -422,7 +422,7 @@ export function AppShell() {
         // The panel is the app's, so a picker that came back with nothing was
         // the user closing it — not a failure to report.
         reportAlert(
-          "Could not open file.",
+          L("Could not open file."),
           error instanceof Error ? error.message : "This file could not be opened."
         );
       }
@@ -535,7 +535,7 @@ export function AppShell() {
         }
       } catch (error) {
         reportAlert(
-          as ? "Save As failed." : "Save failed.",
+          as ? L("Save As failed.") : L("Save failed."),
           error instanceof Error ? error.message : "That file could not be saved."
         );
       }
@@ -575,7 +575,7 @@ export function AppShell() {
     if (!window.confirm(asked)) return;
     void revertPane(target).catch(() =>
       reportAlert(
-        "Revert failed.",
+        L("Revert failed."),
         "That file could not be read again — it may have changed or been moved."
       )
     );
@@ -1110,7 +1110,7 @@ export function AppShell() {
   const doDuplicate = useCallback(() => {
     void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
       reportAlert(
-        "Could not duplicate the file.",
+        L("Could not duplicate the file."),
         error instanceof Error ? error.message : "That copy could not be made."
       )
     );
@@ -1323,7 +1323,7 @@ export function AppShell() {
           return;
         }
         reportAlert(
-          "Could not join the pane.",
+          L("Could not join the pane."),
           error instanceof Error ? error.message : "That file could not be joined."
         );
       }
@@ -1399,7 +1399,7 @@ export function AppShell() {
         );
       } catch (error) {
         reportAlert(
-          "Could not join the pane.",
+          L("Could not join the pane."),
           error instanceof Error ? error.message : "That file could not be joined."
         );
       }
@@ -1526,7 +1526,7 @@ export function AppShell() {
           }
           void duplicatePane(dragging).catch((error: unknown) =>
             reportAlert(
-              "Could not duplicate the file.",
+              L("Could not duplicate the file."),
               error instanceof Error ? error.message : "That copy could not be made."
             )
           );
@@ -1690,7 +1690,7 @@ export function AppShell() {
         // the app may rely on
         showTransientMessage(
           state.activePane,
-          what === "difference" ? "No more difference" : "No more same block"
+          what === "difference" ? L("No more difference") : L("No more same block")
         );
         return;
       }
@@ -2164,7 +2164,7 @@ export function AppShell() {
         message={shiftAsk?.warning.message ?? ""}
         confirmLabel={shiftAsk?.warning.confirmLabel}
         destructive
-        rememberLabel="Do not ask again"
+        rememberLabel={L("Do not ask again")}
         onConfirm={(remember) => answerShift(true, remember)}
         onCancel={(remember) => answerShift(false, remember)}
       />

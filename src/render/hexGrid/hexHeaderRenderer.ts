@@ -15,6 +15,7 @@
  * an atlas here would be machinery bought with nothing.
  */
 
+import { L } from "@/core/localization/localization";
 import type { HexLayout } from "@/render/hexGrid/hexLayout";
 
 /**
@@ -34,8 +35,9 @@ export function headerHeight(rowHeight: number): number {
   return rowHeight + 2 * HEADER_VERTICAL_PADDING;
 }
 
-const OFFSET_TITLE = "Offset";
-const TEXT_TITLE = "Decoded text";
+/** Read at paint time, not at import: the language can change under an open dump. */
+const offsetTitle = () => L("Offset");
+const textTitle = () => L("Decoded text");
 
 export interface HexHeaderColors {
   readonly background: string;
@@ -116,11 +118,11 @@ export class HexHeaderRenderer {
     // The labels' ink centred in the strip, as the rows' glyphs are.
     const ink = context.measureText("0A");
     const middle = height / 2 + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2;
-    context.fillText(OFFSET_TITLE, layout.offsetColumnFrame(0).x, middle);
+    context.fillText(offsetTitle(), layout.offsetColumnFrame(0).x, middle);
     for (let column = 0; column < BYTES_PER_ROW; column++) {
       context.fillText(columnIndex(column), layout.hexByteX(column), middle);
     }
-    context.fillText(TEXT_TITLE, layout.textX(0), middle);
+    context.fillText(textTitle(), layout.textX(0), middle);
 
     // A thin rule separating the header from the dump, as wide as the content.
     context.fillStyle = colors.rule;

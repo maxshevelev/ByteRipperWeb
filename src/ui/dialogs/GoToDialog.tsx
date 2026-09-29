@@ -378,7 +378,7 @@ export function GoToDialog({
     openContextMenu(event, [
       { label: "Edit Bookmark…", onSelect: () => editBookmarkInList(mark.row) },
       {
-        label: "Delete Bookmark",
+        label: L("Delete Bookmark"),
         destructive: true,
         onSelect: () => removeBookmark(pane, mark.row),
       },

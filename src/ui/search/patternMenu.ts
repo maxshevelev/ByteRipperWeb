@@ -55,7 +55,7 @@ export type PatternMenuRow =
  */
 export function searchFlags(search: Pick<MenuSearch, "encoding" | "caseSensitive">): string {
   if (search.encoding === "hex") return encodingTitle(search.encoding);
-  return `${encodingTitle(search.encoding)}, ${search.caseSensitive ? "match case" : "ignore case"}`;
+  return `${encodingTitle(search.encoding)}, ${search.caseSensitive ? L("match case") : L("ignore case")}`;
 }
 
 /**
@@ -149,7 +149,7 @@ export function favoriteNameProblem(
   search: MenuSearch,
   alreadyKept: { readonly name: string } | undefined
 ): string | undefined {
-  if (name.trim().length === 0) return "Enter a name — it is what the menu shows.";
+  if (name.trim().length === 0) return L("Enter a name — it is what the menu shows.");
   if (!parsePattern(search.pattern, search.encoding).ok) {
     return `That pattern cannot be read as ${encodingTitle(search.encoding)}.`;
   }

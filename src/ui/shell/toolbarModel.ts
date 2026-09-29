@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { PaneLayout } from "@/state/workspaceStore";
 
 /**
@@ -107,8 +108,12 @@ export function paneLayoutOffer(layout: PaneLayout): {
   readonly toolTip: string;
 } {
   return layout === "sideBySide"
-    ? { next: "stacked", label: "Stack Panes", toolTip: "Stack the panes" }
-    : { next: "sideBySide", label: "Side-by-Side Panes", toolTip: "Place the panes side by side" };
+    ? { next: "stacked", label: L("Stack Panes"), toolTip: L("Stack the panes") }
+    : {
+        next: "sideBySide",
+        label: L("Side-by-Side Panes"),
+        toolTip: L("Place the panes side by side"),
+      };
 }
 
 export interface ToolbarContext {

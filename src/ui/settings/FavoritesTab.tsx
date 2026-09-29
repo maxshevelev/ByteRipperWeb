@@ -79,7 +79,7 @@ export function locationLine(state: FavoritesState): {
   const problem = syncProblem(state);
   const count = state.conflicts.length;
   if (count > 0) {
-    const named = problem ?? "conflicting changes";
+    const named = problem ?? L("conflicting changes");
     if (state.answerDidNotTake) {
       return {
         text: `The shared library changed while you were answering — ${named} to look at again`,
@@ -797,7 +797,7 @@ export function FavoritesTab() {
       <LibraryConflictDialog
         conflicts={asked}
         wording={SHARED_WORDING}
-        cancelTitle="Later"
+        cancelTitle={L("Later")}
         onResolve={(answers) => {
           answeringHere.current = true;
           setAsked(undefined);

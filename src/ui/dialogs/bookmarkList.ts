@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { marksFor } from "@/state/bookmarksStore";
 import type { PaneId } from "@/state/paneId";
 import { paneState } from "@/state/workspaceStore";
@@ -57,7 +58,7 @@ export function rowDescription(bytes: Uint8Array | undefined): string {
 }
 
 /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.pastEndOfFileText */
-export const PAST_END_OF_FILE = "Past the end of the file";
+export const PAST_END_OF_FILE = L("Past the end of the file");
 
 /**
  * Why a pane's bookmark list is closed, or nothing when it is open (§20.7).
@@ -73,7 +74,7 @@ export const PAST_END_OF_FILE = "Past the end of the file";
 export function bookmarksUnavailable(pane: PaneId): string | undefined {
   if (marksFor(pane) !== undefined) return undefined;
   const origin = paneState(pane)?.origin;
-  if (origin === undefined) return "Bookmarks are not available here.";
+  if (origin === undefined) return L("Bookmarks are not available here.");
   return (
     `Bookmarks are not available here: these bytes were decompressed from ` +
     `\u201C${origin.partName}\u201D, so no offset in them is an offset in ${origin.parentName}.`

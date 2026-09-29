@@ -1984,7 +1984,7 @@ export function HexPane({
         // biome-ignore lint/a11y/noNoninteractiveTabindex: the app's keyboard surface
         tabIndex={0}
         role="application"
-        aria-label="Hex dump"
+        aria-label={L("Hex dump")}
         aria-describedby={readoutId}
         onScroll={onScroll}
         onKeyDown={onKeyDown}

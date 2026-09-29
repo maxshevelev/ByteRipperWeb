@@ -1,4 +1,5 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
+import { L } from "@/core/localization/localization";
 import { MatchBitmap, MatchSet, MatchSetBuilder } from "@/core/search/matchSet";
 import { findOne, foldedPattern, SearchCancelled, scanAll } from "@/core/search/searchEngine";
 import {
@@ -705,7 +706,7 @@ async function runAttempts(
   // chunks with a turn for the event loop between them, so the interface keeps
   // drawing and taking keys while it runs.
   finishSearchOperation();
-  const operation = new BackgroundOperation("Searching…", () => cancelSearch(pane));
+  const operation = new BackgroundOperation(L("Searching…"), () => cancelSearch(pane));
   searchOperation = operation;
   searchOperationPane = pane;
   beginOperation(pane, operation);
@@ -752,7 +753,10 @@ export function attemptLabel(attempt: Attempt): string {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reportNothingFound
  */
 export function nothingFoundLines(attempts: readonly Attempt[]): string[] {
-  return ["Smart search.", ...attempts.map((attempt) => `${attemptLabel(attempt)} — no results.`)];
+  return [
+    L("Smart search."),
+    ...attempts.map((attempt) => `${attemptLabel(attempt)} — no results.`),
+  ];
 }
 
 /** One attempt, resolving to whether it found anything. */
@@ -1127,7 +1131,7 @@ export async function useSelectionForFind(): Promise<void> {
   if (end <= start) return;
   if (end - start > MAX_SELECTION_FIND_BYTES) {
     showNotice("warning", [
-      "Selection too long to search for",
+      L("Selection too long to search for"),
       `Up to ${MAX_SELECTION_FIND_BYTES} bytes can be used as a find pattern.`,
     ]);
     return;

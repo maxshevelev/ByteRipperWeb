@@ -119,7 +119,7 @@ async function rebuildIntoParent(
   const generation = document.contentGeneration;
 
   let abandoned = false;
-  const operation = new BackgroundOperation("Getting ready", () => {
+  const operation = new BackgroundOperation(L("Getting ready"), () => {
     abandoned = true;
     operation.finish();
   });
@@ -149,7 +149,7 @@ async function rebuildIntoParent(
   if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
     reportAlert(
       `“${origin.parentName}” changed`,
-      "It changed while the update was being worked out. Nothing was written."
+      L("It changed while the update was being worked out. Nothing was written.")
     );
     return { kind: "refused" };
   }
@@ -169,7 +169,7 @@ async function rebuildIntoParent(
   reportAlert(
     `Updated “${origin.parentName}”`,
     built.warnings.length === 0
-      ? "Nothing was written inside a Boot Guard or vendor protected range."
+      ? L("Nothing was written inside a Boot Guard or vendor protected range.")
       : built.warnings.join("\n\n")
   );
   return { kind: "updated", parent: origin.parent };
@@ -226,4 +226,4 @@ export const strandingSentence = (count: number): string =>
 
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.strandingCloseButton */
 export const strandingCloseButton = (count: number): string =>
-  count === 1 ? "Close and Break Link" : "Close and Break Links";
+  count === 1 ? L("Close and Break Link") : L("Close and Break Links");

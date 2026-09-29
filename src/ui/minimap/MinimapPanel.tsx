@@ -420,7 +420,7 @@ function MinimapModes({
             }
             onClick={() => setMinimapMode(surface, mode)}
           >
-            {mode === "detail" ? "Detail" : "Overview"}
+            {mode === "detail" ? L("Local") : L("Overview")}
           </button>
         ))}
       </fieldset>

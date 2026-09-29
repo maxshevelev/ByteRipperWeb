@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { closeFirmware } from "@/state/firmwareStore";
 import {
   discardParkedStateFor,
@@ -443,7 +444,7 @@ export function paneChoices(
 ): readonly PaneChoice[] {
   const { boundPane } = sessionOn(toolController.getSnapshot(), "panes");
   return PANE_IDS.map((pane) => ({
-    fileName: panes[pane]?.name ?? "No file",
+    fileName: panes[pane]?.name ?? L("No file"),
     isBound: boundPane === pane,
     isEnabled: panes[pane] !== undefined,
   }));

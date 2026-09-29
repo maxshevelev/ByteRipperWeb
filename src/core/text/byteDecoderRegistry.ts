@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { ByteDecoder, type ByteDecoderDescriptor } from "@/core/text/byteDecoder";
 
 /**
@@ -11,7 +12,7 @@ import { ByteDecoder, type ByteDecoderDescriptor } from "@/core/text/byteDecoder
 export const BYTE_DECODERS: readonly ByteDecoderDescriptor[] = [
   { identifier: "cp1252", displayName: "Windows-1252" },
   { identifier: "isoLatin1", displayName: "ISO-8859-1" },
-  { identifier: "strictASCII", displayName: "Strict ASCII" },
+  { identifier: "strictASCII", displayName: L("Strict ASCII") },
 ];
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoderRegistry.swift#TextDecoderRegistry.defaultIdentifier */
@@ -92,7 +93,7 @@ export function makeByteDecoder(identifier: string, placeholder?: string): ByteD
       return new ByteDecoder({ identifier, displayName: "ISO-8859-1" }, ISO_LATIN1, placeholder);
     case "strictASCII":
       return new ByteDecoder(
-        { identifier, displayName: "Strict ASCII" },
+        { identifier, displayName: L("Strict ASCII") },
         STRICT_ASCII,
         placeholder
       );

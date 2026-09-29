@@ -299,7 +299,10 @@ export function ToolPanel({
         )}
         {/* The panel's ✕ is Tools ▸ None by another route.
             @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onClose */}
-        <CloseButton label="Close the tool panel" onClick={() => activate(undefined, surface)} />
+        <CloseButton
+          label={L("Close the tool panel")}
+          onClick={() => activate(undefined, surface)}
+        />
       </header>
 
       {/* @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setContent */}

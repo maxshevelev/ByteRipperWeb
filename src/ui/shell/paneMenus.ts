@@ -214,7 +214,7 @@ export function paneFileMenu(
  * `representedObject`, and what reaches the clipboard is the same string either way
  */
 export function statusSizeMenu(size: number, form: SizeForm): MenuEntry[] {
-  const named = form === "hex" ? "Copy hex size" : "Copy size";
+  const named = form === "hex" ? L("Copy hex size") : L("Copy size");
   const text = sizeCopyText(size, form);
   return [{ label: `${named} ${text}`, onSelect: () => void copyText(text) }];
 }
@@ -558,7 +558,7 @@ export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
     })
     .catch((error: unknown) =>
       reportAlert(
-        "Could not read the zone.",
+        L("Could not read the zone."),
         error instanceof Error ? error.message : "Those bytes could not be read."
       )
     );
@@ -584,7 +584,7 @@ function saveRangeAs(
     })
     .catch((error: unknown) =>
       actions.onProblem(
-        "Save failed.",
+        L("Save failed."),
         error instanceof Error ? error.message : `That ${purpose} could not be saved.`
       )
     );

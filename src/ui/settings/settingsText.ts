@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { ROW_HEIGHT_SCALE_RANGE } from "@/state/settingsStore";
 
 /**
@@ -50,7 +51,7 @@ export function groupingGapTitle(gap: number): string {
  */
 export function placeholderProblem(text: string): string | undefined {
   const count = [...text].length;
-  if (count === 0) return "Enter a character";
-  if (count > 1) return "Exactly one character";
+  if (count === 0) return L("Enter a character");
+  if (count > 1) return L("Exactly one character");
   return undefined;
 }

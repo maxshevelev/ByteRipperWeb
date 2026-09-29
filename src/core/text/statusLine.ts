@@ -17,6 +17,7 @@
  *   what a dialog asks for; it is not the line's own spelling.
  */
 
+import { L } from "@/core/localization/localization";
 import type { SegmentReadout } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
 import { addressString } from "@/core/text/offsetParser";
@@ -213,9 +214,9 @@ export function statusParts(status: PaneStatus): StatusLineParts {
   const width = status.fileSize > 0 ? status.fileSize.toString(16).length : 1;
   const address = (value: number) => addressString(value, width);
 
-  const parts = [`Offset ${address(status.cursorOffset)}`];
+  const parts = [L("Offset %1$@", address(status.cursorOffset))];
   if (status.selectionLength > 0) {
-    parts.push(`${friendlySize(status.selectionLength)} selected`);
+    parts.push(L("%1$@ selected", friendlySize(status.selectionLength)));
   }
   const segment = status.segment;
   if (segment !== undefined) {
@@ -231,7 +232,7 @@ export function statusParts(status: PaneStatus): StatusLineParts {
   // act on, so where it landed is remembered.
   const sizeIndex = parts.length;
   parts.push(friendlySize(status.fileSize));
-  if (status.isDirty) parts.push("Modified");
+  if (status.isDirty) parts.push(L("Modified"));
   // Last, as upstream appends it last: an empty one adds nothing at all, not an
   // empty part — the separator is not left standing between two others.
   if (status.comparison !== "") parts.push(status.comparison);

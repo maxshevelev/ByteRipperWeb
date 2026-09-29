@@ -125,7 +125,7 @@ export function pieceAt(pane: PaneId, offset: number): Segment | undefined {
 
 /** What the saved files are named after: the name the pane's header shows. */
 function baseName(pane: PaneId): string {
-  return paneState(pane)?.name ?? "Untitled";
+  return paneState(pane)?.name ?? L("Untitled");
 }
 
 /**
@@ -265,7 +265,7 @@ export async function saveAllPieces(
   } catch (error) {
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.runSegmentWrite
     reportAlert(
-      "Saving segments failed.",
+      L("Saving segments failed."),
       error instanceof Error ? error.message : "Those segments could not be written."
     );
   } finally {
@@ -416,7 +416,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
       pieceLength: piece.end - piece.start,
       sourceName: source.name,
       sourceLength: donor.size,
-      confirmLabel: "Restore Length",
+      confirmLabel: L("Restore Length"),
     });
     if (!agreed) return;
     allowingLengthChange = true;
@@ -443,7 +443,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
     });
   } catch (error) {
     reportAlert(
-      "Reverting the segment failed.",
+      L("Reverting the segment failed."),
       error instanceof Error ? error.message : "That segment could not be reverted."
     );
   }
@@ -504,21 +504,21 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
         pieceLength: error.pieceLength,
         sourceName: donor.name,
         sourceLength: error.donorLength,
-        confirmLabel: "Replace and Resize",
+        confirmLabel: L("Replace and Resize"),
       });
       if (!agreed) return;
       try {
         await run(true);
       } catch (inner) {
         reportAlert(
-          "Replacing the segment failed.",
+          L("Replacing the segment failed."),
           inner instanceof Error ? inner.message : "That segment could not be replaced."
         );
       }
       return;
     }
     reportAlert(
-      "Replacing the segment failed.",
+      L("Replacing the segment failed."),
       error instanceof Error ? error.message : "That segment could not be replaced."
     );
   }

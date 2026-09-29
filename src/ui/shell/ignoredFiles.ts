@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { Alert } from "@/state/workspaceStore";
 
 /**
@@ -12,9 +13,9 @@ import type { Alert } from "@/state/workspaceStore";
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.notifyJoinIgnored
  */
 export function ignoredFilesAlert(count: number, gesture: "open" | "join"): Alert {
-  const noun = count === 1 ? "file was" : "files were";
+  const noun = count === 1 ? L("file was") : L("files were");
   return {
-    title: "Additional files ignored",
+    title: L("Additional files ignored"),
     message:
       gesture === "open"
         ? `${count} ${noun} not opened because only two files can be compared at once.`

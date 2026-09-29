@@ -12,6 +12,8 @@
  *
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.documentSymbolName
  */
+
+import { L } from "@/core/localization/localization";
 export function DocumentIcon({
   slot,
   dirty,
@@ -25,10 +27,10 @@ export function DocumentIcon({
 }) {
   const state = untitled
     ? dirty
-      ? "Modified new file"
-      : "New file"
+      ? L("Modified new file")
+      : L("New file")
     : dirty
-      ? "Modified file"
+      ? L("Modified file")
       : "Unmodified file";
   const label = `${slot} — ${state}`;
   return (

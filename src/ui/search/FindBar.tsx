@@ -373,7 +373,7 @@ export function FindBar({
       <AddFavoriteDialog
         search={keeping}
         onClose={() => setKeeping(undefined)}
-        onKept={(name) => showNotice("addedToFavorites", ["Added to Favorites", name])}
+        onKept={(name) => showNotice("addedToFavorites", [L("Added to Favorites"), name])}
       />
     </search>
   );
@@ -451,7 +451,7 @@ function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
   const results = resultsFor(state, state.pane);
   if (results.status === "failed") return state.problem ?? "That search could not be run.";
   if (results.status === "idle") return "";
-  if (results.status === "notFound") return "Not found";
+  if (results.status === "notFound") return L("Not found");
   const matches = results.matches;
   const current = results.current;
   // A search the results button started has no current match — the caret did
@@ -461,7 +461,7 @@ function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
     current === undefined &&
     matches === undefined
   ) {
-    return "Searching…";
+    return L("Searching…");
   }
 
   const parts: string[] = [];

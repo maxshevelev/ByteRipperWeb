@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { type Notice, type NoticeGlyph, noticeStore } from "@/state/noticeStore";
 import { useStore } from "@/state/useStore";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
@@ -25,7 +26,7 @@ const GLYPH_LABEL: Record<NoticeGlyph, string> = {
   wrapForward: "The search came round the end of the file",
   wrapBackward: "The search came round the start of the file",
   smartSearch: "Smart search",
-  addedToFavorites: "Added to Favorites",
+  addedToFavorites: L("Added to Favorites"),
   copySummary: "Summary copied",
   copyScreenshot: "Screenshot copied",
   warning: "The selection is too long to search for",

@@ -91,11 +91,11 @@ export function searchResultsMessage(content: SearchResultsContent): string | un
     case "tooMany":
       return `${grouped(content.total)} matches — too many to list. Refine the pattern.`;
     case "searching":
-      return "Searching…";
+      return L("Searching…");
     case "empty":
       // A search that replaced the rows with nothing says so where the rows
       // were. An empty table would read as a panel that failed to load rather
       // than as a pattern that occurs nowhere.
-      return "No matches.";
+      return L("No matches.");
   }
 }

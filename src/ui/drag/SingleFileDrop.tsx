@@ -1,4 +1,5 @@
 import { type ReactNode, useRef } from "react";
+import { L } from "@/core/localization/localization";
 import { paneDragStore } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
 import type { PaneLayout, SlotId } from "@/state/workspaceStore";
@@ -134,7 +135,7 @@ export function SingleFileDrop({
           <DropZoneView
             title={
               second !== undefined && isDuplicate(second)
-                ? "Duplicate Here"
+                ? L("Duplicate Here")
                 : singleFileDropTargetTitle("addSecond")
             }
             highlighted={zone === "addSecond"}
