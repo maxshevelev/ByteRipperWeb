@@ -1,6 +1,6 @@
 # Saving
 
-> Red text means the change exists only here. Save, and it is in the file — or, in some browsers, in a copy the browser downloads.
+> Red marks a byte that differs from the file on disk. Saving writes those bytes to the file — or, in some browsers, to a copy the browser downloads.
 
 @covers menu.file.save
 @covers menu.file.save-as
@@ -18,9 +18,9 @@
 
 ! A file dropped onto the window, or opened in a browser without the File System Access API, will be **downloaded** even where the app could otherwise save in place — there is no handle to write through. Open it through **File ▸ Open…** if you want Save rather than Download.
 
-## What is unsaved
+## If the file is not saved
 
-Bytes you have changed are drawn in **red** until they are saved, and the pane header says the document is modified. That pair is the check to run before handing a file to a programmer: no red left, and the header clean.
+Edited bytes are drawn in **red** until they are saved, and the pane header reports the document as modified. Both indications are cleared by saving.
 
 ## When the file changes underneath you
 
@@ -28,11 +28,11 @@ The app notices when the file it opened has been replaced — by your programmer
 
 ## Documents with no file
 
-Some documents are deliberately untitled and have nowhere to be written back to, so ⌘S asks where to put them:
+Some documents have neither a name nor a path by design, and ⌘S therefore asks where to write them:
 
 - **File ▸ New File**.
-- The result of a [[topic:join-duplicate|join]]: joining two dumps makes a *new* image, and an accidental ⌘S must not write it over one of the halves.
+- The result of a [[topic:join-duplicate|join]]: joining two dumps produces a *new* image, which ⌘S must not write over either half.
 - The result of **Duplicate**.
-- A part opened out of an image.
+- A part extracted from an image.
 
-! Keep the original dump. Save your patched version under a new name — `board_patched.bin` beside `board_original.bin`. A dump you overwrote is a chip you have to read again, and after a power fault that may not be possible twice.
+! **Save As…** writes the edited image to a new file and leaves the file it was read from unchanged. The original dump is not recoverable from the program once it has been overwritten.

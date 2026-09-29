@@ -1,19 +1,19 @@
-@source-sha 0e5854de202df3ba8a8a38b77c212d530cb1aa33172b932320fef94c79cc0768
+@source-sha da47a0704f6662db8ddf503b7783a83aedd104e39eae086454cb9985f2aa9483
 # Wer in den Flash schreibt
 
 > Nur der Chipsatz hat Leitungen zum Chip. Alles auf der Platine, das den Flash lesen oder schreiben will, geht durch ihn, und wer was darf, steht im Descriptor.
 
 Firmware kommt bauartbedingt auf einem Weg in den Chip: über den Chipsatz. Der einzige SPI-Controller der Platine sitzt im [[term:pch|Chipsatz]], also kommen die Firmware auf der CPU, ein Flash-Werkzeug, die [[term:me|Management Engine]] und der Netzwerk-Controller nur über ihn an den Chip — und er prüft ihre Rechte am Descriptor, bevor er gehorcht.
 
-Ein [[term:programmer|Programmer]] gehört nicht zu dieser Bauweise. Er spricht die Beinchen des Chips direkt an, und es ist niemand da, den er fragen könnte: keine Rechte, keine Prüfungen. Das ist kein zweiter regulärer Weg, sondern ein Schritt außerhalb dessen, wie die Plattform gebaut ist — so kommt ein Dump von einer toten Platine, und so gehen Bytes wieder hinein, wenn der Chipsatz sie nicht mehr schreibt.
+Ein [[term:programmer|Programmiergerät]] spricht die Anschlüsse des Bausteins unmittelbar an und geht am Chipsatz vorbei. Die Rechte aus dem Descriptor greifen dabei nicht: Durchgesetzt werden sie vom Chipsatz, der in diesem Weg nicht vorkommt.
 
-! Keine Prüfung beim Schreiben heißt nicht, dass es gar keine gibt. Die Rechte zäunen genau das ein, was die Plattform beim Start prüft. Ein Programmer nimmt den Zaun weg, nicht die Prüfung: eine Änderung in einem geschützten Bereich wird ohne ein Wort der Klage geschrieben und wird zu einer Platine, die nicht mehr startet. Bevor Sie eine Region ändern, finden Sie heraus, wer sie prüft — die Abschnitte unten sagen es.
+! Eine von Hand in einen geschützten Bereich des Images eingebrachte Änderung wird ohne Fehlermeldung geschrieben und beim Start der Platine zurückgewiesen. Welche Bereiche geschützt sind und wodurch, steht in den Abschnitten unten.
 
 ## Die Platine schreibt ständig in ihren eigenen Flash
 
 Und nicht nur, wenn jemand die Firmware aktualisiert:
 
-- Sie ändern eine Einstellung im Setup und drücken F10, und die Firmware schreibt den [[term:vss|NVRAM]]-Speicher zurück in die [[term:bios-region|BIOS-Region]].
+- Wird eine Einstellung im Setup geändert und mit F10 gesichert, schreibt die Firmware den [[term:vss|NVRAM]]-Speicher zurück in die [[term:bios-region|BIOS-Region]].
 - Die Management Engine schreibt ihre eigene [[term:mfs|MFS]]: Konfiguration, Zähler, Zustand.
 - Ein Update-Werkzeug des Herstellers oder Intels FPT (Flash Programming Tool) schreibt aus dem laufenden System eine ganze Region neu.
 
@@ -29,12 +29,13 @@ Der [[term:flash-descriptor|Descriptor]] nennt vier [[term:flash-master|Master]]
 
 Die Masken entscheiden nur eines: ob über den Chipsatz geschrieben werden darf. Ob das Geschriebene dann läuft, ist eine andere Frage, und sie wird beim Start beantwortet, von Prüfungen, die mit dem Descriptor nichts zu tun haben:
 
-- [[term:boot-guard|Boot Guard]] prüft den Bootblock, bevor die CPU ihn ausführt. Die Signatur prüft nicht der Chipsatz: das tut das [[term:acm|ACM]], gestartet vom Mikrocode der CPU, und der Hash des Wurzelschlüssels liegt in den [[term:otp|Fuses]] des Chipsatzes.
-- Die ME-Region prüft die Engine selbst, während sie hochkommt.
+- **Der frühe Teil der BIOS-Region.** [[term:boot-guard|Boot Guard]] prüft den [[term:ibb|IBB]] — den SEC- und PEI-Code —, bevor der Prozessor ihn ausführt: Das [[term:acm|ACM]], gestartet vom Mikrocode des Prozessors, vergleicht die Hashes des Blocks mit denen in den Boot-Guard-Manifesten, und der Hash des Wurzelschlüssels liegt in den [[term:otp|Fuses]] des Chipsatzes. Ein geändertes Byte im IBB ändert den Hash, und der Block besteht die Prüfung nicht.
+- **Der übrige Teil der BIOS-Region.** Was hinter dem IBB liegt, ist der [[term:ibb|OBB]], und ihn prüft die Firmware selbst, mit Code des Platinenherstellers. Ob ein bestimmter Hersteller das tut und wie gründlich, ist dessen Entscheidung — deshalb wird dieselbe Art von Änderung im einen Teil eines Images zurückgewiesen und geht im anderen durch.
+- **Die ME-Region** prüft die Engine selbst, während sie hochkommt; siehe [[topic:recipe-me-check|Den ME-Bericht lesen]].
 
-Daher die Trennung, an der eine Änderung scheitert, die sauber geschrieben wurde. Ein Programmer umgeht die Masken — er kann jedes Byte in jede Region schreiben. Gegen die Prüfungen beim Start richtet er nichts aus: eine Änderung innerhalb des [[term:ibb|IBB]] oder in der ME-Region wird geschrieben und danach abgewiesen.
+Eine Änderung in einem geschützten Bereich wird deshalb erfolgreich geschrieben und wirkt dennoch nicht: Schreiben und die Prüfung beim Start sind verschiedene Mechanismen, und die Erlaubnis für das eine sagt nichts über das andere.
 
-Alles aber, was diese Prüfungen nicht abdecken — NVRAM, der [[term:dmi|DMI]]-Bereich, die [[term:ec|EC]]-Firmware und oft auch die DXE-Treiber ([[term:ibb|IBB / OBB]] sagt, wann) —, schreibt ein Programmer, und es läuft. Ein Teil der Arbeit an Dumps liegt dort: die platinenspezifischen Daten wiederherstellen, Einstellungen zurückholen, ein BIOS anpassen.
+Die Bereiche, die diese Prüfungen nicht abdecken — der NVRAM-Speicher, der [[term:dmi|DMI]]-Bereich, die [[term:ec|EC]]-Firmware und oft auch die DXE-Treiber —, wirken, sobald sie geschrieben sind.
 
 ## Die Sperren, von denen der Descriptor nichts weiß
 
@@ -55,6 +56,6 @@ Intels Chipsätze tragen einen **Flash Descriptor Security Override**: einen Ser
 - Vor 2011 (5er-Serie und älter) wurde stattdessen im selben Moment `GPIO33` auf Masse gezogen.
 - Manche Hersteller führen dasselbe als Jumper oder Schalter heraus.
 
-Damit liest oder überschreibt eine Service-Prozedur eine gesperrte Region mit einem Werkzeug, ohne den Chip von der Platine zu nehmen. Ein öffentliches Datenblatt beschreibt das nicht: es steht in Intels Plattform-Leitfäden für Hersteller, und am Arbeitsplatz ist es aus den Anleitungen der Reparatur-Community bekannt — am ausführlichsten in [[web:https://winraid.level1techs.com/t/guide-unlock-intel-flash-descriptor-read-write-access-permissions-for-spi-servicing/32449|der Win-RAID-Anleitung zum Entsperren des Descriptor-Zugriffs]], woher auch das oben Gesagte stammt. Siehe [[topic:provenance|Woher dieses Wissen stammt]].
+Damit liest oder überschreibt eine Service-Prozedur eine gesperrte Region mit einem Werkzeug, ohne den Chip von der Platine zu nehmen. Ein öffentliches Datenblatt beschreibt das nicht: es steht in Intels Plattform-Leitfäden für Hersteller, und in der Reparaturpraxis ist es aus den Anleitungen der Community bekannt — am ausführlichsten in [[web:https://winraid.level1techs.com/t/guide-unlock-intel-flash-descriptor-read-write-access-permissions-for-spi-servicing/32449|der Win-RAID-Anleitung zum Entsperren des Descriptor-Zugriffs]], woher auch das oben Gesagte stammt. Siehe [[topic:provenance|Woher dieses Wissen stammt]].
 
-Siehe auch: [[topic:bench-safety|Regeln am Arbeitsplatz]], [[term:flash-descriptor|Flash descriptor]].
+Siehe auch: [[topic:bench-safety|Einschränkungen beim Bearbeiten eines Images]], [[term:flash-descriptor|Flash descriptor]].

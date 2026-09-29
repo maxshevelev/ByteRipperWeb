@@ -1,18 +1,18 @@
-@source-sha c756ba9370b7e9f087ca0436e1fc01d196441c7357e0dca0bef2fbc4427721a7
+@source-sha 606ce65ca93c9fb0f287e457607e0243b62b132ba2e8078cc9198cd64156db6c
 # Zusammenfügen und Duplizieren
 
-> Die Dumps zweier Chips zu einem Image, und eine Vorher-Kopie zum Ändern.
+> Die Dumps zweier Bausteine zu einem Image zusammenfügen und ein Image duplizieren, um die Kopie zu bearbeiten.
 
 ## Zusammenfügen: die Dumps zweier SPI-Chips zu einem Image
 
-Bei vielen Platinen ist das BIOS auf zwei SPI-Flash-Chips verteilt. Lesen Sie beide, öffnen Sie die erste, dann:
+Bei Platinen, deren Firmware in zwei SPI-Flash-Bausteinen liegt, werden beide gelesen und die erste Datei geöffnet. Dann:
 
 - **Ablage ▸ Datei anhängen…** — die Bytes der gewählten Datei kommen hinter den Inhalt des Bereichs.
 - **Ablage ▸ Datei am Anfang einfügen…** — sie kommen davor.
 
-Jetzt ist das ganze BIOS ein Image, und alles arbeitet damit normal: der Vergleich, die Suche, das [[topic:tool-uefi|UEFI-Panel]], das ein zusammenhängendes Image erwartet.
+Die gesamte Firmware ist dann ein Image, mit dem der Vergleich, die Suche und das [[topic:tool-uefi|UEFI-Werkzeug]] — das ein zusammenhängendes Image erwartet — normal arbeiten.
 
-Die Naht ist als [[topic:segments|Segmentschnitt]] festgehalten, sodass **Alle als einzelne Dateien sichern** Ihnen die beiden Hälften an derselben Grenze zurückgibt, bereit für je ihren Chip. — in einen gewählten Ordner, wo der Browser das erlaubt, und als ZIP, wo nicht.
+Die Grenze ist als [[topic:segments|Segmentschnitt]] festgehalten, sodass **Alle als einzelne Dateien sichern** die beiden Hälften genau an dieser Grenze zurückgibt — in einen gewählten Ordner, wo der Browser das erlaubt, und als ZIP, wo nicht.
 
 Daraus folgen zwei Dinge, die gut zu wissen sind:
 
@@ -21,6 +21,6 @@ Daraus folgen zwei Dinge, die gut zu wissen sind:
 
 ## Duplizieren: eine Kopie des Dumps, wie er war
 
-**Ablage ▸ Duplizieren** kopiert den Inhalt des Bereichs als neues, ungesichertes Dokument in den freien Bereich. Verfügbar im Einzeldatei-Modus, wo es einen freien Bereich gibt.
+**Ablage ▸ Duplizieren** kopiert den Inhalt des Bereichs als neues, ungesichertes Dokument in den freien Bereich. Der Befehl steht im Einzeldatei-Modus zur Verfügung, in dem ein freier Bereich vorhanden ist.
 
-Das ist der schnellste Weg, mit Netz zu arbeiten: duplizieren, die Kopie ändern und beim Tippen zusehen, wie die Unterschiede neben dem Original erscheinen. Am Ende sichern Sie die Hälfte, die stimmt.
+Die Kopie wird bearbeitet, während die Ausgangsdatei daneben geöffnet bleibt, und der Vergleich weist jede Änderung beim Tippen als Unterschied aus. Gesichert werden kann jedes der beiden Dokumente.

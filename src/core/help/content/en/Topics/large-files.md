@@ -16,6 +16,6 @@ What follows from that:
 
 ! **Saving a very large file is the one place size is felt.** Writing back in place streams the dump past the browser a block at a time and is no harder than a small one; a *download* has to be built as one object first, and a few hundred megabytes is where a browser tab starts to refuse. See [[topic:saving|Saving]] for which of the two this browser does.
 
-For a bench that means the file size is not a reason to choose a different tool. A full 16 MB SPI dump with an ME region, the joined dumps of two chips at 64 MB, an eMMC extract, a disk image of several terabytes — all of them are ordinary.
+Otherwise the size of a file places no practical limit on the work. A full 16 MB SPI dump containing an ME region, the joined dumps of two chips at 64 MB, an eMMC extract and a disk image of several terabytes are all handled the same way.
 
-See also: [[topic:minimap|The minimap]], which is how you see the shape of a big file at once.
+See also: [[topic:minimap|The Minimap]], which presents the shape of an entire file in one column.

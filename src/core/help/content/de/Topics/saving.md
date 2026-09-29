@@ -1,7 +1,7 @@
-@source-sha 346d4ad2213d5120cef1da0ed6e886d46151ee2acf203308707d67e5635dd664
+@source-sha a095a2b1f1d8b7ebbbe4f0a226b48c484e81ea8cf30a20a93fce69265f1b5ef7
 # Sichern
 
-> Roter Text heißt, die Änderung gibt es nur hier. Sichern Sie, und sie steht in der Datei — oder, in manchen Browsern, in einer heruntergeladenen Kopie.
+> Rot kennzeichnet ein Byte, das von der Datei auf dem Volume abweicht. Das Sichern schreibt diese Bytes in die Datei — oder, in manchen Browsern, in eine heruntergeladene Kopie — und das Rot wird aufgehoben.
 
 **Was auf der Taste steht, geschieht auch.** Wo das Programm in die geöffnete Datei zurückschreiben kann, sagt es **Sichern**; wo nicht, sagt es **Herunterladen** — und der leere Bildschirm sagt, was dieser Browser tut, bevor Sie überhaupt etwas geöffnet haben.
 
@@ -13,21 +13,21 @@
 
 ! Eine per Ziehen abgelegte Datei und eine Datei aus einem Browser ohne File System Access API werden **heruntergeladen**, auch wo das Programm sonst an Ort und Stelle sichern könnte — es gibt kein Handle, durch das geschrieben werden kann. Öffnen Sie sie über **Ablage ▸ Öffnen…**, wenn Sie Sichern statt Herunterladen wollen.
 
-## Was ungesichert ist
+## Wenn die Datei nicht gesichert ist
 
-Von Ihnen geänderte Bytes sind **rot** gezeichnet, bis sie gesichert sind, und der Kopf des Bereichs sagt, dass das Dokument geändert ist. Dieses Paar prüft man, bevor man eine Datei an einen Programmer gibt: kein Rot mehr, und der Kopf sauber.
+Geänderte Bytes erscheinen **rot**, bis sie gesichert sind, und der Bereichskopf weist das Dokument als geändert aus. Das Sichern hebt beide Kennzeichen auf.
 
-## Wenn sich die Datei unter Ihnen ändert
+## Wenn die Datei sich währenddessen ändert
 
 Das Programm merkt, wenn die geöffnete Datei ersetzt wurde — etwa weil Ihre Programmer-Software den Chip erneut in denselben Pfad gelesen hat. Ein Browser kann eine Datei nicht beobachten, also fällt es beim nächsten Zugriff auf: dann sagt es das, statt den neuen Inhalt stillschweigend zu überschreiben.
 
 ## Dokumente ohne Datei
 
-Manche Dokumente sind bewusst unbenannt und haben nichts, wohin sie zurückgeschrieben werden könnten, also fragt ⌘S, wohin damit:
+Manche Dokumente haben ihrer Natur nach weder Namen noch Pfad, weshalb ⌘S fragt, wohin sie geschrieben werden sollen:
 
 - **Ablage ▸ Neue Datei**.
-- Das Ergebnis eines [[topic:join-duplicate|Zusammenfügens]]: aus zwei Dumps entsteht ein *neues* Image, und ein versehentliches ⌘S darf es nicht über eine der Hälften schreiben.
+- Das Ergebnis eines [[topic:join-duplicate|Zusammenfügens]]: Zwei Dumps zu verbinden ergibt ein *neues* Image, das ⌘S nicht über eine der Hälften schreiben darf.
 - Das Ergebnis von **Duplizieren**.
 - Ein Teil, der aus einem Image geöffnet wurde.
 
-! Bewahren Sie den Original-Dump auf. Sichern Sie Ihre gepatchte Fassung unter neuem Namen — `board_patched.bin` neben `board_original.bin`. Ein überschriebener Dump ist ein Chip, den Sie erneut lesen müssen, und nach einem Spannungsfehler gelingt das womöglich kein zweites Mal.
+! **Sichern unter…** schreibt das bearbeitete Image in eine neue Datei und lässt die gelesene Datei unverändert. Ist der ursprüngliche Dump überschrieben, lässt er sich mit den Mitteln des Programms nicht wiederherstellen.

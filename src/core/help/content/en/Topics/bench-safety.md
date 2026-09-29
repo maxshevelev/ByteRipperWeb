@@ -1,34 +1,40 @@
-# Bench Rules
+# Constraints on Editing an Image
 
-> Ways to ruin a dump (and how to avoid them).
+> The properties of a firmware image that limit what may be changed in it, and the confirmations the program raises accordingly.
 
-## Keep the original
+A firmware image is not an arbitrary file. Its addresses are absolute, parts of it are verified by the platform before the firmware runs, and parts of it hold values belonging to one individual board. This page states those constraints and names the facilities of the program that relate to each.
 
-Save the original dump, read off the chip, exactly as it came off the programmer, and never edit that file. Work on a copy — or use **File ▸ Duplicate** and patch the duplicate. A chip that has been through a power fault may not survive a second read.
+## The length of the image is fixed
 
-## Never change the length of a flash image
+The capacity of a flash chip is fixed, and every address inside a firmware image is absolute: the descriptor states the boundaries of the regions, the [[term:fit|FIT]] names the address of each microcode component, a signature covers a fixed range. A byte inserted or deleted moves everything after it and invalidates all of these.
 
-A chip's capacity is fixed. Every address inside a firmware image is absolute: the flash descriptor names region boundaries, the [[term:fit|FIT]] points at microcode by address, a signature covers a fixed range.
+The program's default editing behaviour follows from this:
 
-Overwrite and fill are relatively safe: they do not change the length. Paste Insert, Delete Bytes and Insert Mode are not, on a dump — the app asks before any of them for this reason. Before you flash, check the file's size in the status bar against the capacity of the chip.
+- Typing overwrites, and ⌘V overwrites. Neither moves any following byte.
+- Delete and Backspace fill with `0x00` rather than shortening the file, and **Edit ▸ Fill Selection with…** fills a selection with a chosen byte.
+- The three operations that do change the length — switching insert mode on, a ⌘V made in it, and **Edit ▸ Delete Bytes…** — each raise a confirmation before acting. The confirmations can be turned off in [[topic:settings|Settings ▸ Editing]].
 
-## Mind what is board-unique
+The size of the file is reported in the status line under each pane. See [[topic:editing|Editing Bytes]].
 
-A donor dump from the internet may carry the donor's identity. Flash it raw and the board comes up with someone else's MAC address, serial number and machine UUID. It may equally carry none: dumps shared on the internet often have the [[term:dmi|DMI]] area wiped so that nobody's data travels with them, and a board that comes up with those fields empty is one whose warranty lookup and OEM activation stop working. See [[topic:recipe-board-data|Keeping board-unique data]].
+## Parts of the image are verified by the platform
 
-## Signed and locked regions
+Current Intel platforms verify parts of the image before the processor executes firmware code, and the descriptor can withhold write access to whole regions.
 
-Modern Intel platforms verify parts of the image before the CPU runs them, and the flash descriptor can lock regions against writes.
+- Where an image declares [[term:boot-guard|Boot Guard]] protected ranges, the UEFI panel's summary line reports how many. A signature over such a range cannot be recomputed without the manufacturer's private key.
+- The [[term:me-region|ME region]] is verified by the engine itself before it starts. A region altered in place is not accepted by it; the state the tool reports for such a region is described in [[topic:recipe-me-check|Reading the ME Region Report]].
+- The [[term:flash-master|flash master]] permissions in the descriptor govern writes **made through the chipset** — by a utility such as Intel's Flash Programming Tool, or by a manufacturer's firmware update. A programmer attached to the chip itself does not pass through the chipset and is not subject to them. This is set out in full in [[topic:flash-writes|Who Writes to the Flash]].
 
-- If the image has [[term:boot-guard|Boot Guard]] protected ranges, the [[topic:tool-uefi|UEFI panel]] says so in its summary line. Bytes inside a protected range cannot be changed without the platform refusing to boot — the signature check will fail, and you cannot re-sign it.
-- The [[term:me-region|ME region]] is verified by the engine itself, on the [[term:pch|chipset]] die. Patching it by hand is pointless: the engine will not accept the changed region, and instead of a board with a patched ME you get one that hangs or reboots on a timer.
-- The descriptor's [[term:flash-master|master]] permissions decide what can be written **through the chipset** — by a tool such as Intel FPT (Flash Programming Tool), or by a vendor's BIOS update. A programmer wired to the chip itself goes past the chipset and is not asked. [[topic:flash-writes|Who writes to the flash]] has the whole of it.
+The distinction matters because the two are independent: a write that the descriptor permits may still produce an image the platform refuses at start-up, and a write made with a programmer bypasses the permissions without bypassing the verification.
 
-Knowing this before you patch is the difference between a five-minute fix and a bricked board.
+## Parts of the image belong to one board
 
-## Verify before you flash
+An image obtained from another board, or from the internet, carries the identifying data of that board — or, where the publisher removed it, carries empty fields in its place. Which parts of an image these are, and why two boards of one model differ, is set out in [[topic:recipe-board-data|Data Unique to a Board]].
 
-1. No red bytes left — every edit is saved ([[topic:saving|Saving]]).
-2. The file's size is exactly the chip's capacity.
-3. If you changed a header, its checksum is right — the [[topic:tool-uefi|UEFI panel]] flags bad ones and can fix them.
-4. Compare your patched file against the original one last time ([[topic:first-comparison|comparison]]) and look at every difference. Every one of them should be a change you meant to make.
+## What the program keeps separate
+
+- **The file on disk is not changed until it is saved.** Edited bytes are shown in red and exist only inside ByteRipper until ⌘S ([[topic:saving|Saving]]).
+- **Every edit is one undo step**, including the large ones: joining files, filling, a write made by a tool panel, a fragment written back to its parent.
+- **File ▸ Duplicate** copies the content of a pane into a free pane as a new unsaved document, which is how a file is edited without the original being the thing edited.
+- **A comparison against the original file** reports every address at which the edited image differs from it.
+
+! ByteRipper does not communicate with a programmer and does not write to hardware. It edits files; reading a chip and writing it back are done by the programmer.

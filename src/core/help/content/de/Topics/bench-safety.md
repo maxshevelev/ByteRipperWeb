@@ -1,35 +1,41 @@
-@source-sha 23abc9023c1f7afb854f2549bf79a5c1e7a35b483a2bd32132679acd7066c164
-# Regeln am Arbeitsplatz
+@source-sha 3b5e5cddafda2fb12591cfb08576833da7874ffd41bfc901744690ddfb7205f2
+# Einschränkungen beim Bearbeiten eines Images
 
-> Wege, einen Dump zu ruinieren (und wie man sie vermeidet).
+> Die Eigenschaften eines Firmware-Images, die zulässige Änderungen begrenzen, und die Rückfragen, die das Programm deshalb stellt.
 
-## Bewahren Sie das Original
+Ein Firmware-Image ist keine beliebige Datei. Seine Adressen sind absolut, ein Teil davon wird von der Plattform geprüft, bevor die Firmware läuft, und ein Teil enthält Werte, die einer einzelnen Platine gehören. Diese Seite hält diese Einschränkungen fest und nennt die Mittel des Programms, die mit jeder von ihnen zu tun haben.
 
-Sichern Sie den ursprünglichen Dump, vom Chip gelesen, genau so, wie er vom Programmer kam, und ändern Sie diese Datei nie. Arbeiten Sie mit einer Kopie — oder nehmen Sie **Ablage ▸ Duplizieren** und ändern Sie das Duplikat. Ein Chip, der einen Fehler in der Spannungsversorgung hinter sich hat, übersteht ein zweites Lesen vielleicht nicht.
+## Die Länge des Images bleibt unverändert
 
-## Ändern Sie nie die Länge eines Flash-Images
+Die Kapazität eines Flash-Bausteins ist fest, und jede Adresse in einem Firmware-Image ist absolut: Der Descriptor legt die Grenzen der Regionen fest, die [[term:fit|FIT]] benennt die Adresse jedes Microcode-Bauteils, eine Signatur deckt einen festen Bereich ab. Ein eingefügtes oder gelöschtes Byte verschiebt alles dahinter und macht alle diese Angaben falsch.
 
-Die Kapazität eines Chips ist fest. Jede Adresse in einem Firmware-Image ist absolut: der Descriptor nennt Regionsgrenzen, die [[term:fit|FIT]] zeigt über Adressen auf Microcode, eine Signatur deckt einen festen Bereich ab.
+Daraus folgt das voreingestellte Verhalten beim Bearbeiten:
 
-Überschreiben und Füllen sind vergleichsweise sicher: Sie ändern die Länge nicht. „Einsetzen mit Verschieben“, „Bytes löschen“ und der Einfügemodus sind es bei einem Dump nicht — deshalb fragt das Programm vor jedem davon. Prüfen Sie vor dem Flashen die Dateigröße in der Statuszeile gegen die Kapazität des Chips.
+- Tippen und Einsetzen mit ⌘V überschreiben und verschieben kein nachfolgendes Byte.
+- Entf und Rückschritt füllen mit `0x00`, statt die Datei zu kürzen; **Bearbeiten ▸ Auswahl füllen mit…** füllt die Auswahl mit einem gewählten Byte.
+- Die drei Vorgänge, die die Länge doch ändern — das Einschalten des Einfügemodus, ein ⌘V darin und **Bearbeiten ▸ Bytes löschen…** — fragen vor der Ausführung nach. Die Rückfragen lassen sich in den [[topic:settings|Einstellungen ▸ Bearbeiten]] abschalten.
 
-## Denken Sie an das, was platinenspezifisch ist
+Die Größe der Datei steht in der Statuszeile unter jedem Bereich. Siehe [[topic:editing|Bytes bearbeiten]].
 
-Ein Spenderdump aus dem Netz kann die Identität des Spenders tragen. Schreiben Sie ihn roh, kommt die Platine mit fremder MAC-Adresse, fremder Seriennummer und fremder Maschinen-UUID hoch. Er kann sie aber auch gar nicht tragen: In Dumps, die im Netz geteilt werden, ist der [[term:dmi|DMI]]-Bereich oft gelöscht, damit keine fremden Daten mitreisen — und mit leeren Feldern funktionieren Garantieabfrage und OEM-Aktivierung nicht mehr. Siehe [[topic:recipe-board-data|Platinenspezifische Daten bewahren]].
+## Ein Teil des Images wird von der Plattform geprüft
 
-## Signierte und gesperrte Regionen
+Aktuelle Intel-Plattformen prüfen einen Teil des Images, bevor der Prozessor Firmware-Code ausführt, und der Descriptor kann ganze Regionen für das Schreiben sperren.
 
-Moderne Intel-Plattformen prüfen Teile des Images, bevor die CPU sie ausführt, und der Descriptor kann Regionen gegen Schreiben sperren.
+- Deklariert ein Image geschützte Bereiche von [[term:boot-guard|Boot Guard]], nennt das UEFI-Werkzeug ihre Anzahl in der Übersichtszeile. Die Signatur eines solchen Bereichs lässt sich ohne den privaten Schlüssel des Herstellers nicht neu berechnen.
+- Die [[term:me-region|ME-Region]] prüft die Engine vor ihrem Start selbst. Eine an Ort und Stelle geänderte Region nimmt sie nicht an; welche Zustände einer Region das Werkzeug meldet, steht unter [[topic:recipe-me-check|Den ME-Bericht lesen]].
+- Die Rechte der [[term:flash-master|Flash-Master]] im Descriptor gelten für Schreibvorgänge **über den Chipsatz** — etwa durch ein Werkzeug wie Intels Flash Programming Tool oder durch ein Firmware-Update des Herstellers. Ein Programmiergerät am Baustein selbst geht am Chipsatz vorbei und unterliegt ihnen nicht. Ausführlich unter [[topic:flash-writes|Wer in den Flash schreibt]].
 
-- Hat das Image geschützte Bereiche von [[term:boot-guard|Boot Guard]], sagt das [[topic:tool-uefi|UEFI-Panel]] es in seiner Übersichtszeile. Bytes darin lassen sich nicht ändern, ohne dass die Plattform den Start verweigert: die Signaturprüfung schlägt fehl, und die Signatur neu berechnen können Sie nicht.
-- Die [[term:me-region|ME-Region]] prüft die Engine selbst, auf dem Die des [[term:pch|Chipsatzes]]. Sie von Hand zu ändern bringt nichts: die Engine nimmt die geänderte Region nicht an, und statt einer Platine mit geänderter ME bekommen Sie eine, die hängt oder im Takt neu startet.
-- Die [[term:flash-master|Master]]-Rechte im Descriptor entscheiden, was **über den Chipsatz** geschrieben werden kann — von einem Werkzeug wie Intel FPT (Flash Programming Tool) oder einem BIOS-Update des Herstellers. Ein Programmer, der am Chip selbst hängt, geht am Chipsatz vorbei und wird nicht gefragt. Ausführlich: [[topic:flash-writes|Wer in den Flash schreibt]].
+Die beiden Mechanismen sind auseinanderzuhalten, weil sie voneinander unabhängig sind: Ein vom Descriptor erlaubter Schreibvorgang kann ein Image ergeben, das die Plattform beim Start zurückweist, und ein Schreibvorgang mit dem Programmiergerät umgeht die Zugriffsrechte, nicht aber die Prüfung.
 
-Das vor dem Ändern zu wissen ist der Unterschied zwischen einer Fünf-Minuten-Reparatur und einem Briefbeschwerer.
+## Ein Teil des Images gehört einer bestimmten Platine
 
-## Prüfen Sie vor dem Schreiben
+Ein Image von einer anderen Platine oder aus öffentlicher Quelle enthält die Identifikationsdaten jener Platine oder, wenn die veröffentlichende Seite sie entfernt hat, leere Felder an deren Stelle. Woraus diese Daten bestehen und warum zwei Platinen eines Modells sich unterscheiden, steht unter [[topic:recipe-board-data|Platinenspezifische Daten]].
 
-1. Kein Rot mehr — jede Änderung ist gesichert ([[topic:saving|Sichern]]).
-2. Die Dateigröße entspricht exakt der Kapazität des Chips.
-3. Haben Sie einen Header geändert, stimmt seine Prüfsumme; das [[topic:tool-uefi|UEFI-Panel]] markiert falsche und kann sie korrigieren.
-4. Vergleichen Sie die geänderte Datei ein letztes Mal mit dem ursprünglichen Dump ([[topic:first-comparison|Vergleich]]) und sehen Sie sich jeden Unterschied an. Jeder sollte eine Änderung sein, die Sie so wollten.
+## Was das Programm auseinanderhält
+
+- **Die Datei auf der Festplatte ändert sich erst beim Sichern.** Geänderte Bytes werden rot dargestellt und bestehen bis zum ⌘S nur innerhalb von ByteRipper ([[topic:saving|Sichern]]).
+- **Jede Änderung ist ein Widerrufsschritt**, auch die großen: das Zusammenfügen von Dateien, das Füllen, ein von einem Werkzeug geschriebener Vorgang, das Zurückschreiben eines Fragments in die Ausgangsdatei.
+- **Ablage ▸ Duplizieren** kopiert den Inhalt eines Bereichs als neues, ungesichertes Dokument in den freien Bereich, sodass die Kopie bearbeitet wird und nicht die Ausgangsdatei.
+- **Der Vergleich mit der Ausgangsdatei** zeigt alle Adressen, an denen das bearbeitete Image von ihr abweicht.
+
+! ByteRipper arbeitet nicht mit einem Programmiergerät und schreibt nichts in Hardware. Das Programm bearbeitet Dateien; das Lesen eines Bausteins und das Schreiben in ihn übernimmt das Programmiergerät.

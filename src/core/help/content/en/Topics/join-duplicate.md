@@ -1,6 +1,6 @@
 # Joining and Duplicating
 
-> The dumps of two chips into one image, and a before-copy to patch against.
+> Joining the dumps of two chips into one image, and duplicating an image to edit the copy.
 
 @covers menu.file.insert-at-start
 @covers menu.file.append
@@ -8,22 +8,22 @@
 
 ## Join: the dumps of two SPI chips into one image
 
-Plenty of boards split the BIOS across two SPI flash chips. Read both, open the first, then:
+On boards whose firmware is held in two SPI flash chips, both chips are read and the first file is opened. Then:
 
 - **File ▸ Append File…** — the chosen file's bytes go after the pane's content.
 - **File ▸ Insert File at Start…** — they go before it.
 
-Now the whole BIOS is one image, and everything works on it normally: the comparison, the search, the [[topic:tool-uefi|UEFI panel]] that expects one contiguous image.
+The whole of the firmware is then one image, which the comparison, the search and the [[topic:tool-uefi|UEFI panel]] — which expects one contiguous image — all operate on normally.
 
-The seam is recorded as a [[topic:segments|segment]] cut, so **Save All as Separate Files…** gives you the two halves back at the same boundary, ready to flash to their own chips — into a folder you pick where the browser allows it, and as a ZIP where it does not.
+The boundary is recorded as a [[topic:segments|segment]] cut, so **Save All as Separate Files…** returns the two halves at exactly that boundary — into a folder you pick where the browser allows it, and as a ZIP where it does not.
 
-Two things follow that are worth knowing:
+Two properties of the result follow from this:
 
-- **The joined document has no file.** It is untitled, so ⌘S asks where to put it and cannot overwrite either half by accident ([[topic:saving|Saving]]).
+- **The joined document has no file of its own.** It is untitled, so ⌘S asks where to write it and cannot overwrite either half ([[topic:saving|Saving]]).
 - **The join is one undo step.** ⌘Z removes the added bytes *and* re-attaches the pane to the file it was opened from.
 
 ## Duplicate: a copy of the dump as it was
 
-**File ▸ Duplicate** copies the pane's content into the free pane as a new unsaved document. Available in single-file mode, where there is a free pane to copy into.
+**File ▸ Duplicate** copies the content of the pane into the free pane as a new unsaved document. It is available in single-file mode, where there is a free pane to copy into.
 
-This is the fastest way to patch with a safety net: duplicate, edit the copy, and watch the differences appear beside the original as you type. When you are done, save whichever side is right.
+The copy is then edited while the original stays open beside it, and the comparison reports each edit as a difference as it is made. Either document can be saved.
