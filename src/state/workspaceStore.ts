@@ -990,8 +990,11 @@ export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigi
     dock: opened.dock,
   }));
   // A part is a document of its own: if the pane it landed in was one, its
-  // sources go with the document it was.
+  // sources go with the document it was. And it starts as one piece covering
+  // it, as a file does — without a partition every segment command on the
+  // panel had nothing to act on and did nothing, without a word.
   clearSources(pane);
+  resetSegments(pane, document.size);
   return pane;
 }
 
