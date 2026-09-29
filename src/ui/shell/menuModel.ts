@@ -29,6 +29,12 @@ export interface MenuSeparator {
 export interface MenuHeading {
   readonly kind: "heading";
   readonly label: string;
+  /**
+   * A heading that is a menu of its own — File, Edit, View — rather than the
+   * title of a group inside one. The page's menu draws both alike; the desktop
+   * shell's menu bar makes the first kind its top-level menus.
+   */
+  readonly opensMenu?: boolean | undefined;
 }
 
 export type MenuEntry = MenuAction | MenuSeparator | MenuHeading;

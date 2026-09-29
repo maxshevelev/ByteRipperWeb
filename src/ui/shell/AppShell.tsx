@@ -2006,6 +2006,50 @@ export function AppShell() {
         }
       : { previousDifference: false, nextDifference: false };
 
+  /**
+   * The File menu's own keys: ⌘O, ⌘S, ⇧⌘S — and, where the window is the
+   * app's rather than a browser's, ⌘N and ⌘W (Ctrl+F4 as well, Windows' own
+   * close), which a browser keeps for its own windows and tabs and never hands
+   * to a page. Upstream's File menu
+   * carries the same five. Each runs what its menu item runs.
+   *
+   * ⌘S with the keyboard in the dump is the dump's (`hexKeys`), as the other
+   * shortcuts are, so it is not answered twice.
+   *
+   * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeFileMenu
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.defaultPrevented) return;
+      const key = event.key.toLowerCase();
+      const { panes } = workspaceStore.getSnapshot();
+      const anyOpen = panes.a !== undefined || panes.b !== undefined;
+      // Ctrl+F4 is how Windows closes a document.
+      if (event.key === "F4" && event.ctrlKey && !event.shiftKey && anyOpen) {
+        event.preventDefault();
+        void closeWithWarning(front);
+        return;
+      }
+      if (key === "o" && !event.shiftKey) {
+        event.preventDefault();
+        void open();
+      } else if (key === "n" && !event.shiftKey) {
+        event.preventDefault();
+        openEmptyInPane(slotForNewFile());
+      } else if (key === "w" && !event.shiftKey && anyOpen) {
+        event.preventDefault();
+        void closeWithWarning(front);
+      } else if (key === "s" && anyOpen) {
+        const target = event.target;
+        if (target instanceof Element && target.closest(".hex-scroller") !== null) return;
+        event.preventDefault();
+        void doSave(event.shiftKey);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, doSave, closeWithWarning, front]);
+
   return (
     <div className="app-shell" data-dragging={dragging ? "" : undefined}>
       <Toolbar

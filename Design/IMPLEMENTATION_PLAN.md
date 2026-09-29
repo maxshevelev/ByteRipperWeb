@@ -79,6 +79,7 @@ Rules the layering exists to enforce:
 | D12 | **A command palette (`Cmd/Ctrl+K`) replaces the menu bar**, with a toolbar for the handful of commands worth a permanent button. | A web page has no menu bar, and this app has more commands than a toolbar can hold honestly. |
 | D13 | **Ranges are half-open `[start, end)` internally**, inclusive ends converted at dialog edges only. | Same rule as upstream; the bugs it prevents are the same bugs. |
 | D14 | **A benchmark harness exists from M0** and runs against a real 16 MB dump kept out of git. | The performance argument for plain TypeScript is only honest if it is measured. Regressions should fail a number, not a feeling. |
+| D15 | **An optional Windows build in `desktop/`: the web edition in an Electron window.** The web app stays the product; the desktop shell is a wrapper around its production build. Its one hook in `src/` is optional: where the shell's preload puts a bridge on the window, the command menu becomes the window's native menu bar and the ☰ button goes (`src/ui/shell/desktopMenu.ts`); a browser has no bridge, and nothing changes. | Asked for by the owner, for benches where a browser is not the tool people reach for. Isolated so the web edition's dependencies and its CI are untouched: `desktop/` has its own `package.json` (Electron, electron-builder), and nothing in the root depends on it. The page is served from a secure standard scheme of its own (`app://`), so File System Access, OPFS and the Cache API behave as they do in Chromium — measured in the shell. |
 
 ---
 

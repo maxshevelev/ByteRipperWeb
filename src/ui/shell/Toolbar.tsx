@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
@@ -29,9 +29,11 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
+import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { canCopyToOtherPane, copySelectionToOtherPane } from "@/ui/shell/copyToOtherPane";
+import { desktopBridge, publishNativeMenu } from "@/ui/shell/desktopMenu";
 import { helpMenuEntries } from "@/ui/shell/helpMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
@@ -204,6 +206,8 @@ export function Toolbar({
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateMenuItem
    * @upstream-differs one command menu in the toolbar with File, Edit, Bookmarks, Segments and View sections; the browser keeps the menu bar, and Tools and the word size are the toolbar's alone
    */
+  // In the optional Windows shell the command menu is the window's menu bar.
+  const nativeMenuBar = desktopBridge() !== undefined;
   const entries = compactEntries([
     // The application menu's Settings…, which has nowhere else to go. No ⌘, —
     // in a browser that is the browser's own settings.
@@ -212,11 +216,14 @@ export function Toolbar({
     // @upstream-differs an item in the command menu, with no key equivalent
     { label: L("Settings…"), onSelect: onSettings },
     { kind: "separator" },
-    { kind: "heading", label: L("File", { context: "menu" }) },
+    { kind: "heading", label: L("File", { context: "menu" }), opensMenu: true },
+    // Upstream's five File keys. ⌘N and ⌘W only where the window is the
+    // app's: a browser keeps both for its own windows and tabs, and a menu
+    // promising a key the page never receives would be lying.
     // help: menu.file.new
-    { label: L("New File"), onSelect: onNew },
+    { label: L("New File"), shortcut: nativeMenuBar ? "⌘N" : undefined, onSelect: onNew },
     // help: menu.file.open
-    { label: L("Open…"), onSelect: () => onOpen() },
+    { label: L("Open…"), shortcut: "⌘O", onSelect: () => onOpen() },
     // Compare with… is the web's own item: upstream opens into a named pane
     // from the pane's own menu, where this fills the free slot. It works while
     // exactly one file is open — with two there is no free slot, and with none
@@ -238,12 +245,14 @@ export function Toolbar({
     {
       // help: menu.file.save
       label: verb === "Save" ? L("Save") : L("Download"),
+      shortcut: "⌘S",
       disabled: active === undefined || (!dirty && verb === "Save"),
       onSelect: onSave,
     },
     {
       // help: menu.file.save-as
       label: verb === "Save" ? L("Save As…") : L("Download As…"),
+      shortcut: "⇧⌘S",
       disabled: active === undefined,
       onSelect: onSaveAs,
     },
@@ -273,10 +282,17 @@ export function Toolbar({
       onSelect: onDuplicate,
     },
     // help: menu.file.close
-    { label: L("Close"), disabled: active === undefined, onSelect: onClose },
+    {
+      label: L("Close"),
+      // Ctrl+F4 closes a document on Windows; a Mac's is ⌘W. The page takes
+      // Ctrl+W as well, for the hand that learnt it in a browser.
+      shortcut: nativeMenuBar ? (detectKeyboardPlatform() === "apple" ? "⌘W" : "⌃F4") : undefined,
+      disabled: active === undefined,
+      onSelect: onClose,
+    },
 
     { kind: "separator" },
-    { kind: "heading", label: L("Edit", { context: "menu" }) },
+    { kind: "heading", label: L("Edit", { context: "menu" }), opensMenu: true },
     // Named by what they take back, where the step carries a name: a tool's
     // transaction names itself, so this reads `Undo Fix FIT Checksum` rather
     // than leaving the user to remember what the last thing was. Greyed rather
@@ -331,7 +347,7 @@ export function Toolbar({
     },
 
     { kind: "separator" },
-    { kind: "heading", label: L("Bookmarks", { context: "menu" }) },
+    { kind: "heading", label: L("Bookmarks", { context: "menu" }), opensMenu: true },
     // The marks of whatever is in front, read at its own offsets: the
     // workspace's list for its panes, the same list at the part's offsets for a
     // panel (§20.7). A panel showing a decompressed body has none, and ⌘D is
@@ -354,7 +370,7 @@ export function Toolbar({
     },
 
     { kind: "separator" },
-    { kind: "heading", label: L("Segments", { context: "menu" }) },
+    { kind: "heading", label: L("Segments", { context: "menu" }), opensMenu: true },
     // help: menu.edit.add-cut
     { label: L("Split Here…"), disabled: active === undefined, onSelect: onSplitHere },
     {
@@ -376,7 +392,7 @@ export function Toolbar({
     },
 
     { kind: "separator" },
-    { kind: "heading", label: L("View", { context: "menu" }) },
+    { kind: "heading", label: L("View", { context: "menu" }), opensMenu: true },
     {
       label:
         // help: menu.view.pane-layout
@@ -437,7 +453,7 @@ export function Toolbar({
     // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeHelpMenu
     // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showHelpBook
     { kind: "separator" },
-    { kind: "heading", label: L("Help", { context: "menu" }) },
+    { kind: "heading", label: L("Help", { context: "menu" }), opensMenu: true },
     ...helpMenuEntries(),
   ]);
 
@@ -491,6 +507,28 @@ export function Toolbar({
       };
     }),
   ]);
+
+  // In the optional Windows shell the command menu is the window's menu bar,
+  // with the Tools pull-down as its own menu before Help — where upstream's
+  // menu bar has it — and the ☰ button goes: one place for the commands.
+  // A browser has no bridge, and nothing here happens.
+  // @web-only the desktop shell's native menu bar (D15)
+  useEffect(() => {
+    if (!nativeMenuBar) return;
+    const help = entries.findIndex(
+      (entry) =>
+        entry.kind === "heading" &&
+        entry.opensMenu === true &&
+        entry.label === L("Help", { context: "menu" })
+    );
+    const at = help < 0 ? entries.length : help;
+    publishNativeMenu([
+      ...entries.slice(0, at),
+      { kind: "heading", label: L("Tools"), opensMenu: true },
+      ...toolEntries,
+      ...entries.slice(at),
+    ]);
+  });
 
   const keyed: { readonly id: ToolbarItemId; readonly key: string }[] = [];
   const seen = new Map<ToolbarItemId, number>();
@@ -729,7 +767,7 @@ export function Toolbar({
     <header className="toolbar">
       {/* The web edition's menu bar, before everything: a page has nowhere else
           to put File, Edit and View. */}
-      <MenuButton label="☰" title={L("Commands")} entries={entries} />
+      {nativeMenuBar ? null : <MenuButton label="☰" title={L("Commands")} entries={entries} />}
       {keyed.map((one) => item(one.id, one.key))}
     </header>
   );

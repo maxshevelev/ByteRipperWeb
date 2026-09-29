@@ -5,7 +5,16 @@
     // Skills/ is committed data read by the port-report script, which rewrites
     // it with Python; formatting it here would make every run of either tool a
     // diff against the other. Design/ is prose.
-    "includes": ["**", "!**/dist", "!**/coverage", "!**/node_modules", "!Skills", "!Design"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/coverage",
+      "!**/node_modules",
+      "!Skills",
+      "!Design",
+      "!desktop/web",
+      "!desktop/release"
+    ]
   },
   "formatter": {
     "enabled": true,
