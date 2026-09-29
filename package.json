@@ -1,7 +1,7 @@
 {
   "name": "byteripperweb",
   "description": "Compare and edit two binary firmware dumps in the browser.",
-  "version": "0.0.0",
+  "version": "0.8.5",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
+    "build:single": "npm run typecheck && vite build --mode single",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.core.json && tsc -p tsconfig.node.json",
     "lint": "biome check",

@@ -253,6 +253,16 @@ textarea,
   font-size: 13px;
 }
 
+/* "ByteRipper 0.8.5", the landing screen's sign-off: upstream's tertiary label
+   colour at 14 semibold, and 6 under the hint rather than the stack's 14 — the
+   version belongs to the hint, it is not another line of it. */
+.empty-state-version {
+  margin: -8px 0 0;
+  color: var(--text-faint);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* The marks: a different subject from the landing screen, so more air above. */
 .empty-state-bookmarks {
   display: flex;

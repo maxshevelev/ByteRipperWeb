@@ -5,6 +5,7 @@ import { bookmarksStore } from "@/state/bookmarksStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { HelpButton } from "@/ui/help/HelpButton";
+import { appNameAndVersion } from "@/ui/shell/appVersion";
 import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
 
 /**
@@ -67,6 +68,10 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
             @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.setUp */}
         <HelpButton link={topicLink(TOPIC.overview)} />
       </p>
+      {/* The version belongs to the hint rather than being another line of
+          it, so it sits closer (upstream's versionGap).
+          @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.versionGap */}
+      <p className="empty-state-version">{appNameAndVersion()}</p>
       <BookmarkSection bookmarks={bookmarks} />
     </div>
   );
