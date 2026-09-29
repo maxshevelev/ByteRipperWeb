@@ -101,9 +101,15 @@ export function FindBar({
   // was — it is about a file this search is not touching.
   const results = resultsFor(state, state.pane);
   const current = results.current;
+  // Once per match landed on, and only then. The shell hands down a fresh
+  // `onReveal` on every render, and scrolling renders it: an effect keyed on
+  // the callback put the match back in the middle under every turn of the
+  // wheel, and the pane could not be scrolled away from it.
+  const onRevealRef = useRef(onReveal);
+  onRevealRef.current = onReveal;
   useEffect(() => {
-    if (current !== undefined) onReveal(current.start);
-  }, [current, onReveal]);
+    if (current !== undefined) onRevealRef.current(current.start);
+  }, [current]);
 
   useEffect(() => {
     inputRef.current?.focus();
