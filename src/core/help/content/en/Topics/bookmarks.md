@@ -1,27 +1,25 @@
 # Bookmarks
 
-> Addresses worth coming back to, marked on the row and shared by both panes.
+> Marked addresses to return to quickly: shown on the row and shared by both panes.
 
 @covers menu.edit.bookmark-toggle
 @covers menu.edit.bookmark-edit
 
-**⌘D** marks (or unmarks) the row the caret is on. The row's offset column turns into a coloured arrow with the address written on it, and the row is marked in the [[topic:minimap|minimap]]'s margin. They are also listed on the empty screen, so a workspace with nothing open still says what you had been looking at.
+**⌘D** sets a bookmark on the row the caret is on, or removes the one that is there. The address of that row is then drawn on a purple arrow, and the row is marked in the same colour in the margin of the [[topic:minimap|minimap]]. Bookmarks are also listed on the empty screen, so a workspace with nothing open still names what was being looked at.
 
-- **⇧⌘D** gives the mark a name, or edits the name it has. A mark with no name shows its address.
-- **⌘L** opens Go To, and the lower half of that form is the bookmark list: Tab moves the keyboard into it, Return jumps to the selected mark.
+- **⇧⌘D** gives the bookmark a name, or edits the name it has. A bookmark with no name displays its address.
+- **⌘L** opens Go To, and the lower half of that form is the bookmark list: Tab moves the keyboard into it, Return jumps to the selected bookmark.
 
 ## What a bookmark is
 
-A bookmark marks a **row**, not a byte: the address is rounded down to a multiple of 16, because a row is where the mark can actually be seen.
+A bookmark marks a **row**, not a byte: the address is rounded down to a multiple of 16, a row being the unit on which the mark is visible.
 
-A bookmark is an **absolute address**, and it belongs to the workspace rather than to a file. In a comparison both panes show the same mark at the same height — which is the point of it: mark `0x1FE000` and you are looking at the same place in both dumps.
+A bookmark is an **absolute address**, and it belongs to the workspace rather than to a file. In a comparison both panes display the same bookmark at the same height, so that `0x1FE000` refers to the same place in both dumps.
 
-Because the address is absolute, inserting or deleting bytes moves the content but not the mark. If you need a mark that travels with the bytes, that is a [[topic:segments|segment]] cut, not a bookmark.
+Because the address is absolute, inserting or deleting bytes moves the content but not the bookmark. Unlike a bookmark, a [[topic:segments|segment]] cut is a mark that travels with the bytes when data in the file shifts.
 
-Bookmarks live as long as the workspace, not as long as the file. Closing a file and reopening it keeps the marks — the same investigation continued.
+Bookmarks last as long as the workspace, not as long as the file: closing a file and reopening it retains them.
 
-They also outlive the page: the marks are kept in this browser, so a reload that loses the open dumps does not lose where you were looking. They are kept **per browser and per machine**, like the rest of the settings, and clearing this site's data clears them ([[topic:settings|Settings]]).
+They also outlive the page: the bookmarks are kept in this browser, so a reload that loses the open dumps does not lose where you were looking. They are kept **per browser and per machine**, like the rest of the settings, and clearing this site's data clears them ([[topic:settings|Settings]]).
 
-## On the bench
-
-Mark the starts of the regions you care about before you begin — descriptor, ME, BIOS, NVRAM, the block you are about to patch — and the whole job becomes ⌘L and a Return instead of typing addresses. A tool panel will tell you those addresses: select a node and read its offset.
+The addresses to bookmark are reported by the tool panels: selecting a node in a panel gives its address in the detail list ([[topic:tools-overview|The Tool Panels]]).

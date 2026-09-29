@@ -1,4 +1,4 @@
-@source-sha 5d592ec137907db0d49b6c8ff0adff24e1763636b869cc1edf81edbc953a1e5c
+@source-sha 3c824cf46953988db7bf0c4dee2ff43e49d2bef16fb7c99e715c03193dd345b6
 @section getting-started
 @name Erste Schritte
 
@@ -12,7 +12,7 @@
 @name Werkzeugbereiche
 
 @section bench
-@name Am Arbeitsplatz
+@name Anhang
 
 @section settings
 @name Einstellungen

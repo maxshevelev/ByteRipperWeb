@@ -48,6 +48,6 @@ Nothing is refused here, because there is nothing this workspace can consult:
 - **In another browser tab** — that tab is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.
 - **In this very pane** — it re-reads the file, which is how a dump is picked up again after a programmer has rewritten it.
 
-! Replacing a pane that has unsaved edits asks first, whether the file arrives by a drop or through **Open…**. There is no undo for a discarded pane.
+! Replacing the file in a pane that holds unsaved edits asks for confirmation, whether the file arrives by a drop or through **Open…**. A discarded pane cannot be restored.
 
-See also: [[topic:saving|Saving]], [[topic:join-duplicate|Joining and duplicating]], [[topic:large-files|Large dumps]].
+See also: [[topic:saving|Saving]], [[topic:join-duplicate|Joining and Duplicating]], [[topic:large-files|Large Dumps]].

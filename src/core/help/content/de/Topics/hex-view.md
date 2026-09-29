@@ -1,11 +1,11 @@
-@source-sha 5616a46455eda9bd377382ae3b7d9e9a3d1ac617b5e2351f69819a4818eab28c
+@source-sha 37c72c2a33c64db65379f158a2c0732e101e7e30b8ab5536f1786a7a5f0cfda1
 # Die Hex-Ansicht lesen
 
 > Sechzehn Bytes je Zeile, der Offset links, der Text rechts.
 
 Jeder Bereich zeigt seine Datei als gewöhnlichen Hex-Dump:
 
-- **Die Offset-Spalte** links ist die Adresse des ersten Bytes der Zeile, hexadezimal und nullbasiert. Am Arbeitsplatz zählt diese Zahl: sie ist die Position auf dem Chip.
+- **Die Offset-Spalte** links ist die Adresse des ersten Bytes der Zeile, hexadezimal und nullbasiert. Bei einem unmittelbar vom Baustein gelesenen Dump ist sie die Position auf diesem Baustein.
 - **Sechzehn Byte-Werte** je Zeile, je zwei Hex-Ziffern in Großbuchstaben, in zwei Achtergruppen geteilt, damit das Auge mitzählen kann.
 - **Der decodierte Text** rechts. Die Bytes `0x20`–`0x7E` erscheinen als Zeichen, alles andere als Punkt. Andere Codierungen lassen sich in den Einstellungen wählen.
 
@@ -19,5 +19,7 @@ Jeder Bereich zeigt seine Datei als gewöhnlichen Hex-Dump:
 ## Die Statuszeile
 
 Unter jedem Bereich: der Offset der Einfügemarke, die Größe der Auswahl, sofern vorhanden, die Größe der Datei und das Segment, in dem die Einfügemarke steht, wenn der Bereich [[topic:segments|Segmente]] hat. Auch eine Hintergrundarbeit — ein vollständiger Vergleich, eine Suche, ein Firmware-Parse — meldet sich hier, samt einer Möglichkeit abzubrechen.
+
+In einem Kasten rechts steht der Tippmodus: **OVR** für Überschreiben, **INS** für Einfügen. Er ist die einzige Anzeige der Leiste, auf die ein Klick wirkt: Ein Klick darauf schaltet den Modus um, und die Taste **Insert** tut dasselbe ([[topic:editing|Bytes bearbeiten]]).
 
 Siehe auch: [[topic:colors|Was die Farben bedeuten]], [[topic:navigation|Sich bewegen]].

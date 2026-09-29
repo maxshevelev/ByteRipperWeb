@@ -1,4 +1,4 @@
-@source-sha c880821eb524b21d1f441b9ce0d8a7a04673d3e0959d5658b9df9829c705a47b
+@source-sha 475abfd9b108795228b5f0ab0542950777137db9266b11c740c9a2fb154a601b
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -42,6 +42,6 @@ Hier wird nichts abgelehnt, denn es gibt niemanden zu fragen:
 - **In einem anderen Browser-Tab** — jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.
 - **In genau diesem Bereich** — die Datei wird neu gelesen; so nimmt man einen Dump wieder auf, nachdem ein Programmer ihn überschrieben hat.
 
-! Einen Bereich mit ungesicherten Änderungen zu ersetzen, fragt vorher — ob die Datei per Ziehen kommt oder über **Öffnen…**. Für einen verworfenen Bereich gibt es kein Widerrufen.
+! Die Datei in einem Bereich mit ungesicherten Änderungen zu ersetzen, verlangt eine Bestätigung — ob die Datei per Drop oder über **Öffnen…** kommt. Verworfene Änderungen lassen sich nicht wiederherstellen.
 
 Siehe auch: [[topic:saving|Sichern]], [[topic:join-duplicate|Zusammenfügen und Duplizieren]], [[topic:large-files|Große Dumps]].

@@ -1,38 +1,38 @@
 # What ByteRipper Is For
 
-> A hex editor built around one question a repair bench asks all day: how is this chip's contents different from the one that works?
+> A hex editor for firmware images, built around the comparison of two dumps at equal addresses.
 
 @covers shell.empty-state
 @covers menu.help.book
 @covers toolbar.help
 
-ByteRipper opens one or two binary files, shows every byte of them and lets you edit any of them. When two files are open it compares them **byte by byte at the same address**, and paints every place they disagree.
+ByteRipper opens one or two binary files, displays every byte of them and allows every byte to be edited. When two files are open it compares them **byte by byte at the same address** and marks every address at which they disagree.
 
-That is the whole idea. On a repair bench the file is usually a **dump** — the contents of a BIOS chip, an EC chip or an ME region, read off the board with a programmer or taken from the internet. The question is almost never "what does this file mean" but "what is wrong with this one compared to one that boots".
+The files it is designed for are firmware dumps: the contents of a BIOS chip, an embedded controller or an ME region, read from a board with a programmer or obtained as a file.
 
-## What it is good at
+## What the program does
 
-- Comparing a dead board's dump against a working board's dump, or against a donor file from the internet.
-- Finding the handful of bytes that actually differ between two firmware versions.
-- Patching a few bytes by hand and writing the file back out for the programmer.
-- Taking a firmware image apart — its regions, its volumes, its Intel ME partitions — to see what is in it and whether it is intact.
-- Cutting a piece out of a dump (one region, one module) and saving it as its own file, or putting it into another dump.
+- Compares two images and reports every address at which they differ.
+- Reports the proportion of an image that differs, and moves between the differing areas.
+- Edits individual bytes and writes the result back to a file.
+- Decodes the structure of a firmware image — its regions, its volumes, its Intel ME partitions — and reports what it contains and whether the structures are internally consistent.
+- Extracts a part of an image — a region, a module, a decompressed section — as a separate document, and writes it back.
 
-## What it deliberately does not do
+## What the program does not do
 
-ByteRipper compares by absolute address only. It never tries to find the same block of bytes at a different address, and never shifts one file against the other to make the differences look smaller.
+ByteRipper compares by absolute address only. It does not search for the same block of bytes at a different address, and it does not shift one file against the other to reduce the number of differences reported.
 
-That is on purpose. A flash dump has a fixed layout: an address is a position on the chip, and a byte that moved is a byte in the wrong place, not a byte that matched. A tool that "aligned" two dumps would hide exactly the faults worth finding.
+This is a deliberate property. A flash dump has a fixed layout in which an address is a position on the chip: a byte that has moved is at the wrong address, and the presence of an identical byte nearby does not alter that. A comparison that aligned two dumps against each other would conceal exactly the discrepancies the comparison is performed to find.
 
-! ByteRipper never talks to a programmer and never writes to hardware. It edits files. Reading the chip and writing it back is your programmer's job.
+! ByteRipper does not communicate with a programmer and does not write to hardware. It edits files. Reading a chip and writing it back are performed by the programmer.
 
 ## Reaching this book
 
-The **?** in the toolbar opens the same short list the **Help** block of the toolbar's menu holds: this page, the first comparison, the bench rules and the glossaries. **F1** and **⌘/** open the book from anywhere in the app, with no file open and whatever has the keyboard.
+The **?** in the toolbar opens the same short list as the **Help** block of the toolbar's menu: this page, the first comparison, the editing constraints and the glossaries. **F1** and **⌘/** open the book from anywhere in the application, with no file open and whatever has the keyboard.
 
 ## Where to go next
 
-- [[topic:first-comparison|Your first comparison]] — the five minutes that show what the app is.
-- [[topic:hex-view|Reading the hex view]] and [[topic:colors|What the colours mean]].
-- [[topic:tools-overview|The tool panels]], once you want to know what is inside the image rather than only what changed.
-- [[topic:bench-safety|Bench rules]] — ways to ruin a dump, and how to avoid them.
+- [[topic:first-comparison|Your First Comparison]] — the comparison of two files, step by step.
+- [[topic:hex-view|Reading the Hex View]] and [[topic:colors|What the Colours Mean]].
+- [[topic:tools-overview|The Tool Panels]] — decoding the structure of an image rather than only its differences.
+- [[topic:bench-safety|Constraints on Editing an Image]] — the properties of a firmware image that limit what may be changed in it.

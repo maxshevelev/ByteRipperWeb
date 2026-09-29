@@ -11,7 +11,7 @@
 @name Tool Panels
 
 @section bench
-@name On the Bench
+@name Appendix
 
 @section settings
 @name Settings

@@ -1,35 +1,35 @@
-@source-sha d066c130aef0839bd10ec178860b11017f0f76fa85e5d751bbb6866db0e6e211
+@source-sha c3dba583359864542e460146946068c57d2dfbcee441b1915e7707e711b11613
 # Wofür ByteRipper da ist
 
-> Ein Hex-Editor rund um die eine Frage, die ein Reparaturplatz den ganzen Tag stellt: worin unterscheidet sich der Inhalt dieses Chips von dem, der funktioniert?
+> Ein Hex-Editor für Firmware-Images, aufgebaut um den Vergleich zweier Dumps an gleichen Adressen.
 
-ByteRipper öffnet eine oder zwei Binärdateien, zeigt jedes Byte darin und lässt Sie jedes davon ändern. Sind zwei Dateien offen, vergleicht es sie **Byte für Byte an derselben Adresse** und färbt jede Stelle, an der sie auseinandergehen.
+ByteRipper öffnet eine oder zwei Binärdateien, zeigt jedes ihrer Bytes und lässt jedes davon bearbeiten. Sind zwei Dateien geöffnet, vergleicht das Programm sie **Byte für Byte an derselben Adresse** und kennzeichnet jede Adresse, an der sie voneinander abweichen.
 
-Das ist die ganze Idee. Am Reparaturplatz ist die Datei meist ein **Dump** — der Inhalt eines BIOS-Chips, eines EC-Chips oder einer ME-Region, mit einem Programmer von der Platine gelesen oder aus dem Netz geholt. Die Frage lautet fast nie „was bedeutet diese Datei“, sondern „was ist an dieser anders als an einer, die startet“.
+Die Dateien, für die das Programm gedacht ist, sind Firmware-Dumps: der Inhalt eines BIOS-Bausteins, eines Embedded Controllers oder einer ME-Region, mit einem Programmiergerät von einer Platine gelesen oder als Datei bezogen.
 
-## Worin es gut ist
+## Was das Programm leistet
 
-- Den Dump einer toten Platine mit dem einer laufenden vergleichen, oder mit einer Spenderdatei aus dem Netz.
-- Die paar Bytes finden, die sich zwischen zwei Firmware-Versionen tatsächlich unterscheiden.
-- Ein paar Bytes von Hand korrigieren und die Datei für den Programmer wieder ausgeben.
-- Ein Firmware-Image auseinandernehmen — seine Regionen, seine Volumes, seine Intel-ME-Partitionen — um zu sehen, was darin ist und ob es unversehrt ist.
-- Ein Stück aus einem Dump schneiden (eine Region, ein Modul) und als eigene Datei sichern oder in einen anderen Dump setzen.
+- Es vergleicht zwei Images und zeigt alle Adressen, an denen sie sich unterscheiden.
+- Es nennt den Anteil des Images, der abweicht, und bewegt die Einfügemarke zwischen den abweichenden Stellen.
+- Es bearbeitet einzelne Bytes und schreibt das Ergebnis in eine Datei.
+- Es decodiert den Aufbau eines Firmware-Images — Regionen, Volumes, Intel-ME-Partitionen — und meldet, was darin enthalten ist und ob die Strukturen in sich stimmig sind.
+- Es entnimmt einen Teil eines Images — eine Region, ein Modul, eine entpackte Sektion — als eigenes Dokument und schreibt ihn zurück.
 
-## Was es mit Absicht nicht tut
+## Was das Programm nicht leistet
 
-ByteRipper vergleicht nur nach absoluter Adresse. Es sucht nie denselben Byte-Block an einer anderen Adresse und verschiebt nie eine Datei gegen die andere, damit die Unterschiede kleiner aussehen.
+ByteRipper vergleicht ausschließlich über absolute Adressen. Es sucht dieselbe Bytefolge nicht an einer anderen Adresse und verschiebt die Dateien nicht gegeneinander, um die Zahl der gemeldeten Unterschiede zu verringern.
 
-Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung: eine Adresse ist eine Position auf dem Chip, und ein verschobenes Byte ist ein Byte an der falschen Stelle, kein übereinstimmendes. Ein Werkzeug, das zwei Dumps „ausrichtet“, verbirgt genau die Fehler, die zu finden sind.
+Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung, in der eine Adresse eine Position auf dem Baustein ist: Ein verschobenes Byte steht an der falschen Adresse, und ein gleiches Byte in der Nähe ändert daran nichts. Ein Vergleich, der zwei Dumps gegeneinander ausrichtet, verbärge genau die Abweichungen, um derentwillen verglichen wird.
 
-! ByteRipper spricht nie mit einem Programmer und schreibt nie auf Hardware. Es bearbeitet Dateien. Den Chip zu lesen und wieder zu beschreiben ist Sache Ihres Programmers.
+! ByteRipper arbeitet nicht mit einem Programmiergerät und schreibt nichts in Hardware. Das Programm bearbeitet Dateien. Das Lesen eines Bausteins und das Schreiben in ihn übernimmt das Programmiergerät.
 
-## Wie Sie dieses Buch öffnen
+## Zu diesem Handbuch
 
-Das **?** in der Symbolleiste öffnet dieselbe kurze Liste wie der Block **Hilfe** in seinem Menü: diese Seite, den ersten Vergleich, die Regeln am Arbeitsplatz und die Glossare. **F1** und **⌘/** öffnen das Buch von überall aus — auch ohne offene Datei und gleich, was die Tastatur hält.
+Das **?** in der Symbolleiste öffnet dieselbe kurze Liste wie der Block **Hilfe** in seinem Menü: diese Seite, den ersten Vergleich, die Einschränkungen beim Bearbeiten und die Glossare. **F1** und **⌘/** öffnen das Handbuch von überall im Programm — auch ohne offene Datei und gleich, was die Tastatur hält.
 
 ## Wie es weitergeht
 
-- [[topic:first-comparison|Ihr erster Vergleich]] — die fünf Minuten, die zeigen, was dieses Programm ist.
+- [[topic:first-comparison|Ihr erster Vergleich]] — der Vergleich zweier Dateien, Schritt für Schritt.
 - [[topic:hex-view|Die Hex-Ansicht lesen]] und [[topic:colors|Was die Farben bedeuten]].
-- [[topic:tools-overview|Die Werkzeugbereiche]], sobald Sie wissen wollen, was im Image steckt und nicht nur, was sich geändert hat.
-- [[topic:bench-safety|Regeln am Arbeitsplatz]] — Wege, einen Dump zu ruinieren, und wie man sie vermeidet.
+- [[topic:tools-overview|Die Werkzeugbereiche]] — den Aufbau eines Images decodieren und nicht nur seine Unterschiede.
+- [[topic:bench-safety|Einschränkungen beim Bearbeiten eines Images]] — die Eigenschaften eines Firmware-Images, die zulässige Änderungen begrenzen.
