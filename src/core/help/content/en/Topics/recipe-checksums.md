@@ -1,23 +1,41 @@
-# Checking and Fixing Checksums
+# Checksums
 
-> A structure that carries its own checksum may be rejected if you edit it and leave the old value.
+> Which structures of a firmware image carry a checksum, which of them the program verifies, and which of them it can write.
 
-Many firmware structures carry a [[term:checksum|checksum]] over their own header or body. Change a byte inside one and the checksum no longer matches, and whatever reads that structure — the firmware itself, a flashing tool, a parser — will treat it as damaged.
+Many firmware structures carry a [[term:checksum|checksum]] over their header or over their body. When a byte inside such a structure is changed and the stored checksum is left as it was, the structure no longer agrees with its own checksum, and whatever reads it — the firmware, a programming utility, a parser — treats it as damaged.
 
-## In the UEFI panel
+## What the UEFI tool verifies
 
-The [[topic:tool-uefi|UEFI Structure]] panel checks the headers it reads as it reads them:
+[[topic:tool-uefi|UEFI Structure]] verifies the headers it decodes as it reads them:
 
-- A node whose checksum does not match gets a red mark on its row.
-- Its detail pane shows the value that is there and the value that should be there.
-- Right-click the node ▸ **Fix Checksum** writes the correct value. One write, one undo step, and the bytes are shown in red until you save.
+- A node whose checksum does not agree is marked in red on its row.
+- The detail list reports the value stored in the structure and the value it should hold.
+- **Fix Checksum** in the node's context menu writes the correct value. It is one write and one undo step, and the bytes are shown in red until the file is saved ([[topic:saving|Saving]]).
 
-## What a bad checksum actually tells you
+The command covers three kinds of node:
 
-- **You edited inside the structure**, which is expected while patching — fix it before you flash.
-- **The dump is damaged**, if you have not edited anything. A checksum failure in a fresh dump is a sign of a bad read or a genuinely corrupted chip. Read the chip again before concluding anything.
-- **The structure is not what the parser thinks it is.** A checksum failure in a region the panel is unsure about may mean the panel mis-identified it rather than that the bytes are wrong.
+- **A firmware volume** — the checksum in its header.
+- **An FFS file** — its header checksum, and its body checksum. Where the file's checksum attribute bit is not set, the stored body value is instead the fixed value belonging to the revision of the containing volume, and the command writes that.
+- **A microcode component** — the checksum in its header.
+
+It does not act on a node inside a compressed section: the file holds those bytes compressed, and the tool does not compress them again. The command reports this rather than writing anything.
+
+## What the FIT tool verifies
+
+[[topic:tool-fit|FIT Table]] verifies the checksum of the table itself and reports a mismatch in its problem list, giving the stored value and the correct one. **Fix Checksum** in the header row's context menu writes it. Where the image keeps an identical [[term:top-swap|Top Swap]] backup of the block, the value is written in both copies, and the tool says so.
+
+A microcode file offered to **Add Microcode…** is verified before it is written: its checksum must agree. See [[topic:recipe-microcode|Microcode and the FIT]].
+
+## What a mismatch indicates
+
+A checksum that does not agree is a fact about the bytes. It admits more than one explanation, and the tool does not choose between them:
+
+- the structure has been edited and the checksum has not been rewritten;
+- the bytes of the structure differ from what was written, which in a dump read from a chip is a property of the read as much as of the chip;
+- the structure is not what the parser took it for, in which case the mismatch is a statement about the interpretation rather than about the bytes. The tools report where they are uncertain; see [[topic:provenance|Where This Knowledge Comes From]].
 
 ## What Fix Checksum cannot do
 
-It corrects **checksums** — simple arithmetic sums and [[term:crc|CRCs]] that anyone can compute. It cannot touch **signatures**: a cryptographic signature over a region cannot be recomputed without the vendor's private key. If the area you edited is covered by [[term:boot-guard|Boot Guard]] or by an ME [[term:manifest|manifest]], no tool will make the platform accept your edit. See [[topic:bench-safety|Bench rules]].
+The command writes **checksums** — arithmetic sums and [[term:crc|CRC]] values, which are computable from the bytes they cover by anyone who holds the bytes.
+
+It does not write **signatures**. A cryptographic signature over an area cannot be recomputed without the manufacturer's private key. Where the area is covered by [[term:boot-guard|Boot Guard]] or by an ME manifest, no editor can produce a signature the platform will accept; this is a property of the platform. See [[topic:flash-writes|Who Writes to the Flash]] and [[topic:bench-safety|Constraints on Editing an Image]].

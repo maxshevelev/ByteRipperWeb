@@ -1,34 +1,46 @@
-@source-sha c9a60a086d6ac65448d5484566093879171e63141cabee70e46b816100bd17ab
-# Platinenspezifische Daten bewahren
+@source-sha a749aa344a7f6bcadb5dd744521863644af4742fd51cd18ea8571a6f155170b7
+# Platinenspezifische Daten
 
-> Ein Spender-Image kann die Identität des Spenders tragen. Das ist die Information, die auf Ihrer Platine Ihre bleiben muss.
+> Welche Teile eines Firmware-Images einer einzelnen Platine gehören statt dem Modell, und an welcher Stelle des Images sie liegen.
 
-Fast jeder Dump enthält ein wenig Daten, die **genau dieser Platine** gehören und keiner anderen. Schreiben Sie ein Spender-Image roh, verschieben Sie die Identität des Spenders auf Ihre Platine.
+Zwei Platinen desselben Modells, derselben Revision und mit derselben Firmware-Version enthalten keine identischen Images. Ein Teil des Images wird je Gerät geschrieben: im Werk, von der Firmware selbst im Betrieb und später durch Servicevorgänge. Diese Seite führt jene Teile auf und hält fest, welche davon die Werkzeuge auffinden können.
 
-## Was üblicherweise platinenspezifisch ist
+## Warum Images eines Modells sich unterscheiden
 
-- **Die [[term:gbe-region|GbE-Region]]** — die Konfiguration des integrierten Netzwerk-Controllers und damit die **MAC-Adresse**. Zwei Platinen mit einer MAC-Adresse im selben Netz sind ein Fehler, der Tage später auffällt.
-- **Maschinen-UUID und Seriennummern**, die der Hersteller in einem [[term:dmi|DMI/SMBIOS]]-Bereich innerhalb der BIOS-Region hält. Über leere Felder stolpern Garantieabfrage, OEM-Aktivierung und Verwaltungswerkzeuge.
-- **Die Konfiguration der [[term:me-region|ME-Region]]** — siehe [[topic:recipe-me-check|Eine ME-Region prüfen]]. In der ME liegen platinenspezifische Einstellungen, und auf vielen Plattformen auch die Werte, die der Hersteller im Werk provisioniert hat.
-- **NVRAM / [[term:vss|VSS]]-Speicher** — gesicherte Setup-Variablen, Boot-Einträge, hinterlegte Secure-Boot-Schlüssel. Meist gefahrlos vom Spender zu übernehmen (die Firmware baut sich neu auf, was sie braucht), aber nicht immer: manche Hersteller legen dort Lizenz- oder Konfigurationsdaten ab.
-- **OEM-Lizenzdaten von Windows** ([[term:slic|SLIC]] / MSDM) auf älteren Maschinen.
+Dafür gibt es vier voneinander unabhängige Ursachen.
 
-## Was im DMI-Bereich steht
+1. **Individuelle Programmierung bei der Fertigung.** Seriennummern, die Maschinen-UUID, MAC-Adressen und Inventarfelder werden in das Image geschrieben, nachdem die für das Modell gemeinsame Firmware programmiert wurde. Die Werte unterscheiden sich damit zwangsläufig, die Felder nicht.
+2. **Konfiguration, die die Plattform im Betrieb schreibt.** Setup- und Zustandsvariablen des BIOS werden bei jeder Änderung in den [[term:vss|NVRAM]]-Speicher in der [[term:bios-region|BIOS-Region]] geschrieben, und die [[term:me|Management Engine]] schreibt fortlaufend in ihr Dateisystem [[term:mfs|MFS]]. Zwei Platinen, die eingeschaltet waren, unterscheiden sich hier auch dann, wenn absichtlich nichts geändert wurde. Siehe [[topic:flash-writes|Wer in den Flash schreibt]].
+3. **Mehrere Ausführungen eines Modells.** Eine Platine wird häufig in mehreren Ausführungen unter einer einzigen Modellbezeichnung ausgeliefert. Version und Build der Firmware können sich zwischen ihnen unterscheiden und mit ihnen die werkseitigen Werte der Setup-Parameter.
+4. **Spätere Eingriffe.** Ein Firmware-Update, eine Garantiereparatur oder eine frühere Reparatur hinterlassen ihre Spuren an denselben Stellen.
 
-[[term:dmi|DMI]] ist der einzige Punkt dieser Liste, auf den sich im Baum nicht klicken lässt — es lohnt sich also zu wissen, was darin steht. Der Hersteller schreibt ihn im Werk, und Betriebssystem wie Diagnosewerkzeuge lesen ihn, statt die Hardware abzufragen:
+## Wo diese Daten liegen
 
-- **Seriennummern** — die der Maschine und die der Platine, und das sind zwei verschiedene.
-- **MAC-Adressen** der eingebauten LAN- und WLAN-Adapter. Auf vielen Notebooks stehen sie hier und nicht in der [[term:gbe-region|GbE-Region]].
-- **Die System-UUID.**
-- **Inventarfelder** — Asset Tag, Hersteller, das genaue Modell, die BIOS-Version.
-- **Der Windows-OEM-Schlüssel** liegt auf vielen Notebooks im selben Herstellerbereich — siehe [[term:slic|SLIC / MSDM]].
+- **[[term:gbe-region|GbE-Region]]** — die Konfiguration des integrierten Netzwerk-Controllers einschließlich der **MAC-Adresse**. Sie ist eine Zeile der obersten Ebene im Baum der [[topic:tool-uefi|UEFI-Struktur]]; Adresse und Länge stehen in der Detailliste.
+- **[[term:me-region|ME-Region]]** — einzigartig ist an ihr in erster Linie nicht die Konfiguration, die in der Regel für die gesamte Plattform gilt. Eine Region im Zustand **Initialized** ist an einen einzelnen Chipsatz gebunden, da die Dateien ihres Dateisystems mit Schlüsseln geschützt sind, die aus dem Geheimnis dieses Bausteins abgeleitet werden. Den Zustand meldet der [[topic:tool-me|ME Analyzer]]; siehe [[topic:recipe-me-check|Den ME-Bericht lesen]].
+- **NVRAM-Speicher ([[term:vss|VSS]])** — Setup- und Zustandsvariablen des BIOS. Ihnen entsprechen eigene Zeilen im Baum. Ihr Inhalt unterscheidet sich zwischen zwei Platinen: Die Firmware schreibt diese Variablen bei jeder Änderung einer Einstellung und im laufenden Betrieb.
+- **Der Bereich [[term:dmi|DMI/SMBIOS]]** in der BIOS-Region — dazu der nächste Abschnitt.
+- **Windows-Lizenzdaten des Herstellers** ([[term:slic|SLIC]] / MSDM) auf Maschinen des entsprechenden Zeitraums.
 
-## Wie man es macht
+## Der DMI-Bereich
 
-1. Öffnen Sie das Spender-Image und Ihren eigenen ursprünglichen Dump nebeneinander.
-2. Finden Sie jeden der obigen Bereiche im [[topic:tool-uefi|UEFI-Panel]] — GbE-Region und ME-Region sind Zeilen der obersten Ebene, ihre Offsets stehen in der Detailansicht.
-3. [[topic:bookmarks|Setzen Sie ein Lesezeichen]] auf den Anfang jedes Bereichs. Beide Bereiche zeigen die Markierungen auf derselben Höhe — genau das braucht man hier.
-4. Kopieren Sie jeden Bereich **aus Ihrem eigenen Dump** und setzen Sie ihn in das Spender-Image ein — schlichtes ⌘V überschreibt, es verschiebt sich also nichts.
-5. Vergleichen Sie das Ergebnis ein letztes Mal mit Ihrem Dump und lesen Sie jeden verbliebenen Unterschied.
+[[term:dmi|DMI]] ist der einzige Punkt dieser Aufzählung, dem kein Knoten im Baum entspricht: Er trägt keine Signatur, an der ein Parser ihn erkennen könnte, und wo er liegt, entscheidet der Hersteller. Geschrieben wird er im Werk, und Betriebssysteme wie Diagnosewerkzeuge lesen ihn, statt die Hardware zu befragen. Üblicherweise enthält er:
 
-! Tun Sie das vor dem Schreiben, nicht danach. Sobald der Chip MAC und UUID des Spenders trägt, gibt es Ihre eigenen nur noch in der Datei, die Sie in Schritt 1 gesichert haben — deshalb lautet [[topic:bench-safety|die erste Regel]], dieses Lesen zu bewahren. Bei einigen Herstellern lassen sich die Felder mit einem Service-Werkzeug vom Aufkleber neu schreiben ([[term:dmi|DMI]]), aber darauf sollte man nicht im Voraus bauen.
+- **Seriennummern** — die der Maschine und die der Platine, und das sind zwei verschiedene Nummern.
+- **MAC-Adressen** der integrierten kabelgebundenen und drahtlosen Adapter. Auf manchen Notebook-Modellen liegen sie hier und nicht in der [[term:gbe-region|GbE-Region]].
+- **Die Maschinen-UUID.**
+- **Inventarfelder** — Asset Tag, Herstellername, genaue Modellbezeichnung, BIOS-Version.
+- **Den Windows-OEM-Schlüssel**, auf einem Teil der Notebooks im selben Herstellerblock; siehe [[term:slic|SLIC / MSDM]].
+
+Da es keinen Knoten im Baum gibt, wird die Lage des Bereichs über die Suche nach einem unabhängig bekannten Wert bestimmt — einer Seriennummer vom Aufkleber, einer im Betriebssystem ausgelesenen MAC-Adresse ([[topic:search|Bytes und Text finden]]) — und mit einem [[topic:bookmarks|Lesezeichen]] markiert.
+
+## Was das Programm dafür bereitstellt
+
+- Die beiden Bereiche und der Vergleich zeigen alle Adressen, an denen zwei Images sich unterscheiden; so wird der tatsächliche Umfang der individuellen Daten für ein bestimmtes Modell ermittelt.
+- Das UEFI-Werkzeug nennt Adresse und Länge der GbE-Region, der ME-Region und der NVRAM-Speicher.
+- **Block ab hier auswählen, bei…** im Kontextmenü des Bereichs wählt einen solchen Bereich über seine Zahlengrenzen aus, und ⌘V überschreibt ihn, ohne nachfolgende Bytes zu verschieben.
+- Lesezeichen gelten für beide Bereiche an derselben Adresse, sodass derselbe Adressbereich in beiden Images gefunden wird.
+
+Das Programm bestimmt nicht, welche Werte für eine bestimmte Platine die richtigen sind, und liest nichts von der Platine selbst.
+
+! In öffentlich verbreiteten Images wird der DMI-Bereich häufig überschrieben, damit die Daten des ursprünglichen Besitzers nicht mit der Datei weitergegeben werden. Ein solches Image enthält an diesen Stellen keine fremden Werte, sondern leere Felder.

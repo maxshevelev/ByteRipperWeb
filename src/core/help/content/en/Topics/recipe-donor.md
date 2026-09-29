@@ -1,21 +1,34 @@
-# Repairing a Dump from a Donor
+# Transferring a Region Between Two Images
 
-> The typical situation: a board that will not post, a dump that is damaged, and a working image downloaded from the internet or taken from another board.
+> The facilities the program provides for copying a range of bytes from one open image into another, at the same address.
 
-The aim is almost never to flash the donor image whole. It is to find out **what is broken**, and to move across only that.
+ByteRipper has no single command that transfers a region. The operation is assembled from facilities that are documented individually elsewhere; this page states which ones take part and in what order they are normally used.
 
-1. **Read the patient's chip** and save the dump untouched. You can read it twice and compare the two dumps against each other — if they differ, the read is unreliable (bad contact, weak power) and nothing after this step means anything.
-2. **Open the patient's and the donor's dumps** side by side in the [[topic:first-comparison|comparison]] panes.
-3. **Check the sizes** in the status bars. Different sizes mean different chips or a wrong read — sort that out first.
-4. **Turn on [[topic:tool-uefi|UEFI Structure]]** for the patient. The tree tells you which region each address belongs to.
-5. **Look at the shape of the damage** in the [[topic:minimap|minimap]] overview: is one block different, or is the image different all over? One block usually means one damaged region; everywhere usually means a different firmware version, which is a different job.
-6. **Identify the damaged region.** A region that reads as all `FF` was erased. A region full of noise, or whose structures the UEFI panel cannot parse, is corrupted. The panel's summary line and the tree say which.
-7. **Move that region over, not the whole file.** Select the region's byte range in the donor (its offsets are in the panel's detail pane; **Select Block from Here at…** takes them as numbers), copy, then select the same range in the patient and paste — plain ⌘V, which **overwrites** and does not move anything.
-8. **Put the board's own data back.** A donor region carries the donor's identity — see [[topic:recipe-board-data|Keeping board-unique data]]. This is the step that gets forgotten and the one that produces a board that boots but has the wrong MAC address or no serial number.
-9. **Check before flashing**: no red bytes left, the file's size unchanged, checksums right, and a final comparison against the original dump where every difference is one you intended ([[topic:bench-safety|Bench rules]]).
+## The facilities involved
 
-## When the whole image has to be replaced
+- **Two file panes.** Both images are open at once and compared byte for byte at equal addresses ([[topic:first-comparison|Your First Comparison]]).
+- **The status line** under each pane reports the size of that pane's file. Two images of different length are compared from address zero regardless, and the tail that exists in only one of them is reported as a difference.
+- **[[topic:tool-uefi|UEFI Structure]]** reads either pane and names the regions, volumes and files an address falls into. The detail list gives the start address and the length of the selected node.
+- **The [[topic:minimap|minimap]]** in overview mode shows the distribution of differences over the whole image in one column.
+- **Select Block from Here at…**, in the pane's right-click menu, takes a range as numbers — start and end, or start and length — rather than requiring it to be dragged out with the mouse ([[topic:navigation|Moving Around]]).
+- **Copy and paste.** ⌘V overwrites at the caret and does not move any byte that follows it ([[topic:editing|Editing Bytes]]), so a range pasted over a range of equal length leaves every other address unchanged.
+- **[[topic:bookmarks|Bookmarks]]** are absolute addresses shared by both panes, which is what lets the same address be found in both images.
 
-Sometimes it does — a totally corrupted flash, or a board whose firmware version has to change. Then the donor must be from the **same model and the same hardware revision**, and the board-unique data has to be transplanted into it rather than the other way round.
+## The usual order
 
-! Check for [[term:boot-guard|Boot Guard]] first. On a board with Boot Guard fused on, an image signed for another vendor key will not boot, whatever else you do to it, and the panel's protected-range count is your warning.
+1. Both images are opened, one per pane.
+2. The sizes reported in the two status lines are compared. They determine whether the addresses in one image mean the same thing in the other.
+3. A tool panel is opened on the image whose layout is in question, and the region of interest is selected in its tree. The detail list gives the range.
+4. The range is selected in the source pane with **Select Block from Here at…** and copied.
+5. The same range is selected in the destination pane and overwritten with ⌘V.
+6. The comparison is read again. Every remaining difference is a difference the operation did not address.
+
+The whole of step 5 is one undo step (⌘Z).
+
+## What the program does not do
+
+- It does not search for the same block of bytes at a different address, and it does not shift one file against the other. Comparison is by absolute address only ([[topic:overview|What ByteRipper Is For]]).
+- It does not decide which of two images is the correct one, and it does not report whether the result will be accepted by any platform.
+- It does not carry over data that is specific to a particular board. Such data is described in [[topic:recipe-board-data|Data Unique to a Board]].
+
+! Where an image declares [[term:boot-guard|Boot Guard]] protected ranges, the UEFI panel's summary line reports how many. Bytes inside such a range are covered by a signature that cannot be recomputed without the manufacturer's private key; this is a property of the platform, not a restriction imposed by the program. See [[topic:flash-writes|Who Writes to the Flash]].

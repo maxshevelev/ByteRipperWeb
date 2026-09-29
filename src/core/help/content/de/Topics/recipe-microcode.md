@@ -1,26 +1,68 @@
-@source-sha b8a04705605d56a0067dbdcc449193b8da07d2fd99057373f460a1591a4991d9
-# Microcode und die FIT
+@source-sha 239983ab70d561a682b788854512a1200cf00330279af5e1812071da73a8d22c
+# Microcode und die FIT-Tabelle
 
-> Wenn eine Platine nach einem Flash-Vorgang gar nicht mehr startet, sieht man hier nach.
+> Was das Werkzeug „FIT-Tabelle“ über den Microcode eines Images meldet und was seine Befehle an der Tabelle ändern.
 
-Die CPU lädt ein [[term:microcode|Microcode-Update]], bevor sie irgendeinen BIOS-Code ausführt, und findet es über die [[term:fit|Firmware Interface Table]]. Ist diese Kette unterbrochen, ist die Platine im wörtlichsten Sinne tot: kein Bild, kein Ton, kein Post-Code über die frühesten Stufen hinaus.
+Der Prozessor lädt ein [[term:microcode|Microcode-Update]], bevor er irgendeinen Firmware-Befehl ausführt, und findet es über die [[term:fit|Firmware Interface Table]]. Die Einträge dieser Tabelle enthalten absolute Adressen im Image; ein von einem Eintrag benanntes Bauteil lässt sich deshalb nicht verschieben, ohne den Eintrag selbst zu berichtigen.
 
-## Prüfen
+**Werkzeuge ▸ FIT-Tabelle** findet die Tabelle und gibt sie aus. Das Werkzeug selbst ist unter [[topic:tool-fit|FIT-Tabelle]] beschrieben; diese Seite behandelt, was seine Spalten bedeuten und was seine Befehle ändern.
 
-1. **Werkzeuge ▸ FIT-Tabelle.** Findet das Panel in einem Image, das eine haben sollte, überhaupt keine Tabelle, ist das schon die Antwort.
-2. **Lesen Sie die Einträge.** Jeder sollte einen plausiblen Typ, eine plausible Adresse und Größe haben.
-3. **Lesen Sie die Spalte „zeigt auf“.** Das Panel geht jeder Adresse nach und sagt, was dort wirklich liegt. Ein Eintrag, der auf gelöschten Flash zeigt oder auf etwas, das kein Microcode-Update ist, ist ein kaputter Eintrag.
-4. **Lesen Sie die vom Panel aufgeführten Probleme** — die Regeln der Tabelle selbst: der Kopfeintrag, die Anzahl, die Prüfsumme, die Reihenfolge.
+## Was die Spalten bedeuten
+
+- **Typ**, **Adresse** und **Größe** stammen aus dem Eintrag selbst.
+- **Zeigt auf** wird nicht aus dem Eintrag gelesen. Das Werkzeug folgt der Adresse und meldet, was tatsächlich dort liegt: ein Microcode-Update mit gültigem Header, ein Manifest, ein gelöschter Bereich oder nichts Erkennbares. Ein Eintrag, der auf einen gelöschten Bereich zeigt, ist ein Eintrag, dessen Bauteil im Image fehlt.
+- Ein Microcode-Eintrag wird zusätzlich über einen Online-Katalog benannt: Prozessorsignatur (CPUID), Revision und Datum. Der Katalog ist unter [[topic:databases|Die Online-Kataloge]] beschrieben; ohne Netzzugang meldet das Werkzeug die Kennungen und lässt die Namen weg.
+
+Unter der Tabelle stehen die Verstöße gegen die Regeln der Spezifikation: der Header-Eintrag, die Anzahl der Einträge, die Prüfsumme der Tabelle, die Reihenfolge der Einträge nach Typ, die Ausrichtung der Adressen, das reservierte Byte sowie die Übereinstimmung der Tabelle mit ihrer [[term:top-swap|Top-Swap]]-Sicherungskopie, sofern das Image eine führt. Ein Doppelklick auf einen Verstoß bringt den Dump zu den betroffenen Bytes.
 
 ## Die Microcode-Einträge lesen
 
-Jeder Microcode-Eintrag wird aus dem [[topic:databases|öffentlichen Katalog]] benannt: für welche CPU-Signatur, welcher Revision, welchen Datums. Damit lassen sich zwei Dinge prüfen:
+Der Name aus dem Katalog macht zwei Eigenschaften des Images lesbar:
 
-- **Gibt es überhaupt Microcode für diese CPU?** Eine Platine, die eine neue CPU-Generation ohne BIOS-Update bekommt, ist eine Platine ohne Microcode für den Chip im Sockel.
-- **Ist die Revision plausibel?** Eine Revision, die deutlich älter ist als das BIOS der Platine, deutet auf ein Image der falschen Version hin — oder auf eine Handänderung, die ein neueres Update durch ein älteres ersetzt hat.
+- **Für welche Prozessorsignaturen das Image Microcode enthält.** Eine Platine, in der ein Prozessor eines neueren Steppings sitzt, als die Firmware vorsah, enthält keinen Microcode für die Signatur in ihrem Sockel. Welche Signatur ein bestimmter Prozessor meldet, ist eine Eigenschaft des Prozessors; das Programm liest sie nicht und meldet nur, was im Image steht.
+- **Welche Revision der Microcode je Signatur hat.** Revision und Datum lassen sich mit dem neuesten Katalogeintrag derselben Signatur vergleichen.
 
-## Reparieren
+## Microcode hinzufügen
 
-Nehmen Sie die Region aus einem korrekten Image für dieselbe Platine und dieselbe BIOS-Version und legen Sie die Bytes an denselben Adressen zurück — überschreibend, nie einfügend. Die Adressen in einer FIT sind absolut: ein Microcode-Update, das auch nur um ein Byte verschoben ist, ist eines, das die CPU nicht findet.
+**Microcode hinzufügen…** in der Kopfzeile des Bereichs öffnet eine Liste von Intel-Microcodes, die aus der Sammlung `platomav/CPUMicrocodes` auf github.com geladen wird, mit den Spalten CPUID, Plattform, Revision, Datum, Freigabestand und Größe. **Nur CPUIDs aus diesem Image** beschränkt die Liste auf die Signaturen, die das geöffnete Image bereits enthält. **Datei wählen…** nimmt einen Microcode aus einer lokalen Datei und braucht keinen Netzzugang.
 
-Siehe auch: [[term:top-swap|Top Swap]] — warum manche Platinen zwei Boot-Blöcke haben und einen missglückten Schreibvorgang auf einen davon überstehen.
+Eine Datei aus beiden Quellen wird geprüft, bevor irgendetwas geschrieben wird: Sie muss mit einem Intel-Microcode-Header beginnen, und ihre Prüfsumme muss aufgehen.
+
+Der Befehl leistet dann Folgendes:
+
+1. Er legt das Bauteil unmittelbar hinter das letzte Microcode-Bauteil der Reihe, wohin es laut Spezifikation gehört. Ist in der Datei, in der die Reihe liegt, kein Platz mehr, werden freier Speicher oder gelöschtes Padding **unmittelbar hinter dieser Datei** genutzt, und die Datei selbst wird so erweitert, dass das neue Bauteil in ihr liegt und nicht lose im Volume.
+
+   Liegt direkt hinter der Datei etwas anderes — etwa eine benachbarte Datei —, lehnt der Befehl ab, statt an anderer Stelle im Volume zu suchen. Ein in beliebigen freien Speicher gelegtes Bauteil wird beim nächsten Durchlauf des Volumes als eine Datei gelesen, die es nicht ist, und der Baum danach ergibt keinen Sinn.
+
+   Die Suche bewegt sich ausschließlich durch die Strukturen, welche die Microcode-Reihe enthalten; eine benachbarte Region oder eine benachbarte Struktur wird daher nicht berührt.
+2. Er schreibt einen neuen Eintrag in die Tabelle, nutzt dafür einen freien Platz, sofern die Tabelle einen hat, und verlängert die Tabelle sonst in die sechzehn freien Bytes dahinter.
+3. Er berichtigt die Anzahl der Einträge im Header und die Prüfsumme der Tabelle.
+
+**Die Länge der Datei ändert sich dabei nicht.** Der Vorgang bildet einen Widerrufsschritt (⌘Z) und wird entweder vollständig ausgeführt oder mit Angabe des Grundes abgelehnt.
+
+## Ersetzen und Entfernen
+
+Das Kontextmenü einer Microcode-Zeile enthält **Microcode ersetzen**, **Microcode entfernen**, **CPUID kopieren** und **Zum Offset springen**; die Header-Zeile enthält **Prüfsumme korrigieren**.
+
+- **Microcode ersetzen** tauscht das von der Zeile benannte Bauteil gegen ein anderes beliebiger Signatur. Die Zeile bleibt; ist das neue Bauteil anders groß, rücken die Bauteile dahinter nach, und die Einträge, die sie benennen, werden berichtigt.
+- **Microcode entfernen** nimmt den Eintrag aus der Tabelle, rückt die Bauteile dahinter in den frei gewordenen Platz nach und löscht die Bytes am Ende der Reihe. Mindestens ein Microcode-Eintrag muss in der Tabelle verbleiben.
+
+Hinzufügen, Ersetzen und Entfernen werden nur für Microcode-Einträge unterstützt. Einträge anderer Typen — ein ACM, ein Boot-Guard-Manifest, ein Policy-Eintrag — zeigt und prüft das Werkzeug, ändert sie aber nicht.
+- **Prüfsumme korrigieren** schreibt den Wert, den der Header tragen müsste.
+
+## Wenn eine Änderung abgelehnt wird
+
+Das Werkzeug nimmt keine Änderung vor, die es nicht korrekt ausführen kann, und nennt die Regel, an der es sie ablehnt:
+
+- die angebotene Datei ist kein Microcode-Image, oder ihre Prüfsumme geht nicht auf;
+- die Tabelle enthält keinen Microcode-Eintrag, hinter den ein neuer gelegt werden könnte, sodass nicht feststeht, wo dieses Image seinen Microcode hält;
+- die Tabelle hat keinen freien Platz, und die Bytes dahinter sind belegt, sodass sie nicht wachsen kann; das Werkzeug nennt, wodurch sie belegt sind;
+- die Reihe müsste weiter wachsen, als Platz vorhanden ist; das Werkzeug nennt, wie viele Bytes fehlen und wodurch die Reihe wachsen müsste;
+- die Änderung würde in den von [[term:boot-guard|Boot Guard]] geschützten [[term:ibb|IBB]] schreiben, den der Prozessor vor dem Lauf der Firmware prüft;
+- das Image führt eine [[term:top-swap|Top-Swap]]-Sicherungskopie des Blocks, in dem die Tabelle liegt, und die beiden Kopien stimmen nicht überein, sodass eine Änderung nicht für beide richtig sein kann; oder ein Schreibvorgang würde über eine Top-Swap-Blockgrenze reichen.
+
+Führt das Image eine übereinstimmende Top-Swap-Sicherungskopie, wird die Änderung in beiden Kopien vorgenommen, und das Werkzeug sagt es.
+
+! Eine Änderung, die in einen von der Firmware geprüften Bereich geschrieben wird, weist das Werkzeug eigens aus. Ob eine bestimmte Plattform das entstandene Image annimmt, entscheidet sich bei ihrem Start, und kein Editor kann darüber Auskunft geben. Siehe [[topic:flash-writes|Wer in den Flash schreibt]].
+
+Siehe auch: [[term:top-swap|Top Swap]], [[topic:recipe-checksums|Prüfsummen]].

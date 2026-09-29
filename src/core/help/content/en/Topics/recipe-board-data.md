@@ -1,33 +1,45 @@
-# Keeping Board-Unique Data
+# Data Unique to a Board
 
-> A donor image may carry the donor's identity. Listed below is the information that must stay yours on your board.
+> Which parts of a firmware image belong to one individual board rather than to the model, and where in the image they are held.
 
-Almost every dump holds a small amount of data that belongs to **that specific board** and to no other. Flash a donor image raw and you move the donor's identity onto your board.
+Two boards of the same model, the same revision and the same firmware version do not hold identical images. A part of the image is written per unit: at the factory, by the firmware itself during operation, and by service procedures afterwards. This page lists those parts and states which of them the tool panels can locate.
 
-## What is usually board-unique
+## Why images of one model differ
 
-- **The [[term:gbe-region|GbE region]]** — the integrated network controller's configuration, and with it the **MAC address**. Two boards with one MAC address on the same network is a fault that shows up days later.
-- **The machine UUID and serial numbers**, held by the vendor in a [[term:dmi|DMI/SMBIOS]] area inside the BIOS region. Blank fields are what a warranty lookup, an OEM activation or a management tool trips over.
-- **The [[term:me-region|ME region]]'s configuration** — see [[topic:recipe-me-check|Checking an ME region]]. The ME holds board-specific settings, and on many platforms it also holds the values the vendor provisioned at the factory.
-- **NVRAM / [[term:vss|VSS]] stores** — saved setup variables, boot entries, enrolled Secure Boot keys. Usually safe to take from a donor (the firmware rebuilds them), but not always: some vendors keep licence or configuration data there.
-- **Windows OEM licence data** ([[term:slic|SLIC]] / MSDM) on older machines.
+Four separate mechanisms account for it.
 
-## What the DMI area holds
+1. **Per-unit programming at manufacture.** Serial numbers, the machine UUID, MAC addresses and inventory fields are written into the image after the common firmware has been programmed. The values differ by definition; the fields holding them do not.
+2. **Configuration written by the platform during operation.** BIOS setup and state variables are written to [[term:vss|NVRAM]] inside the [[term:bios-region|BIOS region]] whenever they change, and the [[term:me|Management Engine]] writes its own [[term:mfs|MFS]] file system continuously. Two boards that have been switched on differ here even if nothing was changed deliberately. See [[topic:flash-writes|Who Writes to the Flash]].
+3. **Several configurations of one model.** One board layout is frequently shipped in several configurations under a single model designation. The firmware version and build may differ between them, and with it the factory values of the setup parameters.
+4. **Later service.** A firmware update, a warranty repair or an earlier board-level repair leaves its own traces in the same places.
 
-[[term:dmi|DMI]] is the one item on that list with no structure to click on, so it is worth knowing what is in it. The vendor writes it at the factory, and the operating system and diagnostic tools read it instead of interrogating the hardware:
+## Where the data is held
 
-- **Serial numbers** — the machine's and the board's, which are not the same number.
-- **MAC addresses** of the built-in wired and wireless adapters. On many laptops they live here rather than in the [[term:gbe-region|GbE region]].
-- **The system UUID.**
-- **Inventory fields** — asset tag, manufacturer, the exact model, the BIOS version.
-- **The Windows OEM key** on many laptops sits in the same vendor area — see [[term:slic|SLIC / MSDM]].
+- **[[term:gbe-region|GbE region]]** — the configuration of the integrated network controller, including the **MAC address**. It is a top-level row in the [[topic:tool-uefi|UEFI Structure]] tree, and its address and length are in the detail list.
+- **[[term:me-region|ME region]]** — what makes it unique is not primarily its settings, which are usually common to the platform. A region in the **Initialized** state is bound to one individual chipset, the files of its file system being protected by keys derived from that part's secret. The state is reported by [[topic:tool-me|ME Analyzer]]; see [[topic:recipe-me-check|Reading the ME Region Report]].
+- **NVRAM stores ([[term:vss|VSS]])** — BIOS setup and state variables. They are rows in the UEFI tree. Their content differs between two boards: the firmware writes these variables whenever a setting changes and in the course of operation.
+- **The [[term:dmi|DMI/SMBIOS]] area** inside the BIOS region — described below.
+- **Manufacturer Windows licensing data** ([[term:slic|SLIC]] / MSDM) on machines of the corresponding period.
 
-## How to do it
+## The DMI area
 
-1. Open the donor image and your own original dump side by side.
-2. Find each of the areas above in the [[topic:tool-uefi|UEFI panel]] — the GbE region and the ME region are top-level rows in the tree, with their offsets in the detail pane.
-3. [[topic:bookmarks|Bookmark]] the start of each. Both panes show the marks at the same height, which is exactly what you want here.
-4. Copy each range **out of your own dump** and paste it into the donor image — plain ⌘V overwrites, so nothing shifts.
-5. Compare the result against your own dump one last time and read every remaining difference.
+[[term:dmi|DMI]] is the one item on the list that is not a node in the tree: it has no signature the parser can find, and its position is a manufacturer's decision. The manufacturer writes it at the factory, and operating systems and diagnostic utilities read it instead of interrogating the hardware. It usually holds:
 
-! Do this before you flash, not after. Once the chip carries the donor's MAC and UUID, your own copies exist only in the file you saved in step 1 — which is why [[topic:bench-safety|the first rule]] is to keep that dump. Some vendors let you write the fields again with a service utility, off the sticker ([[term:dmi|DMI]]), but that is not something to count on in advance.
+- **Serial numbers** — of the machine and of the board, which are two different numbers.
+- **MAC addresses** of the integrated wired and wireless adapters. On some notebook models they are held here rather than in the [[term:gbe-region|GbE region]].
+- **The machine UUID.**
+- **Inventory fields** — asset tag, manufacturer, exact model, BIOS version.
+- **The Windows OEM key** on some notebooks, in the same manufacturer block; see [[term:slic|SLIC / MSDM]].
+
+Because the area is not a tree node, it is located by searching for a value that is known independently — a serial number read from the label, a MAC address read from the operating system — using [[topic:search|Finding Bytes and Text]], and marked with a [[topic:bookmarks|bookmark]].
+
+## What the program provides
+
+- The two panes and the comparison report every address at which two images differ, which is how the extent of per-unit data is established for a given model.
+- The UEFI panel gives the address and length of the GbE region, the ME region and the NVRAM stores.
+- **Select Block from Here at…**, in the pane's right-click menu, selects such a range by number, and ⌘V overwrites it without moving any following byte.
+- Bookmarks are shared by both panes at the same address, so the same range is found in both images.
+
+The program does not identify which values are correct for a given board, and does not read anything from the board itself.
+
+! In images published on the internet the DMI area is frequently overwritten so that the original owner's data is not distributed with the file. Such an image carries empty fields rather than another board's values.

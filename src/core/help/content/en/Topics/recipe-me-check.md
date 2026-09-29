@@ -1,27 +1,82 @@
-# Checking an ME Region
+# Reading the ME Region Report
 
-> Is the engine firmware there, whole, and for this board?
+> What the two tabs of the ME Analyzer panel report, and how the individual rows of the summary are to be read.
 
-Open the dump, turn on **Tools ▸ ME Analyzer**, and read the Summary tab.
+**Tools ▸ ME Analyzer** analyses the [[term:me-region|ME region]] of the image in its pane and reports the result on two tabs, **Summary** and **Full Info**. The tool itself is described in [[topic:tool-me|ME Analyzer]]; this page covers the content of the report.
 
-## What the answers mean
+The row labels of the summary are in English in every language of the interface. They are the labels of the `MEA.py` script of the ME Analyzer project, from which this analysis is derived, and they are left unchanged so that a report can be compared with that project's output. See [[topic:provenance|Where This Knowledge Comes From]].
 
-- **"Nothing in this file reads as Intel ME firmware."** Either the dump has no ME region (an AMD board, an older platform, an EC dump) or the region has been erased. Check the [[topic:tool-uefi|UEFI panel]]: if there is an ME region in the descriptor and it is full of `FF`, it has been erased or "cleaned".
-- **A version and an SKU.** The region is there and its headers parse. Compare the version against what the board should have — a version from a different platform generation is a donor image from the wrong machine.
-- **Messages in the summary.** The analysis shows what it managed to gather. They are the short version of the Full Info section, repeating the familiar output style of the MEA.py script from the ME Analyzer project. To save this information or share it with colleagues, copy the summary as text or copy the screenshot to the clipboard, with the two buttons in the tab row.
+## When no firmware is reported
 
-## Full Info checks
+The tool reports that nothing in the file reads as Intel ME firmware in three distinct cases, which it does not distinguish between:
 
-- The [[term:fpt|$FPT]] lists the partitions the region declares. If a partition's bytes are not actually there, or its size does not match what the table says, the region is truncated — possibly the result of a bad dump or a partial flash.
-- The [[term:cpd|code partitions]] and their modules should be present and their sizes consistent.
-- An erased or zero-size section is drawn grey: it is a place in the layout rather than something to read.
+- the image holds no ME region — an AMD platform, a platform older than the ME, or a dump of a different chip;
+- the descriptor declares an ME region whose content has been erased. The [[topic:tool-uefi|UEFI Structure]] tool reports the declared region, and the hex view shows whether it consists of `FF`;
+- the region is present but its beginning is damaged to the point where the [[term:fpt|$FPT]] table is not found.
 
-## Common situations on a bench
+## The summary rows
 
-- **A "cleaned" ME** (the region cut down to a bootable minimum by a tool like me_cleaner) is a legitimate state, not damage. The panel will show a much smaller set of partitions.
-- **An ME in recovery**, on the board, shows up as a machine that runs for 30 minutes and reboots. If the board does that, the ME region is a good place to look.
-- **Provisioned values** live inside the region's configuration. A donor ME brings the donor's.
+- **Family**, **Version**, **SKU**, **Release**, **Date** — read from the manifest and the partition table. The version identifies the generation of the platform the firmware was built for.
+- **Type** — whether the image is a complete firmware, an update, or a region extracted from a complete image.
+- **Chipset**, **Chipset Stepping**, **NVM Compatibility** — the platform the firmware declares support for.
+- **TCB Security Version Number**, **ARB Security Version Number**, **Version Control Number** — the counters the platform uses to refuse firmware older than the one already accepted. See [[term:svn|SVN]] and [[term:vcn|VCN]].
+- **Production Ready** — whether the firmware is a production build or a pre-production one.
+- **OEM Configuration** — whether the image carries a manufacturer's signing key or an unlock partition.
+- **FWUpdate Support** — whether Intel's own update utility can rewrite this image in place.
+- **Size** — how far the firmware reaches from its `$FPT`. This is a property of the firmware, not the length of the region or of the file.
+- **Flash Image Tool** — the version of Intel's Flash Image Tool that the image was built with, where the image records it.
+- **File System State** — described in the next section.
 
-! Patching the ME region by hand is not a repair. The region's integrity is verified before it runs, and a modified region gets rejected rather than executed. The repair is to move a matching region over, whole — from the vendor's update package for the exact model, or from a known-good dump of the same board — and then leave the board-unique parts alone ([[topic:recipe-board-data|Keeping board-unique data]]).
+Rows the analysis cannot answer for the family in question are left grey rather than filled with a guess.
 
-The words the panel uses are explained in the ME glossary; press the **?** beside the detail list for the row you are looking at.
+## File System State
+
+The row reports the state of the [[term:mfs|MFS]] file system inside the region. It is shown only for the families that have one. It takes three values, and the criteria by which the parser decides between them are the following.
+
+**Initialized.** Either the volume holds at least one of the low-level files with the indices 0–5 or 8, or an EFS volume in it holds file content. This is the state of a region in which the engine has run and written its own files.
+
+**Configured.** The volume holds no such file, but holds a low-level file with index 7 or 9 — the OEM configuration and the Home Directory — or the image holds a configuration written by Intel's Flash Image Tool: a populated `fitc.cfg` module, or a `FITC`, `CDMD` or `MFSB` partition. This is the state of a region that has been given a configuration but in which the engine has not yet run.
+
+**Unconfigured.** Neither of the above applies. This is the state in which the firmware leaves the manufacturer of the platform, and the state of a region whose file system has been removed.
+
+A transition connects the states. The first power-on of a board carrying a clean region in the **Configured** state, with a working chipset, initializes it: the engine creates the files and binds the region to that chipset, which is to say moves it to **Initialized**.
+
+Two qualifications apply to the criteria:
+
+- On CSME 15 and 16 the volume names its files through its own tables rather than by index, so the parser claims nothing from the file indices there. Such a volume is decided by the two remaining rules only.
+- A fourth value, **Error**, exists in the upstream project for the case of the analysis failing outright. The decoders used here do not raise it.
+
+## Moving a region to another board
+
+A region in the **Initialized** state holds more than settings written by the engine on one particular board. The files of its [[term:mfs|MFS]] file system are protected by an [[term:integrity-table|integrity table]], and some of them are encrypted as well, integrity and confidentiality being protected by separate keys. Those keys derive from the [[term:svn|SVN]] and from a root secret held in the chipset's fuses, unique to the individual part; that secret is not in the image. The binding is established at initialization — at the first power-on of a board carrying a region in the **Configured** state.
+
+Moving an initialized region to another board is therefore incorrect in itself. Two limits apply, and they are independent of each other:
+
+- **The data are bound to one part.** A region transferred whole and unaltered remains another chipset's region: a different chipset derives different keys and does not accept the protected files. An identical board model and an identical chipset model make no difference — the secret is unique to the part, not to the model.
+- **Editing is detected separately.** The engine verifies integrity before it starts, so a region altered in place is rejected whoever it belongs to.
+
+The state in the row is the fact the tool reports. What a board will do with a foreign region is not: there is no single outcome, and it depends on the generation of the chipset, on the particular board and on its system configuration. The repair community reports a slow power-on, individual functions not working afterwards, a reset on a timer, and on current chipsets no power-on at all.
+
+An **Unconfigured** region from a manufacturer's update package carries no per-board values at all, including those of the board the firmware was built on.
+
+Intel's **Flash Image Tool**, part of the manufacturer's CSME kit, is the tool that produces a configured region from a firmware image and a configuration file. It is named here because the **Flash Image Tool** row reports its version, and because the `fitc.cfg` module it writes is one of the criteria above. It is not related to the [[term:fit|Firmware Interface Table]], which the [[topic:tool-fit|FIT Table]] panel reads, despite the shared abbreviation.
+
+! ByteRipper does not build ME regions, does not configure them and does not write to a board. It reports what the region in the open file contains.
+
+## The Full Info tab
+
+The tab holds the structures the analysis decoded, as a tree in which every row corresponds to actual bytes of the file:
+
+- **[[term:fpt|$FPT]]** — the partition table, listing the partitions the region declares, with their addresses and lengths. A partition whose bytes are not present, or whose declared length does not agree with the region, is reported as such.
+- **[[term:cpd|Code partitions]]** and their modules.
+- **[[term:manifest|Manifests]]** and their extensions.
+- **[[term:mfs|MFS]]** — the file system and its configuration, which is where the **File System State** above is decided.
+- **[[term:oem-config|OEM configuration]]** and **[[term:utok|unlock tokens]]**, where present.
+
+Selecting a row scrolls the dump to those bytes and outlines them. The detail list under the tree holds the fields of the selected structure's header. An erased partition, or one of zero length, is shown in grey: it is a declared place in the layout that holds nothing.
+
+## Copying the report
+
+The two buttons in the tab bar copy the **Summary** tab either as text or as an image of the panel.
+
+The glossary explains the terms the tool uses: select a row and press **?** beside the detail list to open the article for that row.
