@@ -36,6 +36,20 @@ format means a translator's tools work on both repositories, and a string the
 two editions share can be copied across without being re-typed. English ships
 no file: the keys are the English.
 
+## Whose words
+
+Two sources, kept apart in each catalogue:
+
+- **A string upstream says** is upstream's, key and translations both, copied
+  from its `Localizable.strings` word for word. Where the web's English had
+  drifted from upstream's, upstream's key is taken; where upstream leaves a
+  string English (a field label, an engine diagnostic), so does the web.
+- **A string only this edition says** — because upstream does not have the
+  thing: Save against Download, a browser's refusal, the library folder in a
+  browser, a part where upstream has a tab — is translated here (G66). It goes
+  in the block at the end of each catalogue, after the comment that says so,
+  so the next reader can tell a copied line from a written one.
+
 ## Which language
 
 `languageChoice` is `system` or a fixed language, kept in the settings store

@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { PaneId } from "@/state/workspaceStore";
 import { paneState } from "@/state/workspaceStore";
 import {
@@ -30,14 +31,14 @@ export async function applyTransaction(
   if (!checked.ok) return transactionProblemMessage(checked.problem);
 
   const slot = paneState(pane);
-  if (slot === undefined) return "That pane has no file open.";
+  if (slot === undefined) return L("That pane has no file open.");
 
   // Bounds are the document's to know, and they are checked before anything is
   // written: a transaction the file cannot hold is refused whole rather than
   // applied as far as it reaches.
   for (const write of checked.transaction.writes) {
     if (write.offset + write.bytes.length > slot.document.size) {
-      return "That change would write past the end of this file.";
+      return L("That change would write past the end of this file.");
     }
   }
 

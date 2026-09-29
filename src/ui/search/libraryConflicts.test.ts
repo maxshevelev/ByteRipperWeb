@@ -43,8 +43,8 @@ describe("a row of the resolver", () => {
     expect(conflictSubject(conflict)).toBe("Intel ME FPT");
     expect(ourSide(conflict)).toContain("Intel ME FPT");
     expect(ourSide(conflict)).toContain('"$FPT"');
-    expect(theirSide(conflict, IMPORT_WORDING)).toContain("ME region table");
-    expect(theirSide(conflict, IMPORT_WORDING)).toContain('"$FPT"');
+    expect(theirSide(conflict, IMPORT_WORDING())).toContain("ME region table");
+    expect(theirSide(conflict, IMPORT_WORDING())).toContain('"$FPT"');
     expect(answeringAll([conflict], "keepOurs").get(fpt.id)).toBe("keepOurs");
   });
 
@@ -53,9 +53,9 @@ describe("a row of the resolver", () => {
     const duplicate: LibraryConflict = { kind: "duplicate", ours: fpt, theirs: renamed };
 
     expect(resolutionChoices(edited)).toEqual(["keepOurs", "keepTheirs", "keepBoth"]);
-    expect(resolutionTitles(edited, IMPORT_WORDING)).toEqual(["This Browser", "File", "Both"]);
+    expect(resolutionTitles(edited, IMPORT_WORDING())).toEqual(["This Browser", "File", "Both"]);
     expect(resolutionChoices(duplicate)).toEqual(["keepOurs", "keepTheirs"]);
-    expect(resolutionTitles(duplicate, IMPORT_WORDING)).toEqual(["This Browser", "File"]);
+    expect(resolutionTitles(duplicate, IMPORT_WORDING())).toEqual(["This Browser", "File"]);
   });
 
   it("says which side deleted, and which side changed", () => {
@@ -66,16 +66,16 @@ describe("a row of the resolver", () => {
       deletedHere: false,
     };
     expect(ourSide(deletedThere)).toBe('Intel ME FPT: "$FPT"  ASCII — changed here');
-    expect(theirSide(deletedThere, IMPORT_WORDING)).toBe("Deleted in the imported file");
-    expect(theirSide({ ...deletedThere, deletedBy: "" }, IMPORT_WORDING)).toBe("Deleted");
-    expect(resolutionTitles(deletedThere, IMPORT_WORDING)).toEqual(["Mine", "The deletion"]);
+    expect(theirSide(deletedThere, IMPORT_WORDING())).toBe("Deleted in the imported file");
+    expect(theirSide({ ...deletedThere, deletedBy: "" }, IMPORT_WORDING())).toBe("Deleted");
+    expect(resolutionTitles(deletedThere, IMPORT_WORDING())).toEqual(["Mine", "The deletion"]);
 
     const deletedHere: LibraryConflict = { ...deletedThere, deletedHere: true };
     expect(ourSide(deletedHere)).toBe("Deleted here");
-    expect(theirSide(deletedHere, IMPORT_WORDING)).toBe(
+    expect(theirSide(deletedHere, IMPORT_WORDING())).toBe(
       'Intel ME FPT: "$FPT"  ASCII — changed in the imported file'
     );
-    expect(resolutionTitles(deletedHere, IMPORT_WORDING)).toEqual([
+    expect(resolutionTitles(deletedHere, IMPORT_WORDING())).toEqual([
       "The deletion",
       "Their version",
     ]);

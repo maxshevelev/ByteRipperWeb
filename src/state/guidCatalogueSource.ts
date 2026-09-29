@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { remoteFailureOf } from "@/platform/net/cachedSource";
 import type { FreshenedStatus } from "@/platform/net/freshened";
@@ -121,13 +122,12 @@ export function guidsSourceErrorOf(error: unknown): GuidsSourceError | undefined
 export function guidsSourceMessage(error: GuidsSourceError): string {
   switch (error.kind) {
     case "offline":
-      return `Could not reach github.com: ${error.underlying}`;
+      return L("Could not reach github.com: %1$@", error.underlying);
     case "badResponse":
-      return `github.com answered ${error.status}.`;
+      return L("github.com answered %1$@.", error.status);
     case "rateLimited":
-      return (
-        "GitHub is rate-limiting this address. The names shown are the ones " +
-        "shipped in the build, and they will refresh on the next open."
+      return L(
+        "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open."
       );
   }
 }

@@ -87,8 +87,11 @@ export function fitRowMarks(row: FITDisplayRow, problems: readonly FITProblem[])
     const computed = target.header.computedChecksum;
     if (computed !== undefined) {
       errors.push(
-        `Invalid microcode image checksum: ${hex(target.header.checksum)}, ` +
-          `should be ${hex(computed)}`
+        L(
+          "Invalid microcode image checksum: %1$@, should be %2$@",
+          hex(target.header.checksum),
+          hex(computed)
+        )
       );
     } else {
       cautions.push(L("The microcode image cannot be read whole, so its checksum is not checked"));
@@ -127,20 +130,20 @@ export function verdict(
     case "latest":
       return {
         mark: "newest",
-        toolTip: "Newest revision the catalogue lists for this processor and platform.",
+        toolTip: L("Newest revision the catalogue lists for this processor and platform"),
       };
     case "outdated":
       return {
         mark: "newerListed",
-        toolTip: `Catalogue lists a newer revision (r.${revision(state.newestRevision)})`,
+        toolTip: L("Catalogue lists a newer revision (r.%1$@)", revision(state.newestRevision)),
       };
     case "undecided":
       return {
         mark: "newerMaybe",
-        toolTip:
-          `Catalogue lists a newer revision (r.${revision(state.newestRevision)}) ` +
-          "whose platforms only partly overlap this one's — whether it serves this " +
-          "board depends on the board's own platform ID, which the image does not carry",
+        toolTip: L(
+          "Catalogue lists a newer revision (r.%1$@) whose platforms only partly overlap this one's — whether it serves this board depends on the board's own platform ID, which the image does not carry",
+          revision(state.newestRevision)
+        ),
       };
     case "notRated":
       return undefined;

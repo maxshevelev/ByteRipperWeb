@@ -298,7 +298,7 @@ export function SegmentsDialog({
                         className="bookmark-name-field"
                         ref={(element) => element?.select()}
                         defaultValue={piece.name}
-                        aria-label={`Name for ${segmentLabel(piece.index)}`}
+                        aria-label={L("Name for %1$@", segmentLabel(piece.index))}
                         onBlur={(event) => {
                           renamePiece(pane, piece.index, event.target.value);
                           setRenaming(undefined);
@@ -427,17 +427,21 @@ function linkExplanation(
   sourceName: string,
   piece: Segment
 ): string {
-  const from = `${segmentLabel(piece.index)} came from “${sourceName}”`;
+  const segment = segmentLabel(piece.index);
   switch (state?.kind) {
     case "edited":
-      return `${from}, and has been changed since.`;
+      return L("%1$@ came from “%2$@”, and has been changed since.", segment, sourceName);
     case "lengthChanged":
-      return `${from}, which is ${friendlySize(state.sourceLength)} there against ${friendlySize(
-        state.pieceLength
-      )} here.`;
+      return L(
+        "%1$@ came from “%2$@”, which is %3$@ there against %4$@ here.",
+        segment,
+        sourceName,
+        friendlySize(state.sourceLength),
+        friendlySize(state.pieceLength)
+      );
     case "missing":
-      return `${from}, which can no longer be read.`;
+      return L("%1$@ came from “%2$@”, which can no longer be read.", segment, sourceName);
     default:
-      return `${from}, and still holds its bytes.`;
+      return L("%1$@ came from “%2$@”, and still holds its bytes.", segment, sourceName);
   }
 }

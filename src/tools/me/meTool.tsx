@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
-import { L } from "@/core/localization/localization";
+import { L, localized } from "@/core/localization/localization";
 import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
@@ -130,10 +130,10 @@ const INDENT = 16;
  * @upstream-differs `grows` is on the values column, where upstream carries
  * `.autoresizingMask` on the name column
  */
-const ME_COLUMNS: readonly TableColumn[] = [
-  { id: "name", title: "Name", width: 300, min: 150 },
+const ME_COLUMNS: () => readonly TableColumn[] = localized(() => [
+  { id: "name", title: L("Name"), width: 300, min: 150 },
   { id: "values", title: "", width: 150, min: 150, grows: true },
-];
+]);
 /** The tree's share of the split; upstream gives the detail a third. */
 const DEFAULT_TREE_SHARE = 2 / 3;
 const TREE_SHARE_KEY = "byteripper.meTreeShare";
@@ -211,7 +211,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const [busy, setBusy] = useState(false);
   const [checksums, setChecksums] = useState<MEAChecksums | undefined>(undefined);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
-  const { widths, resize, reset: resetWidths } = useColumnWidths(ME_COLUMNS);
+  const { widths, resize, reset: resetWidths } = useColumnWidths(ME_COLUMNS());
   const [showsMarkings, setShowsMarkings] = useShowsMarkings(MEA_PANEL);
   const [notice, setNotice] = useState<string | undefined>(undefined);
   /** Which analysis a reply belongs to: a reply to a superseded one is dropped. */
@@ -296,7 +296,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     if (status === "failed") {
       request.current++;
       setBusy(false);
-      setResult({ phase: "failed", problem: firmwareProblem ?? "That image could not be read." });
+      setResult({
+        phase: "failed",
+        problem: firmwareProblem ?? L("That image could not be read."),
+      });
       shown.current = undefined;
       return;
     }
@@ -546,7 +549,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     if (blocks.length === 0) return;
     void writeRichText(summaryHtml(blocks, toneColours()), summaryPlain(blocks)).then((done) => {
       if (done) showNotice("copySummary", [L("Summary Copied")]);
-      else setNotice("The browser would not put the summary on the clipboard.");
+      else setNotice(L("The browser would not put the summary on the clipboard."));
     });
   }, [blocks, showNotice]);
 
@@ -569,7 +572,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         // Plain HTTP and a few browsers have no clipboard for pictures; the
         // picture is still the thing asked for, so it is kept as a file.
         downloadBlob(blob, "ME Summary.png");
-        setNotice("The browser would not take a picture, so it was saved as a file.");
+        setNotice(L("The browser would not take a picture, so it was saved as a file."));
       });
     }, "image/png");
   }, [blocks, showNotice]);
@@ -584,7 +587,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         <div
           className="me-tabs"
           role="tablist"
-          aria-label="ME Analyzer view"
+          aria-label={L("ME Analyzer view")}
           tabIndex={-1}
           onKeyDown={onTabKey}
         >
@@ -643,7 +646,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
             detail={
               firmware?.status === "ready"
                 ? L("Reading the region and its partitions.")
-                : "Reading the file first: the region is found in its tree."
+                : L("Reading the file first: the region is found in its tree.")
             }
             fraction={firmware?.status === "ready" ? undefined : (firmware?.fraction ?? 0)}
           />
@@ -677,10 +680,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                 ref={treeRef}
                 role="tree"
                 tabIndex={0}
-                aria-label="ME firmware structure"
+                aria-label={L("ME firmware structure")}
                 onKeyDown={onTreeKey}
                 style={
-                  { "--table-columns": columnTemplate(widths, ME_COLUMNS) } as React.CSSProperties
+                  { "--table-columns": columnTemplate(widths, ME_COLUMNS()) } as React.CSSProperties
                 }
               >
                 {/* The tree's heading, as the UEFI tree's: the value column
@@ -691,7 +694,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                   <span>
                     {L("Name")}
                     <ColumnResizer
-                      columns={ME_COLUMNS}
+                      columns={ME_COLUMNS()}
                       index={0}
                       widths={widths}
                       onChange={resize}
@@ -726,7 +729,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               fraction={treeShare}
               onChange={changeTreeShare}
               initial={DEFAULT_TREE_SHARE}
-              label="Resize the detail"
+              label={L("Resize the detail")}
             />
             <ToolDetail
               subject={focus}
@@ -756,7 +759,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           </>
         ) : database.status === "loading" ? (
           <>
-            <span>Downloading MEA.dat…</span>
+            <span>{L("Downloading %1$@…", "MEA.dat")}</span>
             <button type="button" className="toolbar-button is-quiet" onClick={cancelMEDatabase}>
               {L("Cancel")}
             </button>
@@ -776,7 +779,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           </>
         ) : huffman.status === "loading" ? (
           <>
-            <span>Downloading Huffman.dat…</span>
+            <span>{L("Downloading %1$@…", "Huffman.dat")}</span>
             <button
               type="button"
               className="toolbar-button is-quiet"
@@ -998,7 +1001,7 @@ function MeTreeRow({
           className="me-twist"
           tabIndex={-1}
           disabled={!hasChildren}
-          aria-label={isOpen ? "Collapse" : "Expand"}
+          aria-label={isOpen ? L("Collapse") : L("Expand")}
           onClick={(event) => {
             event.stopPropagation();
             onToggle(node);

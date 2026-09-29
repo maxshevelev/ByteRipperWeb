@@ -1,9 +1,10 @@
+import { L } from "@/core/localization/localization";
 import { encodingTitle, parsePattern, type SearchEncoding } from "@/core/search/searchPattern";
 import { type SearchPatternEntry, searchPatternEntry } from "@/core/search/searchPatternEntry";
 import type { ImportResult } from "@/state/favoritesStore";
 
 /**
- * The Favorites tab's table, as rows and what an edit does to them — kept apart
+ * The Search Patterns tab's table, as rows and what an edit does to them — kept apart
  * from the component so the rules can be tested without one.
  *
  * Two rules are the ones a table like this usually gets wrong:
@@ -26,8 +27,8 @@ export interface TableEdit {
  */
 export function patternComplaint(pattern: string, encoding: SearchEncoding): string {
   return encoding === "hex"
-    ? `"${pattern}" is not hex — use pairs like DE AD BE EF.`
-    : `"${pattern}" cannot be written in ${encodingTitle(encoding)}.`;
+    ? L("“%1$@” is not hex — use pairs like DE AD BE EF.", pattern)
+    : L("“%1$@” cannot be written in %2$@.", pattern, encodingTitle(encoding));
 }
 
 /** @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.hasDraft */
@@ -190,23 +191,24 @@ export interface TabReport {
 export function importReport(result: ImportResult, fileName: string): TabReport {
   switch (result.kind) {
     case "unreadable":
-      return { problem: `"${fileName}" is not a ByteRipper pattern library.` };
+      return { problem: L("“%1$@” is not a ByteRipper pattern library.", fileName) };
     case "readOnly":
       return {
-        problem:
-          "The library is read-only until its conflicting changes are answered — Resolve… first.",
+        problem: L(
+          "The library is read-only until its conflicting changes are answered — Resolve… first."
+        ),
       };
     case "asking":
       return {};
     case "imported": {
       const parts = [
-        result.added > 0 ? `${result.added} added` : "",
-        result.changed > 0 ? `${result.changed} changed` : "",
-        result.removed > 0 ? `${result.removed} removed` : "",
+        result.added > 0 ? L("%1$@ added", result.added) : "",
+        result.changed > 0 ? L("%1$@ changed", result.changed) : "",
+        result.removed > 0 ? L("%1$@ removed", result.removed) : "",
       ].filter((part) => part !== "");
       return parts.length === 0
-        ? { report: `"${fileName}" holds nothing this browser does not already have.` }
-        : { report: `Imported "${fileName}": ${parts.join(", ")}.` };
+        ? { report: L("“%1$@” holds nothing this browser does not already have.", fileName) }
+        : { report: L("Imported “%1$@”: %2$@.", fileName, parts.join(", ")) };
     }
   }
 }

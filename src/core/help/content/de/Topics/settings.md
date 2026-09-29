@@ -1,4 +1,4 @@
-@source-sha dcb8e4b4b42aa1ebe39664b58ce45b2de184ad4258a1ed3d6025a2684fb03f54
+@source-sha f760a5cf83f4dfa2fd7fe750916cd565b139014075afba489c1fb68b163ef5f7
 # Einstellungen
 
 > **Ablage ▸ Einstellungen…** im Menü der Symbolleiste — das, was sich das Programm merkt.
@@ -10,7 +10,7 @@ Ein ⌘, gibt es hier nicht: im Browser gehört dieser Griff den Einstellungen d
 - **Vergleich** — wie Unterschiede gezeigt und gezählt werden.
 - **Bearbeiten** — die Rückfragen vor Änderungen, welche die Länge der Datei verändern ([[topic:editing|Bytes bearbeiten]]). Sie sind voreingestellt, und es ist dieselbe Einstellung wie das Kästchen „Nicht mehr fragen“ in den Dialogen selbst.
 - **Textdecodierung** — die Codierung, mit der die Textspalte gelesen wird.
-- **Favoriten** — die benannten Suchmuster und der Ordner, über den sich die Bibliothek zwischen mehreren Installationen abgleichen lässt ([[topic:search|Bytes und Text finden]]).
+- **Suchmuster** — die benannten Suchmuster und der Ordner, über den sich die Bibliothek zwischen mehreren Installationen abgleichen lässt ([[topic:search|Bytes und Text finden]]).
 - **Sprache** — English, Русский oder Deutsch, oder was der Browser liest. Die Umstellung gilt sofort: nichts wird neu geladen, denn eine neu geladene Seite würde nach jedem offenen Dump erneut fragen. Firmware-Begriffe bleiben in jeder Sprache englisch, weil Datenblätter und Werkzeuge sie so nennen.
 
 ## Wo die Einstellungen liegen

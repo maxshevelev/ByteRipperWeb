@@ -322,7 +322,7 @@ describe("a save must not write over a source", () => {
   // choose another of.
   it("says the conflict by name, singular and plural", () => {
     const one = sourceWriteConflict(["chip1.bin"], "name");
-    expect(one.title).toBe("“chip1.bin” is a segment’s source");
+    expect(one.title).toBe("“chip1.bin” is a segment's source");
     expect(one.message).toContain("Choose another name");
 
     const two = sourceWriteConflict(["chip1.bin", "chip2.bin"], "folder");

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  PAST_END_OF_FILE,
+  pastEndOfFile,
   rowDescription,
   selectionAfterChange,
   visibleRowCount,
@@ -39,6 +39,6 @@ describe("an unnamed bookmark's description", () => {
   });
 
   it("says so for a row past the end of the file", () => {
-    expect(rowDescription(undefined)).toBe(PAST_END_OF_FILE);
+    expect(rowDescription(undefined)).toBe(pastEndOfFile());
   });
 });

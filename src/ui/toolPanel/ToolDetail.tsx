@@ -88,7 +88,7 @@ export function ToolDetail({
                   <HelpButton
                     link={termLink(helpTerm)}
                     shape="inline"
-                    label={`What ${detail.title} is`}
+                    label={L("What %1$@ is", detail.title)}
                     onOpen={() => setTermShown((shown) => !shown)}
                   />
                   {termShown ? (

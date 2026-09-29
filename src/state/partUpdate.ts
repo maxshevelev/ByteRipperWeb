@@ -45,9 +45,9 @@ export type UpdateOutcome =
  */
 function confirmOverwritingChangedSource(origin: DocumentOrigin): boolean {
   return window.confirm(
-    `“${origin.partName}” has changed in ${origin.parentName}. ` +
-      "Its bytes there are no longer the ones this part was opened from. " +
-      "Updating overwrites those changes with this part's bytes."
+    `${L("“%1$@” has changed in %2$@", origin.partName, origin.parentName)}. ${L(
+      "Its bytes there are no longer the ones this part was opened from. Updating overwrites those changes with this part's bytes."
+    )}`
   );
 }
 
@@ -68,7 +68,7 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     return { kind: "refused" };
   }
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
-  const stepName = `Update from ${slot.name}`;
+  const stepName = L("Update from %1$@", slot.name);
   if (plan.kind === "rebuild") return rebuildIntoParent(origin, plan, stepName);
 
   // The link takes the new bytes as the truth *before* the write, so the change
@@ -84,7 +84,7 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
   });
   if (problem !== undefined) {
     origin.restore(snapshot);
-    reportAlert(`Could not update “${origin.parentName}”.`, problem);
+    reportAlert(L("Could not update “%1$@”.", origin.parentName), problem);
     return { kind: "refused" };
   }
   return { kind: "updated", parent: origin.parent };
@@ -123,7 +123,7 @@ async function rebuildIntoParent(
     abandoned = true;
     operation.finish();
   });
-  presentBlocking(`Updating “${origin.parentName}” from “${origin.partName}”`, operation);
+  presentBlocking(L("Updating “%1$@” from “%2$@”", origin.parentName, origin.partName), operation);
   const answer = await askFirmwareRebuild(
     origin.parent,
     plan.bytes,
@@ -139,8 +139,8 @@ async function rebuildIntoParent(
   const built = answer?.plan;
   if (built === undefined) {
     reportAlert(
-      `“${origin.partName}” cannot be put back`,
-      answer?.refusal ?? `Nothing was changed in ${origin.parentName}.`
+      L("“%1$@” cannot be put back", origin.partName),
+      answer?.refusal ?? L("Nothing was changed in %1$@.", origin.parentName)
     );
     return { kind: "refused" };
   }
@@ -148,7 +148,7 @@ async function rebuildIntoParent(
   const now = paneState(origin.parent);
   if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
     reportAlert(
-      `“${origin.parentName}” changed`,
+      L("“%1$@” changed", origin.parentName),
       L("It changed while the update was being worked out. Nothing was written.")
     );
     return { kind: "refused" };
@@ -162,12 +162,12 @@ async function rebuildIntoParent(
     });
     if (problem !== undefined) {
       origin.restore(snapshot);
-      reportAlert(`Could not update “${origin.parentName}”.`, problem);
+      reportAlert(L("Could not update “%1$@”.", origin.parentName), problem);
       return { kind: "refused" };
     }
   }
   reportAlert(
-    `Updated “${origin.parentName}”`,
+    L("Updated “%1$@”", origin.parentName),
     built.warnings.length === 0
       ? L("Nothing was written inside a Boot Guard or vendor protected range.")
       : built.warnings.join("\n\n")
@@ -219,10 +219,13 @@ export function partsLinkedTo(pane: PaneId): PartId[] {
  */
 export const strandingSentence = (count: number): string =>
   count === 1
-    ? "One panel was opened out of it and will lose its way back. " +
-      "Its bytes stay as they are; only the way back goes."
-    : `${count} panels were opened out of it and will lose their way back. ` +
-      "Their bytes stay as they are; only the way back goes.";
+    ? L(
+        "One panel was opened out of it and will lose its way back. Its bytes stay as they are; only the way back goes."
+      )
+    : L(
+        "%1$@ panels were opened out of it and will lose their way back. Their bytes stay as they are; only the way back goes.",
+        count
+      );
 
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.strandingCloseButton */
 export const strandingCloseButton = (count: number): string =>

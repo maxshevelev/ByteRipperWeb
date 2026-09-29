@@ -31,18 +31,18 @@ describe("the line an import leaves under the table", () => {
   it("says what the import did, leaving out what it did not do", () => {
     expect(
       importReport({ kind: "imported", added: 2, changed: 0, removed: 1 }, "Mac.json")
-    ).toEqual({ report: 'Imported "Mac.json": 2 added, 1 removed.' });
+    ).toEqual({ report: "Imported “Mac.json”: 2 added, 1 removed." });
   });
 
   it("says when the file brought nothing new", () => {
     expect(
       importReport({ kind: "imported", added: 0, changed: 0, removed: 0 }, "Mac.json")
-    ).toEqual({ report: '"Mac.json" holds nothing this browser does not already have.' });
+    ).toEqual({ report: "“Mac.json” holds nothing this browser does not already have." });
   });
 
   it("calls a file that is not a library a problem", () => {
     expect(importReport({ kind: "unreadable" }, "notes.txt")).toEqual({
-      problem: '"notes.txt" is not a ByteRipper pattern library.',
+      problem: "“notes.txt” is not a ByteRipper pattern library.",
     });
   });
 
@@ -62,7 +62,7 @@ describe("the Favorites table", () => {
     const before = [row("a", "11")];
     const { rows, message } = commitPattern(before, 0, "DE A");
     expect(rows).toBe(before);
-    expect(message).toBe('"DE A" is not hex — use pairs like DE AD BE EF.');
+    expect(message).toBe("“DE A” is not hex — use pairs like DE AD BE EF.");
   });
 
   it("refuses an encoding the pattern cannot be read in", () => {

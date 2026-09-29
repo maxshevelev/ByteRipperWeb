@@ -89,7 +89,7 @@ export function searchResultsMessage(content: SearchResultsContent): string | un
     case "matches":
       return undefined;
     case "tooMany":
-      return `${grouped(content.total)} matches — too many to list. Refine the pattern.`;
+      return L("%1$@ matches — too many to list. Refine the pattern.", grouped(content.total));
     case "searching":
       return L("Searching…");
     case "empty":

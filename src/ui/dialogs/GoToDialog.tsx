@@ -185,7 +185,7 @@ export function GoToDialog({
     : !parsed.ok
       ? L("Invalid offset — use hex with 0x prefix or decimal.")
       : parsed.value > fileSize
-        ? `This file ends at 0x${fileSize.toString(16).toUpperCase()}.`
+        ? L("This file ends at 0x%1$@.", fileSize.toString(16).toUpperCase())
         : undefined;
   const target = parsed.ok && problem === undefined ? parsed.value : undefined;
 
@@ -474,7 +474,7 @@ export function GoToDialog({
                 id={recentListId}
                 className="menu-popup goto-combo-popup"
                 role="listbox"
-                aria-label="Recent addresses"
+                aria-label={L("Recent addresses")}
               >
                 {state.recent.map((row, index) => (
                   <div
@@ -567,8 +567,13 @@ export function GoToDialog({
           ) : empty ? (
             // @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.noBookmarksYetText
             <p className="bookmark-empty">
-              No bookmarks yet. {platform === "apple" ? "⌘D" : "Ctrl+D"} marks the row your caret is
-              on, so you can come back to it.
+              {platform === "apple"
+                ? L(
+                    "No bookmarks yet. ⌘D marks the row your caret is on, so you can come back to it."
+                  )
+                : L(
+                    "No bookmarks yet. Ctrl+D marks the row your caret is on, so you can come back to it."
+                  )}
             </p>
           ) : null}
           {editingHere !== undefined && editAnchor?.token === editingHere.token ? (

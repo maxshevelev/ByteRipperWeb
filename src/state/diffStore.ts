@@ -251,7 +251,7 @@ async function scanOnThisThread(id: JobId, gap: number): Promise<void> {
  * @web-only nothing upstream shows this error; the browser needs it said
  */
 function reportComparisonFailure(message: string | undefined): void {
-  reportAlert("Comparison failed.", message ?? "Those two files could not be compared.");
+  reportAlert(L("Comparison failed."), message ?? L("Those two files could not be compared."));
 }
 
 /**
@@ -392,7 +392,7 @@ async function applyEditsToComparison(edits: readonly DiffEdit[]): Promise<void>
     if (error instanceof DiffCancelled) return;
     diffStore.update((state) => ({ ...state, status: "failed" }));
     reportComparisonFailure(
-      error instanceof Error ? error.message : "The comparison could not be updated."
+      error instanceof Error ? error.message : L("The comparison could not be updated.")
     );
   }
 }

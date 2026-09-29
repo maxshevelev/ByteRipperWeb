@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { L } from "@/core/localization/localization";
 import { usePointerDrag } from "@/ui/shell/pointerDrag";
 import { boundaryTarget, draggedWidth, type TableColumn } from "@/ui/toolPanel/columnWidths";
 
@@ -82,7 +83,11 @@ export function ColumnResizer({ columns, index, widths, onChange, onReset }: Col
       className="column-resizer"
       role="separator"
       tabIndex={0}
-      aria-label={`Resize the ${column.title.length === 0 ? "second" : column.title} column`}
+      aria-label={
+        column.title.length === 0
+          ? L("Resize the second column")
+          : L("Resize the %1$@ column", column.title)
+      }
       aria-orientation="vertical"
       aria-valuenow={width}
       aria-valuemin={column.min}

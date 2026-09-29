@@ -77,17 +77,17 @@ export function SelectBlockDialog({
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.errorLabel
    */
   function validate(): string | undefined {
-    if (startValue === undefined) return "That start offset could not be read.";
-    if (startValue > fileSize) return "The start is past the end of the file.";
+    if (startValue === undefined) return L("Invalid start offset.");
+    if (startValue > fileSize) return L("Start is beyond the end of the file.");
     if (mode === "end") {
       const endValue = offsetIn(end);
-      if (endValue === undefined) return "That end offset could not be read.";
-      if (startValue > endValue) return "The start must not come after the end.";
+      if (endValue === undefined) return L("Invalid end offset.");
+      if (startValue > endValue) return L("Start must not exceed end.");
       // End names the last byte, so it has to be a byte the file holds.
-      if (endValue >= fileSize) return `This file ends at ${hex(fileSize - 1)}.`;
+      if (endValue >= fileSize) return L("End is beyond the end of the file.");
       return undefined;
     }
-    if (offsetIn(length) === undefined) return "That length could not be read.";
+    if (offsetIn(length) === undefined) return L("Invalid length.");
     return undefined;
   }
 
@@ -165,7 +165,7 @@ export function SelectBlockDialog({
             disabled={mode !== "end"}
             onChange={(event) => setEnd(event.target.value)}
             spellCheck={false}
-            aria-label="End offset"
+            aria-label={L("End offset")}
           />
         </div>
 
@@ -189,7 +189,7 @@ export function SelectBlockDialog({
           />
         </div>
 
-        <p className="dialog-help">{problem ?? "Decimal, or hex as 1F or 0x1F."}</p>
+        <p className="dialog-help">{problem ?? L("Decimal, or hex as 1F or 0x1F.")}</p>
 
         <div className="dialog-actions">
           <button
@@ -197,7 +197,7 @@ export function SelectBlockDialog({
             className="toolbar-button"
             disabled={startBad}
             onClick={() => toBoundary("beginning")}
-            title="Select from the file's start to the position above"
+            title={L("Select from the file's start to the position above")}
           >
             {L("To Beginning")}
           </button>
@@ -206,7 +206,7 @@ export function SelectBlockDialog({
             className="toolbar-button"
             disabled={startBad}
             onClick={() => toBoundary("end")}
-            title="Select from the position above to the file's end"
+            title={L("Select from the position above to the file's end")}
           >
             {L("To End")}
           </button>
@@ -215,7 +215,7 @@ export function SelectBlockDialog({
             {L("Cancel")}
           </button>
           <button type="submit" className="toolbar-button" disabled={problem !== undefined}>
-            Select
+            {L("Select")}
           </button>
         </div>
       </form>

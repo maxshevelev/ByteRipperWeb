@@ -549,7 +549,7 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
   } catch (error) {
     reportAlert(
       L("Could not open file."),
-      error instanceof Error ? error.message : "This file could not be opened."
+      error instanceof Error ? error.message : L("This file could not be opened.")
     );
   }
 }
@@ -834,7 +834,7 @@ export async function duplicatePane(from: SlotId): Promise<void> {
     // @web-only upstream copies into a temp file it can always create; a page
     // has no private storage to put one in unless the browser grants OPFS, and
     // the shell is what knows how to say so
-    throw new Error("This browser cannot make a copy: it has no private storage to put one in.");
+    throw new Error(L("This browser cannot make a copy: it has no private storage to put one in."));
   }
 
   const into: SlotId = from === "a" ? "b" : "a";
@@ -889,7 +889,9 @@ export async function duplicatePane(from: SlotId): Promise<void> {
  */
 function copyName(name: string): string {
   const dot = name.lastIndexOf(".");
-  return dot <= 0 ? `${name} copy` : `${name.slice(0, dot)} copy${name.slice(dot)}`;
+  return dot <= 0
+    ? L("%1$@ copy", name)
+    : `${L("%1$@ copy", name.slice(0, dot))}${name.slice(dot)}`;
 }
 
 /**

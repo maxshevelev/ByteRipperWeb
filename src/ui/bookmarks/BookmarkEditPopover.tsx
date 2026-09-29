@@ -123,7 +123,7 @@ export function BookmarkEditPopover({
       ref={formRef}
       className={`bookmark-popover${above ? " is-above" : ""}`}
       style={{ top, left }}
-      aria-label={isNew ? "Name bookmark" : "Edit bookmark"}
+      aria-label={isNew ? L("Name bookmark") : L("Edit bookmark")}
       onSubmit={submit}
       onKeyDown={(event) => {
         event.stopPropagation();

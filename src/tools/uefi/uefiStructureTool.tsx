@@ -128,7 +128,7 @@ const INDENT = 16;
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.subtypeWidth
  */
 const UEFI_COLUMNS: () => readonly TableColumn[] = localized(() => [
-  { id: "name", title: "Name", width: 300, min: 200, grows: true },
+  { id: "name", title: L("Name"), width: 300, min: 200, grows: true },
   { id: "type", title: L("Type"), width: 76, min: 56 },
   { id: "subtype", title: L("Subtype"), width: 88, min: 64 },
 ]);
@@ -668,7 +668,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         new Blob([bytes.slice()], { type: "application/octet-stream" }),
         taken.suggestedName
       );
-      context.report(`Exported ${bytes.length} bytes.`);
+      context.report(L("Exported %1$@ bytes.", bytes.length));
     },
     [context, decompressedBytes]
   );
@@ -1040,7 +1040,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     );
   }
   if (state.status === "failed") {
-    return <div className="tool-empty">{state.problem ?? "That image could not be parsed."}</div>;
+    return (
+      <div className="tool-empty">{state.problem ?? L("That image could not be parsed.")}</div>
+    );
   }
 
   const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -1128,7 +1130,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             ref={treeRef}
             role="tree"
             tabIndex={0}
-            aria-label="Firmware structure"
+            aria-label={L("Firmware structure")}
             onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
             onKeyDown={onKeyDown}
             style={
@@ -1214,7 +1216,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                                 node.id,
                                 volumeRevisionFor(node.id)
                               ).then((count) => {
-                                if (count === 0) context.report("There was nothing to put back.");
+                                if (count === 0)
+                                  context.report(L("There was nothing to put back."));
                               });
                             },
                           },
@@ -1264,7 +1267,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           fraction={treeShare}
           onChange={changeTreeShare}
           initial={DEFAULT_TREE_SHARE}
-          label="Resize the detail"
+          label={L("Resize the detail")}
         />
 
         <ToolDetail
@@ -1286,12 +1289,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       <footer className="tool-notice">
         {finding ? (
           <>
-            <span>Opening the branches to the caret…</span>
+            <span>{L("Opening the branches to the caret…")}</span>
             <progress />
           </>
         ) : catalogue.status === "loading" ? (
           <>
-            <span>Downloading GUID names…</span>
+            <span>{L("Downloading GUID names…")}</span>
             <button type="button" className="toolbar-button is-quiet" onClick={cancelGuidCatalogue}>
               {L("Cancel")}
             </button>
@@ -1390,7 +1393,7 @@ function TreeRow({
             className="uefi-twist"
             tabIndex={-1}
             disabled={!hasMeChildren}
-            aria-label={isOpen ? "Collapse" : "Expand"}
+            aria-label={isOpen ? L("Collapse") : L("Expand")}
             onClick={(event) => {
               event.stopPropagation();
               onToggleMe(me);
@@ -1461,7 +1464,7 @@ function TreeRow({
           className="uefi-twist"
           tabIndex={-1}
           disabled={!hasChildren}
-          aria-label={isOpen ? "Collapse" : "Expand"}
+          aria-label={isOpen ? L("Collapse") : L("Expand")}
           onClick={(event) => {
             event.stopPropagation();
             onToggle(node);

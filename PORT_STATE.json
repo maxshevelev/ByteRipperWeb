@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "7412186dab13ad90485c67176a4e3d81655c1c76",
-  "baselineNote": "Port the help book's tone pass and upstream's translator sweep; upstream's notebook move to Issues carries no code (2026-09-29)"
+  "baseCommit": "0b0d2a257dec662b9c4442a744f074daadfa75de",
+  "baselineNote": "Say plainly why a decompressed fragment is worth opening (2026-09-29)"
 }

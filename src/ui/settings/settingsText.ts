@@ -38,8 +38,18 @@ export function snapRowHeightScale(value: number): number {
  * @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettingsViewController.title
  */
 export function groupingGapTitle(gap: number): string {
-  const rows = Math.floor(gap / 16);
-  return `${gap} bytes (${rows} row${rows === 1 ? "" : "s"})`;
+  switch (gap) {
+    case 16:
+      return L("16 bytes (1 row)");
+    case 32:
+      return L("32 bytes (2 rows)");
+    case 64:
+      return L("64 bytes (4 rows)");
+    case 256:
+      return L("256 bytes (16 rows)");
+    default:
+      return L("%1$@ bytes (%2$@ rows)", gap, Math.floor(gap / 16));
+  }
 }
 
 /**

@@ -242,7 +242,7 @@ export function SearchResults({
         className="search-results-splitter"
         role="separator"
         tabIndex={0}
-        aria-label="Resize the search results"
+        aria-label={L("Resize the search results")}
         aria-orientation="horizontal"
         aria-valuenow={height}
         aria-valuemin={MIN_HEIGHT}

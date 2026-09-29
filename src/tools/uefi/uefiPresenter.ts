@@ -314,7 +314,7 @@ export function uefiZones(node: ZonedNode | undefined, roots?: readonly ZonedNod
     const section = sectionAt(roots ?? [], outermost);
     if (section === undefined) return { zones: [], focus: undefined };
     const name = node.name === "" ? "Compressed" : node.name;
-    return zonesOf(section, `${name} (in ${section.name})`);
+    return zonesOf(section, L("%1$@ (in %2$@)", name, section.name));
   }
   return zonesOf(node, node.name);
 }

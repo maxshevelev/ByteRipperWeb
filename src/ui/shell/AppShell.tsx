@@ -394,7 +394,11 @@ export function AppShell() {
       // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
       const occupant = workspaceStore.getSnapshot().panes[slot];
       if (occupant?.document.isDirty === true) {
-        if (!window.confirm(`${occupant.name} has unsaved edits. Replace it with ${file.name}?`)) {
+        if (
+          !window.confirm(
+            L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, file.name)
+          )
+        ) {
           return;
         }
       }
@@ -423,7 +427,7 @@ export function AppShell() {
         // the user closing it — not a failure to report.
         reportAlert(
           L("Could not open file."),
-          error instanceof Error ? error.message : "This file could not be opened."
+          error instanceof Error ? error.message : L("This file could not be opened.")
         );
       }
     },
@@ -468,7 +472,7 @@ export function AppShell() {
       if (!dragCarriesFiles(event.dataTransfer)) return;
       filesFromDrop(event.dataTransfer)
         .then((files) => accept(files))
-        .catch(() => reportAlert("Could not read file.", "That file could not be read."));
+        .catch(() => reportAlert(L("Could not read the file."), L("That file could not be read.")));
     };
 
     window.addEventListener("dragover", onDragOver);
@@ -530,13 +534,13 @@ export function AppShell() {
         if (outcome.kind === "downloaded") {
           showTransientMessage(
             front,
-            `Downloaded ${outcome.name}. The file you opened is unchanged.`
+            L("Downloaded %1$@. The file you opened is unchanged.", outcome.name)
           );
         }
       } catch (error) {
         reportAlert(
           as ? L("Save As failed.") : L("Save failed."),
-          error instanceof Error ? error.message : "That file could not be saved."
+          error instanceof Error ? error.message : L("That file could not be saved.")
         );
       }
     },
@@ -570,13 +574,17 @@ export function AppShell() {
     if (origin === undefined && pane.untitled) return;
     const asked =
       origin === undefined
-        ? `Throw away every unsaved edit to ${pane.name}?`
-        : `Revert to the original bytes? Every change made since “${origin.partName}” was opened from ${origin.parentName} will be discarded.`;
+        ? L("Throw away every unsaved edit to %1$@?", pane.name)
+        : `${L("Revert to the original bytes?")} ${L(
+            "Every change made since “%1$@” was opened from %2$@ will be discarded.",
+            origin.partName,
+            origin.parentName
+          )}`;
     if (!window.confirm(asked)) return;
     void revertPane(target).catch(() =>
       reportAlert(
         L("Revert failed."),
-        "That file could not be read again — it may have changed or been moved."
+        L("That file could not be read again — it may have changed or been moved.")
       )
     );
   }, []);
@@ -1043,7 +1051,7 @@ export function AppShell() {
     if (stranded > 0) {
       const answered = await new Promise<boolean>((resolve) =>
         setCloseAsk({
-          title: `Close “${slot?.name ?? ""}”?`,
+          title: L("Close “%1$@”?", slot?.name ?? ""),
           message: strandingSentence(stranded),
           confirmLabel: strandingCloseButton(stranded),
           answer: (choice) => resolve(choice === "confirm"),
@@ -1060,10 +1068,11 @@ export function AppShell() {
     if (slot !== undefined && origin !== undefined && (await origin.hasChanges(slot.document))) {
       const choice = await new Promise<CloseChoice>((resolve) =>
         setCloseAsk({
-          title: `Put “${origin.partName}” back into ${origin.parentName}?`,
-          message:
-            `It has changes ${origin.parentName} has not got. ` +
-            "Closing this panel without putting them back loses them.",
+          title: L("Put “%1$@” back into %2$@?", origin.partName, origin.parentName),
+          message: L(
+            "It has changes %1$@ has not got. Closing this panel without putting them back loses them.",
+            origin.parentName
+          ),
           // help: menu.file.update-in-parent
           confirmLabel: L("Update in Parent"),
           otherLabel: L("Close Anyway"),
@@ -1082,7 +1091,7 @@ export function AppShell() {
       // The ordinary question, and only for a document with nowhere to put its
       // bytes back: a part whose parent has them is not losing anything.
       // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
-      if (!window.confirm(`${slot.name} has unsaved edits. Close it and lose them?`)) return;
+      if (!window.confirm(L("%1$@ has unsaved edits. Close it and lose them?", slot.name))) return;
     }
     // Before the workspace forgets which file this was: a session bound to it
     // has nothing left to read.
@@ -1111,7 +1120,7 @@ export function AppShell() {
     void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
       reportAlert(
         L("Could not duplicate the file."),
-        error instanceof Error ? error.message : "That copy could not be made."
+        error instanceof Error ? error.message : L("That copy could not be made.")
       )
     );
   }, []);
@@ -1319,12 +1328,12 @@ export function AppShell() {
         revealSeam(pane);
       } catch (error) {
         if (error instanceof JoinEmpty) {
-          reportAlert("Nothing was joined.", `${error.message} Nothing was joined.`);
+          reportAlert(L("Nothing was joined."), L("%1$@ Nothing was joined.", error.message));
           return;
         }
         reportAlert(
           L("Could not join the pane."),
-          error instanceof Error ? error.message : "That file could not be joined."
+          error instanceof Error ? error.message : L("That file could not be joined.")
         );
       }
     },
@@ -1400,7 +1409,7 @@ export function AppShell() {
       } catch (error) {
         reportAlert(
           L("Could not join the pane."),
-          error instanceof Error ? error.message : "That file could not be joined."
+          error instanceof Error ? error.message : L("That file could not be joined.")
         );
       }
     },
@@ -1520,14 +1529,18 @@ export function AppShell() {
           // @upstream-differs upstream offers Save and Replace / Replace Without Saving / Cancel;
           // the web asks a plain confirm and replaces, as closing a dirty pane does
           if (occupant?.document.isDirty === true) {
-            const from = panes[dragging]?.name ?? "the pane";
-            if (!window.confirm(`${occupant.name} has unsaved edits. Replace it with ${from}?`))
+            const from = panes[dragging]?.name ?? L("the pane");
+            if (
+              !window.confirm(
+                L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, from)
+              )
+            )
               return;
           }
           void duplicatePane(dragging).catch((error: unknown) =>
             reportAlert(
               L("Could not duplicate the file."),
-              error instanceof Error ? error.message : "That copy could not be made."
+              error instanceof Error ? error.message : L("That copy could not be made.")
             )
           );
           return;
@@ -1799,7 +1812,7 @@ export function AppShell() {
     (transfer: DataTransfer, into: (files: OpenedFile[]) => void) => {
       filesFromDrop(transfer)
         .then(into)
-        .catch(() => reportAlert("Could not read file.", "That file could not be read."));
+        .catch(() => reportAlert(L("Could not read the file."), L("That file could not be read.")));
     },
     []
   );
@@ -1860,7 +1873,7 @@ export function AppShell() {
         // keyboard and the scroll with it.
         key={`${id}:${documentKey(pane.document)}`}
         paneId={id}
-        label={id === "a" ? "File A" : "File B"}
+        label={id === "a" ? L("File A") : L("File B")}
         name={pane.name}
         document={pane.document}
         wordSize={state.wordSize}
@@ -2213,7 +2226,7 @@ export function AppShell() {
         open={writeAsk !== undefined}
         title={writeAsk?.title ?? ""}
         message={writeAsk?.message ?? ""}
-        confirmLabel="Save"
+        confirmLabel={L("Save")}
         onConfirm={() => {
           writeAsk?.answer(true);
           setWriteAsk(undefined);

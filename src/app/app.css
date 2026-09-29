@@ -4284,18 +4284,24 @@ button.uefi-title {
   margin-top: 8px;
 }
 
-/* The Find bar's Manage Favorites… row, when the library has a problem. */
+/* The Find bar's Manage Search Patterns… row, when the library has a problem. */
 .search-field-problem {
   color: var(--semantic-bad);
 }
 
 /* Where the library lives: the line on its own, the commands under it — the
-   folder's name is the one thing here that has to be read in full. */
+   folder's name is the one thing here that has to be read in full. Under the
+   title and above the list, where upstream puts it: 10 after the one, 12
+   before the other. */
+.settings-favorites > .settings-heading {
+  margin-bottom: 10px;
+}
+
 .favorites-location {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .favorites-location-line {

@@ -74,7 +74,7 @@ export function buildNodeDetail(
     protectedBy.length === 0
       ? { fields: [], tables: [] }
       : {
-          fields: [field(L("Protection"), PROTECTION_CAVEAT)],
+          fields: [field(L("Protection"), protectionCaveat())],
           tables: [protectedByTable(protectedBy)],
         };
   fields.push(...protection.fields);
@@ -127,9 +127,10 @@ export function buildNodeDetail(
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectionCaveat
  */
-export const PROTECTION_CAVEAT =
-  "Whether Boot Guard is enforced is set in the chipset's fuses, not in this image: " +
-  "the marks say what an edit would break if it is. Vendor hashes are checked by the firmware itself.";
+export const protectionCaveat = (): string =>
+  L(
+    "Whether Boot Guard is enforced is set in the chipset's fuses, not in this image: the marks say what an edit would break if it is. Vendor hashes are checked by the firmware itself."
+  );
 
 /**
  * Every range that shares a byte with the node: what it is, where it is, where
@@ -162,17 +163,17 @@ function verdictCell(range: ProtectedRange): DetailCell {
   const algorithms = range.digests.map((one) => tcgHashName(one.algorithm)).join(", ");
   switch (range.verdict.kind) {
     case "matches":
-      return { text: `${algorithms} matches`, tone: "yes" };
+      return { text: L("%1$@ matches", algorithms), tone: "yes" };
     case "mismatch":
       // An IBB mismatch is not a verdict yet.
       return {
         text: isIbbKind(range.kind)
-          ? `${algorithms} differs (unconfirmed)`
-          : `${algorithms} differs`,
+          ? L("%1$@ differs (unconfirmed)", algorithms)
+          : L("%1$@ differs", algorithms),
         tone: "no",
       };
     case "unsupported":
-      return { text: `${tcgHashName(range.verdict.algorithm)} not computed`, tone: "plain" };
+      return { text: L("%1$@ not computed", tcgHashName(range.verdict.algorithm)), tone: "plain" };
     case "unchecked":
       return { text: L("Not checked"), tone: "plain" };
   }
@@ -190,9 +191,14 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
   if (outermost !== undefined) {
     const found = image.innermostNodeContaining(outermost);
     const section =
-      found !== undefined && found.header.start === outermost ? found.name : "Compressed section";
-    const deeper = node.space.length > 1 ? `, ${node.space.length} compressed sections deep` : "";
-    fields.push(field(L("Decompressed from"), `${section} at ${hex(outermost)}${deeper}`));
+      found !== undefined && found.header.start === outermost
+        ? found.name
+        : L("Compressed section");
+    let text = L("%1$@ at %2$@", section, hex(outermost));
+    if (node.space.length > 1) {
+      text = L("%1$@, %2$@ compressed sections deep", text, node.space.length);
+    }
+    fields.push(field(L("Decompressed from"), text));
   }
   fields.push(field(L("Header"), rangeText(node.header)));
   fields.push(field(L("Body"), rangeText(node.body)));

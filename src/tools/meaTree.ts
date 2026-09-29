@@ -147,7 +147,7 @@ export interface MEAChecksums {
  */
 export const CHECKSUMS_TITLE = "Checksums";
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.pendingValue */
-export const PENDING_VALUE = L("Loading…");
+export const pendingValue = (): string => L("Loading…");
 
 /** A node before its place in the tree is known. */
 interface Draft {
@@ -649,7 +649,10 @@ function mfsVolume(
   }
   if (vol.configurations.length > 0) {
     const rows = vol.configurations.map(
-      (config, index): Draft => ({ title: `Configuration ${index}`, fields: valueFields(config) })
+      (config, index): Draft => ({
+        title: L("Configuration %1$@", index),
+        fields: valueFields(config),
+      })
     );
     children.push({
       title: L("Configurations"),
@@ -679,7 +682,7 @@ function mfsVolume(
   if (vol.pchInit !== undefined) children.push(pchGroup(vol.pchInit));
   if (vol.reservedIntegrity.length > 0) {
     const rows = vol.reservedIntegrity.map(
-      (one, index): Draft => ({ title: `Integrity ${index + 1}`, fields: valueFields(one) })
+      (one, index): Draft => ({ title: L("Integrity %1$@", index + 1), fields: valueFields(one) })
     );
     children.push({
       title: L("File Integrity"),
@@ -884,7 +887,7 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
   const rows = backup.entries.map((entry): Draft => {
     const name = BACKUP_FILE_NAMES()[entry.fileIndex];
     return {
-      title: `Entry ${entry.fileIndex}`,
+      title: L("Entry %1$@", entry.fileIndex),
       subtitle: name ?? `low-level file ${entry.fileIndex}`,
       fields: new Fields()
         .add("File Index", entry.fileIndex)
@@ -1167,7 +1170,10 @@ function mmeGroup(a: FirmwareAnalysis): Draft | undefined {
       .add("Declared Modules", dir.declaredModules)
       .add("Decoded Modules", dir.modules.length).rows,
     children: dir.modules.map(
-      (module, index): Draft => ({ title: `Module ${index + 1}`, fields: valueFields(module) })
+      (module, index): Draft => ({
+        title: L("Module %1$@", index + 1),
+        fields: valueFields(module),
+      })
     ),
   };
 }
@@ -1184,7 +1190,7 @@ function oromGroup(a: FirmwareAnalysis): Draft | undefined {
   if (images === undefined || images.length === 0) return undefined;
   const rows = images.map(
     (image, index): Draft => ({
-      title: `Image ${index + 1}`,
+      title: L("Image %1$@", index + 1),
       subtitle: offsetText(image.offset),
       fields: valueFields(image),
     })
@@ -1220,7 +1226,7 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
     // Every hash accounted for is a check that passed: the done mark.
     fields.push(
       unmatched.length === 0
-        ? field(L("Unmatched Hashes"), "None", "good")
+        ? field(L("Unmatched Hashes"), L("None"), "good")
         : field(L("Unmatched Hashes"), String(unmatched.length))
     );
     if (unmatched.length > 0) {
@@ -1230,12 +1236,13 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
         fields: [
           field(
             L("Meaning"),
-            "Listed by the rbe or pm metadata table, and hashed to by no module of the image — " +
-              "most often an encrypted module (NFTP pavp, PCOD), which cannot be hashed as it is loaded"
+            L(
+              "Listed by the rbe or pm metadata table, and hashed to by no module of the image — most often an encrypted module (NFTP pavp, PCOD), which cannot be hashed as it is loaded"
+            )
           ),
         ],
         children: unmatched.map((hash, index) => ({
-          title: `Hash ${index + 1}`,
+          title: L("Hash %1$@", index + 1),
           subtitle: `${hash.slice(0, 16)}…`,
           fields: [field(L("Hash"), hash)],
           marks,
@@ -1265,9 +1272,9 @@ function checksumsGroup(checksums: MEAChecksums | undefined): Draft | undefined 
     return {
       title: CHECKSUMS_TITLE,
       fields: [
-        field("SHA-256", PENDING_VALUE),
-        field("SHA-384", PENDING_VALUE),
-        field("CRC-32", PENDING_VALUE),
+        field("SHA-256", pendingValue()),
+        field("SHA-384", pendingValue()),
+        field("CRC-32", pendingValue()),
       ],
     };
   }

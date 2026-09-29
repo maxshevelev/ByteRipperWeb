@@ -391,7 +391,11 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       download.current?.abort();
       const controller = new AbortController();
       download.current = controller;
-      setFormStatus({ text: `Fetching ${entryFileName(entry)}…`, busy: true, problem: false });
+      setFormStatus({
+        text: L("Fetching %1$@…", entryFileName(entry)),
+        busy: true,
+        problem: false,
+      });
       downloadMicrocode(entry, controller.signal)
         .then((component) => {
           if (download.current !== controller) return;
@@ -455,8 +459,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         case "copyCPUID":
           void navigator.clipboard
             .writeText(command.cpuid)
-            .then(() => context.report(`CPUID ${command.cpuid} copied.`))
-            .catch(() => context.report("This browser would not let the clipboard be written."));
+            .then(() => context.report(L("CPUID %1$@ copied.", command.cpuid)))
+            .catch(() => context.report(L("This browser would not let the clipboard be written.")));
           return;
         case "fixChecksum": {
           const fix = display.checksumFix;
@@ -464,9 +468,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           void applyTransaction(pane, fix).then((problem) => {
             context.report(
               problem ??
-                (fix.writes.length > 1
-                  ? "Checksum written, in the Top Swap backup's table too. Undo takes it back."
-                  : "Checksum written. Undo takes it back.")
+                // @upstream-differs Undo rather than ⌘Z: the key is the platform's
+                `${
+                  fix.writes.length > 1
+                    ? L("Checksum written, in the Top Swap backup's table too.")
+                    : L("Checksum written.")
+                } ${L("Undo takes it back.")}`
             );
           });
           return;
@@ -617,7 +624,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     );
   }
   if (report === undefined) {
-    return <div className="tool-empty">{firmware?.problem ?? "That image could not be read."}</div>;
+    return (
+      <div className="tool-empty">{firmware?.problem ?? L("That image could not be read.")}</div>
+    );
   }
 
   /** What a row of this display wears, decided once for the table below. */
@@ -650,7 +659,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
             className="fit-entries"
             ref={listRef}
             role="grid"
-            aria-label="FIT entries"
+            aria-label={L("FIT entries")}
             tabIndex={0}
             onKeyDown={onKeyDown}
           >
@@ -753,7 +762,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           fraction={tableShare}
           onChange={changeTableShare}
           initial={DEFAULT_TABLE_SHARE}
-          label="Resize the detail"
+          label={L("Resize the detail")}
         />
 
         <ToolDetail
@@ -799,12 +808,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       <footer className="tool-notice">
         {busy ? (
           <>
-            <span>Planning the change…</span>
+            <span>{L("Planning the change…")}</span>
             <progress />
           </>
         ) : catalogue.status === "loading" ? (
           <>
-            <span>Checking the microcode catalogue…</span>
+            <span>{L("Checking the microcode catalogue…")}</span>
             <button
               type="button"
               className="toolbar-button is-quiet"
@@ -826,7 +835,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
               className="toolbar-button is-quiet"
               onClick={() => loadMicrocodeCatalogue()}
             >
-              Try again
+              {L("Try Again")}
             </button>
           </>
         ) : null}

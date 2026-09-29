@@ -31,7 +31,7 @@ export function DocumentIcon({
       : L("New file")
     : dirty
       ? L("Modified file")
-      : "Unmodified file";
+      : L("Unmodified file");
   const label = `${slot} — ${state}`;
   return (
     <svg

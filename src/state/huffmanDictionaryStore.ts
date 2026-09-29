@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import {
   type RemoteFailure,
   remoteFailureMessage,
@@ -193,7 +194,7 @@ export function loadHuffmanDictionaries(
         status: "failed",
         failure: remoteFailureOf(error) ?? {
           kind: "offline",
-          detail: error instanceof Error ? error.message : "the dictionaries could not be read",
+          detail: error instanceof Error ? error.message : L("the dictionaries could not be read"),
         },
       }));
     }

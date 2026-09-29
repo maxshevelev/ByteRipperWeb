@@ -707,7 +707,7 @@ export async function editPaneFit(
 ): Promise<{ readonly problem: string | undefined; readonly summary: string | undefined }> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") {
-    return { problem: "That image has not been read yet.", summary: undefined };
+    return { problem: L("That image has not been read yet."), summary: undefined };
   }
   const planned = await new Promise<FitEditResponse | undefined>((resolve) => {
     // A second edit supersedes the first, which is then told it did not happen:
@@ -724,7 +724,7 @@ export async function editPaneFit(
   }
 
   const problem = await applyTransaction(pane, {
-    name: planned.name ?? "Edit FIT Table",
+    name: planned.name ?? L("Edit FIT Table"),
     writes: planned.writes,
   });
   return problem === undefined

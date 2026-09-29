@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import {
   detectFileCapabilities,
   type FileCapabilities,
@@ -18,9 +19,9 @@ import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
  * caller carries on.
  */
 
-const BINARY_TYPES: FilePickerType[] = [
+const binaryTypes = (): FilePickerType[] => [
   {
-    description: "Firmware dumps and binary files",
+    description: L("Firmware dumps and binary files"),
     accept: {
       "application/octet-stream": [".bin", ".rom", ".fd", ".cap", ".img", ".dat"],
     },
@@ -36,7 +37,7 @@ export interface OpenFileOptions {
 
 export async function openFiles(options: OpenFileOptions = {}): Promise<OpenedFile[]> {
   const capabilities = options.capabilities ?? detectFileCapabilities();
-  const types = options.types ?? BINARY_TYPES;
+  const types = options.types ?? binaryTypes();
   return capabilities.canSaveInPlace
     ? await openThroughPicker(options.multiple ?? false, types)
     : await openThroughInput(options.multiple ?? false, types);

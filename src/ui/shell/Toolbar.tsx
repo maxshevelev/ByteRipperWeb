@@ -641,7 +641,7 @@ export function Toolbar({
           <span key={key} className="toolbar-group">
             <IconButton
               label={L("Prev Diff")}
-              title="Previous difference"
+              title={L("Previous Difference")}
               disabled={!toolbarItemEnabled("previousDifference", context)}
               onClick={() => onNavigate("difference", -1)}
             >
@@ -649,7 +649,7 @@ export function Toolbar({
             </IconButton>
             <IconButton
               label={L("Next Diff")}
-              title="Next difference"
+              title={L("Next Difference")}
               disabled={!toolbarItemEnabled("nextDifference", context)}
               onClick={() => onNavigate("difference", 1)}
             >
@@ -712,7 +712,7 @@ export function Toolbar({
           <IconButton
             key={key}
             label={L("Toggle Minimap")}
-            title="Show or hide the minimap (Cmd/Ctrl+M)"
+            title={`${L("Show or hide the minimap")} (Cmd/Ctrl+M)`}
             pressed={minimap.visible}
             onClick={() => toggleMinimap()}
           >
@@ -726,7 +726,7 @@ export function Toolbar({
     <header className="toolbar">
       {/* The web edition's menu bar, before everything: a page has nowhere else
           to put File, Edit and View. */}
-      <MenuButton label="☰" title="Commands" entries={entries} />
+      <MenuButton label="☰" title={L("Commands")} entries={entries} />
       {keyed.map((one) => item(one.id, one.key))}
     </header>
   );

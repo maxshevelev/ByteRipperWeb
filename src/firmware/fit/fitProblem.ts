@@ -104,7 +104,7 @@ const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
 /** @upstream Modules/FITTool/Sources/FITTool/FITProblem.swift#FITProblem.message */
 export function fitProblemMessage(problem: FITProblem): string {
   const own = ownMessage(problem.detail);
-  return problem.inBackup === true ? `Top Swap backup: ${own}` : own;
+  return problem.inBackup === true ? L("Top Swap backup: %1$@", own) : own;
 }
 
 function ownMessage(detail: FITProblemKind): string {
@@ -112,44 +112,55 @@ function ownMessage(detail: FITProblemKind): string {
     case "imageHasNoPointer":
       return L("The image is too small to hold a FIT pointer");
     case "pointerLeadsOutsideTheImage":
-      return `The FIT pointer, ${hex(detail.address)}, is outside this image`;
+      return L("The FIT pointer, %1$@, is outside this image", hex(detail.address));
     case "noTableAtThePointer":
-      return `No FIT signature at ${hex(detail.address)}, where the pointer leads`;
+      return L("No FIT signature at %1$@, where the pointer leads", hex(detail.address));
     case "tableHasNoEntries":
       return L("The header says the table has no entries");
     case "tableRunsPastTheEnd":
-      return `The header claims ${detail.entries} entries, which runs past the end of the image`;
+      return L(
+        "The header claims %1$@ entries, which runs past the end of the image",
+        detail.entries
+      );
     case "firstEntryIsNotTheHeader":
-      return `The first entry is type ${hex(detail.type)}, not the header`;
+      return L("The first entry is type %1$@, not the header", hex(detail.type));
     case "secondHeader":
       return L("A second header entry, where there may be only one");
     case "typesOutOfOrder":
-      return (
-        `Type ${hex(detail.type)} after type ${hex(detail.previous)}: ` +
-        "entries must not decrease in type"
+      return L(
+        "Type %1$@ after type %2$@: entries must not decrease in type",
+        hex(detail.type),
+        hex(detail.previous)
       );
     case "checksumMismatch":
-      return `The table checksum is ${hex(detail.stored)}, and should be ${hex(detail.computed)}`;
+      return L(
+        "The table checksum is %1$@, and should be %2$@",
+        hex(detail.stored),
+        hex(detail.computed)
+      );
     case "noMicrocodeEntry":
       return L("No microcode entry, and there must be at least one");
     case "addressOutsideTheImage":
-      return `${hex(detail.address)} is outside this image`;
+      return L("%1$@ is outside this image", hex(detail.address));
     case "addressNotAligned":
-      return `${hex(detail.address)} is not aligned to 16 bytes`;
+      return L("%1$@ is not aligned to 16 bytes", hex(detail.address));
     case "notMicrocodeAtTheAddress":
-      return `No microcode header at ${hex(detail.address)}, and it is not an empty slot`;
+      return L("No microcode header at %1$@, and it is not an empty slot", hex(detail.address));
     case "reservedIsNotZero":
-      return `The reserved byte is ${hex(detail.value)}, and should be zero`;
+      return L("The reserved byte is %1$@, and should be zero", hex(detail.value));
     case "topSwapBackupHasNoTable":
-      return `The Top Swap backup at ${hex(detail.backupAt)} has no FIT where its pointer leads`;
+      return L(
+        "The Top Swap backup at %1$@ has no FIT where its pointer leads",
+        hex(detail.backupAt)
+      );
     case "topSwapTableDiffers":
-      return `The Top Swap backup's FIT at ${hex(detail.at)} is not the same as this one`;
+      return L("The Top Swap backup's FIT at %1$@ is not the same as this one", hex(detail.at));
     case "topSwapEntryDiffers":
       return L("this entry, or what it points at, is not the same as in the top block");
     case "topSwapBlockDiffers":
-      return (
-        `The Top Swap backup at ${hex(detail.backup.start)} holds the same FIT, but other bytes ` +
-        "of the block differ, so microcode changes are refused until the copies agree"
+      return L(
+        "The Top Swap backup at %1$@ holds the same FIT, but other bytes of the block differ, so microcode changes are refused until the copies agree",
+        hex(detail.backup.start)
       );
   }
 }

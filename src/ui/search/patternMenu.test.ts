@@ -118,12 +118,12 @@ describe("keeping a pattern", () => {
 
   it("says which name the same search is already kept under", () => {
     expect(favoriteNameProblem("FPT", favorite, { name: "ME FPT" })).toBe(
-      'Already a favourite, as "ME FPT".'
+      "Already a favourite, as “ME FPT”."
     );
     expect(favoriteNameProblem("FPT", favorite, undefined)).toBeUndefined();
   });
 
   it("says what is being kept", () => {
-    expect(keepingDescription(favorite)).toBe('Keeping "$FPT" — ASCII, match case.');
+    expect(keepingDescription(favorite)).toBe("Keeping “$FPT” — ASCII, match case.");
   });
 });

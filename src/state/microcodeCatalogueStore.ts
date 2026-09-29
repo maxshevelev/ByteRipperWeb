@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import {
   type RemoteFailure,
   RemoteFetchError,
@@ -223,7 +224,7 @@ export function loadMicrocodeCatalogue(source: MicrocodeSource = liveMicrocodeSo
         // — temporary, and waited out — into "offline", which is not.
         failure: remoteFailureOf(error) ?? {
           kind: "offline",
-          detail: error instanceof Error ? error.message : "the listing could not be read",
+          detail: error instanceof Error ? error.message : L("the listing could not be read"),
         },
       }));
     }
@@ -273,7 +274,7 @@ export function microcodeDownloadMessage(error: unknown): string {
   return remoteFailureMessage(
     remoteFailureOf(error) ?? {
       kind: "offline",
-      detail: error instanceof Error ? error.message : "that microcode could not be fetched",
+      detail: error instanceof Error ? error.message : L("that microcode could not be fetched"),
     }
   );
 }

@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { remoteSource } from "@/platform/net/cachedSource";
 import { Freshened, type FreshenedStatus } from "@/platform/net/freshened";
@@ -206,7 +207,7 @@ export function loadGuidCatalogue(source: CatalogueSource = liveCatalogueSource)
         status: "failed",
         failure: guidsSourceErrorOf(error) ?? {
           kind: "offline",
-          underlying: error instanceof Error ? error.message : "the catalogue could not be read",
+          underlying: error instanceof Error ? error.message : L("the catalogue could not be read"),
         },
       }));
     }

@@ -253,7 +253,7 @@ export function ToolPanel({
             @web-only the tooltip and the accessible name — "Link to file panel": upstream's popup carries neither, and a control with no visible label of its own needs one here */}
         <span
           className={`tool-panel-file${keyboardRing ? " is-keyboard" : ""}`}
-          title="Link to file panel"
+          title={L("Link to file panel")}
         >
           <span className="tool-panel-file-name">{slot.name}</span>
           <svg
@@ -272,7 +272,7 @@ export function ToolPanel({
           </svg>
           <select
             className="tool-panel-file-select"
-            aria-label="Link to file panel"
+            aria-label={L("Link to file panel")}
             value={boundPane}
             disabled={!switchable}
             onChange={(event) => selectPane(event.target.value as PaneId)}
@@ -320,7 +320,7 @@ export function ToolPanel({
 
       <EdgeSplitter
         edge="right"
-        label="Resize the tool panel"
+        label={L("Resize the tool panel")}
         width={width}
         min={MIN_TOOL_PANEL_WIDTH}
         max={MAX_TOOL_PANEL_WIDTH}

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { L } from "@/core/localization/localization";
 import type { PaneLayout } from "@/state/workspaceStore";
 import { usePointerDrag } from "@/ui/shell/pointerDrag";
 
@@ -36,7 +37,7 @@ export function PaneDivider({
   fraction,
   onChange,
   initial = 0.5,
-  label = "Resize the panes",
+  label,
 }: PaneDividerProps) {
   // The gesture itself is `usePointerDrag`'s — the same one the panel edges and
   // the table columns use, and the same one that must not run without a button
@@ -79,7 +80,7 @@ export function PaneDivider({
       data-layout={layout}
       role="separator"
       tabIndex={0}
-      aria-label={label}
+      aria-label={label ?? L("Resize the panes")}
       aria-orientation={layout === "sideBySide" ? "vertical" : "horizontal"}
       aria-valuenow={Math.round(fraction * 100)}
       aria-valuemin={Math.round(MIN_FRACTION * 100)}

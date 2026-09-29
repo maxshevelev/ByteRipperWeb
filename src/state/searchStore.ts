@@ -455,11 +455,12 @@ function cancelRunning(): void {
 }
 
 /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.reportNoUsablePattern */
-const FAILURE_MESSAGE: Record<SearchFailure, string> = {
-  emptyPattern: "Type something to look for.",
-  invalidHexPattern: "That is not a hexadecimal byte sequence.",
-  undecodableText: "That text cannot be written in this encoding.",
-};
+const failureMessage = (failure: SearchFailure): string =>
+  ({
+    emptyPattern: L("Type something to look for."),
+    invalidHexPattern: L("That is not a hexadecimal byte sequence."),
+    undecodableText: L("That text cannot be written in this encoding."),
+  })[failure];
 
 /**
  * Starts a search.
@@ -548,7 +549,7 @@ export function startSearch(options: {
       encoding,
       smart,
       caseSensitive,
-      problem: FAILURE_MESSAGE[attempts],
+      problem: failureMessage(attempts),
     }));
     return;
   }
@@ -560,7 +561,7 @@ export function startSearch(options: {
       encoding,
       smart,
       caseSensitive,
-      problem: "There is no way to write that as bytes.",
+      problem: L("There is no way to write that as bytes."),
     }));
     return;
   }
@@ -755,7 +756,7 @@ export function attemptLabel(attempt: Attempt): string {
 export function nothingFoundLines(attempts: readonly Attempt[]): string[] {
   return [
     L("Smart search."),
-    ...attempts.map((attempt) => `${attemptLabel(attempt)} — no results.`),
+    ...attempts.map((attempt) => L("%1$@ — no results.", attemptLabel(attempt))),
   ];
 }
 
@@ -851,7 +852,7 @@ async function askHere(
     updateResults(currentPane, { status: "failed" });
     searchStore.update((state) => ({
       ...state,
-      problem: error instanceof Error ? error.message : "The search failed.",
+      problem: error instanceof Error ? error.message : L("The search failed."),
     }));
     return true;
   }
@@ -1132,7 +1133,7 @@ export async function useSelectionForFind(): Promise<void> {
   if (end - start > MAX_SELECTION_FIND_BYTES) {
     showNotice("warning", [
       L("Selection too long to search for"),
-      `Up to ${MAX_SELECTION_FIND_BYTES} bytes can be used as a find pattern.`,
+      L("Up to %1$@ bytes can be used as a find pattern.", MAX_SELECTION_FIND_BYTES),
     ]);
     return;
   }

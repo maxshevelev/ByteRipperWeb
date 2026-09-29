@@ -94,7 +94,9 @@ export function shownEntries(
 export function countText(shown: number, entries: readonly MicrocodeCatalogueEntry[]): string {
   if (entries.length === 0) return "";
   const total = catalogueCounts(entries).get("Intel") ?? 0;
-  return shown === total ? `${total} Intel microcodes` : `${shown} of ${total} Intel microcodes`;
+  return shown === total
+    ? L("%1$@ Intel microcodes", total)
+    : L("%1$@ of %2$@ Intel microcodes", shown, total);
 }
 
 /**
@@ -108,11 +110,13 @@ export function actionTitle(
   selected: MicrocodeCatalogueEntry | undefined
 ): string {
   if (mode.kind === "replace") {
-    return selected !== undefined && selected.cpuid === mode.targetCpuid ? L("Update") : "Replace";
+    return selected !== undefined && selected.cpuid === mode.targetCpuid
+      ? L("Update")
+      : L("Replace");
   }
   return selected?.cpuid !== undefined && mode.cpuidsInTheImage.has(selected.cpuid)
     ? L("Replace")
-    : "Add";
+    : L("Add");
 }
 
 /** A pre-release is worth telling apart before it goes into a board. */

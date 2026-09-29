@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { FileTable } from "@/firmware/me/data/fileTable";
 import { type RemoteFailure, remoteFailureOf, remoteSource } from "@/platform/net/cachedSource";
 import { Freshened, type FreshenedStatus } from "@/platform/net/freshened";
@@ -208,7 +209,7 @@ export function loadFileTable(source: FileTableSource = liveFileTableSource): vo
         status: "failed",
         failure: remoteFailureOf(error) ?? {
           kind: "offline",
-          detail: error instanceof Error ? error.message : "the file table could not be read",
+          detail: error instanceof Error ? error.message : L("the file table could not be read"),
         },
       }));
     }

@@ -58,7 +58,7 @@ export class HexHeaderRenderer {
 
   constructor(canvas: HTMLCanvasElement) {
     const context = canvas.getContext("2d", { alpha: false });
-    if (context === null) throw new Error("This browser did not give the header a 2D context.");
+    if (context === null) throw new Error(L("This browser did not give the header a 2D context."));
     this.canvas = canvas;
     this.context = context;
   }

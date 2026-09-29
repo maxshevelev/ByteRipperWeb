@@ -53,12 +53,12 @@ export function selectionAfterChange(
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.rowDescription
  */
 export function rowDescription(bytes: Uint8Array | undefined): string {
-  if (bytes === undefined) return PAST_END_OF_FILE;
+  if (bytes === undefined) return pastEndOfFile();
   return [...bytes].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ");
 }
 
 /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.pastEndOfFileText */
-export const PAST_END_OF_FILE = L("Past the end of the file");
+export const pastEndOfFile = (): string => L("Past the end of the file");
 
 /**
  * Why a pane's bookmark list is closed, or nothing when it is open (§20.7).
@@ -75,8 +75,9 @@ export function bookmarksUnavailable(pane: PaneId): string | undefined {
   if (marksFor(pane) !== undefined) return undefined;
   const origin = paneState(pane)?.origin;
   if (origin === undefined) return L("Bookmarks are not available here.");
-  return (
-    `Bookmarks are not available here: these bytes were decompressed from ` +
-    `\u201C${origin.partName}\u201D, so no offset in them is an offset in ${origin.parentName}.`
+  return L(
+    "Bookmarks are not available here: these bytes were decompressed from “%1$@”, so no offset in them is an offset in %2$@.",
+    origin.partName,
+    origin.parentName
   );
 }

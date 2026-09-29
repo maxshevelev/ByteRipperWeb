@@ -645,16 +645,18 @@ export function detailFor(row: FITDisplayRow, problems: readonly FITProblem[]): 
  * its own, and whether it agrees with the table.
  */
 function headingOf(backup: FITBackupReading): string {
-  const place = `Top Swap backup at ${hex(backup.block.backup.start)} · read-only`;
+  // One whole heading per state: the tail is a clause, not a word, and
+  // languages put it in their own order.
+  const place = hex(backup.block.backup.start);
   switch (backup.status.kind) {
     case "identical":
-      return `${place} · same as above`;
+      return L("Top Swap backup at %1$@ · read-only · same as above", place);
     case "otherBytesDiffer":
-      return `${place} · same table, other bytes differ`;
+      return L("Top Swap backup at %1$@ · read-only · same table, other bytes differ", place);
     case "tableDiffers":
-      return `${place} · differs from the table above`;
+      return L("Top Swap backup at %1$@ · read-only · differs from the table above", place);
     case "noTable":
-      return `${place} · no table`;
+      return L("Top Swap backup at %1$@ · read-only · no table", place);
   }
 }
 
@@ -686,17 +688,18 @@ function summaryOf(report: FITReport): string {
   if (table === undefined) {
     return report.candidates.length === 0
       ? L("No FIT table in this file.")
-      : `No FIT table where the pointer leads. A signature sits at ${report.candidates
-          .map((one) => hex(one))
-          .join(", ")}.`;
+      : L(
+          "No FIT table where the pointer leads. A signature sits at %1$@.",
+          report.candidates.map((one) => hex(one)).join(", ")
+        );
   }
   // The count includes the header row: the panel shows the header as a row of
   // the table, so the number the summary says is the number of rows a reader
   // counts, header included.
   const count = table.rows.length;
   const parts = [
-    `FIT at ${hex(table.range.start)}`,
-    `${count} ${count === 1 ? "entry" : "entries"}`,
+    L("FIT at %1$@", hex(table.range.start)),
+    count === 1 ? L("1 entry") : L("%1$@ entries", count),
   ];
   if (report.addressDiffIsAssumed) {
     // Said every time, because it is true every time for a region cut out of a
@@ -714,7 +717,7 @@ function summaryOf(report: FITReport): string {
   if (!table.checksumIsChecked) {
     parts.push(L("checksum unused"));
   } else if (checksumIsCorrect(table)) {
-    parts.push(`checksum ${hex(table.storedChecksum, 2)}`);
+    parts.push(L("checksum %1$@", hex(table.storedChecksum, 2)));
     // A wrong checksum is not restated here: it is a problem, and the list
     // below already says so in red, where it is meant to be read.
   }
@@ -734,7 +737,7 @@ function typeTextOf(entry: FITEntry): string {
  * an empty field is a zero, not a mystery.
  */
 function sizeTextOf(row: FITRow): string {
-  if (isHeaderEntry(row.entry)) return `${row.entry.size} rows`;
+  if (isHeaderEntry(row.entry)) return L("%1$@ rows", row.entry.size);
   const size = effectiveSize(row);
   return size === undefined ? "0" : hex(size);
 }
@@ -755,7 +758,7 @@ function targetTextOf(row: FITRow): string {
       // summary above counts what there is to look at.
       if (!isHeaderEntry(row.entry)) return "";
       const count = row.entry.size;
-      return `${count} ${count === 1 ? "row" : "rows"} · ${hex(sizeInBytes(row.entry))}`;
+      return `${count === 1 ? L("1 row") : L("%1$@ rows", count)} · ${hex(sizeInBytes(row.entry))}`;
     }
     case "indexIORegisters":
       return L("Index/IO registers, not an address");
@@ -766,14 +769,14 @@ function targetTextOf(row: FITRow): string {
       // size have their own columns, and the date closes the line.
       const header = target.header;
       const parts = [
-        `CPUID ${cpuidText(header.processorSignature)}`,
-        `r.${header.updateRevision.toString(16).toUpperCase()}`,
+        L("CPUID %1$@", cpuidText(header.processorSignature)),
+        L("r.%1$@", header.updateRevision.toString(16).toUpperCase()),
         microcodeDate(header),
       ];
       return [...parts, hex(header.offset)].join(" · ");
     }
     case "emptyMicrocodeSlot":
-      return `empty slot · ${hex(target.offset)}`;
+      return `${L("empty slot")} · ${hex(target.offset)}`;
     case "bytes":
       // The address leads, and the name of what is there follows it in brackets
       // — because the name arrives second. The tree names an offset only once
@@ -841,10 +844,13 @@ function zonesOf(
     });
   }
   for (const row of rows) {
-    const prefix = row.isBackup ? "Backup " : "";
+    // "Backup" is a whole word in front of a whole name, and a language that
+    // puts it after — or inflects it — cannot reach a prefix glued on here.
     zones.push({
       id: row.zoneId,
-      name: `${prefix}#${displayNumber(row)} ${row.typeText}`,
+      name: row.isBackup
+        ? L("Backup #%1$@ %2$@", displayNumber(row), row.typeText)
+        : L("#%1$@ %2$@", displayNumber(row), row.typeText),
       start: row.rowRange.start,
       end: row.rowRange.end,
     });
@@ -853,13 +859,15 @@ function zonesOf(
     // when it goes hunting for a microcode in a dump.
     zones.push({
       id: targetZoneId(rowKey(row)),
-      name:
-        prefix +
-        (row.cpuidText !== undefined
-          ? `CPUID ${row.cpuidText}`
-          : row.targetText.length === 0
-            ? `#${displayNumber(row)}`
-            : row.targetText),
+      name: (() => {
+        const named =
+          row.cpuidText !== undefined
+            ? L("CPUID %1$@", row.cpuidText)
+            : row.targetText.length === 0
+              ? L("#%1$@", displayNumber(row))
+              : row.targetText;
+        return row.isBackup ? L("Backup %1$@", named) : named;
+      })(),
       start: row.targetRange.start,
       end: row.targetRange.end,
     });

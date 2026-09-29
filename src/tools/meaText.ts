@@ -97,27 +97,27 @@ export type CountedNoun =
 export function countText(count: number, noun: CountedNoun): string {
   switch (noun) {
     case "entry":
-      return count === 1 ? L("1 entry") : `${count} entries`;
+      return count === 1 ? L("1 entry") : L("%1$@ entries", count);
     case "row":
-      return count === 1 ? L("1 row") : `${count} rows`;
+      return count === 1 ? L("1 row") : L("%1$@ rows", count);
     case "block":
-      return count === 1 ? L("1 block") : `${count} blocks`;
+      return count === 1 ? L("1 block") : L("%1$@ blocks", count);
     case "module":
-      return count === 1 ? L("1 module") : `${count} modules`;
+      return count === 1 ? L("1 module") : L("%1$@ modules", count);
     case "file":
-      return count === 1 ? L("1 file") : `${count} files`;
+      return count === 1 ? L("1 file") : L("%1$@ files", count);
     case "image":
-      return count === 1 ? L("1 image") : `${count} images`;
+      return count === 1 ? L("1 image") : L("%1$@ images", count);
     case "issue":
-      return count === 1 ? L("1 issue") : `${count} issues`;
+      return count === 1 ? L("1 issue") : L("%1$@ issues", count);
     case "record":
-      return count === 1 ? L("1 record") : `${count} records`;
+      return count === 1 ? L("1 record") : L("%1$@ records", count);
     case "region":
-      return count === 1 ? L("1 region") : `${count} regions`;
+      return count === 1 ? L("1 region") : L("%1$@ regions", count);
     case "table":
-      return count === 1 ? L("1 table") : `${count} tables`;
+      return count === 1 ? L("1 table") : L("%1$@ tables", count);
     case "partition":
-      return count === 1 ? L("1 partition") : `${count} partitions`;
+      return count === 1 ? L("1 partition") : L("%1$@ partitions", count);
   }
 }
 

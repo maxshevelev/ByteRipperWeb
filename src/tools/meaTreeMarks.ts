@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type {
   CodePartition,
   CPDModuleRow,
@@ -121,7 +122,7 @@ export function moduleMarks(
       (analysis.rbePmMetadata ?? []).length > 0;
     roles.push({
       kind: "compressed",
-      algorithm: stored.isEncrypted ? `Encrypted ${stored.compression}` : stored.compression,
+      algorithm: stored.isEncrypted ? L("Encrypted %1$@", stored.compression) : stored.compression,
       decoded: opens,
     });
   }
@@ -136,7 +137,7 @@ export function moduleMarks(
 export function codePartitionMarks(partition: CodePartition): ToolRowMarks {
   if (partition.checksumValid !== false) return NO_ROW_MARKS;
   const kind = partition.headerVersion === 1 ? "Checksum-8" : "CRC-32";
-  return { problem: { isError: true, lines: [`Invalid $CPD ${kind} checksum`] } };
+  return { problem: { isError: true, lines: [L("Invalid $CPD %1$@ checksum", kind)] } };
 }
 
 /**
@@ -148,12 +149,17 @@ export function codePartitionMarks(partition: CodePartition): ToolRowMarks {
 export function manifestMarks(analysis: FirmwareAnalysis): ToolRowMarks {
   return {
     ...(analysis.rsaSignatureValid === false
-      ? { problem: { isError: true, lines: ["The manifest's RSA signature does not check out"] } }
+      ? {
+          problem: {
+            isError: true,
+            lines: [L("The manifest's RSA signature does not check out")],
+          },
+        }
       : {}),
     roles: [
       {
         kind: "holdsChecks",
-        words: "Holds the hashes the partition's modules are checked against",
+        words: L("Holds the hashes the partition's modules are checked against"),
       },
     ],
   };
@@ -166,7 +172,7 @@ export function manifestMarks(analysis: FirmwareAnalysis): ToolRowMarks {
  */
 export function tableMarks(named: string, checksumValid: boolean | undefined): ToolRowMarks {
   if (checksumValid !== false) return NO_ROW_MARKS;
-  return { problem: { isError: true, lines: [`Invalid ${named} CRC-32`] } };
+  return { problem: { isError: true, lines: [L("Invalid %1$@ CRC-32", named)] } };
 }
 
 /**
@@ -183,6 +189,10 @@ export function metadataMarks(analysis: FirmwareAnalysis): ToolRowMarks {
   const compression = storage(module, partition).compression;
   if (compression === undefined) return NO_ROW_MARKS;
   return {
-    decompressedFrom: `Read out of the ${module.name} module, stored ${compression} compressed`,
+    decompressedFrom: L(
+      "Read out of the %1$@ module, stored %2$@ compressed",
+      module.name,
+      compression
+    ),
   };
 }

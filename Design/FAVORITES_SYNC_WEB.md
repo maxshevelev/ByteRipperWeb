@@ -117,7 +117,7 @@ Import keeps none of it, and a file with nothing new in it is not a write. Upstr
 has no import; the resolver is its `LibraryConflictSheetController`, with the
 other side named by where it came from.
 
-**Firefox and Safari.** "Get Favorites from a Folder…" opens a directory picker
+**Firefox and Safari.** "Get Patterns from a Folder…" opens a directory picker
 (`<input webkitdirectory>`); the browser hands over read-only copies of the files
 in it, and each library file is merged into the local library as a peer, with its
 base kept like any other. Nothing is written to the folder — the interface says

@@ -63,8 +63,10 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
         </label>
         <p className="dialog-help" id="fill-help">
           {pattern === undefined
-            ? "Hexadecimal byte pairs: 00, DE AD, or 0xDE 0xAD."
-            : `Repeated across ${byteCount.toLocaleString()} ${byteCount === 1 ? "byte" : "bytes"}.`}
+            ? L("Hexadecimal byte pairs: 00, DE AD, or 0xDE 0xAD.")
+            : byteCount === 1
+              ? L("Repeated across 1 byte.")
+              : L("Repeated across %1$@ bytes.", byteCount.toLocaleString())}
         </p>
         {preview === undefined ? null : <pre className="dialog-preview">{preview}…</pre>}
         <div className="dialog-actions">
@@ -72,7 +74,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
             {L("Cancel")}
           </button>
           <button type="submit" className="toolbar-button" disabled={pattern === undefined}>
-            Fill
+            {L("Fill")}
           </button>
         </div>
       </form>

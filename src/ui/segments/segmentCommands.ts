@@ -179,13 +179,13 @@ export async function savePiece(pane: PaneId, piece: Segment): Promise<void> {
     if (outcome === "downloaded") {
       showTransientMessage(
         pane,
-        `Downloaded ${name}. This browser cannot write to a folder you choose.`
+        L("Downloaded %1$@. This browser cannot write to a folder you choose.", name)
       );
     }
   } catch (error) {
     reportAlert(
-      `Could not save “${name}”.`,
-      error instanceof Error ? error.message : "That segment could not be saved."
+      L("Could not save “%1$@”.", name),
+      error instanceof Error ? error.message : L("That segment could not be saved.")
     );
   }
 }
@@ -208,7 +208,7 @@ export async function saveAllPieces(
   const parts = partsFor(pieces, baseName(pane));
   let cancelled = false;
   const operation = new BackgroundOperation(
-    `Writing ${parts.length} segment${parts.length === 1 ? "" : "s"}…`,
+    parts.length === 1 ? L("Writing 1 segment…") : L("Writing %1$@ segments…", parts.length),
     () => {
       cancelled = true;
     }
@@ -251,7 +251,10 @@ export async function saveAllPieces(
       const preview = previewWrite(parts);
       const archive = `${baseName(pane)}_segments.zip`;
       if (
-        !(await confirm(writeTitle(parts.length), `${messageFor(preview)}\n\nInto ${archive}.`))
+        !(await confirm(
+          writeTitle(parts.length),
+          `${messageFor(preview)}\n\n${L("Into %1$@.", archive)}`
+        ))
       ) {
         return;
       }
@@ -259,14 +262,14 @@ export async function saveAllPieces(
       // The same words as a single saved piece, for the same reason (§D7).
       showTransientMessage(
         pane,
-        `Downloaded ${archive}. This browser cannot write into a folder you choose.`
+        L("Downloaded %1$@. This browser cannot write into a folder you choose.", archive)
       );
     }
   } catch (error) {
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.runSegmentWrite
     reportAlert(
       L("Saving segments failed."),
-      error instanceof Error ? error.message : "Those segments could not be written."
+      error instanceof Error ? error.message : L("Those segments could not be written.")
     );
   } finally {
     operation.finish();
@@ -320,12 +323,22 @@ function askLengthChange(question: {
   const shift = grows
     ? question.sourceLength - question.pieceLength
     : question.pieceLength - question.sourceLength;
-  const message =
-    `${question.label} is ${friendlySize(question.pieceLength)}, and ` +
-    `“${question.sourceName}” is ${friendlySize(question.sourceLength)}. ` +
-    `Taking the file’s length ${grows ? "adds" : "removes"} ` +
-    `${friendlySize(shift)} at the end of the segment, so every segment ` +
-    "after it moves by that much.";
+  const sizes = [
+    question.label,
+    friendlySize(question.pieceLength),
+    question.sourceName,
+    friendlySize(question.sourceLength),
+    friendlySize(shift),
+  ] as const;
+  const message = grows
+    ? L(
+        "%1$@ is %2$@, and “%3$@” is %4$@. Taking the file's length adds %5$@ at the end of the segment, so every segment after it moves by that much.",
+        ...sizes
+      )
+    : L(
+        "%1$@ is %2$@, and “%3$@” is %4$@. Taking the file's length removes %5$@ from the end of the segment, so every segment after it moves by that much.",
+        ...sizes
+      );
   const ask = segmentAsks.lengthChange;
   if (ask === undefined) return Promise.resolve(false);
   return ask({ title: question.title, message, confirmLabel: question.confirmLabel });
@@ -401,9 +414,11 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
   const donor = segmentRevertDonor(pane, piece);
   if (donor === undefined) {
     reportAlert(
-      `“${source.name}” cannot be read`,
-      `${segmentLabel(piece.index)} came from it, but it is no longer there to go back to. ` +
-        "Nothing in the dump was changed."
+      L("“%1$@” cannot be read", source.name),
+      L(
+        "%1$@ came from it, but it is no longer there to go back to. Nothing in the dump was changed.",
+        segmentLabel(piece.index)
+      )
     );
     return;
   }
@@ -411,7 +426,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
   let allowingLengthChange = false;
   if (donor.size !== piece.end - piece.start) {
     const agreed = await askLengthChange({
-      title: `Restore ${label} at the source’s length?`,
+      title: L("Restore %1$@ at the source's length?", label),
       label,
       pieceLength: piece.end - piece.start,
       sourceName: source.name,
@@ -428,7 +443,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
         start: piece.start,
         end: piece.end,
         donor,
-        label: `Revert ${label}`,
+        label: L("Revert %1$@", label),
         allowingLengthChange,
       });
       notifySwap(pane, piece, outcome);
@@ -444,7 +459,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
   } catch (error) {
     reportAlert(
       L("Reverting the segment failed."),
-      error instanceof Error ? error.message : "That segment could not be reverted."
+      error instanceof Error ? error.message : L("That segment could not be reverted.")
     );
   }
 }
@@ -478,7 +493,7 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
         start: piece.start,
         end: piece.end,
         donor: storage,
-        label: `Replace ${label}`,
+        label: L("Replace %1$@", label),
         allowingLengthChange,
       });
       notifySwap(pane, piece, outcome);
@@ -499,7 +514,7 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
       // piece's place at its own length, and the pieces after it move by the
       // difference. The first attempt rolled back, so nothing has changed.
       const agreed = await askLengthChange({
-        title: `Replace ${label} at the file’s length?`,
+        title: L("Replace %1$@ at the file's length?", label),
         label,
         pieceLength: error.pieceLength,
         sourceName: donor.name,
@@ -512,14 +527,14 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
       } catch (inner) {
         reportAlert(
           L("Replacing the segment failed."),
-          inner instanceof Error ? inner.message : "That segment could not be replaced."
+          inner instanceof Error ? inner.message : L("That segment could not be replaced.")
         );
       }
       return;
     }
     reportAlert(
       L("Replacing the segment failed."),
-      error instanceof Error ? error.message : "That segment could not be replaced."
+      error instanceof Error ? error.message : L("That segment could not be replaced.")
     );
   }
 }

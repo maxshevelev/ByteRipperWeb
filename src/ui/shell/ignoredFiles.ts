@@ -18,7 +18,7 @@ export function ignoredFilesAlert(count: number, gesture: "open" | "join"): Aler
     title: L("Additional files ignored"),
     message:
       gesture === "open"
-        ? `${count} ${noun} not opened because only two files can be compared at once.`
-        : `${count} ${noun} not joined because only one file can be joined at a time.`,
+        ? L("%1$@ %2$@ not opened because only two files can be compared at once.", count, noun)
+        : L("%1$@ %2$@ not joined because only one file can be joined at a time.", count, noun),
   };
 }

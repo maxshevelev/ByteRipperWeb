@@ -16,6 +16,7 @@
  * partition and forgets the joins, and swaps them where the slots do.
  */
 
+import { L } from "@/core/localization/localization";
 import { type BaselineSpan, type ModifiedBaseline, NO_BASELINE } from "@/core/segments/baseline";
 import type { Segment, SegmentLink, SegmentSourceID } from "@/core/segments/segmentation";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -217,14 +218,29 @@ export function sourceWriteConflict(
   target: "name" | "folder"
 ): { readonly title: string; readonly message: string } {
   const quoted = names.map((name) => `“${name}”`).join(", ");
-  const title =
-    names.length === 1
-      ? `${quoted} is a segment’s source`
-      : `${names.length} of these names are segment sources`;
-  const fileWord = names.length === 1 ? "file that segment is" : "files those segments are";
-  const message =
-    `This dump has ${names.length === 1 ? "a segment" : "segments"} that came from ${quoted}, ` +
-    `and writing there would replace the ${fileWord} measured against. Choose another ${target}.`;
+  const one = names.length === 1;
+  const title = one
+    ? L("“%1$@” is a segment's source", names[0] ?? "")
+    : L("%1$@ of these names are segment sources", names.length);
+  const message = one
+    ? target === "name"
+      ? L(
+          "This dump has a segment that came from %1$@, and writing there would replace the file that segment is measured against. Choose another name.",
+          quoted
+        )
+      : L(
+          "This dump has a segment that came from %1$@, and writing there would replace the file that segment is measured against. Choose another folder.",
+          quoted
+        )
+    : target === "name"
+      ? L(
+          "This dump has segments that came from %1$@, and writing there would replace the files those segments are measured against. Choose another name.",
+          quoted
+        )
+      : L(
+          "This dump has segments that came from %1$@, and writing there would replace the files those segments are measured against. Choose another folder.",
+          quoted
+        );
   return { title, message };
 }
 

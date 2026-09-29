@@ -86,7 +86,7 @@ export function LibraryConflictDialog({
         <p className="dialog-message">{wording.message}</p>
         <div className="conflict-scroll">
           <table className="panel-table conflict-table">
-            <caption className="visually-hidden">Conflicting changes</caption>
+            <caption className="visually-hidden">{L("Conflicting changes")}</caption>
             <thead>
               <tr>
                 <th scope="col">{L("Entry")}</th>
@@ -108,7 +108,7 @@ export function LibraryConflictDialog({
                     <td>
                       <select
                         className="settings-select"
-                        aria-label={`Keep for ${subject}`}
+                        aria-label={L("Keep for %1$@", subject)}
                         value={answers.get(id) ?? "keepOurs"}
                         // @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.choiceChanged
                         onChange={(event) => {

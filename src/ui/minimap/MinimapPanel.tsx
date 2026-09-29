@@ -146,7 +146,7 @@ export function MinimapPanel({
     >
       <EdgeSplitter
         edge="left"
-        label="Resize the minimap"
+        label={L("Resize the minimap")}
         width={state.width}
         min={MIN_MINIMAP_WIDTH}
         max={MAX_MINIMAP_WIDTH}
@@ -413,10 +413,12 @@ function MinimapModes({
             disabled={mode === "overview" && !overviewUseful}
             title={
               mode === "overview" && !overviewUseful
-                ? "This file is small enough that the overview would magnify it rather than compress it."
+                ? L(
+                    "This file is small enough that the overview would magnify it rather than compress it."
+                  )
                 : mode === "detail"
-                  ? "One cell per byte, around where the panes are"
-                  : "The whole file at once, shaded by content"
+                  ? L("One cell per byte, around where the panes are")
+                  : L("The whole file at once, shaded by content")
             }
             onClick={() => setMinimapMode(surface, mode)}
           >
@@ -429,7 +431,7 @@ function MinimapModes({
           className="minimap-progress"
           value={state.progress}
           max={1}
-          aria-label="Building the overview"
+          aria-label={L("Building the overview")}
         />
       )}
     </div>
@@ -1093,7 +1095,9 @@ function MinimapCanvas({
   const label =
     slot === undefined
       ? L("Minimap")
-      : `Minimap of ${slot.name}, ${mode === "detail" ? "detail" : "overview"}`;
+      : mode === "detail"
+        ? L("Minimap of %1$@, detail", slot.name)
+        : L("Minimap of %1$@, overview", slot.name);
 
   return (
     <div className="minimap-map">
@@ -1119,10 +1123,10 @@ function MinimapCanvas({
             // menu says what it will act on; an unnamed zone is named by where
             // it starts, which is all there is.
             const named =
-              zone.name.length === 0 ? `at ${hexAddress(zone.start)}` : `“${zone.name}”`;
+              zone.name.length === 0 ? L("at %1$@", hexAddress(zone.start)) : `“${zone.name}”`;
             openContextMenu(event, [
               {
-                label: `Select Zone ${named}`,
+                label: L("Select Zone %1$@", named),
                 onSelect: () => {
                   const slot = paneState(pane);
                   if (slot === undefined) return;
@@ -1140,7 +1144,7 @@ function MinimapCanvas({
                 // up again: a tool-module may have republished between the menu
                 // opening and the item being picked.
                 // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
-                label: `Open Zone ${named}`,
+                label: L("Open Zone %1$@", named),
                 onSelect: () => {
                   const slot = paneState(pane);
                   const current = zonesFor(pane).zones.find((one) => one.id === zone.id);

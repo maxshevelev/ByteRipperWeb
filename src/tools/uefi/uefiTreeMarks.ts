@@ -95,7 +95,7 @@ export function uefiTreeMarks(options: {
     if (failed) {
       cautions.push(
         decompressionFailure(node, diagnostics) ??
-          `${compression.algorithm} data did not decompress`
+          L("%1$@ data did not decompress", compression.algorithm)
       );
     }
   }
@@ -207,13 +207,18 @@ function hashProblems(
     if (!startsHere && !namesIt) continue;
     if (range.verdict === "mismatch") {
       const where = range.range === undefined ? "" : ` at ${hex(range.range[0])}`;
-      const text = `${range.name}${where} does not match its hash`;
+      const text = L("%1$@%2$@ does not match its hash", range.name, where);
       if (range.isIbb) cautions.push(text);
       else errors.push(text);
     } else if (range.verdict === "unsupported") {
       const where = range.range === undefined ? "" : ` at ${hex(range.range[0])}`;
       cautions.push(
-        `${range.name}${where} could not be checked: ${range.unsupported ?? "that algorithm"} is not computed here`
+        L(
+          "%1$@%2$@ could not be checked: %3$@ is not computed here",
+          range.name,
+          where,
+          range.unsupported ?? "that algorithm"
+        )
       );
     }
   }
@@ -249,8 +254,10 @@ function decompressedFrom(node: WireNode, roots: readonly WireNode[]): string | 
   const outermost = node.space[0];
   if (outermost === undefined) return undefined;
   const section = sectionNamed(roots, outermost) ?? L("a compressed section");
-  const deeper = node.space.length > 1 ? `, ${node.space.length} compressed sections deep` : "";
-  return `Decompressed from ${section} at ${hex(outermost)}${deeper}`;
+  const text = L("Decompressed from %1$@ at %2$@", section, hex(outermost));
+  return node.space.length > 1
+    ? L("%1$@, %2$@ compressed sections deep", text, node.space.length)
+    : text;
 }
 
 /** The name of the file-space node whose header starts at `offset`. */

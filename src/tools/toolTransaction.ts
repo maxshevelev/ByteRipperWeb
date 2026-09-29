@@ -18,6 +18,8 @@
  * Ported from `Packages/ToolModuleKit/ToolTransaction.swift`.
  */
 
+import { L } from "@/core/localization/localization";
+
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write */
 export interface ToolWrite {
   /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.offset */
@@ -81,13 +83,13 @@ export type ToolTransactionProblem =
 export function transactionProblemMessage(problem: ToolTransactionProblem): string {
   switch (problem.kind) {
     case "unnamed":
-      return "A step the user can undo has to say what it was.";
+      return L("A step the user can undo has to say what it was.");
     case "noWrites":
-      return "That change writes nothing.";
+      return L("That change writes nothing.");
     case "emptyWrite":
-      return `A write at 0x${problem.offset.toString(16).toUpperCase()} carries no bytes.`;
+      return L("A write at 0x%1$@ carries no bytes.", problem.offset.toString(16).toUpperCase());
     case "overlappingWrites":
-      return `Two writes cover 0x${problem.offset.toString(16).toUpperCase()}.`;
+      return L("Two writes cover 0x%1$@.", problem.offset.toString(16).toUpperCase());
   }
 }
 

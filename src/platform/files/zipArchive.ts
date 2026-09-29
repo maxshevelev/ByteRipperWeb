@@ -20,6 +20,7 @@
  * is refused rather than silently truncated.
  */
 
+import { L } from "@/core/localization/localization";
 import type { Bytes } from "@/core/storage/byteStorage";
 
 /** ZIP's 32-bit fields stop here; past it an archive needs ZIP64. */
@@ -28,8 +29,9 @@ const SIZE_CEILING = 0xffff_ffff;
 export class ZipTooLarge extends Error {
   constructor() {
     super(
-      "This set of segments is too large for a single ZIP download. Save them to a folder " +
-        "instead, or save the pieces one at a time."
+      L(
+        "This set of segments is too large for a single ZIP download. Save them to a folder instead, or save the pieces one at a time."
+      )
     );
     this.name = "ZipTooLarge";
   }

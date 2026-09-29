@@ -376,7 +376,8 @@ export function deviceStamp(deviceId: string): string {
  */
 export function syncProblem(state: FavoritesState): string | undefined {
   const count = state.conflicts.length;
-  if (count > 0) return count === 1 ? L("1 conflicting change") : `${count} conflicting changes`;
+  if (count > 0)
+    return count === 1 ? L("1 conflicting change") : L("%1$@ conflicting changes", count);
   if (state.folder === undefined) return undefined;
   if (state.folder.access !== "granted") return L("no access to the library folder");
   if (state.publishError !== undefined) return L("not syncing");

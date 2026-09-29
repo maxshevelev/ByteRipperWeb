@@ -77,7 +77,7 @@ const tabs = (): readonly { readonly id: SettingsTab; readonly label: string }[]
   { id: "comparison", label: L("Comparison") },
   { id: "editing", label: L("Editing") },
   { id: "textDecoding", label: L("Text Decoding") },
-  { id: "favorites", label: L("Favorites") },
+  { id: "favorites", label: L("Search Patterns") },
   { id: "language", label: L("Language") },
 ];
 

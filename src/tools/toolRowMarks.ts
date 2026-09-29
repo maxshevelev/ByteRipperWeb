@@ -281,8 +281,8 @@ export const roleTooltip = (role: RowRole): string => {
   switch (role.kind) {
     case "compressed":
       return role.decoded
-        ? `${role.algorithm} compressed data that opens here`
-        : `${role.algorithm} compressed data that does not open here`;
+        ? L("%1$@ compressed data that opens here", role.algorithm)
+        : L("%1$@ compressed data that does not open here", role.algorithm);
     case "holdsChecks":
       return role.words;
     case "partlyProtected":

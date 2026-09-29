@@ -48,6 +48,6 @@ The matches are marked in the [[topic:minimap|minimap]] as well, where their dis
 
 **⌘F with bytes selected** loads the selection as the search pattern, which is how a sequence selected in one dump is then looked for in the other. Upstream keeps that on a key of its own (⌘E); here the one key carries both meanings, because with a selection there is only one thing Find can sensibly mean.
 
-Patterns can be named and kept in a pattern library (**Settings ▸ Favorites**) — for instance the recurring signatures `_FVH`, `$FPT` or `24 00 00 00`. The library lives in this browser; it can be exported and imported anywhere, and in a Chromium browser it can be synchronised through a folder so that several installations share it — including the macOS application, whose file format it is.
+Patterns can be named and kept in a pattern library (**Settings ▸ Search Patterns**) — for instance the recurring signatures `_FVH`, `$FPT` or `24 00 00 00`. The library lives in this browser; it can be exported and imported anywhere, and in a Chromium browser it can be synchronised through a folder so that several installations share it — including the macOS application, whose file format it is.
 
 See also: [[topic:bookmarks|Bookmarks]], for marking an address that was found.

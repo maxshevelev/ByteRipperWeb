@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import { contentStream } from "@/core/storage/contentStream";
 import type { OffsetRange } from "@/core/storage/pieceTable";
@@ -90,7 +91,7 @@ export async function save(request: SaveRequest): Promise<SaveOutcome> {
     // the user did not ask for; saying so and stopping is the honest answer.
     throw new StorageError(
       "permissionDenied",
-      "This browser needs permission to write to that file, and it was not granted."
+      L("This browser needs permission to write to that file, and it was not granted.")
     );
   }
 
@@ -147,9 +148,9 @@ async function verifyBaseIsIntact(
   if (onDisk.size < baseSize) {
     throw new StorageError(
       "fileChanged",
-      "This file has been shortened since it was opened, so what is on screen no longer " +
-        "matches it. Open it again before saving, or the bytes that went missing would be " +
-        "written back as zeros."
+      L(
+        "This file has been shortened since it was opened, so what is on screen no longer matches it. Open it again before saving, or the bytes that went missing would be written back as zeros."
+      )
     );
   }
 }

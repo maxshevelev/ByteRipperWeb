@@ -15,7 +15,7 @@ import {
   checksumsPath,
   type MEANode,
   meaZones,
-  PENDING_VALUE,
+  pendingValue,
   presentMEA,
 } from "@/tools/meaTree";
 
@@ -365,7 +365,7 @@ describe("the checksums group", () => {
     const roots = presentMEA(analysisWith(), undefined);
     const group = find(CHECKSUMS_TITLE, roots);
     expect(group?.fields.map((one) => one.label)).toEqual(["SHA-256", "SHA-384", "CRC-32"]);
-    expect(new Set(group?.fields.map((one) => one.value))).toEqual(new Set([PENDING_VALUE]));
+    expect(new Set(group?.fields.map((one) => one.value))).toEqual(new Set([pendingValue()]));
     expect(checksumsPath(roots)).toEqual(group?.path);
   });
 

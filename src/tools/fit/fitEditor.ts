@@ -112,18 +112,19 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
     case "notMicrocode":
       return L("That file does not start with an Intel microcode header.");
     case "microcodeChecksumIsWrong":
-      return "That microcode's checksum does not add up — its dwords should sum to zero.";
+      return L("That microcode's checksum does not add up — its dwords should sum to zero.");
     case "noMicrocodeToFollow":
       return L("There is no microcode in this table to put a new one after.");
     case "theTableCannotGrow":
-      return (
-        "The table has no empty slot, and the sixteen bytes after it are not free — " +
-        `they are ${problem.after}.`
+      return L(
+        "The table has no empty slot, and the sixteen bytes after it are not free — they are %1$@.",
+        problem.after
       );
     case "theRunCannotGrow":
-      return (
-        `The microcode run needs 0x${problem.needed.toString(16).toUpperCase()} more bytes ` +
-        `than are free after it, in ${problem.inside}.`
+      return L(
+        "The microcode run needs 0x%1$@ more bytes than are free after it, in %2$@.",
+        problem.needed.toString(16).toUpperCase(),
+        problem.inside
       );
     case "cannotRemoveTheHeader":
       return L("The header is not an entry.");
@@ -136,22 +137,21 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
     case "noTable":
       return L("There is no FIT table in this file to change.");
     case "insideProtectedRange":
-      return (
-        `The change writes at 0x${problem.at.toString(16).toUpperCase()} inside a ` +
-        `${problem.name}: the processor checks it before the firmware runs, and with ` +
-        "Boot Guard enforced the platform would not start. Nothing was changed."
+      return L(
+        "The change writes at 0x%1$@ inside a %2$@: the processor checks it before the firmware runs, and with Boot Guard enforced the platform would not start. Nothing was changed.",
+        problem.at.toString(16).toUpperCase(),
+        problem.name
       );
     case "topSwapCopiesDiffer":
-      return (
-        "This image keeps a Top Swap backup of the boot block at " +
-        `0x${problem.backup.start.toString(16).toUpperCase()}–0x${problem.backup.end.toString(16).toUpperCase()}, ` +
-        "and it is not the same as the block the FIT is in, so the change cannot be made in both. " +
-        "Nothing was changed."
+      return L(
+        "This image keeps a Top Swap backup of the boot block at 0x%1$@–0x%2$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed.",
+        problem.backup.start.toString(16).toUpperCase(),
+        problem.backup.end.toString(16).toUpperCase()
       );
     case "topSwapWriteCrossesTheBlocks":
-      return (
-        `The change writes at 0x${problem.at.toString(16).toUpperCase()} across a Top Swap block ` +
-        "boundary, where it cannot be made in both copies. Nothing was changed."
+      return L(
+        "The change writes at 0x%1$@ across a Top Swap block boundary, where it cannot be made in both copies. Nothing was changed.",
+        problem.at.toString(16).toUpperCase()
       );
   }
 }
@@ -568,9 +568,11 @@ function checkingProtection<Outcome extends { protectionWarnings?: readonly stri
         at,
       });
     }
-    const warning =
-      `It writes at 0x${at.toString(16).toUpperCase()} inside a ` +
-      `${protectedRangeKindName(range.kind)}: the hash the firmware checks it against no longer matches.`;
+    const warning = L(
+      "It writes at 0x%1$@ inside a %2$@: the hash the firmware checks it against no longer matches.",
+      at.toString(16).toUpperCase(),
+      protectedRangeKindName(range.kind)
+    );
     if (!warnings.includes(warning)) warnings.push(warning);
   }
   return {

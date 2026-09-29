@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { SyncFolderFiles } from "@/core/sync/folderSync";
 
 /**
@@ -178,10 +179,8 @@ export const browserFolderPlatform: FolderPlatform = {
   get whyNoFolder() {
     if (typeof directoryPicker() === "function") return undefined;
     if ((globalThis as { isSecureContext?: boolean }).isSecureContext !== false) return undefined;
-    return (
-      "This page was opened at an address the browser does not treat as secure, so it hides " +
-      "the folder picker. Open the app over https, or at http://localhost, to keep the library " +
-      "in a folder."
+    return L(
+      "This page was opened at an address the browser does not treat as secure, so it hides the folder picker. Open the app over https, or at http://localhost, to keep the library in a folder."
     );
   },
 

@@ -151,9 +151,9 @@ export function favoriteNameProblem(
 ): string | undefined {
   if (name.trim().length === 0) return L("Enter a name — it is what the menu shows.");
   if (!parsePattern(search.pattern, search.encoding).ok) {
-    return `That pattern cannot be read as ${encodingTitle(search.encoding)}.`;
+    return L("That pattern cannot be read as %1$@.", encodingTitle(search.encoding));
   }
-  if (alreadyKept !== undefined) return `Already a favourite, as "${alreadyKept.name}".`;
+  if (alreadyKept !== undefined) return L("Already a favourite, as “%1$@”.", alreadyKept.name);
   return undefined;
 }
 
@@ -163,5 +163,5 @@ export function favoriteNameProblem(
  * @upstream ByteRipperApp/Search/NamePatternSheetController.swift#NamePatternSheetController.describe
  */
 export function keepingDescription(search: MenuSearch): string {
-  return `Keeping "${search.pattern}" — ${searchFlags(search)}.`;
+  return L("Keeping “%1$@” — %2$@.", search.pattern, searchFlags(search));
 }

@@ -156,9 +156,13 @@ export function paneFileMenu(
       { label: L("Open…"), onSelect: () => actions.onOpen(slot) },
       { kind: "separator" },
     ]),
-    { label: verb, disabled: !dirty && verb === "Save", onSelect: () => actions.onSave(pane) },
     {
-      label: verb === "Save" ? L("Save As…") : "Download As…",
+      label: verb === "Save" ? L("Save") : L("Download"),
+      disabled: !dirty && verb === "Save",
+      onSelect: () => actions.onSave(pane),
+    },
+    {
+      label: verb === "Save" ? L("Save As…") : L("Download As…"),
       onSelect: () => actions.onSaveAs(pane),
     },
     // With the Saves: the third thing that decides what this document is
@@ -216,7 +220,7 @@ export function paneFileMenu(
 export function statusSizeMenu(size: number, form: SizeForm): MenuEntry[] {
   const named = form === "hex" ? L("Copy hex size") : L("Copy size");
   const text = sizeCopyText(size, form);
-  return [{ label: `${named} ${text}`, onSelect: () => void copyText(text) }];
+  return [{ label: L("%1$@ %2$@", named, text), onSelect: () => void copyText(text) }];
 }
 
 /**
@@ -232,7 +236,7 @@ export function statusSizeMenu(size: number, form: SizeForm): MenuEntry[] {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.makeStatusOffsetMenu
  */
 export function statusOffsetMenu(digits: string): MenuEntry[] {
-  return [{ label: `Copy offset ${digits}`, onSelect: () => void copyText(digits) }];
+  return [{ label: L("Copy offset %1$@", digits), onSelect: () => void copyText(digits) }];
 }
 
 /**
@@ -284,7 +288,7 @@ export function dumpMenu(
   return [
     ...(inSelection ? selectionItems(slot, pane, actions) : []),
     inSelection ? { kind: "separator" as const } : undefined,
-    { label: "Copy Offset", onSelect: () => void copyText(hexAddress(offset)) },
+    { label: L("Copy offset"), onSelect: () => void copyText(hexAddress(offset)) },
     { kind: "separator" },
     {
       // help: menu.edit.select-block
@@ -342,15 +346,15 @@ function zoneItems(
   return [
     { kind: "separator" },
     ...zones.map((zone) => ({
-      label: `Select Zone “${zone.name}”`,
+      label: L("Select Zone “%1$@”", zone.name),
       onSelect: () => actions.onSelectZone(pane, zone),
     })),
     ...zones.map((zone) => ({
-      label: `Open Zone “${zone.name}”`,
+      label: L("Open Zone “%1$@”", zone.name),
       onSelect: () => openZone(pane, slot, zone),
     })),
     ...zones.map((zone) => ({
-      label: `Save Zone “${zone.name}” as…`,
+      label: L("Save Zone “%1$@” as…", zone.name),
       onSelect: () =>
         saveRangeAs(
           slot,
@@ -570,7 +574,7 @@ function saveRangeAs(
   start: number,
   end: number,
   suggestedName: string,
-  purpose: string,
+  purpose: "zone" | "selection",
   actions: PaneMenuActions
 ): void {
   void saveRange(slot.document.storage, start, end, suggestedName)
@@ -578,14 +582,18 @@ function saveRangeAs(
       if (outcome === "downloaded") {
         actions.onMessage(
           pane,
-          "This browser cannot write to a chosen file, so a copy was downloaded."
+          L("This browser cannot write to a chosen file, so a copy was downloaded.")
         );
       }
     })
     .catch((error: unknown) =>
       actions.onProblem(
         L("Save failed."),
-        error instanceof Error ? error.message : `That ${purpose} could not be saved.`
+        error instanceof Error
+          ? error.message
+          : purpose === "zone"
+            ? L("That zone could not be saved.")
+            : L("That selection could not be saved.")
       )
     );
 }
@@ -651,8 +659,8 @@ async function copySelection(slot: PaneState, actions: PaneMenuActions): Promise
       // @web-only upstream writes to `NSPasteboard` and has no refusal to
       // report; a page's clipboard write can be denied by the browser
       actions.onProblem(
-        "Copy failed.",
-        "This browser would not let the page write to the clipboard."
+        L("Copy failed."),
+        L("This browser would not let the page write to the clipboard.")
       );
     }
   }

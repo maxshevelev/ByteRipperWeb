@@ -58,7 +58,7 @@ export function hexSizeText(bytes: number): string {
  * keep a file over 2 GB off its low half
  */
 export function exactSizeText(bytes: number): string {
-  return `${hexSizeText(bytes)} (${bytes} bytes)`;
+  return L("%1$@ (%2$@ bytes)", hexSizeText(bytes), String(bytes));
 }
 
 /**

@@ -78,7 +78,9 @@ export function buildDetail(
     // The number the panel shows for the row, counting from one the way the
     // table and the zones do — not the header's zero, which is its place, not
     // its number.
-    title: `${inBackup ? "Backup " : ""}#${row.entry.index + 1} ${fitTypeName(row.entry.type)}`,
+    title: inBackup
+      ? L("Backup #%1$@ %2$@", row.entry.index + 1, fitTypeName(row.entry.type))
+      : L("#%1$@ %2$@", row.entry.index + 1, fitTypeName(row.entry.type)),
     fields: [...entryFields(row.entry, checksumShouldBe), ...targetFields(row)],
   };
 }
@@ -94,7 +96,7 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
       value: `${fitTypeName(entry.type)} · ${hex(entry.type, 2)}`,
       isProblem: false,
     },
-    { label: "Offset", value: hex(entry.offset, 8), isProblem: false },
+    { label: L("Offset", { context: "fit" }), value: hex(entry.offset, 8), isProblem: false },
     {
       label: L("Address"),
       value: isHeaderEntry(entry) ? "_FIT_" : hex(entry.address, 8),
@@ -113,7 +115,7 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
     // problem.
     fields.push({
       label: L("Checksum"),
-      value: `${hex(entry.checksum, 2)} (Not checked)`,
+      value: L("%1$@ (Not checked)", hex(entry.checksum, 2)),
       isProblem: false,
     });
     return fields;
@@ -137,7 +139,7 @@ function sizeText(entry: FITEntry): string {
   // The header's `Size` counts entries, not bytes — the field everyone reads
   // wrong. For the rows that use it the field is in 16-byte units; what a
   // reader wants is the byte count.
-  if (isHeaderEntry(entry)) return `${entry.size} rows`;
+  if (isHeaderEntry(entry)) return L("%1$@ rows", entry.size);
   // A row with no size of its own says so in the same word every empty area
   // does.
   return entry.size === 0 ? L("Empty") : size(sizeInBytes(entry));
@@ -161,7 +163,7 @@ function targetFields(row: FITRow): FITDetailField[] {
         { label: L("Data register"), value: hex(one.dataRegister, 4), isProblem: false },
         {
           label: L("Access width"),
-          value: `${one.accessWidth} byte${one.accessWidth === 1 ? "" : "s"}`,
+          value: one.accessWidth === 1 ? L("1 byte") : L("%1$@ bytes", one.accessWidth),
           isProblem: false,
         },
         { label: L("Bit position"), value: `${one.bitPosition}`, isProblem: false },
@@ -193,7 +195,7 @@ function targetFields(row: FITRow): FITDetailField[] {
       fields.push({ label: L("Component"), value: hex(target.offset, 8), isProblem: false });
       const length = effectiveSize(row);
       if (length !== undefined)
-        fields.push({ label: "Length", value: size(length), isProblem: false });
+        fields.push({ label: L("Length"), value: size(length), isProblem: false });
       return fields;
     }
   }

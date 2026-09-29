@@ -38,7 +38,7 @@ const COLUMNS = localized(
   () =>
     [
       { title: L("CPUID"), width: 83 },
-      { title: "Plat", width: 54 },
+      { title: L("Plat", { context: "column" }), width: 54 },
       { title: L("Revision"), width: 87 },
       { title: L("Date"), width: 106 },
       { title: L("Release"), width: 87 },
@@ -153,7 +153,7 @@ export function MicrocodeForm({
     <Dialog open title={formTitle(mode)} onClose={onCancel} className="microcode-dialog">
       <div className="dialog-body microcode-form">
         <p className="dialog-help">
-          From github.com/platomav/CPUMicrocodes — a FIT names no other kind.
+          {L("From github.com/platomav/CPUMicrocodes — a FIT only ever names Intel microcode.")}
         </p>
 
         <div className="microcode-filters">
@@ -191,7 +191,7 @@ export function MicrocodeForm({
           className="microcode-list"
           ref={listCallbackRef}
           role="grid"
-          aria-label="Intel microcodes"
+          aria-label={L("Intel microcodes")}
           tabIndex={0}
           onKeyDown={onKeyDown}
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}

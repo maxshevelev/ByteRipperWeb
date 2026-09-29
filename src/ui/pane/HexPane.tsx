@@ -1960,7 +1960,7 @@ export function HexPane({
             </svg>
           </button>
         )}
-        <CloseButton label={`Close ${label}`} onClick={onClose} />
+        <CloseButton label={L("Close %1$@", label)} onClick={onClose} />
       </header>
       {/*
         The scroller is a real scrolling element with a spacer inside it, so the
@@ -2097,7 +2097,7 @@ export function HexPane({
           className="readout-mode"
           data-insert={mode === "INS" ? "" : undefined}
           aria-pressed={mode === "INS"}
-          title="Insert mode: typing shifts the rest of the file"
+          title={L("Insert mode: typing shifts the rest of the file")}
           onClick={flipTypingModeFromReadout}
         >
           {mode}

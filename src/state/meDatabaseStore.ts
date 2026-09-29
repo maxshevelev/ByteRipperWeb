@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import {
   type RemoteFailure,
   remoteFailureMessage,
@@ -223,7 +224,7 @@ export function loadMEDatabase(source: MEDatabaseSource = liveMEDatabaseSource):
         // that distinction turned a rate limit into "offline".
         failure: remoteFailureOf(error) ?? {
           kind: "offline",
-          detail: error instanceof Error ? error.message : "the database could not be read",
+          detail: error instanceof Error ? error.message : L("the database could not be read"),
         },
       }));
     }

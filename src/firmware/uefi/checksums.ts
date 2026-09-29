@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 
 /**
@@ -144,11 +145,11 @@ export function checksumText(options: {
 }): string {
   const digits = options.digits ?? 2;
   const padded = hex(options.value, digits);
-  if (options.valid) return `${padded} (Valid)`;
+  if (options.valid) return L("%1$@ (Valid)", padded);
   if (options.expected !== undefined) {
-    return `${padded} (Invalid), should be ${hex(options.expected, digits)}`;
+    return L("%1$@ (Invalid), should be %2$@", padded, hex(options.expected, digits));
   }
-  return `${padded} (Invalid)`;
+  return L("%1$@ (Invalid)", padded);
 }
 
 /** A hex value padded to a field's width — `0x0005` for four digits. */

@@ -23,13 +23,13 @@ const GLYPH_SIZE = 76;
 
 /** What a plate that is only its glyph says to a reader who cannot see it. */
 const GLYPH_LABEL: () => Record<NoticeGlyph, string> = localized(() => ({
-  wrapForward: "The search came round the end of the file",
-  wrapBackward: "The search came round the start of the file",
-  smartSearch: "Smart search",
+  wrapForward: L("The search came round the end of the file"),
+  wrapBackward: L("The search came round the start of the file"),
+  smartSearch: L("Smart Search"),
   addedToFavorites: L("Added to Favorites"),
-  copySummary: "Summary copied",
-  copyScreenshot: "Screenshot copied",
-  warning: "The selection is too long to search for",
+  copySummary: L("Summary Copied"),
+  copyScreenshot: L("Screenshot Copied"),
+  warning: L("Selection too long to search for"),
 }));
 
 /**

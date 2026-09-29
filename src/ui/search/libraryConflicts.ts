@@ -55,22 +55,29 @@ export interface ConflictWording {
   readonly theirs: string;
   /** The other side as a choice, short enough for the popup. */
   readonly theirsChoice: string;
-  /** Where the other side's change was made, as it reads after a dash. */
-  readonly elsewhere: string;
+  /** An entry the other side changed while this side deleted it, said whole. */
+  readonly changedThere: (summary: string) => string;
+  /** An entry the other side deleted, when it can say which side that was. */
+  readonly deletedThere: string;
   /** The sentence under the title. */
   readonly message: string;
 }
 
-/** A library file opened with Import…. */
-export const IMPORT_WORDING: ConflictWording = {
-  ours: "This Browser",
-  theirs: "Imported File",
-  theirsChoice: "File",
-  elsewhere: "in the imported file",
-  message:
-    "This browser and the imported file hold the same patterns and say different things " +
-    "about them. Choose which to keep.",
-};
+/**
+ * A library file opened with Import….
+ *
+ * @web-only upstream has no import
+ */
+export const IMPORT_WORDING: () => ConflictWording = localized(() => ({
+  ours: L("This Browser"),
+  theirs: L("Imported File"),
+  theirsChoice: L("File"),
+  changedThere: (summary) => L("%1$@ — changed in the imported file", summary),
+  deletedThere: L("Deleted in the imported file"),
+  message: L(
+    "This browser and the imported file hold the same patterns and say different things about them. Choose which to keep."
+  ),
+}));
 
 /**
  * The library folder: other machines' files, merged with this browser's.
@@ -78,18 +85,19 @@ export const IMPORT_WORDING: ConflictWording = {
  * @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init
  */
 export const SHARED_WORDING: () => ConflictWording = localized(() => ({
-  ours: "This Browser",
+  ours: L("This Browser"),
   theirs: L("Shared Library"),
   theirsChoice: L("Shared"),
-  elsewhere: "on another machine",
-  message:
-    "This browser and the shared library were both changed before either saw the other. " +
-    "Choose which to keep.",
+  changedThere: (summary) => L("%1$@ — changed on another machine", summary),
+  deletedThere: L("Deleted on another machine"),
+  message: L(
+    "This browser and the shared library were both changed before either saw the other. Choose which to keep."
+  ),
 }));
 
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init */
 export function conflictTitle(count: number): string {
-  return count === 1 ? L("One conflicting change") : `${count} conflicting changes`;
+  return count === 1 ? L("One conflicting change") : L("%1$@ conflicting changes", count);
 }
 
 /**
@@ -106,14 +114,14 @@ export function ourSide(conflict: LibraryConflict): string {
   if (conflict.kind !== "editedAndDeleted") return entrySummary(conflict.ours);
   return conflict.deletedHere
     ? L("Deleted here")
-    : `${entrySummary(conflict.entry)} — changed here`;
+    : L("%1$@ — changed here", entrySummary(conflict.entry));
 }
 
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.theirSide */
 export function theirSide(conflict: LibraryConflict, wording: ConflictWording): string {
   if (conflict.kind !== "editedAndDeleted") return entrySummary(conflict.theirs);
-  if (conflict.deletedHere) return `${entrySummary(conflict.entry)} — changed ${wording.elsewhere}`;
-  return conflict.deletedBy === "" ? L("Deleted") : `Deleted ${wording.elsewhere}`;
+  if (conflict.deletedHere) return wording.changedThere(entrySummary(conflict.entry));
+  return conflict.deletedBy === "" ? L("Deleted") : wording.deletedThere;
 }
 
 /**

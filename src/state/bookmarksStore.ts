@@ -1,5 +1,6 @@
 import { BookmarkSpace } from "@/core/bookmarks/bookmarkSpace";
 import { type Bookmark, BookmarkStore, rowContaining } from "@/core/bookmarks/bookmarkStore";
+import { L } from "@/core/localization/localization";
 import { hexAddress } from "@/core/text/hexText";
 import { openKeyValueStore } from "@/platform/storage/keyValueStore";
 import { isSlot, type PaneId } from "@/state/paneId";
@@ -357,7 +358,7 @@ export function bookmarkTooltip(pane: PaneId, offset: number): string {
   if (!space.isShifted) return mark.name;
   const there = hexAddress(space.storeRowOf(offset));
   const host = bookmarkHostName(pane);
-  const line = host === undefined ? there : `${there} in ${host}`;
+  const line = host === undefined ? there : L("%1$@ in %2$@", there, host);
   return mark.name.length === 0 ? line : `${mark.name}\n${line}`;
 }
 

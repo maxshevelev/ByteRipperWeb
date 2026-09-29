@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { Part, PartSink, PartStream } from "@/core/segments/segmentWriter";
 import type { Bytes } from "@/core/storage/byteStorage";
 import { StorageError } from "@/core/storage/storageError";
@@ -70,8 +71,9 @@ export function directorySink(directory: FileSystemDirectoryHandle): PartSink {
       } catch (cause) {
         throw new StorageError(
           "writeFailed",
-          "A file could not be created in that folder. Check that it is writable, and " +
-            "that there is room on the disk.",
+          L(
+            "A file could not be created in that folder. Check that it is writable, and that there is room on the disk."
+          ),
           { cause }
         );
       }

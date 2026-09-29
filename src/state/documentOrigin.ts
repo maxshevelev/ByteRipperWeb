@@ -330,14 +330,25 @@ export class DocumentOrigin {
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.explanation
    */
   explanationFor(state: OriginState): string {
-    const from = `Opened from “${this.partName}” in ${this.parentName}`;
     switch (state) {
       case "intact":
-        return `${from}. Click to show it there.`;
+        return L(
+          "Opened from “%1$@” in %2$@. Click to show it there.",
+          this.partName,
+          this.parentName
+        );
       case "parentClosed":
-        return `${from}, which is no longer open.`;
+        return L(
+          "Opened from “%1$@” in %2$@, which is no longer open.",
+          this.partName,
+          this.parentName
+        );
       case "sourceChanged":
-        return `${from}, which has changed there since.`;
+        return L(
+          "Opened from “%1$@” in %2$@, which has changed there since.",
+          this.partName,
+          this.parentName
+        );
     }
   }
 
@@ -369,7 +380,11 @@ export class DocumentOrigin {
       return {
         kind: "refused",
         title: L("The parent is closed"),
-        message: `“${this.parentName}” is no longer open, so there is nothing to put “${this.partName}” back into.`,
+        message: L(
+          "“%1$@” is no longer open, so there is nothing to put “%2$@” back into.",
+          this.parentName,
+          this.partName
+        ),
       };
     }
     let bytes: Uint8Array;
@@ -378,8 +393,8 @@ export class DocumentOrigin {
     } catch {
       return {
         kind: "refused",
-        title: "The part could not be read",
-        message: `Nothing was changed in ${this.parentName}.`,
+        title: L("The part could not be read"),
+        message: L("Nothing was changed in %1$@.", this.parentName),
       };
     }
     // A part the image's structure can be laid out again around goes through
@@ -396,9 +411,11 @@ export class DocumentOrigin {
       return {
         kind: "refused",
         title: L("This cannot be put back"),
-        message:
-          `These bytes were decompressed from “${this.partName}” in ${this.parentName}, ` +
-          "and where they belong in it was not recorded when the part was opened.",
+        message: L(
+          "These bytes were decompressed from “%1$@” in %2$@, and where they belong in it was not recorded when the part was opened.",
+          this.partName,
+          this.parentName
+        ),
       };
     }
     const length = this.source[1] - this.source[0];
@@ -406,10 +423,13 @@ export class DocumentOrigin {
       return {
         kind: "refused",
         title: L("The length changed"),
-        message:
-          `“${this.partName}” is ${hexAddress(length)} bytes in ${this.parentName}, ` +
-          `and this part is ${hexAddress(bytes.length)}. A part goes back only at its own length: ` +
-          "the bytes after it in the file are not this part's to move.",
+        message: L(
+          "“%1$@” is %2$@ bytes in %3$@, and this part is %4$@. A part goes back only at its own length: the bytes after it in the file are not this part's to move.",
+          this.partName,
+          hexAddress(length),
+          this.parentName,
+          hexAddress(bytes.length)
+        ),
       };
     }
     return { kind: "overwrite", offset: this.source[0], bytes, confirm: state === "sourceChanged" };

@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { installCatalogue } from "@/core/localization/localization";
+import { installCatalogue, L } from "@/core/localization/localization";
 import { assembleWord, type ByteSource, sourceOver } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
@@ -132,7 +132,7 @@ const NO_EDIT = {
 
 /** What the edit came to, in the sentence the panel says afterwards. */
 function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
-  const moved = outcome.moved === 0 ? "" : `, and ${outcome.moved} behind it moved up to suit`;
+  const moved = outcome.moved;
   const protection = protectionNote(outcome.protectionWarnings);
   // That the Top Swap backup of the boot block got the same change is said,
   // because it is a second place in the file the edit wrote to.
@@ -140,14 +140,37 @@ function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
   const topSwap =
     backup === undefined
       ? ""
-      : ` The Top Swap backup at 0x${backup.start.toString(16).toUpperCase()} got the same change.`;
+      : ` ${L(
+          "The Top Swap backup at 0x%1$@ got the same change.",
+          backup.start.toString(16).toUpperCase()
+        )}`;
+  // Whole sentences per case, as upstream's notes are: a clause glued on in
+  // English is not a clause any other language can be built from.
+  let sentence: string;
   if (!("range" in outcome)) {
-    return `The microcode is out of the table${moved}.${topSwap}${protection}`;
+    sentence =
+      moved === 0
+        ? L("The microcode is out of the table.")
+        : L("The microcode is out of the table, and %1$@ behind it moved up to suit.", moved);
+  } else {
+    const where = `0x${outcome.range.start.toString(16).toUpperCase()}`;
+    if (outcome.kind === "added") {
+      sentence =
+        moved === 0
+          ? L("The microcode went in at %1$@.", where)
+          : L("The microcode went in at %1$@, and %2$@ behind it moved up to suit.", where, moved);
+    } else {
+      sentence =
+        moved === 0
+          ? L("The microcode at %1$@ was replaced.", where)
+          : L(
+              "The microcode at %1$@ was replaced, and %2$@ behind it moved up to suit.",
+              where,
+              moved
+            );
+    }
   }
-  const where = `0x${outcome.range.start.toString(16).toUpperCase()}`;
-  return outcome.kind === "added"
-    ? `The microcode went in at ${where}${moved}.${topSwap}${protection}`
-    : `The microcode at ${where} was replaced${moved}.${topSwap}${protection}`;
+  return `${sentence}${topSwap}${protection}`;
 }
 
 /**
@@ -157,9 +180,10 @@ function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.protectionNote
  */
 function protectionNote(warnings: readonly string[] | undefined): string {
-  if (warnings === undefined) return " Boot Guard and vendor protected ranges were not checked.";
+  if (warnings === undefined)
+    return ` ${L("Boot Guard and vendor protected ranges were not checked.")}`;
   if (warnings.length === 0) {
-    return " Nothing was written inside a Boot Guard or vendor protected range.";
+    return ` ${L("Nothing was written inside a Boot Guard or vendor protected range.")}`;
   }
   return ` ${warnings.join(" ")}`;
 }
@@ -769,7 +793,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
 
       case "fitRead": {
         if (reader === undefined) {
-          post({ kind: "firmwareFailed", id: request.id, problem: "No image is open." });
+          post({ kind: "firmwareFailed", id: request.id, problem: L("No image is open.") });
           return;
         }
         // The tree as it stands, which is what names what a row points at. A
@@ -789,7 +813,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
 
       case "fitEdit": {
         if (reader === undefined) {
-          post({ ...NO_EDIT, id: request.id, problem: "No image is open." });
+          post({ ...NO_EDIT, id: request.id, problem: L("No image is open.") });
           return;
         }
         const diff = addressing().addressDiff;
@@ -870,7 +894,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             id: request.id,
             regionOffset: 0,
             analysis: undefined,
-            problem: "No image is open.",
+            problem: L("No image is open."),
           });
           return;
         }
@@ -883,7 +907,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             id: request.id,
             regionOffset: 0,
             analysis: undefined,
-            problem: "That image could not be read.",
+            problem: L("That image could not be read."),
           });
           return;
         }
@@ -965,7 +989,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
     post({
       kind: "firmwareFailed",
       id: request.id,
-      problem: error instanceof Error ? error.message : "That image could not be parsed.",
+      problem: error instanceof Error ? error.message : L("That image could not be parsed."),
     });
   }
 };

@@ -70,7 +70,10 @@ export function shiftWarning(edit: ShiftingEdit): ShiftWarning {
     case "insert":
       return {
         title: L("Insert?"),
-        message: `Inserting at offset ${at} shifts every byte from here on — the file structure may be affected.`,
+        message: L(
+          "Inserting at offset %1$@ shifts every byte from here on — the file structure may be affected.",
+          at
+        ),
         confirmLabel: L("Insert"),
       };
     // Edit ▸ Paste Insert, which is what a paste into an insert-mode pane is.
@@ -79,15 +82,22 @@ export function shiftWarning(edit: ShiftingEdit): ShiftWarning {
     case "paste":
       return {
         title: L("Paste Insert?"),
-        message: `Insert ${edit.count} byte(s) at offset ${at}. Existing bytes from this offset on will shift.`,
+        message: L(
+          "Insert %1$@ byte(s) at offset %2$@. Existing bytes from this offset on will shift.",
+          edit.count,
+          at
+        ),
         confirmLabel: L("Insert"),
       };
     // Delete Bytes, and the deletes insert mode carries out: removing bytes
     // moves everything after them left.
     case "delete":
       return {
-        title: `Delete ${edit.count} byte(s)?`,
-        message: `Bytes from offset ${at} will be removed. Subsequent offsets will shift — the file structure may be affected.`,
+        title: L("Delete %1$@ byte(s)?", edit.count),
+        message: L(
+          "Bytes from offset %1$@ will be removed. Subsequent offsets will shift — the file structure may be affected.",
+          at
+        ),
         confirmLabel: L("Delete"),
       };
   }

@@ -51,11 +51,11 @@ import {
   withDraft,
 } from "@/ui/settings/favoritesTable";
 
-/** The library file, as the pickers offer it. */
-const LIBRARY_FILE: FilePickerType = {
-  description: "ByteRipper pattern library",
+/** The library file, as the pickers offer it — in the language of the moment. */
+const libraryFile = (): FilePickerType => ({
+  description: L("ByteRipper pattern library"),
   accept: { "application/json": [".json"] },
-};
+});
 
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -82,51 +82,65 @@ export function locationLine(state: FavoritesState): {
     const named = problem ?? L("conflicting changes");
     if (state.answerDidNotTake) {
       return {
-        text: `The shared library changed while you were answering — ${named} to look at again`,
+        text: L(
+          "The shared library changed while you were answering — %1$@ to look at again",
+          named
+        ),
         problem: true,
       };
     }
     let text =
       count === 1
-        ? `${named} — the library is read-only until it is answered`
-        : `${named} — the library is read-only until they are answered`;
+        ? L("%1$@ — the library is read-only until it is answered", named)
+        : L("%1$@ — the library is read-only until they are answered", named);
     if (state.folder !== undefined && state.folder.access !== "granted") {
-      text += ". This visit may not write to the library folder — Allow Access… first";
+      text += L(". This visit may not write to the library folder — Allow Access… first");
     } else if (state.publishError !== undefined) {
-      text += `. Answering cannot be published: ${state.publishError}`;
+      text += L(". Answering cannot be published: %1$@", state.publishError);
     }
     return { text, problem: true };
   }
-  if (state.folder === undefined) return { text: "Library: in this browser only", problem: false };
-  const text = `Library folder: ${state.folder.name}`;
+  if (state.folder === undefined) {
+    return { text: L("Pattern library: in this browser only"), problem: false };
+  }
+  const text = L("Library folder: %1$@", state.folder.name);
   if (state.folder.access === "prompt") {
     return {
-      text: `${text} — this visit has not been allowed to write there yet; Allow Access… to carry on`,
+      text:
+        text +
+        L(" — this visit has not been allowed to write there yet; Allow Access… to carry on"),
       problem: true,
     };
   }
   if (state.folder.access === "denied") {
     return {
-      text: `${text} — the browser refused to let the app write there; choose the folder again with Move…`,
+      text:
+        text +
+        L(" — the browser refused to let the app write there; choose the folder again with Move…"),
       problem: true,
     };
   }
   if (state.publishError !== undefined) {
     const last =
-      state.lastPublished === undefined ? "" : ` (last published ${time(state.lastPublished)})`;
-    return { text: `${text} — cannot be published: ${state.publishError}${last}`, problem: true };
+      state.lastPublished === undefined
+        ? ""
+        : L(" (last published %1$@)", time(state.lastPublished));
+    return {
+      text: text + L(" — cannot be published: %1$@", state.publishError) + last,
+      problem: true,
+    };
   }
   return {
     text:
       state.lastPublished === undefined
-        ? `${text} — not published yet`
-        : `${text} — published ${time(state.lastPublished)}`,
+        ? text + L(" — not published yet")
+        : text + L(" — published %1$@", time(state.lastPublished)),
     problem: false,
   };
 }
 
 /**
- * The Favorites tab (§11): the named patterns the user keeps, in the order they
+ * The Search Patterns tab (§11): the named patterns the user keeps, in the order they
  * keep them in, and where the library lives.
  *
  * Every other tab applies live, so this one does too — a commit writes the
@@ -237,8 +251,10 @@ export function FavoritesTab() {
     setMessage(undefined);
     setReport(
       conflicts.length === 0
-        ? "Those questions were answered on another machine, so they are settled here too."
-        : "The library changed on another machine — open Resolve… again for the questions that are left."
+        ? L("Those questions were answered on another machine, so they are settled here too.")
+        : L(
+            "The library changed on another machine — open Resolve… again for the questions that are left."
+          )
     );
   }, [asked, conflicts]);
 
@@ -285,11 +301,11 @@ export function FavoritesTab() {
     say({});
     const { name, contents } = exportFavorites();
     try {
-      const outcome = await saveText(contents, name, LIBRARY_FILE);
-      if (outcome === "saved") say({ report: `Exported as "${name}".` });
-      else if (outcome === "downloaded") say({ report: `Downloaded "${name}".` });
+      const outcome = await saveText(contents, name, libraryFile());
+      if (outcome === "saved") say({ report: L("Exported as “%1$@”.", name) });
+      else if (outcome === "downloaded") say({ report: L("Downloaded “%1$@”.", name) });
     } catch (error) {
-      say({ problem: `The favorites could not be exported: ${reason(error)}` });
+      say({ problem: L("The pattern library could not be exported: %1$@", reason(error)) });
     }
   };
 
@@ -297,12 +313,12 @@ export function FavoritesTab() {
   const importLibrary = async () => {
     say({});
     try {
-      const [file] = await openFiles({ types: [LIBRARY_FILE] });
+      const [file] = await openFiles({ types: [libraryFile()] });
       if (file === undefined) return;
       const contents = await (file.source as Blob).text();
       say(importReport(importFavorites(contents, file.name), file.name));
     } catch (error) {
-      say({ problem: `The file could not be read: ${reason(error)}` });
+      say({ problem: L("The file could not be read: %1$@", reason(error)) });
     }
   };
 
@@ -320,16 +336,17 @@ export function FavoritesTab() {
       const chosen = await chooseLibraryFolder();
       if (chosen === undefined) return;
       if ("refused" in chosen) {
-        say({ problem: `The browser did not let the app write to “${chosen.refused}”.` });
+        say({ problem: L("The browser did not let the app write to “%1$@”.", chosen.refused) });
         return;
       }
       if (chosen.holds.kind === "unreadable") {
         // Publishing into a library that could not be read would write over
         // something unread — most often a file still downloading.
         say({
-          problem:
-            `The library already in “${chosen.folder.name}” cannot be read yet — if it is ` +
-            "still downloading, wait for it and try again.",
+          problem: L(
+            "The pattern library already in “%1$@” cannot be read yet — if it is still downloading, wait for it and try again.",
+            chosen.folder.name
+          ),
         });
         return;
       }
@@ -339,7 +356,7 @@ export function FavoritesTab() {
       }
       await join(chosen.folder, "merge");
     } catch (error) {
-      say({ problem: `The folder could not be used: ${reason(error)}` });
+      say({ problem: L("The folder could not be used: %1$@", reason(error)) });
     }
   };
 
@@ -361,10 +378,14 @@ export function FavoritesTab() {
     setLeftBehind(undefined);
     try {
       await removeOwnFileFrom(previous);
-      say({ report: `This browser's file was removed from “${previous.name}”.` });
+      say({ report: L("This browser's file was removed from “%1$@”.", previous.name) });
     } catch (error) {
       say({
-        problem: `This browser's file in “${previous.name}” could not be removed: ${reason(error)}`,
+        problem: L(
+          "This browser's file in “%1$@” could not be removed: %2$@",
+          previous.name,
+          reason(error)
+        ),
       });
     }
   };
@@ -374,12 +395,12 @@ export function FavoritesTab() {
     say({});
     try {
       if (await adoptLibraryFile(file.name)) {
-        say({ report: `This browser carries on writing “${file.name}”.` });
+        say({ report: L("This browser carries on writing “%1$@”.", file.name) });
       } else {
-        say({ problem: `“${file.name}” does not say which browser wrote it.` });
+        say({ problem: L("“%1$@” does not say which browser wrote it.", file.name) });
       }
     } catch (error) {
-      say({ problem: `“${file.name}” could not be taken back: ${reason(error)}` });
+      say({ problem: L("“%1$@” could not be taken back: %2$@", file.name, reason(error)) });
     }
   };
 
@@ -390,32 +411,132 @@ export function FavoritesTab() {
       const result = await getFavoritesFromFolder();
       if (result === undefined) return;
       if (result.read === 0 && result.problems === 0) {
-        say({ problem: `“${result.folder}” holds no pattern library.` });
+        say({ problem: L("“%1$@” holds no pattern library.", result.folder) });
       } else if (result.problems > 0) {
         say({
           problem:
             result.problems === 1
-              ? `One library file in “${result.folder}” could not be read.`
-              : `${result.problems} library files in “${result.folder}” could not be read.`,
+              ? L("One library file in “%1$@” could not be read.", result.folder)
+              : L(
+                  "%1$@ library files in “%2$@” could not be read.",
+                  String(result.problems),
+                  result.folder
+                ),
         });
       } else {
         say({
           report:
             result.read === 1
-              ? `Took what “${result.folder}” holds from one machine.`
-              : `Took what “${result.folder}” holds from ${result.read} machines.`,
+              ? L("Took what “%1$@” holds from one machine.", result.folder)
+              : L("Took what “%1$@” holds from %2$@ machines.", result.folder, String(result.read)),
         });
       }
     } catch (error) {
-      say({ problem: `The folder could not be read: ${reason(error)}` });
+      say({ problem: L("The folder could not be read: %1$@", reason(error)) });
     }
   };
 
   const line = locationLine(library);
 
   return (
-    <section className="settings-favorites" aria-label="Favorites">
-      <h3 className="settings-heading">Favorites</h3>
+    <section className="settings-favorites" aria-label={L("Search Patterns")}>
+      <h3 className="settings-heading">{L("Search Patterns")}</h3>
+      <div className="favorites-location">
+        <p
+          className={
+            line.problem ? "favorites-location-line is-problem" : "favorites-location-line"
+          }
+          aria-live="polite"
+        >
+          {line.text}
+        </p>
+        <div className="favorites-location-actions">
+          {readOnly ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => {
+                answeringHere.current = false;
+                setAsked(conflicts);
+              }}
+            >
+              {L("Resolve…")}
+            </button>
+          ) : null}
+          {folder !== undefined && folder.access === "prompt" ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => void allowFolderAccess()}
+            >
+              {L("Allow Access…")}
+            </button>
+          ) : null}
+          {keepsFolder && !readOnly ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              title={L(
+                "Keep the pattern library in a folder of your own — a synced one puts it on your other machines, and one that already has a library joins it"
+              )}
+              onClick={() => void moveLibrary()}
+            >
+              {L("Move…")}
+            </button>
+          ) : null}
+          {keepsFolder && !readOnly && folder !== undefined ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              title={L(
+                "Stop publishing to the folder and keep the pattern library in this browser — your other machines stop seeing your changes"
+              )}
+              onClick={() => void keepHere()}
+            >
+              {L("Keep in This Browser")}
+            </button>
+          ) : null}
+          {keepsFolder ? null : (
+            <button
+              type="button"
+              className="toolbar-button"
+              title={L(
+                "Take the patterns other machines keep in a library folder, without writing to it"
+              )}
+              onClick={() => void fetchFromFolder()}
+            >
+              {L("Get Patterns from a Folder…")}
+            </button>
+          )}
+        </div>
+        {/* What is in the folder is the loop's business, not the reader's. The
+            one file worth a word is an earlier one of this browser's own — left
+            by a browser whose data was cleared — since only the user can say it
+            was theirs. */}
+        {readOnly
+          ? null
+          : files
+              .filter((file) => file.adoptable)
+              .map((file) => (
+                <p key={file.name} className="favorites-earlier">
+                  <span>
+                    {L(
+                      "The folder holds an earlier library written by “%1$@”. If that was this browser before its data was cleared, carry on with it.",
+                      file.machine
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="toolbar-button"
+                    title={L("Carry on writing that library instead of keeping a second one")}
+                    onClick={() => void adopt(file)}
+                  >
+                    {L("This Was Me")}
+                  </button>
+                </p>
+              ))}
+      </div>
+
       <div className="favorites-table">
         {/* The column titles are for the eye; each field carries its own label. */}
         <div className="favorites-row is-head" aria-hidden="true">
@@ -425,11 +546,12 @@ export function FavoritesTab() {
           <span>{L("Encoding")}</span>
           <span>{L("Match Case")}</span>
         </div>
-        <ol className="favorites-body" aria-label="Favorite patterns">
+        <ol className="favorites-body" aria-label={L("Search Patterns")}>
           {rows.length === 0 ? (
             <li className="favorites-empty">
-              No favorites yet. Keep a search with Save Search Pattern in the Find bar's menu, or
-              press +.
+              {L(
+                "No search patterns yet. Keep a search with Save Search Pattern in the Find bar's menu, or press +."
+              )}
             </li>
           ) : null}
           {rows.map((entry, index) => (
@@ -470,8 +592,8 @@ export function FavoritesTab() {
                 className="favorites-grip"
                 draggable={!readOnly}
                 disabled={readOnly}
-                title="Drag to reorder, or Alt+↑/↓"
-                aria-label="Reorder"
+                title={L("Drag to reorder, or Alt+↑/↓")}
+                aria-label={L("Reorder")}
                 onDragStart={(event) => {
                   event.dataTransfer.effectAllowed = "move";
                   event.dataTransfer.setData("text/plain", String(index));
@@ -594,7 +716,7 @@ export function FavoritesTab() {
           disabled={readOnly}
           onClick={() => void importLibrary()}
         >
-          Import…
+          {L("Import…")}
         </button>
         <button type="button" className="toolbar-button" onClick={() => void exportLibrary()}>
           {L("Export…")}
@@ -611,98 +733,12 @@ export function FavoritesTab() {
         {message ?? report ?? ""}
       </p>
 
-      <div className="favorites-location">
-        <p
-          className={
-            line.problem ? "favorites-location-line is-problem" : "favorites-location-line"
-          }
-          aria-live="polite"
-        >
-          {line.text}
-        </p>
-        <div className="favorites-location-actions">
-          {readOnly ? (
-            <button
-              type="button"
-              className="toolbar-button"
-              onClick={() => {
-                answeringHere.current = false;
-                setAsked(conflicts);
-              }}
-            >
-              {L("Resolve…")}
-            </button>
-          ) : null}
-          {folder !== undefined && folder.access === "prompt" ? (
-            <button
-              type="button"
-              className="toolbar-button"
-              onClick={() => void allowFolderAccess()}
-            >
-              Allow Access…
-            </button>
-          ) : null}
-          {keepsFolder && !readOnly ? (
-            <button
-              type="button"
-              className="toolbar-button"
-              title="Keep the library in a folder of your own — a synced one puts it on your other machines, and one that already has a library joins it"
-              onClick={() => void moveLibrary()}
-            >
-              {L("Move…")}
-            </button>
-          ) : null}
-          {keepsFolder && !readOnly && folder !== undefined ? (
-            <button
-              type="button"
-              className="toolbar-button"
-              title="Stop publishing to the folder and keep the library in this browser — your other machines stop seeing your changes"
-              onClick={() => void keepHere()}
-            >
-              Keep in This Browser
-            </button>
-          ) : null}
-          {keepsFolder ? null : (
-            <button
-              type="button"
-              className="toolbar-button"
-              title="Take the patterns other machines keep in a library folder, without writing to it"
-              onClick={() => void fetchFromFolder()}
-            >
-              Get Favorites from a Folder…
-            </button>
-          )}
-        </div>
-        {/* What is in the folder is the loop's business, not the reader's. The
-            one file worth a word is an earlier one of this browser's own — left
-            by a browser whose data was cleared — since only the user can say it
-            was theirs. */}
-        {readOnly
-          ? null
-          : files
-              .filter((file) => file.adoptable)
-              .map((file) => (
-                <p key={file.name} className="favorites-earlier">
-                  <span>
-                    The folder holds an earlier library written by “{file.machine}”. If that was
-                    this browser before its data was cleared, carry on with it.
-                  </span>
-                  <button
-                    type="button"
-                    className="toolbar-button"
-                    title="Carry on writing that library instead of keeping a second one"
-                    onClick={() => void adopt(file)}
-                  >
-                    This Was Me
-                  </button>
-                </p>
-              ))}
-      </div>
-
+      {/* Upstream's caption up to its last sentence, which names a Mac; where
+          the library can live here is the next paragraph's business. */}
       <p className="settings-caption">
-        Patterns you keep, with the encoding they are read in. They appear under Favorites in the
-        Find bar's search menu, where picking one fills the bar and searches. Drag rows to reorder
-        them — the menu lists them in this order.
+        {L(
+          "Patterns you keep, with the encoding they are read in. They appear under Search Patterns in the Find bar's search menu, where picking one fills the bar and searches. Drag rows to reorder them — the menu lists them in this order."
+        )}
       </p>
       {/* The same browser at a network address looks exactly like one that
           cannot keep folders; the reason, and what to do, is said instead. */}
@@ -711,25 +747,33 @@ export function FavoritesTab() {
       )}
       <p className="settings-caption">
         {keepsFolder
-          ? "Move… keeps the library in a folder you choose. Each browser and each Mac writes its own file there and reads the others, so a folder your computer syncs — iCloud Drive, OneDrive, Dropbox — carries the library to your other machines."
+          ? L(
+              "Move… keeps the pattern library in a folder you choose. Each browser and each Mac writes its own file there and reads the others, so a folder your computer syncs — iCloud Drive, OneDrive, Dropbox — carries the library to your other machines."
+            )
           : whyNoFolder !== undefined
-            ? "Until then, Get Favorites from a Folder… takes the patterns your other machines keep in their library folder, and Export… saves this browser's list as a file you can put in that folder by hand."
-            : "This browser can read a folder but not keep one. Get Favorites from a Folder… takes the patterns your other machines keep in their library folder; Export… saves this browser's list as a file you can put in that folder by hand."}{" "}
-        Export… and Import… carry the list as a single file, and an import merges into this list
-        rather than replacing it.
+            ? L(
+                "Until then, Get Patterns from a Folder… takes the patterns your other machines keep in their library folder, and Export… saves this browser's list as a file you can put in that folder by hand."
+              )
+            : L(
+                "This browser can read a folder but not keep one. Get Patterns from a Folder… takes the patterns your other machines keep in their library folder; Export… saves this browser's list as a file you can put in that folder by hand."
+              )}{" "}
+        {L(
+          "Export… and Import… carry the list as a single file, and an import merges into this list rather than replacing it."
+        )}
       </p>
 
       {/* The three answers to "that folder already holds a library".
           @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.askAboutFile */}
       <Dialog
         open={joining !== undefined}
-        title={joining === undefined ? "" : `“${joining.folder.name}” already holds patterns`}
+        title={joining === undefined ? "" : L("“%1$@” already holds patterns", joining.folder.name)}
         onClose={() => setJoining(undefined)}
       >
         <div className="dialog-body">
           <p className="dialog-message">
-            Merging keeps both lists, which is usually what you want when setting up a second
-            machine.
+            {L(
+              "Merging keeps both lists, which is usually what you want when setting up a second machine."
+            )}
           </p>
           <div className="dialog-actions">
             <button type="button" className="toolbar-button" onClick={() => setJoining(undefined)}>
@@ -765,14 +809,17 @@ export function FavoritesTab() {
           @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.askAboutRemoving */}
       <Dialog
         open={leftBehind !== undefined}
-        title="Remove this browser's file from the old folder?"
+        title={L("Remove this browser's file from the old folder?")}
         onClose={() => setLeftBehind(undefined)}
       >
         <div className="dialog-body">
           <p className="dialog-message">
             {leftBehind === undefined
               ? ""
-              : `“${leftBehind.name}” is no longer where the library lives, and this browser's copy of the patterns there will not be updated again. If it is a synced folder, removing the file removes it on your other machines too — keep it if one of them publishes there.`}
+              : L(
+                  "“%1$@” is no longer where the pattern library lives, and this browser's copy of the patterns there will not be updated again. If it is a synced folder, removing the file removes it on your other machines too — keep it if one of them publishes there.",
+                  leftBehind.name
+                )}
           </p>
           <div className="dialog-actions">
             <button
@@ -810,8 +857,8 @@ export function FavoritesTab() {
 
       <LibraryConflictDialog
         conflicts={pendingImport?.outcome.conflicts}
-        wording={IMPORT_WORDING}
-        cancelTitle="Cancel Import"
+        wording={IMPORT_WORDING()}
+        cancelTitle={L("Cancel Import")}
         onResolve={(answers) => {
           const fileName = pendingImport?.fileName ?? "";
           const result = answerImport(answers);
@@ -822,7 +869,7 @@ export function FavoritesTab() {
           // is nothing left to cancel.
           if (pendingImport === undefined) return;
           abandonImport();
-          say({ report: "Nothing was imported." });
+          say({ report: L("Nothing was imported.") });
         }}
       />
     </section>

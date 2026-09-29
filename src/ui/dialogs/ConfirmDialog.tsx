@@ -56,7 +56,7 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = "Continue",
+  confirmLabel,
   destructive = false,
   rememberLabel,
   otherLabel,
@@ -104,7 +104,7 @@ export function ConfirmDialog({
             className={destructive ? "toolbar-button is-destructive" : "toolbar-button"}
             onClick={() => onConfirm(remember)}
           >
-            {confirmLabel}
+            {confirmLabel ?? L("Continue")}
           </button>
         </div>
       </div>

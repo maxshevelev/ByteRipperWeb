@@ -131,7 +131,7 @@ export function HelpPanel() {
         >
           ⌄
         </button>
-        <CloseButton label="Close the help" onClick={closeHelp} />
+        <CloseButton label={L("Close the help")} onClick={closeHelp} />
       </header>
 
       <div className="help-body" data-contents={state.contentsOpen ? "" : undefined}>

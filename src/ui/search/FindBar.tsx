@@ -260,13 +260,12 @@ export function FindBar({
           value={state.encoding}
           onChange={(event) => setSearchEncoding(event.target.value as SearchEncoding)}
           // Upstream's popup has no tooltip — the label alone names it — so
-          // these two are the bar's own say of it, and stay out of the
-          // catalogue.
+          // these two are the bar's own say of it, translated here (G66).
           // @web-only the popup's explanation; upstream's has no tooltip
           title={
             state.smart
-              ? "The encoding the search settled on. Picking one starts the next pass from it."
-              : "How the text is turned into bytes"
+              ? L("The encoding the search settled on. Picking one starts the next pass from it.")
+              : L("How the text is turned into bytes")
           }
         >
           {SEARCH_ENCODINGS.map((encoding) => (
@@ -449,7 +448,7 @@ function ChevronGlyph({ direction }: { readonly direction: "forward" | "backward
  */
 function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
   const results = resultsFor(state, state.pane);
-  if (results.status === "failed") return state.problem ?? "That search could not be run.";
+  if (results.status === "failed") return state.problem ?? L("That search could not be run.");
   if (results.status === "idle") return "";
   if (results.status === "notFound") return L("Not found");
   const matches = results.matches;
@@ -473,20 +472,21 @@ function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
     if (ordinal !== undefined && matches.isComplete) {
       parts.push(L("%1$@ of %2$@", ordinal + 1, matches.total.toLocaleString()));
     } else {
-      parts.push(`${matches.total.toLocaleString()}${matches.isComplete ? "" : "+"} found`);
+      const total = matches.total.toLocaleString();
+      parts.push(matches.isComplete ? L("%1$@ found", total) : L("%1$@+ found", total));
     }
   } else if (matches !== undefined && !matches.isHighlightable && matches.total > 0) {
     // Past the index ceiling: the count is exact even though the positions are
     // not kept, and saying so is more use than a silent partial highlight.
-    parts.push(`${matches.total.toLocaleString()} found — too many to mark`);
+    parts.push(L("%1$@ found — too many to mark", matches.total.toLocaleString()));
   } else if (current !== undefined) {
-    parts.push("Found");
+    parts.push(L("Found"));
   }
 
   // Which encoding answered, when Smart Search was the one asking.
   if (state.smart && results.foundEncoding !== undefined) {
-    parts.push(`as ${encodingTitle(results.foundEncoding)}`);
+    parts.push(L("as %1$@", encodingTitle(results.foundEncoding)));
   }
-  if (results.wrapped) parts.push("· wrapped");
+  if (results.wrapped) parts.push(L("· wrapped"));
   return parts.join(" ");
 }

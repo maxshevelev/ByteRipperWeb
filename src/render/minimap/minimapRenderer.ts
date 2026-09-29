@@ -13,6 +13,7 @@
  * handling below is about.
  */
 
+import { L } from "@/core/localization/localization";
 import {
   BYTE_HEIGHT,
   BYTES_PER_ROW,
@@ -246,7 +247,7 @@ export class MinimapRenderer {
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.init */
   constructor(canvas: HTMLCanvasElement, colors: MinimapColors) {
     const context = canvas.getContext("2d", { alpha: false });
-    if (context === null) throw new Error("This browser did not give the minimap a 2D context.");
+    if (context === null) throw new Error(L("This browser did not give the minimap a 2D context."));
     this.canvas = canvas;
     this.context = context;
     this.colors = colors;

@@ -19,7 +19,7 @@ There is no ⌘, here: in a browser that chord is the browser's own settings, so
 - **Comparison** — how differences are shown and counted.
 - **Editing** — the confirmations raised before edits that change the length of the file ([[topic:editing|Editing Bytes]]). They are enabled by default, and this is the same setting as the "do not ask again" box in the dialogs themselves.
 - **Text Decoding** — the encoding the text column decodes with.
-- **Favorites** — the named search patterns, and the folder through which the library can be synchronised between installations ([[topic:search|Finding Bytes and Text]]).
+- **Search Patterns** — the named search patterns, and the folder through which the library can be synchronised between installations ([[topic:search|Finding Bytes and Text]]).
 - **Language** — English, Русский or Deutsch, or whatever the browser reads. The change takes effect at once: nothing is reloaded, because a reloaded page would have to ask for every open dump again. Firmware terms remain in English in every language, those being the names datasheets and tools give them.
 
 ## Where the settings are kept

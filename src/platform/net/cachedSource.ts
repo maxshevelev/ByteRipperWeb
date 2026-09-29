@@ -48,6 +48,7 @@
  * request. Behind an interface, so a test installs its own and never reaches
  * the network — a test that reaches the network is a test that fails on a train.
  */
+import { L } from "@/core/localization/localization";
 
 /**
  * Why a body did not arrive, in a form a panel can act on rather than print.
@@ -108,14 +109,13 @@ export function remoteFailureOf(error: unknown): RemoteFailure | undefined {
 export function remoteFailureMessage(failure: RemoteFailure): string {
   switch (failure.kind) {
     case "offline":
-      return `Could not reach the server: ${failure.detail}`;
+      return L("Could not reach the server: %1$@", failure.detail);
     case "rateLimited":
-      return (
-        "GitHub is rate-limiting this address. Try again in a few minutes, or " +
-        "choose a file you already have."
+      return L(
+        "GitHub is rate-limiting this address. Try again in a few minutes, or choose a file you already have."
       );
     case "badResponse":
-      return `The server answered ${failure.status}.`;
+      return L("The server answered %1$@.", failure.status);
   }
 }
 
@@ -306,7 +306,7 @@ async function request(
     if (error instanceof Error && error.name === "AbortError") throw error;
     throw new RemoteFetchError({
       kind: "offline",
-      detail: error instanceof Error ? error.message : "the request did not complete",
+      detail: error instanceof Error ? error.message : L("the request did not complete"),
     });
   }
   if (response.status === 403 || response.status === 429) {

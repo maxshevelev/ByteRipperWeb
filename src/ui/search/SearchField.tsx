@@ -88,10 +88,10 @@ export function SearchField({
       <button
         type="button"
         className="search-field-menu"
-        aria-label="Search Menu"
+        aria-label={L("Search Menu")}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Recent Queries and Search Patterns"
+        title={L("Recent Queries and Search Patterns")}
         tabIndex={-1}
         onClick={() => {
           if (open) setOpen(false);
@@ -163,7 +163,7 @@ export function SearchField({
           id={listId}
           className="menu-popup search-field-popup"
           role="listbox"
-          aria-label="Search Menu"
+          aria-label={L("Search Menu")}
         >
           {rows.map((row, index) => {
             if (row.kind === "separator") return <hr key={row.key} className="menu-separator" />;
