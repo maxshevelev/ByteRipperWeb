@@ -9,16 +9,16 @@
 
 ## The tree
 
-The top level is the layout of the chip itself. On an Intel platform that is the [[term:flash-descriptor|flash descriptor]] and the [[term:region|regions]] it defines — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Inside the BIOS region are [[term:volume|firmware volumes]], inside those [[term:ffs-file|FFS files]], inside those [[term:section|sections]], and the tree opens a branch at a time as you ask for it.
+The top level is the layout of the chip itself. On an Intel platform that is the [[term:flash-descriptor|flash descriptor]] and the [[term:region|regions]] it defines — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Inside the BIOS region are [[term:volume|firmware volumes]], within those [[term:ffs-file|FFS files]], and within those [[term:section|sections]]. A branch is decoded when it is opened rather than in advance.
 
-The **Type** and **Subtype** columns name each node the way the reference parser does. The **Name** column shows the community name for a node's [[term:guid|GUID]] when there is one, and the GUID itself when there is not.
+The **Type** and **Subtype** columns name each node as the reference parser names it. The **Name** column gives the community name for the node's [[term:guid|GUID]] where one exists, and the GUID itself where none does.
 
 The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree.
 
-## What the panel checks
+## What the tool checks
 
-- **Checksums.** A header whose checksum does not match is flagged with a red mark, and the detail pane says what the value should be. Right-click the node for **Fix Checksum** — one write, one undo step.
-- **Protected ranges.** If the image declares [[term:boot-guard|Boot Guard]] protected ranges, the summary line says how many. Bytes inside them are not yours to change.
+- **Checksums.** A header whose checksum does not agree is marked in red, and the detail list reports both the stored value and the correct one. **Fix Checksum** in the node's context menu writes the correct value as one write and one undo step.
+- **Protected ranges.** Where the image declares [[term:boot-guard|Boot Guard]] protected ranges, the summary line reports how many. A signature over such a range cannot be recomputed without the manufacturer's private key; see [[topic:recipe-checksums|Checksums]].
 
 ## What you can take out
 
@@ -29,6 +29,6 @@ Right-click a node:
 
 ## Padding
 
-A dump is full of erased space between structures. The tree leaves that out unless you tick **Show padding**: padding that holds data is always listed, and so is a volume's free space, because it tells you how much room the volume has left.
+A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume.
 
-See also: [[topic:tool-fit|FIT Table]], [[term:vss|NVRAM stores]], [[topic:recipe-checksums|Checking and fixing checksums]].
+See also: [[topic:tool-fit|FIT Table]], [[term:vss|NVRAM stores]], [[topic:recipe-checksums|Checksums]].

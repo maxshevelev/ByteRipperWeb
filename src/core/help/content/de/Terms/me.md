@@ -1,4 +1,4 @@
-@source-sha c9691ee7c3610a27c029dd6579e3f1a4fc31dc8e672dc74a3b82253fa0eb6248
+@source-sha 3a47e3a2101272e30de3c52546adbf6abbd6e323fba8af052ea73c03778a42b6
 @term me
 @name Intel ME / CSME
 @short Ein kleiner Prozessor im Chipsatz, mit eigener Firmware in einer eigenen Flash-Region.
@@ -18,7 +18,7 @@ Ihre Firmware liegt in der [[term:me-region|ME-Region]] desselben SPI-Chips wie 
 
 `$FPT` ist die erste Struktur, nach der die Analyse sucht. Jede Zeile nennt eine Partition — mit einem Vier-Zeichen-Namen wie `FTPR`, `NFTP`, `MFS`, `UTOK` — und gibt ihren Offset, ihre Größe und einige Flags an.
 
-Am Arbeitsplatz beantwortet `$FPT` die Frage „ist die Region vollständig?“. Fehlt eine in der Tabelle deklarierte Partition tatsächlich, oder passt ihre Größe nicht, ist die Region abgeschnitten oder beschädigt.
+Die `$FPT` beantwortet die Frage nach der Vollständigkeit einer Region: Fehlt eine in der Tabelle deklarierte Partition tatsächlich, oder passt ihre Größe nicht, ist die Region abgeschnitten oder beschädigt.
 
 Intels Flash-Werkzeug heißt ebenfalls FPT — Flash Programming Tool. Gemeinsam sind nur die drei Buchstaben: dieses `$FPT` ist eine Tabelle im Image, jenes ein Programm, das Images schreibt.
 
@@ -61,7 +61,7 @@ Manche Tags sind gut verstanden und benannt; der Rest erscheint mit seiner Numme
 
 Behebt Intel ein Sicherheitsproblem, trägt die korrigierte Firmware ein höheres SVN. Die Plattform merkt sich das höchste je gesehene SVN und weist alles Niedrigere ab — das ist Anti-Rollback.
 
-Am Arbeitsplatz erklärt das, warum ein Downgrade still scheitern kann: das Image ist in Ordnung, und die Plattform nimmt es trotzdem nicht. **TCB SVN** ist dasselbe für die Trusted Computing Base.
+Das erklärt, warum ein Downgrade ohne Fehlermeldung scheitern kann: Das Image ist in Ordnung, und die Plattform nimmt es dennoch nicht an. **TCB SVN** ist dasselbe für die Trusted Computing Base.
 
 @see term:arb-svn
 @see term:vcn
@@ -108,7 +108,7 @@ Ab CSME 15 ist die Konfiguration in eigene Flash-Partitionen gewandert — EFS u
 @name FITC / OEM-Konfiguration
 @short Die Einstellungen, die der Platinenhersteller gewählt hat, geschrieben von Intels Flash Image Tool.
 
-FIT (Flash Image Tool) ist Intels eigenes Werkzeug zum Zusammenbauen eines Flash-Images; damit setzt der Hersteller die Optionen der Engine für eine Platine. Was es geschrieben hat, ist diese Partition, und das Panel beschriftet sie mit „OEM Configuration“.
+FIT (Flash Image Tool) ist Intels eigenes Werkzeug zum Zusammenbauen eines Flash-Images; damit setzt der Hersteller die Optionen der Engine für eine Platine. Was es geschrieben hat, ist diese Partition, und das Werkzeug beschriftet sie mit „OEM Configuration“.
 
 Die Namen dieser Einstellungen — und Wendungen wie „OEM configurable“ und Pfade wie `/home/bup/si_features` — sind Intels eigene, aus den Konfigurationsdateien jenes Werkzeugs.
 
@@ -146,7 +146,7 @@ Diese Zweiteilung ist der Grund, warum eine ME-Region von einem Spender nicht ei
 @name File System State
 @short Wie weit das eigene Dateisystem der Engine eingerichtet ist: Unconfigured, Configured oder Initialized.
 
-Das [[term:mfs|MFS]]- oder [[term:efs|EFS]]-Volume ist das Dateisystem der Engine. Woraus es besteht, sagt, wie weit dieses Abbild von der Stock-Firmware entfernt ist, die Intel ausliefert, und das [[topic:tool-me|ME-Panel]] zeigt es als eine Zeile.
+Das [[term:mfs|MFS]]- oder [[term:efs|EFS]]-Volume ist das Dateisystem der Engine. Woraus es besteht, sagt, wie weit dieses Abbild von der Stock-Firmware entfernt ist, die Intel ausliefert, und das [[topic:tool-me|ME-Werkzeug]] zeigt es als eine Zeile.
 
 - **Unconfigured** — nichts im Volume sagt, dass es überhaupt eingerichtet wurde. Ein sauberes Abbild, so wie es von Intel kommt.
 - **Configured** — die Einstellungen des Herstellers sind da: Dateien der OEM Configuration oder des Home-Verzeichnisses im Volume oder eine Konfigurationspartition im Abbild. Der Boardhersteller hat seine Antworten geschrieben; die Engine muss dafür nie gelaufen sein.
@@ -167,7 +167,7 @@ Intel hat es für ein US-Regierungsprogramm eingebaut, die High Assurance Platfo
 
 Die Engine startet weiterhin und prüft weiterhin ihre eigene Firmware. Das Bit hält sie nur davon ab, weiterzugehen.
 
-ByteRipper dekodiert es nicht. Seine Position wandert mit der Chipsatzgeneration, und Intel dokumentiert sie nicht — deshalb nennt das Deskriptor-Panel die Anzahl der Strap-Wörter und überlässt das Lesen eines bestimmten Bits einem Werkzeug, das dafür gebaut ist.
+ByteRipper dekodiert es nicht. Seine Position wandert mit der Chipsatzgeneration, und Intel dokumentiert sie nicht — deshalb nennt das Werkzeug die Anzahl der Strap-Wörter und überlässt das Lesen eines bestimmten Bits einem Werkzeug, das dafür gebaut ist.
 
 ! Dieses Bit zu setzen ist keine Reparatur. Ein Board mit tatsächlich beschädigter ME-Region kommt meist gar nicht hoch, und die Engine abzuschalten ändert daran nichts.
 
@@ -204,7 +204,7 @@ AMT ist die Funktion, um die herum die Management Engine überhaupt gebaut wurde
 - **M1** und **M3** — die Engine ist voll versorgt, der Host nicht. In M3 steht ihr der Hauptspeicher nicht zur Verfügung.
 - **M-Off** — die Engine ist aus; nichts ist versorgt.
 
-Welche davon eine Plattform tatsächlich umsetzt, hängt von ihrem Aufbau ab. Für die Werkbank heißt das praktisch: Eine Maschine, die am Netz hängt, ist keine tote Maschine.
+Welche davon eine Plattform tatsächlich umsetzt, hängt von ihrem Aufbau ab. Daraus folgt, dass eine Maschine, die am Netz hängt, nicht vollständig stromlos ist.
 
 @see term:me
 
@@ -222,7 +222,11 @@ Ein Bereich, der mit der Kennung `MFSB` statt mit einem Seiten-Tag beginnt. Dass
 
 Jede geschützte Datei im [[term:mfs|Dateisystem]] hat einen Eintrag mit dem Hash, den sie haben sollte, samt Nonce und einem [[term:anti-replay|Anti-Replay]]-Zähler. Die Engine prüft ihn, bevor sie der Datei traut.
 
-Am Arbeitsplatz: deshalb kann man keinen Wert im ME-Dateisystem ändern und erwarten, dass er benutzt wird. Die Änderung wird bemerkt.
+Der Hash ist ein **geschlüsselter** HMAC, und Flags in derselben Tabelle halten fest, ob die Datei zusätzlich verschlüsselt ist: Integrität und Vertraulichkeit werden getrennt und mit getrennten Schlüsseln geschützt. Veröffentlichte Untersuchungen des Dateisystems beschreiben vier davon — je ein Intel- und ein Nicht-Intel-Schlüssel für jeden der beiden Zwecke —, abgeleitet aus der [[term:svn|SVN]] und aus einem Root-Geheimnis in den Fuses des Chipsatzes, das für den einzelnen Baustein eindeutig ist ([[web:https://blackhat.com/docs/eu-17/materials/eu-17-Sklyarov-Intel-ME-Flash-File-System-Explained-wp.pdf|Intel ME: Flash File System Explained]]).
+
+Daraus folgt zweierlei. Ein Werkzeug kann die Tabelle decodieren, aber nicht prüfen, da der Schlüssel nicht im Image steht. Und die geschützten Dateien sind an genau den Baustein gebunden, auf dem sie geschrieben wurden: Ein anderer Chipsatz leitet andere Schlüssel ab und nimmt sie nicht an.
+
+Ein im ME-Dateisystem geänderter Wert wird deshalb nicht verwendet: Die Änderung wird bei der Prüfung erkannt. Eine als Ganzes auf eine andere Platine übertragene Region wird ebenso wenig angenommen.
 
 @see term:anti-replay
 
@@ -243,7 +247,7 @@ Deshalb führt es nicht immer zum erwarteten Ergebnis, eine ME-Region zu sichern
 
 Der Code der Engine ist komprimiert: teils mit LZMA, teils mit einem Huffman-Verfahren, dessen Wörterbücher nicht veröffentlicht sind. ByteRipper lädt die Wörterbücher der Gemeinschaft zusammen mit der [[topic:databases|ME-Datenbank]] und entpackt die gängigen Versionen.
 
-Ein Modul, das das Panel als Huffman anzeigt, aber nicht aufklappt, ist eines, für dessen Wörterbuch-Version kein Wörterbuch vorliegt — kein Schaden.
+Ein Modul, das das Werkzeug als Huffman anzeigt, aber nicht aufklappt, ist eines, für dessen Wörterbuch-Version kein Wörterbuch vorliegt — kein Schaden.
 
 @term iup
 @name IUP (Independently Updated Partition)
@@ -251,7 +255,7 @@ Ein Modul, das das Panel als Huffman anzeigt, aber nicht aufklappt, ist eines, f
 
 Teile der Plattform-Firmware werden getrennt von der Engine ausgeliefert und aktualisiert — der Power Management Controller, die Chipsatz-Konfiguration, die USB-Type-C-Physik. Jeder Teil hat eigenes Manifest, eigene Version und eigenen Ziel-Chipsatz.
 
-Am Arbeitsplatz: ein IUP von einem anderen Chipsatz-Stepping ist eine echte Inkompatibilität, auch wenn die Engine-Version passt. Das Panel nennt Chipsatz und Stepping, für die jedes IUP gebaut ist.
+Ein IUP von einem anderen Chipsatz-Stepping ist eine tatsächliche Inkompatibilität, auch wenn die Engine-Version passt. Das Werkzeug nennt Chipsatz und Stepping, für die jedes IUP gebaut ist.
 
 @see term:cpd
 
@@ -259,7 +263,7 @@ Am Arbeitsplatz: ein IUP von einem anderen Chipsatz-Stepping ist eine echte Inko
 @name RBE / BUP / `pm`
 @short Die frühesten Boot-Module der Engine und die Metadatentabellen darin.
 
-`RBE` und `BUP` (Bring-up) sind der erste Code, den die Engine ausführt; `pm` ist das Modul für die Energieverwaltung. In ihren Rümpfen liegen Metadatentabellen, die Hardware über Vendor- und Device-ID benennen — daran erkennt das Panel, für welches Silizium eine Firmware gebaut ist.
+`RBE` und `BUP` (Bring-up) sind der erste Code, den die Engine ausführt; `pm` ist das Modul für die Energieverwaltung. In ihren Rümpfen liegen Metadatentabellen, die Hardware über Vendor- und Device-ID benennen — daran erkennt das Werkzeug, für welches Silizium eine Firmware gebaut ist.
 
 Tiefe Interna. Zu lesen nützlich, zu ändern nicht.
 
@@ -291,7 +295,7 @@ Ein Auseinanderfallen von SKU im Image und Platine ist ein häufiger Grund, waru
 @name GSC
 @short Firmware des Graphics System Controller — dasselbe Containerformat, für ein Grafikgerät.
 
-Manche Images sind gar keine Chipsatz-Engine-Firmware, sondern Firmware für ein Grafikgerät in derselben Aufteilung aus `$FPT` und Manifesten. Das Panel erkennt sie und liest die Partition „INFO“, die das Image und seine Partitionen beschreibt.
+Manche Images sind gar keine Chipsatz-Engine-Firmware, sondern Firmware für ein Grafikgerät in derselben Aufteilung aus `$FPT` und Manifesten. Das Werkzeug erkennt sie und liest die Partition „INFO“, die das Image und seine Partitionen beschreibt.
 
 @term orom
 @name Option-ROM (OROM)
@@ -311,7 +315,7 @@ Die Aufteilung vor `$CPD`: ältere ME-Firmware-Generationen führen ihre Module 
 @name CSE Layout Table
 @short Die Karte eines vollständigen IFWI-Images: wo Boot-, Daten- und Temp-Bereiche liegen.
 
-Auf neueren Plattformen liegt im Flash ein IFWI-Image, dessen Teile von einer Layout-Tabelle statt von einer einzelnen `$FPT` beschrieben werden. Das Panel liest sie, um zu finden, wo die Partitionstabelle selbst liegt.
+Auf neueren Plattformen liegt im Flash ein IFWI-Image, dessen Teile von einer Layout-Tabelle statt von einer einzelnen `$FPT` beschrieben werden. Das Werkzeug liest sie, um zu finden, wo die Partitionstabelle selbst liegt.
 
 @see term:fpt
 @see term:bpdt

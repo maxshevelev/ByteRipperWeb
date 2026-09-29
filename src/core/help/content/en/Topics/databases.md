@@ -1,21 +1,21 @@
 # The Online Catalogues
 
-> Three public lists that turn numbers in a dump into names. The app works without them.
+> Three public catalogues that give names to identifiers found in a dump. Without access to them the program is fully functional, but does not display the additional information they provide.
 
-Some of what the tool panels show is not in the file at all — it is a name the community has given to an identifier the file carries. ByteRipper fetches three public catalogues for that, over HTTPS from GitHub, and keeps each one for a day:
+Part of what the tool panels display is not held in the file: it is a name the community has given to an identifier that the file carries. ByteRipper fetches three public catalogues over HTTPS from GitHub for this purpose and retains each for one day:
 
-- **UEFI GUID names** — from the UEFITool project. This is what turns a bare [[term:guid|GUID]] in the [[topic:tool-uefi|UEFI panel]] into "AmiBoardInfo" or "DxeCore".
-- **CPU microcode** — from the CPUMicrocodes collection. It names the microcode updates the [[topic:tool-fit|FIT panel]] lists: which CPU signature, which revision, which date.
+- **UEFI GUID names** — from the UEFITool project. They are what allows the [[topic:tool-uefi|UEFI panel]] to display "AmiBoardInfo" or "DxeCore" in place of a bare [[term:guid|GUID]].
+- **CPU microcode** — from the CPUMicrocodes collection. It names the microcode updates the [[topic:tool-fit|FIT panel]] lists, by processor signature, revision and date, and it is the source **Add Microcode…** offers.
 - **ME firmware database** — from the ME Analyzer project. It is what lets the [[topic:tool-me|ME panel]] say which known firmware release an image corresponds to.
 
-## What is a fact and what is a name
+## What is a measurement and what is a name
 
-This distinction matters on a bench, and the panels keep it:
+The tools keep the two apart:
 
-- **The bytes are the file's.** An offset, a size, a version field, a checksum — all read out of the image in front of you.
-- **The name is the catalogue's.** It is a community identification, it can be missing, and it can be wrong.
+- **The bytes belong to the file.** An address, a size, a version field, a checksum are all read from the image itself.
+- **The name belongs to the catalogue.** It is an identification made by the community; it may be absent, and it may be incorrect.
 
-So a row reading "AmiBoardInfo · 0x7A0000 · 0x12C0" means: *the file really has a module at that address of that size, and the catalogue says that GUID is usually called AmiBoardInfo*.
+A row reading "AmiBoardInfo · 0x7A0000 · 0x12C0" therefore states that the file holds a module at that address of that size, and that the catalogue records that GUID as being commonly called AmiBoardInfo.
 
 ## How old the copy is
 
@@ -27,8 +27,10 @@ A catalogue is kept in the browser's own cache, so a bench with no network still
 
 ## Offline
 
-Nothing about the app needs the network. With no connection, or with the fetch blocked, the panels show identifiers instead of names and say nothing more about it — no dialogs, no retries in your way. Everything read out of the bytes is unaffected.
+No function of the program requires the network. Without a connection, or where the request is blocked, the tools display identifiers in place of names and report nothing further: no dialogs and no repeated attempts. Everything read from the bytes is unaffected.
 
-Nothing about your file is ever sent anywhere. These are reads of public lists, made by this page from your machine; the dump itself never leaves it.
+The requests go to fixed addresses of these catalogues, and a request carries nothing out of the open file: the page downloads a catalogue whole and matches it against the dump locally.
 
-! Clearing this site's data clears the cached catalogues with it, along with your bookmarks and settings. The next parse will fetch them again if there is a network, and manage without if there is not.
+Neither the bytes of the image nor the identifiers found in it are therefore transmitted. The dump does not leave the machine.
+
+! Clearing this site's data clears the cached catalogues with it, along with the bookmarks and the settings. The next parse fetches them again where there is a network, and manages without where there is not.

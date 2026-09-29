@@ -1,32 +1,34 @@
 # What the Colours Mean
 
-> Background says "different from the other file". Red text says "changed and not yet saved".
+> An orange background says "different from the other file". Red text says "changed and not yet saved".
 
 @covers settings.comparison
 
 The two states are separate on purpose, and a byte can wear both at once.
 
-## Difference — a background colour
+## Difference — an orange background
 
-In comparison mode, every byte that differs from the byte at the **same address** in the other file is given the difference background. Nothing else uses that background.
+In comparison mode, every byte that differs from the byte at the **same address** in the other file is painted **orange**: a translucent wash over the dump's own layers, which it therefore does not hide. Nothing else uses that background.
+
+The dark appearance uses its darker variant, which is orange as well. The [[topic:minimap|minimap]] marks differences in the same colour.
 
 If one file is shorter, the bytes that only the longer file has are differences too, and the shorter file shows empty EOF cells in their place — a muted, distinct style, so a short read never looks like a file full of zeros.
 
 ## Unsaved change — red text
 
-A byte you have edited but not yet saved is drawn in **red**. Save the file and the red goes away; the byte is now what the file holds.
+A byte that has been edited but not yet saved is drawn in **red**. Once the file is saved the red is removed: the byte is then what the file holds.
 
-This is the state to look at before handing a file to a programmer: red bytes are changes that exist only in ByteRipper.
+Red bytes are changes that exist only inside ByteRipper and not in the file on disk.
 
-## Both at once
+## Both states at once
 
-A byte that is both different from the other file and edited by you shows **both**: the difference background, with red digits on it. That is the normal look of a patch in progress — you are editing the byte precisely because it differs.
+A byte that both differs from the other file and has been edited carries **both**: the orange background, with red digits over it. The two states are independent, and neither suppresses the other.
 
 ## The other marks
 
-- **Selection** is the standard highlight, and never hides the difference or the red.
-- **Search matches** are filled in the platform's quiet "unfocused selection" grey; the match you are standing on is a raised yellow bubble. A match sitting on a difference reads as a difference — telling the two files apart wins.
-- **A bookmarked row** turns its offset column into a coloured arrow with the address written on it. It marks the row, not the bytes, so it never disturbs the states above.
-- **Zones** — the coloured outlines a [[topic:tools-overview|tool panel]] draws over the dump — mark a structure's byte range. A zone is an outline and a tint, not a background, so it can sit over differences without hiding them.
+- **The selection** is the system's standard highlight, and never conceals the orange background or the red digits.
+- **Search matches** are filled in the system's unfocused-selection grey; the current match is drawn as a raised yellow bubble. A match over a differing byte is displayed as a difference, the comparison taking precedence.
+- **A bookmarked row** draws its address on a **purple** arrow, and the bookmark is marked in the minimap's margin in the same colour. It marks the row rather than the bytes, and does not affect the states above.
+- **Zones**, with which a [[topic:tools-overview|tool]] marks a structure's byte range, are outlined in **blue** for the zone in focus and in **yellow** for the others. A zone is an outline and a tint, not a background, so it can sit over differences without hiding them.
 
-ByteRipper follows the system appearance, so all of this has a dark-mode form too. The palette is in [[topic:settings|Settings ▸ Appearance]].
+ByteRipper follows the system appearance, so each of these colours has a dark form as well.

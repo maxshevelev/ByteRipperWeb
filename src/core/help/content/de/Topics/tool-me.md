@@ -1,34 +1,34 @@
-@source-sha f02524e8186844a2ea108dbf1c6da688f310858be6d32dd619e9297df59a4f20
+@source-sha 04e4fb075407a53044708787d11071467fefbba8eff3215b4c9afa80eaf0b1b5
 # ME Analyzer
 
-> Was für eine Intel-Management-Engine-Firmware im Image steckt und woraus sie besteht.
+> Welche Intel-Management-Engine-Firmware das Image enthält und aus welchen Strukturen sie besteht.
 
-**Werkzeuge ▸ ME Analyzer** lässt eine Analyse der [[term:me-region|ME-Region]] laufen und zeigt das Ergebnis auf zwei Tabs.
+**Werkzeuge ▸ ME Analyzer** analysiert die [[term:me-region|ME-Region]] der Datei im zugehörigen Bereich und meldet das Ergebnis auf zwei Registerkarten.
 
 ## Übersicht
 
-Der Bericht, den man am Arbeitsplatz zuerst liest: Firmware-Familie und -Version, die [[term:sku|SKU]], Release und Typ, die [[term:svn|Sicherheitsnummern]], ob es eine vollständige Produktionsfirmware oder ein Update ist, und alle Meldungen, die die Analyse für nennenswert hielt.
+Ein Bericht darüber, was die Firmware ist: Familie und Version, die [[term:sku|SKU]], Freigabestand und Typ, die [[term:svn|Sicherheitsnummern]], ob es eine vollständige Firmware oder ein Update ist, sowie die Meldungen, die die Analyse ausgelöst hat. Die einzelnen Zeilen sind unter [[topic:recipe-me-check|Den ME-Bericht lesen]] erläutert.
 
-Kopieren lässt sie sich als Text (für eine Notiz oder einen Auftrag) oder als Bild — mit den beiden Tasten in der Tab-Zeile.
+Die Zeilenbezeichnungen stehen in jeder Sprache der Oberfläche auf Englisch: Es sind die Bezeichnungen des Projekts, auf dem die Analyse beruht. Siehe [[topic:provenance|Woher dieses Wissen stammt]].
+
+Die beiden Tasten in der Registerkartenzeile kopieren die Registerkarte als Text oder als Bild des Bereichs.
 
 ## Vollständige Angaben
 
-Alles, was sich zerlegen ließ, als Baum der tatsächlichen Strukturen der Region, wobei jede Zeile für echte Bytes steht: die [[term:fpt|Partitionstabelle]], die [[term:cpd|Code-Partitionen]] und ihre Module, die [[term:manifest|Manifeste]], das [[term:mfs|Dateisystem]] und seine Konfiguration, die [[term:oem-config|OEM-Konfiguration]], die [[term:utok|Unlock-Token]].
+Die decodierten Strukturen als Baum, in dem jeder Zeile tatsächliche Bytes der Region entsprechen: die [[term:fpt|Partitionstabelle]], die [[term:cpd|Code-Partitionen]] und ihre Module, die [[term:manifest|Manifeste]], das [[term:mfs|Dateisystem]] und seine Konfiguration, die [[term:oem-config|OEM-Konfiguration]] und die [[term:utok|Unlock-Token]].
 
-Wählen Sie eine Zeile, springt der Dump zu diesen Bytes und umreißt sie. Die Detailliste unter dem Baum ist das, was im Header dieser Zeile tatsächlich steht.
+Die Auswahl einer Zeile scrollt den Dump zu diesen Bytes und umrandet sie. Die Detailliste unter dem Baum enthält die Felder des Headers dieser Zeile so, wie sie in der Datei stehen.
 
-## Wie man es am Arbeitsplatz liest
+## Was das Werkzeug meldet
 
-Drei Fragen, die das Panel schnell beantwortet:
+- **Ob das Image ME-Firmware enthält und in welcher Version.** Eine Region, die aus `FF` besteht, enthält keine. Die Version benennt die Plattformgeneration, für die die Firmware gebaut wurde.
+- **Ob die Region vollständig ist.** Der Baum führt die Partitionen auf, die die Tabelle [[term:fpt|$FPT]] deklariert. Eine Partition, deren Bytes fehlen, oder eine, deren deklarierte Länge nicht zur Region passt, wird eigens ausgewiesen.
+- **Ob die Region eine Konfiguration trägt und welcher Art.** Platinenspezifische Einstellungen liegen in der [[term:mfs|MFS]]-Konfiguration und in der [[term:oem-config|OEM-Konfiguration]]; die Zeile **File System State** nennt, in welchem der drei Zustände sich das Dateisystem befindet.
 
-- **Gibt es hier überhaupt ME-Firmware, und welche Version?** Eine Region voller `FF` ist eine gelöschte oder „gereinigte“ ME. Eine Version weit älter als die Platine ist ein Spenderdump von der falschen Maschine.
-- **Ist sie vollständig?** Der Baum führt die Partitionen auf, die die [[term:fpt|$FPT]] deklariert. Eine Partition, deren Bytes nicht da sind, oder deren Größe nicht passt, ist eine abgeschnittene oder beschädigte Region.
-- **Ist sie für diese Platine konfiguriert?** Die [[term:mfs|MFS]]-Konfiguration und die [[term:oem-config|OEM-Konfiguration]] sind der Ort platinenspezifischer Einstellungen. Ein Spender-Image bringt die des Spenders mit.
+! Die ME-Region prüft die Engine vor ihrem Start. Eine an Ort und Stelle geänderte Region nimmt sie nicht an, und kein Editor erzeugt eine Manifest-Signatur, die die Engine annimmt. Was die Zustände der Region bedeuten und was aus dem Übertragen einer Region zwischen Platinen folgt, steht unter [[topic:recipe-me-check|Den ME-Bericht lesen]].
 
-! Die ME-Region prüft die Engine selbst, bevor sie läuft. Sie von Hand zu ändern ist keine Reparatur — es ergibt eine Platine, die hängt, im Takt neu startet oder gar nicht erst aus dem Reset kommt. Stattdessen setzt man eine passende Region als Ganzes ein. Siehe [[topic:recipe-me-check|Eine ME-Region prüfen]].
+## Die Begriffe des Werkzeugs
 
-## Was die Namen bedeuten
+Zu jeder Abkürzung in diesem Bereich gibt es einen Glossareintrag: Zeile auswählen und das **?** neben der Detailliste drücken, um den Eintrag zu genau dieser Zeile zu öffnen; das ME-Glossar als Ganzes öffnen Sie aus dem Inhaltsverzeichnis der Hilfe.
 
-Zu jeder Abkürzung in diesem Panel gibt es einen Glossareintrag: wählen Sie eine Zeile und drücken Sie das **?** neben der Detailliste — es öffnet den Eintrag zu genau dieser Zeile. Das ME-Glossar als Ganzes öffnen Sie aus dem Inhaltsverzeichnis der Hilfe.
-
-Woher die Zerlegung stammt und wie weit ihr zu trauen ist, steht auf einer [[topic:provenance|eigenen Seite]], die einmal zu lesen sich lohnt.
+Woher die Decodierung stammt und wie weit sie belastbar ist, steht unter [[topic:provenance|Woher dieses Wissen stammt]].

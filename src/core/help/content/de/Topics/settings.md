@@ -1,4 +1,4 @@
-@source-sha f2ce8e15e53d6edd65055bc09ba2eb1aef4988682f64b2bd8097da492377d8d7
+@source-sha dcb8e4b4b42aa1ebe39664b58ce45b2de184ad4258a1ed3d6025a2684fb03f54
 # Einstellungen
 
 > **Ablage ▸ Einstellungen…** im Menü der Symbolleiste — das, was sich das Programm merkt.
@@ -8,17 +8,17 @@ Ein ⌘, gibt es hier nicht: im Browser gehört dieser Griff den Einstellungen d
 - **Erscheinungsbild** — die dicktengleiche Schrift, ihre Größe und die Zeilenhöhe der Hex-Ansicht, und ob das Programm der hellen oder dunklen Einstellung des Browsers folgt oder auf einer bleibt. Ein Vergrößern und Verkleinern gibt es nicht: der Seitenzoom des Browsers ist der Zoom ([[topic:navigation|Bewegen]]).
 - **Anordnung** — wie die Bereiche stehen.
 - **Vergleich** — wie Unterschiede gezeigt und gezählt werden.
-- **Bearbeiten** — die Rückfragen vor längenändernden Änderungen ([[topic:editing|Bytes bearbeiten]]). Standardmäßig an; der Schalter hier ist derselbe wie das Kästchen „nicht mehr fragen“ im Dialog.
-- **Textdekodierung** — die Kodierung, mit der die Textspalte dekodiert.
-- **Favoriten** — die benannten Suchmuster und der Ordner, aus dem sie synchronisiert werden können, damit eine Werkstatt eine Bibliothek teilt ([[topic:search|Bytes und Text finden]]).
-- **Sprache** — English, Русский oder Deutsch, oder was der Browser liest. Die Umstellung gilt sofort: nichts wird neu geladen, denn eine neu geladene Seite würde nach jedem offenen Dump erneut fragen.
+- **Bearbeiten** — die Rückfragen vor Änderungen, welche die Länge der Datei verändern ([[topic:editing|Bytes bearbeiten]]). Sie sind voreingestellt, und es ist dieselbe Einstellung wie das Kästchen „Nicht mehr fragen“ in den Dialogen selbst.
+- **Textdecodierung** — die Codierung, mit der die Textspalte gelesen wird.
+- **Favoriten** — die benannten Suchmuster und der Ordner, über den sich die Bibliothek zwischen mehreren Installationen abgleichen lässt ([[topic:search|Bytes und Text finden]]).
+- **Sprache** — English, Русский oder Deutsch, oder was der Browser liest. Die Umstellung gilt sofort: nichts wird neu geladen, denn eine neu geladene Seite würde nach jedem offenen Dump erneut fragen. Firmware-Begriffe bleiben in jeder Sprache englisch, weil Datenblätter und Werkzeuge sie so nennen.
 
 ## Wo die Einstellungen liegen
 
 **In diesem Browser, auf diesem Rechner** — nicht in einem Konto und nicht in einer Datei, die man kopieren kann. Daraus folgt:
 
-- Ein anderer Browser, ein anderer Rechner oder ein privates Fenster beginnen bei den Vorgaben.
-- Die Website-Daten zu löschen, löscht die Einstellungen mit — samt Lesezeichen und Musterbibliothek.
-- Einen Reiter „Dateitypen“ gibt es nicht: womit eine `.bin` geöffnet wird, ist Sache des Betriebssystems, und eine Webseite wird dafür nicht gefragt.
+- Ein anderer Browser, ein anderer Rechner oder ein privates Fenster beginnen bei den Voreinstellungen.
+- Das Löschen der Website-Daten löscht die Einstellungen mit, samt Lesezeichen und Musterbibliothek.
+- Einen Reiter „Dateitypen“ gibt es hier nicht: Womit eine `.bin` geöffnet wird, ist Sache des Betriebssystems, und einer Webseite wird diese Aufgabe nicht angeboten.
 
 Die Einstellungen gelten für den ganzen Arbeitsbereich, nicht für einen Bereich: die gewählte Schriftgröße gilt für beide Dumps.

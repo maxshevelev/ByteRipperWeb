@@ -1,4 +1,4 @@
-@source-sha 63a3a5f1d3517e3162f59a8e99a2c47cbc98ee9ccf33138c121c349cd2a72757
+@source-sha 5c1ee17e97274e59e90d978e000f0f4c8649489fa83f1f8202f8183f4ce4abf3
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -7,16 +7,16 @@
 
 ## Der Baum
 
-Die oberste Ebene ist die Aufteilung des Chips selbst. Auf einer Intel-Plattform sind das der [[term:flash-descriptor|Flash Descriptor]] und die von ihm definierten [[term:region|Regionen]] — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. In der BIOS-Region liegen [[term:volume|Firmware-Volumes]], darin [[term:ffs-file|FFS-Dateien]], darin [[term:section|Sektionen]]; der Baum öffnet einen Zweig, sobald Sie danach fragen.
+Die oberste Ebene ist die Aufteilung des Chips selbst. Auf einer Intel-Plattform sind das der [[term:flash-descriptor|Flash Descriptor]] und die von ihm definierten [[term:region|Regionen]] — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. In der BIOS-Region liegen [[term:volume|Firmware-Volumes]], darin [[term:ffs-file|FFS-Dateien]] und darin [[term:section|Sektionen]]. Ein Zweig wird decodiert, wenn er geöffnet wird, und nicht im Voraus.
 
 Die Spalten **Typ** und **Subtyp** benennen jeden Knoten so, wie der Referenz-Parser ihn benennt. Die Spalte **Name** zeigt den Gemeinschaftsnamen für die [[term:guid|GUID]] eines Knotens, sofern es einen gibt, und sonst die GUID selbst.
 
 Die Zeile der **ME-Region** öffnet sich in dieselbe Analyse, die der [[topic:tool-me|ME Analyzer]] liefert — so lässt sich ein Image in einem Baum von vorn bis hinten lesen.
 
-## Was das Panel prüft
+## Was das Werkzeug prüft
 
-- **Prüfsummen.** Ein Header, dessen Prüfsumme nicht aufgeht, bekommt eine rote Markierung, und die Detailansicht sagt, welchen Wert er haben sollte. Rechtsklick auf den Knoten für **Prüfsumme korrigieren** — ein Schreibvorgang, ein Widerrufsschritt.
-- **Geschützte Bereiche.** Deklariert das Image geschützte Bereiche von [[term:boot-guard|Boot Guard]], sagt die Übersichtszeile, wie viele. Die Bytes darin gehören nicht Ihnen.
+- **Prüfsummen.** Ein Header, dessen Prüfsumme nicht aufgeht, wird in seiner Zeile rot markiert, und die Detailliste nennt den gespeicherten und den richtigen Wert. **Prüfsumme korrigieren** im Kontextmenü des Knotens schreibt den richtigen Wert als einen Schreibvorgang und einen Widerrufsschritt.
+- **Geschützte Bereiche.** Deklariert das Image geschützte Bereiche von [[term:boot-guard|Boot Guard]], nennt die Übersichtszeile ihre Anzahl. Die Signatur eines solchen Bereichs lässt sich ohne den privaten Schlüssel des Herstellers nicht neu berechnen; siehe [[topic:recipe-checksums|Prüfsummen]].
 
 ## Was sich herausholen lässt
 
@@ -27,6 +27,6 @@ Rechtsklick auf einen Knoten:
 
 ## Padding
 
-Ein Dump ist voll gelöschten Raums zwischen den Strukturen. Der Baum lässt ihn weg, bis Sie **Leeres Padding anzeigen** ankreuzen: Padding mit Daten wird immer aufgeführt, und der freie Speicher eines Volumes ebenso, denn er sagt, wie viel Platz noch darin ist.
+Zwischen den Strukturen eines Dumps liegt gelöschter Raum. Der Baum lässt ihn weg, solange **Leeres Padding anzeigen** nicht angekreuzt ist. Padding mit Daten wird in jedem Fall aufgeführt, ebenso der freie Speicher eines Volumes, der angibt, wie viel Platz darin noch frei ist.
 
-Siehe auch: [[topic:tool-fit|FIT-Tabelle]], [[term:vss|NVRAM-Speicher]], [[topic:recipe-checksums|Prüfsummen prüfen und korrigieren]].
+Siehe auch: [[topic:tool-fit|FIT-Tabelle]], [[term:vss|NVRAM-Speicher]], [[topic:recipe-checksums|Prüfsummen]].

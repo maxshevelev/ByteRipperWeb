@@ -1,35 +1,35 @@
 # ME Analyzer
 
-> What Intel's Management Engine firmware in this image is, and what it is made of.
+> Which Intel Management Engine firmware the image holds, and which structures it is composed of.
 
 @covers panel.me
 
-**Tools ▸ ME Analyzer** runs an analysis of the [[term:me-region|ME region]] and shows it on two tabs.
+**Tools ▸ ME Analyzer** analyses the [[term:me-region|ME region]] of the file in its pane and reports the result on two tabs.
 
 ## Summary
 
-The report a bench reads first: the firmware family and version, the [[term:sku|SKU]], the release and type, the [[term:svn|security version numbers]], whether the image is a full production firmware or an update, and any messages the analysis raised.
+A report of what the firmware is: its family and version, its [[term:sku|SKU]], its release and type, the [[term:svn|security version numbers]], whether the image is a complete firmware or an update, and the messages the analysis raised. The individual rows are described in [[topic:recipe-me-check|Reading the ME Region Report]].
 
-Copy it as text (for a note or a job sheet) or as a picture, with the two buttons in the tab row.
+The row labels are in English in every language of the interface, as they are the labels of the project the analysis is derived from. See [[topic:provenance|Where This Knowledge Comes From]].
+
+The two buttons in the tab row copy the tab as text or as an image of the panel.
 
 ## Full Info
 
-Everything the analysis decoded, as a tree of the real structures in the region, each row standing for real bytes: the [[term:fpt|partition table]], the [[term:cpd|code partitions]] and their modules, the [[term:manifest|manifests]], the [[term:mfs|file system]] and its configuration, the [[term:oem-config|OEM configuration]], the [[term:utok|unlock tokens]].
+The structures the analysis decoded, as a tree in which every row corresponds to actual bytes of the region: the [[term:fpt|partition table]], the [[term:cpd|code partitions]] and their modules, the [[term:manifest|manifests]], the [[term:mfs|file system]] and its configuration, the [[term:oem-config|OEM configuration]] and the [[term:utok|unlock tokens]].
 
-Select a row and the dump scrolls to those bytes and outlines them. The detail list under the tree is what that row's header actually says.
+Selecting a row scrolls the dump to those bytes and outlines them. The detail list under the tree holds the fields of that row's header as they are recorded in the file.
 
-## Reading it on a bench
+## What the tool reports
 
-Three questions the panel answers quickly:
+- **Whether the image holds ME firmware, and of which version.** A region consisting of `FF` holds none. The version identifies the generation of the platform the firmware was built for.
+- **Whether the region is complete.** The tree lists the partitions declared by the [[term:fpt|$FPT]] table. A partition whose bytes are absent, or whose declared length does not agree with the region, is reported as such.
+- **Whether the region carries a configuration, and of what kind.** Board-specific settings are held in the [[term:mfs|MFS]] configuration and in the [[term:oem-config|OEM configuration]]; the **File System State** row reports which of the three states the file system is in.
 
-- **Is there ME firmware here at all, and what version?** A region full of `FF` is an erased or "cleaned" ME. A version wildly older than the board is a donor dump from the wrong machine.
-- **Is it complete?** The tree lists the partitions the [[term:fpt|$FPT]] declares. A partition whose bytes are not there, or whose size does not match, is a truncated or damaged region.
-- **Is it configured for this board?** The [[term:mfs|MFS]] configuration and the [[term:oem-config|OEM configuration]] are where board-specific settings live. A donor image brings the donor's settings.
+! The engine verifies the ME region before it starts. A region altered in place is not accepted by it, and no editor can produce a manifest signature the engine will accept. What the states of the region mean, and what follows from moving a region between boards, is set out in [[topic:recipe-me-check|Reading the ME Region Report]].
 
-! The ME region is verified by the engine itself before it runs. Hand-editing it is not a repair — it produces a board that hangs, reboots on a timer, or refuses to come out of reset. Replace the whole region with a matching one instead. See [[topic:recipe-me-check|Checking an ME region]].
+## The terms the tool uses
 
-## What the names mean
+Every abbreviation in this panel has a glossary entry: select a row and press **?** beside the detail list to open the entry for that row, or open the ME glossary from the contents of this book.
 
-Every acronym in this panel has a glossary entry: select a row and press the **?** beside the detail list for the term that row is about, or open the ME glossary from the help window's contents.
-
-Where the decode comes from, and how far it can be trusted, is [[topic:provenance|its own page]] — worth reading once.
+Where the decoding comes from, and how far it can be relied on, is set out in [[topic:provenance|Where This Knowledge Comes From]].

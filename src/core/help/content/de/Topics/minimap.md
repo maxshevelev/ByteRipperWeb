@@ -1,7 +1,7 @@
-@source-sha 881bb6eff51a09991e94aee33735ec459e6d8de479a1e062b0483affd5bd856a
+@source-sha 5c7901c6e175c76d0bc8be08497c1324ee6f13e9b5c3634cb6e9b5398d9f9559
 # Die Minimap
 
-> Die Gestalt des ganzen Dumps in einer Spalte, und ein Weg, sich durch Zeigen zu bewegen.
+> Die Gestalt des ganzen Dumps in einer Spalte und die Bewegung darin mit dem Zeiger.
 
 **Darstellung ▸ Minimap einblenden** (⌘M) oder die Taste ganz rechts in der Symbolleiste öffnet eine schmale Spalte neben dem Dump. Im Vergleichsmodus zeigt sie beide Dateien, geteilt wie die Bereiche.
 
@@ -16,16 +16,12 @@ Eine kleine Datei öffnet lokal, eine große in der Übersicht. Die Übersicht w
 
 ## Was sie markiert
 
-- **Unterschiede** in der Unterschiedsfarbe — deshalb ist sie beim Vergleichen nützlich: man sieht sofort, ob sich zwei Dumps in einem Block unterscheiden oder überall.
-- **Ihre ungesicherten Änderungen.**
+- **Unterschiede** in Orange, was in einer Ansicht zeigt, ob zwei Dumps sich in einem Block oder durchgehend unterscheiden.
+- **Ungesicherte Änderungen.**
 - **Suchtreffer** als Tintenstriche, der aktuelle als helle Platte.
-- **Zeilen mit Lesezeichen**, am Rand.
-- **Zonen**, die ein [[topic:tools-overview|Werkzeugbereich]] veröffentlicht hat, sodass die Regionen des Images als Bänder sichtbar werden.
+- **Zeilen mit Lesezeichen**, violett, am Rand.
+- **Zonen**, die ein [[topic:tools-overview|Werkzeug]] veröffentlicht hat, sodass die Regionen des Images als Bänder sichtbar werden.
 
-Ein Klick in die Karte springt dorthin. Das Ziehen des Ansichtsrahmens scrollt.
-
-## Am Arbeitsplatz
-
-Die Übersicht ist der schnellste Weg zur Frage „hat der Chip sauber gelesen?“. Ein guter SPI-Dump hat Struktur: ein dichter Descriptor oben, eine dunkle ME-Region, eine gemusterte BIOS-Region, blasse gelöschte Flächen dazwischen. Ein Dump, der durchgehend gleichmäßig grau ist — oder durchgehend blass —, ist meist ein schlechtes Lesen, ein kurzgeschlossenes Bein oder der falsch gewählte Chip.
+Ein Klick in die Karte bewegt die Einfügemarke an die angeklickte Stelle. Das Ziehen des Ansichtsrahmens scrollt den Bereich.
 
 Siehe auch: [[topic:colors|Was die Farben bedeuten]].

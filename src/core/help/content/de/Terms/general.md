@@ -1,4 +1,4 @@
-@source-sha 72cf79a79ce3cab7869173f2568cd35e3fe227aab65d20a029dc4ad0d8cbe6b1
+@source-sha 9efd752c377a9ce5418a20a97bf9d4fed9528f7a2aaab84532a0f04b8cc7632c
 @term dump
 @name Dump
 @short Der Inhalt eines Chips, in eine Datei ausgelesen.
@@ -18,7 +18,7 @@ Offsets sind in ByteRipper nullbasiert und werden hexadezimal angezeigt. Offset 
 
 Überall, wo das Programm einen Offset entgegennimmt, braucht Hex das Präfix `0x` und Dezimal gar keines.
 
-Bereiche sind intern halboffen: `[Anfang, Ende)`, wobei das Ende das erste Byte ist, das **nicht** dazugehört. Ein Dialog darf ein einschließendes Ende anbieten und rechnet es für Sie um.
+Wird ein Bereich als Anfang und Ende angegeben, ist das Ende die Adresse des **letzten** Bytes des Bereichs und nicht die des ersten Bytes dahinter.
 
 @see topic:navigation
 
@@ -67,7 +67,7 @@ Für sich genommen bedeutet eine GUID nichts — deshalb lädt das Programm eine
 
 @term zone
 @name Zone
-@short Der farbige Umriss, mit dem ein Werkzeugbereich einen Byte-Bereich im Dump markiert.
+@short Der Umriss, mit dem ein Werkzeug einen Byte-Bereich im Dump markiert: blau im Fokus, sonst gelb.
 
 Wählen Sie eine Zeile in einem Werkzeugbereich, veröffentlicht er deren Byte-Bereich als Zone: ein Umriss samt Tönung über diesen Bytes in der Hex-Ansicht und ein Band in der [[topic:minimap|Minimap]].
 
@@ -81,8 +81,8 @@ Eine Zone ist ein Umriss und keine Hintergrundfüllung, verdeckt also nie einen 
 
 Ein serieller Flash-Chip trägt die Firmware der Platine. Zwei Eigenschaften zählen hier:
 
-- **Seine Größe steht fest.** Ein Image für einen 8-MB-Chip muss exakt 8 MB groß sein. Deshalb darf am Arbeitsplatz nichts die Länge eines Dumps verändern.
-- **Gelöscht heißt `FF`.** Flash wird auf Einsen gelöscht. Eine lange Kette `FF` im Dump ist leerer Raum, kein Schaden; eine lange Kette `00` ist dagegen meist beschriebene Fläche.
+- **Seine Größe steht fest.** Ein Image für einen 8-MB-Baustein muss exakt 8 MB groß sein, weshalb sich die Länge eines Dumps nicht ändern darf.
+- **Gelöscht heißt `FF`.** Flash wird auf Einsen gelöscht. Eine lange Kette `FF` im Dump ist leerer Raum, kein Schaden; eine lange Kette `00` ist dagegen meist beschriebene Fläche. Eine Ausnahme: In einem Dump aus dem laufenden System kann `FF` auch eine Region meinen, die das Werkzeug nicht lesen durfte — siehe [[topic:flash-writes|Wer in den Flash schreibt]].
 
 @see topic:bench-safety
 
@@ -100,7 +100,7 @@ Diese Trennung ist Absicht: das Programm lässt sich mit dem Dump jedes Programm
 
 Das BIOS ist der erste Code, den der Prozessor ausführt. Es erkennt und initialisiert die Hardware, fährt den [[term:post|Einschaltselbsttest]] und übergibt an einen Bootloader auf einem Laufwerk.
 
-Streng genommen meint das Wort die ältere Firmware vor UEFI; auf einem heutigen Board läuft [[term:uefi|UEFI]]. An der Werkbank werden beide Wörter nebeneinander benutzt, und „BIOS-Chip“ heißt der Flash mit der Firmware, egal welche davon es ist.
+Streng genommen meint das Wort die ältere Firmware vor UEFI; auf einem heutigen Board läuft [[term:uefi|UEFI]]. In der Praxis werden beide Wörter gleichbedeutend benutzt, und „BIOS-Chip“ bezeichnet den Flash-Baustein, in dem die Firmware liegt, welche davon es auch sei.
 
 @see term:uefi
 @see term:bios-region
@@ -120,7 +120,7 @@ Die Referenzimplementierung ist das quelloffene TianoCore EDK II. Firmware-Herst
 @name POST
 @short „Power-On Self-Test“ — die Prüfung der Hardware, die die Firmware selbst vornimmt, noch vor jedem Bootvorgang.
 
-Die Firmware erkennt und prüft Speicher, Grafik und Laufwerke, bevor sie nach einem Betriebssystem sucht. Ein Board, das „keinen POST macht“, ist bis dahin nicht gekommen — an der Werkbank heißt das: frühe Firmware, [[term:me|Management Engine]] oder die Hardware selbst, aber nicht das Betriebssystem.
+Die Firmware erkennt und prüft Speicher, Grafik und Laufwerke, bevor sie nach einem Betriebssystem sucht. Ein Board, das „keinen POST macht“, ist bis zu dieser Stufe nicht gekommen, womit die Ursache in der frühen Firmware, in der [[term:me|Management Engine]] oder in der Hardware selbst liegt und nicht im Betriebssystem.
 
 @see topic:bench-safety
 
@@ -139,7 +139,7 @@ Manche Plattformen fahren den Bus im Dual- oder Quad-Modus, mit zwei oder vier D
 @name PCH / ICH / FCH
 @short Der Chipsatz: der zweite Baustein auf dem Board, dem der Firmware-Flash gehört.
 
-Intels Namen dafür, vom ältesten an: ICH (I/O Controller Hub), dann PCH (Platform Controller Hub). AMDs Gegenstück heißt FCH (Fusion Controller Hub). Alle drei enden auf Hub — deshalb sagt die Werkbank ebenso oft Hub wie Chipsatz.
+Intels Namen dafür, vom ältesten an: ICH (I/O Controller Hub), dann PCH (Platform Controller Hub). AMDs Gegenstück heißt FCH (Fusion Controller Hub). Alle drei enden auf Hub — deshalb wird ebenso oft Hub wie Chipsatz gesagt.
 
 Hier ist er gleich doppelt wichtig. Den Flash liest der Chipsatz, nicht die CPU, und er setzt auch durch, welcher [[term:flash-master|Master]] welche [[term:region|Region]] beschreiben darf. Und bei Intel sitzt die [[term:me|Management Engine]] physisch in ihm — zusammen mit den [[term:otp|Fuses]], in denen die [[term:boot-guard|Boot-Guard]]-Konfiguration des Boards liegt.
 
@@ -170,7 +170,9 @@ Genau deshalb lässt sich [[term:boot-guard|Boot Guard]] nicht aus einem Dump he
 @name LPC
 @short „Low Pin Count“ — ein alter, langsamer Bus, der für Embedded Controller und TPM-Header noch in Gebrauch ist.
 
-Manche Boards lassen sich so konfigurieren, dass die Firmware über LPC statt über SPI gelesen wird. Selbst dann braucht eine Intel-Plattform noch einen gültigen [[term:flash-descriptor|Deskriptor]] am SPI-Bus.
+Der Bus, der den [[term:pch|Chipsatz]] mit langsamer Peripherie verbindet. Intel führte ihn 1998 als softwarekompatiblen Ersatz für ISA ein: statt eines breiten parallelen Busses vier multiplexierte Datenleitungen mit 33 MHz und insgesamt sieben Signale, was einem Baustein einige Dutzend Anschlüsse spart. Daher der Name.
+
+Über LPC spricht der Chipsatz mit dem Super I/O (Tastatur, Maus, serielle und parallele Schnittstelle), mit dem [[term:ec|Embedded Controller]] und mit dem TPM-Header. Auf älteren Plattformen lag auch die Firmware an ihm, in einem Firmware Hub. Heute liegt die Firmware auf [[term:spi|SPI]], und von dort stammen die Dumps, mit denen dieses Programm arbeitet; LPC selbst wird auf neueren Platinen von eSPI abgelöst.
 
 @see term:spi
 

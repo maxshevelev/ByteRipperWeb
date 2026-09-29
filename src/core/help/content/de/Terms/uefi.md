@@ -1,13 +1,13 @@
-@source-sha 592d477efe65be1e4e7d913e4ec9762e55088cff800c2900bdc88b4fb6ff2574
+@source-sha 447ec9090ae162e30a7bfe19a18250266f9098f7070e44d4374d0e9dcf832fdd
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
 
 Der Descriptor liegt ganz am Anfang des Dumps und sagt, wo jede [[term:region|Region]] beginnt und endet, welche [[term:flash-master|Master]] sie lesen oder beschreiben dürfen und wie die Straps des Chips gesetzt sind.
 
-Er ist die einzige Struktur hier mit echter Hersteller-Dokumentation — beschrieben in Intels Programming Guides zum Chipsatz —, was dem Panel hier mehr als Reverse Engineering unter die Füße legt.
+Er ist die einzige Struktur hier mit echter Hersteller-Dokumentation — beschrieben in Intels Programming Guides zum Chipsatz —, sodass das, was das Werkzeug darüber sagt, auf mehr als Reverse Engineering ruht.
 
-Am Arbeitsplatz schaut man zuerst hierher: ist der Descriptor beschädigt, ist jede Adresse danach unzuverlässig, und die Platine startet meist gar nicht.
+Ist der Descriptor beschädigt, ist jede danach gerechnete Adresse unzuverlässig.
 
 @see term:region
 @see topic:tool-uefi
@@ -58,7 +58,7 @@ ByteRipper nennt die Anzahl der Strap-Wörter im Deskriptor und nicht, was jedes
 @name Region
 @short Ein Bereich des Flash auf oberster Ebene, vom Descriptor festgelegt.
 
-Der Descriptor teilt den Chip in Regionen — Descriptor, BIOS, ME, GbE, PDR, EC und weitere —, jede mit Anfangs- und Endadresse. Eine Region ist die Einheit, die am Arbeitsplatz üblicherweise zwischen Images wandert: jede ist ein für sich geschlossenes Format.
+Der Descriptor teilt den Chip in Regionen — Descriptor, BIOS, ME, GbE, PDR, EC und weitere —, jede mit Anfangs- und Endadresse. Eine Region ist die Einheit, die üblicherweise zwischen Images übertragen wird: Jede ist ein für sich geschlossenes Format.
 
 @see term:flash-descriptor
 @see term:bios-region
@@ -144,7 +144,7 @@ Eine Zeile mit lesbarem Namen wie „DxeCore“ ist eine FFS-Datei, deren GUID d
 @see term:pad-file
 
 @term pad-file
-@name Füll-Datei
+@name Padding-Datei
 @short Eine Datei, die es nur gibt, damit die nächste echte Datei dort beginnt, wo sie soll.
 
 Eine GUID hat sie nur, weil jeder Datei-Header eine hat — in der Regel lauter Einsen —, und sie benennt nichts. Sie zu übergehen kostet nichts.
@@ -155,7 +155,7 @@ Eine GUID hat sie nur, weil jeder Datei-Header eine hat — in der Regel lauter 
 
 Eine Datei besteht aus Sektionen, und Sektionen können ineinander liegen. Die üblichen sind das ausführbare Abbild (PE32), eine komprimierte Sektion (in der wieder Sektionen stecken), eine Oberflächensektion (der lesbare Name der Datei) und eine Versionssektion.
 
-Eine **komprimierte Sektion** kann ByteRipper entpackt öffnen — das Panel klappt sie auf und zeigt, was wirklich darin steckt.
+Eine **komprimierte Sektion** kann ByteRipper entpackt öffnen — das Werkzeug klappt sie auf und zeigt, was wirklich darin steckt.
 
 @see topic:fragments
 
@@ -163,7 +163,7 @@ Eine **komprimierte Sektion** kann ByteRipper entpackt öffnen — das Panel kla
 @name Freier Speicher
 @short Der unbeschriebene Rest eines Volumes hinter seiner letzten Datei.
 
-Das Panel führt ihn mit Absicht auf: daran sieht man, ob noch ein Modul in ein Volume passt, und seine Größe ist eine schnelle Probe darauf, dass das Längenfeld des Volumes stimmt.
+Das Werkzeug führt ihn mit Absicht auf: daran sieht man, ob noch ein Modul in ein Volume passt, und seine Größe ist eine schnelle Probe darauf, dass das Längenfeld des Volumes stimmt.
 
 @see term:padding
 
@@ -218,7 +218,7 @@ Wo zu suchen ist:
 
 NVRAM liegt in einem eigenen Bereich der BIOS-Region, in einem Format, das vom Firmware-Hersteller abhängt. ByteRipper liest die gängigen — [[term:vss|VSS/VSS2]], FTW, EVSA, FDC und einige herstellereigene — und führt die Variablen darin auf.
 
-Am Arbeitsplatz zählt NVRAM aus zwei Gründen: man kann ihn meist gefahrlos vom Spender übernehmen (die Firmware baut sich neu auf, was sie braucht), und seine Beschädigung ist eine häufige Ursache für eine Platine, die am Herstellerlogo hängt oder bei jedem Start ihre Einstellungen vergisst.
+Zwei Eigenschaften des NVRAM sind festzuhalten: Fehlenden Inhalt legt die Firmware größtenteils neu an, und geschrieben wird er bei jeder Änderung von Einstellungen und nicht nur bei einem Firmware-Update.
 
 @see term:vss
 @see topic:recipe-board-data
@@ -239,7 +239,7 @@ Im selben Bereich finden sich verwandte Speicher: **FTW** (der Eintrag eines feh
 
 DMI ist ein DMTF-Standard, und in der Praxis meinen „DMI" und „SMBIOS" dasselbe: die Tabellen, die die Firmware veröffentlicht, damit ein Betriebssystem sagen kann, auf welcher Maschine es läuft. `dmidecode` unter Linux liest genau diese.
 
-Für die Werkbank zählt, dass dort die Identität der Platine selbst liegt: die Seriennummern von System und Baseboard, die Maschinen-UUID, die Inventarnummer, der Modellname. All das wird im Werk geschrieben und nicht berechnet. Eine Platine mit leeren Feldern verliert Garantieabfrage, Lizenzaktivierung und Verwaltungswerkzeuge.
+Dort liegt die Identität der Platine selbst: die Seriennummern von System und Baseboard, die Maschinen-UUID, die Inventarnummer, der Modellname. All das wird im Werk geschrieben und nicht berechnet. Eine Platine mit leeren Feldern verliert Garantieabfrage, Lizenzaktivierung und Verwaltungswerkzeuge.
 
 Verlorene Felder sind nicht immer endgültig verloren. Einige Hersteller — darunter HP und Acer — liefern Service-Werkzeuge, die die Identität neu schreiben; Seriennummer und der Rest werden vom Aufkleber am Gehäuse oder auf der Platine übernommen. Wo es ein solches Werkzeug nicht gibt, bleibt die Übernahme aus dem alten Dump.
 
@@ -344,7 +344,7 @@ Wie ein Board mit Boot Guard hochkommt:
 6. Das Key Manifest bürgt für den Schlüssel, der die [[term:boot-policy|Boot Policy]] signiert; die Boot Policy nennt die Bereiche des [[term:ibb|IBB]] und ihre Hashes; das ACM prüft sie.
 7. Erst dann läuft der [[term:reset-vector|Reset-Vektor]] — innerhalb von Code, der bereits geprüft ist.
 
-Welche Bereiche abgedeckt sind, erklärt das Abbild selbst. Das [[topic:tool-uefi|UEFI-Panel]] zählt diese **geschützten Bereiche** in seiner Zusammenfassungszeile.
+Welche Bereiche abgedeckt sind, erklärt das Abbild selbst. Das [[topic:tool-uefi|UEFI-Werkzeug]] zählt diese **geschützten Bereiche** in seiner Zusammenfassungszeile.
 
 ! Bytes innerhalb eines geschützten Bereichs lassen sich nicht ändern. Die Signatur passt dann nicht mehr, und ohne den privaten Schlüssel des Herstellers ist sie nicht neu zu berechnen. Kein Werkzeug repariert das; genau darin besteht der Sinn der Sache.
 
@@ -370,7 +370,7 @@ Das Key Manifest enthält den öffentlichen Schlüssel des Boardherstellers und 
 
 Dieser gebrannte Hash ist alles, was das Silizium über den Hersteller weiß: ein Wert, einmal gesetzt, nie neu geschrieben. Er ist es, der ein signiertes Abbild zu einer Boardfamilie gehören lässt statt zu Firmware im Allgemeinen.
 
-! Das Key Manifest durch ein selbst signiertes zu ersetzen funktioniert nicht: Ihr Schlüssel hasht zu etwas anderem, und der gebrannte Wert lässt sich nicht daran anpassen. Die Reparatur besteht darin, die Originalbytes des Herstellers zurückzuschreiben — ein weiterer Grund, warum der Sicherungsdump die wertvollste Datei an der Werkbank ist.
+! Das Key Manifest durch ein selbst signiertes zu ersetzen funktioniert nicht: Ihr Schlüssel hasht zu etwas anderem, und der gebrannte Wert lässt sich nicht daran anpassen. Nur die zurückgeschriebenen Originalbytes des Herstellers stellen diesen Zustand wieder her.
 
 @see term:boot-policy
 @see term:boot-guard
@@ -381,7 +381,7 @@ Dieser gebrannte Hash ist alles, was das Silizium über den Hersteller weiß: ei
 
 Die Boot Policy nennt die Bereiche, aus denen der [[term:ibb|Initial Boot Block]] besteht, und hält für jeden einen Hash fest, damit das [[term:acm|ACM]] genau diese Bytes prüfen kann. Signiert ist sie mit einem Schlüssel, für den das [[term:key-manifest|Key Manifest]] bürgt — so erbt sie das Vertrauen, das die Fuses begonnen haben.
 
-Die geschützten Bereiche, die das [[topic:tool-uefi|UEFI-Panel]] zählt, sind die, die hier deklariert werden.
+Die geschützten Bereiche, die das [[topic:tool-uefi|UEFI-Werkzeug]] zählt, sind die, die hier deklariert werden.
 
 @see term:key-manifest
 @see term:ibb
@@ -394,7 +394,7 @@ Der IBB ist ungefähr der Code von [[term:sec-phase|SEC]] und [[term:pei-phase|P
 
 Alles danach ist der **OBB**, der „OEM Boot Block“, praktisch die [[term:dxe-phase|DXE]]-Hälfte. Vom IBB wird erwartet, dass er den OBB prüft, bevor er ihn ausführt — mit Code, den der Boardhersteller schreibt. Ob ein bestimmter Hersteller das tut, bleibt ihm überlassen.
 
-Daher kommt es, dass ein Panel manche Bereiche als geschützt kennzeichnet und andere nicht, und dass dieselbe Art von Änderung im einen Teil eines Abbilds unmöglich und im anderen Alltag ist.
+Daher kommt es, dass ein Werkzeug manche Bereiche als geschützt kennzeichnet und andere nicht, und dass dieselbe Art von Änderung im einen Teil eines Abbilds unmöglich und im anderen Alltag ist.
 
 @see term:boot-guard
 @see term:boot-policy
@@ -450,7 +450,7 @@ Darüber stehen die Key Exchange Keys (**KEK**), die diese Datenbanken aktualisi
 
 Die Platine hält zwei Boot-Blöcke, und ein Chipsatz-Bit entscheidet, welchen der Prozessor sieht. Das ist ein Wiederherstellungsmechanismus: ein missglücktes Beschreiben der einen Kopie kann überlebbar sein.
 
-Am Arbeitsplatz gut zu wissen, weil ein Image damit berechtigterweise zwei fast gleiche Boot-Blöcke enthalten kann — und ein Vergleich zeigt beide.
+Daraus folgt, dass ein Image berechtigterweise zwei fast gleiche Boot-Blöcke enthalten kann, und ein Vergleich zeigt beide.
 
 @see topic:tool-fit
 
@@ -468,4 +468,5 @@ Am Arbeitsplatz gut zu wissen, weil ein Image damit berechtigterweise zwei fast 
 
 Kein Fehler. Hersteller legen ständig Eigenes in Firmware-Images, und ein EC-Image oder ein Option-ROM innerhalb einer BIOS-Region ist ein Format für sich.
 
-Es ist aber die Stelle, an der man nachsieht, wenn etwas nicht aufgeht: eine Region, die Volumes sein sollte und sich als Nicht-UEFI-Daten liest, ist eine beschädigte Region.
+Eine Region, die aus Volumes bestehen sollte und sich als Nicht-UEFI-Daten liest, ist dagegen eine beschädigte Region.
+
