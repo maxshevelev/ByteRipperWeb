@@ -1,6 +1,5 @@
 import { L } from "@/core/localization/localization";
-import type { PaneId } from "@/state/workspaceStore";
-import { paneState } from "@/state/workspaceStore";
+import { editingHooks, isSlot, type PaneId, paneState } from "@/state/workspaceStore";
 import {
   type ToolTransaction,
   transactionProblemMessage,
@@ -47,5 +46,20 @@ export async function applyTransaction(
     await slot.document.overwrite(write.offset, write.bytes);
   }
   slot.document.endEditGroup();
+  // Told as a typed byte is: the comparison, the search, the map and the cuts
+  // all hold claims about these bytes. Without it a copy into the other pane
+  // left its bytes marked as differing — the two panes repainted what they
+  // held, but the comparison had not heard that the bytes now agreed — until
+  // something else made it look again. Only a file slot is compared, as the
+  // typing path has it.
+  if (isSlot(pane)) {
+    for (const write of checked.transaction.writes) {
+      editingHooks.onEdit?.(pane, {
+        kind: "overwrite",
+        start: write.offset,
+        end: write.offset + write.bytes.length,
+      });
+    }
+  }
   return undefined;
 }

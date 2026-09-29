@@ -3,6 +3,7 @@ import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { nextUndo, undoLast } from "@/state/undoRouter";
 import {
   closePane,
+  editingHooks,
   openInPane,
   openPart,
   type PaneId,
@@ -80,6 +81,26 @@ describe("Copy to Other Pane", () => {
 
     await undoLast("b", false);
     expect(await bytes("b")).toEqual([...filled(0x00, 64)]);
+  });
+
+  /**
+   * The comparison hears of the copy as it hears of a typed byte. It did not:
+   * the bytes agreed and went on being drawn as differing until something
+   * else made the comparison look again.
+   */
+  it("tells the comparison which bytes it wrote", async () => {
+    comparison(filled(0xaa, 64), filled(0x00, 64));
+    await select("a", 16, 24);
+    const heard: unknown[] = [];
+    const before = editingHooks.onEdit;
+    editingHooks.onEdit = (pane, edit) => heard.push({ pane, edit });
+    try {
+      await copySelectionToOtherPane("a");
+    } finally {
+      editingHooks.onEdit = before;
+    }
+
+    expect(heard).toEqual([{ pane: "b", edit: { kind: "overwrite", start: 16, end: 24 } }]);
   });
 
   // @upstream ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.testItGoesFromTheActivePaneWhicheverThatIs
