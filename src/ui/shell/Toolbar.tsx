@@ -33,6 +33,7 @@ import {
 import { TOOLS } from "@/tools/registry";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
+import { canCopyToOtherPane, copySelectionToOtherPane } from "@/ui/shell/copyToOtherPane";
 import { helpMenuEntries } from "@/ui/shell/helpMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import { compactEntries } from "@/ui/shell/menuModel";
@@ -50,6 +51,7 @@ import {
   ToolsGlyph,
 } from "@/ui/shell/ToolbarIcons";
 import {
+  freeSlot,
   identicalBadgeAfter,
   paneLayoutOffer,
   type ToolbarContext,
@@ -175,7 +177,6 @@ export function Toolbar({
   // items stay where they are and stop working, rather than leaving the bar and
   // coming back.
   const canNavigate = diff.status === "ready" && diff.hunks !== undefined && panesReachable;
-  const anyOpen = state.panes.a !== undefined;
   const dirty = active?.document.isDirty === true;
   const revert = revertItem(active);
 
@@ -221,13 +222,19 @@ export function Toolbar({
     // Compare with… is the web's own item: upstream opens into a named pane
     // from the pane's own menu, where this fills the free slot. It works while
     // exactly one file is open — with two there is no free slot, and with none
-    // the command to reach for is Open….
+    // the command to reach for is Open…. The free slot is whichever one is:
+    // closing File A of a comparison leaves File B where it was, and the
+    // command must stay live for it — upstream's e7953f7 fixed the same
+    // dimming, there caused by a pane promoted into the first slot.
     // @web-only the second slot is filled from the command menu, not a pane
     {
       // help: menu.file.compare-with
       label: L("Compare with…"),
-      disabled: !panesReachable || !anyOpen || state.panes.b !== undefined,
-      onSelect: () => onOpen("b"),
+      disabled: !panesReachable || freeSlot(state) === undefined,
+      onSelect: () => {
+        const slot = freeSlot(state);
+        if (slot !== undefined) onOpen(slot);
+      },
     },
     { kind: "separator" },
     {
@@ -290,6 +297,19 @@ export function Toolbar({
       shortcut: "⇧⌘Z",
       disabled: redoable === undefined,
       onSelect: () => void redoLast(front),
+    },
+    { kind: "separator" },
+    {
+      // Copy and Paste in one step, without the clipboard: the active pane's
+      // selection goes to the same addresses in the other pane. Upstream's
+      // ⌥⌘C is not offered: every browser on a Mac keeps it for its own
+      // inspector, so a shortcut here would be one that never arrives.
+      // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeEditMenu
+      // @upstream-differs no ⌥⌘C — the chord is the browser's developer tools
+      // help: menu.edit.copy-to-other-pane
+      label: L("Copy to Other Pane"),
+      disabled: !canCopyToOtherPane(state, state.activePane),
+      onSelect: () => void copySelectionToOtherPane(state.activePane),
     },
     { kind: "separator" },
     // help: menu.edit.fill
@@ -683,6 +703,8 @@ export function Toolbar({
       //
       // help: toolbar.help
       // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeHelpItem
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.helpItem
+      // @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.help
       case "help":
         return (
           <MenuButton

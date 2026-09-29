@@ -1,9 +1,9 @@
-@source-sha bbc2b78b08df298949aa41edcb3b9bf6028755da68edc658a3fda458cfade20e
+@source-sha 423f7a646125e9a9c76a38eed8cae3bf53fad6e8b5a5d6a5d45bd4cc7d223f45
 # Einen Bereich von einem Image in ein anderes übertragen
 
 > Die Mittel, die das Programm bereitstellt, um einen Byte-Bereich aus einem geöffneten Image an derselben Adresse in ein anderes zu kopieren.
 
-Einen eigenen Befehl zum Übertragen eines Bereichs gibt es in ByteRipper nicht. Der Vorgang setzt sich aus Mitteln zusammen, die jeweils an anderer Stelle beschrieben sind; diese Seite hält fest, welche daran beteiligt sind und in welcher Reihenfolge sie üblicherweise eingesetzt werden.
+Die Übertragung selbst ist ein Befehl, **Bearbeiten ▸ In den anderen Bereich kopieren**. Welcher Adressbereich zu übertragen ist und ob das Ergebnis stimmt, klären Mittel, die jeweils an anderer Stelle beschrieben sind; diese Seite hält fest, welche daran beteiligt sind und in welcher Reihenfolge sie üblicherweise eingesetzt werden.
 
 ## Die beteiligten Mittel
 
@@ -12,7 +12,7 @@ Einen eigenen Befehl zum Übertragen eines Bereichs gibt es in ByteRipper nicht.
 - **[[topic:tool-uefi|UEFI-Struktur]]** liest die Datei beider Bereiche und benennt Region, Volume oder Datei, in die eine Adresse fällt. Anfangsadresse und Länge des gewählten Knotens stehen in der Detailliste.
 - **Die [[topic:minimap|Minimap]]** zeigt in der Übersicht die Verteilung der Unterschiede über das ganze Image in einer Spalte.
 - **Block ab hier auswählen, bei…** im Kontextmenü des Bereichs nimmt die Grenzen als Zahlen entgegen — Anfang und Ende oder Anfang und Länge — und verlangt kein Ziehen mit der Maus ([[topic:navigation|Sich bewegen]]).
-- **Kopieren und Einsetzen.** ⌘V überschreibt ab der Einfügemarke und verschiebt kein nachfolgendes Byte ([[topic:editing|Bytes bearbeiten]]); ein Bereich, der über einen gleich langen Bereich gesetzt wird, lässt jede andere Adresse unverändert.
+- **Bearbeiten ▸ In den anderen Bereich kopieren** schreibt die Auswahl des aktiven Bereichs an denselben Adressen in den anderen Bereich. Der Befehl überschreibt und verschiebt kein Byte hinter dem Adressbereich ([[topic:editing|Bytes bearbeiten]]); jede andere Adresse bleibt unverändert.
 - **[[topic:bookmarks|Lesezeichen]]** halten eine absolute Adresse und gelten für beide Bereiche, sodass dieselbe Adresse in beiden Images zu finden ist.
 
 ## Die übliche Reihenfolge
@@ -20,11 +20,11 @@ Einen eigenen Befehl zum Übertragen eines Bereichs gibt es in ByteRipper nicht.
 1. Beide Images werden geöffnet, je eines je Bereich.
 2. Die beiden Größen in den Statuszeilen werden verglichen. Von ihnen hängt ab, ob die Adressen des einen Images im anderen dasselbe bezeichnen.
 3. Auf dem Image, dessen Aufteilung zu klären ist, wird ein Werkzeugbereich geöffnet und darin der fragliche Bereich ausgewählt. Die Detailliste nennt den Adressbereich.
-4. Im Quellbereich wird der Adressbereich mit **Block ab hier auswählen, bei…** ausgewählt und kopiert.
-5. Im Zielbereich wird derselbe Adressbereich ausgewählt und mit ⌘V überschrieben.
+4. Im Quellbereich wird der Adressbereich mit **Block ab hier auswählen, bei…** ausgewählt.
+5. **Bearbeiten ▸ In den anderen Bereich kopieren** schreibt ihn in den Zielbereich.
 6. Der Vergleich wird erneut gelesen. Jeder verbleibende Unterschied ist einer, den der Vorgang nicht betroffen hat.
 
-Schritt 5 bildet insgesamt einen Widerrufsschritt (⌘Z).
+Schritt 5 ist ein Widerrufsschritt (⌘Z) in der Zieldatei.
 
 ## Was das Programm nicht tut
 

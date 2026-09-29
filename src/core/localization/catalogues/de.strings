@@ -190,6 +190,7 @@
 "Copy Screenshot" = "Bildschirmfoto kopieren";
 "Copy size" = "Größe kopieren";
 "Copy Summary" = "Übersicht kopieren";
+"Copy to Other Pane" = "In den anderen Bereich kopieren";
 "Could not be checked, or wants a second look" = "Ließ sich nicht prüfen oder verlangt einen zweiten Blick";
 "Could not duplicate the file." = "Die Datei konnte nicht dupliziert werden.";
 "Could not join the pane." = "Der Bereich konnte nicht zusammengefügt werden.";
@@ -648,6 +649,7 @@
 "The reserved byte is %1$@, and should be zero" = "Das reservierte Byte ist %1$@ und sollte null sein";
 "the rest of the file" = "der Rest der Datei";
 "The section does not decompress." = "Die Section lässt sich nicht entpacken.";
+"The selection ends at %1$@, past the end of “%2$@”, which ends at %3$@. Nothing was copied." = "Die Auswahl reicht bis %1$@, „%2$@“ endet aber bei %3$@. Es wurde nichts kopiert.";
 "The shared library changed while you were answering — %1$@ to look at again" = "Die gemeinsame Bibliothek hat sich während Ihrer Antwort geändert — %1$@ erneut anzusehen";
 "The table checksum is %1$@, and should be %2$@" = "Die Prüfsumme der Tabelle ist %1$@ und sollte %2$@ sein";
 "The table has no empty slot, and the sixteen bytes after it are not free — they are %1$@." = "Die Tabelle hat keinen leeren Slot, und die sechzehn Bytes dahinter sind nicht frei — sie sind %1$@.";

@@ -1157,6 +1157,10 @@ function MinimapCanvas({
           }
           const piece = pieceUnder(event);
           if (piece === undefined) return;
+          // The strip's own menu, for the pane this map shows — a fragment
+          // panel's map offers it for its part, as the window's does for its
+          // files.
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapSegmentMenu
           openContextMenu(
             event,
             pieceMenu({

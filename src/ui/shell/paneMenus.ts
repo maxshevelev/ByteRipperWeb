@@ -22,6 +22,7 @@ import {
   type SlotId,
   swapPanes,
   type WorkspaceState,
+  workspaceStore,
 } from "@/state/workspaceStore";
 import { zonesFor } from "@/state/zoneStore";
 import { type Zone, zonesContaining } from "@/tools/zone";
@@ -33,6 +34,7 @@ import {
   savePiece,
 } from "@/ui/segments/segmentCommands";
 import { selectPiece } from "@/ui/segments/segmentMenu";
+import { canCopyToOtherPane, copySelectionToOtherPane } from "@/ui/shell/copyToOtherPane";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -489,6 +491,17 @@ function selectionItems(
         void copySelection(slot, actions);
       },
     },
+    // Only where there is another pane to copy into: a comparison, and a pane
+    // of the workspace's own rather than a fragment panel's. It copies from the
+    // pane that was right-clicked, whether or not it is the active one.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addSelectionMenuItems
+    // help: menu.edit.copy-to-other-pane
+    canCopyToOtherPane(workspaceStore.getSnapshot(), pane)
+      ? {
+          label: L("Copy to Other Pane"),
+          onSelect: () => void copySelectionToOtherPane(pane),
+        }
+      : undefined,
     {
       label: L("Save Selection as…"),
       onSelect: () =>

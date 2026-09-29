@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { WorkspaceState } from "@/state/workspaceStore";
 import {
+  freeSlot,
   identicalBadgeAfter,
   paneLayoutOffer,
   TOOLBAR_DEFAULT_ITEMS,
@@ -159,5 +161,21 @@ describe("what each item can do", () => {
       label: "Side-by-Side Panes",
       toolTip: "Place the panes side by side",
     });
+  });
+});
+
+describe("the slot Compare with… fills", () => {
+  const withPanes = (a: boolean, b: boolean) =>
+    ({ panes: { a: a ? {} : undefined, b: b ? {} : undefined } }) as unknown as WorkspaceState;
+
+  it("is the empty one while exactly one file is open, whichever slot holds it", () => {
+    expect(freeSlot(withPanes(true, false))).toBe("b");
+    // File A of a comparison closed: File B stays where it was.
+    expect(freeSlot(withPanes(false, true))).toBe("a");
+  });
+
+  it("is none with no file, or with two", () => {
+    expect(freeSlot(withPanes(false, false))).toBeUndefined();
+    expect(freeSlot(withPanes(true, true))).toBeUndefined();
   });
 });

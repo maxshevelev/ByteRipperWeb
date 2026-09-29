@@ -1,4 +1,4 @@
-@source-sha 7c0b2bb66ed851cc866ffcc2bb63372cf7ad028779213f898bbd89932adadf01
+@source-sha 40cff4cf164961c864d8f4ab17ff1f3f9c8f5ee948b98197a6862e42a44384fc
 # Bytes bearbeiten
 
 > Tippen überschreibt die vorhandenen Bytes. Jeder Vorgang, der die Länge der Datei ändert, fragt vorher nach.
@@ -15,6 +15,14 @@ Das folgt aus dem Aufbau eines Firmware-Images, in dem eine Adresse eine Positio
 
 - **Entf und Rückschritt kürzen die Datei nicht.** Sie füllen mit `0x00`: Entf das Byte an der Einfügemarke, Rückschritt das davor. Eine Auswahl wird durchgehend mit `0x00` gefüllt.
 - **Bearbeiten ▸ Auswahl füllen mit…** füllt die Auswahl mit einem gewählten Byte. Im Flash-Speicher ist das meist `FF`, der Wert gelöschter Zellen.
+
+## In den anderen Bereich kopieren
+
+**Bearbeiten ▸ In den anderen Bereich kopieren** schreibt die Auswahl des aktiven Bereichs in den anderen Bereich, über dieselben Adressen. Das ist Kopieren und Einsetzen in einem Schritt — ohne Zwischenablage und ohne den Bereich ein zweites Mal auszuwählen. Der Befehl braucht zwei geöffnete Dateien und eine Auswahl. Derselbe Befehl steht im Kontextmenü über einer Auswahl; dort kopiert er aus dem Bereich, auf den geklickt wurde, ob dieser aktiv ist oder nicht. Ein Tastenkürzel hat er hier nicht: das ⌥⌘C der macOS-Ausgabe behält jeder Browser auf dem Mac seinen eigenen Entwicklerwerkzeugen vor.
+
+Die Kopie überschreibt wie ⌘V und ist ein Widerrufsschritt in der Datei, in die sie geschrieben wurde. Danach ist der Bereich in dieser Datei ausgewählt. Widerrufen wird der Schritt dort: Der Bereich wird aktiv gemacht, dann ⌘Z.
+
+Der Befehl lehnt ab und schreibt nichts, wenn die Auswahl über das Ende der anderen Datei hinausreicht. Die andere Datei wird dadurch nicht länger.
 
 ## Vorgänge, die die Länge doch ändern
 

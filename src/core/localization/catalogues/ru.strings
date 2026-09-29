@@ -190,6 +190,7 @@
 "Copy Screenshot" = "Скопировать снимок";
 "Copy size" = "Скопировать размер";
 "Copy Summary" = "Скопировать сводку";
+"Copy to Other Pane" = "Скопировать в другую файловую панель";
 "Could not be checked, or wants a second look" = "Проверить не удалось либо требуется дополнительная проверка";
 "Could not duplicate the file." = "Не удалось создать копию файла.";
 "Could not join the pane." = "Не удалось присоединить файловую панель.";
@@ -648,6 +649,7 @@
 "The reserved byte is %1$@, and should be zero" = "Зарезервированный байт равен %1$@, а должен быть нулём";
 "the rest of the file" = "остаток файла";
 "The section does not decompress." = "Секция не распаковывается.";
+"The selection ends at %1$@, past the end of “%2$@”, which ends at %3$@. Nothing was copied." = "Выделение доходит до адреса %1$@, а «%2$@» кончается на %3$@. Ничего не скопировано.";
 "The shared library changed while you were answering — %1$@ to look at again" = "Общая библиотека изменилась, пока вы отвечали — %1$@ придётся посмотреть заново";
 "The table checksum is %1$@, and should be %2$@" = "Контрольная сумма таблицы — %1$@, а должна быть %2$@";
 "The table has no empty slot, and the sixteen bytes after it are not free — they are %1$@." = "В таблице нет пустого слота, а шестнадцать байт за ней не свободны — это %1$@.";

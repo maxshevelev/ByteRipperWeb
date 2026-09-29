@@ -744,7 +744,8 @@ export function AppShell() {
       }
       if (!(event.metaKey || event.ctrlKey)) return;
       // Nothing open to act on: leave the keys to the browser.
-      if (workspaceStore.getSnapshot().panes.a === undefined) return;
+      const { panes } = workspaceStore.getSnapshot();
+      if (panes.a === undefined && panes.b === undefined) return;
 
       // Alt is the bookmark list's own modifier and difference navigation's;
       // everything else below is Alt-free. The dump has no handler for it, so

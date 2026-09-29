@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "0b0d2a257dec662b9c4442a744f074daadfa75de",
-  "baselineNote": "Say plainly why a decompressed fragment is worth opening (2026-09-29)"
+  "baseCommit": "4b153864ed0df88a56165dd121d7aec620b6c4c8",
+  "baselineNote": "Verify a release with the fields gh actually has (2026-09-29)"
 }

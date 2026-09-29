@@ -10,6 +10,7 @@
 @covers menu.edit.delete-bytes
 @covers menu.edit.insert-mode
 @covers menu.edit.fill
+@covers menu.edit.copy-to-other-pane
 @covers settings.editing
 
 Hex digits are typed into the hex column and characters into the text column. Both edit the same bytes.
@@ -24,6 +25,14 @@ This follows from the structure of a firmware image, in which an address is a po
 
 - **Delete and Backspace do not shorten the file.** They fill with `0x00`: Delete the byte at the caret, Backspace the byte before it. A selection is filled with `0x00` throughout.
 - **Edit ▸ Fill Selection with…** fills the selection with a chosen byte. In flash memory that byte is usually `FF`, which is the erased value.
+
+## Copying into the other pane
+
+**Edit ▸ Copy to Other Pane** writes the selection of the active pane into the other pane, over the same addresses. It is copy and paste in one step, without the clipboard and without selecting the range a second time. It requires two open files and a selection. The same command is in the right-click menu over a selection; there it copies from the pane that was clicked, whether or not that pane is active. It has no shortcut here: the ⌥⌘C it has in the macOS application is kept by every browser on a Mac for its own developer tools.
+
+The copy overwrites, like ⌘V, and is one undo step in the file it was written into. After it the range is selected in that file. The step is undone there: the pane is made active and ⌘Z is pressed.
+
+The command refuses, and writes nothing, when the selection runs past the end of the other file. It does not lengthen the other file.
 
 ## Operations that do change the length
 

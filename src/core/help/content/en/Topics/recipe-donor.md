@@ -2,7 +2,7 @@
 
 > The facilities the program provides for copying a range of bytes from one open image into another, at the same address.
 
-ByteRipper has no single command that transfers a region. The operation is assembled from facilities that are documented individually elsewhere; this page states which ones take part and in what order they are normally used.
+The transfer itself is one command, **Edit ▸ Copy to Other Pane**. Finding out which range to transfer, and checking the result, uses facilities that are documented individually elsewhere; this page states which ones take part and in what order they are normally used.
 
 ## The facilities involved
 
@@ -11,7 +11,7 @@ ByteRipper has no single command that transfers a region. The operation is assem
 - **[[topic:tool-uefi|UEFI Structure]]** reads either pane and names the regions, volumes and files an address falls into. The detail list gives the start address and the length of the selected node.
 - **The [[topic:minimap|minimap]]** in overview mode shows the distribution of differences over the whole image in one column.
 - **Select Block from Here at…**, in the pane's right-click menu, takes a range as numbers — start and end, or start and length — rather than requiring it to be dragged out with the mouse ([[topic:navigation|Moving Around]]).
-- **Copy and paste.** ⌘V overwrites at the caret and does not move any byte that follows it ([[topic:editing|Editing Bytes]]), so a range pasted over a range of equal length leaves every other address unchanged.
+- **Edit ▸ Copy to Other Pane** writes the selection of the active pane into the other pane at the same addresses. It overwrites and does not move any byte that follows the range ([[topic:editing|Editing Bytes]]), so every other address is left unchanged.
 - **[[topic:bookmarks|Bookmarks]]** are absolute addresses shared by both panes, which is what lets the same address be found in both images.
 
 ## The usual order
@@ -19,11 +19,11 @@ ByteRipper has no single command that transfers a region. The operation is assem
 1. Both images are opened, one per pane.
 2. The sizes reported in the two status lines are compared. They determine whether the addresses in one image mean the same thing in the other.
 3. A tool panel is opened on the image whose layout is in question, and the region of interest is selected in its tree. The detail list gives the range.
-4. The range is selected in the source pane with **Select Block from Here at…** and copied.
-5. The same range is selected in the destination pane and overwritten with ⌘V.
+4. The range is selected in the source pane with **Select Block from Here at…**.
+5. **Edit ▸ Copy to Other Pane** writes it into the destination pane.
 6. The comparison is read again. Every remaining difference is a difference the operation did not address.
 
-The whole of step 5 is one undo step (⌘Z).
+Step 5 is one undo step (⌘Z) in the destination file.
 
 ## What the program does not do
 

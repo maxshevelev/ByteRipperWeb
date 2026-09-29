@@ -13,6 +13,10 @@
   ],
   "notApplicable": [
     {
+      "prefix": "Skills/release",
+      "why": "The macOS release: a universal ad-hoc signed .dmg, its version and build number, and a GitHub release. The web edition is deployed as a static site and has no image to build or sign."
+    },
+    {
       "prefix": "ByteRipperApp/Window/WindowMode",
       "why": "Window and tab management: one workspace per browser tab (D11)."
     },
@@ -1952,6 +1956,7 @@
         "ByteRipperTests/ToolZonesTests.swift": "tests/e2e",
         "ByteRipperTests/ToolbarItemsTests.swift": "tests/e2e",
         "ByteRipperTests/ToolbarValidationTests.swift": "tests/e2e",
+        "ByteRipperTests/CopyToOtherPaneTests.swift": "tests/e2e",
         "ByteRipperTests/ToolsMenuTests.swift": "tests/e2e",
         "ByteRipperTests/ToolsToolbarTests.swift": "tests/e2e",
         "ByteRipperTests/TypingModeIndicatorTests.swift": "tests/e2e",
@@ -3853,6 +3858,16 @@
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.makeWindow": "n/a — test scaffolding",
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.has": "n/a — test scaffolding",
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.testReplacingFilesInOpenPanesRebuildsTheComparison": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.testClosingTheFirstFileOfAComparisonKeepsTheToolbarLive": "n/a — the fix is to a promoted AppKit view that kept pane 2's activation handler; the web does not move File B into the first slot, and `closePane` points the active pane at the file that is left",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.urls": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.tearDown*": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.makeComparison": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.bytes": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.menuItem": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.contextItem": "n/a — test scaffolding",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.testAReadOnlyDestinationIsRefused": "n/a — a page edits every document it holds in memory; no destination is read-only",
+        "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.testTheEditMenuOffersItOnOptionCommandC": "n/a — no ⌥⌘C: every browser on a Mac keeps the chord for its developer tools",
         "ByteRipperTests/ToolsMenuTests.swift#ToolsMenuTests.makeController": "n/a — test scaffolding",
         "ByteRipperTests/ToolsMenuTests.swift#ToolsMenuTests.item": "n/a — test scaffolding",
         "ByteRipperTests/ToolsMenuTests.swift#ToolsMenuTests.testWithNothingInstalledTheMenuOffersOnlyNone": "n/a — the web edition has no Tools menu; the list is the toolbar's Tools pull-down",
@@ -4393,7 +4408,7 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.SegmentMenuAnchor.rect": "n/a — the web's Edit opens the segments form, not an anchored popover",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.makeMinimapSegmentMenu": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.ZoneMenuTarget": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.ZoneMenuTarget.mapIndex": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.ZoneMenuTarget.pane": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.ZoneMenuTarget.zoneID": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.ZoneMenuTarget.init": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.makeMinimapZoneMenu": "n/a — the minimap panel reads the stores itself (MinimapPanel.tsx)",
@@ -4483,7 +4498,6 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRebuilds": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.overviewRebuildsCompleted": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonIndexBuild": "n/a — counters upstream's own flow tests read; the web's equivalents assert on the store",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapSegmentMenu": "later — G50: the gutter's menus on a panel's map, which upstream has off behind a flag",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.forgetPaneView": "n/a — React unmounts a pane's view with the surface that rendered it; there is no table of views to forget",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSegmentSourceChange": "n/a — the Reload / Keep prompt a changed source would raise; a page holds its bytes in memory, so no source changes behind its back",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuRevertSegment": "n/a — the AppKit action behind the strip's revert; the web's strip menu is the shared piece menu (`pieceMenu`) that calls `revertPiece`",
