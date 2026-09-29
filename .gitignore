@@ -22,3 +22,7 @@ benchmarks/fixtures/*.rom
 
 # Python's bytecode cache, left by the skills' scripts.
 __pycache__/
+
+# The single-file page, and what a release gathers (Skills/release).
+/dist-single/
+/release/

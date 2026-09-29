@@ -23,7 +23,11 @@ file is part of that request.
 ## Status
 
 **Feature-complete against the plan, and being hardened.** Try it at
-**[maxshevelev.github.io/ByteRipperWeb](https://maxshevelev.github.io/ByteRipperWeb/)**.
+**[maxshevelev.github.io/ByteRipperWeb](https://maxshevelev.github.io/ByteRipperWeb/)**
+— the latest release — or see what `main` holds today at
+[/ByteRipperWeb/preview/](https://maxshevelev.github.io/ByteRipperWeb/preview/).
+Each release also ships the app as one HTML file to open from disk, and an
+optional Windows build ([releases](https://github.com/maxshevelev/ByteRipperWeb/releases)).
 
 It opens two dumps, compares them, and lets you patch one and save it — the
 orange wash, the live `1,057 differing · 4,193,247 same` summary that follows

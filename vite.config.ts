@@ -1,9 +1,20 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
+import { singleFile } from "./vite.singlefile.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+
+// The version the landing screen signs off with: the upstream release this
+// edition was last brought level with, which the release skill writes into
+// package.json (Skills/release). One home for the number.
+const { version } = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8")
+) as {
+  readonly version: string;
+};
 
 export default defineConfig(({ mode }) => {
   // Which names the dev server answers to, and on which port, is the machine's
@@ -20,13 +31,22 @@ export default defineConfig(({ mode }) => {
     .map((one) => one.trim())
     .filter((one) => one.length > 0);
 
+  // `--mode single`: the whole app in one HTML file, opened from disk — so
+  // every path is relative, nothing is split into chunks, and the plugin puts
+  // the script, the stylesheet and the workers into the page.
+  const single = mode === "single";
+
   return {
+    define: { __APP_VERSION__: JSON.stringify(version) },
     // The app is published as a GitHub Pages *project* page, which is served from
     // a subdirectory of the host rather than its root. Without this, the bundle
     // asks for `/assets/...`, the host has no such path, and the page comes up
     // blank while the dev server — which serves from the root — looks fine.
-    base: "/ByteRipperWeb/",
-    plugins: [react()],
+    // `PAGES_BASE` moves it for the development preview, which is published
+    // beside the released app at /ByteRipperWeb/preview/
+    // (.github/workflows/deploy-pages.yml).
+    base: single ? "./" : (process.env.PAGES_BASE ?? "/ByteRipperWeb/"),
+    plugins: single ? [react(), singleFile()] : [react()],
     server: {
       // Where it listens, and who it answers — and both are needed. Binding
       // every interface is what lets another machine open it at all; a server
@@ -48,6 +68,17 @@ export default defineConfig(({ mode }) => {
       // `benchmarks/paint/` is a page Vite serves in development and Playwright
       // will drive in M12. It is not part of the app and does not ship.
       rollupOptions: { input: fileURLToPath(new URL("./index.html", import.meta.url)) },
+      ...(single
+        ? {
+            outDir: "dist-single",
+            assetsInlineLimit: Number.MAX_SAFE_INTEGER,
+            cssCodeSplit: false,
+            // Nothing to preload in a page that holds everything.
+            modulePreload: false,
+            chunkSizeWarningLimit: Number.MAX_SAFE_INTEGER,
+            rolldownOptions: { output: { inlineDynamicImports: true } },
+          }
+        : {}),
     },
     resolve: {
       alias: {

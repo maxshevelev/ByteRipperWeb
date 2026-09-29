@@ -1,13 +1,22 @@
 name: Deploy to Pages
 
-# Publishing is not tied to a branch. The site is built here and uploaded as an
-# artifact, so a ref decides only *when* a deploy happens, never what is served.
-# `main` is the live site; a `v*` tag publishes a point release; a run can also be
-# started by hand.
+# One Pages site, two apps in it:
+#
+#   /ByteRipperWeb/          the released app — built from the latest `v*` tag
+#   /ByteRipperWeb/preview/  the development preview — built from `main`
+#
+# A push to `main` changes only the preview. The released app moves when a
+# release is tagged (Skills/release), and not otherwise. Until the first tag
+# exists, it is built from the commit pinned in .github/pages-release-ref —
+# the one that was live when the preview was split off — so that nothing a push
+# does can move it either.
+#
+# A Pages deploy replaces the whole site, so every run builds both halves and
+# publishes them together. Rebuilding the release from its tag is cheap and
+# deterministic; keeping the last upload around would not be.
 #
 # Which refs are allowed to publish is a separate gate, set on the repository's
-# `github-pages` environment, not here. A ref missing from that list runs this
-# workflow and is then refused at the deploy step.
+# `github-pages` environment, not here.
 on:
   push:
     branches: [main]
@@ -32,14 +41,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main
+          # The tags are what decide which commit is the release.
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
+
+      - name: Which commit is released
+        id: release
+        run: |
+          tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          if [ -n "$tag" ]; then
+            ref="$tag"
+          else
+            ref=$(tr -d '[:space:]' < .github/pages-release-ref)
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "The released app is built from $ref"
+
+      # The preview: `main` as it is, under /preview/.
       - run: npm ci
-      # Typecheck and bundle in one step, as `npm run build` does. The `base` in
-      # vite.config.ts is what makes the output addressable from a subdirectory.
       - run: npm run build
+        env:
+          PAGES_BASE: /ByteRipperWeb/preview/
+      - run: mv dist "$RUNNER_TEMP/preview"
+
+      # The released app: its own commit, with that commit's own build.
+      - run: git checkout --force "${{ steps.release.outputs.ref }}"
+      - run: npm ci
+      - run: npm run build
+      - run: mv "$RUNNER_TEMP/preview" dist/preview
+
       # Reads the Pages configuration and asserts it is set to build with GitHub
       # Actions. Left to `deploy-pages`, a mismatch surfaces as a failed deploy
       # with no useful message.
