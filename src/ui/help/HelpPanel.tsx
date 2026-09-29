@@ -46,6 +46,7 @@ import { useStore } from "@/state/useStore";
 import { foldParts } from "@/state/workspaceStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
 import { helpNameOf, plainHelpName } from "@/ui/help/helpNames";
+import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { CloseButton } from "@/ui/shell/CloseButton";
 
 /**
@@ -129,7 +130,23 @@ export function HelpPanel() {
           aria-label={L("Fold the help down")}
           title={L("Fold the help down")}
         >
-          ⌄
+          {/* Drawn, not typed: a "⌄" character sits wherever the platform's
+              font puts it — centred on a Mac's, at the foot of the line in
+              Safari's and in Windows' fonts — where these lines are the panes'
+              own fold mark, centred everywhere. */}
+          <svg
+            viewBox="0 0 8 5"
+            width="9"
+            height="6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <ChevronShapes />
+          </svg>
         </button>
         <CloseButton label={L("Close the help")} onClick={closeHelp} />
       </header>

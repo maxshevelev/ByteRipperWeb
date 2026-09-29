@@ -4690,6 +4690,20 @@ button.uefi-title {
   padding: 4px 8px;
 }
 
+/* The fold is a drawn mark, centred by the box rather than by a line of text:
+   an inline SVG sits on the baseline, and the room below it for descenders
+   would carry it down again. The height matches the steps' beside it. */
+.help-fold {
+  display: grid;
+  place-items: center;
+  min-height: 26px;
+}
+
+.help-fold svg,
+.pane-collapse svg {
+  display: block;
+}
+
 .help-step {
   /* The arrows are glyphs of the reader's font, so the box is what gives them a
      size a pointer can hit. */
