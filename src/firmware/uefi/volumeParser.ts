@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
@@ -340,7 +341,7 @@ function freeSpace(
   const firstUsed = parser.reader.firstOffsetNotEqualTo({ start, end }, emptyByte);
   if (firstUsed === undefined) {
     return [
-      makeSpan({ kind: "freeSpace", name: "Free space", range: { start, end }, isErased: true }),
+      makeSpan({ kind: "freeSpace", name: L("Free space"), range: { start, end }, isErased: true }),
     ];
   }
   // Back to the eight-byte boundary at or before the byte: what follows a
@@ -354,7 +355,7 @@ function freeSpace(
     nodes.push(
       makeSpan({
         kind: "freeSpace",
-        name: "Free space",
+        name: L("Free space"),
         range: { start, end: boundary },
         isErased: true,
       })
@@ -379,7 +380,7 @@ export function nonUEFIData(
 ): UEFINode {
   const node = makeSpan({
     kind: "nonUEFIData",
-    name: "Non-UEFI data",
+    name: L("Non-UEFI data"),
     range,
     isErased: parser.reader.isFilled(range, emptyByte),
   });

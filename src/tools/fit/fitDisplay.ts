@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import {
   cseSecureBootSubtypeName,
   FIT,
@@ -79,15 +80,15 @@ export type FITRowCommand =
 export function fitCommandTitle(command: FITRowCommand): string {
   switch (command.kind) {
     case "copyCPUID":
-      return "Copy CPUID";
+      return L("Copy CPUID");
     case "goToOffset":
-      return "Go to Offset";
+      return L("Go to Offset");
     case "replaceMicrocode":
-      return "Replace Microcode";
+      return L("Replace Microcode");
     case "removeMicrocode":
-      return "Remove Microcode";
+      return L("Remove Microcode");
     case "fixChecksum":
-      return "Fix Checksum";
+      return L("Fix Checksum");
   }
 }
 
@@ -675,7 +676,7 @@ export function fitChecksumFix(
   // the same one.
   const writes = [{ offset, bytes }];
   if (backup !== undefined) writes.push({ offset: offset - topSwapSize(backup), bytes });
-  return { name: "Fix FIT Checksum", writes };
+  return { name: L("Fix FIT Checksum"), writes };
 }
 
 // MARK: - Text
@@ -684,7 +685,7 @@ function summaryOf(report: FITReport): string {
   const table = report.table;
   if (table === undefined) {
     return report.candidates.length === 0
-      ? "No FIT table in this file."
+      ? L("No FIT table in this file.")
       : `No FIT table where the pointer leads. A signature sits at ${report.candidates
           .map((one) => hex(one))
           .join(", ")}.`;
@@ -701,17 +702,17 @@ function summaryOf(report: FITReport): string {
     // Said every time, because it is true every time for a region cut out of a
     // dump — and there every address in the table is wrong by whatever was cut
     // off in front of it.
-    parts.push("addresses assumed");
+    parts.push(L("addresses assumed"));
   }
   if (report.backup !== undefined) {
     parts.push(
       report.backup.status.kind === "identical"
-        ? "Top Swap backup matches"
-        : "Top Swap backup differs"
+        ? L("Top Swap backup matches")
+        : L("Top Swap backup differs")
     );
   }
   if (!table.checksumIsChecked) {
-    parts.push("checksum unused");
+    parts.push(L("checksum unused"));
   } else if (checksumIsCorrect(table)) {
     parts.push(`checksum ${hex(table.storedChecksum, 2)}`);
     // A wrong checksum is not restated here: it is a problem, and the list
@@ -757,9 +758,9 @@ function targetTextOf(row: FITRow): string {
       return `${count} ${count === 1 ? "row" : "rows"} · ${hex(sizeInBytes(row.entry))}`;
     }
     case "indexIORegisters":
-      return "Index/IO registers, not an address";
+      return L("Index/IO registers, not an address");
     case "outsideTheImage":
-      return "outside this image";
+      return L("outside this image");
     case "microcode": {
       // The CPUID is what a bench hunts for, so it leads; the offset and the
       // size have their own columns, and the date closes the line.
@@ -816,10 +817,10 @@ function zonesOf(
   focus: number | undefined
 ): ZoneMap {
   const zones: Zone[] = [
-    { id: TABLE_ZONE_ID, name: "FIT table", start: table.range.start, end: table.range.end },
+    { id: TABLE_ZONE_ID, name: L("FIT table"), start: table.range.start, end: table.range.end },
     {
       id: POINTER_ZONE_ID,
-      name: "FIT pointer",
+      name: L("FIT pointer"),
       start: table.pointerOffset,
       end: table.pointerOffset + 4,
     },
@@ -828,13 +829,13 @@ function zonesOf(
   if (backup !== undefined) {
     zones.push({
       id: BACKUP_TABLE_ZONE_ID,
-      name: "Backup FIT table",
+      name: L("Backup FIT table"),
       start: backup.range.start,
       end: backup.range.end,
     });
     zones.push({
       id: BACKUP_POINTER_ZONE_ID,
-      name: "Backup FIT pointer",
+      name: L("Backup FIT pointer"),
       start: backup.pointerOffset,
       end: backup.pointerOffset + 4,
     });

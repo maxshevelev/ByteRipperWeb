@@ -1,3 +1,4 @@
+import { L, localized } from "@/core/localization/localization";
 import { columnsMinWidth, type TableColumn } from "@/ui/toolPanel/columnWidths";
 
 /**
@@ -23,13 +24,13 @@ import { columnsMinWidth, type TableColumn } from "@/ui/toolPanel/columnWidths";
  *
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.entryColumns
  */
-export const FIT_COLUMNS: readonly TableColumn[] = [
+export const FIT_COLUMNS: () => readonly TableColumn[] = localized(() => [
   { id: "index", title: "#", width: 24, min: 24 },
-  { id: "type", title: "Type", width: 113, min: 64 },
-  { id: "address", title: "Address", width: 90, min: 90 },
-  { id: "size", title: "Size", width: 99, min: 48 },
-  { id: "target", title: "Points at", width: 355, min: 96, grows: true },
-];
+  { id: "type", title: L("Type"), width: 113, min: 64 },
+  { id: "address", title: L("Address"), width: 90, min: 90 },
+  { id: "size", title: L("Size"), width: 99, min: 48 },
+  { id: "target", title: L("Points at"), width: 355, min: 96, grows: true },
+]);
 
 /**
  * The columns that give way, in order, once "Points at" is down to its floor
@@ -45,7 +46,7 @@ export const FIT_YIELDING_COLUMNS: readonly string[] = ["size", "type"];
  * stays this wide and the list scrolls sideways, which is the one case where it
  * does.
  */
-export const FIT_MIN_WIDTH = columnsMinWidth(FIT_COLUMNS);
+export const FIT_MIN_WIDTH = columnsMinWidth(FIT_COLUMNS());
 
 /** A width worth acting on: below this the two are the same width. */
 const EPSILON = 0.5;

@@ -225,7 +225,7 @@ function AppearanceTab() {
             value={fontFamily}
             onChange={(event) => setAppearance(event.target.value, rowHeightScale)}
           >
-            <option value={SYSTEM_FONT}>System</option>
+            <option value={SYSTEM_FONT}>{L("System")}</option>
             {listed.map((family) => (
               <option key={family} value={family}>
                 {family}
@@ -464,7 +464,7 @@ function EditingTab() {
           that stand between a flash dump and a length-changing edit.
           @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
       <h3 className="settings-heading">
-        Editing
+        {L("Editing")}
         <HelpButton link={topicLink(TOPIC.editing)} shape="inline" />
       </h3>
       <label className="settings-check">
@@ -538,7 +538,7 @@ function TextDecodingTab() {
               })
             }
           >
-            {BYTE_DECODERS.map((descriptor) => (
+            {BYTE_DECODERS().map((descriptor) => (
               <option key={descriptor.identifier} value={descriptor.identifier}>
                 {descriptor.displayName}
               </option>
@@ -574,7 +574,7 @@ function TextDecodingTab() {
           )}
         </p>
         <button type="button" className="toolbar-button" onClick={resetTextDecoding}>
-          Reset to Defaults
+          {L("Reset to Defaults")}
         </button>
       </div>
       <TextDecodingPreview decoder={decoderFor(textDecoding)} />

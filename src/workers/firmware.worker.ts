@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import { installCatalogue } from "@/core/localization/localization";
 import { assembleWord, type ByteSource, sourceOver } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
@@ -454,6 +455,11 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
   const request = event.data;
   try {
     switch (request.kind) {
+      // The words this worker names nodes with: the app hands its catalogue
+      // over when the worker starts and again when the language changes.
+      case "speakLanguage":
+        installCatalogue(request.catalogue);
+        return;
       case "openFirmware": {
         reader = new ImageReader(new BlobByteSource(request.content));
         buffers = new DecompressedBuffers();
@@ -954,6 +960,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
     }
   } catch (error) {
+    // The language, alone among the requests, carries no job to fail.
+    if (!("id" in request)) return;
     post({
       kind: "firmwareFailed",
       id: request.id,

@@ -10,6 +10,8 @@
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMarks
  */
 
+import { L, localized } from "@/core/localization/localization";
+
 /**
  * Background: what an edit to the row's bytes breaks.
  *
@@ -117,17 +119,17 @@ export function rowMarksSummary(marks: ToolRowMarks): string | undefined {
   const parts: string[] = [];
   switch (marks.protection) {
     case "ibb":
-      parts.push("Inside the Boot Guard IBB");
+      parts.push(L("Inside the Boot Guard IBB"));
       break;
     case "firmware":
-      parts.push("Inside a range the firmware checks at boot");
+      parts.push(L("Inside a range the firmware checks at boot"));
       break;
     default:
       break;
   }
   if (marks.decompressedFrom !== undefined) parts.push(marks.decompressedFrom);
   if (marks.opensDecompressed === true) {
-    parts.push("Compressed: what it holds is listed under it, decompressed");
+    parts.push(L("Compressed: what it holds is listed under it, decompressed"));
   }
   return parts.length === 0 ? undefined : parts.join(" · ");
 }
@@ -236,23 +238,23 @@ export const channelOrder = (channel: RowMarkChannel): number => ROW_MARK_CHANNE
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMark.meaning
  */
-export const ROW_MARK_MEANING: Readonly<Record<ToolRowMark, string>> = {
-  protectedIBB: "Inside the Boot Guard IBB: an edit stops the platform booting",
-  protectedFirmware: "Inside a range the firmware checks at boot",
-  decompressed: "Read out of compressed data, and the compressed data open on it",
-  newest: "The newest revision the catalogue lists for this processor and platform",
-  newerListed: "The catalogue lists a newer revision for this board",
-  newerMaybe: "The catalogue lists a newer revision that may not serve this board",
-  error: "Something is wrong: the pointer says what",
-  caution: "Could not be checked, or wants a second look",
-  compressed: "Holds compressed data that opens here",
-  compressedUndecoded: "Holds compressed data that does not open here",
-  holdsChecks: "Holds what other structures are checked against",
-  partlyProtected: "Partly inside protected ranges",
-};
+export const ROW_MARK_MEANING: () => Readonly<Record<ToolRowMark, string>> = localized(() => ({
+  protectedIBB: L("Inside the Boot Guard IBB: an edit stops the platform booting"),
+  protectedFirmware: L("Inside a range the firmware checks at boot"),
+  decompressed: L("Read out of compressed data, and the compressed data open on it"),
+  newest: L("The newest revision the catalogue lists for this processor and platform"),
+  newerListed: L("The catalogue lists a newer revision for this board"),
+  newerMaybe: L("The catalogue lists a newer revision that may not serve this board"),
+  error: L("Something is wrong: the pointer says what"),
+  caution: L("Could not be checked, or wants a second look"),
+  compressed: L("Holds compressed data that opens here"),
+  compressedUndecoded: L("Holds compressed data that does not open here"),
+  holdsChecks: L("Holds what other structures are checked against"),
+  partlyProtected: L("Partly inside protected ranges"),
+}));
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMark.meaning */
-export const rowMarkMeaning = (mark: ToolRowMark): string => ROW_MARK_MEANING[mark];
+export const rowMarkMeaning = (mark: ToolRowMark): string => ROW_MARK_MEANING()[mark];
 
 /**
  * The mark a role wears.
@@ -284,7 +286,7 @@ export const roleTooltip = (role: RowRole): string => {
     case "holdsChecks":
       return role.words;
     case "partlyProtected":
-      return ROW_MARK_MEANING.partlyProtected;
+      return ROW_MARK_MEANING().partlyProtected;
   }
 };
 

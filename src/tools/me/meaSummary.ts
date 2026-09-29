@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { MFSPCHInit } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
@@ -108,23 +109,23 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   // 1 · Family. 2 · Version, in the shape this family writes it. 3 · Release.
   add("Family", shown(familyText(a.family)));
   add(
-    "Version",
+    L("Version"),
     shown(firmwareVersionText(a.variant, major, a.version.minor, a.version.hotfix, a.version.build))
   );
-  add("Release", shown(releaseText(a)));
+  add(L("Release"), shown(releaseText(a)));
 
   // 4 · Type — only an image on the Stock / Update / Extracted axis has a word.
-  if (identified) fact("Type", axisType(a.type));
+  if (identified) fact(L("Type"), axisType(a.type));
   // 5 · SKU.
   fact("SKU", a.sku);
   // 6 · One chipset row: every chipset the initialisation tables named, else the
   // recorded stepping letters, else upstream's own "Unknown".
   if (identified && hasChipsetRow(a)) {
     const chipset = chipsetCell(a.chipsetInit);
-    if (chipset !== undefined) add("Chipset", shown(chipset));
+    if (chipset !== undefined) add(L("Chipset"), shown(chipset));
     else if (nonEmpty(a.chipsetStepping)) {
       add("Chipset Stepping", shown(chipsetSteppingText(a.chipsetStepping)));
-    } else add("Chipset", shown("Unknown"));
+    } else add(L("Chipset"), shown(L("Unknown")));
   }
   // 7 · NVM Compatibility — Undefined prints no row, and nor does no R2 extension.
   if (a.nvmCompatibility !== undefined && a.nvmCompatibility !== 0) {
@@ -157,7 +158,7 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   // 14 · OEM Configuration.
   if (isOEMFamily(a) && identified) {
     add(
-      "OEM Configuration",
+      L("OEM Configuration"),
       a.oemCustomized === undefined ? COMING_SOON : shown(yesNo(a.oemCustomized))
     );
   }
@@ -169,7 +170,7 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
     );
   }
   // 16 · Date.
-  fact("Date", manufactureDate(a));
+  fact(L("Date"), manufactureDate(a));
   // 17 · File System State, in the colour of the state.
   if (isMFSFamily(a)) {
     if (a.mfsState !== undefined) {
@@ -180,7 +181,7 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   }
   // 18 · Size — how far the firmware reaches from its $FPT, and the region
   // analysed only where that could not be worked out.
-  add("Size", shown(sizeText(a.firmwareSizeBytes ?? a.sizeBytes)));
+  add(L("Size"), shown(sizeText(a.firmwareSizeBytes ?? a.sizeBytes)));
   // 19 · Flash Image Tool: the first boot BPDT with a real FIT on an IFWI, the
   // $FPT header's otherwise.
   if (a.bootPartitions !== undefined) {
@@ -209,13 +210,15 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
     add(
       "Downgrade Blacklist 7.0",
       shown(
-        blacklist?.sevenZero === undefined ? "Empty" : downgradeBlacklistText(blacklist.sevenZero)
+        blacklist?.sevenZero === undefined
+          ? L("Empty")
+          : downgradeBlacklistText(blacklist.sevenZero)
       )
     );
     add(
       "Downgrade Blacklist 7.1",
       shown(
-        blacklist?.sevenOne === undefined ? "Empty" : downgradeBlacklistText(blacklist.sevenOne)
+        blacklist?.sevenOne === undefined ? L("Empty") : downgradeBlacklistText(blacklist.sevenOne)
       )
     );
   }
@@ -231,7 +234,7 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   }
   if (a.issues.length > 0) {
     blocks.push({
-      title: "Messages",
+      title: L("Messages"),
       rows: a.issues.map((issue) => ({
         label: titleText(issue.severity),
         value: shown(issue.message),
@@ -260,7 +263,7 @@ function independentBlock(
 
   add("Family", familyText(firmware.family));
   add(
-    "Version",
+    L("Version"),
     firmwareVersionText(
       firmware.variant,
       firmware.version.major,
@@ -269,8 +272,8 @@ function independentBlock(
       firmware.version.build
     )
   );
-  add("Release", releaseText(firmware));
-  add("Type", "Independent");
+  add(L("Release"), releaseText(firmware));
+  add(L("Type"), "Independent");
 
   if (firmware.family === "pmc") {
     // A modern host prints the chipset SKU whatever the platform; otherwise only
@@ -283,7 +286,7 @@ function independentBlock(
     // A discrete-graphics PMC has no stepping row at all.
     if (!platform.startsWith("DG")) {
       const stepping = firmware.chipsetStepping;
-      add("Chipset Stepping", stepping === undefined || stepping === "U" ? "Unknown" : stepping);
+      add("Chipset Stepping", stepping === undefined || stepping === "U" ? L("Unknown") : stepping);
     }
   } else if (firmware.family === "phy" && nonEmpty(firmware.sku)) {
     add("SKU", firmware.sku);
@@ -295,8 +298,8 @@ function independentBlock(
   const ready = firmware.manifest?.productionReady;
   if (ready !== undefined) add("Production Ready", yesNo(ready));
   const date = manufactureDate(firmware);
-  if (date !== undefined) add("Date", date);
-  add("Size", sizeText(firmware.sizeBytes));
+  if (date !== undefined) add(L("Date"), date);
+  add(L("Size"), sizeText(firmware.sizeBytes));
   const meu = meuVersion(firmware);
   if (meu !== undefined) add("Manifest Extension Utility", meu);
   if (platform.length > 0) add("Chipset Support", platform);
@@ -373,7 +376,7 @@ function axisType(type: FirmwareAnalysis["type"]): string | undefined {
     case "stock":
       return "Stock";
     case "update":
-      return "Update";
+      return L("Update");
     case "extracted":
       return "Extracted";
     default:

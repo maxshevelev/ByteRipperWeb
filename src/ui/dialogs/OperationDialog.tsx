@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { blockingOperationStore } from "@/state/operationStore";
 import { useStore } from "@/state/useStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
@@ -47,7 +48,7 @@ export function OperationDialog() {
             className="toolbar-button"
             onClick={() => shown?.operation.cancel()}
           >
-            Cancel
+            {L("Cancel")}
           </button>
         </div>
       </div>

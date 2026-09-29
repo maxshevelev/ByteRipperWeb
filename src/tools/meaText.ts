@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ManifestFormat } from "@/firmware/me/layout/manifest";
 import type { FirmwareFamily, FWUpdateSupport } from "@/firmware/me/models/firmwareFacts";
 
@@ -48,7 +49,7 @@ export const offsetText = hex;
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.size
  */
 export const sizeText = (value: number): string =>
-  value === 0 ? "Empty" : `${hex(value)} (${value} bytes)`;
+  value === 0 ? L("Empty") : `${hex(value)} (${value} bytes)`;
 
 /**
  * The compact second line `0x… · 0x…` (offset · size).
@@ -56,7 +57,7 @@ export const sizeText = (value: number): string =>
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.range
  */
 export const rangeText = (offset: number, size: number): string =>
-  `${hex(offset)} · ${size === 0 ? "Empty" : hex(size)}`;
+  `${hex(offset)} · ${size === 0 ? L("Empty") : hex(size)}`;
 
 /**
  * The file range a row stands for; nothing when there are no bytes.
@@ -96,32 +97,32 @@ export type CountedNoun =
 export function countText(count: number, noun: CountedNoun): string {
   switch (noun) {
     case "entry":
-      return count === 1 ? "1 entry" : `${count} entries`;
+      return count === 1 ? L("1 entry") : `${count} entries`;
     case "row":
-      return count === 1 ? "1 row" : `${count} rows`;
+      return count === 1 ? L("1 row") : `${count} rows`;
     case "block":
-      return count === 1 ? "1 block" : `${count} blocks`;
+      return count === 1 ? L("1 block") : `${count} blocks`;
     case "module":
-      return count === 1 ? "1 module" : `${count} modules`;
+      return count === 1 ? L("1 module") : `${count} modules`;
     case "file":
-      return count === 1 ? "1 file" : `${count} files`;
+      return count === 1 ? L("1 file") : `${count} files`;
     case "image":
-      return count === 1 ? "1 image" : `${count} images`;
+      return count === 1 ? L("1 image") : `${count} images`;
     case "issue":
-      return count === 1 ? "1 issue" : `${count} issues`;
+      return count === 1 ? L("1 issue") : `${count} issues`;
     case "record":
-      return count === 1 ? "1 record" : `${count} records`;
+      return count === 1 ? L("1 record") : `${count} records`;
     case "region":
-      return count === 1 ? "1 region" : `${count} regions`;
+      return count === 1 ? L("1 region") : `${count} regions`;
     case "table":
-      return count === 1 ? "1 table" : `${count} tables`;
+      return count === 1 ? L("1 table") : `${count} tables`;
     case "partition":
-      return count === 1 ? "1 partition" : `${count} partitions`;
+      return count === 1 ? L("1 partition") : `${count} partitions`;
   }
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.yesNo */
-export const yesNo = (value: boolean): string => (value ? "Yes" : "No");
+export const yesNo = (value: boolean): string => (value ? L("Yes") : "No");
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.family */
 export function familyText(family: FirmwareFamily): string {
@@ -149,7 +150,7 @@ export function familyText(family: FirmwareFamily): string {
     case "orom":
       return "OROM";
     case "unknown":
-      return "Unknown";
+      return L("Unknown");
   }
 }
 
@@ -163,7 +164,7 @@ export function manifestFormatText(format: ManifestFormat): string {
     case "r2":
       return "R2";
     default:
-      return "Unknown";
+      return L("Unknown");
   }
 }
 
@@ -281,7 +282,7 @@ export const downgradeBlacklistText = (entry: {
 export function fwUpdateSupportText(value: FWUpdateSupport): string {
   switch (value) {
     case "yes":
-      return "Yes";
+      return L("Yes");
     case "no":
       return "No";
     case "impossible":

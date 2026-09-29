@@ -51,7 +51,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
     <Dialog open={open} title={L("Fill Selection with…")} onClose={onClose}>
       <form className="dialog-body" onSubmit={submit}>
         <label className="dialog-field">
-          Pattern
+          {L("Pattern")}
           <input
             autoFocus
             value={text}
@@ -69,7 +69,7 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
         {preview === undefined ? null : <pre className="dialog-preview">{preview}…</pre>}
         <div className="dialog-actions">
           <button type="button" className="toolbar-button" onClick={onClose}>
-            Cancel
+            {L("Cancel")}
           </button>
           <button type="submit" className="toolbar-button" disabled={pattern === undefined}>
             Fill

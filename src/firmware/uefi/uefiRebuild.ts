@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { friendlySize } from "@/core/text/byteSize";
 import { sourceOver } from "@/firmware/byteSource";
 import { compressLike } from "@/firmware/compression/firmwareCompression";
@@ -1133,7 +1134,7 @@ class Context {
     } else {
       const tail = makeSpan({
         kind: "freeSpace",
-        name: "Free space",
+        name: L("Free space"),
         range: { start: volume.body.end, end: bigger.body.end },
         isErased: true,
       });

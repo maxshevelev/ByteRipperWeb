@@ -188,7 +188,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const tableFocused = focusZone === TABLE_ZONE_ID;
   const [busy, setBusy] = useState(false);
   const [tableShare, setTableShare] = useState(storedTableShare);
-  const { widths, resize, reset: resetWidths } = useColumnWidths(FIT_COLUMNS);
+  const { widths, resize, reset: resetWidths } = useColumnWidths(FIT_COLUMNS());
   /**
    * How much room the list has for its columns, watched so the table follows a
    * panel the reader is dragging narrower or wider. `clientWidth` and not the
@@ -214,7 +214,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * the width a column was given — and this is where that lands on screen.
    */
   const drawnWidths = useMemo(
-    () => fittedColumnWidths(FIT_COLUMNS, widths, listWidth),
+    () => fittedColumnWidths(FIT_COLUMNS(), widths, listWidth),
     [widths, listWidth]
   );
   /**
@@ -566,7 +566,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     (catalogue.entries.length > 0
       ? undefined
       : catalogue.status === "loading"
-        ? { text: "Fetching the list from github.com…", busy: true, problem: false }
+        ? { text: L("Fetching the list from github.com…"), busy: true, problem: false }
         : message !== undefined
           ? { text: message, busy: false, problem: true }
           : undefined);
@@ -592,7 +592,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   // the line the UEFI panel shows while it reads.
   const imageStatus = firmware?.status;
   if (imageStatus === "failed") {
-    return <div className="tool-empty">{firmware?.problem ?? "Could not read the file."}</div>;
+    return <div className="tool-empty">{firmware?.problem ?? L("Could not read the file.")}</div>;
   }
   // Two waits wear the one line upstream gives them: the pane's parse of the
   // image, and the table's own read against the tree that parse left. Both are
@@ -609,7 +609,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   if (readingImage || readingTable) {
     return (
       <div className="tool-empty">
-        <p>Reading…</p>
+        <p>{L("Reading…")}</p>
         {/* Only while the image is coming: once it is in hand the fraction is
             spent, and the table's own read is the few lookups below. */}
         {readingImage ? <progress value={firmware?.fraction ?? 0} max={1} /> : null}
@@ -629,7 +629,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         type="button"
         className="fit-summary"
         data-selected={tableFocused ? "" : undefined}
-        title="Show the whole table in the dump"
+        title={L("Show the whole table in the dump")}
         onClick={chooseTable}
       >
         {display.summary}
@@ -656,17 +656,17 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           >
             <table className="fit-table" style={{ minWidth: FIT_MIN_WIDTH }}>
               <colgroup>
-                {FIT_COLUMNS.map((column) => (
+                {FIT_COLUMNS().map((column) => (
                   <col key={column.id} style={{ width: drawnWidths[column.id] ?? column.width }} />
                 ))}
               </colgroup>
               <thead>
                 <tr>
-                  {FIT_COLUMNS.map((column, index) => (
+                  {FIT_COLUMNS().map((column, index) => (
                     <th key={column.id} scope="col" className="fit-head">
                       {column.title}
                       <ColumnResizer
-                        columns={FIT_COLUMNS}
+                        columns={FIT_COLUMNS()}
                         index={index}
                         widths={widths}
                         onChange={resize}
@@ -683,7 +683,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                       // The Top Swap backup's copy of the table follows under a
                       // heading of its own, which cannot be selected.
                       <tr className="fit-backup-heading">
-                        <th colSpan={FIT_COLUMNS.length} scope="colgroup">
+                        <th colSpan={FIT_COLUMNS().length} scope="colgroup">
                           {display.backupHeading}
                         </th>
                       </tr>
@@ -759,7 +759,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         <ToolDetail
           subject={focus === undefined || tableFocused ? undefined : String(focus)}
           detail={detail}
-          placeholder="Select a row to see what it is."
+          placeholder={L("Select a row to see what it is.")}
         />
       </div>
 
@@ -790,9 +790,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           className="toolbar-button"
           disabled={busy || display.rows.length === 0}
           onClick={openAdd}
-          title="Put a microcode in the image and name it in the table"
+          title={L("Put a microcode in the image and name it in the table")}
         >
-          Add Microcode…
+          {L("Add Microcode…")}
         </button>
       </div>
 
@@ -810,7 +810,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
               className="toolbar-button is-quiet"
               onClick={cancelMicrocodeCatalogue}
             >
-              Cancel
+              {L("Cancel")}
             </button>
           </>
         ) : message !== undefined ? (

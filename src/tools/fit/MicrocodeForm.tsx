@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { L, localized } from "@/core/localization/localization";
 import { type MicrocodeCatalogueEntry, platformText } from "@/tools/fit/microcodeCatalogue";
 import {
   actionTitle,
@@ -33,14 +34,17 @@ export interface MicrocodeFormStatus {
 }
 
 /** Upstream's columns, their widths laid out for 11-point text and scaled to 13 pixels. */
-const COLUMNS = [
-  { title: "CPUID", width: 83 },
-  { title: "Plat", width: 54 },
-  { title: "Revision", width: 87 },
-  { title: "Date", width: 106 },
-  { title: "Release", width: 87 },
-  { title: "Size", width: 83 },
-] as const;
+const COLUMNS = localized(
+  () =>
+    [
+      { title: L("CPUID"), width: 83 },
+      { title: "Plat", width: 54 },
+      { title: L("Revision"), width: 87 },
+      { title: L("Date"), width: 106 },
+      { title: L("Release"), width: 87 },
+      { title: L("Size"), width: 83 },
+    ] as const
+);
 
 const ROW_HEIGHT = 20;
 const HEADER_HEIGHT = 21;
@@ -166,8 +170,8 @@ export function MicrocodeForm({
             <input
               type="search"
               className="microcode-search"
-              placeholder="CPUID"
-              aria-label="CPUID"
+              placeholder={L("CPUID")}
+              aria-label={L("CPUID")}
               value={search}
               // The list is searched by what a bench writes down: the CPUID.
               onChange={(event) => setSearch(event.target.value)}
@@ -194,13 +198,13 @@ export function MicrocodeForm({
         >
           <table className="microcode-table">
             <colgroup>
-              {COLUMNS.map((column) => (
+              {COLUMNS().map((column) => (
                 <col key={column.title} style={{ width: column.width }} />
               ))}
             </colgroup>
             <thead>
               <tr>
-                {COLUMNS.map((column) => (
+                {COLUMNS().map((column) => (
                   <th key={column.title} scope="col" className="microcode-head">
                     {column.title}
                   </th>
@@ -249,12 +253,12 @@ export function MicrocodeForm({
             className="toolbar-button"
             onClick={onChooseFile}
             disabled={busy}
-            title="Add a microcode you already have, without the network"
+            title={L("Add a microcode you already have, without the network")}
           >
-            Choose File…
+            {L("Choose File…")}
           </button>
           <button type="button" className="toolbar-button" onClick={onCancel}>
-            Cancel
+            {L("Cancel")}
           </button>
           <button
             type="button"

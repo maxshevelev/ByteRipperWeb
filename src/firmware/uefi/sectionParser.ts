@@ -1,3 +1,4 @@
+import { L, localized } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp } from "@/firmware/uefi/checksums";
 import {
@@ -74,15 +75,15 @@ export const Section = {
   guidDefinedHeaderSize: 20,
 } as const;
 
-const SECTION_TYPE_NAMES: Readonly<Record<number, string>> = {
-  1: "Compressed section",
+const SECTION_TYPE_NAMES: () => Readonly<Record<number, string>> = localized(() => ({
+  1: L("Compressed section"),
   2: "GUID-defined section",
   3: "Disposable section",
   16: "PE32 image",
   17: "PIC image",
   18: "TE image",
   19: "DXE dependency",
-  20: "Version",
+  20: L("Version"),
   21: "Name",
   22: "Compatibility16",
   23: "Volume image",
@@ -92,7 +93,7 @@ const SECTION_TYPE_NAMES: Readonly<Record<number, string>> = {
   28: "MM dependency",
   32: "Insyde postcode",
   240: "Phoenix postcode",
-};
+}));
 
 /**
  * A vendor type nobody documented keeps its number.
@@ -102,7 +103,8 @@ const SECTION_TYPE_NAMES: Readonly<Record<number, string>> = {
  */
 export function sectionTypeName(type: number): string {
   return (
-    SECTION_TYPE_NAMES[type] ?? `Section type 0x${type.toString(16).toUpperCase().padStart(2, "0")}`
+    SECTION_TYPE_NAMES()[type] ??
+    `Section type 0x${type.toString(16).toUpperCase().padStart(2, "0")}`
   );
 }
 

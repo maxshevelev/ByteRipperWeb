@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
 import { FIT, FIT_ENTRY_SIZE } from "@/firmware/fit/fitEntry";
 import type { FITTable } from "@/firmware/fit/fitTable";
@@ -109,11 +110,11 @@ export type FITEditProblem =
 export function fitEditProblemMessage(problem: FITEditProblem): string {
   switch (problem.kind) {
     case "notMicrocode":
-      return "That file does not start with an Intel microcode header.";
+      return L("That file does not start with an Intel microcode header.");
     case "microcodeChecksumIsWrong":
       return "That microcode's checksum does not add up — its dwords should sum to zero.";
     case "noMicrocodeToFollow":
-      return "There is no microcode in this table to put a new one after.";
+      return L("There is no microcode in this table to put a new one after.");
     case "theTableCannotGrow":
       return (
         "The table has no empty slot, and the sixteen bytes after it are not free — " +
@@ -125,15 +126,15 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
         `than are free after it, in ${problem.inside}.`
       );
     case "cannotRemoveTheHeader":
-      return "The header is not an entry.";
+      return L("The header is not an entry.");
     case "cannotRemoveTheLastMicrocode":
-      return "A FIT needs at least one microcode entry.";
+      return L("A FIT needs at least one microcode entry.");
     case "notAMicrocodeRow":
-      return "Only a microcode entry can be removed.";
+      return L("Only a microcode entry can be removed.");
     case "noSuchEntry":
-      return "That entry is no longer in the table.";
+      return L("That entry is no longer in the table.");
     case "noTable":
-      return "There is no FIT table in this file to change.";
+      return L("There is no FIT table in this file to change.");
     case "insideProtectedRange":
       return (
         `The change writes at 0x${problem.at.toString(16).toUpperCase()} inside a ` +
@@ -429,7 +430,7 @@ function removeMicrocodeFromTheTopBlock(
   return {
     ok: true,
     transaction: withContainerRepairs(
-      { name: "Remove Microcode", writes },
+      { name: L("Remove Microcode"), writes },
       image,
       reader,
       undefined
@@ -717,7 +718,7 @@ function replacing(
     return {
       ok: true,
       transaction: withContainerRepairs(
-        { name: "Replace Microcode", writes: write === undefined ? [] : [write] },
+        { name: L("Replace Microcode"), writes: write === undefined ? [] : [write] },
         image,
         reader,
         undefined
@@ -764,7 +765,7 @@ function replacing(
   return {
     ok: true,
     transaction: withContainerRepairs(
-      { name: "Replace Microcode", writes },
+      { name: L("Replace Microcode"), writes },
       image,
       reader,
       layout.growth?.grown
@@ -846,7 +847,7 @@ function addingNewRow(
   return {
     ok: true,
     transaction: withContainerRepairs(
-      { name: "Add Microcode", writes },
+      { name: L("Add Microcode"), writes },
       image,
       reader,
       layout.growth?.grown
@@ -1101,7 +1102,7 @@ function spareArea(
   image: UEFIImage | undefined,
   reader: ImageReader
 ): { readonly range: ImageRange; readonly name: string } {
-  const rest = { range: { start: offset, end: reader.count }, name: "the rest of the file" };
+  const rest = { range: { start: offset, end: reader.count }, name: L("the rest of the file") };
   if (image === undefined) return rest;
   const chain = image.nodesContaining(offset);
   for (const node of [...chain].reverse()) {

@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
@@ -73,7 +74,7 @@ export function buildNodeDetail(
     protectedBy.length === 0
       ? { fields: [], tables: [] }
       : {
-          fields: [field("Protection", PROTECTION_CAVEAT)],
+          fields: [field(L("Protection"), PROTECTION_CAVEAT)],
           tables: [protectedByTable(protectedBy)],
         };
   fields.push(...protection.fields);
@@ -92,9 +93,9 @@ export function buildNodeDetail(
       tables: [
         ...protection.tables,
         {
-          title: "Extended signatures",
+          title: L("Extended signatures"),
           symbol: "cpu",
-          columns: ["CPUID", "Processor", "Platforms", "Checksum"],
+          columns: [L("CPUID"), L("Processor"), L("Platforms"), L("Checksum")],
           rows: extended.signatures.map((signature) => [
             cell(microcodeCpuid(signature.processorSignature)),
             cell(microcodeProcessorText(signature.processorSignature)),
@@ -138,14 +139,14 @@ export const PROTECTION_CAVEAT =
  */
 function protectedByTable(ranges: readonly ProtectedRange[]): DetailTable {
   return {
-    title: "Protected by",
+    title: L("Protected by"),
     symbol: "lock.shield",
-    columns: ["Range", "Kind", "Listed at", "Hash"],
+    columns: [L("Range"), L("Kind"), L("Listed at"), L("Hash")],
     rows: ranges.map((range) => [
       {
         text:
           range.range === undefined
-            ? "Not placed"
+            ? L("Not placed")
             : `${hex(range.range.start)}–${hex(range.range.end)}`,
         tone: "plain" as const,
       },
@@ -173,15 +174,15 @@ function verdictCell(range: ProtectedRange): DetailCell {
     case "unsupported":
       return { text: `${tcgHashName(range.verdict.algorithm)} not computed`, tone: "plain" };
     case "unchecked":
-      return { text: "Not checked", tone: "plain" };
+      return { text: L("Not checked"), tone: "plain" };
   }
 }
 
 // MARK: - The fields every node has
 
 function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
-  const fields: DetailField[] = [field("Kind", kindLabel(node.kind))];
-  if (node.subtype !== undefined) fields.push(field("Type", typeText(node)));
+  const fields: DetailField[] = [field(L("Kind"), kindLabel(node.kind))];
+  if (node.subtype !== undefined) fields.push(field(L("Type"), typeText(node)));
   if (node.guid !== undefined) fields.push(field("GUID", guidDetailText(node.guid)));
   // Inside a compressed section the ranges below are offsets into what it
   // decompresses to, and this says which section that is.
@@ -191,25 +192,25 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
     const section =
       found !== undefined && found.header.start === outermost ? found.name : "Compressed section";
     const deeper = node.space.length > 1 ? `, ${node.space.length} compressed sections deep` : "";
-    fields.push(field("Decompressed from", `${section} at ${hex(outermost)}${deeper}`));
+    fields.push(field(L("Decompressed from"), `${section} at ${hex(outermost)}${deeper}`));
   }
-  fields.push(field("Header", rangeText(node.header)));
-  fields.push(field("Body", rangeText(node.body)));
-  if (node.tail.end > node.tail.start) fields.push(field("Tail", rangeText(node.tail)));
+  fields.push(field(L("Header"), rangeText(node.header)));
+  fields.push(field(L("Body"), rangeText(node.body)));
+  if (node.tail.end > node.tail.start) fields.push(field(L("Tail"), rangeText(node.tail)));
   const range = nodeRange(node);
-  fields.push(field("Total", rangeText(range)));
+  fields.push(field(L("Total"), rangeText(range)));
 
   const flags: string[] = [];
   if (node.isFixed) flags.push("fixed");
   if (isNodeCompressed(node)) flags.push("compressed");
   if (node.isErased) flags.push("erased");
-  if (flags.length > 0) fields.push(field("Flags", flags.join(", ")));
+  if (flags.length > 0) fields.push(field(L("Flags"), flags.join(", ")));
 
   // A compressed node's address means nothing — the decompressor puts it
   // wherever it likes — so the one thing worth showing is skipped there.
   if (!isNodeCompressed(node)) {
     const address = image.addressForOffset(range.start);
-    if (address !== undefined) fields.push(field("Address", hex(address)));
+    if (address !== undefined) fields.push(field(L("Address"), hex(address)));
   }
   return fields;
 }
@@ -237,10 +238,10 @@ function headerFields(
       add("Header length", reader.uint16(h + 0x30), sizeText);
       const checksum = reader.uint16(h + 0x32);
       if (checksum !== undefined) {
-        fields.push(checksumRow("Checksum", checksum, 4, repairs, h + 0x32));
+        fields.push(checksumRow(L("Checksum"), checksum, 4, repairs, h + 0x32));
       }
       add("Ext. header", reader.uint16(h + 0x34), hex);
-      add("Revision", reader.uint8(h + 0x37), (value) => `${value}`);
+      add(L("Revision"), reader.uint8(h + 0x37), (value) => `${value}`);
       break;
     }
 
@@ -251,14 +252,14 @@ function headerFields(
         bits(value, [
           [0x01, "Tail / large"],
           [0x04, "Fixed"],
-          [0x40, "Checksum"],
+          [0x40, L("Checksum")],
         ])
       );
       // A large file keeps its size in a 64-bit field after the base header and
       // leaves the three-byte one at zero.
       const size = reader.uint24(h + 0x14);
-      if (size !== undefined && size !== 0) fields.push(field("Size", sizeText(size)));
-      else add("Size", reader.uint64(h + 0x18), sizeText);
+      if (size !== undefined && size !== 0) fields.push(field(L("Size"), sizeText(size)));
+      else add(L("Size"), reader.uint64(h + 0x18), sizeText);
       add("State", reader.uint8(h + 0x17), (value) => bits(value, [[0x80, "Erase polarity"]]));
       const headerChecksum = reader.uint8(h + 0x10);
       if (headerChecksum !== undefined) {
@@ -275,8 +276,8 @@ function headerFields(
       // An extended-size section leaves the three-byte field at the marker and
       // keeps the real size in 32 bits.
       const size = reader.uint24(h);
-      if (size === 0xff_ffff) add("Size", reader.uint32(h + 0x04), sizeText);
-      else add("Size", size, sizeText);
+      if (size === 0xff_ffff) add(L("Size"), reader.uint32(h + 0x04), sizeText);
+      else add(L("Size"), size, sizeText);
       break;
     }
 
@@ -305,7 +306,7 @@ function headerFields(
 
     case "capsule":
       add("Header size", reader.uint32(h + 0x10), sizeText);
-      add("Flags", reader.uint32(h + 0x14), hex);
+      add(L("Flags"), reader.uint32(h + 0x14), hex);
       add("Image size", reader.uint32(h + 0x18), sizeText);
       break;
 
@@ -330,7 +331,7 @@ function headerFields(
     case "flashDescriptor":
       add("Signature", reader.uint32(h + 0x10), hex);
       add("FLMAP", reader.uint32(h + 0x14), hex);
-      add("Version", reader.uint32(h + 0x20), hex);
+      add(L("Version"), reader.uint32(h + 0x20), hex);
       break;
 
     case "region": {
@@ -364,7 +365,7 @@ function headerFields(
       break;
 
     case "sysFStore": {
-      add("Unknown", reader.uint8(h + 4), hex);
+      add(L("Unknown"), reader.uint8(h + 4), hex);
       add("Unknown1", reader.uint32(h + 5), hex);
       // The store's CRC32 is its final four bytes, over everything before them.
       const end = nodeRange(node).end;
@@ -391,19 +392,19 @@ function headerFields(
 
     case "flashDeviceMapStore": {
       // `INSYDE_FLASH_DEVICE_MAP_HEADER`.
-      add("Size", reader.uint32(h + 4), sizeText);
+      add(L("Size"), reader.uint32(h + 4), sizeText);
       add("Data offset", reader.uint32(h + 8), hex);
       add("Entry size", reader.uint32(h + 12), sizeText);
       add("Entry format", reader.uint8(h + 16), hex);
-      add("Revision", reader.uint8(h + 17), hex);
-      add("Extensions", reader.uint8(h + 18), (value) => `${value}`);
+      add(L("Revision"), reader.uint8(h + 17), hex);
+      add(L("Extensions"), reader.uint8(h + 18), (value) => `${value}`);
       const stored = reader.uint8(h + 19);
       const header = reader.bytes({ start: h, end: h + 0x1c });
       if (stored !== undefined && header !== undefined) {
         const expected = (0x100 - ((sum8(header) - stored) & 0xff)) & 0xff;
         fields.push(
           field(
-            "Checksum",
+            L("Checksum"),
             expected === stored
               ? `${hex(stored)}, valid`
               : `${hex(stored)}, should be ${hex(expected)}`
@@ -433,7 +434,7 @@ function headerFields(
         );
       }
       const hash = reader.bytes({ start: h + 52, end: h + 84 });
-      if (hash !== undefined) fields.push(field("Hash", hexBytes(hash)));
+      if (hash !== undefined) fields.push(field(L("Hash"), hexBytes(hash)));
       break;
     }
 
@@ -445,7 +446,7 @@ function headerFields(
     case "flashMapEntry":
       add("Data type", reader.uint16(h + 16), hex);
       add("Entry type", reader.uint16(h + 18), hex);
-      add("Size", reader.uint32(h + 28), sizeText);
+      add(L("Size"), reader.uint32(h + 28), sizeText);
       add("Offset", reader.uint32(h + 32), hex);
       add("Physical address", reader.uint64(h + 20), hex);
       break;
@@ -454,7 +455,7 @@ function headerFields(
       add("Attributes", reader.uint32(h + 8), hex);
       add("Reserved", reader.uint32(h + 16), hex);
       const checksum = evsaChecksum(h + 1, node.header.end, reader);
-      if (checksum !== undefined) fields.push(field("Checksum", checksumText(checksum)));
+      if (checksum !== undefined) fields.push(field(L("Checksum"), checksumText(checksum)));
       break;
     }
 
@@ -480,7 +481,7 @@ function headerFields(
           add("Attributes", reader.uint32(h + 8), (value) => bits(value, EVSA_ATTRIBUTE_BITS));
       }
       const checksum = evsaChecksum(h + 1, nodeRange(node).end, reader);
-      if (checksum !== undefined) fields.push(field("Checksum", checksumText(checksum)));
+      if (checksum !== undefined) fields.push(field(L("Checksum"), checksumText(checksum)));
       break;
     }
 
@@ -488,13 +489,13 @@ function headerFields(
       switch (node.subtype) {
         case Sub.pubkeySlicData:
           add("Key type", reader.uint8(h + 8), hex);
-          add("Version", reader.uint8(h + 9), hex);
+          add(L("Version"), reader.uint8(h + 9), hex);
           add("Algorithm", reader.uint32(h + 12), hex);
           add("Bit length", reader.uint32(h + 20), hex);
           add("Exponent", reader.uint32(h + 24), hex);
           break;
         case Sub.markerSlicData: {
-          add("Version", reader.uint32(h + 8), hex);
+          add(L("Version"), reader.uint32(h + 8), hex);
           const oemId = reader.bytesAt(h + 12, 6);
           if (oemId !== undefined) fields.push(field("OEM ID", asciiText(oemId)));
           const tableId = reader.bytesAt(h + 18, 8);
@@ -550,9 +551,9 @@ function descriptorTables(descriptor: DescriptorInfo): DetailTable[] {
     `0x${value.toString(16).toUpperCase().padStart(descriptor.maskDigits, "0")}`;
   if (descriptor.masters.length > 0) {
     tables.push({
-      title: "Region access settings",
+      title: L("Region access settings"),
       symbol: "key",
-      columns: ["Master", "Read", "Write"],
+      columns: [L("Master"), L("Read"), L("Write")],
       rows: descriptor.masters.map((master) => [
         cell(master.name),
         cell(mask(master.read)),
@@ -562,9 +563,9 @@ function descriptorTables(descriptor: DescriptorInfo): DetailTable[] {
   }
   if (descriptor.biosAccess.length > 0) {
     tables.push({
-      title: "BIOS access table",
+      title: L("BIOS access table"),
       symbol: "lock.shield",
-      columns: ["Region", "Read", "Write"],
+      columns: [L("Region"), L("Read"), L("Write")],
       rows: descriptor.biosAccess.map((access) => [
         cell(access.region),
         permission(access.read),
@@ -574,12 +575,12 @@ function descriptorTables(descriptor: DescriptorInfo): DetailTable[] {
   }
   if (descriptor.chips.length > 0) {
     tables.push({
-      title: "Flash chips in VSCC table",
+      title: L("Flash chips in VSCC table"),
       symbol: "cpu",
-      columns: ["JEDEC ID", "Chip"],
+      columns: [L("JEDEC ID"), L("Chip")],
       rows: descriptor.chips.map((chip) => [
         cell(chip.jedecId.toString(16).toUpperCase().padStart(6, "0")),
-        cell(chip.name ?? "Unknown"),
+        cell(chip.name ?? L("Unknown")),
       ]),
     });
   }
@@ -707,7 +708,7 @@ function guidDetailText(guid: EFIGUID): string {
  * the word that stands for that everywhere rather than a dash.
  */
 function sizeText(bytes: number): string {
-  return bytes === 0 ? "Empty" : `${hex(bytes)} (${bytes})`;
+  return bytes === 0 ? L("Empty") : `${hex(bytes)} (${bytes})`;
 }
 
 /** Where the part starts and how long it is: `0x0 · 0x2000 (8192) bytes`. */

@@ -269,7 +269,7 @@ export function warnsBeforeShiftingEditsFrom(stored: unknown): boolean {
  * @upstream-differs a character is a code point here, where Swift counts grapheme clusters
  */
 export function textDecodingFrom(identifier: unknown, placeholder: unknown): TextDecodingSettings {
-  const known = BYTE_DECODERS.some((one) => one.identifier === identifier);
+  const known = BYTE_DECODERS().some((one) => one.identifier === identifier);
   return {
     identifier:
       known && typeof identifier === "string" ? identifier : DEFAULT_TEXT_DECODING.identifier,

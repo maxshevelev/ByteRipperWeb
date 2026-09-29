@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 
 /**
@@ -109,19 +110,19 @@ export function fitProblemMessage(problem: FITProblem): string {
 function ownMessage(detail: FITProblemKind): string {
   switch (detail.kind) {
     case "imageHasNoPointer":
-      return "The image is too small to hold a FIT pointer";
+      return L("The image is too small to hold a FIT pointer");
     case "pointerLeadsOutsideTheImage":
       return `The FIT pointer, ${hex(detail.address)}, is outside this image`;
     case "noTableAtThePointer":
       return `No FIT signature at ${hex(detail.address)}, where the pointer leads`;
     case "tableHasNoEntries":
-      return "The header says the table has no entries";
+      return L("The header says the table has no entries");
     case "tableRunsPastTheEnd":
       return `The header claims ${detail.entries} entries, which runs past the end of the image`;
     case "firstEntryIsNotTheHeader":
       return `The first entry is type ${hex(detail.type)}, not the header`;
     case "secondHeader":
-      return "A second header entry, where there may be only one";
+      return L("A second header entry, where there may be only one");
     case "typesOutOfOrder":
       return (
         `Type ${hex(detail.type)} after type ${hex(detail.previous)}: ` +
@@ -130,7 +131,7 @@ function ownMessage(detail: FITProblemKind): string {
     case "checksumMismatch":
       return `The table checksum is ${hex(detail.stored)}, and should be ${hex(detail.computed)}`;
     case "noMicrocodeEntry":
-      return "No microcode entry, and there must be at least one";
+      return L("No microcode entry, and there must be at least one");
     case "addressOutsideTheImage":
       return `${hex(detail.address)} is outside this image`;
     case "addressNotAligned":
@@ -144,7 +145,7 @@ function ownMessage(detail: FITProblemKind): string {
     case "topSwapTableDiffers":
       return `The Top Swap backup's FIT at ${hex(detail.at)} is not the same as this one`;
     case "topSwapEntryDiffers":
-      return "this entry, or what it points at, is not the same as in the top block";
+      return L("this entry, or what it points at, is not the same as in the top block");
     case "topSwapBlockDiffers":
       return (
         `The Top Swap backup at ${hex(detail.backup.start)} holds the same FIT, but other bytes ` +

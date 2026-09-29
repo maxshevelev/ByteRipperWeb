@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { L } from "@/core/localization/localization";
 import type { LibraryConflict, LibraryResolution } from "@/core/search/patternLibrary";
 import { conflictId } from "@/core/sync/syncMerge";
 import { Dialog } from "@/ui/dialogs/Dialog";
@@ -88,10 +89,10 @@ export function LibraryConflictDialog({
             <caption className="visually-hidden">Conflicting changes</caption>
             <thead>
               <tr>
-                <th scope="col">Entry</th>
+                <th scope="col">{L("Entry")}</th>
                 <th scope="col">{wording.ours}</th>
                 <th scope="col">{wording.theirs}</th>
-                <th scope="col">Keep</th>
+                <th scope="col">{L("Keep")}</th>
               </tr>
             </thead>
             <tbody>
@@ -135,7 +136,7 @@ export function LibraryConflictDialog({
             // @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.keepAllMine
             onClick={() => setAnswers(answeringAll(list, "keepOurs"))}
           >
-            Keep All Mine
+            {L("Keep All Mine")}
           </button>
           <button
             type="button"
@@ -143,7 +144,7 @@ export function LibraryConflictDialog({
             // @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.keepAllTheirs
             onClick={() => setAnswers(answeringAll(list, "keepTheirs"))}
           >
-            Keep All Theirs
+            {L("Keep All Theirs")}
           </button>
         </div>
         <div className="dialog-actions">
@@ -151,7 +152,7 @@ export function LibraryConflictDialog({
             {cancelTitle}
           </button>
           <button type="submit" className="toolbar-button">
-            Apply
+            {L("Apply")}
           </button>
         </div>
       </form>

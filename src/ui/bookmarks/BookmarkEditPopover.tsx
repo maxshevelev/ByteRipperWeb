@@ -186,7 +186,7 @@ export function BookmarkEditPopover({
             onKeyboardClose();
           }}
         >
-          Delete
+          {L("Delete")}
         </button>
       )}
       {/* Return submits a form only when it has a submit button. */}

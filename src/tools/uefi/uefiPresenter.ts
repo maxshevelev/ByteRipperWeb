@@ -362,7 +362,7 @@ function zonesOf(node: ZonedNode, name: string): ZoneMap {
 
   const body = {
     id: `${id}${PART_SEPARATOR}body`,
-    name: node.name.length === 0 ? "Body" : `${node.name} body`,
+    name: node.name.length === 0 ? L("Body") : `${node.name} body`,
     start: node.body[0],
     end: node.body[1],
   };

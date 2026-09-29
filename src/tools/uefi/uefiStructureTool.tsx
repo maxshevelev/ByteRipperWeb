@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
-import { L } from "@/core/localization/localization";
+import { L, localized } from "@/core/localization/localization";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import { DECOMPRESSED_BODY_LAYOUT } from "@/firmware/uefi/rootLayout";
 import { downloadBlob } from "@/platform/files/download";
@@ -127,11 +127,11 @@ const INDENT = 16;
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.typeWidth
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.subtypeWidth
  */
-const UEFI_COLUMNS: readonly TableColumn[] = [
+const UEFI_COLUMNS: () => readonly TableColumn[] = localized(() => [
   { id: "name", title: "Name", width: 300, min: 200, grows: true },
-  { id: "type", title: "Type", width: 76, min: 56 },
-  { id: "subtype", title: "Subtype", width: 88, min: 64 },
-];
+  { id: "type", title: L("Type"), width: 76, min: 56 },
+  { id: "subtype", title: L("Subtype"), width: 88, min: 64 },
+]);
 /**
  * How long a branch may take before its row says it is being read. Under this
  * the row simply opens when the branch is there, which is the common case.
@@ -296,7 +296,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
-  const { widths, resize, reset: resetWidths } = useColumnWidths(UEFI_COLUMNS);
+  const { widths, resize, reset: resetWidths } = useColumnWidths(UEFI_COLUMNS());
   /**
    * Whether the tree lists empty padding.
    *
@@ -639,7 +639,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     async (taken: DecompressedExport): Promise<Uint8Array | undefined> => {
       const bytes = await readSpaceBytes(context.pane, taken.space, taken.range);
       if (bytes === undefined || bytes.length === 0) {
-        context.report("The section does not decompress.");
+        context.report(L("The section does not decompress."));
         return undefined;
       }
       return bytes;
@@ -730,12 +730,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     async (node: WireNode, body: boolean) => {
       const open = nodeOpen(node, body, roots);
       if (open === undefined) {
-        context.report("There is nothing to open here.");
+        context.report(L("There is nothing to open here."));
         return;
       }
       const bytes = await readSpaceBytes(context.pane, open.space, open.range);
       if (bytes === undefined || bytes.length === 0) {
-        context.report("Those bytes could not be read.");
+        context.report(L("Those bytes could not be read."));
         return;
       }
       context.openPart(
@@ -1034,7 +1034,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   if (state === undefined || state.status === "parsing") {
     return (
       <div className="tool-empty">
-        <p>Reading UEFI…</p>
+        <p>{L("Reading UEFI…")}</p>
         <progress value={state?.fraction ?? 0} max={1} />
       </div>
     );
@@ -1048,7 +1048,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   // The deepest row's indentation on top of the columns' own floors: narrower
   // than this and an opened row's name has nowhere to go, so the scroller
   // scrolls instead of the columns squeezing past what they can hold.
-  const minWidth = columnsMinWidth(UEFI_COLUMNS) + maxDepth * INDENT;
+  const minWidth = columnsMinWidth(UEFI_COLUMNS()) + maxDepth * INDENT;
   const title = presented.title;
   const titleKey = title === undefined ? undefined : pathKey(title.id);
   const shown = selected === undefined ? undefined : state.detail;
@@ -1085,7 +1085,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             type="button"
             className="uefi-title"
             data-selected={selected === titleKey ? "" : undefined}
-            title="Show the whole image in the dump"
+            title={L("Show the whole image in the dump")}
             onClick={() => choose(title)}
           >
             {summary(state.roots, state.protectedRanges?.ranges.length ?? 0)}
@@ -1093,14 +1093,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         )}
         <label
           className="uefi-padding-toggle"
-          title="List the padding nobody wrote to — erased bytes between structures"
+          title={L("List the padding nobody wrote to — erased bytes between structures")}
         >
           <input
             type="checkbox"
             checked={showsEmptyPadding}
             onChange={(event) => changeShowsEmptyPadding(event.target.checked)}
           />
-          Show Empty Padding
+          {L("Show Empty Padding")}
         </label>
         <button
           type="button"
@@ -1134,15 +1134,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             style={
               {
                 minWidth,
-                "--table-columns": columnTemplate(widths, UEFI_COLUMNS),
+                "--table-columns": columnTemplate(widths, UEFI_COLUMNS()),
               } as React.CSSProperties
             }
           >
             <div className="uefi-tree-head" style={{ minWidth }} aria-hidden="true">
               <span>
-                Name
+                {L("Name")}
                 <ColumnResizer
-                  columns={UEFI_COLUMNS}
+                  columns={UEFI_COLUMNS()}
                   index={0}
                   widths={widths}
                   onChange={resize}
@@ -1150,16 +1150,16 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                 />
               </span>
               <span>
-                Type
+                {L("Type")}
                 <ColumnResizer
-                  columns={UEFI_COLUMNS}
+                  columns={UEFI_COLUMNS()}
                   index={1}
                   widths={widths}
                   onChange={resize}
                   onReset={resetWidths}
                 />
               </span>
-              <span>Subtype</span>
+              <span>{L("Subtype")}</span>
             </div>
             <div
               className="uefi-tree-spacer"
@@ -1207,7 +1207,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                         ? undefined
                         : {
                             // help: panel.uefi.fix-checksum
-                            label: "Fix Checksum",
+                            label: L("Fix Checksum"),
                             onSelect: () => {
                               void fixFirmwareChecksum(
                                 context.pane,
@@ -1270,7 +1270,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         <ToolDetail
           subject={meFocus ?? (shown === undefined ? undefined : pathKey(shown.node))}
           detail={meShown !== undefined ? meDetail(meShown) : (shown?.detail ?? EMPTY_DETAIL)}
-          placeholder="Select a node to see what it is."
+          placeholder={L("Select a node to see what it is.")}
           // The ME sub-tree's rows carry their own term, decided by the
           // curator; every other row's is a function of its kind and subtype.
           helpTerm={
@@ -1293,7 +1293,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           <>
             <span>Downloading GUID names…</span>
             <button type="button" className="toolbar-button is-quiet" onClick={cancelGuidCatalogue}>
-              Cancel
+              {L("Cancel")}
             </button>
           </>
         ) : null}
@@ -1421,7 +1421,7 @@ function TreeRow({
       >
         <span className="uefi-name" style={indent}>
           <span className="uefi-twist" />
-          <span className="uefi-loading">Loading…</span>
+          <span className="uefi-loading">{L("Loading…")}</span>
         </span>
       </div>
     );

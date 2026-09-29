@@ -666,7 +666,7 @@ export function Toolbar({
             aria-label={L("Files are identical")}
           >
             <IdenticalGlyph />
-            Files are identical
+            {L("Files are identical")}
           </span>
         );
       // The `?`, between the difference plaque and the pane arrangement: the

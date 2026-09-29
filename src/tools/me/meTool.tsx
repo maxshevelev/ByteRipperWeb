@@ -179,7 +179,7 @@ function rowsOf(
 function detailOf(node: MEANode | undefined): NodeDetail {
   if (node === undefined) return EMPTY_DETAIL;
   if (node.fields.length === 0) {
-    return { title: "Nothing more to show for this row.", fields: [], tables: [] };
+    return { title: L("Nothing more to show for this row."), fields: [], tables: [] };
   }
   return {
     title: node.title,
@@ -545,7 +545,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const copySummary = useCallback(() => {
     if (blocks.length === 0) return;
     void writeRichText(summaryHtml(blocks, toneColours()), summaryPlain(blocks)).then((done) => {
-      if (done) showNotice("copySummary", ["Summary Copied"]);
+      if (done) showNotice("copySummary", [L("Summary Copied")]);
       else setNotice("The browser would not put the summary on the clipboard.");
     });
   }, [blocks, showNotice]);
@@ -563,7 +563,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       if (blob === null) return;
       void writeImage(blob).then((done) => {
         if (done) {
-          showNotice("copyScreenshot", ["Screenshot Copied"]);
+          showNotice("copyScreenshot", [L("Screenshot Copied")]);
           return;
         }
         // Plain HTTP and a few browsers have no clipboard for pictures; the
@@ -589,10 +589,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           onKeyDown={onTabKey}
         >
           <TabButton tab="summary" current={tab} onChoose={setTab}>
-            Summary
+            {L("Summary")}
           </TabButton>
           <TabButton tab="tree" current={tab} onChoose={setTab}>
-            Full Info
+            {L("Full Info")}
           </TabButton>
         </div>
         {tab === "summary" && hasContent ? (
@@ -600,8 +600,8 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
             <button
               type="button"
               className="me-action"
-              title="Copy Summary"
-              aria-label="Copy Summary"
+              title={L("Copy Summary")}
+              aria-label={L("Copy Summary")}
               onClick={copySummary}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -611,8 +611,8 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
             <button
               type="button"
               className="me-action"
-              title="Copy Screenshot"
-              aria-label="Copy Screenshot"
+              title={L("Copy Screenshot")}
+              aria-label={L("Copy Screenshot")}
               onClick={copyScreenshot}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -626,7 +626,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       <div
         className="me-content"
         role="tabpanel"
-        aria-label={tab === "summary" ? "Summary" : "Full Info"}
+        aria-label={tab === "summary" ? L("Summary") : L("Full Info")}
       >
         {result.phase === "waiting" ? (
           // Two waits wear one placeholder upstream, because upstream's own is
@@ -639,10 +639,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           // behind it is still being parsed
           <Placeholder
             symbol="cpu"
-            title="Analyzing the ME firmware…"
+            title={L("Analyzing the ME firmware…")}
             detail={
               firmware?.status === "ready"
-                ? "Reading the region and its partitions."
+                ? L("Reading the region and its partitions.")
                 : "Reading the file first: the region is found in its tree."
             }
             fraction={firmware?.status === "ready" ? undefined : (firmware?.fraction ?? 0)}
@@ -650,14 +650,14 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         ) : result.phase === "failed" ? (
           <Placeholder
             symbol="failed"
-            title="The analysis did not finish"
-            detail="The line below says what went wrong."
+            title={L("The analysis did not finish")}
+            detail={L("The line below says what went wrong.")}
           />
         ) : analysis === undefined ? (
           <Placeholder
             symbol="question"
-            title="No ME firmware"
-            detail="Nothing in this file reads as Intel ME firmware."
+            title={L("No ME firmware")}
+            detail={L("Nothing in this file reads as Intel ME firmware.")}
           />
         ) : tab === "summary" ? (
           <SummaryView blocks={blocks} scrollRef={summaryRef} />
@@ -689,7 +689,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                     the reader's to move. */}
                 <div className="me-tree-head" aria-hidden="true">
                   <span>
-                    Name
+                    {L("Name")}
                     <ColumnResizer
                       columns={ME_COLUMNS}
                       index={0}
@@ -731,7 +731,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
             <ToolDetail
               subject={focus}
               detail={detailOf(selected)}
-              placeholder="Select a row to see what it is."
+              placeholder={L("Select a row to see what it is.")}
               // Decided by the curator, with the name: this is the one place
               // that knows a row is the partition table rather than a row that
               // happens to be called "Regions (FPT)".
@@ -744,21 +744,21 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       <footer className="tool-notice">
         {busy ? (
           <>
-            <span>Reading ME…</span>
+            <span>{L("Reading ME…")}</span>
             <progress />
           </>
         ) : result.phase === "failed" ? (
           <>
             <span className="me-notice-problem">{result.problem}</span>
             <button type="button" className="toolbar-button is-quiet" onClick={analyze}>
-              Try Again
+              {L("Try Again")}
             </button>
           </>
         ) : database.status === "loading" ? (
           <>
             <span>Downloading MEA.dat…</span>
             <button type="button" className="toolbar-button is-quiet" onClick={cancelMEDatabase}>
-              Cancel
+              {L("Cancel")}
             </button>
           </>
         ) : databaseProblem !== undefined ? (
@@ -771,7 +771,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               className="toolbar-button is-quiet"
               onClick={() => loadMEDatabase()}
             >
-              Try Again
+              {L("Try Again")}
             </button>
           </>
         ) : huffman.status === "loading" ? (
@@ -782,7 +782,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               className="toolbar-button is-quiet"
               onClick={cancelHuffmanDictionaries}
             >
-              Cancel
+              {L("Cancel")}
             </button>
           </>
         ) : huffmanProblem !== undefined ? (
@@ -795,7 +795,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               className="toolbar-button is-quiet"
               onClick={() => loadHuffmanDictionaries()}
             >
-              Try Again
+              {L("Try Again")}
             </button>
           </>
         ) : notice !== undefined ? (
@@ -888,7 +888,7 @@ function Placeholder({
 }
 
 const valueText = (row: MEASummaryRow) =>
-  row.value.kind === "value" ? row.value.text : "Coming soon";
+  row.value.kind === "value" ? row.value.text : L("Coming soon");
 
 /** Keys for rows that may say the same thing twice — two identical messages. */
 function uniqueKeys(texts: readonly string[]): string[] {

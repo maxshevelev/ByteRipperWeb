@@ -9,16 +9,16 @@ import { columnsMinWidth, designWidths } from "@/ui/toolPanel/columnWidths";
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.fitColumnsToThePanel
  */
 
-const DESIGN = designWidths(FIT_COLUMNS);
+const DESIGN = designWidths(FIT_COLUMNS());
 const fitted = (available: number, wanted = DESIGN) =>
-  fittedColumnWidths(FIT_COLUMNS, wanted, available);
+  fittedColumnWidths(FIT_COLUMNS(), wanted, available);
 const total = (widths: Record<string, number>) =>
-  FIT_COLUMNS.reduce((sum, column) => sum + (widths[column.id] ?? 0), 0);
+  FIT_COLUMNS().reduce((sum, column) => sum + (widths[column.id] ?? 0), 0);
 
 /** The width the columns were laid out for, all five together. */
 const DESIGN_TOTAL = total(DESIGN);
 /** Past this the table is wider than the panel and the list scrolls sideways. */
-const FLOOR_TOTAL = columnsMinWidth(FIT_COLUMNS);
+const FLOOR_TOTAL = columnsMinWidth(FIT_COLUMNS());
 
 describe("the width Points at is drawn at", () => {
   it("takes what the other columns leave, on a panel wider than the design", () => {

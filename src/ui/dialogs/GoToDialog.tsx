@@ -511,7 +511,7 @@ export function GoToDialog({
         {/* Dimmed over a closed list, the way a disabled control's title is: the
             half of the form that still works must be the one that looks alive. */}
         <span className="goto-list-label" data-closed={unavailable === undefined ? undefined : ""}>
-          Bookmarks
+          {L("Bookmarks")}
         </span>
         <div className="bookmark-table" ref={tableRef}>
           {/* A listbox: these rows are picked, and the arrows and Return are how. */}

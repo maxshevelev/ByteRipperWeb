@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
 /**
@@ -37,7 +38,7 @@ export function AlertDialog({ alert, onDismiss }: AlertDialogProps) {
             the alert, which is the only thing there is to do with it.
           */}
           <button type="button" className="toolbar-button" onClick={onDismiss}>
-            OK
+            {L("OK")}
           </button>
         </div>
       </div>

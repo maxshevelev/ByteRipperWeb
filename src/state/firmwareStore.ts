@@ -1,9 +1,11 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { currentCatalogue } from "@/core/localization/localization";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
+import { languageStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { applyTransaction } from "@/state/toolEdits";
 import { type PaneId, paneState } from "@/state/workspaceStore";
@@ -111,6 +113,31 @@ interface PaneWorker {
 
 const workers: Partial<Record<PaneId, PaneWorker>> = {};
 
+/**
+ * Hands the worker the words it names nodes with.
+ *
+ * A worker is a module graph of its own, so the catalogue the app installed is
+ * not in it: without this every region, volume and section would be named in
+ * English however the app is set. The names are written into the rows as the
+ * parse builds them, so a language changed later is followed by reading the
+ * tree again — which is why this is sent on the change as well as at the start.
+ *
+ * @web-only upstream parses on the main thread, where the catalogue already is
+ */
+function teachLanguage(held: PaneWorker): void {
+  held.worker.postMessage({ kind: "speakLanguage", catalogue: currentCatalogue() });
+}
+
+languageStore.subscribe(() => {
+  for (const [pane, held] of Object.entries(workers)) {
+    if (held === undefined) continue;
+    teachLanguage(held);
+    // Only a pane that has a tree: one that has not been asked for an image has
+    // nothing to say in the new language, and asking would parse it for nobody.
+    if (firmwareFor(pane as PaneId) !== undefined) void parsePaneFirmware(pane as PaneId);
+  }
+});
+
 function ensureWorker(pane: PaneId): PaneWorker {
   const existing = workers[pane];
   if (existing !== undefined) return existing;
@@ -119,6 +146,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
     type: "module",
   });
   const held: PaneWorker = { worker, job: 0, latest: new Map() };
+  teachLanguage(held);
   worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) => {
     const response = event.data;
     // A reply to a superseded job is an answer to an old question — and what

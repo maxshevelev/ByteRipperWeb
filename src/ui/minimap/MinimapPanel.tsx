@@ -402,7 +402,7 @@ function MinimapModes({
   return (
     <div className="minimap-head" style={height > 0 ? { height, marginTop: offsetTop } : undefined}>
       <fieldset className="minimap-modes">
-        <legend className="visually-hidden">Minimap mode</legend>
+        <legend className="visually-hidden">{L("Minimap mode")}</legend>
         {/* help: menu.view.minimap-overview */}
         {(["detail", "overview"] as const).map((mode) => (
           <button

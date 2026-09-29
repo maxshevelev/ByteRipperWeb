@@ -17,8 +17,8 @@
  *   be megabytes of typed array; sending it by structured clone would copy it.
  */
 
+import type { Catalogue } from "@/core/localization/localization";
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
-
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
@@ -536,8 +536,23 @@ export interface MeChecksumsRequest {
   readonly id: JobId;
 }
 
+/**
+ * The words the worker is to speak.
+ *
+ * A worker is a module graph of its own, and the catalogue the app installed is
+ * not in it: without this every node a parse names would be named in English.
+ * Sent when the worker starts and again when the reader changes the language.
+ *
+ * @web-only upstream parses on the main thread, where the catalogue already is
+ */
+export interface SpeakLanguageRequest {
+  readonly kind: "speakLanguage";
+  readonly catalogue: Catalogue;
+}
+
 export type FirmwareWorkerRequest =
   | FirmwareOpenRequest
+  | SpeakLanguageRequest
   | MeChecksumsRequest
   | FirmwareDetailRequest
   | FirmwareLayoutRequest

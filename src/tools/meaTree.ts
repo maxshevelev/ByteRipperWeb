@@ -1,4 +1,5 @@
 import { type HelpTermId, termId } from "@/core/help/helpIds";
+import { L, localized } from "@/core/localization/localization";
 import type {
   EFSFile,
   MFSConfigIDRecord,
@@ -146,7 +147,7 @@ export interface MEAChecksums {
  */
 export const CHECKSUMS_TITLE = "Checksums";
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.pendingValue */
-export const PENDING_VALUE = "Loading…";
+export const PENDING_VALUE = L("Loading…");
 
 /** A node before its place in the tree is known. */
 interface Draft {
@@ -277,7 +278,7 @@ export function meaZones(focus: MEANode | undefined): ZoneMap {
     zones: [
       {
         id,
-        name: focus.title.length === 0 ? "(unnamed)" : focus.title,
+        name: focus.title.length === 0 ? L("(unnamed)") : focus.title,
         start: focus.range.start,
         end: focus.range.end,
       },
@@ -297,16 +298,16 @@ function firmware(a: FirmwareAnalysis): Draft {
   const fields = new Fields()
     .add("Family", familyText(a.family))
     .add("Variant", a.variant, true)
-    .add("Version", version)
+    .add(L("Version"), version)
     .add("MEU Version", meuVersion(a))
     .add("Security Version", a.securityVersion, true)
-    .add("Release", titleText(a.release))
-    .add("Type", titleText(a.type))
+    .add(L("Release"), titleText(a.release))
+    .add(L("Type"), titleText(a.type))
     .add("SKU", a.sku, true)
     .add("Platform", a.platform, true)
     .add("Chipset Stepping", a.chipsetStepping, true)
     .add("Manufacture Date", manufactureDate(a))
-    .add("Size", sizeText(a.sizeBytes))
+    .add(L("Size"), sizeText(a.sizeBytes))
     .add("Database Name", a.databaseName, true)
     .add(
       "RSA Signature Valid",
@@ -331,7 +332,7 @@ function firmware(a: FirmwareAnalysis): Draft {
     );
   }
   return {
-    title: "Firmware",
+    title: L("Firmware"),
     helpTerm: termId("me"),
     subtitle: `${familyText(a.family)} · ${version}`,
     fields: fields.rows,
@@ -367,19 +368,19 @@ function regions(a: FirmwareAnalysis): Draft | undefined {
   if (a.regions.length === 0) return undefined;
   const rows = a.regions.map(
     (region): Draft => ({
-      title: region.name.length === 0 ? "(unnamed)" : region.name,
+      title: region.name.length === 0 ? L("(unnamed)") : region.name,
       subtitle: rangeText(region.offset, region.size),
       range: rangeValue(region.offset, region.size),
       fields: new Fields()
         .add("Name", region.name, true)
         .add("Offset", offsetText(region.offset))
-        .add("Size", sizeText(region.size))
-        .add("Flags", hex32(region.flags)).rows,
+        .add(L("Size"), sizeText(region.size))
+        .add(L("Flags"), hex32(region.flags)).rows,
       isEmptySection: region.size === 0,
     })
   );
   return {
-    title: "Regions (FPT)",
+    title: L("Regions (FPT)"),
     subtitle: countText(rows.length, "region"),
     children: rows,
     helpTerm: termId("fpt"),
@@ -391,32 +392,32 @@ function cseLayout(a: FirmwareAnalysis): Draft | undefined {
   if (table === undefined) return undefined;
   const rows = table.partitions.map(
     (p): Draft => ({
-      title: p.name.length === 0 ? "(unnamed)" : p.name,
+      title: p.name.length === 0 ? L("(unnamed)") : p.name,
       subtitle: rangeText(p.offset, p.size),
       range: p.empty ? undefined : rangeValue(p.offset, p.size),
       fields: new Fields()
         .add("Name", p.name, true)
         .add("Offset", offsetText(p.offset))
-        .add("Size", sizeText(p.size))
-        .add("Empty", yesNo(p.empty)).rows,
+        .add(L("Size"), sizeText(p.size))
+        .add(L("Empty"), yesNo(p.empty)).rows,
       // The layout's own flag: a slot with no offset or size, or erased content.
       isEmptySection: p.empty,
     })
   );
   return {
-    title: "CSE Layout Table",
+    title: L("CSE Layout Table"),
     helpTerm: termId("cse-layout-table"),
     subtitle: countText(table.partitions.length, "partition"),
     fields: new Fields()
       .add("Offset", offsetText(table.offset))
-      .add("Version", hex(table.version))
+      .add(L("Version"), hex(table.version))
       .add("Redundancy", yesNo(table.redundancy))
       .add(
         "Checksum Valid",
         table.checksumValid === undefined ? "— (1.6 has none)" : yesNo(table.checksumValid)
       ).rows,
     children: rows,
-    marks: tableMarks("CSE Layout Table", table.checksumValid),
+    marks: tableMarks(L("CSE Layout Table"), table.checksumValid),
   };
 }
 
@@ -427,7 +428,7 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
     const header = new Fields()
       .add("Offset", offsetText(bpdt.offset))
       .add("Boot Slot", bpdt.partitionName)
-      .add("Version", `IFWI ${bpdt.version === 2 ? "1.7" : "1.6"}`)
+      .add(L("Version"), `IFWI ${bpdt.version === 2 ? "1.7" : "1.6"}`)
       .add("Redundancy", yesNo(bpdt.redundancy))
       .add(
         "Checksum Valid",
@@ -442,15 +443,15 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
     }
     const entries = bpdt.entries.map(
       (e): Draft => ({
-        title: e.name.length === 0 ? "(unnamed)" : e.name,
+        title: e.name.length === 0 ? L("(unnamed)") : e.name,
         subtitle: rangeText(e.offset, e.size),
         range: e.empty ? undefined : rangeValue(e.offset, e.size),
         fields: new Fields()
           .add("Name", e.name, true)
-          .add("Type", hex16(e.type))
+          .add(L("Type"), hex16(e.type))
           .add("Offset", offsetText(e.offset))
-          .add("Size", sizeText(e.size))
-          .add("Empty", yesNo(e.empty)).rows,
+          .add(L("Size"), sizeText(e.size))
+          .add(L("Empty"), yesNo(e.empty)).rows,
         isEmptySection: e.empty,
       })
     );
@@ -463,7 +464,7 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
     };
   });
   return {
-    title: "Boot Partitions (BPDT)",
+    title: L("Boot Partitions (BPDT)"),
     helpTerm: termId("bpdt"),
     subtitle: countText(tables.length, "table"),
     children: rows,
@@ -476,7 +477,7 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
   const header = new Fields()
     .add("Name", cp.name)
     .add("Offset", offsetText(cp.offset))
-    .add("Header", `R${cp.headerVersion}`)
+    .add(L("Header"), `R${cp.headerVersion}`)
     .add("Header Length", hex(cp.headerLength))
     .add("Declared Modules", cp.numModules)
     .add("Decoded Modules", cp.modules.length)
@@ -495,24 +496,28 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
           .add("Name", m.name)
           // Module offsets are absolute in this model; upstream's count from the $CPD.
           .add("Offset in $CPD", offsetText(m.offset - cp.offset))
-          .add("Size", sizeText(m.size))
+          .add(L("Size"), sizeText(m.size))
           .add("Huffman", yesNo(m.isHuffman)).rows,
         isEmptySection: m.size === 0,
         marks: moduleMarks(m, cp, a),
       })
     );
-    children.push({ title: "Modules", subtitle: countText(rows.length, "module"), children: rows });
+    children.push({
+      title: L("Modules"),
+      subtitle: countText(rows.length, "module"),
+      children: rows,
+    });
   }
   if (cp.extensions.length > 0) {
     const rows = cp.extensions.map(extensionRow);
     children.push({
-      title: "Extensions",
+      title: L("Extensions"),
       subtitle: countText(rows.length, "block"),
       children: rows,
     });
   }
   return {
-    title: "Code Partition ($CPD)",
+    title: L("Code Partition ($CPD)"),
     helpTerm: termId("cpd"),
     subtitle: `${cp.name} · ${cp.headerVersion === 1 ? "R1" : "R2"}`,
     fields: header.rows,
@@ -521,12 +526,12 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
   };
 }
 
-const EXTENSION_NAMES: Readonly<Record<number, string>> = {
+const EXTENSION_NAMES: () => Readonly<Record<number, string>> = localized(() => ({
   0: "System Info",
   1: "Init Script",
   2: "Feature Permissions",
   3: "Partition Info",
-  4: "Shared Library",
+  4: L("Shared Library"),
   5: "Process Attributes",
   6: "Thread Attributes",
   7: "Device Types",
@@ -538,7 +543,7 @@ const EXTENSION_NAMES: Readonly<Record<number, string>> = {
   13: "User Info",
   15: "Signed Package",
   22: "Partition Info",
-};
+}));
 
 /**
  * The one decoded payload of an extension, in upstream's order of asking. The
@@ -571,11 +576,11 @@ function extensionRow(ext: CPDExtension): Draft {
   const fields = new Fields()
     .add("Tag", hexByte(ext.tag))
     .add("Offset", offsetText(ext.offset))
-    .add("Size", sizeText(ext.size)).rows;
+    .add(L("Size"), sizeText(ext.size)).rows;
   const payload = payloadOf(ext);
   if (payload !== undefined) fields.push(...valueFields(payload));
   return {
-    title: EXTENSION_NAMES[ext.tag] ?? `CSE_Ext ${hexByte(ext.tag)}`,
+    title: EXTENSION_NAMES()[ext.tag] ?? `CSE_Ext ${hexByte(ext.tag)}`,
     subtitle: rangeText(ext.offset, ext.size),
     range: rangeValue(ext.offset, ext.size),
     fields,
@@ -587,16 +592,16 @@ function manifest(a: FirmwareAnalysis): Draft | undefined {
   const m = a.manifest;
   if (m === undefined) return undefined;
   return {
-    title: "Manifest",
+    title: L("Manifest"),
     helpTerm: termId("manifest"),
     subtitle: `${m.tag} · ${manifestFormatText(m.format)}`,
     fields: new Fields()
       .add("Tag", m.tag)
       .add("Format", manifestFormatText(m.format))
       .add("Offset", offsetText(m.offset))
-      .add("Version", plainVersion(m.major, m.minor, m.hotfix, m.build))
+      .add(L("Version"), plainVersion(m.major, m.minor, m.hotfix, m.build))
       .add("SVN", m.svn)
-      .add("Date", dateText(m.year, m.month, m.day))
+      .add(L("Date"), dateText(m.year, m.month, m.day))
       .add("Key SHA-256", m.keyHash, true)
       .add("Signature SHA-256", m.signatureHash, true)
       .add("VCN", m.vcn)
@@ -640,14 +645,14 @@ function mfsVolume(
   const children: Draft[] = [];
   if (vol.files.length > 0) {
     const rows = vol.files.map((f): Draft => mfsFileRow(f, names));
-    children.push({ title: "Files", subtitle: countText(rows.length, "file"), children: rows });
+    children.push({ title: L("Files"), subtitle: countText(rows.length, "file"), children: rows });
   }
   if (vol.configurations.length > 0) {
     const rows = vol.configurations.map(
       (config, index): Draft => ({ title: `Configuration ${index}`, fields: valueFields(config) })
     );
     children.push({
-      title: "Configurations",
+      title: L("Configurations"),
       subtitle: countText(rows.length, "record"),
       children: rows,
     });
@@ -663,7 +668,7 @@ function mfsVolume(
   if (vol.homeDirectory !== undefined) {
     const home = vol.homeDirectory;
     children.push({
-      title: "Home Directory",
+      title: L("Home Directory"),
       subtitle: countText(home.entries.length, "entry"),
       fields: new Fields()
         .add("Record Size", hex(home.homeRecordSize))
@@ -677,13 +682,13 @@ function mfsVolume(
       (one, index): Draft => ({ title: `Integrity ${index + 1}`, fields: valueFields(one) })
     );
     children.push({
-      title: "File Integrity",
+      title: L("File Integrity"),
       subtitle: countText(rows.length, "table"),
       children: rows,
     });
   }
   return {
-    title: "File System (MFS)",
+    title: L("File System (MFS)"),
     helpTerm: termId("mfs"),
     subtitle: countText(vol.presentFileCount, "file"),
     fields: header.rows,
@@ -704,17 +709,17 @@ function mfsVolume(
  */
 function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
   const record = names.record(file.index);
-  const fields = new Fields().add("Index", file.index);
+  const fields = new Fields().add(L("Index"), file.index);
   // The file's own bytes where the Integrity table has been taken off the end,
   // which is the size upstream prints — with the whole chain beside it, because
   // that is what the volume spent on the file.
-  fields.add("Size", sizeText(file.contentSize ?? file.size));
+  fields.add(L("Size"), sizeText(file.contentSize ?? file.size));
   if (file.contentSize !== undefined) fields.add("Chain Size", sizeText(file.size));
   if (record !== undefined) {
     fields
       .add("Path", record.path)
       .add("File ID", `0x${record.fileID}`)
-      .add("Integrity", yesNo(record.integrity))
+      .add(L("Integrity"), yesNo(record.integrity))
       .add("Encryption", yesNo(record.encryption))
       .add("Anti-Replay", yesNo(record.antiReplay))
       .add("Group ID", hex(record.groupID))
@@ -726,7 +731,7 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
   const children: Draft[] = [];
   if (file.integrity !== undefined) {
     children.push({
-      title: "Integrity",
+      title: L("Integrity"),
       subtitle: sizeText(file.integrity.size),
       fields: valueFields(file.integrity),
     });
@@ -756,13 +761,13 @@ function mfsFileSubtitle(file: MFSFile, named: boolean): string {
 function homeRow(record: MFSHomeRecord): Draft {
   const fields = new Fields()
     .add("File Index", record.fileIndex)
-    .add("Kind", record.isFolder ? "Folder" : "File")
+    .add(L("Kind"), record.isFolder ? "Folder" : L("File"))
     .add("File System", record.fileSystemID);
-  if (!record.isFolder) fields.add("Size", sizeText(record.size));
+  if (!record.isFolder) fields.add(L("Size"), sizeText(record.size));
   return {
     title:
       record.name.length === 0
-        ? `${record.isFolder ? "Folder" : "File"} ${record.fileIndex}`
+        ? `${record.isFolder ? "Folder" : L("File")} ${record.fileIndex}`
         : record.name,
     subtitle: `${record.isFolder ? "folder" : "file"} #${record.fileIndex}`,
     fields: fields.rows,
@@ -829,7 +834,7 @@ function samePchInit(one: MFSPCHInit, other: MFSPCHInit): boolean {
  */
 function pchGroup(pch: MFSPCHInit): Draft {
   return {
-    title: "Chipset Initialization",
+    title: L("Chipset Initialization"),
     helpTerm: termId("pch-init"),
     fields: new Fields().add("Records", pch.records.length).add("Chipsets", pch.chipsets.length)
       .rows,
@@ -837,17 +842,17 @@ function pchGroup(pch: MFSPCHInit): Draft {
       (one): Draft => ({
         title: one.chipset,
         subtitle: one.steppings,
-        fields: [field("Chipset", one.chipset), field("Steppings", one.steppings)],
+        fields: [field(L("Chipset"), one.chipset), field(L("Steppings"), one.steppings)],
       })
     ),
   };
 }
 
-const BACKUP_FILE_NAMES: Readonly<Record<number, string>> = {
+const BACKUP_FILE_NAMES: () => Readonly<Record<number, string>> = localized(() => ({
   6: "Intel Configuration",
-  7: "OEM Configuration",
+  7: L("OEM Configuration"),
   9: "Manifest Backup",
-};
+}));
 
 function backupGroup(a: FirmwareAnalysis): Draft | undefined {
   const backup = a.mfsBackup;
@@ -877,13 +882,13 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
       );
   }
   const rows = backup.entries.map((entry): Draft => {
-    const name = BACKUP_FILE_NAMES[entry.fileIndex];
+    const name = BACKUP_FILE_NAMES()[entry.fileIndex];
     return {
       title: `Entry ${entry.fileIndex}`,
       subtitle: name ?? `low-level file ${entry.fileIndex}`,
       fields: new Fields()
         .add("File Index", entry.fileIndex)
-        .add("File", name ?? `Low-level file ${entry.fileIndex}`)
+        .add(L("File"), name ?? `Low-level file ${entry.fileIndex}`)
         .add("Blob Offset", offsetText(entry.blobOffset))
         .add("Blob Size", sizeText(entry.blobSize))
         .add("Data Size", sizeText(entry.dataSize))
@@ -895,7 +900,7 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
     };
   });
   return {
-    title: "MFS Backup",
+    title: L("MFS Backup"),
     subtitle: format,
     fields: fields.rows,
     children: rows,
@@ -918,10 +923,10 @@ function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
   const children: Draft[] = [];
   if (efs.files.length > 0) {
     const rows = efs.files.map((one): Draft => efsFileRow(one, names));
-    children.push({ title: "Files", subtitle: countText(rows.length, "file"), children: rows });
+    children.push({ title: L("Files"), subtitle: countText(rows.length, "file"), children: rows });
   }
   return {
-    title: "EFS Volume",
+    title: L("EFS Volume"),
     helpTerm: termId("efs"),
     subtitle: offsetText(efs.offset),
     fields,
@@ -940,7 +945,7 @@ function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.efsFileRow
  */
 function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
-  const fields = new Fields().add("VFS ID", file.fileID).add("Size", sizeText(file.contentSize));
+  const fields = new Fields().add("VFS ID", file.fileID).add(L("Size"), sizeText(file.contentSize));
   if (file.contentSize !== file.storedSize) {
     // What the file's own metadata says it stores, Integrity included — the
     // difference is the table taken off the end.
@@ -954,7 +959,7 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
     fields
       .add("Path", record.path)
       .add("File ID", `0x${record.fileID}`)
-      .add("Integrity", yesNo(record.integrity))
+      .add(L("Integrity"), yesNo(record.integrity))
       .add("Encryption", yesNo(record.encryption))
       .add("Anti-Replay", yesNo(record.antiReplay))
       .add("Group ID", hex(record.groupID))
@@ -963,7 +968,7 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
   const children: Draft[] = [];
   if (file.integrity !== undefined) {
     children.push({
-      title: "Integrity",
+      title: L("Integrity"),
       subtitle: sizeText(file.integrity.size),
       fields: valueFields(file.integrity),
     });
@@ -1006,7 +1011,7 @@ function oemGroup(
   }
   const children: Draft[] = [];
   if (byID.length > 0) {
-    children.push(configByIDGroup(byID, "Configuration Records", paths, oem.payloadOffset));
+    children.push(configByIDGroup(byID, L("Configuration Records"), paths, oem.payloadOffset));
   }
   if (byName.length > 0) {
     const rows = byName.map(
@@ -1017,13 +1022,13 @@ function oemGroup(
       })
     );
     children.push({
-      title: "Configuration Records",
+      title: L("Configuration Records"),
       subtitle: countText(rows.length, "record"),
       children: rows,
     });
   }
   return {
-    title: "OEM Configuration",
+    title: L("OEM Configuration"),
     helpTerm: termId("oem-config"),
     subtitle: offsetText(oem.offset),
     fields,
@@ -1071,7 +1076,7 @@ function delayedAuthenticationMode(raw: number): string {
     case 0:
       return "No";
     case 1:
-      return "Yes";
+      return L("Yes");
     default:
       return `Unknown (${raw})`;
   }
@@ -1123,7 +1128,7 @@ function configIDRow(
     fields: new Fields()
       .add("File ID", `0x${fileID}`)
       .add("Path", path)
-      .add("Size", sizeText(record.size))
+      .add(L("Size"), sizeText(record.size))
       .add("Offset", hex(record.offset))
       // Upstream's "FIT" column: an OEM `fitc.cfg` setting may override the
       // Intel `intl.cfg` one through the Flash Image Tool.
@@ -1144,7 +1149,7 @@ function configStreamTitle(owningFile: number): string {
     case 6:
       return "Intel Configuration";
     case 7:
-      return "OEM Configuration";
+      return L("OEM Configuration");
     default:
       return `Configuration ${owningFile}`;
   }
@@ -1154,10 +1159,10 @@ function mmeGroup(a: FirmwareAnalysis): Draft | undefined {
   const dir = a.mmeDirectory;
   if (dir === undefined) return undefined;
   return {
-    title: "$MME Directory",
+    title: L("$MME Directory"),
     helpTerm: termId("mme"),
     fields: new Fields()
-      .add("Manifest", dir.manifestTag)
+      .add(L("Manifest"), dir.manifestTag)
       .add("Offset", offsetText(dir.offset))
       .add("Declared Modules", dir.declaredModules)
       .add("Decoded Modules", dir.modules.length).rows,
@@ -1171,7 +1176,7 @@ function gscGroup(a: FirmwareAnalysis): Draft | undefined {
   const gsc = a.gscInfo;
   return gsc === undefined
     ? undefined
-    : { title: "GSC Info", fields: valueFields(gsc), helpTerm: termId("gsc") };
+    : { title: L("GSC Info"), fields: valueFields(gsc), helpTerm: termId("gsc") };
 }
 
 function oromGroup(a: FirmwareAnalysis): Draft | undefined {
@@ -1185,7 +1190,7 @@ function oromGroup(a: FirmwareAnalysis): Draft | undefined {
     })
   );
   return {
-    title: "OROM Images",
+    title: L("OROM Images"),
     subtitle: countText(rows.length, "image"),
     children: rows,
     helpTerm: termId("orom"),
@@ -1215,16 +1220,16 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
     // Every hash accounted for is a check that passed: the done mark.
     fields.push(
       unmatched.length === 0
-        ? field("Unmatched Hashes", "None", "good")
-        : field("Unmatched Hashes", String(unmatched.length))
+        ? field(L("Unmatched Hashes"), "None", "good")
+        : field(L("Unmatched Hashes"), String(unmatched.length))
     );
     if (unmatched.length > 0) {
       nodes.push({
-        title: "Unmatched Hashes",
+        title: L("Unmatched Hashes"),
         subtitle: String(unmatched.length),
         fields: [
           field(
-            "Meaning",
+            L("Meaning"),
             "Listed by the rbe or pm metadata table, and hashed to by no module of the image — " +
               "most often an encrypted module (NFTP pavp, PCOD), which cannot be hashed as it is loaded"
           ),
@@ -1232,7 +1237,7 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
         children: unmatched.map((hash, index) => ({
           title: `Hash ${index + 1}`,
           subtitle: `${hash.slice(0, 16)}…`,
-          fields: [field("Hash", hash)],
+          fields: [field(L("Hash"), hash)],
           marks,
         })),
         marks,
@@ -1240,7 +1245,7 @@ function rbeGroup(a: FirmwareAnalysis): Draft | undefined {
     }
   }
   return {
-    title: "RBE/PM Metadata",
+    title: L("RBE/PM Metadata"),
     helpTerm: termId("rbe-pm"),
     subtitle: countText(rows.length, "row"),
     fields,
@@ -1280,10 +1285,10 @@ function issuesGroup(a: FirmwareAnalysis): Draft | undefined {
     return {
       title: name,
       subtitle: issue.message,
-      fields: [field("Severity", name), field("Message", issue.message)],
+      fields: [field(L("Severity"), name), field(L("Message"), issue.message)],
     };
   });
-  return { title: "Issues", subtitle: countText(rows.length, "issue"), children: rows };
+  return { title: L("Issues"), subtitle: countText(rows.length, "issue"), children: rows };
 }
 
 // MARK: - A structure nobody hand-mapped

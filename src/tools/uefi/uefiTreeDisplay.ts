@@ -1,3 +1,4 @@
+import { L, localized } from "@/core/localization/localization";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
 import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
@@ -142,7 +143,7 @@ export function summary<T extends DisplayNode<T>>(
   roots: readonly T[],
   protectedRangeCount = 0
 ): string {
-  if (roots.length === 0) return "Nothing here looks like a firmware image.";
+  if (roots.length === 0) return L("Nothing here looks like a firmware image.");
   const lead = titleLead(roots);
   // The image names protected ranges at all: the one thing about it that says
   // some edits are not free.
@@ -181,7 +182,7 @@ export function nodeName(
 ): string {
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.
-  if (node.kind === "file" && node.subtype === 0xf0) return "Padding file";
+  if (node.kind === "file" && node.subtype === 0xf0) return L("Padding file");
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
@@ -189,12 +190,12 @@ export function nodeName(
   return catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
 }
 
-const KIND_LABELS: Readonly<Record<UEFINodeKind, string>> = {
+const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() => ({
   capsule: "Capsule",
   intelImage: "Intel image",
   uefiImage: "UEFI image",
   flashDescriptor: "Flash descriptor",
-  region: "Region",
+  region: L("Region"),
   volume: "Volume",
   file: "FFS file",
   section: "Section",
@@ -216,12 +217,12 @@ const KIND_LABELS: Readonly<Record<UEFINodeKind, string>> = {
   flashMapEntry: typeName(ItemType.phoenixFlashMapEntry),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
   flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
-  padding: "Padding",
-  freeSpace: "Free space",
-  nonUEFIData: "Non-UEFI data",
-};
+  padding: L("Padding"),
+  freeSpace: L("Free space"),
+  nonUEFIData: L("Non-UEFI data"),
+}));
 
 /** The word for a node's kind. */
 export function kindLabel(kind: string): string {
-  return KIND_LABELS[kind as UEFINodeKind] ?? kind;
+  return KIND_LABELS()[kind as UEFINodeKind] ?? kind;
 }

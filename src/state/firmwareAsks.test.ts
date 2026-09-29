@@ -14,7 +14,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FirmwareWorkerRequest } from "@/workers/protocol";
+import type { FirmwareWorkerRequest, JobId } from "@/workers/protocol";
 
 /** Every request the store has sent, in order. */
 let posted: FirmwareWorkerRequest[] = [];
@@ -47,7 +47,12 @@ const reply = (response: unknown) => {
   for (const listener of listeners) listener({ data: response });
 };
 
-const sent = (kind: string) => posted.filter((request) => request.kind === kind);
+// Every ask carries a job id; the language, which is not an ask, does not.
+const sent = (kind: string) =>
+  posted.filter(
+    (request): request is Extract<FirmwareWorkerRequest, { id: JobId }> =>
+      request.kind === kind && "id" in request
+  );
 
 /** The pane, with a tree the worker has answered for: asks go out only then. */
 async function readyPane(): Promise<void> {

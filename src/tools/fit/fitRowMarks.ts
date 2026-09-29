@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { FIT } from "@/firmware/fit/fitEntry";
 import { type FITProblem, fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITDisplayRow } from "@/tools/fit/fitDisplay";
@@ -55,9 +56,11 @@ export const FIT_ROW_MARKS = {
 export function holdsChecks(type: number): string | undefined {
   switch (type) {
     case FIT.keyManifestType:
-      return "Holds the Boot Guard Key Manifest: the key the Boot Policy is signed with";
+      return L("Holds the Boot Guard Key Manifest: the key the Boot Policy is signed with");
     case FIT.bootPolicyType:
-      return "Holds the Boot Guard Boot Policy: the IBB segments and the hash they are checked against";
+      return L(
+        "Holds the Boot Guard Boot Policy: the IBB segments and the hash they are checked against"
+      );
     default:
       return undefined;
   }
@@ -88,7 +91,7 @@ export function fitRowMarks(row: FITDisplayRow, problems: readonly FITProblem[])
           `should be ${hex(computed)}`
       );
     } else {
-      cautions.push("The microcode image cannot be read whole, so its checksum is not checked");
+      cautions.push(L("The microcode image cannot be read whole, so its checksum is not checked"));
     }
   }
 

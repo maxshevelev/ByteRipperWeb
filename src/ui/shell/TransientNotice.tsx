@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, localized } from "@/core/localization/localization";
 import { type Notice, type NoticeGlyph, noticeStore } from "@/state/noticeStore";
 import { useStore } from "@/state/useStore";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
@@ -22,7 +22,7 @@ const SYMBOL_SIZE = 72;
 const GLYPH_SIZE = 76;
 
 /** What a plate that is only its glyph says to a reader who cannot see it. */
-const GLYPH_LABEL: Record<NoticeGlyph, string> = {
+const GLYPH_LABEL: () => Record<NoticeGlyph, string> = localized(() => ({
   wrapForward: "The search came round the end of the file",
   wrapBackward: "The search came round the start of the file",
   smartSearch: "Smart search",
@@ -30,7 +30,7 @@ const GLYPH_LABEL: Record<NoticeGlyph, string> = {
   copySummary: "Summary copied",
   copyScreenshot: "Screenshot copied",
   warning: "The selection is too long to search for",
-};
+}));
 
 /**
  * Where the notices are drawn: over the whole window, never in the way.
@@ -90,7 +90,7 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
       className="transient-notice"
       data-leaving={leaving ? "" : undefined}
       role="status"
-      aria-label={glyphOnly ? GLYPH_LABEL[notice.glyph] : notice.lines.join(" ")}
+      aria-label={glyphOnly ? GLYPH_LABEL()[notice.glyph] : notice.lines.join(" ")}
     >
       <Glyph glyph={notice.glyph} size={glyphOnly ? GLYPH_SIZE : SYMBOL_SIZE} />
       {glyphOnly ? null : (

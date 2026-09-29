@@ -120,6 +120,33 @@ export function L(key: string, ...rest: readonly (LContext | LMessageArgument)[]
 }
 
 /**
+ * A table of words that follows the language.
+ *
+ * A module-level constant built out of `L` calls is written once, in whatever
+ * language was in force when its module was imported — which is English, since
+ * the catalogue is installed after the imports have run, and it stays English
+ * when the reader changes the language, because nothing rebuilds it. This keeps
+ * such a table's shape and re-derives it the first time it is read under a
+ * different catalogue, so the cost is one build per language rather than one
+ * per lookup.
+ *
+ * Upstream has no counterpart: a Swift global is built on first use and its app
+ * takes a restart to change language, so a table there is never stale.
+ *
+ * @web-only the language changes under a running page, so a table of words has
+ * to be able to change with it
+ */
+export function localized<T>(build: () => T): () => T {
+  let made: { readonly catalogue: Catalogue; readonly value: T } | undefined;
+  return () => {
+    if (made === undefined || made.catalogue !== current) {
+      made = { catalogue: current, value: build() };
+    }
+    return made.value;
+  };
+}
+
+/**
  * Puts `args` into `format` at its positional placeholders.
  *
  * `%1$@` takes the first, `%2$@` the second, in whatever order the sentence

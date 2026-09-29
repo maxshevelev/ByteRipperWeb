@@ -13,6 +13,8 @@
  * the network to say what a BIOS region is.
  */
 
+import { L, localized } from "@/core/localization/localization";
+
 /**
  * The item-type codes, `Root = 0x3C` and counting.
  *
@@ -236,16 +238,16 @@ export const Sub = {
 } as const;
 
 /** `itemTypeToUString`, transcribed. */
-const TYPE_NAMES: Readonly<Record<number, string>> = {
+const TYPE_NAMES: () => Readonly<Record<number, string>> = localized(() => ({
   60: "Root",
   61: "Capsule",
   62: "Image",
-  63: "Region",
-  64: "Padding",
+  63: L("Region"),
+  64: L("Padding"),
   65: "Volume",
-  66: "File",
+  66: L("File"),
   67: "Section",
-  68: "Free space",
+  68: L("Free space"),
   69: "VSS store",
   70: "VSS2 store",
   71: "FTW store",
@@ -283,7 +285,7 @@ const TYPE_NAMES: Readonly<Record<number, string>> = {
   103: "Table",
   104: "Table entry",
   105: "AMD microcode",
-};
+}));
 
 /** `regionTypeToUString`, transcribed: the flash-descriptor region type. */
 const REGION_NAMES: Readonly<Record<number, string>> = {
@@ -313,45 +315,47 @@ const REGION_NAMES: Readonly<Record<number, string>> = {
  * in from `regionTypeToUString`; File and Section are absent on purpose, named
  * by the FFS and section type tables at run time.
  */
-const SUBTYPE_NAMES: Readonly<Record<number, Readonly<Record<number, string>>>> = {
-  61: { 100: "Aptio signed", 101: "Aptio unsigned", 102: "UEFI 2.0", 103: "Toshiba" },
-  62: { 90: "Intel", 91: "UEFI", 92: "AMD" },
-  63: {
-    0: "Descriptor",
-    1: "BIOS",
-    2: "ME",
-    3: "GbE",
-    4: "PDR",
-    5: "DevExp1",
-    6: "BIOS2",
-    7: "Microcode",
-    8: "EC",
-    9: "DevExp2",
-    10: "IE",
-    11: "10GbE1",
-    12: "10GbE2",
-    13: "Reserved1",
-    14: "Reserved2",
-    15: "PTT",
-    16: "PSP directory",
-    17: "PSP L2 directory",
-    18: "PSP file",
-  },
-  64: { 120: "Empty (00h)", 121: "Empty (FFh)", 122: "Non-empty" },
-  65: { 110: "Unknown", 111: "FFSv2", 112: "FFSv3", 113: "NVRAM", 114: "Apple microcode" },
-  80: { 130: "Invalid", 131: "Invalid link", 132: "Link", 133: "Data", 134: "Full" },
-  81: { 140: "Invalid", 141: "Standard", 142: "Apple", 143: "Auth", 144: "Intel" },
-  82: { 150: "Invalid", 151: "Normal" },
-  83: { 160: "Invalid", 161: "Unknown", 162: "GUID", 163: "Name", 164: "Data" },
-  84: { 170: "Volume", 171: "Data", 172: "Unknown" },
-  86: { 180: "Invalid", 181: "NamespaceGuid", 182: "NameId", 183: "Unknown" },
-  90: { 210: "Data", 211: "Boot" },
-  92: { 220: "Valid", 221: "Invalid" },
-  93: { 230: "Code", 231: "Data", 232: "GLUT" },
-  99: { 240: "Manifest", 241: "Metadata", 242: "Key", 243: "Code" },
-  102: { 250: "X86 128K" },
-  103: { 155: "PSP table", 156: "Combo table", 157: "BIOS table", 158: "ISH table" },
-};
+const SUBTYPE_NAMES: () => Readonly<Record<number, Readonly<Record<number, string>>>> = localized(
+  () => ({
+    61: { 100: "Aptio signed", 101: "Aptio unsigned", 102: "UEFI 2.0", 103: "Toshiba" },
+    62: { 90: "Intel", 91: "UEFI", 92: "AMD" },
+    63: {
+      0: "Descriptor",
+      1: "BIOS",
+      2: "ME",
+      3: "GbE",
+      4: "PDR",
+      5: "DevExp1",
+      6: "BIOS2",
+      7: "Microcode",
+      8: "EC",
+      9: "DevExp2",
+      10: "IE",
+      11: "10GbE1",
+      12: "10GbE2",
+      13: "Reserved1",
+      14: "Reserved2",
+      15: "PTT",
+      16: "PSP directory",
+      17: "PSP L2 directory",
+      18: "PSP file",
+    },
+    64: { 120: "Empty (00h)", 121: "Empty (FFh)", 122: "Non-empty" },
+    65: { 110: L("Unknown"), 111: "FFSv2", 112: "FFSv3", 113: "NVRAM", 114: "Apple microcode" },
+    80: { 130: L("Invalid"), 131: "Invalid link", 132: "Link", 133: "Data", 134: "Full" },
+    81: { 140: L("Invalid"), 141: "Standard", 142: "Apple", 143: "Auth", 144: "Intel" },
+    82: { 150: L("Invalid"), 151: "Normal" },
+    83: { 160: L("Invalid"), 161: L("Unknown"), 162: "GUID", 163: "Name", 164: "Data" },
+    84: { 170: "Volume", 171: "Data", 172: L("Unknown") },
+    86: { 180: L("Invalid"), 181: "NamespaceGuid", 182: "NameId", 183: L("Unknown") },
+    90: { 210: "Data", 211: "Boot" },
+    92: { 220: "Valid", 221: L("Invalid") },
+    93: { 230: "Code", 231: "Data", 232: "GLUT" },
+    99: { 240: L("Manifest"), 241: "Metadata", 242: "Key", 243: "Code" },
+    102: { 250: "X86 128K" },
+    103: { 155: "PSP table", 156: "Combo table", 157: "BIOS table", 158: "ISH table" },
+  })
+);
 
 const unknown = (code: number) => `Unknown ${code.toString(16).toUpperCase().padStart(2, "0")}h`;
 
@@ -361,7 +365,7 @@ const unknown = (code: number) => `Unknown ${code.toString(16).toUpperCase().pad
  * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.typeName
  */
 export function typeName(type: number): string {
-  return TYPE_NAMES[type] ?? unknown(type);
+  return TYPE_NAMES()[type] ?? unknown(type);
 }
 
 /**
@@ -381,5 +385,5 @@ export function regionName(type: number): string {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITypes.swift#UEFITypes.subtypeName
  */
 export function subtypeName(type: number, subtype: number): string | undefined {
-  return SUBTYPE_NAMES[type]?.[subtype];
+  return SUBTYPE_NAMES()[type]?.[subtype];
 }

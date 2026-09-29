@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
@@ -235,7 +236,7 @@ export function parseFile(
     // the file is called what it is.
     name:
       type === FFS.padType
-        ? "Padding file"
+        ? L("Padding file")
         : (nameOfGuid(name) ?? userInterfaceName(parser, children) ?? fileTypeName(type)),
     guid: name,
     header: { start: offset, end: offset + headerSize },

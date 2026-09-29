@@ -136,12 +136,12 @@ export function SelectBlockDialog({
       <form className="dialog-body" onSubmit={submit}>
         {presetStart === undefined ? (
           <p className="dialog-help">
-            Select a byte range by absolute offsets. End is the block's last byte.
+            {L("Select a byte range by absolute offsets. End is the block's last byte.")}
           </p>
         ) : null}
 
         <label className="dialog-field">
-          Start
+          {L("Start")}
           <input
             autoFocus={presetStart === undefined}
             value={start}
@@ -158,7 +158,7 @@ export function SelectBlockDialog({
               checked={mode === "end"}
               onChange={() => setMode("end")}
             />
-            End
+            {L("End")}
           </label>
           <input
             value={end}
@@ -177,7 +177,7 @@ export function SelectBlockDialog({
               checked={mode === "length"}
               onChange={() => setMode("length")}
             />
-            Length
+            {L("Length")}
           </label>
           <input
             autoFocus={presetStart !== undefined}
@@ -199,7 +199,7 @@ export function SelectBlockDialog({
             onClick={() => toBoundary("beginning")}
             title="Select from the file's start to the position above"
           >
-            To Beginning
+            {L("To Beginning")}
           </button>
           <button
             type="button"
@@ -208,11 +208,11 @@ export function SelectBlockDialog({
             onClick={() => toBoundary("end")}
             title="Select from the position above to the file's end"
           >
-            To End
+            {L("To End")}
           </button>
           <span className="toolbar-spacer" />
           <button type="button" className="toolbar-button" onClick={onClose}>
-            Cancel
+            {L("Cancel")}
           </button>
           <button type="submit" className="toolbar-button" disabled={problem !== undefined}>
             Select

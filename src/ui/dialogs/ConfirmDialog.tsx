@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { L } from "@/core/localization/localization";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
 /**
@@ -85,7 +86,7 @@ export function ConfirmDialog({
         )}
         <div className="dialog-actions">
           <button type="button" className="toolbar-button" onClick={() => onCancel(remember)}>
-            Cancel
+            {L("Cancel")}
           </button>
           {otherLabel === undefined || onOther === undefined ? null : (
             <button type="button" className="toolbar-button" onClick={onOther}>

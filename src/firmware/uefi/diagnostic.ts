@@ -1,3 +1,4 @@
+import { L, localized } from "@/core/localization/localization";
 import { type ByteSpace, outermostSection } from "@/firmware/uefi/byteSpace";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
@@ -204,14 +205,14 @@ export function severityOf(detail: DiagnosticKind): Severity {
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.Structure.label */
-const LABELS: Readonly<Record<Structure, string>> = {
+const LABELS: () => Readonly<Record<Structure, string>> = localized(() => ({
   capsuleHeader: "capsule header",
   flashDescriptor: "flash descriptor",
-  volumeHeader: "volume header",
+  volumeHeader: L("volume header"),
   volumeExtendedHeader: "volume extended header",
   volumeBody: "volume body",
-  fileHeader: "file header",
-  fileBody: "file body",
+  fileHeader: L("file header"),
+  fileBody: L("file body"),
   sectionHeader: "section header",
   sectionBody: "section body",
   microcodeHeader: "microcode header",
@@ -220,7 +221,7 @@ const LABELS: Readonly<Record<Structure, string>> = {
   bootPolicy: "Boot Policy Manifest",
   vendorHashFile: "vendor hash table",
   flashDeviceMap: "Insyde flash device map",
-};
+}));
 
 const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
 
@@ -242,21 +243,21 @@ export function diagnosticMessage(diagnostic: UEFIDiagnostic): string {
 function kindMessage(detail: DiagnosticKind): string {
   switch (detail.kind) {
     case "truncated":
-      return `${LABELS[detail.structure]} runs past the end of the image`;
+      return `${LABELS()[detail.structure]} runs past the end of the image`;
     case "zeroSize":
-      return `${LABELS[detail.structure]} has a size of zero`;
+      return `${LABELS()[detail.structure]} has a size of zero`;
     case "checksumMismatch":
-      return `${LABELS[detail.structure]} checksum is ${hex(detail.stored)}, computed ${hex(
+      return `${LABELS()[detail.structure]} checksum is ${hex(detail.stored)}, computed ${hex(
         detail.computed
       )}`;
     case "sizeMismatch":
-      return `${LABELS[detail.structure]} size is ${hex(detail.stored)}, computed ${hex(
+      return `${LABELS()[detail.structure]} size is ${hex(detail.stored)}, computed ${hex(
         detail.computed
       )}`;
     case "unknownFileSystem":
       return `unknown volume file system ${guidText(detail.guid)}`;
     case "unknownType":
-      return `unknown ${LABELS[detail.structure]} type ${hex(detail.code)}`;
+      return `unknown ${LABELS()[detail.structure]} type ${hex(detail.code)}`;
     case "recursionLimit":
       return "nesting is too deep to be an image";
     case "addressesUnknown":
@@ -296,7 +297,7 @@ function kindMessage(detail: DiagnosticKind): string {
     case "unknownVendorHashFileSize":
       return `AMI vendor hash table of ${hex(detail.size)} bytes is of no known version`;
     case "unknownRevision":
-      return `${LABELS[detail.structure]} revision ${hex(detail.revision)} is later than any this parser reads`;
+      return `${LABELS()[detail.structure]} revision ${hex(detail.revision)} is later than any this parser reads`;
     case "unknownFlashDeviceMapEntries":
       return (
         `Insyde flash device map entries of ${hex(detail.size)} bytes in format ` +

@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { checksumText, sum32Of } from "@/firmware/uefi/checksums";
 import type { Parser } from "@/firmware/uefi/parserState";
@@ -347,17 +348,17 @@ export function microcodeFields(
   expectedChecksum = header.computedChecksum
 ): MicrocodeField[] {
   // `0x40 (64)`: hex for the dump, decimal for the mind.
-  const size = (value: number) => (value === 0 ? "Empty" : `${hexText(value)} (${value})`);
+  const size = (value: number) => (value === 0 ? L("Empty") : `${hexText(value)} (${value})`);
   const row = (label: string, value: string, isProblem = false) => ({ label, value, isProblem });
   const fields = [
-    row("CPUID", microcodeCpuid(header.processorSignature)),
-    row("Processor", microcodeProcessorText(header.processorSignature)),
+    row(L("CPUID"), microcodeCpuid(header.processorSignature)),
+    row(L("Processor"), microcodeProcessorText(header.processorSignature)),
     // "Update revision", so it does not read as the same thing as a FIT entry's
     // own Version.
     row("Update revision", hexText(header.updateRevision)),
-    row("Date", microcodeDate(header)),
+    row(L("Date"), microcodeDate(header)),
     row("Platform IDs", hexText(header.platformIDs)),
-    row("Platforms", microcodePlatformsText(header.platformIDs)),
+    row(L("Platforms"), microcodePlatformsText(header.platformIDs)),
     // Zero is not an empty update: the specification reads it as 2000 bytes, and
     // the row says so rather than "Empty".
     row(
@@ -373,7 +374,7 @@ export function microcodeFields(
   if (table !== undefined) {
     fields.push(
       row(
-        "Extended signatures",
+        L("Extended signatures"),
         table.signatures.length === 0
           ? "None"
           : table.signatures.map((one) => microcodeCpuid(one.processorSignature)).join(", ")

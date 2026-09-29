@@ -11,7 +11,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import type { FirmwareWorkerRequest } from "@/workers/protocol";
+import type { FirmwareWorkerRequest, JobId } from "@/workers/protocol";
 
 let posted: FirmwareWorkerRequest[] = [];
 /** Never cleared: the store keeps one worker per pane for the module's life. */
@@ -44,7 +44,12 @@ const reply = (response: unknown) => {
   for (const listener of listeners) listener({ data: response });
 };
 
-const sent = (kind: string) => posted.filter((request) => request.kind === kind);
+// Every ask carries a job id; the language, which is not an ask, does not.
+const sent = (kind: string) =>
+  posted.filter(
+    (request): request is Extract<FirmwareWorkerRequest, { id: JobId }> =>
+      request.kind === kind && "id" in request
+  );
 
 /** The one thing a names ask can be answered with: nothing found for any file. */
 const fileNamesResponse = (id: number) => ({

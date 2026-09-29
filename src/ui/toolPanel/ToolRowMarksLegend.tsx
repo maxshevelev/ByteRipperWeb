@@ -160,7 +160,7 @@ export function ToolRowMarksLegend({
           className="tool-row-marks-title"
           onClick={() => setExpanded(!isExpanded)}
         >
-          Legend
+          {L("Legend")}
         </button>
         {paints ? (
           <label className="tool-row-marks-switch">
@@ -169,7 +169,7 @@ export function ToolRowMarksLegend({
               checked={showsMarkings}
               onChange={(event) => onShowsMarkingsChange(event.currentTarget.checked)}
             />
-            Show markings
+            {L("Show markings")}
           </label>
         ) : null}
       </div>

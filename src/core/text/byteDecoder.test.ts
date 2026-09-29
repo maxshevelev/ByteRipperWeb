@@ -230,8 +230,12 @@ describe("the custom placeholder", () => {
 describe("the registry", () => {
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TextDecoderTests.swift#TextDecoderTests.testRegistryListsBuiltins
   it("lists the built-ins in menu order", () => {
-    expect(BYTE_DECODERS.map((d) => d.identifier)).toEqual(["cp1252", "isoLatin1", "strictASCII"]);
-    expect(BYTE_DECODERS.map((d) => d.displayName)).toEqual([
+    expect(BYTE_DECODERS().map((d) => d.identifier)).toEqual([
+      "cp1252",
+      "isoLatin1",
+      "strictASCII",
+    ]);
+    expect(BYTE_DECODERS().map((d) => d.displayName)).toEqual([
       "Windows-1252",
       "ISO-8859-1",
       "Strict ASCII",

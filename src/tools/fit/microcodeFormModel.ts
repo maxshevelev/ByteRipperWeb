@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { FITRow } from "@/firmware/fit/fitTable";
 import {
   catalogueCounts,
@@ -46,14 +47,14 @@ export type MicrocodeFormMode =
 
 /** "Intel" in the title: the list has no vendor picker, so what is shown is said here. */
 export function formTitle(mode: MicrocodeFormMode): string {
-  return mode.kind === "replace" ? "Replace Intel Microcode" : "Add Intel Microcode";
+  return mode.kind === "replace" ? L("Replace Intel Microcode") : L("Add Intel Microcode");
 }
 
 /** The checkbox's words: the image's CPUIDs, or in replace mode the row's one. */
 export function narrowingTitle(mode: MicrocodeFormMode): string {
   return mode.kind === "replace" && mode.targetCpuidText !== undefined
     ? `Only CPUID ${mode.targetCpuidText}`
-    : "Only CPUIDs in this image";
+    : L("Only CPUIDs in this image");
 }
 
 /** The CPUIDs the checkbox narrows to. */
@@ -107,16 +108,16 @@ export function actionTitle(
   selected: MicrocodeCatalogueEntry | undefined
 ): string {
   if (mode.kind === "replace") {
-    return selected !== undefined && selected.cpuid === mode.targetCpuid ? "Update" : "Replace";
+    return selected !== undefined && selected.cpuid === mode.targetCpuid ? L("Update") : "Replace";
   }
   return selected?.cpuid !== undefined && mode.cpuidsInTheImage.has(selected.cpuid)
-    ? "Replace"
+    ? L("Replace")
     : "Add";
 }
 
 /** A pre-release is worth telling apart before it goes into a board. */
 export const releaseText = (entry: MicrocodeCatalogueEntry): string =>
-  entry.isProduction ? "PRD" : "pre-release";
+  entry.isProduction ? L("PRD") : "pre-release";
 
 export const sizeText = (entry: MicrocodeCatalogueEntry): string =>
   `0x${entry.size.toString(16).toUpperCase()}`;

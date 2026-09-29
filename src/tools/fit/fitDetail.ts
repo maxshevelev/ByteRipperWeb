@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import {
   type FITEntry,
   fitTypeName,
@@ -89,18 +90,18 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
   // the fields open with it rather than with where it sits.
   const fields: FITDetailField[] = [
     {
-      label: "Type",
+      label: L("Type"),
       value: `${fitTypeName(entry.type)} · ${hex(entry.type, 2)}`,
       isProblem: false,
     },
     { label: "Offset", value: hex(entry.offset, 8), isProblem: false },
     {
-      label: "Address",
+      label: L("Address"),
       value: isHeaderEntry(entry) ? "_FIT_" : hex(entry.address, 8),
       isProblem: false,
     },
-    { label: "Size", value: sizeText(entry), isProblem: false },
-    { label: "Revision", value: versionText(entry), isProblem: false },
+    { label: L("Size"), value: sizeText(entry), isProblem: false },
+    { label: L("Revision"), value: versionText(entry), isProblem: false },
   ];
   // The checksum byte is the header's, so it is shown on the header row and on
   // no other — a row that is not the header does not carry it.
@@ -111,7 +112,7 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
     // the byte is not wrong, it is not looked at, and nothing about it is a
     // problem.
     fields.push({
-      label: "Checksum",
+      label: L("Checksum"),
       value: `${hex(entry.checksum, 2)} (Not checked)`,
       isProblem: false,
     });
@@ -121,7 +122,7 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
   // everywhere else a checksum is read, so the word can be trusted. A wrong
   // byte says what it should be, which is the value a fix would write back.
   fields.push({
-    label: "Checksum",
+    label: L("Checksum"),
     value: checksumText({
       value: entry.checksum,
       valid: checksumShouldBe === undefined,
@@ -139,7 +140,7 @@ function sizeText(entry: FITEntry): string {
   if (isHeaderEntry(entry)) return `${entry.size} rows`;
   // A row with no size of its own says so in the same word every empty area
   // does.
-  return entry.size === 0 ? "Empty" : size(sizeInBytes(entry));
+  return entry.size === 0 ? L("Empty") : size(sizeInBytes(entry));
 }
 
 // MARK: - What the row points at
@@ -156,19 +157,19 @@ function targetFields(row: FITRow): FITDetailField[] {
       // rather than as the pointer they are shaped like.
       const one = target.descriptor;
       return [
-        { label: "Index register", value: hex(one.indexRegister, 4), isProblem: false },
-        { label: "Data register", value: hex(one.dataRegister, 4), isProblem: false },
+        { label: L("Index register"), value: hex(one.indexRegister, 4), isProblem: false },
+        { label: L("Data register"), value: hex(one.dataRegister, 4), isProblem: false },
         {
-          label: "Access width",
+          label: L("Access width"),
           value: `${one.accessWidth} byte${one.accessWidth === 1 ? "" : "s"}`,
           isProblem: false,
         },
-        { label: "Bit position", value: `${one.bitPosition}`, isProblem: false },
-        { label: "Index", value: hex(one.index, 4), isProblem: false },
+        { label: L("Bit position"), value: `${one.bitPosition}`, isProblem: false },
+        { label: L("Index"), value: hex(one.index, 4), isProblem: false },
       ];
     }
     case "outsideTheImage":
-      return [{ label: "Points at", value: "outside this image", isProblem: false }];
+      return [{ label: L("Points at"), value: L("outside this image"), isProblem: false }];
     case "microcode":
       // The same reading the UEFI panel gives a microcode node
       // (`microcodeFields`), so the two say it in the same words.
@@ -179,17 +180,17 @@ function targetFields(row: FITRow): FITDetailField[] {
       }));
     case "emptyMicrocodeSlot":
       return [
-        { label: "Points at", value: "empty slot (FF FF FF FF)", isProblem: false },
-        { label: "Component", value: hex(target.offset, 8), isProblem: false },
+        { label: L("Points at"), value: L("empty slot (FF FF FF FF)"), isProblem: false },
+        { label: L("Component"), value: hex(target.offset, 8), isProblem: false },
       ];
     case "bytes": {
       // "Points at" only once something has read there — see `targetText`. The
       // Component row below says where it is either way.
       const fields: FITDetailField[] = [];
       if (target.description !== undefined) {
-        fields.push({ label: "Points at", value: target.description, isProblem: false });
+        fields.push({ label: L("Points at"), value: target.description, isProblem: false });
       }
-      fields.push({ label: "Component", value: hex(target.offset, 8), isProblem: false });
+      fields.push({ label: L("Component"), value: hex(target.offset, 8), isProblem: false });
       const length = effectiveSize(row);
       if (length !== undefined)
         fields.push({ label: "Length", value: size(length), isProblem: false });
@@ -205,5 +206,5 @@ function targetFields(row: FITRow): FITDetailField[] {
  * is not worth two spellings — the area holds nothing, and the row says so.
  */
 function size(bytes: number): string {
-  return bytes === 0 ? "Empty" : `${hex(bytes)} (${bytes})`;
+  return bytes === 0 ? L("Empty") : `${hex(bytes)} (${bytes})`;
 }

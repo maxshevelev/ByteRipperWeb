@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
 import { AMI_HASH_FILE, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
 import {
@@ -247,7 +248,7 @@ function sectionAtOffset(roots: readonly WireNode[], offset: number): WireNode |
 function decompressedFrom(node: WireNode, roots: readonly WireNode[]): string | undefined {
   const outermost = node.space[0];
   if (outermost === undefined) return undefined;
-  const section = sectionNamed(roots, outermost) ?? "a compressed section";
+  const section = sectionNamed(roots, outermost) ?? L("a compressed section");
   const deeper = node.space.length > 1 ? `, ${node.space.length} compressed sections deep` : "";
   return `Decompressed from ${section} at ${hex(outermost)}${deeper}`;
 }
@@ -320,10 +321,10 @@ export function holdsChecks(node: WireNode): string | undefined {
   const guid = guidFromText(node.guid);
   if (guid === undefined) return undefined;
   if (guidEquals(guid, AMI_HASH_FILE)) {
-    return "Holds the AMI vendor hash table: ranges the firmware checks at boot";
+    return L("Holds the AMI vendor hash table: ranges the firmware checks at boot");
   }
   if (guidEquals(guid, PHOENIX_HASH_FILE)) {
-    return "Holds the Phoenix vendor hash table: ranges the firmware checks at boot";
+    return L("Holds the Phoenix vendor hash table: ranges the firmware checks at boot");
   }
   return undefined;
 }

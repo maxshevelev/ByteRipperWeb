@@ -420,10 +420,10 @@ export function FavoritesTab() {
         {/* The column titles are for the eye; each field carries its own label. */}
         <div className="favorites-row is-head" aria-hidden="true">
           <span />
-          <span>Name</span>
-          <span>Pattern</span>
-          <span>Encoding</span>
-          <span>Match Case</span>
+          <span>{L("Name")}</span>
+          <span>{L("Pattern")}</span>
+          <span>{L("Encoding")}</span>
+          <span>{L("Match Case")}</span>
         </div>
         <ol className="favorites-body" aria-label="Favorite patterns">
           {rows.length === 0 ? (
@@ -597,7 +597,7 @@ export function FavoritesTab() {
           Import…
         </button>
         <button type="button" className="toolbar-button" onClick={() => void exportLibrary()}>
-          Export…
+          {L("Export…")}
         </button>
       </div>
       <p
@@ -630,7 +630,7 @@ export function FavoritesTab() {
                 setAsked(conflicts);
               }}
             >
-              Resolve…
+              {L("Resolve…")}
             </button>
           ) : null}
           {folder !== undefined && folder.access === "prompt" ? (
@@ -649,7 +649,7 @@ export function FavoritesTab() {
               title="Keep the library in a folder of your own — a synced one puts it on your other machines, and one that already has a library joins it"
               onClick={() => void moveLibrary()}
             >
-              Move…
+              {L("Move…")}
             </button>
           ) : null}
           {keepsFolder && !readOnly && folder !== undefined ? (
@@ -733,28 +733,28 @@ export function FavoritesTab() {
           </p>
           <div className="dialog-actions">
             <button type="button" className="toolbar-button" onClick={() => setJoining(undefined)}>
-              Cancel
+              {L("Cancel")}
             </button>
             <button
               type="button"
               className="toolbar-button"
               onClick={() => joining !== undefined && void join(joining.folder, "replaceTheFile")}
             >
-              Replace What Is There
+              {L("Replace What Is There")}
             </button>
             <button
               type="button"
               className="toolbar-button"
               onClick={() => joining !== undefined && void join(joining.folder, "takeTheFile")}
             >
-              Use the Folder's Patterns
+              {L("Use the Folder's Patterns")}
             </button>
             <button
               type="button"
               className="toolbar-button"
               onClick={() => joining !== undefined && void join(joining.folder, "merge")}
             >
-              Merge
+              {L("Merge")}
             </button>
           </div>
         </div>
@@ -780,14 +780,14 @@ export function FavoritesTab() {
               className="toolbar-button"
               onClick={() => setLeftBehind(undefined)}
             >
-              Keep It
+              {L("Keep It")}
             </button>
             <button
               type="button"
               className="toolbar-button"
               onClick={() => leftBehind !== undefined && void removeLeftBehind(leftBehind)}
             >
-              Remove
+              {L("Remove")}
             </button>
           </div>
         </div>
@@ -796,7 +796,7 @@ export function FavoritesTab() {
       {/* @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.resolvePressed */}
       <LibraryConflictDialog
         conflicts={asked}
-        wording={SHARED_WORDING}
+        wording={SHARED_WORDING()}
         cancelTitle={L("Later")}
         onResolve={(answers) => {
           answeringHere.current = true;

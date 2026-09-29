@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, localized } from "@/core/localization/localization";
 import { ByteDecoder, type ByteDecoderDescriptor } from "@/core/text/byteDecoder";
 
 /**
@@ -9,11 +9,11 @@ import { ByteDecoder, type ByteDecoderDescriptor } from "@/core/text/byteDecoder
  */
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoderRegistry.swift#TextDecoderRegistry.all */
-export const BYTE_DECODERS: readonly ByteDecoderDescriptor[] = [
+export const BYTE_DECODERS: () => readonly ByteDecoderDescriptor[] = localized(() => [
   { identifier: "cp1252", displayName: "Windows-1252" },
   { identifier: "isoLatin1", displayName: "ISO-8859-1" },
   { identifier: "strictASCII", displayName: L("Strict ASCII") },
-];
+]);
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoderRegistry.swift#TextDecoderRegistry.defaultIdentifier */
 export const DEFAULT_DECODER_IDENTIFIER = "cp1252";

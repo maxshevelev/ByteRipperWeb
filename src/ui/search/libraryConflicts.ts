@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, localized } from "@/core/localization/localization";
 import type { LibraryConflict, LibraryResolution } from "@/core/search/patternLibrary";
 import { encodingTitle } from "@/core/search/searchPattern";
 import type { SearchPatternEntry } from "@/core/search/searchPatternEntry";
@@ -77,7 +77,7 @@ export const IMPORT_WORDING: ConflictWording = {
  *
  * @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init
  */
-export const SHARED_WORDING: ConflictWording = {
+export const SHARED_WORDING: () => ConflictWording = localized(() => ({
   ours: "This Browser",
   theirs: L("Shared Library"),
   theirsChoice: L("Shared"),
@@ -85,7 +85,7 @@ export const SHARED_WORDING: ConflictWording = {
   message:
     "This browser and the shared library were both changed before either saw the other. " +
     "Choose which to keep.",
-};
+}));
 
 /** @upstream ByteRipperApp/Search/LibraryConflictSheetController.swift#LibraryConflictSheetController.init */
 export function conflictTitle(count: number): string {

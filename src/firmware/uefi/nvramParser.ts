@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, crc32 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
@@ -303,9 +304,9 @@ function nvramPadding(parser: Parser, start: number, end: number, emptyByte: num
   if (start >= end) return [];
   const range: ImageRange = { start, end };
   if (parser.reader.isFilled(range, emptyByte)) {
-    return [makeSpan({ kind: "freeSpace", name: "Free space", range, isErased: true })];
+    return [makeSpan({ kind: "freeSpace", name: L("Free space"), range, isErased: true })];
   }
-  return [makeSpan({ kind: "padding", name: "Padding", range, isErased: false })];
+  return [makeSpan({ kind: "padding", name: L("Padding"), range, isErased: false })];
 }
 
 // MARK: - VSS
@@ -521,7 +522,7 @@ function vssVariable(parser: Parser, offset: number, storeEnd: number): UEFINode
   return makeNode({
     kind: "vssEntry",
     subtype,
-    name: isValid ? name : "Invalid",
+    name: isValid ? name : L("Invalid"),
     guid: vendorGuid,
     header: { start: offset, end: offset + headerSize },
     body: { start: offset + headerSize, end: entryEnd },
@@ -605,7 +606,7 @@ function vss2Variables(
       entries.push(
         makeSpan({
           kind: "padding",
-          name: "Padding",
+          name: L("Padding"),
           range,
           isErased: parser.reader.isFilled(range, emptyByte),
         })
@@ -692,7 +693,7 @@ function vss2Variable(parser: Parser, offset: number, storeEnd: number): UEFINod
   return makeNode({
     kind: "vssEntry",
     subtype,
-    name: isValid ? name : "Invalid",
+    name: isValid ? name : L("Invalid"),
     guid: vendorGuid,
     header: { start: offset, end: nameEnd },
     body: { start: nameEnd, end: dataEnd },
@@ -879,7 +880,7 @@ export function parseSysFStore(
         makeNode({
           kind: "sysFEntry",
           subtype,
-          name: invalid ? "Invalid" : "EOF",
+          name: invalid ? L("Invalid") : "EOF",
           header: { start: cursor, end: cursor + 4 },
           body: { start: cursor + 4, end: cursor + 4 },
           isFixed: true,
@@ -901,7 +902,7 @@ export function parseSysFStore(
       makeNode({
         kind: "sysFEntry",
         subtype,
-        name: invalid ? "Invalid" : asciiName(nameBytes),
+        name: invalid ? L("Invalid") : asciiName(nameBytes),
         header: { start: cursor, end: bodyStart },
         body: { start: bodyStart, end: bodyEnd },
         isFixed: true,
@@ -917,8 +918,8 @@ export function parseSysFStore(
     const range: ImageRange = { start: cursor, end: storeEnd };
     entries.push(
       parser.reader.isFilled({ start: cursor, end: checkEnd }, 0)
-        ? makeSpan({ kind: "freeSpace", name: "Free space", range })
-        : makeSpan({ kind: "padding", name: "Padding", range })
+        ? makeSpan({ kind: "freeSpace", name: L("Free space"), range })
+        : makeSpan({ kind: "padding", name: L("Padding"), range })
     );
   }
 
@@ -1147,12 +1148,12 @@ export function parsePhoenixEvsaStore(
     if (node === undefined) continue;
     const resolved = guidMap.has(draft.guidId) && nameMap.has(draft.varId);
     if (draft.type === NVRAM.evsaEntryTypeDataInvalid || !resolved) {
-      node.name = "Invalid";
+      node.name = L("Invalid");
       node.subtype = Sub.invalidEvsaEntry;
     } else {
       // The name a person gave the variable is what the tree shows; the vendor
       // GUID stays out of the way the way a VSS variable's does.
-      node.name = nameMap.get(draft.varId) ?? "Invalid";
+      node.name = nameMap.get(draft.varId) ?? L("Invalid");
     }
   }
 

@@ -9,6 +9,7 @@
  * cross a worker boundary is plain data, which this is.
  */
 
+import { L } from "@/core/localization/localization";
 import type { ToolValueTone } from "@/tools/toolValueTone";
 
 /**
@@ -127,4 +128,4 @@ export const cell = (text: string, tone: DetailCell["tone"] = "plain"): DetailCe
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Cell.permission
  */
 export const permission = (allowed: boolean): DetailCell =>
-  cell(allowed ? "Yes" : "No", allowed ? "yes" : "no");
+  cell(allowed ? L("Yes") : "No", allowed ? "yes" : "no");
