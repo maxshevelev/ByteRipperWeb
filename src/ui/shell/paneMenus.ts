@@ -158,7 +158,7 @@ export function paneFileMenu(
     ]),
     { label: verb, disabled: !dirty && verb === "Save", onSelect: () => actions.onSave(pane) },
     {
-      label: verb === "Save" ? "Save As…" : "Download As…",
+      label: verb === "Save" ? L("Save As…") : "Download As…",
       onSelect: () => actions.onSaveAs(pane),
     },
     // With the Saves: the third thing that decides what this document is
@@ -195,7 +195,7 @@ export function paneFileMenu(
     { label: L("Copy File Name"), onSelect: () => void copyText(slot.name) },
     { label: L("Close"), onSelect: () => actions.onClose(pane) },
     ...ofSlot(() =>
-      bothOpen ? [{ kind: "separator" }, { label: "Swap Panes", onSelect: swapPanes }] : []
+      bothOpen ? [{ kind: "separator" }, { label: L("Swap Panes"), onSelect: swapPanes }] : []
     ),
   ];
 }
@@ -559,7 +559,7 @@ export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
     .catch((error: unknown) =>
       reportAlert(
         L("Could not read the zone."),
-        error instanceof Error ? error.message : "Those bytes could not be read."
+        error instanceof Error ? error.message : L("Those bytes could not be read.")
       )
     );
 }

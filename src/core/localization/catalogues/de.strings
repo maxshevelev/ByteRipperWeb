@@ -5,6 +5,7 @@
 "$MME Directory" = "$MME-Verzeichnis";
 "%1$@ Bookmarks Here:" = "%1$@ Lesezeichen hier:";
 "%1$@ bytes" = "%1$@ Bytes";
+"%1$@ of %2$@" = "%1$@ von %2$@";
 "%1$@ selected" = "%1$@ ausgewählt";
 "(unnamed)" = "(ohne Namen)";
 "1 block" = "1 Block";
@@ -216,6 +217,7 @@
 "menu|Help" = "Hilfe";
 "panel|Help" = "Hilfe";
 "Help: %1$@" = "Hilfe: %1$@";
+"Hex bytes" = "Hex-Bytes";
 "Hex dump" = "Hex-Dump";
 "Hide Minimap" = "Minimap ausblenden";
 "Hide Search Results" = "Suchergebnisse ausblenden";

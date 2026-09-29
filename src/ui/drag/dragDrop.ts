@@ -345,7 +345,7 @@ export function paneBandTitle(outcome: PaneDropOutcome): string | undefined {
     case "join":
       return singleFileDropTargetTitle(outcome.at === "start" ? "insertAtStart" : "appendAtEnd");
     case "swap":
-      return "Swap Panes";
+      return L("Swap Panes");
     case "move":
       return L("Move Here");
     case "duplicate":

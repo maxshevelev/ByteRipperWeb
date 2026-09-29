@@ -1,5 +1,5 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
-import { currentCatalogue } from "@/core/localization/localization";
+import { currentCatalogue, L } from "@/core/localization/localization";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
@@ -664,7 +664,7 @@ export async function fixFirmwareChecksum(
   });
   if (writes.length === 0) return 0;
 
-  slot.document.beginEditGroup("Fix Checksum");
+  slot.document.beginEditGroup(L("Fix Checksum"));
   for (const write of writes) await slot.document.overwrite(write.offset, write.bytes);
   slot.document.endEditGroup();
   await parsePaneFirmware(pane);

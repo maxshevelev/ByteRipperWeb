@@ -4,6 +4,8 @@
  * Ported from the pattern half of `SearchEngine.swift`.
  */
 
+import { L } from "@/core/localization/localization";
+
 /**
  * How the text in the find field becomes bytes.
  *
@@ -27,7 +29,7 @@ export const SEARCH_ENCODINGS: readonly SearchEncoding[] = [
  */
 export const encodingTitle = (encoding: SearchEncoding): string =>
   ({
-    hex: "Hex bytes",
+    hex: L("Hex bytes"),
     ascii: "ASCII",
     utf8: "UTF-8",
     utf16LE: "UTF-16 LE",

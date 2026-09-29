@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "b72b4b549aac4823209d81fce575f44ae481f64a",
-  "baselineNote": "Take the Russian page fixes, and carry their meaning changes into the other languages (2026-09-27)"
+  "baseCommit": "7412186dab13ad90485c67176a4e3d81655c1c76",
+  "baselineNote": "Port the help book's tone pass and upstream's translator sweep; upstream's notebook move to Issues carries no code (2026-09-29)"
 }

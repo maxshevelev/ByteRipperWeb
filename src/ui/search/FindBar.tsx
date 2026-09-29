@@ -471,7 +471,7 @@ function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
     // The ordinal is only meaningful once the whole file has been scanned;
     // until then the count is what has been found so far.
     if (ordinal !== undefined && matches.isComplete) {
-      parts.push(`${ordinal + 1} of ${matches.total.toLocaleString()}`);
+      parts.push(L("%1$@ of %2$@", ordinal + 1, matches.total.toLocaleString()));
     } else {
       parts.push(`${matches.total.toLocaleString()}${matches.isComplete ? "" : "+"} found`);
     }

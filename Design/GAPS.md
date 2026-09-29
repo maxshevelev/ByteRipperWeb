@@ -93,11 +93,13 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 
 The book and the three languages are in [Closed](#3-closed) — G63 and G64. What
 is left is the one thing the browser could do better than the desktop and that
-nothing else in the workspace does yet.
+nothing else in the workspace does yet, and the half of the interface upstream
+has no words for.
 
 | ID | Gap | Upstream | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|---|
 | G65 | **A page with a URL.** `#help/opening-files` would be a link a colleague can be sent — the one thing the web edition can do here that the Mac app cannot. The workspace has no routing at all today, and putting the help's pages under the reader's Back button is a decision about the whole app rather than about the help. | — | ~3 | G63; whether the workspace takes a router at all | P3 | decision |
+| G66 | **The words this edition says on its own are English in every language.** Roughly 370 keys now go through `L()`, and every one of them is a key upstream already had, with both translations copied from its catalogue word for word — the project's rule, since nothing here is translated by hand. What that leaves untranslated is the half of the interface upstream has no words for, because it does not have the thing: Save against Download and the sentence that says which this browser does, the refusals a picker gives, what a dropped file cannot do, the fragment dock, the ZIP a folderless browser gets. A reader in Russian meets them in English. Closing it means either a translator for this edition's own strings or upstream growing the same sentences; neither is this port's to decide. | — | ~2 per area | Who writes the words | P3 | decision |
 
 ### 1.8 Tests, hardening and delivery (M12)
 

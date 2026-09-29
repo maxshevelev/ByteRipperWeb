@@ -376,7 +376,7 @@ export function GoToDialog({
   const rowMenu = (event: React.MouseEvent, mark: Bookmark) => {
     setSelected(mark.row);
     openContextMenu(event, [
-      { label: "Edit Bookmark…", onSelect: () => editBookmarkInList(mark.row) },
+      { label: L("Edit Bookmark…"), onSelect: () => editBookmarkInList(mark.row) },
       {
         label: L("Delete Bookmark"),
         destructive: true,
