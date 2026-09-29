@@ -220,6 +220,7 @@
 "Delete Bytes…" = "Bytes löschen…";
 "Deleted" = "Gelöscht";
 "Deleted here" = "Hier gelöscht";
+"differing %1$@" = "Unterschiede %1$@";
 "Do not ask again" = "Nicht mehr fragen";
 "Done" = "Fertig";
 "Download" = "Herunterladen";

@@ -220,6 +220,7 @@
 "Delete Bytes…" = "Удалить байты…";
 "Deleted" = "Удалено";
 "Deleted here" = "Удалено здесь";
+"differing %1$@" = "различий %1$@";
 "Do not ask again" = "Больше не спрашивать";
 "Done" = "Готово";
 "Download" = "Скачать";

@@ -20,6 +20,7 @@
  */
 
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
+import { L } from "@/core/localization/localization";
 
 /**
  * @upstream ByteRipperApp/Window/ComparisonSummary.swift#ComparisonSummary
@@ -69,7 +70,7 @@ export function summaryText(summary: ComparisonSummary): string {
   // The decimal is always there, even at a whole value: the readout is a number
   // the user reads while editing, and "differing 25%" growing a decimal place on
   // the next keystroke would make it jump.
-  return `differing ${Math.floor(tenths / 10)}.${tenths % 10}%`;
+  return L("differing %1$@", `${Math.floor(tenths / 10)}.${tenths % 10}%`);
 }
 
 /**
