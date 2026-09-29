@@ -67,6 +67,9 @@ jobs:
       - run: npm run build
         env:
           PAGES_BASE: /ByteRipperWeb/preview/
+          # "ByteRipper 0.8.5-dev" on the landing screen: the preview is not
+          # the release it is numbered after.
+          APP_VERSION_SUFFIX: -dev
       - run: mv dist "$RUNNER_TEMP/preview"
 
       # The released app: its own commit, with that commit's own build.

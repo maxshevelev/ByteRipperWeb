@@ -16,7 +16,7 @@ const { version } = JSON.parse(
   readonly version: string;
 };
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   // Which names the dev server answers to, and on which port, is the machine's
   // business and not the repository's: this bench opens it at its own name on
   // the tailnet, someone else's clone opens it at localhost, and neither should
@@ -37,7 +37,15 @@ export default defineConfig(({ mode }) => {
   const single = mode === "single";
 
   return {
-    define: { __APP_VERSION__: JSON.stringify(version) },
+    // A build that is not a release says so on the landing screen: the dev
+    // server, and the Pages preview of `main`, which sets APP_VERSION_SUFFIX
+    // (.github/workflows/deploy-pages.yml). A release — the page built from its
+    // tag, the single file, the Windows build — carries the number alone.
+    define: {
+      __APP_VERSION__: JSON.stringify(
+        `${version}${process.env.APP_VERSION_SUFFIX ?? (command === "serve" ? "-dev" : "")}`
+      ),
+    },
     // The app is published as a GitHub Pages *project* page, which is served from
     // a subdirectory of the host rather than its root. Without this, the bundle
     // asks for `/assets/...`, the host has no such path, and the page comes up

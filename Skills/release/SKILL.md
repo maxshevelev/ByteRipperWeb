@@ -17,7 +17,8 @@ files:
 `.github/workflows/deploy-pages.yml` builds https://maxshevelev.github.io/ByteRipperWeb/
 from the latest `v*` tag, so pushing the tag in step 5 is what publishes it. A
 push to `main` updates only the development preview,
-https://maxshevelev.github.io/ByteRipperWeb/preview/. (Both are one origin, so
+https://maxshevelev.github.io/ByteRipperWeb/preview/, whose landing screen says
+"ByteRipper <version>-dev" — as the dev server's does. (Both are one origin, so
 they share the browser's storage — settings, bookmarks, the pattern library,
 the cached databases.)
 
