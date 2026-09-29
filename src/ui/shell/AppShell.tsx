@@ -602,8 +602,18 @@ export function AppShell() {
   const [selectBlock, setSelectBlock] = useState<
     { pane: PaneId; start: number | undefined } | undefined
   >(undefined);
-  /** The pane and offset a cut was asked for at, or nothing. */
-  const [cutAt, setCutAt] = useState<{ pane: PaneId; offset: number } | undefined>(undefined);
+  /**
+   * The pane and offset a cut was asked for at, or nothing.
+   *
+   * `landsCaret` is the toolbar's Split Here…, which asks for an offset as a
+   * number: the byte it names is usually nowhere near the screen, so committing
+   * moves the caret there and centres it, the pair Go To already uses for an
+   * address typed into a field. The dump's own Split Here at «address» does not
+   * ask for it — its byte is the one under the pointer, already in view.
+   */
+  const [cutAt, setCutAt] = useState<
+    { pane: PaneId; offset: number; landsCaret?: boolean } | undefined
+  >(undefined);
   /** The pane whose segments form is open, or nothing. */
   const [segmentsPane, setSegmentsPane] = useState<
     | {
@@ -2001,7 +2011,13 @@ export function AppShell() {
         // The partition is the document's, so these three mean the part while
         // one is in front of the dump.
         onSegments={() => setSegmentsPane({ pane: front })}
-        onSplitHere={() => setCutAt({ pane: front, offset: paneState(front)?.document.caret ?? 0 })}
+        onSplitHere={() =>
+          setCutAt({
+            pane: front,
+            offset: paneState(front)?.document.caret ?? 0,
+            landsCaret: true,
+          })
+        }
         onSaveAllSegments={() => void doSaveAllSegments(front)}
         onToggleBookmark={() => {
           const slot = paneState(front);
@@ -2157,7 +2173,12 @@ export function AppShell() {
         fileSize={paneIn(state, cutAt?.pane ?? front)?.document.size ?? 0}
         presetOffset={cutAt?.offset ?? 0}
         existingCuts={segmentsFor(cutAt?.pane ?? front)?.cuts ?? []}
-        onCut={(offset, name) => addCut(cutAt?.pane ?? front, offset, name)}
+        onCut={(offset, name) => {
+          const pane = cutAt?.pane ?? front;
+          if (!addCut(pane, offset, name)) return;
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentCutEditPopover
+          if (cutAt?.landsCaret === true) revealIn(pane, offset);
+        }}
         onClose={() => setCutAt(undefined)}
       />
       <SegmentsDialog

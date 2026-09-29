@@ -20,7 +20,6 @@
 "Append File…" = "Datei anhängen…";
 "Ask before edits that shift the file" = "Vor Änderungen fragen, die die Datei verschieben";
 "Back" = "Zurück";
-"Bench Rules" = "Regeln am Arbeitsplatz";
 "Bookmark name" = "Name des Lesezeichens";
 "Bookmark offset" = "Offset des Lesezeichens";
 "Bookmarks" = "Lesezeichen";
@@ -65,6 +64,7 @@
 "menu|Edit" = "Bearbeiten";
 "Edit Segment %1$@" = "Segment %1$@ bearbeiten";
 "Editing" = "Bearbeiten";
+"Editing Constraints" = "Einschränkungen beim Bearbeiten";
 "Encoding" = "Codierung";
 "Excerpt Hex" = "Ausschnitt (Hex)";
 "Excerpt Text" = "Ausschnitt (Text)";

@@ -28,7 +28,7 @@ export function helpMenuEntries(): MenuEntry[] {
     // help: menu.help.book
     { label: L("ByteRipper Help"), onSelect: () => showHelp(topicLink(TOPIC.overview)) },
     { label: L("Getting Started"), onSelect: () => showHelp(topicLink(TOPIC.firstComparison)) },
-    { label: L("Bench Rules"), onSelect: () => showHelp(topicLink(TOPIC.benchSafety)) },
+    { label: L("Editing Constraints"), onSelect: () => showHelp(topicLink(TOPIC.benchSafety)) },
     {
       label: L("Glossary: UEFI Images"),
       onSelect: () => showHelp(termLink(termId("flash-descriptor"))),

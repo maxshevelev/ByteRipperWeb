@@ -3422,6 +3422,8 @@
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.capturedSplitRequest": "n/a — test scaffolding",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testSplitHereOpensThePopoverPrefilledWithTheClickedByte": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testAddCutPresentsACentredPopover": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testAddCutLandsTheCaretOnTheNewCut": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testSplitHereLeavesTheCaretAlone": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testSplitHereOpensThePopoverPrefilledWithTheClickedAddress": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testSplitHereActsOnTheRightClickedPane": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentCommandsTests.swift#SegmentCommandsTests.testAddCutRequiresAnOpenPane": "later — an app flow test; the port has no component or end-to-end test for it yet",
