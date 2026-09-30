@@ -2656,7 +2656,11 @@ textarea,
 /*
  * Invisible but present: opaque to nothing and to no one, it covers the name
  * and the chevron alike, so a tap on the arrow opens the menu as a tap on the
- * name does, and one ring is drawn around the two together.
+ * name does, and one ring is drawn around the two together. `opacity: 0` keeps
+ * it so, but the field still wears the theme's own surface and ink — the way
+ * the toolbar's word-size field does — because a native option list over a
+ * transparent field takes its scheme from the field, and comes up white on a
+ * dark theme where the toolbar's list is drawn with the theme's ink.
  */
 .tool-panel-file-select {
   position: absolute;
@@ -2666,8 +2670,8 @@ textarea,
   appearance: none;
   padding: 0;
   border: 0;
-  background: none;
-  color: inherit;
+  background: var(--surface);
+  color: var(--text);
   font: inherit;
   opacity: 0;
   cursor: pointer;

@@ -252,3 +252,21 @@
   --segment-4: #3b304f;
   --segment-5: #4f3b29;
 }
+
+/*
+ * The tool panel's file picker is a transparent `<select>` lying over its name
+ * and chevron, drawing nothing of its own; a native option list over a
+ * transparent field keeps the light scheme in a dark theme, so its list shows
+ * on white where the toolbar's word-size list is drawn with the theme's ink.
+ * Say the field's own scheme, per theme, the way the document root does, and
+ * the list comes out dark with it.
+ */
+:root[data-theme="dark"] .tool-panel-file-select {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tool-panel-file-select {
+    color-scheme: dark;
+  }
+}
