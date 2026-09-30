@@ -42,7 +42,9 @@
 
   /* Hex grid: the bytes themselves */
   --byte-text: #1b1b1f;
-  --byte-text-muted: #9a9aa2; /* 0x00 and 0xFF, which are most of a dump */
+  /* 0x00 and 0xFF, which are most of a dump. Upstream's label at 40 % alpha, so
+     a fill byte stays legible over a difference wash. */
+  --byte-text-muted: rgb(27 27 31 / 0.4);
   --byte-modified: #e41f1f; /* unsaved edit: red foreground, never a fill */
   /* Ink blue for the column header and the offset column: a pale, slightly
      desaturated blue that reads as a quiet secondary element beside the dump's
@@ -133,7 +135,7 @@
     --knockout: var(--surface);
 
     --byte-text: #ececee;
-    --byte-text-muted: #63636b;
+    --byte-text-muted: rgb(236 236 238 / 0.4); /* upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash */
     --byte-modified: #ff6b66;
     /* Lighter on dark, so it stays legible without competing with the bytes.
        srgb(0.58, 0.73, 0.92). */
@@ -202,7 +204,7 @@
   --knockout: var(--surface);
 
   --byte-text: #ececee;
-  --byte-text-muted: #63636b;
+  --byte-text-muted: rgb(236 236 238 / 0.4); /* upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash */
   --byte-modified: #ff6b66;
   /* Lighter on dark, so it stays legible without competing with the bytes.
      srgb(0.58, 0.73, 0.92). */
