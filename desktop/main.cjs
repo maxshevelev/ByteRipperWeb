@@ -16,6 +16,14 @@ const HOST = "byteripper";
 const BASE = "/ByteRipperWeb/";
 const WEB_ROOT = path.join(__dirname, "web");
 
+// `npm start` runs Electron from the source tree, and a build made earlier may
+// be open at the same time. Two processes on one profile fight over its locked
+// databases — Chromium then says "Failed to reset the quota database" and takes
+// a long time to start — so a development run keeps a profile of its own.
+if (!app.isPackaged) {
+  app.setPath("userData", path.join(app.getPath("appData"), "ByteRipper-dev"));
+}
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: SCHEME,

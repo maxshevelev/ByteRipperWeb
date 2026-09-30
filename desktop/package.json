@@ -8,6 +8,7 @@
   "scripts": {
     "web": "npm --prefix .. run build && node copy-web.mjs",
     "start": "npm run web && electron .",
+    "open": "electron .",
     "dist:win": "npm run web && electron-builder --win --x64"
   },
   "devDependencies": {
