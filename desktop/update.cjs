@@ -44,8 +44,11 @@ class Failure extends Error {
   }
 }
 
-async function fetchOk(url, what) {
-  const response = await net.fetch(url, { headers: { "User-Agent": "ByteRipper" } });
+/** The download the page can cancel; nothing while none is running. */
+let abort;
+
+async function fetchOk(url, what, signal) {
+  const response = await net.fetch(url, { headers: { "User-Agent": "ByteRipper" }, signal });
   if (!response.ok) throw new Failure(what);
   return response;
 }
@@ -59,10 +62,15 @@ function expectedHash(sums, name) {
   return undefined;
 }
 
-async function download(version, window) {
+/**
+ * Fetches and checks the release's setup, telling the page how far it is:
+ * `report({ phase, received?, total? })` — preparing, download, verify.
+ */
+async function download(version, window, report, signal) {
+  report({ phase: "preparing" });
   let release;
   try {
-    release = await (await fetchOk(`${RELEASE_BY_TAG}v${version}`, "download")).json();
+    release = await (await fetchOk(`${RELEASE_BY_TAG}v${version}`, "download", signal)).json();
   } catch {
     throw new Failure("download");
   }
@@ -83,7 +91,7 @@ async function download(version, window) {
   let expected;
   try {
     expected = expectedHash(
-      await (await fetchOk(sums.browser_download_url, "download")).text(),
+      await (await fetchOk(sums.browser_download_url, "download", signal)).text(),
       setupName
     );
   } catch {
@@ -97,10 +105,12 @@ async function download(version, window) {
   const file = path.join(folder, setupName);
   const hash = crypto.createHash("sha256");
   try {
-    const response = await fetchOk(setup.browser_download_url, "download");
+    const response = await fetchOk(setup.browser_download_url, "download", signal);
     const total = Number(response.headers.get("content-length")) || setup.size || 0;
     const out = fs.createWriteStream(file);
     let received = 0;
+    let told = 0;
+    report({ phase: "download", received, total });
     const reader = response.body.getReader();
     for (;;) {
       const { done, value } = await reader.read();
@@ -108,14 +118,22 @@ async function download(version, window) {
       hash.update(value);
       received += value.length;
       if (!out.write(value)) await new Promise((resolve) => out.once("drain", resolve));
-      if (total > 0) window.setProgressBar(Math.min(1, received / total));
+      // Ten times a second is as often as anyone reads it.
+      if (Date.now() - told >= 100) {
+        told = Date.now();
+        report({ phase: "download", received, total });
+        if (total > 0) window.setProgressBar(Math.min(1, received / total));
+      }
     }
+    report({ phase: "download", received, total });
     await new Promise((resolve, reject) => out.end((error) => (error ? reject(error) : resolve())));
   } catch {
+    fs.rmSync(folder, { recursive: true, force: true });
     throw new Failure("download");
   } finally {
     window.setProgressBar(-1);
   }
+  report({ phase: "verify" });
   if (hash.digest("hex") !== expected) {
     fs.rmSync(folder, { recursive: true, force: true });
     throw new Failure("checksum");
@@ -139,16 +157,27 @@ function register(ipcMain, BrowserWindow) {
     event.returnValue = canInstall();
   });
 
+  ipcMain.on("update:cancel", () => abort?.abort());
+
   ipcMain.handle("update:install", async (event, version) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!canInstall() || !window || !/^\d+(\.\d+)*(-\d+)?$/.test(String(version))) {
       return { status: "failed", reason: "unavailable" };
     }
+    const report = (progress) => {
+      if (!event.sender.isDestroyed()) event.sender.send("update:progress", progress);
+    };
+    abort = new AbortController();
+    const signal = abort.signal;
     try {
-      pending = await download(String(version), window);
+      pending = await download(String(version), window, report, signal);
     } catch (error) {
+      if (signal.aborted) return { status: "cancelled" };
       return { status: "failed", reason: error.reason ?? "download" };
+    } finally {
+      abort = undefined;
     }
+    report({ phase: "install" });
     // The window closes as its ✕ would: unsaved work is asked about on the way
     // out, and if the answer is to stay, `stayed()` answers for us. Otherwise
     // the app quits and the setup runs, and this never answers.
@@ -158,11 +187,14 @@ function register(ipcMain, BrowserWindow) {
     });
   });
 
-  // Once the last window has gone. Silent, and told to start the app again — as
-  // the installer's own updater does: `--updated` says this is an upgrade.
+  // Once the last window has gone. The installer is not run silent: its own
+  // window, with its own progress bar, is what says something is happening in
+  // the seconds between this window closing and the new one opening — a silent
+  // setup leaves nothing on the screen at all. It starts the app again when it
+  // is done, and `--force-run` says so for a build that would not.
   app.on("quit", () => {
     if (pending === undefined) return;
-    spawn(pending, ["/S", "--updated", "--force-run"], { detached: true, stdio: "ignore" }).unref();
+    spawn(pending, ["--force-run"], { detached: true, stdio: "ignore" }).unref();
   });
 }
 

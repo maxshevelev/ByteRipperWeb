@@ -5,7 +5,7 @@ import { GitHubReleases } from "@/platform/net/githubReleases";
 import { createStore } from "@/state/store";
 import { reportAlert } from "@/state/workspaceStore";
 import { appNameAndVersion, runningVersion } from "@/ui/shell/appVersion";
-import { desktopBridge } from "@/ui/shell/desktopMenu";
+import { desktopBridge, type UpdateProgress } from "@/ui/shell/desktopMenu";
 
 /**
  * Whether a newer build has been published, and the desktop build's way of
@@ -29,8 +29,8 @@ import { desktopBridge } from "@/ui/shell/desktopMenu";
 export type UpdateAsk =
   /** A newer build exists; asking whether to move to it. */
   | { readonly phase: "available"; readonly release: Release }
-  /** The shell is downloading it. */
-  | { readonly phase: "installing"; readonly release: Release };
+  /** The shell is fetching it, and says how far it has got. */
+  | { readonly phase: "installing"; readonly release: Release; readonly progress: UpdateProgress };
 
 export const updateStore = createStore<{ readonly ask: UpdateAsk | undefined }>({
   ask: undefined,
@@ -80,6 +80,11 @@ export function offerUpdate(release: Release): void {
   updateStore.update((state) => ({ ...state, ask: { phase: "available", release } }));
 }
 
+/** Cancel while the file comes down. */
+export function cancelInstall(): void {
+  desktopBridge()?.cancelUpdate();
+}
+
 /** The reader said no, or asked for nothing more. */
 export function dismissUpdate(): void {
   updateStore.update((state) => ({ ...state, ask: undefined }));
@@ -97,8 +102,12 @@ export async function acceptUpdate(release: Release): Promise<void> {
     window.open(release.page, "_blank", "noopener");
     return;
   }
-  updateStore.update((state) => ({ ...state, ask: { phase: "installing", release } }));
+  const show = (progress: UpdateProgress) =>
+    updateStore.update((state) => ({ ...state, ask: { phase: "installing", release, progress } }));
+  show({ phase: "preparing" });
+  const stopListening = bridge.onUpdateProgress(show);
   const result = await bridge.installUpdate(release.version.text);
+  stopListening();
   dismissUpdate();
   if (result.status === "cancelled") return;
   reportAlert(

@@ -114,6 +114,7 @@ import { scrollLink } from "@/ui/pane/scrollLink";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { addCut, saveAllPieces, segmentAsks } from "@/ui/segments/segmentCommands";
 import { SettingsDialog, type SettingsTab } from "@/ui/settings/SettingsDialog";
+import { AboutDialog } from "@/ui/shell/AboutDialog";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
@@ -2174,6 +2175,7 @@ export function AppShell() {
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
       <UpdateDialogs />
+      <AboutDialog />
       {/* A long update holds the window while it is worked out, as upstream's
           sheet does — and says what it is doing where it cannot be missed. */}
       <OperationDialog />

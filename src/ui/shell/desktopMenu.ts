@@ -50,6 +50,22 @@ export interface DesktopBridge {
    * has worked — the app is gone by then.
    */
   installUpdate(version: string): Promise<UpdateInstallResult>;
+  /** Stops a download that is running; `installUpdate` then answers "cancelled". */
+  cancelUpdate(): void;
+  /** Hears how far `installUpdate` has got. Returns the way to stop listening. */
+  onUpdateProgress(callback: (progress: UpdateProgress) => void): () => void;
+}
+
+/** How far an installation has got, as the shell reports it. */
+export interface UpdateProgress {
+  /**
+   * `preparing` asks GitHub which files the release has, `download` fetches the
+   * setup, `verify` checks it against the release's checksums, and `install`
+   * is the window closing so that the installer can run.
+   */
+  readonly phase: "preparing" | "download" | "verify" | "install";
+  readonly received?: number;
+  readonly total?: number;
 }
 
 /** Why an installation did not happen. */

@@ -11,4 +11,10 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
   quit: () => ipcRenderer.send("quit"),
   canInstallUpdate: ipcRenderer.sendSync("update:installable"),
   installUpdate: (version) => ipcRenderer.invoke("update:install", version),
+  cancelUpdate: () => ipcRenderer.send("update:cancel"),
+  onUpdateProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on("update:progress", listener);
+    return () => ipcRenderer.removeListener("update:progress", listener);
+  },
 });

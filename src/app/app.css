@@ -5145,3 +5145,69 @@ button.uefi-title {
   margin-left: 6px;
   vertical-align: -2px;
 }
+
+/* The update's bar: the download's fraction, or a bar that moves without one
+   while the shell is asking GitHub, checking the file, or closing the window. */
+.update-progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+/* Help ▸ About: upstream's panel — the icon, the name, the version, the
+   credits, all centred — as a dialog. */
+.about {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.about-icon {
+  margin-bottom: 4px;
+}
+
+.about-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.about-version,
+.about-copyright {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.about-credits {
+  margin: 12px 0 8px;
+  max-width: 32rem;
+  font-size: 0.8rem;
+}
+
+.about-credits-heading,
+.about-project-name {
+  margin: 0;
+  font-weight: 700;
+}
+
+.about-project {
+  margin-top: 10px;
+}
+
+.about-project p {
+  margin: 0;
+}
+
+.about-by {
+  font-weight: 400;
+}
+
+.about-taken {
+  color: var(--text-muted);
+}
+
+.about a {
+  color: var(--accent);
+}

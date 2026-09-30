@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
+import { showAbout } from "@/state/aboutStore";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
@@ -456,6 +457,12 @@ export function Toolbar({
     { kind: "separator" },
     { kind: "heading", label: L("Help", { context: "menu" }), opensMenu: true },
     ...helpMenuEntries(),
+    // Where upstream's is the application menu's first item, and a page has no
+    // application menu.
+    // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.build
+    // @upstream-differs at the foot of Help
+    { kind: "separator" },
+    { label: L("About ByteRipper"), onSelect: showAbout },
   ]);
 
   // The plaque's last determined answer, held through a rebuild.
