@@ -865,6 +865,11 @@ textarea,
      are their own row so they take height from the dump rather than covering
      it. Both collapse to nothing when absent. */
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  /* An implicit `auto` column is as wide as its widest content — the column
+     header's canvas, the results — so a pane squeezed narrow kept its full
+     width and the header's ✕ sat outside what is drawn. The column is the
+     pane's width, and the header's name gives way to fit it. */
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   /* The drop overlay's bands hang off this box. */
   position: relative;
