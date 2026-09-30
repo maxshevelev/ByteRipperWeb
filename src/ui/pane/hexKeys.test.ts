@@ -6,6 +6,7 @@ import {
   isContextClick,
   resolveHexKey,
   resolveTarget,
+  shortcutKey,
 } from "@/ui/pane/hexKeys";
 
 const key = (overrides: Partial<HexKeyEvent> & { key: string }): HexKeyEvent => ({
@@ -31,6 +32,23 @@ describe("the primary modifier", () => {
     expect(detectKeyboardPlatform("Win32")).toBe("other");
     expect(detectKeyboardPlatform("Linux x86_64")).toBe("other");
     expect(detectKeyboardPlatform("")).toBe("other");
+  });
+});
+
+// With Ctrl held a Russian layout reports the Cyrillic letter for the key, so
+// the chord is read from the physical key when the character is not Latin.
+describe("shortcuts on another layout", () => {
+  it("resolve by the physical key when the character is not a Latin letter", () => {
+    const ctrl = (k: string, code: string) => key({ key: k, code, ctrlKey: true });
+    expect(resolveHexKey(ctrl("с", "KeyC"), "other")).toEqual({ kind: "copy" });
+    expect(resolveHexKey(ctrl("ф", "KeyA"), "other")).toEqual({ kind: "selectAll" });
+    expect(resolveHexKey(ctrl("а", "KeyF"), "other")).toEqual({ kind: "find" });
+    expect(shortcutKey({ key: ".", code: "Slash" })).toBe("/");
+  });
+
+  it("keep a Latin layout's own letter, wherever the key sits", () => {
+    expect(shortcutKey({ key: "a", code: "KeyQ" })).toBe("a");
+    expect(shortcutKey({ key: "A", code: "KeyQ" })).toBe("a");
   });
 });
 

@@ -109,7 +109,7 @@ import { FragmentPanels } from "@/ui/fragments/FragmentPanels";
 import { usePartLink } from "@/ui/fragments/usePartLink";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
 import { HexPane } from "@/ui/pane/HexPane";
-import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
+import { detectKeyboardPlatform, shortcutKey } from "@/ui/pane/hexKeys";
 import { scrollLink } from "@/ui/pane/scrollLink";
 import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { addCut, saveAllPieces, segmentAsks } from "@/ui/segments/segmentCommands";
@@ -737,7 +737,7 @@ export function AppShell() {
       // upstream's ⌘? is ⌘⇧/ in a browser, which several engines have spent.
       //
       // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeHelpMenu
-      if (event.key === "F1" || ((event.metaKey || event.ctrlKey) && event.key === "/")) {
+      if (event.key === "F1" || ((event.metaKey || event.ctrlKey) && shortcutKey(event) === "/")) {
         event.preventDefault();
         showHelp();
         return;
@@ -751,7 +751,7 @@ export function AppShell() {
       // everything else below is Alt-free. The dump has no handler for it, so
       // it is taken here wherever the keyboard is.
       if (event.altKey) {
-        if (event.key === "b" || event.key === "B" || event.code === "KeyB") {
+        if (shortcutKey(event) === "b") {
           event.preventDefault();
           setGoTo("bookmarks");
         }
@@ -766,25 +766,22 @@ export function AppShell() {
       const target = event.target;
       if (target instanceof Element && target.closest(".hex-scroller") !== null) return;
 
-      switch (event.key) {
+      const chord = shortcutKey(event);
+      switch (chord) {
         case "f":
-        case "F":
           event.preventDefault();
           openSearch();
           focusFindInput();
           return;
         case "l":
-        case "L":
           event.preventDefault();
           setGoTo("offset");
           return;
         case "m":
-        case "M":
           event.preventDefault();
           toggleMinimap();
           return;
-        case "d":
-        case "D": {
+        case "d": {
           // The pane's own handler has this too, but only while the dump has
           // the keyboard — and marking a row is a workspace command.
           event.preventDefault();
@@ -801,18 +798,13 @@ export function AppShell() {
           return;
         }
         case "z":
-        case "Z":
-        case "y":
-        case "Y": {
+        case "y": {
           // Undo and Redo belong to the Edit menu and act on the active pane
           // wherever the keyboard is — after a click on the toolbar, say. A text
           // field keeps its own: undoing a typed character is not undoing a cut.
           if (target instanceof HTMLElement && isTextEntry(target)) return;
-          const redo =
-            event.key === "y" || event.key === "Y"
-              ? detectKeyboardPlatform() === "other"
-              : event.shiftKey;
-          if ((event.key === "y" || event.key === "Y") && !redo) return;
+          const redo = chord === "y" ? detectKeyboardPlatform() === "other" : event.shiftKey;
+          if (chord === "y" && !redo) return;
           event.preventDefault();
           // Undo means the document in front: an edit made in a part is undone
           // in the part, not in the file it is lying over.
@@ -2021,7 +2013,7 @@ export function AppShell() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.defaultPrevented) return;
-      const key = event.key.toLowerCase();
+      const key = shortcutKey(event);
       const { panes } = workspaceStore.getSnapshot();
       const anyOpen = panes.a !== undefined || panes.b !== undefined;
       // Ctrl+F4 is how Windows closes a document.

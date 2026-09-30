@@ -25,6 +25,8 @@ import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 /** The part of a keyboard event these rules read. */
 export interface HexKeyEvent {
   readonly key: string;
+  /** The physical key. Optional so a caller with only the character can still ask. */
+  readonly code?: string;
   readonly shiftKey: boolean;
   readonly metaKey: boolean;
   readonly ctrlKey: boolean;
@@ -92,6 +94,27 @@ function navigatorPlatform(): string {
   return data?.platform ?? navigator.platform ?? navigator.userAgent;
 }
 
+/**
+ * The key a shortcut is spelled with, whatever layout is active.
+ *
+ * With Ctrl held a Russian layout reports `с` for the key that types `c`, so a
+ * shortcut read from `key` alone answers on one layout and not on the others.
+ * A Latin letter is taken as typed — an AZERTY or Dvorak reader's Ctrl+A is the
+ * key that types `a`, wherever it sits — and any other letter falls back to the
+ * physical key's Latin name, which is where every layout keeps its shortcuts.
+ * Letters come back lower case; a chord's Shift is read from `shiftKey`.
+ *
+ * @web-only upstream's menu key equivalents are resolved per layout by the system
+ */
+export function shortcutKey(event: { readonly key: string; readonly code?: string }): string {
+  const key = event.key.toLowerCase();
+  if (/^[a-z]$/.test(key)) return key;
+  const letter = /^Key([A-Z])$/.exec(event.code ?? "");
+  if (letter !== null) return (letter[1] ?? "").toLowerCase();
+  if (event.code === "Slash") return "/";
+  return event.key;
+}
+
 /** True when the event carries the platform's primary modifier. */
 export function hasPrimaryModifier(event: HexKeyEvent, platform: KeyboardPlatform): boolean {
   return platform === "apple" ? event.metaKey : event.ctrlKey;
@@ -138,47 +161,36 @@ export function resolveHexKey(
   if (event.altKey) return undefined;
 
   if (primary) {
-    switch (event.key) {
+    switch (shortcutKey(event)) {
       case "a":
-      case "A":
         // help: menu.edit.select-all
         return { kind: "selectAll" };
       case "l":
-      case "L":
         return { kind: "goToPosition" };
       case "f":
-      case "F":
         return { kind: "find" };
       case "m":
-      case "M":
         return { kind: "toggleMinimap" };
       case "d":
-      case "D":
         // ⇧⌘D edits the row's mark; ⌘D marks and names it, or unmarks it.
         return extend ? { kind: "editBookmark" } : { kind: "toggleBookmark" };
       case "g":
-      case "G":
         // The other spelling of Find Next, and Shift for the other direction.
         return extend ? { kind: "findPrevious" } : { kind: "findNext" };
       case "z":
-      case "Z":
         // Shift+Cmd/Ctrl+Z is Redo everywhere this app runs. Shift is read from
         // the modifier, not from the letter's case: with Cmd held, a Mac's
         // browser reports the key as "z" whether Shift is down or not.
         return extend ? { kind: "redo" } : { kind: "undo", batch: false };
       case "y":
-      case "Y":
         // Windows and Linux also spell Redo as Ctrl+Y.
         return platform === "other" ? { kind: "redo" } : undefined;
       case "s":
-      case "S":
         return extend ? { kind: "saveAs" } : { kind: "save" };
       case "c":
-      case "C":
         // help: menu.edit.copy
         return { kind: "copy" };
       case "v":
-      case "V":
         // help: menu.edit.paste
         return { kind: "paste" };
       // The Mac's caret jumps. They work elsewhere too under Ctrl, where they

@@ -10,6 +10,7 @@ import {
 } from "@/state/bookmarkEditStore";
 import { removeBookmark } from "@/state/bookmarksStore";
 import { paneInFront } from "@/state/workspaceStore";
+import { shortcutKey } from "@/ui/pane/hexKeys";
 
 /**
  * The popover that names or edits a bookmark (§20.3), in the shape Xcode gives a
@@ -141,7 +142,7 @@ export function BookmarkEditPopover({
           (event.metaKey || event.ctrlKey) &&
           !event.shiftKey &&
           !event.altKey &&
-          event.key.toLowerCase() === "d"
+          shortcutKey(event) === "d"
         ) {
           event.preventDefault();
           removeBookmark(session.pane ?? paneInFront(), session.row);
