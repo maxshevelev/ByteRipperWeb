@@ -14,6 +14,9 @@ describe("a shortcut as an accelerator", () => {
     expect(acceleratorOf("⇧⌘Z")).toBe("CmdOrCtrl+Shift+Z");
     expect(acceleratorOf("⌥⌘B")).toBe("CmdOrCtrl+Alt+B");
     expect(acceleratorOf("⌘L")).toBe("CmdOrCtrl+L");
+    expect(acceleratorOf("⌘+")).toBe("CmdOrCtrl+Plus");
+    expect(acceleratorOf("⌘-")).toBe("CmdOrCtrl+-");
+    expect(acceleratorOf("⌘0")).toBe("CmdOrCtrl+0");
     expect(acceleratorOf("⌃F4")).toBe("Ctrl+F4");
   });
 

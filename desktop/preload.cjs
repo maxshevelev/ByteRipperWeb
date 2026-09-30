@@ -1,9 +1,12 @@
-// The one thing the page may ask of the shell: to show its command menu as the
-// window's menu bar. Data crosses, nothing else — the page keeps its commands.
+// What the page may ask of the shell: to show its command menu as the window's
+// menu bar, and to zoom the window. Data crosses, nothing else — the page keeps
+// its commands.
 // A chosen item comes back through main.cjs, not through here: it has to
 // arrive as a user gesture, which a message over IPC is not.
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("byteripperDesktop", {
   setMenu: (menus) => ipcRenderer.send("menu:set", menus),
+  zoom: (step) => ipcRenderer.send("zoom", step),
+  quit: () => ipcRenderer.send("quit"),
 });

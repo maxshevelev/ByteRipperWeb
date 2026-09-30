@@ -36,7 +36,7 @@ import { canCopyToOtherPane, copySelectionToOtherPane } from "@/ui/shell/copyToO
 import { desktopBridge, publishNativeMenu } from "@/ui/shell/desktopMenu";
 import { helpMenuEntries } from "@/ui/shell/helpMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
-import { compactEntries } from "@/ui/shell/menuModel";
+import { compactEntries, type MenuEntry } from "@/ui/shell/menuModel";
 import { revertItem } from "@/ui/shell/paneMenus";
 import {
   BackwardGlyph,
@@ -522,8 +522,27 @@ export function Toolbar({
         entry.label === L("Help", { context: "menu" })
     );
     const at = help < 0 ? entries.length : help;
+    // The page's zoom is the window's, so it is the shell that changes it: the
+    // View menu ends with the three commands, and the menu answers their keys.
+    // @web-only a browser has its own zoom, and the page has no key for it
+    const zoom = (step: -1 | 0 | 1) => () => desktopBridge()?.zoom(step);
+    const viewEnd = entries[at - 1]?.kind === "separator" ? at - 1 : at;
+    // Exit closes File, after Settings…, where a Windows application has it.
+    // @web-only a browser tab is closed by the browser
+    const file = entries.findIndex((entry) => entry.kind === "heading" && entry.opensMenu === true);
+    const exit: MenuEntry[] = [
+      { label: L("Exit"), onSelect: () => desktopBridge()?.quit() },
+      { kind: "separator" },
+    ];
     publishNativeMenu([
-      ...entries.slice(0, at),
+      ...entries.slice(0, Math.max(file, 0)),
+      ...exit,
+      ...entries.slice(Math.max(file, 0), viewEnd),
+      { kind: "separator" },
+      { label: L("Zoom In"), shortcut: "⌘+", shellKey: true, onSelect: zoom(1) },
+      { label: L("Zoom Out"), shortcut: "⌘-", shellKey: true, onSelect: zoom(-1) },
+      { label: L("Actual Size"), shortcut: "⌘0", shellKey: true, onSelect: zoom(0) },
+      ...entries.slice(viewEnd, at),
       { kind: "heading", label: L("Tools"), opensMenu: true },
       ...toolEntries,
       ...entries.slice(at),

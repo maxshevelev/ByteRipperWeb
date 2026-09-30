@@ -23,6 +23,8 @@ export interface NativeMenuItem {
   readonly checked?: boolean;
   /** Shown beside the label; the page, not the shell, answers the keys. */
   readonly accelerator?: string;
+  /** The shell answers the accelerator itself, rather than only drawing it. */
+  readonly registerAccelerator?: boolean;
 }
 
 export interface NativeMenu {
@@ -33,6 +35,10 @@ export interface NativeMenu {
 /** What the shell's preload script exposes. */
 export interface DesktopBridge {
   setMenu(menus: readonly NativeMenu[]): void;
+  /** The window's page zoom, one step in or out, or back to 100 % for 0. */
+  zoom(step: -1 | 0 | 1): void;
+  /** Closes the window as its ✕ does; the shell asks about unsaved work. */
+  quit(): void;
 }
 
 /**
@@ -84,9 +90,13 @@ export function acceleratorOf(shortcut: string | undefined): string | undefined 
       ? arrow
       : /^[A-Za-z0-9]$/.test(rest)
         ? rest.toUpperCase()
-        : /^F([1-9]|1[0-9]|2[0-4])$/.test(rest)
-          ? rest
-          : undefined;
+        : rest === "+"
+          ? "Plus"
+          : rest === "-"
+            ? "-"
+            : /^F([1-9]|1[0-9]|2[0-4])$/.test(rest)
+              ? rest
+              : undefined;
   if (key === undefined || ["CmdOrCtrl", "Ctrl", "Alt", "Shift"].includes(key)) return undefined;
   // Modifiers in Electron's order.
   const modifiers = ["CmdOrCtrl", "Ctrl", "Alt", "Shift"].filter((one) => parts.includes(one));
@@ -138,6 +148,7 @@ export function nativeMenus(entries: readonly MenuEntry[]): {
       enabled: entry.disabled !== true,
       ...(entry.checked === undefined ? {} : { checked: entry.checked }),
       ...(accelerator === undefined ? {} : { accelerator }),
+      ...(entry.shellKey === true ? { registerAccelerator: true } : {}),
     });
   }
   // What came before the first menu — Settings… — closes it, set apart, where

@@ -94,6 +94,7 @@
 "A FIT needs at least one microcode entry." = "Eine FIT braucht mindestens einen Microcode-Eintrag.";
 "A second header entry, where there may be only one" = "Ein zweiter Kopfeintrag, obwohl es nur einen geben darf";
 "Access width" = "Zugriffsbreite";
+"Actual Size" = "Tatsächliche Größe";
 "Add" = "Hinzufügen";
 "Add a cut" = "Schnitt hinzufügen";
 "Add a microcode you already have, without the network" = "Einen vorhandenen Microcode hinzufügen, ohne Netz";
@@ -943,3 +944,6 @@
 "Two writes cover 0x%1$@." = "Zwei Schreibvorgänge überdecken 0x%1$@.";
 "Undo takes it back." = "„Widerrufen“ nimmt es zurück.";
 "%1$@ copy" = "%1$@ Kopie";
+"Zoom In" = "Vergrößern";
+"Zoom Out" = "Verkleinern";
+"Exit" = "Beenden";

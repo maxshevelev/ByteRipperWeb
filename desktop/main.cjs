@@ -6,7 +6,7 @@
 // needs) and the Cache API (yesterday's databases) all require, and a
 // standard scheme is what gives the page an origin of its own for IndexedDB.
 // `file://` would give neither.
-const { app, BrowserWindow, ipcMain, Menu, net, protocol, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } = require("electron");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
@@ -15,6 +15,30 @@ const HOST = "byteripper";
 /** The web build is made for GitHub Pages, under this subdirectory. */
 const BASE = "/ByteRipperWeb/";
 const WEB_ROOT = path.join(__dirname, "web");
+/** Zoom levels are logarithmic: 0.5 is a step of about 10 %, and −3…5 is 58…250 %. */
+const LEAVE_PROMPT = {
+  en: {
+    leave: "Leave",
+    stay: "Stay",
+    message: "Close with unsaved changes?",
+    detail: "The changes you made will be lost.",
+  },
+  ru: {
+    leave: "Выйти",
+    stay: "Остаться",
+    message: "Закрыть без сохранения изменений?",
+    detail: "Внесённые изменения будут потеряны.",
+  },
+  de: {
+    leave: "Verlassen",
+    stay: "Bleiben",
+    message: "Mit ungesicherten Änderungen schließen?",
+    detail: "Ihre Änderungen gehen verloren.",
+  },
+};
+const ZOOM_STEP = 0.5;
+const ZOOM_MIN = -3;
+const ZOOM_MAX = 5;
 
 // `npm start` runs Electron from the source tree, and a build made earlier may
 // be open at the same time. Two processes on one profile fight over its locked
@@ -64,6 +88,22 @@ function createWindow() {
     if (url.startsWith("https://")) void shell.openExternal(url);
     return { action: "deny" };
   });
+  // The page arms `beforeunload` while anything is unsaved. A browser asks the
+  // reader; Electron, given no handler, silently keeps the window open — Exit
+  // and the window's ✕ would do nothing. So the shell asks, in the system's
+  // language, and lets the window go when the answer is to leave.
+  window.webContents.on("will-prevent-unload", (event) => {
+    const words = LEAVE_PROMPT[app.getLocale().slice(0, 2)] ?? LEAVE_PROMPT.en;
+    const choice = dialog.showMessageBoxSync(window, {
+      type: "warning",
+      buttons: [words.leave, words.stay],
+      defaultId: 1,
+      cancelId: 1,
+      message: words.message,
+      detail: words.detail,
+    });
+    if (choice === 0) event.preventDefault();
+  });
   void window.loadURL(`${SCHEME}://${HOST}${BASE}index.html`);
 }
 
@@ -108,14 +148,40 @@ app.whenReady().then(() => {
             ...(one.checked === undefined ? {} : { checked: one.checked }),
             ...(one.accelerator === undefined
               ? {}
-              : { accelerator: one.accelerator, registerAccelerator: false }),
+              : {
+                  accelerator: one.accelerator,
+                  registerAccelerator: one.registerAccelerator === true,
+                }),
             ...(one.id === undefined ? {} : { click: click(one.id) }),
           };
-    const template = menus.map((menu) => ({ label: menu.label, submenu: menu.items.map(item) }));
+    // Zoom In is Ctrl+Plus, and on most keyboards that is Ctrl+= as well, or the
+    // numeric pad's: the same command under the other spellings, not drawn.
+    const ALSO = { "CmdOrCtrl+Plus": ["CmdOrCtrl+=", "CmdOrCtrl+numadd"], "CmdOrCtrl+-": ["CmdOrCtrl+numsub"] };
+    const items = (list) =>
+      list.flatMap((one) => [
+        item(one),
+        ...(one.registerAccelerator === true ? (ALSO[one.accelerator] ?? []) : []).map(
+          (accelerator) => ({ ...item(one), accelerator, visible: false })
+        ),
+      ]);
+    const template = menus.map((menu) => ({ label: menu.label, submenu: items(menu.items) }));
     // A Mac's first menu is the application's, whatever it is given.
     if (process.platform === "darwin") template.unshift({ role: "appMenu" });
     Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   });
+
+  // The View menu's zoom: the window's page zoom, which is the only zoom the
+  // page has (Help ▸ Moving around). Chromium's own Ctrl+Plus/Minus went with
+  // the default menu, so the menu answers them.
+  ipcMain.on("zoom", (event, step) => {
+    const contents = event.sender;
+    const level = step === 0 ? 0 : contents.getZoomLevel() + step * ZOOM_STEP;
+    contents.setZoomLevel(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level)));
+  });
+
+  // File ▸ Exit: the window closes as its ✕ would, so unsaved work is asked
+  // about on the way out, and the last window closing quits the app.
+  ipcMain.on("quit", (event) => BrowserWindow.fromWebContents(event.sender)?.close());
 
   createWindow();
 });

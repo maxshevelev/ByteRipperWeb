@@ -19,6 +19,12 @@ export interface MenuAction {
   readonly exclusive?: boolean | undefined;
   /** Drawn in the warning colour — a command that removes or overwrites. */
   readonly destructive?: boolean | undefined;
+  /**
+   * The desktop shell's menu answers this shortcut itself. Every other key is
+   * answered by the page and only drawn by the menu; a command the page has no
+   * key handler for — the shell's zoom — needs the menu to register it.
+   */
+  readonly shellKey?: boolean | undefined;
   readonly onSelect: () => void;
 }
 

@@ -94,6 +94,7 @@
 "A FIT needs at least one microcode entry." = "В FIT должна быть хотя бы одна запись микрокода.";
 "A second header entry, where there may be only one" = "Вторая запись-заголовок, хотя она может быть только одна";
 "Access width" = "Ширина доступа";
+"Actual Size" = "Реальный размер";
 "Add" = "Добавить";
 "Add a cut" = "Добавить разрез";
 "Add a microcode you already have, without the network" = "Добавить микрокод, который уже есть, без сети";
@@ -942,3 +943,6 @@
 "Two writes cover 0x%1$@." = "Две записи перекрываются на 0x%1$@.";
 "Undo takes it back." = "«Отменить» возвращает всё назад.";
 "%1$@ copy" = "%1$@ копия";
+"Zoom In" = "Увеличить";
+"Zoom Out" = "Уменьшить";
+"Exit" = "Выход";
