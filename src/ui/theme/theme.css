@@ -135,7 +135,8 @@
     --knockout: var(--surface);
 
     --byte-text: #ececee;
-    --byte-text-muted: rgb(236 236 238 / 0.4); /* upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash */
+    /* Upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash. */
+    --byte-text-muted: rgb(236 236 238 / 0.4);
     --byte-modified: #ff6b66;
     /* Lighter on dark, so it stays legible without competing with the bytes.
        srgb(0.58, 0.73, 0.92). */
@@ -204,7 +205,8 @@
   --knockout: var(--surface);
 
   --byte-text: #ececee;
-  --byte-text-muted: rgb(236 236 238 / 0.4); /* upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash */
+  /* Upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash. */
+  --byte-text-muted: rgb(236 236 238 / 0.4);
   --byte-modified: #ff6b66;
   /* Lighter on dark, so it stays legible without competing with the bytes.
      srgb(0.58, 0.73, 0.92). */

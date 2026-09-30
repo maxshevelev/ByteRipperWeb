@@ -62,9 +62,7 @@ function expectedHash(sums, name) {
 async function download(version, window) {
   let release;
   try {
-    release = await (
-      await fetchOk(`${RELEASE_BY_TAG}v${version}`, "download")
-    ).json();
+    release = await (await fetchOk(`${RELEASE_BY_TAG}v${version}`, "download")).json();
   } catch {
     throw new Failure("download");
   }
@@ -74,14 +72,20 @@ async function download(version, window) {
   const sums = assets.find((one) => one.name === "SHA256SUMS");
   if (!setup || !sums) throw new Failure("unavailable");
   for (const one of [setup, sums]) {
-    if (typeof one.browser_download_url !== "string" || !one.browser_download_url.startsWith(DOWNLOADS)) {
+    if (
+      typeof one.browser_download_url !== "string" ||
+      !one.browser_download_url.startsWith(DOWNLOADS)
+    ) {
       throw new Failure("unavailable");
     }
   }
 
   let expected;
   try {
-    expected = expectedHash(await (await fetchOk(sums.browser_download_url, "download")).text(), setupName);
+    expected = expectedHash(
+      await (await fetchOk(sums.browser_download_url, "download")).text(),
+      setupName
+    );
   } catch {
     throw new Failure("download");
   }

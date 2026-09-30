@@ -6,7 +6,17 @@
 // needs) and the Cache API (yesterday's databases) all require, and a
 // standard scheme is what gives the page an origin of its own for IndexedDB.
 // `file://` would give neither.
-const { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  protocol,
+  session,
+  shell,
+} = require("electron");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const updates = require("./update.cjs");
@@ -158,7 +168,10 @@ app.whenReady().then(() => {
           };
     // Zoom In is Ctrl+Plus, and on most keyboards that is Ctrl+= as well, or the
     // numeric pad's: the same command under the other spellings, not drawn.
-    const ALSO = { "CmdOrCtrl+Plus": ["CmdOrCtrl+=", "CmdOrCtrl+numadd"], "CmdOrCtrl+-": ["CmdOrCtrl+numsub"] };
+    const ALSO = {
+      "CmdOrCtrl+Plus": ["CmdOrCtrl+=", "CmdOrCtrl+numadd"],
+      "CmdOrCtrl+-": ["CmdOrCtrl+numsub"],
+    };
     const items = (list) =>
       list.flatMap((one) => [
         item(one),
