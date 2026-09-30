@@ -1,3 +1,5 @@
+import { type AppVersion, parseAppVersion } from "@/core/updates/appVersion";
+
 /** Written into the build by Vite, from package.json (`vite.config.ts`). */
 declare const __APP_VERSION__: string;
 
@@ -12,3 +14,13 @@ declare const __APP_VERSION__: string;
  * @upstream-differs read from the build rather than from a bundle's Info.plist
  */
 export const appNameAndVersion = (): string => `ByteRipper ${__APP_VERSION__}`;
+
+/**
+ * The version this build is, for comparison — `undefined` for a build made
+ * without one, which is what keeps a caller from comparing a release against
+ * nothing and calling the result an update.
+ *
+ * @upstream ByteRipperApp/Updates/AppVersion.swift#AppVersion.current
+ * @upstream-differs read from the build rather than from a bundle's Info.plist
+ */
+export const runningVersion = (): AppVersion | undefined => parseAppVersion(__APP_VERSION__);

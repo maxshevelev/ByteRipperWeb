@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
   setMenu: (menus) => ipcRenderer.send("menu:set", menus),
   zoom: (step) => ipcRenderer.send("zoom", step),
   quit: () => ipcRenderer.send("quit"),
+  canInstallUpdate: ipcRenderer.sendSync("update:installable"),
+  installUpdate: (version) => ipcRenderer.invoke("update:install", version),
 });

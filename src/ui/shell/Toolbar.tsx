@@ -17,6 +17,7 @@ import {
   toolController,
 } from "@/state/toolController";
 import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
+import { checkForUpdate } from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
 import {
   frontPane,
@@ -546,6 +547,10 @@ export function Toolbar({
       { kind: "heading", label: L("Tools"), opensMenu: true },
       ...toolEntries,
       ...entries.slice(at),
+      // After the Help pages, where a Windows application keeps it.
+      // @web-only the desktop build replaces itself; a page is replaced by loading it again
+      { kind: "separator" },
+      { label: L("Check for Update…"), onSelect: () => void checkForUpdate() },
     ]);
   });
 

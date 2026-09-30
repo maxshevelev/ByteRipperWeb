@@ -39,7 +39,23 @@ export interface DesktopBridge {
   zoom(step: -1 | 0 | 1): void;
   /** Closes the window as its ✕ does; the shell asks about unsaved work. */
   quit(): void;
+  /**
+   * Whether this build can replace itself: an installed one can, a portable
+   * `.exe` or an unpacked `.zip` has nothing to install over.
+   */
+  readonly canInstallUpdate: boolean;
+  /**
+   * Downloads the release's setup, checks it against the release's own
+   * `SHA256SUMS`, and runs it once the window has closed. Never answers when it
+   * has worked — the app is gone by then.
+   */
+  installUpdate(version: string): Promise<UpdateInstallResult>;
 }
+
+/** Why an installation did not happen. */
+export type UpdateInstallResult =
+  | { readonly status: "cancelled" }
+  | { readonly status: "failed"; readonly reason: "unavailable" | "download" | "checksum" };
 
 /**
  * Where the shell delivers a click: a function on the page's own window, which

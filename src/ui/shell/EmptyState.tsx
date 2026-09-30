@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
+import type { Release } from "@/core/updates/releases";
 import { saveNotice } from "@/platform/files/capabilities";
 import { bookmarksStore } from "@/state/bookmarksStore";
+import { checkForNewerRelease, offerUpdate } from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { HelpButton } from "@/ui/help/HelpButton";
@@ -72,8 +75,57 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
           it, so it sits closer (upstream's versionGap).
           @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.versionGap */}
       <p className="empty-state-version">{appNameAndVersion()}</p>
+      <NewerRelease />
       <BookmarkSection bookmarks={bookmarks} />
     </div>
+  );
+}
+
+/**
+ * A newer build, announced under the version it is newer than: one line, and
+ * beside it the way to move to it. Upstream's line is a link to the release's
+ * page; here the window can do the update itself — the desktop build installs
+ * it, a page opens where the download is — so the line offers that, and asks
+ * before it does (`offerUpdate`).
+ *
+ * Asked in the background and never waited for — the screen is drawn first and
+ * the line arrives after it, when it arrives at all. Nothing on this screen
+ * reports a check that failed: offline is the normal state of a bench.
+ *
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.showAvailableRelease
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineText
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.openReleasePage
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting
+ * @upstream-differs the line offers the update rather than linking to the release's page
+ */
+function NewerRelease() {
+  const [release, setRelease] = useState<Release | undefined>();
+
+  useEffect(() => {
+    let current = true;
+    void checkForNewerRelease().then((found) => {
+      // The answer is older than the question: a file may have been opened since.
+      if (current) setRelease(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  if (release === undefined) return null;
+  return (
+    <p className="empty-state-release">
+      {L("Version %1$@ is available", release.version.text)}
+      {" · "}
+      <button
+        type="button"
+        className="empty-state-update"
+        onClick={() => offerUpdate(release)}
+        title={L("Update to version %1$@", release.version.text)}
+      >
+        {L("Update")}
+      </button>
+    </p>
   );
 }
 

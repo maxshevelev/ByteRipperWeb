@@ -129,6 +129,7 @@ import {
 } from "@/ui/shell/paneMenus";
 import { Toolbar } from "@/ui/shell/Toolbar";
 import { TransientNotice } from "@/ui/shell/TransientNotice";
+import { UpdateDialogs } from "@/ui/shell/UpdateDialogs";
 import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
 
 /**
@@ -2172,6 +2173,7 @@ export function AppShell() {
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
+      <UpdateDialogs />
       {/* A long update holds the window while it is worked out, as upstream's
           sheet does — and says what it is doing where it cannot be missed. */}
       <OperationDialog />

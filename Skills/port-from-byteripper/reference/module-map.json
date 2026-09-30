@@ -4047,8 +4047,8 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testResizingThePanelMovesOnlyPointsAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTableKeepsInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowKeepsTheTreeInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AppVersionTests.swift#*": "later — the version line is not ported (G34 in Design/GAPS.md), so its test is not either",
-        "ByteRipperTests/ReleaseCheckTests.swift#*": "later — the newer-build check is not ported (G34 in Design/GAPS.md), so its test is not either",
+        "ByteRipperTests/AppVersionTests.swift#*": "ported — src/core/updates/appVersion.test.ts checks the same comparison, with the build number this edition adds",
+        "ByteRipperTests/ReleaseCheckTests.swift#*": "ported — src/platform/net/githubReleases.test.ts reads a fixture and takes a stub source, as upstream's does",
         "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests": "n/a — test scaffolding",
         "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.font": "n/a — test scaffolding",
         "ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.makeLabel": "n/a — test scaffolding",
@@ -4208,9 +4208,7 @@
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingBookmarksForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.bookmarkAddressColorForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneOperation": "n/a — one workspace per browser tab (D11): no tabs or windows",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.appNameAndVersion": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.showAvailableRelease": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting": "n/a — a test seam"
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
@@ -4465,8 +4463,6 @@
         "ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.detachPane": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.adopt": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.bookmarkEditPresenter": "n/a — a test seam",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releases": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.flipInsertMode": "ported — the flip is TypingController.toggleInsertMode, and the alert it puts in front of the first insert-mode keystroke is the insert sentence of src/core/text/shiftWarning.ts, asked through AppShell's editing hooks (src/core/edit/typingController.ts, src/ui/shell/AppShell.tsx)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.wireStatusBar": "ported — a React status line wires its own parts where it draws them: the size and the offset open paneMenus.statusSizeMenu / statusOffsetMenu, and the mode box's click toggles the mode (src/ui/pane/PaneStatusLine.tsx, src/ui/shell/paneMenus.ts)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.stagedFindPatternForTests": "n/a — a test seam: what a selection staged for the next find is `searchStore`'s `stagedPattern`, which the tests read directly",
@@ -4503,7 +4499,8 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuRevertSegment": "n/a — the AppKit action behind the strip's revert; the web's strip menu is the shared piece menu (`pieceMenu`) that calls `revertPiece`",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.revertSegmentAtOffset": "n/a — the AppKit action behind the offset menu's revert; the web's offset menu builds its own Revert item that calls `revertPiece`",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openRecentFile": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.clearRecentFiles": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.clearRecentFiles": "later — G62: a page never sees a path, so the list holds FileSystemFileHandles in IndexedDB and re-opening re-asks for permission; Chromium only, and there is no File menu here to hang it on",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "n/a — the landing screen's effect ignores an answer that arrives after it has gone (EmptyState.NewerRelease), so there is no task to hold"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
@@ -4513,16 +4510,19 @@
     },
     {
       "swift": "ByteRipperApp/Updates",
-      "web": [],
-      "status": "planned",
-      "note": "The version line and the newer-build notice: the app's version read from the bundle and compared part by part, and the GitHub releases check that answers with a newer one — a fetch freshened for a day, and everything that can go wrong answering nothing. Postponed by the owner (G34): the web edition will do it its own way, not as a port.",
+      "web": [
+        "src/core/updates/appVersion.ts",
+        "src/core/updates/releases.ts",
+        "src/platform/net/githubReleases.ts",
+        "src/state/updateStore.ts",
+        "src/ui/shell/appVersion.ts",
+        "src/ui/shell/UpdateDialogs.tsx"
+      ],
+      "status": "ported",
+      "note": "The version line and the newer-build notice: the app's version compared part by part — with this edition's own `-n` build number after upstream's three — and the GitHub releases check that answers with a newer one, held for a day, everything that can go wrong answering nothing. The releases are this edition's own (ByteRipperWeb), not the macOS app's. On top of it the desktop build's File ▸ Check for Update… (web-only): asks again, and an installed build downloads the release's setup, checks it against SHA256SUMS and runs it after the window closes (`desktop/update.cjs`).",
       "files": {
-        "ByteRipperApp/Updates/AppVersion.swift": "",
-        "ByteRipperApp/Updates/GitHubReleases.swift": ""
-      },
-      "unported": {
-        "ByteRipperApp/Updates/AppVersion.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)",
-        "ByteRipperApp/Updates/GitHubReleases.swift#*": "later — the version line and the newer-build notice, postponed: the web edition will do it its own way (G34 in Design/GAPS.md)"
+        "ByteRipperApp/Updates/AppVersion.swift": "src/core/updates/appVersion.ts",
+        "ByteRipperApp/Updates/GitHubReleases.swift": "src/core/updates/releases.ts"
       }
     },
     {

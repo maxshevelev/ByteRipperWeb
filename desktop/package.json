@@ -24,10 +24,14 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "update.cjs",
       "web/**/*"
     ],
     "win": {
       "target": [
+        {
+          "target": "nsis"
+        },
         {
           "target": "portable"
         },
@@ -38,6 +42,16 @@
       "icon": "build/icon.ico",
       "signExecutable": false
     },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "ByteRipper-${version}-setup.exe"
+    },
+    "electronLanguages": [
+      "en-US",
+      "ru",
+      "de"
+    ],
     "portable": {
       "artifactName": "ByteRipper-${version}-portable.exe"
     }

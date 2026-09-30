@@ -5,8 +5,10 @@ open it in Chrome or Edge from disk, no installation and no server. Files
 never leave the machine. Opened from disk, a page has no private storage, so
 **File ▸ Duplicate** needs the hosted page or the Windows build.
 
-**Windows** (`ByteRipper-<version>-portable.exe`, or the `.zip`): the same app
-in a window of its own, x64. Not code-signed, so SmartScreen warns on the
+**Windows** (`ByteRipper-<version>-setup.exe` installs it for the current user
+and starts fastest; `-portable.exe` and the `.zip` need no installation): the
+same app in a window of its own, x64. **Help ▸ Check for Update…** installs the
+next release from the setup. Not code-signed, so SmartScreen warns on the
 first launch: choose **More info ▸ Run anyway**.
 
 In the browser, the same release: https://maxshevelev.github.io/ByteRipperWeb/ —

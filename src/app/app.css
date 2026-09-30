@@ -263,6 +263,24 @@ textarea,
   font-weight: 600;
 }
 
+/* The newer build's line, under the version, in the hint's own size. */
+.empty-state-release {
+  margin: -8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* The way to move to it: a link in look, a button in what it does. */
+.empty-state-update {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* The marks: a different subject from the landing screen, so more air above. */
 .empty-state-bookmarks {
   display: flex;

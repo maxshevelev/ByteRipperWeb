@@ -9,6 +9,7 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } = require("electron");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const updates = require("./update.cjs");
 
 const SCHEME = "app";
 const HOST = "byteripper";
@@ -103,6 +104,7 @@ function createWindow() {
       detail: words.detail,
     });
     if (choice === 0) event.preventDefault();
+    else updates.stayed();
   });
   void window.loadURL(`${SCHEME}://${HOST}${BASE}index.html`);
 }
@@ -182,6 +184,8 @@ app.whenReady().then(() => {
   // File ▸ Exit: the window closes as its ✕ would, so unsaved work is asked
   // about on the way out, and the last window closing quits the app.
   ipcMain.on("quit", (event) => BrowserWindow.fromWebContents(event.sender)?.close());
+
+  updates.register(ipcMain, BrowserWindow);
 
   createWindow();
 });

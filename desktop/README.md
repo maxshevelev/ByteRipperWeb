@@ -10,7 +10,8 @@ cd desktop
 npm install
 node node_modules/electron/install.js   # if npm skipped Electron's download
 npm start                               # build the web edition and open it here
-npm run dist:win                        # release/ByteRipper-<version>-portable.exe and -win.zip
+npm run dist:win                        # release/ByteRipper-<version>-setup.exe, -portable.exe and -win.zip
+npm run open                            # the same window without rebuilding the web edition
 ```
 
 How it works:
@@ -46,5 +47,12 @@ How it works:
   Ctrl+N and Ctrl+W are the browser's, so the web menu lists only the other
   three.
 
-Not done yet: code signing (SmartScreen warns on first launch), an installer,
-and a check on a real Windows machine.
+**Start-up time.** The portable `.exe` unpacks the whole application into a
+temporary folder on every launch, and the antivirus scans it each time, so it
+is the slowest way to start. The setup installs once, per user and without
+asking for administrator rights, and then starts from files already on disk;
+the `.zip` does the same when unpacked. Only the Electron locales the app is
+translated into (en, ru, de) are shipped.
+
+Not done yet: code signing (SmartScreen warns on first launch) and a check on
+a real Windows machine.

@@ -4,22 +4,28 @@
     python3 Skills/release/scripts/release.py version [--check]
     python3 Skills/release/scripts/release.py build [--out DIR] [--skip-checks]
 
-`version` sets this edition's version to the upstream release it was last
-brought level with: the MARKETING_VERSION in the ByteRipper clone's
-project.yml *at the port baseline* (PORT_STATE.json), not at the clone's
-HEAD — upstream may already be ahead of what was ported. It writes the number
-into the four files that carry it (package.json and package-lock.json, here
-and in desktop/) and prints what it changed. With --check it writes nothing
-and fails if any of them disagrees.
+`version` sets this edition's version: `<upstream>-<n>`, where <upstream> is
+the MARKETING_VERSION in the ByteRipper clone's project.yml *at the port
+baseline* (PORT_STATE.json), not at the clone's HEAD — upstream may already be
+ahead of what was ported — and <n> is the build of this edition made against
+it, counting from 1: the first release level with upstream 0.9.0 is 0.9.0-1,
+the next 0.9.0-2, and a new upstream release starts again at -1. <n> is read
+from the tags already made, so a tag that exists is never asked for twice. It
+writes the number into the four files that carry it (package.json and
+package-lock.json, here and in desktop/) and prints what it changed. With
+--check it writes nothing and fails if any of them disagrees with the others
+or names another upstream release.
 
 `build` makes the two things a release ships, and checks both before anything
 could be published:
   - ByteRipperWeb-<version>.html — the whole app in one file (`npm run
     build:single`), checked for the version and for anything it would still
     have to fetch;
-  - ByteRipper-<version>-portable.exe and ByteRipper-<version>-win.zip — the
-    Windows build (desktop/, `npm run dist:win`), checked for the version in
-    their names and for upstream's icon inside the executable.
+  - ByteRipper-<version>-setup.exe, -portable.exe and -win.zip — the Windows
+    build (desktop/, `npm run dist:win`), checked for the version in their
+    names and for upstream's icon inside the executable. The setup and
+    SHA256SUMS are what the Windows build's Check for Update… installs from:
+    it looks for exactly those two names in the latest release.
 They land in release/<version>/ (git-ignored) with a SHA256SUMS file.
 
 Standard library only, like every script under Skills/.
@@ -74,6 +80,25 @@ def upstream_version() -> str:
     return found.group(1)
 
 
+def release_tags(upstream: str) -> list[str]:
+    """The tags already made for this upstream release: v<up> and v<up>-<n>."""
+    listed = subprocess.run(
+        ["git", "tag", "--list", f"v{upstream}", f"v{upstream}-*"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout.split()
+    return listed
+
+
+def next_build(upstream: str) -> str:
+    """<upstream>-<n>, n one past the highest build already tagged (1 for the first)."""
+    built = [
+        int(found.group(1))
+        for tag in release_tags(upstream)
+        if (found := re.fullmatch(rf"v{re.escape(upstream)}-(d+)", tag))
+    ]
+    return f"{upstream}-{max(built, default=0) + 1}"
+
+
 def version_files() -> list[Path]:
     return [ROOT / "package.json", ROOT / "package-lock.json",
             DESKTOP / "package.json", DESKTOP / "package-lock.json"]
@@ -102,18 +127,28 @@ def write_version(path: Path, version: str) -> bool:
 
 
 def cmd_version(check: bool) -> str:
-    version = upstream_version()
-    wrong = [path for path in version_files() if set(versions_in(path)) != {version}]
+    upstream = upstream_version()
+    held = {one for path in version_files() for one in versions_in(path)}
+    ours = re.fullmatch(rf"{re.escape(upstream)}-(d+)", next(iter(held))) if len(held) == 1 else None
     if check:
-        if wrong:
-            names = ", ".join(str(path.relative_to(ROOT)) for path in wrong)
-            fail(f"upstream is {version} at the baseline, and these disagree: {names} — run `version`")
-        print(f"version {version} everywhere (upstream at {baseline()[:12]})")
+        if ours is None:
+            fail(
+                f"upstream is {upstream} at the baseline, so the version is {upstream}-<n>; "
+                f"the files hold {', '.join(sorted(held))} — run `version`"
+            )
+        version = next(iter(held))
+        print(f"version {version} everywhere (upstream {upstream} at {baseline()[:12]})")
         return version
+    # A version already prepared and not yet tagged is kept: running this twice
+    # must not skip a build number.
+    if ours is not None and f"v{next(iter(held))}" not in release_tags(upstream):
+        version = next(iter(held))
+    else:
+        version = next_build(upstream)
     for path in version_files():
         if write_version(path, version):
             print(f"  {path.relative_to(ROOT)} → {version}")
-    print(f"version {version} (upstream MARKETING_VERSION at {baseline()[:12]})")
+    print(f"version {version} (upstream MARKETING_VERSION {upstream} at {baseline()[:12]})")
     return version
 
 
@@ -167,9 +202,10 @@ def cmd_build(out: Path | None, skip_checks: bool) -> None:
         run(["node", "node_modules/electron/install.js"], DESKTOP)
     shutil.rmtree(DESKTOP / "release", ignore_errors=True)
     run(["npm", "run", "dist:win"], DESKTOP)
+    setup = DESKTOP / "release" / f"ByteRipper-{version}-setup.exe"
     portable = DESKTOP / "release" / f"ByteRipper-{version}-portable.exe"
     archive = DESKTOP / "release" / f"ByteRipper-{version}-win.zip"
-    for built in (portable, archive):
+    for built in (setup, portable, archive):
         if not built.exists():
             fail(f"the Windows build did not make {built.name}")
     check_windows(DESKTOP / "release" / "win-unpacked" / "ByteRipper.exe")
@@ -178,6 +214,7 @@ def cmd_build(out: Path | None, skip_checks: bool) -> None:
     target.mkdir(parents=True)
     shipped = [
         shutil.copy2(single, target / f"ByteRipperWeb-{version}.html"),
+        shutil.copy2(setup, target / setup.name),
         shutil.copy2(portable, target / portable.name),
         shutil.copy2(archive, target / archive.name),
     ]
