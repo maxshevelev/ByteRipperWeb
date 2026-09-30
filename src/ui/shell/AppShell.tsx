@@ -120,7 +120,7 @@ import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
 import { ignoredFilesAlert } from "@/ui/shell/ignoredFiles";
 import type { MenuEntry } from "@/ui/shell/menuModel";
-import { PaneDivider } from "@/ui/shell/PaneDivider";
+import { clampFraction, PaneDivider } from "@/ui/shell/PaneDivider";
 import {
   dumpMenu,
   type PaneMenuActions,
@@ -251,6 +251,14 @@ export interface RevealRequest {
    */
   readonly onlyIfOffScreen?: boolean;
 }
+
+/**
+ * Room to the right of a pane's content when it is fitted to it, so the last
+ * column is not pressed to the pane's edge. Upstream's number, kept.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.contentFitSlack
+ */
+const CONTENT_FIT_SLACK = 16;
 
 /**
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.loadView
@@ -1865,6 +1873,45 @@ export function AppShell() {
   const handleSingleFilePaneDrop = (paneId: SlotId, band: SingleFileDropTarget, copying: boolean) =>
     performPaneDrop(paneId, singleFileBandTarget(band), band, copying);
 
+  // The width each pane's content actually needs, heard from the pane whenever
+  // its measure moves. A double-click on a header grows that pane to it, so far
+  // the split's floor allows — a pane already at least that wide is left alone,
+  // and a stacked layout has no width to fit. Both upstream's, kept.
+  //
+  // The report is a stable callback per pane: the pane hands it to its measure
+  // effect, which must not re-run for the callback's identity.
+  //
+  // @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.fitContentWidth
+  const paneContentWidth = useRef<Record<SlotId, number>>({ a: 0, b: 0 });
+  const reportAContentWidth = useCallback((width: number) => {
+    paneContentWidth.current.a = width;
+  }, []);
+  const reportBContentWidth = useCallback((width: number) => {
+    paneContentWidth.current.b = width;
+  }, []);
+  const fitPaneToContent = useCallback(
+    (id: SlotId, event: React.MouseEvent) => {
+      if (state.layout !== "sideBySide") return;
+      const header = event.currentTarget as HTMLElement;
+      const pane = header.closest<HTMLElement>(".hex-pane");
+      const workspace = header.closest<HTMLElement>(".app-workspace");
+      // A single file has no divider to move and already fills the width, so
+      // there is nothing to fit into. Read it from the tree, not the snapshot:
+      // the panes may have closed since this callback was last rebuilt.
+      if (pane === null || workspace === null || workspace.querySelector(".pane-divider") === null)
+        return;
+      const fitWidth = paneContentWidth.current[id] + CONTENT_FIT_SLACK;
+      if (pane.clientWidth >= fitWidth) return;
+      const available = workspace.clientWidth;
+      if (available <= 0) return;
+      // File A takes the room for itself; File B takes it from what File A is
+      // left, so the fitted pane is the one the reader aimed at.
+      const firstShare = id === "a" ? fitWidth : available - fitWidth;
+      setSplitFraction(clampFraction(firstShare / available));
+    },
+    [state.layout]
+  );
+
   /**
    * One pane, with whatever drop region it wears — nothing in single-file mode,
    * where the workspace's container owns the drop and draws the bands.
@@ -1905,6 +1952,8 @@ export function AppShell() {
         searchStatus={resultsFor(search, id).status}
         onGoToMatch={revealInBoth}
         onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, id, menuActions))}
+        onContentWidth={id === "a" ? reportAContentWidth : reportBContentWidth}
+        onHeaderDoubleClick={(event) => fitPaneToContent(id, event)}
         renaming={renamingPane === id}
         onRenameEnd={(typed, commit) => {
           setRenamingPane(undefined);

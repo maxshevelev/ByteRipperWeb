@@ -203,6 +203,23 @@ export interface HexPaneProps {
    */
   readonly onHeaderMenu?: ((event: React.MouseEvent) => void) | undefined;
   /**
+   * A double-click on the pane's header: grow this pane to fit its content, so
+   * far the split's constraints allow. A pane wider than its content is left
+   * alone, and a stacked layout has no width to fit — both upstream's, kept.
+   *
+   * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.fitContentWidth
+   */
+  readonly onHeaderDoubleClick?: ((event: React.MouseEvent) => void) | undefined;
+  /**
+   * Reports the width the pane's content actually needs, whenever the measure
+   * changes: the workspace reads it on a header double-click to know how wide
+   * the pane must grow. A part panel has no split to grow into, so it leaves
+   * this out.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.contentFitWidth
+   */
+  readonly onContentWidth?: ((width: number) => void) | undefined;
+  /**
    * Whether the header's name is a field being edited (§23).
    *
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isRenaming
@@ -384,6 +401,8 @@ export function HexPane({
   onGoToMatch,
   onDumpMenu,
   onHeaderMenu,
+  onHeaderDoubleClick,
+  onContentWidth,
   renaming,
   onRenameEnd,
   dropRegion,
@@ -712,6 +731,9 @@ export function HexPane({
       renderer.setScrollExtent(companionSize);
       const moved = scroller?.setContentHeight(renderer.contentHeight) === true;
       setContentWidth(renderer.contentWidth);
+      // The workspace fits a pane to this width on a header double-click, so it
+      // hears every time the measure moves — a new file, a word size, a theme.
+      onContentWidth?.(renderer.contentWidth);
       // The width now, not on the next render: a wider or narrower row brings the
       // sideways scroll bar in or takes it away, which changes the viewport's
       // height — and the settle below reads that height to find the middle.
@@ -759,6 +781,7 @@ export function HexPane({
     scrolled,
     applyViewport,
     paneId,
+    onContentWidth,
   ]);
 
   /**
@@ -1865,6 +1888,16 @@ export function HexPane({
         onDragStart={(event) => beginPaneDragFromEvent(event, paneId, name)}
         onDragEnd={endPaneDrag}
         onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
+        onDoubleClick={
+          onHeaderDoubleClick === undefined
+            ? undefined
+            : (event) => {
+                // A double-click is the fit command, not a way to grab the name's
+                // word, so the selection it would otherwise make is refused.
+                event.preventDefault();
+                onHeaderDoubleClick(event);
+              }
+        }
       >
         <DocumentIcon slot={label} dirty={dirty} untitled={untitled === true} />
         {renaming === true ? (

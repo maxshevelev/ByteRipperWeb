@@ -16,7 +16,13 @@ import { usePointerDrag } from "@/ui/shell/pointerDrag";
 /** Neither pane may be squeezed below this share of the workspace. */
 const MIN_FRACTION = 0.15;
 
-const clamp = (value: number) => Math.min(1 - MIN_FRACTION, Math.max(MIN_FRACTION, value));
+/**
+ * A share of the workspace kept inside what the panes may take: neither may be
+ * squeezed below {@linkcode MIN_FRACTION}. The header's fit-to-content uses it
+ * as much as the drag does, so the two cannot move the divider past each other.
+ */
+export const clampFraction = (value: number) =>
+  Math.min(1 - MIN_FRACTION, Math.max(MIN_FRACTION, value));
 
 export interface PaneDividerProps {
   readonly layout: PaneLayout;
@@ -52,7 +58,7 @@ export function PaneDivider({
       layout === "sideBySide"
         ? (event.clientX - bounds.left) / bounds.width
         : (event.clientY - bounds.top) / bounds.height;
-    onChange(clamp(next));
+    onChange(clampFraction(next));
   });
 
   const onKeyDown = useCallback(
@@ -61,8 +67,8 @@ export function PaneDivider({
       const back = layout === "sideBySide" ? "ArrowLeft" : "ArrowUp";
       const forward = layout === "sideBySide" ? "ArrowRight" : "ArrowDown";
 
-      if (event.key === back) onChange(clamp(fraction - step));
-      else if (event.key === forward) onChange(clamp(fraction + step));
+      if (event.key === back) onChange(clampFraction(fraction - step));
+      else if (event.key === forward) onChange(clampFraction(fraction + step));
       else if (event.key === "Home" || event.key === "Enter") onChange(initial);
       else return;
       event.preventDefault();
