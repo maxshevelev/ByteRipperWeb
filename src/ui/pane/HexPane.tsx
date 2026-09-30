@@ -75,6 +75,7 @@ import {
 } from "@/ui/pane/hexPointer";
 import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
+import { observeDevicePixelRatio } from "@/ui/pane/observeDevicePixelRatio";
 import { PaneStatusLine } from "@/ui/pane/PaneStatusLine";
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
@@ -2111,37 +2112,4 @@ export function HexPane({
       {dropRegion === undefined ? null : <PaneDropBands outcomeFor={dropRegion.outcomeFor} />}
     </div>
   );
-}
-
-/**
- * Calls back whenever the device pixel ratio changes.
- *
- * Which is what a page zoom is, as far as a canvas is concerned: the element
- * keeps its size in CSS pixels and the backing store needs more of them. There
- * is no event for it, so this watches a media query pinned to the current ratio
- * and re-pins it each time — the query stops matching the moment the ratio
- * moves.
- *
- * Without it the browser's zoom — now the only zoom there is — would leave the
- * dump drawn at the old scale and blurred up to the new one.
- */
-function observeDevicePixelRatio(onChange: () => void): () => void {
-  let query: MediaQueryList | undefined;
-  let stopped = false;
-
-  const listen = () => {
-    if (stopped) return;
-    query = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-    query.addEventListener("change", handle, { once: true });
-  };
-  const handle = () => {
-    onChange();
-    listen();
-  };
-
-  listen();
-  return () => {
-    stopped = true;
-    query?.removeEventListener("change", handle);
-  };
 }

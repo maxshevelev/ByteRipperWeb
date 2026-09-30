@@ -17,6 +17,7 @@ const {
   session,
   shell,
 } = require("electron");
+const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const updates = require("./update.cjs");
@@ -50,6 +51,29 @@ const LEAVE_PROMPT = {
 const ZOOM_STEP = 0.5;
 const ZOOM_MIN = -3;
 const ZOOM_MAX = 5;
+
+/** Where the zoom is kept between runs: beside the profile's other state. */
+const zoomFile = () => path.join(app.getPath("userData"), "zoom.json");
+const clampZoom = (level) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level));
+
+/** The zoom the last run ended with, or 100 % when there is none to trust. */
+function savedZoom() {
+  try {
+    const { level } = JSON.parse(fs.readFileSync(zoomFile(), "utf8"));
+    return Number.isFinite(level) ? clampZoom(level) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Kept as it is chosen, so a run that ends any way at all still has it. */
+function rememberZoom(level) {
+  try {
+    fs.writeFileSync(zoomFile(), JSON.stringify({ level }));
+  } catch {
+    // A zoom that is not remembered is a zoom the reader sets again.
+  }
+}
 
 // `npm start` runs Electron from the source tree, and a build made earlier may
 // be open at the same time. Two processes on one profile fight over its locked
@@ -116,6 +140,9 @@ function createWindow() {
     if (choice === 0) event.preventDefault();
     else updates.stayed();
   });
+  // Electron does not keep a page's zoom between runs. It is set again once the
+  // page is up, which is when the zoom of its origin exists to be set.
+  window.webContents.once("did-finish-load", () => window.webContents.setZoomLevel(savedZoom()));
   void window.loadURL(`${SCHEME}://${HOST}${BASE}index.html`);
 }
 
@@ -190,8 +217,9 @@ app.whenReady().then(() => {
   // the default menu, so the menu answers them.
   ipcMain.on("zoom", (event, step) => {
     const contents = event.sender;
-    const level = step === 0 ? 0 : contents.getZoomLevel() + step * ZOOM_STEP;
-    contents.setZoomLevel(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level)));
+    const level = clampZoom(step === 0 ? 0 : contents.getZoomLevel() + step * ZOOM_STEP);
+    contents.setZoomLevel(level);
+    rememberZoom(level);
   });
 
   // File ▸ Exit: the window closes as its ✕ would, so unsaved work is asked
