@@ -94,7 +94,7 @@ def next_build(upstream: str) -> str:
     built = [
         int(found.group(1))
         for tag in release_tags(upstream)
-        if (found := re.fullmatch(rf"v{re.escape(upstream)}-(d+)", tag))
+        if (found := re.fullmatch(rf"v{re.escape(upstream)}-(\d+)", tag))
     ]
     return f"{upstream}-{max(built, default=0) + 1}"
 
@@ -129,7 +129,7 @@ def write_version(path: Path, version: str) -> bool:
 def cmd_version(check: bool) -> str:
     upstream = upstream_version()
     held = {one for path in version_files() for one in versions_in(path)}
-    ours = re.fullmatch(rf"{re.escape(upstream)}-(d+)", next(iter(held))) if len(held) == 1 else None
+    ours = re.fullmatch(rf"{re.escape(upstream)}-(\d+)", next(iter(held))) if len(held) == 1 else None
     if check:
         if ours is None:
             fail(
@@ -154,6 +154,9 @@ def cmd_version(check: bool) -> str:
 
 def run(command: list[str], cwd: Path) -> None:
     print(f"$ {' '.join(command)}  ({cwd.relative_to(ROOT) if cwd != ROOT else '.'})", flush=True)
+    # Resolved through PATH and PATHEXT, as a shell would: on Windows `npm` is
+    # npm.cmd, which a bare name does not find.
+    command = [shutil.which(command[0]) or command[0], *command[1:]]
     if subprocess.run(command, cwd=cwd).returncode != 0:
         fail(f"{' '.join(command)} failed")
 
@@ -185,7 +188,7 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def cmd_build(out: Path | None, skip_checks: bool) -> None:
+def cmd_build(out: Path | None, skip_checks: bool, skip_html: bool) -> None:
     version = cmd_version(check=True)
     target = out or ROOT / "release" / version
     if not skip_checks:
@@ -193,9 +196,12 @@ def cmd_build(out: Path | None, skip_checks: bool) -> None:
         run(["python3", "Skills/help-coverage/scripts/help_coverage.py", "--quiet"], ROOT)
         run(["python3", "Skills/help-names/scripts/help_names.py"], ROOT)
 
-    run(["npm", "run", "build:single"], ROOT)
+    # The single-file page is left out while what a page opened from disk can
+    # not reach — files — is being sorted out (`--skip-html`).
     single = ROOT / "dist-single" / "index.html"
-    check_html(single, version)
+    if not skip_html:
+        run(["npm", "run", "build:single"], ROOT)
+        check_html(single, version)
 
     if not (DESKTOP / "node_modules" / "electron" / "path.txt").exists():
         run(["npm", "install"], DESKTOP)
@@ -213,7 +219,7 @@ def cmd_build(out: Path | None, skip_checks: bool) -> None:
     shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True)
     shipped = [
-        shutil.copy2(single, target / f"ByteRipperWeb-{version}.html"),
+        *([] if skip_html else [shutil.copy2(single, target / f"ByteRipperWeb-{version}.html")]),
         shutil.copy2(setup, target / setup.name),
         shutil.copy2(portable, target / portable.name),
         shutil.copy2(archive, target / archive.name),
@@ -235,11 +241,12 @@ def main() -> None:
     build = sub.add_parser("build", help="build and check the single-file page and the Windows build")
     build.add_argument("--out", type=Path, help="where the artifacts go (default release/<version>/)")
     build.add_argument("--skip-checks", action="store_true", help="skip the test, lint and help checks")
+    build.add_argument("--skip-html", action="store_true", help="leave the single-file page out of the release")
     args = parser.parse_args()
     if args.command == "version":
         cmd_version(args.check)
     else:
-        cmd_build(args.out, args.skip_checks)
+        cmd_build(args.out, args.skip_checks, args.skip_html)
 
 
 main()

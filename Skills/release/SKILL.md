@@ -47,7 +47,8 @@ The mechanical parts are a script; the notes are the work.
 ```bash
 python3 Skills/release/scripts/release.py version          # upstream's version into the package files
 python3 Skills/release/scripts/release.py version --check  # or only check them
-python3 Skills/release/scripts/release.py build            # release/<version>/: the page, the .exe, the .zip, SHA256SUMS
+python3 Skills/release/scripts/release.py build            # release/<version>/: the page, the setup, the .exe, the .zip, SHA256SUMS
+python3 Skills/release/scripts/release.py build --skip-html  # the same without the single-file page
 ```
 
 ## Steps
