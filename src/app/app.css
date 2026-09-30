@@ -558,12 +558,14 @@ textarea,
  * it and the second one itself, drawn by the same system at the same size. Here
  * one is a menu this side draws and the other is a native `<select>`, whose line
  * box is its options' rather than a button's, so what they share is stated once,
- * here: the height of the bar's controls. The 15px the glyphs are drawn at comes
- * with it — the two are the only controls in the bar that carry a word.
+ * here: the height of the bar's controls. Their words are the menu's own size —
+ * the page's 13px, which the items of the menu they open are set in — rather than
+ * the larger 15px they were once drawn at, which stood out from the rest of the
+ * window. The glyphs are drawn in pixels of their own and do not follow it.
  */
 .menu-trigger,
 .toolbar-select {
-  font-size: 15px;
+  font-size: inherit;
   line-height: 1;
   height: var(--toolbar-control-height);
 }
