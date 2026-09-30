@@ -1142,12 +1142,17 @@ export function AppShell() {
   /**
    * Shows an offset in both panes, the way difference navigation does.
    *
+   * By default the caret goes with it — stepping through differences and
+   * landing on a find match both put the insertion point at the offset. A
+   * range that is *selected* and then shown passes `false`: the scroll alone,
+   * because a caret move would collapse the selection that was just made.
+   *
    * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.scrollPanes
    */
-  const revealInBoth = useCallback((offset: number) => {
+  const revealInBoth = useCallback((offset: number, moveCaret = true) => {
     setReveal({
-      a: { offset, token: ++revealToken.current },
-      b: { offset, token: revealToken.current },
+      a: { offset, token: ++revealToken.current, moveCaret },
+      b: { offset, token: revealToken.current, moveCaret },
     });
   }, []);
 
@@ -1155,11 +1160,14 @@ export function AppShell() {
    * Shows an offset in the pane it was asked about: in both of the workspace's
    * panes where it is one of theirs, and in the part alone where it is a part's
    * — an offset in a part means nothing in the file behind it.
+   *
+   * `moveCaret` (default `true`) is forwarded to the reveal: navigation takes
+   * the caret along, while a range that is selected and then shown does not.
    */
   const revealIn = useCallback(
-    (pane: PaneId, offset: number) => {
-      if (isSlot(pane)) revealInBoth(offset);
-      else setReveal({ [pane]: { offset, token: ++revealToken.current } });
+    (pane: PaneId, offset: number, moveCaret = true) => {
+      if (isSlot(pane)) revealInBoth(offset, moveCaret);
+      else setReveal({ [pane]: { offset, token: ++revealToken.current, moveCaret } });
     },
     [revealInBoth]
   );
@@ -1183,7 +1191,9 @@ export function AppShell() {
       else raisePart(parent);
       const [start, end] = origin.sourceRange;
       void paneState(parent)?.typing.setSelection(start, end);
-      revealIn(parent, start);
+      // The source range is selected, then shown: scroll alone, so the caret
+      // move a plain reveal makes does not collapse the selection.
+      revealIn(parent, start, false);
     },
     [revealIn]
   );
@@ -1776,7 +1786,9 @@ export function AppShell() {
         const slot = paneState(pane);
         if (slot === undefined) return;
         void slot.typing.setSelection(zone.start, zone.end);
-        revealIn(pane, zone.start);
+        // The zone is selected, then shown: scroll alone, so the reveal's caret
+        // move does not collapse the selection just made.
+        revealIn(pane, zone.start, false);
         // The bytes are the host's half; telling the tool that published the
         // zone is the other one, and it is the only side that knows what the
         // zone stands for.
@@ -1931,7 +1943,9 @@ export function AppShell() {
           surface={pane}
           onReveal={(target, start, end) => {
             void paneState(target)?.typing.setSelection(start, end);
-            revealIn(target, start);
+            // The range is selected, then shown: scroll alone, so the reveal's
+            // caret move does not collapse the selection just made.
+            revealIn(target, start, false);
           }}
         />
       )}
@@ -2110,7 +2124,9 @@ export function AppShell() {
             // A tool bound to one of the workspace's panes makes it the active
             // one; a part in the dock is active by being in front (G49).
             if (isSlot(pane)) setActivePane(pane);
-            revealIn(pane, start);
+            // The range is selected, then shown: scroll alone, so the reveal's
+            // caret move does not collapse the selection just made.
+            revealIn(pane, start, false);
           }}
           // A file dropped on the panel replaces the file the panel is reading
           // — the same thing, through the same door, as dropping it on that
@@ -2202,7 +2218,10 @@ export function AppShell() {
         onSelect={(start, end) => {
           const pane = selectBlock?.pane ?? front;
           void paneIn(state, pane)?.typing.setSelection(start, end);
-          revealIn(pane, start);
+          // The block is shown by scrolling to its start, not by moving the
+          // caret there — a caret move would collapse the selection just made.
+          // @upstream ByteRipperApp/Hex/HexView.swift#HexView.revealOffsetCentered
+          revealIn(pane, start, false);
         }}
         onClose={() => setSelectBlock(undefined)}
       />
@@ -2249,7 +2268,9 @@ export function AppShell() {
           const slot = paneIn(state, pane);
           if (slot === undefined) return;
           void slot.typing.setSelection(piece.start, piece.end);
-          revealIn(pane, piece.start);
+          // The piece is selected, then shown: scroll alone, so the reveal's
+          // caret move does not collapse the selection just made.
+          revealIn(pane, piece.start, false);
         }}
         onClose={() => setSegmentsPane(undefined)}
       />
