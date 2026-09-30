@@ -5,7 +5,7 @@
 // release's setup, check it, and run it once the window has closed.
 //
 // What it trusts, and what it does not. It never takes a URL from the page — it
-// is given a version, and asks github.com for that release itself, and only
+// is given a version, and builds that release's addresses itself, and only
 // downloads from this repository's own release files. The setup is checked
 // against the release's `SHA256SUMS`, which catches a corrupt or truncated
 // download; it is not a signature, and the build is not signed (Windows
@@ -20,7 +20,6 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 
-const RELEASE_BY_TAG = "https://api.github.com/repos/maxshevelev/ByteRipperWeb/releases/tags/";
 const DOWNLOADS = "https://github.com/maxshevelev/ByteRipperWeb/releases/download/";
 
 /** Whether this is an installed build, which the setup can be run over. */
@@ -49,8 +48,41 @@ let abort;
 
 async function fetchOk(url, what, signal) {
   const response = await net.fetch(url, { headers: { "User-Agent": "ByteRipper" }, signal });
+  if (response.status === 404) throw new Failure("missing");
   if (!response.ok) throw new Failure(what);
   return response;
+}
+
+const LATEST_PAGE = "https://github.com/maxshevelev/ByteRipperWeb/releases/latest";
+
+/**
+ * The newest release's tag and page: the release page's own redirect
+ * (`/releases/latest` answers 302 to `/releases/tag/<tag>`), read without
+ * following it. It is a page of the site, not of the API, so it has no
+ * allowance to spend and no cross-origin rule to pass — which is why this is the
+ * shell's to ask and not the page's. A repository with no release redirects to
+ * its list, and that is no release.
+ */
+function latestRelease() {
+  // `net.request`, not `net.fetch`: fetch's "manual" redirect mode is refused
+  // here ("Redirect was cancelled"), and the request's `redirect` event is what
+  // hands over the address without going there.
+  return new Promise((resolve, reject) => {
+    const request = net.request({ url: LATEST_PAGE, redirect: "manual" });
+    request.setHeader("User-Agent", "ByteRipper");
+    request.on("redirect", (_status, _method, redirectUrl) => {
+      request.abort();
+      const page = new URL(redirectUrl, LATEST_PAGE).href;
+      const tag = /\/releases\/tag\/([^/?#]+)$/.exec(page)?.[1];
+      resolve(tag === undefined ? undefined : { tag: decodeURIComponent(tag), page });
+    });
+    request.on("response", (response) => {
+      response.on("data", () => {});
+      reject(new Failure(`answered ${response.statusCode}`));
+    });
+    request.on("error", reject);
+    request.end();
+  });
 }
 
 /** The `hash  name` line of a SHA256SUMS file for `name`. */
@@ -68,33 +100,19 @@ function expectedHash(sums, name) {
  */
 async function download(version, window, report, signal) {
   report({ phase: "preparing" });
-  let release;
-  try {
-    release = await (await fetchOk(`${RELEASE_BY_TAG}v${version}`, "download", signal)).json();
-  } catch {
-    throw new Failure("download");
-  }
+  // The release's files are at addresses its tag and its version fix, so there
+  // is nothing to ask the API for — and the API's allowance (sixty requests an
+  // hour for a network) is not spent on a download. A release with no such file
+  // answers 404 here, which is the same "nothing to install" the listing gave.
   const setupName = `ByteRipper-${version}-setup.exe`;
-  const assets = Array.isArray(release.assets) ? release.assets : [];
-  const setup = assets.find((one) => one.name === setupName);
-  const sums = assets.find((one) => one.name === "SHA256SUMS");
-  if (!setup || !sums) throw new Failure("unavailable");
-  for (const one of [setup, sums]) {
-    if (
-      typeof one.browser_download_url !== "string" ||
-      !one.browser_download_url.startsWith(DOWNLOADS)
-    ) {
-      throw new Failure("unavailable");
-    }
-  }
+  const setup = { url: `${DOWNLOADS}v${version}/${setupName}` };
+  const sums = { url: `${DOWNLOADS}v${version}/SHA256SUMS` };
 
   let expected;
   try {
-    expected = expectedHash(
-      await (await fetchOk(sums.browser_download_url, "download", signal)).text(),
-      setupName
-    );
-  } catch {
+    expected = expectedHash(await (await fetchOk(sums.url, "download", signal)).text(), setupName);
+  } catch (error) {
+    if (error.reason === "missing") throw new Failure("unavailable");
     throw new Failure("download");
   }
   if (expected === undefined) throw new Failure("checksum");
@@ -105,8 +123,8 @@ async function download(version, window, report, signal) {
   const file = path.join(folder, setupName);
   const hash = crypto.createHash("sha256");
   try {
-    const response = await fetchOk(setup.browser_download_url, "download", signal);
-    const total = Number(response.headers.get("content-length")) || setup.size || 0;
+    const response = await fetchOk(setup.url, "download", signal);
+    const total = Number(response.headers.get("content-length")) || 0;
     const out = fs.createWriteStream(file);
     let received = 0;
     let told = 0;
@@ -159,6 +177,8 @@ function register(ipcMain, BrowserWindow) {
 
   ipcMain.on("update:cancel", () => abort?.abort());
 
+  ipcMain.handle("update:latest", () => latestRelease());
+
   ipcMain.handle("update:install", async (event, version) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!canInstall() || !window || !/^\d+(\.\d+)*(-\d+)?$/.test(String(version))) {
@@ -198,4 +218,4 @@ function register(ipcMain, BrowserWindow) {
   });
 }
 
-module.exports = { register, stayed };
+module.exports = { register, stayed, latestRelease };

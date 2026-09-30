@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
   quit: () => ipcRenderer.send("quit"),
   canInstallUpdate: ipcRenderer.sendSync("update:installable"),
   installUpdate: (version) => ipcRenderer.invoke("update:install", version),
+  latestRelease: () => ipcRenderer.invoke("update:latest"),
   cancelUpdate: () => ipcRenderer.send("update:cancel"),
   onUpdateProgress: (callback) => {
     const listener = (_event, progress) => callback(progress);

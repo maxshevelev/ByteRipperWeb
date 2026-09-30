@@ -50,6 +50,13 @@ export interface DesktopBridge {
    * has worked — the app is gone by then.
    */
   installUpdate(version: string): Promise<UpdateInstallResult>;
+  /**
+   * The newest release's tag and page, asked by the shell — which follows the
+   * release page's own redirect and so meets no API limit and no CORS rule —
+   * or nothing when the repository has published none. Rejects when the shell
+   * could not ask.
+   */
+  latestRelease(): Promise<{ readonly tag: string; readonly page: string } | undefined>;
   /** Stops a download that is running; `installUpdate` then answers "cancelled". */
   cancelUpdate(): void;
   /** Hears how far `installUpdate` has got. Returns the way to stop listening. */

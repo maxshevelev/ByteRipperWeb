@@ -976,3 +976,6 @@
 "The UEFI Structure tool's item types, NVRAM GUID constants and GUID-name catalogue (common/guids.csv)." = "Die Elementtypen des Werkzeugs „UEFI-Struktur“, die NVRAM-GUID-Konstanten und der Katalog der GUID-Namen (common/guids.csv).";
 "The ME Analyzer tool's reading of Intel ME/CSME firmware, and the databases it checks a dump against (MEA.dat, Huffman.dat), fetched as the project publishes them." = "Die Auswertung von Intel-ME/CSME-Firmware durch das Werkzeug ME Analyzer und die Datenbanken, gegen die ein Dump geprüft wird (MEA.dat, Huffman.dat), jeweils in der vom Projekt veröffentlichten Fassung.";
 "The catalogue of CPU microcodes the FIT tool's picker offers." = "Der Katalog der CPU-Mikrocodes, den die Auswahl im FIT-Werkzeug anbietet.";
+"GitHub is limiting requests from this network for now. Try again in about an hour." = "GitHub begrenzt derzeit die Anfragen aus diesem Netz. Versuchen Sie es in etwa einer Stunde erneut.";
+"GitHub is limiting requests from this network for now. Try again in %1$@ minutes." = "GitHub begrenzt derzeit die Anfragen aus diesem Netz. Versuchen Sie es in %1$@ Minuten erneut.";
+"github.com answered %1$@. Try again in a few minutes." = "github.com hat mit %1$@ geantwortet. Versuchen Sie es in einigen Minuten erneut.";

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseAppVersion } from "@/core/updates/appVersion";
 import { NO_RELEASES, newerRelease, releaseFromJson } from "@/core/updates/releases";
-import { GitHubReleases, REPOSITORY } from "@/platform/net/githubReleases";
+import { GitHubReleases, REPOSITORY, ReleaseCheckError } from "@/platform/net/githubReleases";
+import { checkFailure } from "@/state/updateStore";
 
 const running = (text: string) => parseAppVersion(text);
 
@@ -123,5 +124,67 @@ describe("the github source", () => {
     status = 200;
     expect((await source.latestRelease())?.version.text).toBe("0.8.5-2");
     expect(calls).toEqual([500, 200]);
+  });
+});
+
+describe("why a check fails", () => {
+  const failing = (status: number, headers: Record<string, string> = {}) => {
+    const request = (async () => new Response("{}", { status, headers })) as typeof fetch;
+    return new GitHubReleases(request, () => 0);
+  };
+
+  it("names a spent allowance, and when it is renewed", async () => {
+    const error = await failing(403, {
+      "x-ratelimit-remaining": "0",
+      "x-ratelimit-reset": "1800",
+    })
+      .latestRelease()
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ReleaseCheckError);
+    expect(error).toMatchObject({ kind: "rateLimit", status: 403, retryAt: 1_800_000 });
+  });
+
+  it("reads a 429 as a limit too", async () => {
+    await expect(failing(429).latestRelease()).rejects.toMatchObject({ kind: "rateLimit" });
+  });
+
+  it("does not take every 403 for a limit", async () => {
+    await expect(
+      failing(403, { "x-ratelimit-remaining": "12" }).latestRelease()
+    ).rejects.toMatchObject({ kind: "status", status: 403 });
+  });
+
+  it("names GitHub's own errors by their status", async () => {
+    await expect(failing(503).latestRelease()).rejects.toMatchObject({
+      kind: "status",
+      status: 503,
+    });
+  });
+
+  it("calls a request that never got an answer a network failure", async () => {
+    const source = new GitHubReleases(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(source.latestRelease()).rejects.toMatchObject({ kind: "network" });
+  });
+});
+
+describe("the words for it", () => {
+  it("says how long to wait, rounded up", () => {
+    const error = new ReleaseCheckError("rateLimit", 403, 10 * 60_000 + 1);
+    expect(checkFailure(error, 0)).toContain("11 minutes");
+  });
+
+  it("says an hour when GitHub did not say", () => {
+    expect(checkFailure(new ReleaseCheckError("rateLimit", 403), 0)).toContain("about an hour");
+  });
+
+  it("names the status", () => {
+    expect(checkFailure(new ReleaseCheckError("status", 502), 0)).toContain("502");
+  });
+
+  it("blames the network only for the network", () => {
+    expect(checkFailure(new ReleaseCheckError("network"), 0)).toContain("could not be reached");
+    expect(checkFailure(new Error("anything"), 0)).toContain("could not be reached");
   });
 });

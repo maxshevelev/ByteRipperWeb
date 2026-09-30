@@ -1,11 +1,11 @@
 import { L } from "@/core/localization/localization";
-import { compareAppVersions } from "@/core/updates/appVersion";
+import { compareAppVersions, parseAppVersion } from "@/core/updates/appVersion";
 import { newerRelease, type Release, type ReleaseSource } from "@/core/updates/releases";
-import { GitHubReleases } from "@/platform/net/githubReleases";
+import { GitHubReleases, HeldReleases, ReleaseCheckError } from "@/platform/net/githubReleases";
 import { createStore } from "@/state/store";
 import { reportAlert } from "@/state/workspaceStore";
 import { appNameAndVersion, runningVersion } from "@/ui/shell/appVersion";
-import { desktopBridge, type UpdateProgress } from "@/ui/shell/desktopMenu";
+import { type DesktopBridge, desktopBridge, type UpdateProgress } from "@/ui/shell/desktopMenu";
 
 /**
  * Whether a newer build has been published, and the desktop build's way of
@@ -36,7 +36,27 @@ export const updateStore = createStore<{ readonly ask: UpdateAsk | undefined }>(
   ask: undefined,
 });
 
-let source: ReleaseSource = new GitHubReleases();
+/**
+ * The desktop shell asks for the page: its request is not the page's. A page's
+ * fetch to `api.github.com` is one of sixty an hour for its network and has to
+ * be allowed by GitHub's CORS rules; the shell follows the release page's own
+ * redirect (`desktop/update.cjs`), which has neither limit.
+ */
+async function askShell(bridge: DesktopBridge): Promise<Release | undefined> {
+  let latest: Awaited<ReturnType<DesktopBridge["latestRelease"]>>;
+  try {
+    latest = await bridge.latestRelease();
+  } catch {
+    throw new ReleaseCheckError("network");
+  }
+  const version = latest === undefined ? undefined : parseAppVersion(latest.tag);
+  if (latest === undefined || version === undefined) return undefined;
+  return { version, page: latest.page, assets: [] };
+}
+
+const shell = desktopBridge();
+let source: ReleaseSource =
+  shell === undefined ? new GitHubReleases() : new HeldReleases(() => askShell(shell));
 
 /** Where the check is asked: the app's own source, and a stub in a test about it. */
 export function setReleaseSource(next: ReleaseSource): void {
@@ -51,17 +71,40 @@ export function setReleaseSource(next: ReleaseSource): void {
 export const checkForNewerRelease = (): Promise<Release | undefined> =>
   newerRelease(source, runningVersion());
 
+/**
+ * What to tell a person whose check failed, for the reason it failed: a network
+ * that is down is theirs to look at, a limit that is spent only has to wait, and
+ * an answer that is an error is GitHub's own trouble.
+ */
+export function checkFailure(error: unknown, now: number = Date.now()): string {
+  if (error instanceof ReleaseCheckError) {
+    if (error.kind === "rateLimit") {
+      const minutes =
+        error.retryAt === undefined
+          ? undefined
+          : Math.max(1, Math.ceil((error.retryAt - now) / 60_000));
+      return minutes === undefined
+        ? L("GitHub is limiting requests from this network for now. Try again in about an hour.")
+        : L(
+            "GitHub is limiting requests from this network for now. Try again in %1$@ minutes.",
+            String(minutes)
+          );
+    }
+    if (error.kind === "status") {
+      return L("github.com answered %1$@. Try again in a few minutes.", String(error.status ?? ""));
+    }
+  }
+  return L("github.com could not be reached. Check the internet connection and try again.");
+}
+
 /** File ▸ Check for Update…: a person asking, and told the answer either way. */
 export async function checkForUpdate(): Promise<void> {
   const running = runningVersion();
   let release: Release | undefined;
   try {
     release = await source.latestRelease({ refresh: true });
-  } catch {
-    reportAlert(
-      L("Could Not Check for Updates"),
-      L("github.com could not be reached. Check the internet connection and try again.")
-    );
+  } catch (error) {
+    reportAlert(L("Could Not Check for Updates"), checkFailure(error));
     return;
   }
   if (
