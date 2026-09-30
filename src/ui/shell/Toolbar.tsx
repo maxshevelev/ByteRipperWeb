@@ -483,9 +483,11 @@ export function Toolbar({
   const keyboardRing = useKeyboardInput();
 
   // The Tools pull-down: None, then every tool by name, as upstream's Tools menu
-  // has them — a radio group where None closes the panel and stays available,
-  // and a tool needs a file open in the active pane. The web edition has no
-  // Tools menu besides it; the toolbar is where the list lives.
+  // has them. A tool wears a check while it is the active one; None is a plain
+  // command with no check — it is not a tool but the way the panel is closed,
+  // and it stays available always. A tool needs a file open in the active pane.
+  // The web edition has no Tools menu besides it; the toolbar is where the list
+  // lives.
   //
   // The line between None and the modules is upstream's: None is not a tool, it
   // is how the panel is closed, and the separator is what says so. Upstream
@@ -499,8 +501,6 @@ export function Toolbar({
     {
       // help: menu.tools.none
       label: L("None"),
-      checked: menuState(undefined, active !== undefined).checked,
-      exclusive: true,
       onSelect: () => activate(undefined),
     },
     { kind: "separator" },
@@ -510,7 +510,6 @@ export function Toolbar({
         label: tool.title,
         checked: row.checked,
         disabled: !row.enabled,
-        exclusive: true,
         onSelect: () => activate(tool.id),
       };
     }),
