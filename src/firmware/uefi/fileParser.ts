@@ -1,9 +1,8 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
-import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
-import { nameOfGuid } from "@/firmware/uefi/knownGuids";
-import { readMicrocodeHeader } from "@/firmware/uefi/microcodeParser";
+import { type EFIGUID, guid, guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
+import { nameOfGuid, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
 import { parseNvarStore } from "@/firmware/uefi/nvarParser";
 import {
   nvramNvarBbDefaultsFileGuid,
@@ -12,7 +11,12 @@ import {
 } from "@/firmware/uefi/nvramGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
-import { Section, ucs2String, walkSections } from "@/firmware/uefi/sectionParser";
+import {
+  readsAsSectionRun,
+  Section,
+  ucs2String,
+  walkSections,
+} from "@/firmware/uefi/sectionParser";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 
@@ -114,6 +118,29 @@ export const FFS = {
 export function hasSections(type: number): boolean {
   return type !== FFS.rawType && type !== FFS.padType;
 }
+
+/**
+ * AMI's ROM holes: files whose place in the flash is fixed and whose body is the
+ * vendor's, not structure (`AMI_ROM_HOLE_FILE_GUID_0..15`).
+ *
+ * `05CA01FC-0FC1-11DC-9011-00173153EBA8` up to `05CA020B-…`: the first dword
+ * counts, the rest is the same.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.isRomHole
+ */
+export function isRomHole(name: EFIGUID): boolean {
+  const bytes = guidBytes(name);
+  const first =
+    ((bytes[0] ?? 0) | ((bytes[1] ?? 0) << 8) | ((bytes[2] ?? 0) << 16)) +
+    (bytes[3] ?? 0) * 0x100_0000;
+  return (
+    first >= 0x05ca_01fc &&
+    first <= 0x05ca_020b &&
+    bytes.subarray(4).every((byte, index) => byte === ROM_HOLE_TAIL[index])
+  );
+}
+
+const ROM_HOLE_TAIL = guidBytes(guid("05CA01FC-0FC1-11DC-9011-00173153EBA8")).subarray(4);
 
 /**
  * The files whose body is an AMI NVAR store (§9): the store itself, and the
@@ -270,10 +297,36 @@ export function parseFile(
   // polarities still reads.
   const emptyByte = (state & FFS.erasePolarity) !== 0 ? 0xff : 0x00;
   let children: UEFINode[] = [];
+  let romHole = false;
   if (holdsNvarStore(name, type) && body.end > body.start) {
     // The body is the store, with no header of its own; when it does not read
     // as one, the file stays a leaf and the parse says why.
     children = parseNvarStore(parser, body, { emptyByte, probe: false, depth: depth + 1 }) ?? [];
+  } else if ((type === FFS.rawType || type === FFS.allType) && body.end > body.start) {
+    // A raw file's body is whatever its owner put there, read the way the
+    // reference reads it (`parseFileBody`): an AMI ROM hole is the vendor's and
+    // stays whole, and fixed; a Phoenix hash file is read by the protected
+    // ranges; anything else is sections when it reads as sections, and
+    // otherwise a raw area — which is where volumes, microcode and the rest are
+    // found inside one.
+    if (isRomHole(name)) {
+      romHole = true;
+    } else if (!guidEquals(name, PHOENIX_HASH_FILE)) {
+      if (readsAsSectionRun(parser, body, ffsVersion)) {
+        children = walkSections(parser, body, {
+          ffsVersion,
+          emptyByte,
+          depth: depth + 1,
+          fileGuid: name,
+        });
+      } else {
+        // A raw area with nothing in it leaves the file a leaf, as the
+        // reference leaves it: one padding row the size of the body would say
+        // nothing the file's own row does not.
+        const found = scanRawArea(parser, body, emptyByte, depth + 1);
+        children = found.some((one) => one.kind !== "padding") ? found : [];
+      }
+    }
   } else if (hasSections(type) && body.end > body.start) {
     children = walkSections(parser, body, {
       ffsVersion,
@@ -281,16 +334,6 @@ export function parseFile(
       depth: depth + 1,
       fileGuid: name,
     });
-  } else if (
-    type === FFS.rawType &&
-    body.end > body.start &&
-    readMicrocodeHeader(body.start, parser.reader) !== undefined
-  ) {
-    // A raw file that opens on a microcode image is the store the FIT points
-    // into: a run of images, each checked by the header reader the FIT panel
-    // uses, and the empty slots after them. It reads as those, the way
-    // UEFITool shows it, rather than as one blob.
-    children = scanRawArea(parser, body, emptyByte, depth + 1);
   } else if (type === FFS.padType && body.end > body.start) {
     children = padFileBody(parser, body, emptyByte);
   }
@@ -308,7 +351,7 @@ export function parseFile(
     header: { start: offset, end: offset + headerSize },
     body,
     tail,
-    isFixed: (attributes & FFS.fixed) !== 0,
+    isFixed: (attributes & FFS.fixed) !== 0 || romHole,
     children,
   });
   return { node, size: end - offset };

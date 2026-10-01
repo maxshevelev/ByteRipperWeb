@@ -114,6 +114,31 @@ export function sectionTypeName(type: number): string {
   );
 }
 
+/**
+ * What each type puts after the common header, as far as a probe needs to know
+ * (`parse*SectionHeader` in the reference): a section shorter than this is not
+ * the section its type says.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.typeHeaderSize
+ */
+export function sectionTypeHeaderSize(type: number): number {
+  switch (type) {
+    case Section.compression:
+      return Section.compressionHeaderSize;
+    case Section.guidDefined:
+      return Section.guidDefinedHeaderSize;
+    case 0x18: // freeform subtype GUID
+      return 16;
+    case 0x14: // version: the build number
+      return 2;
+    case 0x20: // Insyde postcode
+    case 0xf0: // Phoenix postcode
+      return 4;
+    default:
+      return 0;
+  }
+}
+
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.isKnown */
 export function isKnownSectionType(type: number): boolean {
   // 0x1A is not a section type. The gap is the specification's, and a range
@@ -220,6 +245,51 @@ export function walkSections(
     offset = next;
   }
   return nodes;
+}
+
+/**
+ * Whether `body` reads as a run of sections, the way the reference's probe asks
+ * before it reads a raw file's body as one: every section's size at least a
+ * header and within what is left, every type's own header there, a GUID-defined
+ * section's `DataOffset` inside it, and the next section four-aligned. Unknown
+ * types pass, as they do there. Reads and reports nothing — a raw file that is
+ * not sections is no defect.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Parser.readsAsSectionRun
+ */
+export function readsAsSectionRun(parser: Parser, body: ImageRange, ffsVersion: number): boolean {
+  let offset = body.start;
+  while (offset < body.end) {
+    const remaining = body.end - offset;
+    const shortSize = parser.reader.uint24(offset);
+    const type = parser.reader.uint8(offset + 3);
+    if (remaining < Section.headerSize || shortSize === undefined || type === undefined) {
+      return false;
+    }
+    let headerSize: number = Section.headerSize;
+    let size = shortSize;
+    if (ffsVersion === 3 && shortSize === Section.extendedSizeMarker) {
+      const extended = parser.reader.uint32(offset + 4);
+      if (remaining < Section.extendedHeaderSize || extended === undefined) return false;
+      headerSize = Section.extendedHeaderSize;
+      size = extended;
+    }
+    if (
+      size < Section.headerSize ||
+      size > remaining ||
+      size < headerSize + sectionTypeHeaderSize(type)
+    ) {
+      return false;
+    }
+    if (type === Section.guidDefined) {
+      const dataOffset = parser.reader.uint16(offset + headerSize + 16);
+      if (dataOffset === undefined || dataOffset > size) return false;
+    }
+    const next = alignUp(offset + size - body.start, Section.alignment);
+    if (next === undefined) return false;
+    offset = body.start + next;
+  }
+  return true;
 }
 
 function parseSection(
