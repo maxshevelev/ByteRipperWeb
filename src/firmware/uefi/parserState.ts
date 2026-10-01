@@ -19,8 +19,10 @@ import { makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.Limits */
 export interface Limits {
   /**
-   * Volume, file, section, volume again — real images nest eight or ten deep,
-   * and a corrupt one nests forever.
+   * Volume, file, section, volume again — real images nest a dozen rows deep,
+   * and a corrupt one nests forever. The count is the parser's own recursion,
+   * which a nested volume costs about three of: a Dell XPS image needs more than
+   * 16, and 32 leaves room.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.Limits.maxDepth
    */
@@ -36,7 +38,7 @@ export interface Limits {
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#UEFIParser.Limits.init */
-export const DEFAULT_LIMITS: Limits = { maxDepth: 16, maxDecompressedSize: 128 * 1024 * 1024 };
+export const DEFAULT_LIMITS: Limits = { maxDepth: 32, maxDecompressedSize: 128 * 1024 * 1024 };
 
 /**
  * How far the scan has got, reported monotonically from just above 0 up to 1.

@@ -249,7 +249,7 @@ describe("the extended size", () => {
 });
 
 /**
- * Volume, file, section, volume again: a real image nests eight or ten deep and
+ * Volume, file, section, volume again: a real image nests a dozen rows deep and
  * a corrupt one nests for ever, so every level that can recurse counts the
  * depth.
  */
@@ -280,6 +280,48 @@ describe("the depth limit", () => {
     const hit = parsed.diagnostics.find((one) => one.detail.kind === "recursionLimit");
     expect(hit).toBeDefined();
     expect(severityOf(hit?.detail as DiagnosticKind)).toBe("error");
+  });
+
+  /**
+   * `levels` volumes, each the body of a volume-image section in a file of the
+   * one around it, with a plain file in the innermost.
+   */
+  const volumesNested = (levels: number) => {
+    let image = Test.volume({ length: 0x200, files: [Test.file({ body: bytes(1, 2, 3, 4) })] });
+    for (let level = 1; level < levels; level++) {
+      image = Test.volume({
+        length: image.length + 0x200,
+        files: [
+          Test.sectionedFile({
+            sections: [Test.section({ type: Section.firmwareVolumeImage, body: image })],
+          }),
+        ],
+      });
+    }
+    return image;
+  };
+
+  // A Dell XPS image nests its DXE drivers twelve rows deep — volumes in
+  // compressed sections in volumes — and a volume costs the parser about three
+  // levels. Seven volumes deep is past what a limit of 16 allowed; the default
+  // reads them whole.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testTheDefaultLimitReadsSevenNestedVolumes
+  it("reads seven nested volumes at the default limit", () => {
+    const parsed = parseUefiImage(sourceOver(volumesNested(7)));
+    expect(parsed.diagnostics.some((one) => one.detail.kind === "recursionLimit")).toBe(false);
+
+    let node = parsed.roots[0];
+    let depth = 1;
+    for (
+      let inner = node?.children[0]?.children[0]?.children[0];
+      inner?.kind === "volume";
+      inner = node?.children[0]?.children[0]?.children[0]
+    ) {
+      node = inner;
+      depth += 1;
+    }
+    expect(depth).toBe(7);
+    expect(node?.children[0]?.kind).toBe("file");
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testANestedVolumeStopsAtTheDepthLimit
