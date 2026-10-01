@@ -2,7 +2,7 @@
   "name": "byteripper-desktop",
   "productName": "ByteRipper",
   "description": "ByteRipperWeb in a window of its own, for Windows.",
-  "version": "0.8.5-4",
+  "version": "0.8.5-5",
   "private": true,
   "main": "main.cjs",
   "scripts": {
