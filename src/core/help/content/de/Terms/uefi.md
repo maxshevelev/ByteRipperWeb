@@ -1,4 +1,4 @@
-@source-sha 1366a209074a294aa73156357a35fb27a811fba2f24c28ff36aa1b35a6082b93
+@source-sha d44bd50cc613a739fa19e3ef79f529cf14dd84f5858bd63c664140da957b5a4c
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -193,9 +193,27 @@ Die Typbezeichnungen stammen aus UEFITool. Ein dort unbekannter Typ erscheint al
 
 Die Map gibt Adressen im Adressraum des Prozessors an. ByteRipper rechnet sie anhand des Endes der BIOS-Region in Adressen des Dumps um; ist diese Umrechnung nicht möglich, bleiben die Regionen Padding.
 
+@see term:bvdt
 @see term:ec-firmware
 @see term:vss
 @see term:padding
+
+@term bvdt
+@name BIOS Version Data Table
+@short Der Eintrag von Insyde über die BIOS-Version, das Produkt, für das die Firmware erstellt wurde, und den zugrunde liegenden Insyde-Kernel.
+
+Insyde-Firmware enthält eine kleine Tabelle, die mit der Signatur `$BVDT$` beginnt. Die [[term:flash-device-map|Flash Device Map]] bezeichnet ihre Region als **BIOS Version Data Table**, und die Detailliste gibt wieder, was die Tabelle angibt:
+
+- **BIOS version** — die Version in der Zählung des Herstellers, etwa `J2CN57WW` auf einem Lenovo-Board.
+- **Product name** — das Modell oder das Board, etwa `Legion 570 Series Intel`.
+- **Kernel version** — die Version des InsydeH2O-Kernels, auf dem die Firmware aufbaut, etwa `05.43.44`.
+- **Release date** — das Datum aus dem Eintrag `$RDATE` der Tabelle.
+
+Anhand der Tabelle lässt sich am schnellsten feststellen, welche Firmware ein Dump enthält und ob zwei Dumps dieselbe Version enthalten.
+
+! Eine Spezifikation der Tabelle ist nicht veröffentlicht. Ihr Aufbau ist aus Dumps abgeleitet, und die Bedeutung des Datums ist eine Schlussfolgerung: Auf allen untersuchten Dumps stimmt es mit der BIOS-Version überein. Die übrigen Einträge der Tabelle werden nicht ausgewertet.
+
+@see term:flash-device-map
 
 @term ec-firmware
 @name EC-Firmware in einem BIOS-Abbild

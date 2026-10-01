@@ -5,8 +5,10 @@ import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
-import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
+import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
 import { itemType } from "@/firmware/uefi/itemClassification";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
 import {
@@ -542,10 +544,25 @@ function headerFields(
     case "freeSpace":
     case "nonUEFIData":
     case "startupApData":
-    // A map region has no header either: the map says where it is and what type
-    // it is, and the type is the common "GUID" field.
-    case "flashDeviceMapRegion":
       break;
+
+    // A map region has no header: the map says where it is and what type it is,
+    // and the type is the common "GUID" field. What the region holds is read
+    // where its type is understood.
+    case "flashDeviceMapRegion": {
+      if (node.guid === undefined || !guidEquals(node.guid, FlashDeviceMap.biosVersionDataTable)) {
+        break;
+      }
+      const table = readInsydeBvdt(node.body, reader);
+      if (table === undefined) break;
+      if (table.biosVersion !== undefined) fields.push(field("BIOS version", table.biosVersion));
+      if (table.productName !== undefined) fields.push(field("Product name", table.productName));
+      if (table.kernelVersion !== undefined) {
+        fields.push(field("Kernel version", table.kernelVersion));
+      }
+      if (table.releaseDate !== undefined) fields.push(field("Release date", table.releaseDate));
+      break;
+    }
   }
   return fields;
 }

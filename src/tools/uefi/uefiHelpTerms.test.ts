@@ -106,6 +106,7 @@ describe("the flash device map", () => {
     const region = (type: EFIGUID) => ({ kind: "flashDeviceMapRegion", guid: type });
     expect(uefiHelpTerm(region(FlashDeviceMap.ecFirmware))).toBe(termId("ec-firmware"));
     expect(uefiHelpTerm(region(FlashDeviceMap.variableDefaults))).toBe(termId("vss"));
+    expect(uefiHelpTerm(region(FlashDeviceMap.biosVersionDataTable))).toBe(termId("bvdt"));
   });
 });
 

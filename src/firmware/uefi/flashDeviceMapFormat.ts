@@ -66,6 +66,12 @@ export const FlashDeviceMap = {
    */
   variableDefaults: guid("D9DDACA2-0816-48F3-ADED-6B71656B248A"),
   /**
+   * `INSYDE_FLASH_MAP_REGION_BVDT_GUID`: the `$BVDT$` table (`InsydeBVDT`).
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.biosVersionDataTable
+   */
+  biosVersionDataTable: guid("32415DFC-D106-48C7-9EB5-806C114DD107"),
+  /**
    * `INSYDE_FLASH_MAP_REGION_EC_GUID`: the embedded controller's firmware.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.ecFirmware

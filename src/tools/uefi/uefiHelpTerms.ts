@@ -112,8 +112,8 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
 
 /**
  * A map region whose type has a page of its own goes there — the EC firmware,
- * the default variables — and the rest to the page about the map, which says
- * what its regions are.
+ * the version table, the default variables — and the rest to the page about the
+ * map, which says what its regions are.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.mapRegion
  */
@@ -121,6 +121,9 @@ function mapRegionTerm(type: EFIGUID | string | undefined): HelpTermId {
   const guid = typeof type === "string" ? guidFromText(type) : type;
   if (guid !== undefined && guidEquals(guid, FlashDeviceMap.ecFirmware)) {
     return termId("ec-firmware");
+  }
+  if (guid !== undefined && guidEquals(guid, FlashDeviceMap.biosVersionDataTable)) {
+    return termId("bvdt");
   }
   if (guid !== undefined && guidEquals(guid, FlashDeviceMap.variableDefaults)) {
     return termId("vss");

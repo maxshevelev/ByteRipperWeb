@@ -192,9 +192,27 @@ The type names are those of UEFITool. A type it does not know is shown as its GU
 
 The map states addresses in the processor's address space. ByteRipper converts them into dump addresses from the end of the BIOS region; where that conversion is not possible, the regions remain padding.
 
+@see term:bvdt
 @see term:ec-firmware
 @see term:vss
 @see term:padding
+
+@term bvdt
+@name BIOS Version Data Table
+@short Insyde's record of the BIOS version, the product the firmware was built for, and the Insyde kernel it is based on.
+
+Insyde firmware keeps a small table that begins with the signature `$BVDT$`. The [[term:flash-device-map|flash device map]] names its region **BIOS Version Data Table**, and the detail list shows what the table states:
+
+- **BIOS version** — the version in the vendor's numbering, for example `J2CN57WW` on a Lenovo board.
+- **Product name** — the model or the board, for example `Legion 570 Series Intel`.
+- **Kernel version** — the version of the InsydeH2O kernel the firmware is built on, for example `05.43.44`.
+- **Release date** — the date in the table's `$RDATE` record.
+
+The table is the quickest way to establish which firmware a dump contains, and whether two dumps contain the same version.
+
+! No specification of the table has been published. Its layout is derived from dumps, and the meaning of the date is an inference: on every dump examined it agrees with the BIOS version. The table's remaining records are not interpreted.
+
+@see term:flash-device-map
 
 @term ec-firmware
 @name EC firmware inside a BIOS image

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
+import { ascii, bvdtTable } from "@/firmware/testing/testInsyde";
 import { checksummedNvarEntry, nvarStore, nvarVolume } from "@/firmware/testing/testNvar";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { jedecName } from "@/firmware/uefi/jedecIds";
 import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import type { ProtectedRange } from "@/firmware/uefi/protectedRanges";
@@ -954,5 +956,33 @@ describe("an NVAR entry", () => {
     expect(value(detail, "Checksum")).toBe(
       checksumText({ value: stored, valid: false, expected: (stored - 1) & 0xff })
     );
+  });
+});
+
+describe("a BVDT region", () => {
+  // The version table's region shows what the table states.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionShowsTheVersionsTheTableStates
+  it("shows the versions the table states", () => {
+    const bytes = bvdtTable({
+      version: "JKCN31WW",
+      product: "S370-IAU",
+      kernel: "05.44.02",
+      records: [...ascii("$RDATE"), 0x22, 0x07, 0x21],
+    });
+    const region = makeNode({
+      kind: "flashDeviceMapRegion",
+      name: "BIOS Version Data Table",
+      guid: FlashDeviceMap.biosVersionDataTable,
+      header: r(0, 0),
+      body: r(0, 0x1000),
+      isFixed: true,
+    });
+    const detail = detailOf(region, bytes);
+
+    expect(value(detail, "Kind")).toBe("Flash device map region");
+    expect(value(detail, "BIOS version")).toBe("JKCN31WW");
+    expect(value(detail, "Product name")).toBe("S370-IAU");
+    expect(value(detail, "Kernel version")).toBe("05.44.02");
+    expect(value(detail, "Release date")).toBe("2022-07-21");
   });
 });
