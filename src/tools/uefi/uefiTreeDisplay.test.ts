@@ -221,6 +221,41 @@ describe("the name", () => {
     expect(nodeName(entry, catalogue([[type, "Something else"]]))).toBe("Variable Defaults");
   });
 
+  // A pad file is named by what its body turned out to hold, the way UEFITool
+  // renames it.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAPadFileIsNamedByWhatItHolds
+  it("names a pad file by what it holds", () => {
+    const pad = (children: UEFINode[]) =>
+      makeNode({
+        kind: "file",
+        subtype: 0xf0,
+        name: "Padding file",
+        guid: guid("00000000-0000-0000-0000-000000000000"),
+        header: r(0, 0x18),
+        body: r(0x18, 0x100),
+        children,
+      });
+    const startup = makeNode({
+      kind: "startupApData",
+      name: "Startup AP data",
+      header: r(0x40, 0x40),
+      body: r(0x40, 0x100),
+    });
+    const data = makeSpan({ kind: "padding", name: "Non-UEFI data", range: r(0x40, 0x100) });
+    const free = makeSpan({
+      kind: "freeSpace",
+      name: "Free space",
+      range: r(0x18, 0x40),
+      isErased: true,
+    });
+
+    expect(nodeName(pad([]), GuidsCatalogue.empty)).toBe("Padding file");
+    expect(nodeName(pad([free, startup]), GuidsCatalogue.empty)).toBe(
+      "Startup AP data padding file"
+    );
+    expect(nodeName(pad([free, data]), GuidsCatalogue.empty)).toBe("Non-empty padding file");
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testANodeWithoutAGuidKeepsItsParserName
   it("keeps the parser's name for a node without a GUID", () => {
     expect(

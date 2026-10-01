@@ -72,7 +72,9 @@ describe("naming a file", () => {
   it("names a pad file by its type, and says nothing about it", () => {
     const parsed = parse([Test.file({ type: 0xf0, body: bytes(1, 2) })]);
     expect(parsed.roots[0]?.children[0]?.name).toBe("Padding file");
-    expect(parsed.diagnostics).toEqual([]);
+    // An erased one is no defect; one holding data is reported, the way the
+    // reference reports it (`PadFileBodyTests`).
+    expect(parse([Test.file({ type: 0xf0, body: bytes(0xff, 0xff) })]).diagnostics).toEqual([]);
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAnUnknownFileTypeIsReportedAndKept

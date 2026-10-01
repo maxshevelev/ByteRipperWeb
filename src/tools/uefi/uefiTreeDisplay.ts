@@ -178,12 +178,24 @@ export function nodeName(
     readonly subtype?: number | undefined;
     readonly name: string;
     readonly guid?: EFIGUID | undefined;
+    /** What a pad file is named after, so a row that has them says so. */
+    readonly children?: readonly { readonly kind: string; readonly isErased?: boolean }[];
   },
   catalogue: GuidsCatalogue
 ): string {
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.
-  if (node.kind === "file" && node.subtype === 0xf0) return L("Padding file");
+  if (node.kind === "file" && node.subtype === 0xf0) {
+    // What its body turned out to hold, the way UEFITool renames it.
+    const children = node.children ?? [];
+    if (children.some((child) => child.kind === "startupApData")) {
+      return L("Startup AP data padding file");
+    }
+    if (children.some((child) => child.kind === "padding" && child.isErased !== true)) {
+      return L("Non-empty padding file");
+    }
+    return L("Padding file");
+  }
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
@@ -226,6 +238,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   flashMapEntry: typeName(ItemType.phoenixFlashMapEntry),
   nvarEntry: typeName(ItemType.nvarEntry),
   nvarGuidStore: typeName(ItemType.nvarGuidStore),
+  startupApData: typeName(ItemType.startupApDataEntry),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
   flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
   padding: L("Padding"),

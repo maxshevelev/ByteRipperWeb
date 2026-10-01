@@ -91,6 +91,14 @@ describe("which entry a node's ? opens", () => {
   });
 });
 
+describe("the Startup AP data", () => {
+  // The Startup AP data lives in a pad file and is why that pad file must stay
+  // where it is; the page about pad files says so.
+  it("goes to the page about pad files", () => {
+    expect(uefiHelpTerm(node("startupApData"))).toBe(termId("pad-file"));
+  });
+});
+
 describe("an NVAR entry", () => {
   /**
    * It has a page of its own: what a reader asks of it is which of a
@@ -143,6 +151,7 @@ describe("every mapping lands in the book", () => {
       "flashDeviceMapEntry",
       "nvarEntry",
       "nvarGuidStore",
+      "startupApData",
       "padding",
       "freeSpace",
       "nonUEFIData",

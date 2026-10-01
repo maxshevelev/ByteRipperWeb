@@ -1182,6 +1182,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                             name: row.node.name,
                             guid:
                               row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
+                            children: row.node.children,
                           },
                           catalogue.catalogue
                         )

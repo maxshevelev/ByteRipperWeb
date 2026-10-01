@@ -146,7 +146,9 @@ A row with a readable name like "DxeCore" is an FFS file whose GUID the [[topic:
 @name Padding file
 @short A file that exists only to fill space so the next real file starts where it should.
 
-It has a GUID because every file header does — usually all ones — and that GUID names nothing. Nothing is lost by ignoring it.
+It has a GUID because every file header does — usually all ones — and that GUID names nothing. An empty one can safely be ignored.
+
+A pad file is not always empty. The one directly in front of the Volume Top File often holds the Startup AP data: a jump that the processor's other cores execute first when they start, sending them to their entry point in the Volume Top File. Its address is fixed. ByteRipper shows such a file as **Startup AP data padding file**; it must not be moved or overwritten. Any other data in a pad file is shown as **Non-UEFI data**, the file as **Non-empty padding file**, and the parse reports it. Some vendors keep structures of their own there — a Boot Guard key manifest, for example; elsewhere it is damage.
 
 @term section
 @name Section

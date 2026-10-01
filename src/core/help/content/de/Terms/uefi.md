@@ -1,4 +1,4 @@
-@source-sha 19105c26db19ba5158f4c0d222c59aab8d69066b847bd1c885115d096d06f290
+@source-sha 1f7ba77a47e0cafa8ca4ef25b0a64f559b19e14defa8ea19e00b02b9f70028e8
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -147,7 +147,9 @@ Eine Zeile mit lesbarem Namen wie „DxeCore“ ist eine FFS-Datei, deren GUID d
 @name Padding-Datei
 @short Eine Datei, die es nur gibt, damit die nächste echte Datei dort beginnt, wo sie soll.
 
-Eine GUID hat sie nur, weil jeder Datei-Header eine hat — in der Regel lauter Einsen —, und sie benennt nichts. Sie zu übergehen kostet nichts.
+Eine GUID hat sie nur, weil jeder Datei-Header eine hat — in der Regel lauter Einsen —, und sie benennt nichts. Ist sie leer, kann sie unbedenklich übergangen werden.
+
+Leer ist eine Padding-Datei allerdings nicht immer. Die Datei unmittelbar vor der Volume Top File enthält häufig die Startup AP data: einen Sprung, den die übrigen Prozessorkerne beim Start als Erstes ausführen und der sie zu ihrem Einsprungpunkt in der Volume Top File führt. Ihre Adresse ist fest vorgegeben. ByteRipper zeigt eine solche Datei als **Padding-Datei mit Startup AP data** an; sie darf weder verschoben noch überschrieben werden. Andere Daten in einer Padding-Datei erscheinen als **Nicht-UEFI-Daten**, die Datei selbst als **Nicht leere Padding-Datei**, und die Analyse meldet dies. Mitunter legt der Hersteller dort eigene Strukturen ab, etwa ein Boot-Guard-Key-Manifest; in anderen Fällen handelt es sich um eine Beschädigung.
 
 @term section
 @name Sektion

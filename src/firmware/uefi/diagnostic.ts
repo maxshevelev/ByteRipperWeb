@@ -146,7 +146,13 @@ export type DiagnosticKind =
    * store from here on is kept as padding; at the store's first byte, the body
    * is not an NVAR store at all.
    */
-  | { readonly kind: "unreadableNvarEntry" };
+  | { readonly kind: "unreadableNvarEntry" }
+  /**
+   * A pad file whose body holds something other than the erase byte and is not
+   * the Startup AP data: a pad file is meant to be empty, so data in one is
+   * either a vendor's or damage.
+   */
+  | { readonly kind: "nonUEFIDataInPadFile" };
 
 /**
  * Where a diagnostic raised inside a compressed section really is: an offset in
@@ -314,6 +320,8 @@ function kindMessage(detail: DiagnosticKind): string {
         `Insyde flash device map entries of ${hex(detail.size)} bytes in format ` +
         `${hex(detail.format)} are of no known layout`
       );
+    case "nonUEFIDataInPadFile":
+      return "padding file holds data that is not UEFI";
     case "unreadableNvarEntry":
       return "NVAR entry cannot be read; the store is kept as padding from here";
   }

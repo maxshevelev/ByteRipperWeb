@@ -541,6 +541,7 @@ function headerFields(
     case "padding":
     case "freeSpace":
     case "nonUEFIData":
+    case "startupApData":
       break;
   }
   return fields;
@@ -797,6 +798,7 @@ function typeText(node: UEFINode): string {
     case "evsaEntry":
     case "flashMapEntry":
     case "nvarEntry":
+    case "startupApData":
     case "slicData":
       return subtypeName(itemType(node), subtype) ?? hex(subtype);
     default:

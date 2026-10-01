@@ -41,6 +41,7 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   nvarGuidStore: ItemType.nvarGuidStore,
   flashDeviceMapStore: ItemType.insydeFlashDeviceMapStore,
   flashDeviceMapEntry: ItemType.insydeFlashDeviceMapEntry,
+  startupApData: ItemType.startupApDataEntry,
   padding: ItemType.padding,
   freeSpace: ItemType.freeSpace,
   // Data nobody claimed is a run of bytes with a type, not a structure, so it
@@ -105,6 +106,9 @@ export function itemSubtype(node: UEFINode): number | undefined {
       return node.subtype;
     case "nvarGuidStore":
       return undefined;
+    // The one form UEFITool recognises.
+    case "startupApData":
+      return Sub.x86128kStartupApDataEntry;
     case "padding":
       return paddingSubtype(node);
     case "freeSpace":

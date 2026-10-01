@@ -13,7 +13,8 @@ import {
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { Section, ucs2String, walkSections } from "@/firmware/uefi/sectionParser";
-import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { Sub } from "@/firmware/uefi/uefiTypes";
 
 /**
  * `EFI_FFS_FILE_HEADER` and its variants.
@@ -62,6 +63,31 @@ export const FFS = {
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.padType */
   padType: 0xf0,
+  /**
+   * `RECOVERY_STARTUP_AP_DATA_X86_128K`: what EDK2's GenFv writes into the pad
+   * file in front of the Volume Top File — `jmp far F000:FFD0`, then zeros and
+   * two bytes the reference matches as written.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.startupApDataX86_128K
+   */
+  startupApDataX86_128K: Uint8Array.of(
+    0xea,
+    0xd0,
+    0xff,
+    0x00,
+    0xf0,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x27,
+    0x2d
+  ),
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.rawType */
   rawType: 0x01,
   /**
@@ -265,6 +291,8 @@ export function parseFile(
     // uses, and the empty slots after them. It reads as those, the way
     // UEFITool shows it, rather than as one blob.
     children = scanRawArea(parser, body, emptyByte, depth + 1);
+  } else if (type === FFS.padType && body.end > body.start) {
+    children = padFileBody(parser, body, emptyByte);
   }
 
   const node = makeNode({
@@ -284,6 +312,53 @@ export function parseFile(
     children,
   });
   return { node, size: end - offset };
+}
+
+/**
+ * A pad file's body, the way UEFITool's `parsePadFileBody` reads it: an erased
+ * body is nothing; otherwise the erased bytes up to the first written one —
+ * rounded down to eight, and only when there are eight — are free space, and the
+ * rest is either the Startup AP data or data that has no business in a pad file,
+ * which is reported.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#Parser.padFileBody
+ */
+function padFileBody(parser: Parser, body: ImageRange, emptyByte: number): UEFINode[] {
+  const firstWritten = parser.reader.firstOffsetNotEqualTo(body, emptyByte);
+  if (firstWritten === undefined) return [];
+  let dataStart = body.start;
+  const nodes: UEFINode[] = [];
+  const leading = firstWritten - body.start;
+  if (leading >= 8) {
+    dataStart = body.start + Math.floor(leading / 8) * 8;
+    nodes.push(
+      makeSpan({
+        kind: "freeSpace",
+        name: L("Free space"),
+        range: { start: body.start, end: dataStart },
+        isErased: true,
+      })
+    );
+  }
+  const data: ImageRange = { start: dataStart, end: body.end };
+  const signature = FFS.startupApDataX86_128K;
+  const found = parser.reader.bytesAt(dataStart, signature.length);
+  if (found?.every((byte, index) => byte === signature[index]) === true) {
+    nodes.push(
+      makeNode({
+        kind: "startupApData",
+        subtype: Sub.x86128kStartupApDataEntry,
+        name: "Startup AP data",
+        header: { start: dataStart, end: dataStart },
+        body: data,
+        isFixed: true,
+      })
+    );
+  } else {
+    parser.note({ kind: "nonUEFIDataInPadFile" }, dataStart);
+    nodes.push(makeSpan({ kind: "padding", name: L("Non-UEFI data"), range: data }));
+  }
+  return nodes;
 }
 
 /**

@@ -99,6 +99,12 @@ export type UEFINodeKind =
    */
   | "flashDeviceMapStore"
   | "flashDeviceMapEntry"
+  /**
+   * The x86 Startup AP data EDK2's GenFv writes into the pad file before the
+   * Volume Top File: a far jump the application processors start at. It is code
+   * at a fixed address, so it does not move.
+   */
+  | "startupApData"
   /** Space between elements that belongs to no structure. */
   | "padding"
   /** The unused tail of a volume's body. */

@@ -478,6 +478,8 @@
 "Overview" = "Übersicht";
 "Padding" = "Padding";
 "Padding file" = "Padding-Datei";
+"Startup AP data padding file" = "Padding-Datei mit Startup AP data";
+"Non-empty padding file" = "Nicht leere Padding-Datei";
 "Panels" = "Panels";
 "Partly inside protected ranges" = "Teilweise innerhalb geschützter Bereiche";
 "Past the end of the file" = "Hinter dem Ende der Datei";

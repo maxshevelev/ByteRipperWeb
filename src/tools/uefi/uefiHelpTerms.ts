@@ -57,6 +57,10 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return termId("section");
     case "microcode":
       return termId("microcode");
+    // The Startup AP data lives in a pad file and is why that pad file must
+    // stay where it is; the page about pad files says so.
+    case "startupApData":
+      return termId("pad-file");
     case "padding":
       return termId("padding");
     case "freeSpace":
