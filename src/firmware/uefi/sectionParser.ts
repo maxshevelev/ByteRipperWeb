@@ -10,7 +10,11 @@ import {
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { guidedSection } from "@/firmware/uefi/knownGuids";
 import { parseNvarStore } from "@/firmware/uefi/nvarParser";
-import { nvramNvarExternalDefaultsFileGuid } from "@/firmware/uefi/nvramGuids";
+import {
+  ffsPhoenixRawSectionEvsaGuid,
+  nvramNvarExternalDefaultsFileGuid,
+} from "@/firmware/uefi/nvramGuids";
+import { walkStores } from "@/firmware/uefi/nvramParser";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
@@ -313,6 +317,15 @@ function parseSection(
   if (body.end > body.start) {
     if (readsBodyAsSections) {
       children = walkSections(parser, body, { ffsVersion, emptyByte, depth: depth + 1, fileGuid });
+    } else if (
+      type === Section.raw &&
+      fileGuid !== undefined &&
+      guidEquals(fileGuid, ffsPhoenixRawSectionEvsaGuid)
+    ) {
+      // Phoenix keeps an EVSA store — the Secure Boot defaults among others —
+      // in the raw section of a file of its own, and its body reads as an NVRAM
+      // volume's does (§9).
+      children = walkStores(parser, body, emptyByte, depth + 1);
     } else if (type === Section.raw) {
       // The external defaults file's raw section is an NVAR store and is meant
       // to read as one. Any other raw section is tried, the way the reference

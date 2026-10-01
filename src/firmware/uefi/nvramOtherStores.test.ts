@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { section, sectionedFile, volume } from "@/firmware/testing/testImage";
 import * as N from "@/firmware/testing/testNvram";
 import { guid, guidText } from "@/firmware/uefi/efiGuid";
+import { ffsPhoenixRawSectionEvsaGuid } from "@/firmware/uefi/nvramGuids";
 import { NVRAM } from "@/firmware/uefi/nvramParser";
+import { Section } from "@/firmware/uefi/sectionParser";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
@@ -222,6 +225,53 @@ describe("a Phoenix EVSA store", () => {
 });
 
 describe("the leaf stores", () => {
+  // The signature is the four bytes `EVSA` as the store spells them — not
+  // whatever the parser's constant says: a store written byte for byte is read,
+  // one with the bytes swapped is not.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testTheSignatureIsTheBytesEVSA
+  it("takes the signature to be the bytes EVSA", () => {
+    const entries = [N.evsaNameEntry({ name: "Lang", id: 1 })];
+    const right = rootOf([N.evsaStore({ entries })]);
+    expect(right.children[0]?.kind).toBe("evsaStore");
+
+    const swapped = N.evsaStore({ entries, signature: new TextEncoder().encode("ESVA") });
+    expect(rootOf([swapped]).children.some((one) => one.kind === "evsaStore")).toBe(false);
+  });
+
+  // Phoenix keeps an EVSA store in the raw section of a file of its own, and the
+  // section's body reads as an NVRAM volume's does.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testAPhoenixEvsaFilesRawSectionReadsAsItsStore
+  it("reads a Phoenix EVSA file's raw section as its store", () => {
+    const store = N.evsaStore({
+      entries: [
+        N.evsaGuidEntry({ guid: guid("11111111-2222-3333-4444-555555555555"), id: 1 }),
+        N.evsaNameEntry({ name: "PK", id: 2 }),
+        N.evsaDataEntry({ guidId: 1, varId: 2, data: bytes(0x01) }),
+      ],
+    });
+    const parsed = parse(
+      volume({
+        length: 0x400,
+        files: [
+          sectionedFile({
+            guid: ffsPhoenixRawSectionEvsaGuid,
+            type: 0x02,
+            sections: [section({ type: Section.raw, body: store })],
+          }),
+        ],
+      })
+    );
+    const holder = (parsed.roots[0] as UEFINode).children[0]?.children[0] as UEFINode;
+
+    expect(kinds(holder.children)).toEqual(["evsaStore"]);
+    expect(
+      (holder.children[0] as UEFINode).children
+        .filter((one) => one.subtype === Sub.dataEvsaEntry)
+        .map((one) => one.name)
+    ).toEqual(["PK"]);
+    expect(parsed.diagnostics).toEqual([]);
+  });
+
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramOtherStoreTests.swift#NvramOtherStoreTests.testACmdbStoreIsKeptWhole
   it("keeps a CMDB store whole", () => {
     const volume = rootOf([N.cmdbStore()]);

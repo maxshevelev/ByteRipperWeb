@@ -129,7 +129,7 @@ export const NVRAM = {
   phoenixFlashMapMaxEntries: 113,
   // Phoenix EVSA.
   // @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaSignature
-  evsaSignature: 0x4156_5345, // EVSA
+  evsaSignature: 0x4153_5645, // EVSA
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaStoreHeaderSize */
   evsaStoreHeaderSize: 20,
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaEntryTypeStore */

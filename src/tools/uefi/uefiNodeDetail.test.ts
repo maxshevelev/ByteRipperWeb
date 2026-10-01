@@ -705,7 +705,7 @@ describe("the NVRAM stores and entries", () => {
       0,
       0x14,
       0x00,
-      ...le32(0x4156_5345),
+      ...new TextEncoder().encode("EVSA"),
       ...le32(7),
       ...le32(0x30),
       0,

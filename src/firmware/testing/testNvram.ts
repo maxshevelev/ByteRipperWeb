@@ -457,7 +457,13 @@ export function evsaDataEntry(options: {
 export function evsaStore(
   options: {
     readonly entries?: readonly Uint8Array[];
-    readonly signature?: number;
+    /**
+     * The four signature bytes, spelled out and not taken from the parser's
+     * constant: a fixture built from the constant under test agrees with it
+     * whatever it says, which is how a signature reading `ESVA` passed every
+     * test here.
+     */
+    readonly signature?: Uint8Array;
     readonly freeSpace?: number;
     readonly size?: number;
   } = {}
@@ -470,7 +476,7 @@ export function evsaStore(
     .u8(NVRAM.evsaEntryTypeStore)
     .u8(0) // checksum
     .u16(NVRAM.evsaStoreHeaderSize)
-    .u32(options.signature ?? NVRAM.evsaSignature)
+    .raw(options.signature ?? new TextEncoder().encode("EVSA"))
     .u32(0) // attributes
     .u32(storeSize)
     .u32(0); // reserved
