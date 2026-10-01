@@ -368,6 +368,10 @@ export function parseVssStore(
     signature === NVRAM.vssSignature
   ) {
     storeSize = fdcStoreSizeOverride;
+  } else if (storeSize === 0xffff_ffff && signature === NVRAM.vssSignature) {
+    // Outside an FDC the size is measured, where the structure allows it.
+    const measured = unsizedVssStoreSize(parser, offset, body, emptyByte);
+    if (measured !== undefined) storeSize = measured;
   }
 
   // The reference parser refuses a size that is not strictly between the header
@@ -395,6 +399,41 @@ export function parseVssStore(
     isFixed: true,
     children: vssVariables(parser, headerEnd, storeEnd, emptyByte),
   });
+}
+
+/**
+ * How far a `$VSS` store reaches whose size field holds the "no size" marker
+ * outside an FDC: to the end of the free space after its last variable, or to
+ * the end of the body.
+ *
+ * Insyde leaves the size of the board's live variable store unset — the flash
+ * device map's `Variables` region says how big it is, and the firmware takes it
+ * from there. The reference parser refuses such a store, so the board's current
+ * settings read as padding. This reads them by the store's own structure
+ * instead: variables while the marker holds, then erased bytes, and the store
+ * ends where the erased bytes do — which on a Lenovo dump is exactly where the
+ * map's region ends and the FTW store begins. A store that does not open on a
+ * variable is not measured, and stays padding as before.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.unsizedVssStoreSize
+ */
+function unsizedVssStoreSize(
+  parser: Parser,
+  offset: number,
+  body: ImageRange,
+  emptyByte: number
+): number | undefined {
+  const headerEnd = offset + NVRAM.vssStoreHeaderSize;
+  if (headerEnd >= body.end || parser.reader.uint8(headerEnd) !== NVRAM.variableMarkerFirst) {
+    return undefined;
+  }
+  const variables = vssVariables(parser, headerEnd, body.end, emptyByte);
+  const last = variables.findLast((one) => one.kind === "vssEntry");
+  if (last === undefined) return undefined;
+  const end =
+    parser.reader.firstOffsetNotEqualTo({ start: nodeRange(last).end, end: body.end }, emptyByte) ??
+    body.end;
+  return end - offset;
 }
 
 /** The variables of a VSS store, walked until the marker stops. */

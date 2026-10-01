@@ -107,17 +107,6 @@ describe("a VSS store", () => {
     expect(entries[1]?.name).toBe("SetupMode");
   });
 
-  // A store whose size field is the "no size" marker is not a store at all: the
-  // reference parser refuses it, so the body is padding.
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testANoSizeMarkerIsNotAStore
-  it("is not made out of a no-size marker", () => {
-    const store = N.vssStore({
-      variables: [N.vssVariable({ name: "BootOrder" })],
-      size: 0xffff_ffff,
-    });
-    expect(kinds(root(N.nvramVolume({ stores: [store] })).children)).toEqual(["padding"]);
-  });
-
   // A store whose size field overruns the body is cut at the body's end, not
   // believed past it.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramParseTests.swift#NvramParseTests.testAStoreSizeThatOverrunsTheBodyIsCut
