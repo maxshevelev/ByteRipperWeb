@@ -24,7 +24,7 @@ Edited bytes are drawn in **red** until they are saved, and the pane header repo
 
 ## When the file changes underneath you
 
-The app notices when the file it opened has been replaced — by your programmer software re-reading the chip into the same path, for instance. A browser cannot watch a file, so the discovery happens when the app next touches it: it says so then, rather than silently writing over the new contents.
+A browser cannot watch a file, so the app does not notice when the one it has open is changed on disk — by your programmer software re-reading the chip into the same path, for instance. The pane keeps the bytes it read at open time and does not pick up new content on its own. The only check is the save, and it is narrow: a file that has grown shorter is refused, since the missing bytes would otherwise be written back as zeros, while a rewrite to the same size — what a re-read into the same path produces — is not noticed, and the save writes the old bytes over the new ones. If you have re-read the chip, re-open the file before saving, so the pane holds what is actually on disk.
 
 ## Documents with no file
 

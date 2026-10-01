@@ -1,4 +1,4 @@
-@source-sha a095a2b1f1d8b7ebbbe4f0a226b48c484e81ea8cf30a20a93fce69265f1b5ef7
+@source-sha 70c7bc5d15bb9a44704a0a34308d39cc3d3236cae76693549ef9856974e5e5cf
 # Sichern
 
 > Rot kennzeichnet ein Byte, das von der Datei auf dem Volume abweicht. Das Sichern schreibt diese Bytes in die Datei — oder, in manchen Browsern, in eine heruntergeladene Kopie — und das Rot wird aufgehoben.
@@ -19,7 +19,7 @@ Geänderte Bytes erscheinen **rot**, bis sie gesichert sind, und der Bereichskop
 
 ## Wenn die Datei sich währenddessen ändert
 
-Das Programm merkt, wenn die geöffnete Datei ersetzt wurde — etwa weil Ihre Programmer-Software den Chip erneut in denselben Pfad gelesen hat. Ein Browser kann eine Datei nicht beobachten, also fällt es beim nächsten Zugriff auf: dann sagt es das, statt den neuen Inhalt stillschweigend zu überschreiben.
+Ein Browser kann eine Datei nicht beobachten, deshalb merkt das Programm nicht, wenn die geöffnete Datei auf dem Datenträger geändert wird — etwa weil Ihre Programmer-Software den Chip erneut in denselben Pfad gelesen hat. Der Bereich hält die Bytes, die beim Öffnen gelesen wurden, und nimmt neuen Inhalt nicht von selbst auf. Einzige Prüfung ist das Sichern, und sie ist schmal: Eine Datei, die kürzer geworden ist, wird abgelehnt, denn die fehlenden Bytes würden sonst als Nullen zurückgeschrieben; ein Überschreiben mit derselben Größe — genau das, was ein erneutes Lesen hervorbringt — wird nicht bemerkt, und das Sichern überschreibt den neuen Inhalt mit dem alten. Haben Sie den Chip erneut gelesen, öffnen Sie die Datei vor dem Sichern erneut, damit der Bereich hält, was tatsächlich auf dem Datenträger liegt.
 
 ## Dokumente ohne Datei
 
