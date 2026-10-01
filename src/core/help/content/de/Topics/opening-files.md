@@ -1,4 +1,4 @@
-@source-sha 475abfd9b108795228b5f0ab0542950777137db9266b11c740c9a2fb154a601b
+@source-sha 91d75c7f594e85ae28cd3a327d016234851064321184975ea1cf8bc435bd2da4
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -17,16 +17,14 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 - **Ablage ▸ Vergleichen mit…** öffnet einen zweiten Dump in den freien Bereich: der Vergleich in einem Schritt.
 - **Ablage ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
 
-## Wonach der Browser fragt, und wonach er wieder fragt
+## Wie lange der Tab die Datei hält
 
-Das Programm lädt nichts hoch: eine geöffnete Datei wird in diesem Browser-Tab gelesen, und die Bytes bleiben auf diesem Rechner.
+Es wird nichts hochgeladen: eine geöffnete Datei wird in diesem Browser-Tab gelesen, und ihre Bytes bleiben auf diesem Rechner. Dafür hält der Tab einen *Verweis* auf die Datei, und der lebt nur, solange die Seite offen ist. Zwei Dinge ergeben sich daraus:
 
-Was der Browser dafür gibt, ist ein *Handle* auf die gewählte Datei, und das lebt so lange wie die Seite. Daraus folgt:
+- **Beim Neuladen sind alle Dateien weg.** Den Tab schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm, und die Dumps müssen erneut geöffnet werden.
+- **Die Erlaubnis wird einmal je Datei und Seite erfragt.** Solange die Seite offen ist, fragt der Browser nach dieser Datei nicht noch einmal. In einem Chromium-Browser kann ein Zurückschreiben ein zweites Mal nachfragen — das ist die Frage des Browsers, nicht die des Programms.
 
-- **Eine neu geladene Seite hat keine Dateien.** Den Tab zu schließen, ihn neu zu laden oder ihn morgen wiederherzustellen beginnt beim leeren Bildschirm, und die Dumps müssen erneut geöffnet werden.
-- **Die Erlaubnis wird einmal je Datei und Besuch erfragt.** In einem Chromium-Browser kann das Zurückschreiben ein zweites Mal nachfragen — das ist die Frage des Browsers, nicht die des Programms.
-
-! Halten Sie Ihre Dumps in einem Ordner, den Sie wiederfinden. Das Programm kann die gestrige Datei nicht von selbst öffnen, denn einer Webseite wird nie gesagt, wo eine Datei liegt.
+! Halten Sie Ihre Dumps in einem Ordner, den Sie wiederfinden. Eine Webseite weiß nicht, wo eine Datei liegt, das Programm kann also keine Datei von gestern von selbst wieder öffnen.
 
 ## Eine Aufgabe je Browser-Tab
 
@@ -36,7 +34,7 @@ Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; di
 
 ## Wenn die Datei schon offen ist
 
-Hier wird nichts abgelehnt, denn es gibt niemanden zu fragen:
+Hier wird nichts abgelehnt — ein Tab kann nicht wissen, ob die Datei woanders offen ist:
 
 - **Im anderen Bereich** — erlaubt, und nützlich: die beiden Bereiche sind zwei Dokumente über einer Datei, also lässt sich eines bearbeiten und der Vergleich zum anderen dabei mitlesen. Ihre eigenen Änderungen sieht man ohnehin, in Rot; und wenn Sie wirklich zwei Kopien nebeneinander brauchen, macht **Ablage ▸ Duplizieren** eine im anderen Bereich.
 - **In einem anderen Browser-Tab** — jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.

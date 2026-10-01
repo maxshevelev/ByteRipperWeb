@@ -23,16 +23,14 @@ The second pane is optional. Nothing needs a second file except the comparison i
 - **File ▸ Compare with…** opens a second dump into the empty pane, which is the comparison in one step.
 - **File ▸ New File** makes an empty untitled file — somewhere to paste bytes into.
 
-## What the browser asks for, and asks for again
+## How long the tab keeps a file
 
-The app never uploads anything: a file you open is read inside this browser tab and the bytes stay on this machine.
+Nothing is uploaded: a file you open is read inside this browser tab, and its bytes stay on this machine. In return, the tab holds a *reference* to the file, and the reference lives only while the page is open. Two things follow:
 
-What the browser gives in return is a *handle* to the file you picked, and that handle lives as long as the page does. So:
+- **A reload forgets every file.** Closing the tab, reloading it, or coming back tomorrow all start from the empty screen, and the dumps must be opened again.
+- **Permission is asked once per file, per page.** The browser asks to read a file once while the page is open and does not ask about it again until the page reloads. In a Chromium browser, saving back to a file may ask a second time — that is the browser's own prompt, not the app's.
 
-- **A reloaded page has no files.** Closing the tab, reloading it, or restoring it tomorrow all start from the empty screen, and the dumps have to be opened again.
-- **Permission is asked once per file, per visit.** In a Chromium browser, writing back to a file you opened may ask for permission a second time — that is the browser's own question, not the app's.
-
-! Keep your dumps in a folder you can find again. The app cannot reopen yesterday's file by itself, because a web page is never told where a file lives.
+! Keep your dumps in a folder you can find again. A web page is never told where a file is, so the app cannot reopen one of yesterday's.
 
 ## One job per browser tab
 
@@ -42,7 +40,7 @@ Each pane header names its file and whether it has unsaved changes; the status l
 
 ## If the file is already open
 
-Nothing is refused here, because there is nothing this workspace can consult:
+Nothing is refused here — a tab cannot tell whether a file is open elsewhere:
 
 - **In the other pane** — allowed, and useful: the two panes are two documents over one file, so you can edit one of them and watch the comparison against the other. Your own edits show in red anyway; and when two copies side by side are what you want, **File ▸ Duplicate** makes one in the other pane.
 - **In another browser tab** — that tab is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.

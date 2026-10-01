@@ -11,7 +11,7 @@
 - **Ablage ▸ Auf gesicherten Stand zurücksetzen** verwirft Ihre Änderungen und liest die Datei neu. Für einen Bereich, dessen Bytes anderswoher stammen — ein Teil, ein Zusammenfügen —, heißt es **Auf das Original zurücksetzen**.
 - **In der Quelle aktualisieren** ist das dritte Ziel: für eine [[topic:fragments|Teilansicht]] schreibt es den Teil in das Image zurück, aus dem er stammt, statt in eine Datei.
 
-! Eine per Ziehen abgelegte Datei und eine Datei aus einem Browser ohne File System Access API werden **heruntergeladen**, auch wo das Programm sonst an Ort und Stelle sichern könnte — es gibt kein Handle, durch das geschrieben werden kann. Öffnen Sie sie über **Ablage ▸ Öffnen…**, wenn Sie Sichern statt Herunterladen wollen.
+! Eine per Ziehen abgelegte Datei und eine Datei aus einem Browser ohne File System Access API werden **heruntergeladen**, auch wo das Programm sonst an Ort und Stelle sichern könnte — ein Zurückschreiben ist dort schlicht nicht möglich. Öffnen Sie sie über **Ablage ▸ Öffnen…**, wenn Sie Sichern statt Herunterladen wollen.
 
 ## Wenn die Datei nicht gesichert ist
 
