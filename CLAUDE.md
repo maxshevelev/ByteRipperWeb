@@ -76,6 +76,14 @@ Important rules:
   the page drifting from the app, the app needing the page's better name, or a
   control reaching the screen without `L()` — which `help-coverage` cannot see,
   since it only knows the strings that went through `L()`.
+- **The help is technical documentation, not a translated interface.** It is
+  written in a strictly technical register — no slang, no Americanisms — and the
+  Russian and German are not calques of the English: they are help of their own,
+  carrying the same meaning in their own idiomatic language. The English fixes
+  what a page says, not how it says it, so a wording that reads as
+  translated-from-English is a wording that is wrong. This governs the words the
+  web owns; what the macOS app already has in a language is copied word for word
+  (`Design/LOCALIZATION.md`, "Whose words").
 
 Skills:
 - Skills live in the repo, committed under `Skills/<name>/`: `SKILL.md`
