@@ -42,7 +42,7 @@ import {
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { languageStore } from "@/state/settingsStore";
-import { paneClosed, sessionOn, toolController, zoneSelected } from "@/state/toolController";
+import { panesSwapped, paneClosed, sessionOn, toolController, zoneSelected } from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
@@ -1096,21 +1096,34 @@ export function AppShell() {
       // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmSaveDiscardCancel
       if (!window.confirm(L("%1$@ has unsaved edits. Close it and lose them?", slot.name))) return;
     }
+    // §3.5 promotion: closing the first pane while the second holds a file keeps
+    // that file, now in the first — upstream's pane-2-becomes-pane-1, and the
+    // reason a lone file always sits in the first slot, so a new or second file
+    // takes the second one. The file we set out to close is the one in the pane
+    // named; after the swap it is in the second, which is what gets cleared.
+    //
+    // @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.closePane
+    let closing = pane;
+    if (isSlot(pane) && pane === "a" && paneState("b") !== undefined) {
+      panesSwapped();
+      swapPanes();
+      closing = "b";
+    }
     // Before the workspace forgets which file this was: a session bound to it
     // has nothing left to read.
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performClosePane
-    paneClosed(pane);
+    paneClosed(closing);
     // Closed on purpose, not remounted: the next file in an empty workspace
     // opens at its top rather than at where this one was.
-    scrollLink.forget(pane);
-    forgetTransientMessage(pane);
+    scrollLink.forget(closing);
+    forgetTransientMessage(closing);
     // A part's own map goes with it, worker and all: nothing will ask about a
     // panel that has closed (G50).
-    forgetPartMinimap(pane);
+    forgetPartMinimap(closing);
     // A part goes with its panel; a slot stays and is emptied.
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeFragment
-    if (isSlot(pane)) closePane(pane);
-    else closePart(pane);
+    if (isSlot(closing)) closePane(closing);
+    else closePart(closing);
   }, []);
 
   /**

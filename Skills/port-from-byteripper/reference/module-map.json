@@ -3855,7 +3855,7 @@
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.makeWindow": "n/a — test scaffolding",
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.has": "n/a — test scaffolding",
         "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.testReplacingFilesInOpenPanesRebuildsTheComparison": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.testClosingTheFirstFileOfAComparisonKeepsTheToolbarLive": "n/a — the fix is to a promoted AppKit view that kept pane 2's activation handler; the web does not move File B into the first slot, and `closePane` points the active pane at the file that is left",
+        "ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.testClosingTheFirstFileOfAComparisonKeepsTheToolbarLive": "n/a — the fix is to a promoted AppKit view that kept pane 2's activation handler; the web has no AppKit view to keep live, and its close already promotes the second file into the first slot (closeWithWarning), so the active pane lands on the file that is left",
         "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests": "n/a — test scaffolding",
         "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.urls": "n/a — test scaffolding",
         "ByteRipperTests/CopyToOtherPaneTests.swift#CopyToOtherPaneTests.tearDown*": "n/a — test scaffolding",

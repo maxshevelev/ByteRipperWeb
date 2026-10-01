@@ -1,16 +1,20 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
+import { panesSwapped } from "@/state/toolController";
 import {
+  closePane,
   closePart,
   foldParts,
   isSlot,
   openEmptyInPane,
   openPart,
+  slotForNewFile,
   type PaneId,
   type PartId,
   paneIn,
   paneState,
   raisePart,
+  swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
 
@@ -160,5 +164,35 @@ describe("opening a part", () => {
     expect(paneIn(state, pane)).toBeUndefined();
     expect(state.dock.panels).toHaveLength(0);
     expect(state.dock.expanded).toBeUndefined();
+  });
+});
+
+describe("closing the first pane while the second holds a file", () => {
+  /**
+   * §3.5 promotion, the model half of what `closeWithWarning` performs: the file
+   * that is closed is the first pane's, and the second pane's file takes its
+   * place in the first. This is what keeps a lone file in the first slot — and
+   * so what a New File or an opened second file goes to the second, not the
+   * first. Before the port the file left behind in the second slot sent the
+   * next one back to the first.
+   *
+   * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.closePane
+   */
+  it("moves the second file into the first, and a new file takes the second", () => {
+    openEmptyInPane("a", "closed.bin");
+    openEmptyInPane("b", "keeper.bin");
+
+    // The promotion `closeWithWarning` performs once the close is confirmed.
+    panesSwapped();
+    swapPanes();
+    closePane("b");
+
+    const state = workspaceStore.getSnapshot();
+    expect(state.panes.a?.name).toBe("keeper.bin");
+    expect(state.panes.b).toBeUndefined();
+    expect(state.activePane).toBe("a");
+    // The consequence that was wrong before: a lone file in the first slot
+    // sends the next file to the second panel.
+    expect(slotForNewFile()).toBe("b");
   });
 });
