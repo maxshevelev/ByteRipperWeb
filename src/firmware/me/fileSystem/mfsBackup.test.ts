@@ -8,7 +8,10 @@ import { parseMfsBackup, reconstructR0Body } from "@/firmware/me/fileSystem/mfsB
  * an independent bitwise implementation, never the decoder's own path.
  */
 
-const SIGNATURE = 0x4d46_5342;
+// Spelled out, not taken from the decoder's constant: a fixture built from the
+// constant under test agrees with it whatever it says, which is how a signature
+// reading "BSFM" passed every test here.
+const SIGNATURE = new TextEncoder().encode("MFSB");
 const R1_HEADER_SIZE = 0x24;
 const ENTRY_HEADER_SIZE = 0x10;
 
@@ -51,12 +54,18 @@ function makeEntry(data: Uint8Array): Uint8Array {
   return blob;
 }
 
-function makeR1(data6: Uint8Array, data9: Uint8Array, data7: Uint8Array, revision = 1): Uint8Array {
+function makeR1(
+  data6: Uint8Array,
+  data9: Uint8Array,
+  data7: Uint8Array,
+  revision = 1,
+  signature: Uint8Array = SIGNATURE
+): Uint8Array {
   const b6 = makeEntry(data6);
   const b9 = makeEntry(data9);
   const b7 = makeEntry(data7);
   const header = new Uint8Array(R1_HEADER_SIZE);
-  put32(header, 0, SIGNATURE);
+  header.set(signature, 0);
   put32(header, 4, revision);
   put32(header, 0x0c, R1_HEADER_SIZE);
   put32(header, 0x10, b6.length);
@@ -125,9 +134,9 @@ function compact(image: Uint8Array): Uint8Array {
   return Uint8Array.from(out);
 }
 
-function makeR0(body: Uint8Array): Uint8Array {
+function makeR0(body: Uint8Array, signature: Uint8Array = SIGNATURE): Uint8Array {
   const area = new Uint8Array(0x20 + body.length).fill(0xff);
-  put32(area, 0, SIGNATURE);
+  area.set(signature, 0);
   put32(area, 4, crcFromZero(body));
   area.set(body, 0x20);
   return area;
@@ -262,7 +271,7 @@ describe("an R1 backup", () => {
     const e6 = makeEntry(fill(0x10));
     const e9 = makeEntry(fill(0x20));
     const header = new Uint8Array(R1_HEADER_SIZE);
-    put32(header, 0, SIGNATURE);
+    header.set(SIGNATURE, 0);
     put32(header, 4, 1);
     put32(header, 0x0c, R1_HEADER_SIZE);
     put32(header, 0x10, e6.length);
@@ -290,6 +299,22 @@ describe("an R1 backup", () => {
 });
 
 describe("detection", () => {
+  // The signature is the four bytes "MFSB" as the area spells them — not whatever
+  // the decoder's constant says: an area written byte for byte is read, one with
+  // the bytes swapped is not.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testTheSignatureIsTheBytesMFSB
+  it("takes the signature to be the bytes MFSB", () => {
+    const body = compact(makeMfsVolume());
+    const r0 = makeR0(body);
+    const r1 = makeR1(fill(0x10), fill(0x20), fill(0x30));
+    expect(parse(r0)?.format).toBe("r0");
+    expect(parse(r1)?.format).toBe("r1");
+
+    const swapped = new TextEncoder().encode("BSFM");
+    expect(parse(makeR0(body, swapped))).toBeUndefined();
+    expect(parse(makeR1(fill(0x10), fill(0x20), fill(0x30), 1, swapped))).toBeUndefined();
+  });
+
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testNonMFSBAreaReturnsNil
   it("finds nothing in a normal volume or an erased area", () => {
     expect(
@@ -307,7 +332,7 @@ describe("detection", () => {
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSBackupTests.swift#MFSBackupTests.testOutOfRangeHeaderOffsetsStayGraceful
   it("stays graceful with a header shorter than R1's", () => {
     const area = new Uint8Array(0x20);
-    put32(area, 0, SIGNATURE);
+    area.set(SIGNATURE, 0);
     const backup = parse(area);
     expect(backup?.format).toBe("r1");
     expect(backup?.headerRevisionValid).toBe(false);

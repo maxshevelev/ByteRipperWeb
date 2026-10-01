@@ -24,7 +24,10 @@ import type { MFSBackup, MFSBackupEntry } from "@/firmware/me/models/fileSystemF
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.signature
  */
-const SIGNATURE = 0x4d46_5342;
+// The bytes "MFSB" read little-endian. Upstream compares the raw bytes
+// `b'\x4D\x46\x53\x42'` and its comment spells them `0x4D465342` in order — as an
+// integer that would be the bytes "BSFM".
+const SIGNATURE = 0x4253_464d;
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.r0HeaderSize */
 const R0_HEADER_SIZE = 0x20;
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.chunkMarker */
