@@ -1,7 +1,7 @@
 import { L, localized } from "@/core/localization/localization";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
-import { regionTypeName } from "@/firmware/uefi/flashDeviceMapParser";
+import { regionTypeName } from "@/firmware/uefi/flashDeviceMapFormat";
 import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { itemSubtype, itemType } from "@/firmware/uefi/itemClassification";
 import { nvramGuidName } from "@/firmware/uefi/nvramGuids";
@@ -203,8 +203,9 @@ export function nodeName(
     return node.name;
   }
   // A flash device map entry's GUID is a region *type*, and UEFITool names the
-  // row by what the type is: "Variable Defaults", "Password".
-  if (node.kind === "flashDeviceMapEntry") {
+  // row by what the type is: "Variable Defaults", "Password". The region the
+  // entry names is called the same.
+  if (node.kind === "flashDeviceMapEntry" || node.kind === "flashDeviceMapRegion") {
     const type = regionTypeName(node.guid);
     if (type !== undefined) return type;
   }
@@ -239,6 +240,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   nvarEntry: typeName(ItemType.nvarEntry),
   nvarGuidStore: typeName(ItemType.nvarGuidStore),
   startupApData: typeName(ItemType.startupApDataEntry),
+  flashDeviceMapRegion: L("Flash device map region"),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
   flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
   padding: L("Padding"),

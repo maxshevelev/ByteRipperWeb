@@ -477,6 +477,7 @@
 "outside this image" = "за пределами этого образа";
 "Overview" = "Обзор";
 "Padding" = "Padding";
+"Flash device map region" = "Регион Flash Device Map";
 "Padding file" = "Файл-padding";
 "Startup AP data padding file" = "Файл-padding со Startup AP data";
 "Non-empty padding file" = "Непустой файл-padding";

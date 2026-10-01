@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type EFIGUID, guid, guidKey, guidText } from "@/firmware/uefi/efiGuid";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -219,6 +220,23 @@ describe("the name", () => {
       body: r(0x54, 0x54),
     });
     expect(nodeName(entry, catalogue([[type, "Something else"]]))).toBe("Variable Defaults");
+  });
+
+  // The region an entry names is called the same, and reads as padding in the
+  // Type column, as UEFITool shows those bytes.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAFlashDeviceMapRegionIsNamedByItsType
+  it("names a flash device map region by its type", () => {
+    const region = makeNode({
+      kind: "flashDeviceMapRegion",
+      name: "EC Firmware",
+      guid: FlashDeviceMap.ecFirmware,
+      header: r(0, 0),
+      body: r(0, 0x40000),
+    });
+    expect(nodeName(region, catalogue([[FlashDeviceMap.ecFirmware, "Something else"]]))).toBe(
+      "EC Firmware"
+    );
+    expect(typeText(region)).toBe("Padding");
   });
 
   // A pad file is named by what its body turned out to hold, the way UEFITool

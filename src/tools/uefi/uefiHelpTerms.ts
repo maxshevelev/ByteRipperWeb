@@ -16,6 +16,8 @@
  */
 
 import { type HelpTermId, termId } from "@/core/help/helpIds";
+import { type EFIGUID, guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import type { UEFINodeKind } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 
@@ -32,6 +34,11 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
 export interface UEFINodeSort {
   readonly kind: UEFINodeKind | string;
   readonly subtype?: number | undefined;
+  /**
+   * A map region's type is its GUID — as the parsed node has it, or as text
+   * where the node has come over the wire from the worker.
+   */
+  readonly guid?: EFIGUID | string | undefined;
 }
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.term */
@@ -80,13 +87,17 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     case "flashMapStore":
     case "evsaStore":
     case "cmdbStore":
-    case "flashDeviceMapStore":
     case "vssEntry":
     case "sysFEntry":
     case "evsaEntry":
     case "flashMapEntry":
-    case "flashDeviceMapEntry":
       return termId("vss");
+    // Insyde's map holds no variables: it lays out the chip.
+    case "flashDeviceMapStore":
+    case "flashDeviceMapEntry":
+      return termId("flash-device-map");
+    case "flashDeviceMapRegion":
+      return mapRegionTerm(node.guid);
     // AMI's store is the exception, because what a reader asks of it is
     // different: which of a variable's entries holds its value now.
     case "nvarEntry":
@@ -97,6 +108,24 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       // answer rather than a `?` that opens nothing.
       return undefined;
   }
+}
+
+/**
+ * A map region whose type has a page of its own goes there — the EC firmware,
+ * the default variables — and the rest to the page about the map, which says
+ * what its regions are.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.mapRegion
+ */
+function mapRegionTerm(type: EFIGUID | string | undefined): HelpTermId {
+  const guid = typeof type === "string" ? guidFromText(type) : type;
+  if (guid !== undefined && guidEquals(guid, FlashDeviceMap.ecFirmware)) {
+    return termId("ec-firmware");
+  }
+  if (guid !== undefined && guidEquals(guid, FlashDeviceMap.variableDefaults)) {
+    return termId("vss");
+  }
+  return termId("flash-device-map");
 }
 
 /**

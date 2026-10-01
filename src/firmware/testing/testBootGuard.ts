@@ -14,7 +14,7 @@ import * as Test from "@/firmware/testing/testImage";
 import { BinaryWriter } from "@/firmware/testing/testImage";
 import { sum8 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidEquals } from "@/firmware/uefi/efiGuid";
-import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapParser";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { AMI_HASH_FILE, DXE_CORE, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
 import { BootPolicy, type ProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import { Section } from "@/firmware/uefi/sectionParser";

@@ -13,6 +13,8 @@ import { bundledHelpContent } from "@/core/help/bundledHelp";
 import { type HelpBook, helpTerm } from "@/core/help/helpBook";
 import { termId } from "@/core/help/helpIds";
 import { loadHelpBook } from "@/core/help/helpLoader";
+import type { EFIGUID } from "@/firmware/uefi/efiGuid";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { makeNode, type UEFINodeKind } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
@@ -78,16 +80,32 @@ describe("which entry a node's ? opens", () => {
       "flashMapStore",
       "evsaStore",
       "cmdbStore",
-      "flashDeviceMapStore",
       "vssEntry",
       "sysFEntry",
       "evsaEntry",
       "flashMapEntry",
-      "flashDeviceMapEntry",
     ];
     for (const kind of stores) {
       expect(uefiHelpTerm(node(kind)), `${kind} should read as an NVRAM store`).toBe(termId("vss"));
     }
+  });
+});
+
+describe("the flash device map", () => {
+  // Insyde's flash device map lays out the chip and holds no variables: it has
+  // a page of its own, and so does each region whose type has one.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift#UEFIHelpTermsTests.testTheFlashDeviceMapHasItsOwnEntry
+  it("has its own entry", () => {
+    for (const kind of [
+      "flashDeviceMapStore",
+      "flashDeviceMapEntry",
+      "flashDeviceMapRegion",
+    ] as const) {
+      expect(uefiHelpTerm(node(kind)), kind).toBe(termId("flash-device-map"));
+    }
+    const region = (type: EFIGUID) => ({ kind: "flashDeviceMapRegion", guid: type });
+    expect(uefiHelpTerm(region(FlashDeviceMap.ecFirmware))).toBe(termId("ec-firmware"));
+    expect(uefiHelpTerm(region(FlashDeviceMap.variableDefaults))).toBe(termId("vss"));
   });
 });
 
@@ -149,6 +167,7 @@ describe("every mapping lands in the book", () => {
       "flashMapEntry",
       "flashDeviceMapStore",
       "flashDeviceMapEntry",
+      "flashDeviceMapRegion",
       "nvarEntry",
       "nvarGuidStore",
       "startupApData",

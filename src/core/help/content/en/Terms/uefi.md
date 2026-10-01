@@ -178,11 +178,29 @@ Padding that **holds data** is always listed: something is there, whether or not
 
 @see term:free-space
 
+@term flash-device-map
+@name Insyde flash device map
+@short The table in an Insyde firmware that states where each part of the BIOS image lies.
+
+Insyde H2O firmware carries a table with the signature `HFDM`, frequently in two copies. It lists the parts of the image: the firmware volumes, the variable store, the EC firmware, the BIOS version table, the passwords and others. Each entry gives a region type, an address and a size; for some regions the firmware also verifies a hash at boot.
+
+Several of these regions lie outside every firmware volume and have no signature of their own, so only the map identifies them. UEFITool shows them as padding. ByteRipper reads the map and names each such region by its type — **EC Firmware**, **BIOS Version Data Table**, **Lenovo User Password** — while the Type column still reads Padding. A region of the type **Variable Defaults** is parsed further: it contains the variable stores holding the firmware's default settings.
+
+An empty region is erased and contains nothing. Whether that means, for example, that no password is set depends on the vendor and is not documented.
+
+The type names are those of UEFITool. A type it does not know is shown as its GUID.
+
+The map states addresses in the processor's address space. ByteRipper converts them into dump addresses from the end of the BIOS region; where that conversion is not possible, the regions remain padding.
+
+@see term:ec-firmware
+@see term:vss
+@see term:padding
+
 @term ec-firmware
 @name EC firmware inside a BIOS image
 @short The embedded controller's code, often sitting in the BIOS region with nothing to name it.
 
-Since Skylake a board may have a proper [[term:ec-region|EC region]] that the descriptor declares. Before that — and on plenty of boards since — the EC firmware is simply a block inside the BIOS region, which the parser shows as [[term:padding|padding]], usually the first one.
+Since Skylake a board may have a proper [[term:ec-region|EC region]] that the descriptor declares. Before that — and on plenty of boards since — the EC firmware is simply a block inside the BIOS region, which the parser shows as [[term:padding|padding]], usually the first one. On Insyde firmware the [[term:flash-device-map|flash device map]] names that block, and the tree shows it as **EC Firmware**.
 
 What usually gives it away:
 

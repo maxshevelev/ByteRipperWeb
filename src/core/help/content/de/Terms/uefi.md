@@ -1,4 +1,4 @@
-@source-sha 1f7ba77a47e0cafa8ca4ef25b0a64f559b19e14defa8ea19e00b02b9f70028e8
+@source-sha 1366a209074a294aa73156357a35fb27a811fba2f24c28ff36aa1b35a6082b93
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -179,11 +179,29 @@ Padding, das **Daten enthält**, wird immer aufgeführt: da liegt etwas, ob der 
 
 @see term:free-space
 
+@term flash-device-map
+@name Insyde Flash Device Map
+@short Die Tabelle einer Insyde-Firmware, die angibt, wo jeder Bestandteil des BIOS-Abbilds liegt.
+
+Insyde-H2O-Firmware enthält eine Tabelle mit der Signatur `HFDM`, häufig in zwei Exemplaren. Sie verzeichnet die Bestandteile des Abbilds: die Firmware-Volumes, den Variablenspeicher, die EC-Firmware, die BIOS-Versionstabelle, die Passwörter und weitere. Jeder Eintrag nennt Regionstyp, Adresse und Größe; für manche Regionen prüft die Firmware beim Start zudem einen Hash.
+
+Ein Teil dieser Regionen liegt außerhalb aller Firmware-Volumes und besitzt keine eigene Signatur, sodass allein die Map ihre Bedeutung angibt. UEFITool stellt sie als Padding dar. ByteRipper wertet die Map aus und bezeichnet jede dieser Regionen nach ihrem Typ — **EC Firmware**, **BIOS Version Data Table**, **Lenovo User Password**; in der Spalte „Typ“ steht weiterhin Padding. Eine Region vom Typ **Variable Defaults** wird weiter zerlegt: Sie enthält die Variablenspeicher mit den Standardwerten der Einstellungen.
+
+Eine leere Region ist gelöscht und enthält nichts. Ob dies beispielsweise bedeutet, dass kein Passwort gesetzt ist, hängt vom Hersteller ab und ist nicht dokumentiert.
+
+Die Typbezeichnungen stammen aus UEFITool. Ein dort unbekannter Typ erscheint als seine GUID.
+
+Die Map gibt Adressen im Adressraum des Prozessors an. ByteRipper rechnet sie anhand des Endes der BIOS-Region in Adressen des Dumps um; ist diese Umrechnung nicht möglich, bleiben die Regionen Padding.
+
+@see term:ec-firmware
+@see term:vss
+@see term:padding
+
 @term ec-firmware
 @name EC-Firmware in einem BIOS-Abbild
 @short Der Code des Embedded Controllers, der oft in der BIOS-Region liegt, ohne dass ihn dort etwas benennt.
 
-Seit Skylake kann ein Board eine richtige [[term:ec-region|EC-Region]] haben, die der Deskriptor deklariert. Davor — und auf etlichen Boards auch danach — ist die EC-Firmware schlicht ein Block in der BIOS-Region, den der Parser als [[term:padding|Füllung]] zeigt, meist als die erste.
+Seit Skylake kann ein Board eine richtige [[term:ec-region|EC-Region]] haben, die der Deskriptor deklariert. Davor — und auf etlichen Boards auch danach — ist die EC-Firmware schlicht ein Block in der BIOS-Region, den der Parser als [[term:padding|Füllung]] zeigt, meist als die erste. In Insyde-Firmware benennt die [[term:flash-device-map|Flash Device Map]] diesen Block, und der Baum zeigt ihn als **EC Firmware**.
 
 Woran man sie üblicherweise erkennt:
 

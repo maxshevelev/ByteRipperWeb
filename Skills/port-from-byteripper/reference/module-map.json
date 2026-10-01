@@ -367,7 +367,10 @@
         "UEFIImage/SpaceReaders.swift": "src/firmware/uefi/spaceReaders.ts",
         "UEFIImageTests/ByteSpaceTests.swift": "src/firmware/uefi/byteSpace.test.ts",
         "UEFIImageTests/CompressedSectionTests.swift": "src/firmware/uefi/compressedSection.test.ts",
-        "UEFIImage/FlashDeviceMapParser.swift": "src/firmware/uefi/flashDeviceMapParser.ts",
+        "UEFIImage/FlashDeviceMapParser.swift": [
+          "src/firmware/uefi/flashDeviceMapParser.ts",
+          "src/firmware/uefi/flashDeviceMapFormat.ts"
+        ],
         "UEFIImage/ProtectedRanges.swift": "src/firmware/uefi/protectedRanges.ts",
         "UEFIImageTests/ProtectedRangesTests.swift": "src/firmware/uefi/protectedRanges.test.ts",
         "NvarParser.swift": "src/firmware/uefi/nvarParser.ts",
@@ -376,7 +379,8 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/AppleMicrocodeVolumeTests.swift": "src/firmware/uefi/appleMicrocodeVolume.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/UnsizedVssStoreTests.swift": "src/firmware/uefi/unsizedVssStore.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/PadFileBodyTests.swift": "src/firmware/uefi/padFileBody.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/RawFileBodyTests.swift": "src/firmware/uefi/rawFileBody.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/RawFileBodyTests.swift": "src/firmware/uefi/rawFileBody.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift": "src/firmware/uefi/flashDeviceMapRegion.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",

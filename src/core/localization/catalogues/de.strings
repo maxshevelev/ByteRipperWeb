@@ -477,6 +477,7 @@
 "outside this image" = "außerhalb dieses Images";
 "Overview" = "Übersicht";
 "Padding" = "Padding";
+"Flash device map region" = "Region der Flash Device Map";
 "Padding file" = "Padding-Datei";
 "Startup AP data padding file" = "Padding-Datei mit Startup AP data";
 "Non-empty padding file" = "Nicht leere Padding-Datei";

@@ -542,6 +542,9 @@ function headerFields(
     case "freeSpace":
     case "nonUEFIData":
     case "startupApData":
+    // A map region has no header either: the map says where it is and what type
+    // it is, and the type is the common "GUID" field.
+    case "flashDeviceMapRegion":
       break;
   }
   return fields;

@@ -2,7 +2,7 @@ import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import type { DiagnosticKind, UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidEquals } from "@/firmware/uefi/efiGuid";
-import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapParser";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import {
   AMI_DXE_CORE,
   AMI_HASH_FILE,
