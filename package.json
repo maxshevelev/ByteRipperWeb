@@ -1,7 +1,7 @@
 {
   "name": "byteripperweb",
   "description": "Compare and edit two binary firmware dumps in the browser.",
-  "version": "0.8.5-3",
+  "version": "0.8.5-4",
   "private": true,
   "type": "module",
   "engines": {
