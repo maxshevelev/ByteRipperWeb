@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { acceleratorOf, nativeMenus } from "@/ui/shell/desktopMenu";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  acceleratorOf,
+  type DesktopBridge,
+  type NativeMenu,
+  type NativeMenuItem,
+  nativeMenus,
+  publishNativeMenu,
+} from "@/ui/shell/desktopMenu";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -84,5 +91,64 @@ describe("the list as menus", () => {
     ]);
 
     expect(menus[0]?.items[0]?.label).toBe("Find && Replace");
+  });
+});
+
+// The Open Recent submenu the page hangs on the shell's File menu. The bridge
+// the shell's preload puts on the window is faked, so publishNativeMenu runs
+// its real path and the menus it would send are what is read back.
+describe("File ▸ Open Recent", () => {
+  const fileOnly: MenuEntry[] = [
+    { kind: "heading", label: "File", opensMenu: true },
+    { label: "Open…", onSelect: () => {} },
+    { label: "Save", disabled: true, onSelect: () => {} },
+  ];
+  let seen: NativeMenu[][];
+
+  beforeEach(() => {
+    seen = [];
+    (globalThis as { byteripperDesktop?: DesktopBridge }).byteripperDesktop = {
+      setMenu: (menus: readonly NativeMenu[]) => seen.push(menus as NativeMenu[]),
+      zoom: () => {},
+      quit: () => {},
+      canInstallUpdate: false,
+      installUpdate: () => Promise.resolve({ status: "cancelled" }),
+      latestRelease: () => Promise.resolve(undefined),
+      cancelUpdate: () => {},
+      onUpdateProgress: () => () => {},
+    } as DesktopBridge;
+  });
+
+  afterEach(() => {
+    delete (globalThis as { byteripperDesktop?: DesktopBridge }).byteripperDesktop;
+  });
+
+  const submenu = (menus: readonly NativeMenu[]): readonly NativeMenuItem[] =>
+    menus.find((menu) => menu.label === "File")?.items.find((one) => one.type === "submenu")
+      ?.submenu ?? [];
+
+  it("lists the files, then Clear Menu set apart by a separator", () => {
+    publishNativeMenu(fileOnly, {
+      rows: [
+        { name: "a.bin", open: () => {} },
+        { name: "b.bin", open: () => {} },
+      ],
+      clear: () => {},
+    });
+
+    expect(submenu(seen[seen.length - 1] ?? []).map((one) => one.label ?? one.type)).toEqual([
+      "a.bin",
+      "b.bin",
+      "separator",
+      "Clear Menu",
+    ]);
+  });
+
+  it("shows a greyed Empty where the list is empty", () => {
+    publishNativeMenu(fileOnly, { rows: [], clear: () => {} });
+
+    expect(submenu(seen[seen.length - 1] ?? [])).toEqual([
+      { type: "normal", label: "Empty", enabled: false },
+    ]);
   });
 });

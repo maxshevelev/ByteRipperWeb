@@ -228,6 +228,9 @@ let sent = "";
  *
  * @upstream ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.populate
  * @upstream-differs built at publish time rather than by a delegate on display
+ * @upstream-differs **Clear Menu** is set apart from the files by a separator,
+ * and an empty list shows a greyed "Empty" where upstream shows the OS's own
+ * placeholder — Electron's is not localized
  */
 function injectOpenRecent(
   menus: readonly { readonly label: string; readonly items: readonly NativeMenuItem[] }[],
@@ -241,11 +244,18 @@ function injectOpenRecent(
     commandMap.set(id, row.open);
     return { type: "normal", id, label: plain(row.name) };
   });
-  // **Clear Menu** only while there is anything to clear, as upstream's.
   if (openRecent.rows.length > 0) {
+    // **Clear Menu**, only while there is anything to clear, set apart from the
+    // files it wipes.
+    rows.push({ type: "separator" });
     const id = `c${commandMap.size}`;
     commandMap.set(id, openRecent.clear);
     rows.push({ type: "normal", id, label: plain(L("Clear Menu")) });
+  } else {
+    // An empty submenu would show Electron's own "(empty)", which is not
+    // localized; upstream shows the OS's own placeholder, so a greyed "Empty"
+    // stands in for it.
+    rows.push({ type: "normal", label: plain(L("Empty")), enabled: false });
   }
   const items = file.items as NativeMenuItem[];
   const openAt = items.findIndex((one) => one.type === "normal" && one.label === plain(L("Open…")));
