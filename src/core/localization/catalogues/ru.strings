@@ -978,3 +978,6 @@
 "GitHub is limiting requests from this network for now. Try again in about an hour." = "GitHub пока ограничивает запросы из этой сети. Повторите примерно через час.";
 "GitHub is limiting requests from this network for now. Try again in %1$@ minutes." = "GitHub пока ограничивает запросы из этой сети. Повторите через %1$@ мин.";
 "github.com answered %1$@. Try again in a few minutes." = "github.com ответил %1$@. Повторите через несколько минут.";
+"This file changed on disk since it was opened, so it can no longer be read. Open it again to pick up the new contents." = "Файл на диске изменился с момента открытия, поэтому читать его больше нельзя. Откройте его заново, чтобы подхватить новое содержимое.";
+"The browser refused access to this file." = "Браузер отказал в доступе к этому файлу.";
+"This file could not be read." = "Этот файл не удалось прочитать.";

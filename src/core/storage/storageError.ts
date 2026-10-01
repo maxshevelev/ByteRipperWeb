@@ -1,3 +1,5 @@
+import { L } from "@/core/localization/localization";
+
 /**
  * What can go wrong in the storage layer, as things a person could be told.
  *
@@ -61,16 +63,19 @@ export class StorageError extends Error {
     if (name === "NotReadableError" || name === "NotFoundError") {
       return new StorageError(
         "fileChanged",
-        "This file changed on disk since it was opened, so it can no longer be read. " +
-          "Open it again to pick up the new contents.",
+        L(
+          "This file changed on disk since it was opened, so it can no longer be read. Open it again to pick up the new contents."
+        ),
         { cause }
       );
     }
     if (name === "NotAllowedError" || name === "SecurityError") {
-      return new StorageError("permissionDenied", "The browser refused access to this file.", {
-        cause,
-      });
+      return new StorageError(
+        "permissionDenied",
+        L("The browser refused access to this file."),
+        { cause }
+      );
     }
-    return new StorageError("readFailed", "This file could not be read.", { cause });
+    return new StorageError("readFailed", L("This file could not be read."), { cause });
   }
 }
