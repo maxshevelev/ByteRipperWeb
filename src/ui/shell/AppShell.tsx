@@ -42,7 +42,13 @@ import {
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { languageStore } from "@/state/settingsStore";
-import { panesSwapped, paneClosed, sessionOn, toolController, zoneSelected } from "@/state/toolController";
+import {
+  paneClosed,
+  panesSwapped,
+  sessionOn,
+  toolController,
+  zoneSelected,
+} from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";

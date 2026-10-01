@@ -70,11 +70,9 @@ export class StorageError extends Error {
       );
     }
     if (name === "NotAllowedError" || name === "SecurityError") {
-      return new StorageError(
-        "permissionDenied",
-        L("The browser refused access to this file."),
-        { cause }
-      );
+      return new StorageError("permissionDenied", L("The browser refused access to this file."), {
+        cause,
+      });
     }
     return new StorageError("readFailed", L("This file could not be read."), { cause });
   }

@@ -8,12 +8,12 @@ import {
   isSlot,
   openEmptyInPane,
   openPart,
-  slotForNewFile,
   type PaneId,
   type PartId,
   paneIn,
   paneState,
   raisePart,
+  slotForNewFile,
   swapPanes,
   workspaceStore,
 } from "@/state/workspaceStore";
