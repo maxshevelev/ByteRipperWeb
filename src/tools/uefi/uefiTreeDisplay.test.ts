@@ -205,6 +205,22 @@ describe("the name", () => {
     expect(nodeName(variable, catalogue([[owner, "Something else"]]))).toBe("Setup");
   });
 
+  // A flash device map entry's GUID is a region type, and the row says which —
+  // the way UEFITool names it — even where the catalogue has a name of its own
+  // for the GUID.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAFlashDeviceMapEntryIsNamedByItsRegionType
+  it("names a flash device map entry by its region type", () => {
+    const type = guid("D9DDACA2-0816-48F3-ADED-6B71656B248A");
+    const entry = makeNode({
+      kind: "flashDeviceMapEntry",
+      name: "Variable Defaults",
+      guid: type,
+      header: r(0, 0x54),
+      body: r(0x54, 0x54),
+    });
+    expect(nodeName(entry, catalogue([[type, "Something else"]]))).toBe("Variable Defaults");
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testANodeWithoutAGuidKeepsItsParserName
   it("keeps the parser's name for a node without a GUID", () => {
     expect(

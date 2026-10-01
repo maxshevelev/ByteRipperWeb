@@ -253,6 +253,8 @@ Each entry is a variable with a name (`BootOrder`, `PK`, `Setup`), a vendor GUID
 
 Related stores you may see in the same area: **FTW** (a fault-tolerant write record, the journal that makes a variable update survive a power cut), **EVSA**, **FDC**, **CMDB** and vendor flash maps. They are different vendors' answers to the same problem.
 
+Insyde firmware also keeps its default values as VSS stores, but outside every firmware volume: a run of stores in the range that its flash device map declares as **Variable Defaults**. ByteRipper locates them through that map. They contain the values the firmware restores when its settings are reset, not the settings currently in effect.
+
 @see term:nvram
 
 @term dmi

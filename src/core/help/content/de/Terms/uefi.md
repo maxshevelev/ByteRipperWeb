@@ -1,4 +1,4 @@
-@source-sha 51e3d3dc900849f1a28418a6b33b10724b6611389e05f9be3bc30f80b5f2c350
+@source-sha 19105c26db19ba5158f4c0d222c59aab8d69066b847bd1c885115d096d06f290
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -253,6 +253,8 @@ Ein Eintrag mit erweitertem Header kann eine Prüfsumme enthalten. ByteRipper pr
 Jeder Eintrag ist eine Variable mit Namen (`BootOrder`, `PK`, `Setup`), Hersteller-GUID und Wert. ByteRipper benennt die Zeile nach dem Variablennamen statt nach der GUID: viele Variablen teilen sich eine Hersteller-GUID.
 
 Im selben Bereich finden sich verwandte Speicher: **FTW** (der Eintrag eines fehlertoleranten Schreibvorgangs — das Journal, das ein Variablen-Update einen Stromausfall überstehen lässt), **EVSA**, **FDC**, **CMDB** und herstellereigene Flash-Maps. Das sind die Antworten verschiedener Hersteller auf dieselbe Aufgabe.
+
+Insyde-Firmware legt auch ihre Standardwerte in VSS-Speichern ab, allerdings außerhalb aller Firmware-Volumes: als Folge von Speichern in dem Bereich, den die Flash Device Map als **Variable Defaults** ausweist. ByteRipper ermittelt ihre Lage anhand dieser Tabelle. Sie enthalten die Werte, die die Firmware beim Zurücksetzen der Einstellungen wiederherstellt, nicht die aktuell wirksamen Einstellungen.
 
 @see term:nvram
 

@@ -231,7 +231,14 @@ export function walkNvramVolumeBody(
   return walkStores(parser, body, emptyByte, depth);
 }
 
-function walkStores(
+/**
+ * The stores of an NVRAM body, wherever the body is — the volume parser has
+ * already decided this volume is one; a flash device map's Variable Defaults
+ * range says so for itself.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.walkNvramVolumeBody
+ */
+export function walkStores(
   parser: Parser,
   body: ImageRange,
   emptyByte: number,

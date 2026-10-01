@@ -1,6 +1,7 @@
 import { L, localized } from "@/core/localization/localization";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
+import { regionTypeName } from "@/firmware/uefi/flashDeviceMapParser";
 import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { itemSubtype, itemType } from "@/firmware/uefi/itemClassification";
 import { nvramGuidName } from "@/firmware/uefi/nvramGuids";
@@ -188,6 +189,12 @@ export function nodeName(
   }
   if ((node.kind === "vssEntry" || node.kind === "nvarEntry") && node.name.length > 0) {
     return node.name;
+  }
+  // A flash device map entry's GUID is a region *type*, and UEFITool names the
+  // row by what the type is: "Variable Defaults", "Password".
+  if (node.kind === "flashDeviceMapEntry") {
+    const type = regionTypeName(node.guid);
+    if (type !== undefined) return type;
   }
   return catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
 }

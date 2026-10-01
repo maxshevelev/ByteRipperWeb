@@ -128,13 +128,35 @@ export function runSecondPass(parser: Parser, roots: UEFINode[]): SecondPass {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/SecondPass.swift#Parser.secondPass
  */
 export function secondPassAnchoredOn(parser: Parser, vtf: UEFINode): SecondPass {
-  const top = nodeRange(vtf).end;
-  if (top > ADDRESS_SPACE) {
+  const addressDiff = addressDiffAnchoredOn(vtf);
+  if (addressDiff === undefined) {
     parser.note({ kind: "addressesUnknown" }, nodeRange(vtf).start);
     return { addressDiff: undefined, resetVector: undefined };
   }
-  const addressDiff = ADDRESS_SPACE - top;
   return { addressDiff, resetVector: readResetVector(parser, addressDiff, vtf) };
+}
+
+/**
+ * What a Volume Top File says the image is mapped at: its last byte is
+ * `0xFFFFFFFF`. Nothing when it ends too far into the file for that.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SecondPass.swift#Parser.addressDiff
+ */
+export function addressDiffAnchoredOn(vtf: UEFINode): number | undefined {
+  const top = nodeRange(vtf).end;
+  return top > ADDRESS_SPACE ? undefined : ADDRESS_SPACE - top;
+}
+
+/**
+ * The mapping a Volume Top File at the image's tail fixes, without the rest of
+ * the second pass — for a reading that needs an address while the tree is still
+ * being built.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SecondPass.swift#Parser.addressDiffFromTail
+ */
+export function addressDiffFromTail(parser: Parser): number | undefined {
+  const vtf = volumeTopFileInTail(parser);
+  return vtf === undefined ? undefined : addressDiffAnchoredOn(vtf);
 }
 
 /**
