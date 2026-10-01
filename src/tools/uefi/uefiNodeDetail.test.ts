@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
-import { ascii, bvdtTable } from "@/firmware/testing/testInsyde";
+import { ascii, bvdtTable, ITE_BLOCK } from "@/firmware/testing/testInsyde";
 import { checksummedNvarEntry, nvarStore, nvarVolume } from "@/firmware/testing/testNvar";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
@@ -984,5 +984,29 @@ describe("a BVDT region", () => {
     expect(value(detail, "Product name")).toBe("S370-IAU");
     expect(value(detail, "Kernel version")).toBe("05.44.02");
     expect(value(detail, "Release date")).toBe("2022-07-21");
+  });
+});
+
+describe("EC firmware in padding", () => {
+  // Each ITE image in the block is a row: what it says it is, and where.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testECFirmwareListsEveryITEImageItHolds
+  it("lists every ITE image it holds", () => {
+    const ite = (identification: string) => {
+      const bytes = new Uint8Array(0x1000);
+      const text = [...ascii(identification)];
+      while (text.length < 16) text.push(0);
+      bytes.set([...ITE_BLOCK, ...text], 0x80);
+      return bytes;
+    };
+    const bytes = Uint8Array.from([...ite("ITE5507-SB-V0.67"), ...ite("ITE8380-EC-V0.00")]);
+    const node = makeSpan({
+      kind: "padding",
+      name: "EC firmware (ITE5507-SB-V0.67)",
+      range: r(0, 0x2000),
+    });
+    const detail = detailOf(node, bytes);
+    expect(
+      detail.fields.filter((one) => one.label === "ITE identification").map((one) => one.value)
+    ).toEqual(["ITE5507-SB-V0.67 · 0x0", "ITE8380-EC-V0.00 · 0x1000"]);
   });
 });

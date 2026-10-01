@@ -237,6 +237,12 @@ describe("the name", () => {
       "EC Firmware"
     );
     expect(typeText(region)).toBe("Padding");
+
+    // What the parser read inside goes into the name it gave.
+    const ec = { ...region, name: "EC Firmware (ITE8380-EC-V1.43)" };
+    expect(nodeName(ec, catalogue([[FlashDeviceMap.ecFirmware, "Something else"]]))).toBe(
+      "EC Firmware (ITE8380-EC-V1.43)"
+    );
   });
 
   // A pad file is named by what its body turned out to hold, the way UEFITool

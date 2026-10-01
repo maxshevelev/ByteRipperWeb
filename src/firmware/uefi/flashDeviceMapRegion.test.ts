@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { BinaryWriter, volume, volumeTopFile } from "@/firmware/testing/testImage";
+import { iteImage } from "@/firmware/testing/testInsyde";
 import { vssStore, vssVariable } from "@/firmware/testing/testNvram";
 import { sum8 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidEquals } from "@/firmware/uefi/efiGuid";
@@ -167,6 +168,19 @@ describe("the regions a flash device map names", () => {
     const found = regions(top(image({ maps: [entries] })));
     expect(found.map((node) => node.guid)).toEqual([UNNAMED]);
     expect(found[0]?.name).toBe("Flash device map region");
+  });
+
+  // An EC Firmware region that opens on an ITE image adds its identification to
+  // the type's name.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testAnECRegionIsNamedByTheImageItHolds
+  it("names an EC region by the image it holds", () => {
+    const bytes = image({
+      maps: [[{ type: FlashDeviceMap.ecFirmware, offset: 0x2000, size: 0x1000 }]],
+    });
+    bytes.set(iteImage(), 0x2000);
+    expect(regions(top(bytes)).map((node) => node.name)).toEqual([
+      "EC Firmware (ITE8380-EC-V1.43)",
+    ]);
   });
 
   // The map's rows are named by region type, the way UEFITool names them.

@@ -1,4 +1,4 @@
-@source-sha d44bd50cc613a739fa19e3ef79f529cf14dd84f5858bd63c664140da957b5a4c
+@source-sha 782ba1633b6aae6315910886eb8af1e1fa6589263acef2ae53bef37d9bdc37ce
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -224,9 +224,13 @@ Seit Skylake kann ein Board eine richtige [[term:ec-region|EC-Region]] haben, di
 Woran man sie üblicherweise erkennt:
 
 - **Die Größe.** Verbreitet sind 128 KB (131 072 Bytes) und 192 KB (196 608 Bytes).
-- **ITE-Controller** beginnen mit einer Folge von `A5`-Bytes — `A5 A5 A5 A5 A5 A5`.
+- **ITE-Controller** enthalten bei Offset `0x40` oder `0x80` vom Anfang des Abbilds einen Signaturblock aus sechs `A5`-Bytes, auf den eine Kennung folgt.
 - **ENE-Controller** tragen die Zeichenfolge `ENE` in den ersten Bytes.
 - **Microchip-Firmware (MEC)** liegt häufiger im ersten Volume der BIOS-Region als in einer Füllung.
+
+Beginnt ein ITE-Abbild am Anfang eines Padding-Blocks oder der Region **EC Firmware** aus der Map, benennt ByteRipper die Zeile nach der Kennung, die das Abbild hinter seinem Signaturblock trägt, etwa **EC Firmware (ITE8380-EC-V1.43)** oder **EC firmware (ITE8226-EC-V0.00)**. Die Detailliste führt jedes im Block gefundene ITE-Abbild mit seiner Adresse auf: Ein Block kann mehrere enthalten, etwa die Firmware eines zweiten Controllers oder eine zweite Kopie.
+
+! Die Kennung ist ein Text, den der Entwickler der Firmware in das Abbild geschrieben hat. Sie nennt den Controller, für den die Firmware erstellt wurde, und muss nicht mit dem Modell des tatsächlich auf dem Board bestückten Controllers übereinstimmen: Eine Firmware kann für mehrere kompatible Controller bestimmt sein, und die Version in der Kennung wird nicht immer gepflegt — mehrere Dumps tragen `V0.00`. Welcher Controller bestückt ist, zeigt die Beschriftung auf seinem Gehäuse.
 
 ! Das sind Anzeichen und kein Beweis, und sie stammen aus einer einzelnen Quelle der Community, nicht aus einem Datenblatt. Ein Block ganz ohne Kennzeichen ist völlig normal. Geklärt wird das so, wie dieses Programm gebaut ist: durch den Vergleich mit einem bekannt guten Dump desselben Boards.
 

@@ -9,6 +9,7 @@ import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
+import { allITEFirmware, ITE_PADDING_NAME_PREFIX } from "@/firmware/uefi/iteFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
 import {
@@ -540,31 +541,54 @@ function headerFields(
     case "cmdbStore":
     case "sysFEntry":
     case "uefiImage":
-    case "padding":
     case "freeSpace":
     case "nonUEFIData":
     case "startupApData":
+      break;
+
+    // Padding the parser named for the ITE image it opens on lists every image.
+    case "padding":
+      if (node.name.startsWith(ITE_PADDING_NAME_PREFIX)) fields.push(...iteFields(node, reader));
       break;
 
     // A map region has no header: the map says where it is and what type it is,
     // and the type is the common "GUID" field. What the region holds is read
     // where its type is understood.
     case "flashDeviceMapRegion": {
-      if (node.guid === undefined || !guidEquals(node.guid, FlashDeviceMap.biosVersionDataTable)) {
-        break;
+      if (node.guid !== undefined && guidEquals(node.guid, FlashDeviceMap.biosVersionDataTable)) {
+        const table = readInsydeBvdt(node.body, reader);
+        if (table?.biosVersion !== undefined) {
+          fields.push(field("BIOS version", table.biosVersion));
+        }
+        if (table?.productName !== undefined) {
+          fields.push(field("Product name", table.productName));
+        }
+        if (table?.kernelVersion !== undefined) {
+          fields.push(field("Kernel version", table.kernelVersion));
+        }
+        if (table?.releaseDate !== undefined) {
+          fields.push(field("Release date", table.releaseDate));
+        }
       }
-      const table = readInsydeBvdt(node.body, reader);
-      if (table === undefined) break;
-      if (table.biosVersion !== undefined) fields.push(field("BIOS version", table.biosVersion));
-      if (table.productName !== undefined) fields.push(field("Product name", table.productName));
-      if (table.kernelVersion !== undefined) {
-        fields.push(field("Kernel version", table.kernelVersion));
+      if (node.guid !== undefined && guidEquals(node.guid, FlashDeviceMap.ecFirmware)) {
+        fields.push(...iteFields(node, reader));
       }
-      if (table.releaseDate !== undefined) fields.push(field("Release date", table.releaseDate));
       break;
     }
   }
   return fields;
+}
+
+/**
+ * One row per ITE image in the node: what it says it is, and where it starts.
+ * The firmware's own words, so they read as written.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.iteFields
+ */
+function iteFields(node: UEFINode, reader: ImageReader): DetailField[] {
+  return allITEFirmware(nodeRange(node), reader).map((image) =>
+    field("ITE identification", `${image.identification} · ${hex(image.start)}`)
+  );
 }
 
 // MARK: - What a flash descriptor adds

@@ -223,9 +223,13 @@ Since Skylake a board may have a proper [[term:ec-region|EC region]] that the de
 What usually gives it away:
 
 - **Size.** 128 KB (131 072 bytes) and 192 KB (196 608 bytes) are the common ones.
-- **ITE controllers** open with a run of `A5` bytes — `A5 A5 A5 A5 A5 A5`.
+- **ITE controllers** carry, at offset `0x40` or `0x80` from the start of the image, a signature block of six `A5` bytes followed by an identification string.
 - **ENE controllers** carry the string `ENE` in the first bytes.
 - **Microchip (MEC)** firmware is more often inside the BIOS region's first volume than in padding.
+
+Where an ITE image begins — at the start of a padding block or of the map's **EC Firmware** region — ByteRipper names the row by the identification the image carries after its signature block, for example **EC Firmware (ITE8380-EC-V1.43)** or **EC firmware (ITE8226-EC-V0.00)**. The detail list shows every ITE image found in the block, with its address: a block can hold more than one, such as the firmware of a second controller or a second copy.
+
+! The identification is text that the firmware's developer wrote into the image. It names the controller the firmware was built for and does not necessarily match the model of the controller actually fitted to the board: one firmware may serve several compatible controllers, and the version in the string is not always maintained — several dumps carry `V0.00`. The fitted controller is identified by the marking on its package.
 
 ! These are signs, not proof, and they come from one community source rather than from any datasheet. A block with no marker at all is common. The way to settle it is the way this app is built for: compare against a known-good dump of the same board.
 

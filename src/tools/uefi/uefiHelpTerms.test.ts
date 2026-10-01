@@ -110,6 +110,18 @@ describe("the flash device map", () => {
   });
 });
 
+describe("EC firmware in padding", () => {
+  // Padding the parser named for an EC image opens the EC page; other padding,
+  // the padding page.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift#UEFIHelpTermsTests.testECFirmwareInPaddingOpensTheECPage
+  it("opens the EC page", () => {
+    expect(uefiHelpTerm({ kind: "padding", name: "EC firmware (ITE8226-EC-V0.00)" })).toBe(
+      termId("ec-firmware")
+    );
+    expect(uefiHelpTerm({ kind: "padding", name: "Padding" })).toBe(termId("padding"));
+  });
+});
+
 describe("the Startup AP data", () => {
   // The Startup AP data lives in a pad file and is why that pad file must stay
   // where it is; the page about pad files says so.

@@ -203,11 +203,19 @@ export function nodeName(
     return node.name;
   }
   // A flash device map entry's GUID is a region *type*, and UEFITool names the
-  // row by what the type is: "Variable Defaults", "Password". The region the
-  // entry names is called the same.
-  if (node.kind === "flashDeviceMapEntry" || node.kind === "flashDeviceMapRegion") {
+  // row by what the type is: "Variable Defaults", "Password".
+  if (node.kind === "flashDeviceMapEntry") {
     const type = regionTypeName(node.guid);
     if (type !== undefined) return type;
+  }
+  // The region the entry names is called the same — by the parser, which adds
+  // what it read inside, such as the EC firmware's identification.
+  if (
+    node.kind === "flashDeviceMapRegion" &&
+    regionTypeName(node.guid) !== undefined &&
+    node.name.length > 0
+  ) {
+    return node.name;
   }
   return catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
 }

@@ -45,3 +45,31 @@ export function bvdtTable(
   bytes.push(...new Array<number>(0x1000 - bytes.length).fill(0xff));
   return Uint8Array.from(bytes);
 }
+
+/**
+ * A signature block as the dumps at hand have it, the varying bytes set to values
+ * one of them carries.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.block
+ */
+export const ITE_BLOCK: readonly number[] = [
+  0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa4, 0x14, 0x85, 0x12, 0x5a, 0x5a, 0xaa, 0xaf, 0x55, 0x55,
+];
+
+/**
+ * An image `length` bytes long with the block at `at` and the identification
+ * after it, padded to sixteen bytes.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.image
+ */
+export function iteImage(
+  options: { readonly identification?: string; readonly at?: number; readonly length?: number } = {}
+): Uint8Array {
+  const identification = options.identification ?? "ITE8380-EC-V1.43";
+  const at = options.at ?? 0x80;
+  const bytes = new Uint8Array(options.length ?? 0x1000);
+  const text = [...ascii(identification)];
+  while (text.length < 16) text.push(0);
+  bytes.set([...ITE_BLOCK, ...text], at);
+  return bytes;
+}

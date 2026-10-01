@@ -18,6 +18,7 @@
 import { type HelpTermId, termId } from "@/core/help/helpIds";
 import { type EFIGUID, guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { ITE_PADDING_NAME_PREFIX } from "@/firmware/uefi/iteFirmware";
 import type { UEFINodeKind } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 
@@ -34,6 +35,8 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
 export interface UEFINodeSort {
   readonly kind: UEFINodeKind | string;
   readonly subtype?: number | undefined;
+  /** What the parser called it: a padding row is told apart by the name it was given. */
+  readonly name?: string | undefined;
   /**
    * A map region's type is its GUID — as the parsed node has it, or as text
    * where the node has come over the wire from the worker.
@@ -68,8 +71,12 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     // stay where it is; the page about pad files says so.
     case "startupApData":
       return termId("pad-file");
+    // Padding the parser named for the EC image it opens on is read as what it
+    // looks like.
     case "padding":
-      return termId("padding");
+      return node.name?.startsWith(ITE_PADDING_NAME_PREFIX) === true
+        ? termId("ec-firmware")
+        : termId("padding");
     case "freeSpace":
       return termId("free-space");
     case "nonUEFIData":

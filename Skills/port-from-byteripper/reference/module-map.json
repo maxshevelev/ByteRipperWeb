@@ -386,7 +386,9 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/InsydeBVDTTests.swift": [
           "src/firmware/uefi/insydeBvdt.test.ts",
           "src/firmware/testing/testInsyde.ts"
-        ]
+        ],
+        "UEFIImage/ITEFirmware.swift": "src/firmware/uefi/iteFirmware.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift": "src/firmware/uefi/iteFirmware.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
