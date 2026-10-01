@@ -584,6 +584,29 @@ function vssVariable(parser: Parser, offset: number, storeEnd: number): UEFINode
 // MARK: - VSS2
 
 /**
+ * VSS2 has no Intel legacy: a variable is authenticated when an auth bit is set,
+ * or when either size field is zero (the marker of an auth variable whose real
+ * sizes come after the timestamp and key index).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.isAuthenticatedVss2Variable
+ */
+export function isAuthenticatedVss2Variable(fields: {
+  readonly attributes: number;
+  readonly lenName: number;
+  readonly lenData: number;
+}): boolean {
+  return (
+    (fields.attributes &
+      (NVRAM.vssAttributeAuthWrite |
+        NVRAM.vssAttributeTimeBasedAuth |
+        NVRAM.vssAttributeAppendWrite)) !==
+      0 ||
+    fields.lenName === 0 ||
+    fields.lenData === 0
+  );
+}
+
+/**
  * A VSS2 variable store, or nothing when the bytes at `offset` are not one.
  *
  * A VSS2 store is led by a 16-byte store GUID (not a four-byte signature) and
@@ -692,16 +715,7 @@ function vss2Variable(parser: Parser, offset: number, storeEnd: number): UEFINod
     return undefined;
   }
 
-  // VSS2 has no Intel legacy: a variable is authenticated when an auth bit is
-  // set, or when either size field is zero.
-  const isAuth =
-    (attributes &
-      (NVRAM.vssAttributeAuthWrite |
-        NVRAM.vssAttributeTimeBasedAuth |
-        NVRAM.vssAttributeAppendWrite)) !==
-      0 ||
-    lenName === 0 ||
-    lenData === 0;
+  const isAuth = isAuthenticatedVss2Variable({ attributes, lenName, lenData });
 
   let headerSize: number;
   let nameSize: number;

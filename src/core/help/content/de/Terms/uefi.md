@@ -1,4 +1,4 @@
-@source-sha 782ba1633b6aae6315910886eb8af1e1fa6589263acef2ae53bef37d9bdc37ce
+@source-sha 9e6bdee2a4ee18325b79fd7b5fa9880ffd379b4541bfc9de1bbdf27ea4da120d
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -262,6 +262,12 @@ NVRAM liegt in einem eigenen Bereich der BIOS-Region, in einem Format, das vom F
 
 Zwei Eigenschaften des NVRAM sind festzuhalten: Fehlenden Inhalt legt die Firmware größtenteils neu an, und geschrieben wird er bei jeder Änderung von Einstellungen und nicht nur bei einem Firmware-Update.
 
+Für jeden Speicher gibt die Detailliste an, wie weit er gefüllt ist. **Belegt** und **Freier Platz** nennen die beschriebenen und die noch gelöschten Bytes. Die Einträge werden in drei Gruppen gezählt: **Gültige Einträge** enthalten den aktuellen Wert einer Variablen; **Ersetzte Einträge** wurden durch einen späteren Eintrag derselben Variablen — mit demselben Namen und derselben GUID — abgelöst; **Gelöschte Einträge** gehören zu Variablen, die der Speicher nicht mehr enthält.
+
+Die Firmware überschreibt eine Variable nicht an Ort und Stelle: Sie hängt einen neuen Eintrag an und kennzeichnet den bisherigen. Ist der freie Platz erschöpft, bereinigt sie den Speicher — sie kopiert die gültigen Einträge und löscht den Rest. Ein nahezu voller Speicher, der überwiegend aus ersetzten Einträgen besteht, steht daher kurz vor einer solchen Bereinigung. Wird sie unterbrochen, etwa durch einen Stromausfall auf einem Board, dessen Firmware diesen Fall nicht absichert, kann der Speicher beschädigt zurückbleiben.
+
+Speicher mit Standardwerten, etwa die **Variable Defaults** von Insyde, werden einmalig beschrieben und sind in der Regel vollständig belegt; ein Defekt ist das nicht.
+
 @see term:vss
 @see topic:recipe-board-data
 
@@ -285,6 +291,8 @@ Im selben Format legt AMI die Standardwerte ab: in der Datei `StdDefaults` sowie
 
 Ein Eintrag mit erweitertem Header kann eine Prüfsumme enthalten. ByteRipper prüft sie und kennzeichnet den Eintrag, wenn sie nicht übereinstimmt.
 
+Wie der Füllstand eines Speichers und die Zahl seiner ersetzten Einträge ermittelt werden, erläutert der Eintrag [[term:nvram|NVRAM]].
+
 @see term:nvram
 @see term:vss
 
@@ -297,6 +305,8 @@ Jeder Eintrag ist eine Variable mit Namen (`BootOrder`, `PK`, `Setup`), Herstell
 Im selben Bereich finden sich verwandte Speicher: **FTW** (der Eintrag eines fehlertoleranten Schreibvorgangs — das Journal, das ein Variablen-Update einen Stromausfall überstehen lässt), **EVSA**, **FDC**, **CMDB** und herstellereigene Flash-Maps. Das sind die Antworten verschiedener Hersteller auf dieselbe Aufgabe.
 
 Insyde-Firmware legt auch ihre Standardwerte in VSS-Speichern ab, allerdings außerhalb aller Firmware-Volumes: als Folge von Speichern in dem Bereich, den die Flash Device Map als **Variable Defaults** ausweist. ByteRipper ermittelt ihre Lage anhand dieser Tabelle. Sie enthalten die Werte, die die Firmware beim Zurücksetzen der Einstellungen wiederherstellt, nicht die aktuell wirksamen Einstellungen.
+
+Wie der Füllstand eines Speichers und die Zahl seiner ersetzten Einträge ermittelt werden, erläutert der Eintrag [[term:nvram|NVRAM]].
 
 @see term:nvram
 

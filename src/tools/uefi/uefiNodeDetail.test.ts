@@ -959,6 +959,35 @@ describe("an NVAR entry", () => {
   });
 });
 
+describe("a variable store", () => {
+  // A store says how full it is and what its entries still count for.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAStoreShowsHowFullItIs
+  it("shows how full it is", () => {
+    const entry = makeNode({
+      kind: "vssEntry",
+      subtype: Sub.standardVssEntry,
+      name: "Setup",
+      header: r(0x10, 0x30),
+      body: r(0x30, 0xc0),
+    });
+    const free = makeSpan({ kind: "freeSpace", name: "", range: r(0xc0, 0x110), isErased: true });
+    const store = makeNode({
+      kind: "vssStore",
+      name: "VSS store",
+      header: r(0, 0x10),
+      body: r(0x10, 0x110),
+      children: [entry, free],
+    });
+    const detail = detailOf(store, new Uint8Array(0x110));
+
+    expect(value(detail, "In use")).toBe("0xB0 (176) · 68\u00a0%");
+    expect(value(detail, "Free space")).toBe("0x50 (80)");
+    expect(value(detail, "Current entries")).toBe("1");
+    expect(value(detail, "Superseded entries")).toBe("0");
+    expect(value(detail, "Deleted entries")).toBe("0");
+  });
+});
+
 describe("a BVDT region", () => {
   // The version table's region shows what the table states.
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionShowsTheVersionsTheTableStates

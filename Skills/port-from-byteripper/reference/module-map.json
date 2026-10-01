@@ -388,7 +388,9 @@
           "src/firmware/testing/testInsyde.ts"
         ],
         "UEFIImage/ITEFirmware.swift": "src/firmware/uefi/iteFirmware.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift": "src/firmware/uefi/iteFirmware.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift": "src/firmware/uefi/iteFirmware.test.ts",
+        "UEFIImage/NvramStoreFill.swift": "src/firmware/uefi/nvramStoreFill.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/NvramStoreFillTests.swift": "src/firmware/uefi/nvramStoreFill.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",

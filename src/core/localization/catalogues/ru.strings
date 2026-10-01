@@ -297,6 +297,10 @@
 "Font:" = "Шрифт:";
 "Forward" = "Вперёд";
 "Free space" = "Свободное место";
+"In use" = "Занято";
+"Current entries" = "Действующие записи";
+"Superseded entries" = "Заменённые записи";
+"Deleted entries" = "Удалённые записи";
 "From github.com/platomav/CPUMicrocodes — a FIT only ever names Intel microcode." = "Из github.com/platomav/CPUMicrocodes — в FIT бывает только микрокод Intel.";
 "Full Info" = "Полная информация";
 "Getting ready" = "Подготовка";

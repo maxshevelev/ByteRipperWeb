@@ -21,6 +21,12 @@ import {
 } from "@/firmware/uefi/microcodeParser";
 import { NVAR, nvarChecksumOf } from "@/firmware/uefi/nvarParser";
 import {
+  fillPercentUsed,
+  fillUsed,
+  type NvramStoreFill,
+  nvramStoreFillOf,
+} from "@/firmware/uefi/nvramStoreFill";
+import {
   isIbbKind,
   type ProtectedRange,
   protectedRangeKindName,
@@ -67,6 +73,8 @@ export function buildNodeDetail(
   repairs: readonly ChecksumRepair[] = []
 ): NodeDetail {
   const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
+  const fill = nvramStoreFillOf(node, reader);
+  if (fill !== undefined) fields.push(...fillFields(fill));
   const title = node.name.length === 0 ? kindLabel(node.kind) : node.name;
 
   // Every range that shares a byte with the node, once something has read them.
@@ -589,6 +597,24 @@ function iteFields(node: UEFINode, reader: ImageReader): DetailField[] {
   return allITEFirmware(nodeRange(node), reader).map((image) =>
     field("ITE identification", `${image.identification} · ${hex(image.start)}`)
   );
+}
+
+// MARK: - How full a variable store is
+
+/**
+ * The panel's own reading of a store, so it translates: how much of it is
+ * written, how much is left, and what its entries still count for.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.fillFields
+ */
+function fillFields(fill: NvramStoreFill): DetailField[] {
+  return [
+    field(L("In use"), `${sizeText(fillUsed(fill))} · ${fillPercentUsed(fill)}\u00a0%`),
+    field(L("Free space"), sizeText(fill.free)),
+    field(L("Current entries"), `${fill.current}`),
+    field(L("Superseded entries"), `${fill.superseded}`),
+    field(L("Deleted entries"), `${fill.deleted}`),
+  ];
 }
 
 // MARK: - What a flash descriptor adds

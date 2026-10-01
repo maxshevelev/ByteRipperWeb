@@ -261,6 +261,12 @@ NVRAM lives in its own area of the BIOS region, in a format that depends on the 
 
 Two properties of NVRAM are worth noting: the firmware rebuilds most of what it needs when the store is absent, and the store is written on every change rather than only on a firmware update.
 
+For every store, the detail list states how full it is. **In use** and **Free space** give the bytes written and the bytes still erased. The entries are counted in three groups: **Current entries** hold a variable's value now; **Superseded entries** were replaced by a later entry of the same variable — the same name and GUID; **Deleted entries** belong to variables the store no longer holds.
+
+The firmware does not overwrite a variable in place: it appends a new entry and marks the previous one. When the free space is exhausted, it reclaims the store — copies the current entries and erases the rest. A store that is nearly full and consists mostly of superseded entries is therefore close to such a reclaim. If the reclaim is interrupted, for example by a power loss on a board whose firmware does not guard against it, the store may be left damaged.
+
+Stores of default values, such as Insyde's **Variable Defaults**, are written once and are normally full; this is not a defect.
+
 @see term:vss
 @see topic:recipe-board-data
 
@@ -284,6 +290,8 @@ AMI stores its default values in the same format: the `StdDefaults` file and the
 
 An entry with an extended header may carry a checksum. ByteRipper verifies it and marks the entry when the checksum does not match.
 
+How full a store is, and how many of its entries are superseded, is explained under [[term:nvram|NVRAM]].
+
 @see term:nvram
 @see term:vss
 
@@ -296,6 +304,8 @@ Each entry is a variable with a name (`BootOrder`, `PK`, `Setup`), a vendor GUID
 Related stores you may see in the same area: **FTW** (a fault-tolerant write record, the journal that makes a variable update survive a power cut), **EVSA**, **FDC**, **CMDB** and vendor flash maps. They are different vendors' answers to the same problem.
 
 Insyde firmware also keeps its default values as VSS stores, but outside every firmware volume: a run of stores in the range that its flash device map declares as **Variable Defaults**. ByteRipper locates them through that map. They contain the values the firmware restores when its settings are reset, not the settings currently in effect.
+
+How full a store is, and how many of its entries are superseded, is explained under [[term:nvram|NVRAM]].
 
 @see term:nvram
 
