@@ -372,7 +372,8 @@
         "UEFIImageTests/ProtectedRangesTests.swift": "src/firmware/uefi/protectedRanges.test.ts",
         "NvarParser.swift": "src/firmware/uefi/nvarParser.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/NvarParseTests.swift": "src/firmware/uefi/nvarParse.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/TestNVAR.swift": "src/firmware/testing/testNvar.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/TestNVAR.swift": "src/firmware/testing/testNvar.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/AppleMicrocodeVolumeTests.swift": "src/firmware/uefi/appleMicrocodeVolume.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",

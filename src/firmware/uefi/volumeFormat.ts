@@ -1,3 +1,5 @@
+import { guid } from "@/firmware/uefi/efiGuid";
+
 /**
  * The volume header's own constants.
  *
@@ -44,4 +46,14 @@ export const FV = {
   erasePolarity: 0x0000_0800,
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#FV.checksumOffset */
   checksumOffset: 0x32,
+  /**
+   * A Mac's microcode volume: no FFS inside, a run of microcode images after a
+   * header the reference takes as `0x100` bytes, whatever the header says of
+   * itself (`EFI_APPLE_MICROCODE_VOLUME_HEADER_SIZE`).
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#FV.appleMicrocodeFileSystem
+   */
+  appleMicrocodeFileSystem: guid("153D2197-29BD-44DC-AC59-887F70E41A6B"),
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#FV.appleMicrocodeHeaderSize */
+  appleMicrocodeHeaderSize: 0x100,
 } as const;

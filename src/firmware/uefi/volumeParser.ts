@@ -1,12 +1,13 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
-import type { EFIGUID } from "@/firmware/uefi/efiGuid";
+import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FFS, parseFile } from "@/firmware/uefi/fileParser";
 import { ffsVersionOfFileSystem, nameOfGuid } from "@/firmware/uefi/knownGuids";
+import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
-import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { FV } from "@/firmware/uefi/volumeFormat";
 
 export { FV };
@@ -115,8 +116,12 @@ export function readVolumeHeader(parser: Parser, offset: number): VolumeHeader |
     if (extSize !== undefined && extSize > 0) headerSize = extHeaderOffset + extSize;
     else extendedHeaderMissing = true;
   }
-  const aligned = alignUp(headerSize, 8);
+  let aligned = alignUp(headerSize, 8);
   if (aligned === undefined || aligned > fvLength) return undefined;
+  if (guidEquals(fileSystem, FV.appleMicrocodeFileSystem)) {
+    if (FV.appleMicrocodeHeaderSize > fvLength) return undefined;
+    aligned = FV.appleMicrocodeHeaderSize;
+  }
 
   return {
     offset,
@@ -257,6 +262,9 @@ export function volumeChildren(
     const stores = walkNvram(body, emptyByte, depth + 1);
     if (stores !== undefined) return stores;
   }
+  if (guidEquals(header.fileSystem, FV.appleMicrocodeFileSystem)) {
+    return walkMicrocodeVolumeBody(parser, body, emptyByte);
+  }
   const ffsVersion = ffsVersionOfFileSystem(header.fileSystem);
   if (ffsVersion === undefined) {
     // A volume we cannot read the inside of still keeps its bytes.
@@ -391,4 +399,39 @@ export function nonUEFIData(
     if (found.some((child) => child.kind !== "padding")) node.children = found;
   }
   return node;
+}
+
+/**
+ * An Apple microcode volume's body: microcode images back to back, and whatever
+ * follows the last of them as padding (UEFITool's `parseMicrocodeVolumeBody`).
+ *
+ * The walk stops at the first stretch that is not a microcode, as the
+ * reference's does — at an erased tail, or at bytes whose header does not read —
+ * and keeps the rest as one padding node. A microcode that runs past the body is
+ * cut and reported, as one found anywhere else is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.walkMicrocodeVolumeBody
+ */
+export function walkMicrocodeVolumeBody(
+  parser: Parser,
+  body: ImageRange,
+  emptyByte: number
+): UEFINode[] {
+  const nodes: UEFINode[] = [];
+  let offset = body.start;
+  while (offset < body.end) {
+    const rest: ImageRange = { start: offset, end: body.end };
+    const microcode =
+      parser.reader.isFilled(rest, 0x00) ||
+      parser.reader.isFilled(rest, 0xff) ||
+      parser.reader.uint32(offset) !== Microcode.headerType
+        ? undefined
+        : parseMicrocode(parser, offset, body.end);
+    if (microcode === undefined || nodeRange(microcode).end <= offset) {
+      return [...nodes, ...parser.padding(offset, body.end, emptyByte)];
+    }
+    nodes.push(microcode);
+    offset = nodeRange(microcode).end;
+  }
+  return nodes;
 }
