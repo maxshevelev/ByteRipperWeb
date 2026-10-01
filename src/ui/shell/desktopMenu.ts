@@ -1,3 +1,4 @@
+import { L } from "@/core/localization/localization";
 import { isMenuAction, type MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -16,7 +17,7 @@ import { isMenuAction, type MenuEntry } from "@/ui/shell/menuModel";
 
 /** One item of a native menu, as Electron's template takes it. */
 export interface NativeMenuItem {
-  readonly type: "normal" | "separator" | "checkbox" | "radio";
+  readonly type: "normal" | "separator" | "checkbox" | "radio" | "submenu";
   readonly id?: string;
   readonly label?: string;
   readonly enabled?: boolean;
@@ -25,6 +26,8 @@ export interface NativeMenuItem {
   readonly accelerator?: string;
   /** The shell answers the accelerator itself, rather than only drawing it. */
   readonly registerAccelerator?: boolean;
+  /** A menu of its own — File ▸ Open Recent — whose rows are items of their own. */
+  readonly submenu?: readonly NativeMenuItem[];
 }
 
 export interface NativeMenu {
@@ -205,20 +208,66 @@ export function nativeMenus(entries: readonly MenuEntry[]): {
   return { menus, commands };
 }
 
+/** File ▸ Open Recent, as the shell's File menu carries it. */
+export interface NativeOpenRecent {
+  /** The recent files, most recent first; each opens itself. */
+  readonly rows: readonly { readonly name: string; readonly open: () => void }[];
+  /** **Clear Menu**: forgets them all. */
+  readonly clear: () => void;
+}
+
 let commands = new Map<string, () => void>();
 let sent = "";
+
+/**
+ * The File menu's Open Recent submenu, inserted after its Open… row.
+ *
+ * Upstream fills the submenu by an `NSMenuDelegate` on every display; here the
+ * rows are built once, and the shell re-sends the menu whenever the list
+ * changes, so what is sent is what the next display shows.
+ *
+ * @upstream ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.populate
+ * @upstream-differs built at publish time rather than by a delegate on display
+ */
+function injectOpenRecent(
+  menus: readonly { readonly label: string; readonly items: readonly NativeMenuItem[] }[],
+  commandMap: Map<string, () => void>,
+  openRecent: NativeOpenRecent
+): void {
+  const file = menus.find((menu) => menu.label === plain(L("File", { context: "menu" })));
+  if (file === undefined) return;
+  const rows: NativeMenuItem[] = openRecent.rows.map((row) => {
+    const id = `c${commandMap.size}`;
+    commandMap.set(id, row.open);
+    return { type: "normal", id, label: plain(row.name) };
+  });
+  // **Clear Menu** only while there is anything to clear, as upstream's.
+  if (openRecent.rows.length > 0) {
+    const id = `c${commandMap.size}`;
+    commandMap.set(id, openRecent.clear);
+    rows.push({ type: "normal", id, label: plain(L("Clear Menu")) });
+  }
+  const items = file.items as NativeMenuItem[];
+  const openAt = items.findIndex((one) => one.type === "normal" && one.label === plain(L("Open…")));
+  const at = openAt >= 0 ? openAt + 1 : 1;
+  items.splice(at, 0, { type: "submenu", label: plain(L("Open Recent")), submenu: rows });
+}
 
 /**
  * Hands the menus to the shell, when there is one and they changed. The
  * command list is rebuilt on every render — a caret move changes what Merge
  * would merge — so the same menus are not sent twice.
  */
-export function publishNativeMenu(entries: readonly MenuEntry[]): void {
+export function publishNativeMenu(
+  entries: readonly MenuEntry[],
+  openRecent?: NativeOpenRecent
+): void {
   const bridge = desktopBridge();
   if (bridge === undefined) return;
   (globalThis as Record<string, unknown>)[COMMAND_ENTRY] = (id: string) => commands.get(id)?.();
   const built = nativeMenus(entries);
   commands = built.commands;
+  if (openRecent !== undefined) injectOpenRecent(built.menus, built.commands, openRecent);
   const text = JSON.stringify(built.menus);
   if (text === sent) return;
   sent = text;

@@ -177,22 +177,25 @@ app.whenReady().then(() => {
         `window.__byteripperMenuCommand(${JSON.stringify(id)})`,
         true
       );
-    const item = (one) =>
-      one.type === "separator"
-        ? { type: "separator" }
-        : {
-            type: one.type,
-            label: one.label,
-            enabled: one.enabled !== false,
-            ...(one.checked === undefined ? {} : { checked: one.checked }),
-            ...(one.accelerator === undefined
-              ? {}
-              : {
-                  accelerator: one.accelerator,
-                  registerAccelerator: one.registerAccelerator === true,
-                }),
-            ...(one.id === undefined ? {} : { click: click(one.id) }),
-          };
+    const item = (one) => {
+      if (one.type === "separator") return { type: "separator" };
+      // File ▸ Open Recent is a menu of its own; its rows are items of their own.
+      if (one.type === "submenu")
+        return { type: "submenu", label: one.label, submenu: one.submenu.map(item) };
+      return {
+        type: one.type,
+        label: one.label,
+        enabled: one.enabled !== false,
+        ...(one.checked === undefined ? {} : { checked: one.checked }),
+        ...(one.accelerator === undefined
+          ? {}
+          : {
+              accelerator: one.accelerator,
+              registerAccelerator: one.registerAccelerator === true,
+            }),
+        ...(one.id === undefined ? {} : { click: click(one.id) }),
+      };
+    };
     // Zoom In is Ctrl+Plus, and on most keyboards that is Ctrl+= as well, or the
     // numeric pad's: the same command under the other spellings, not drawn.
     const ALSO = {

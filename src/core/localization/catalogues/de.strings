@@ -158,6 +158,7 @@
 "Chipset" = "Chipsatz";
 "Chipset Initialization" = "Chipsatz-Initialisierung";
 "Choose File…" = "Datei wählen…";
+"Clear Menu" = "Menü löschen";
 "Clear Recents" = "Zuletzt gesucht löschen";
 "Close" = "Schließen";
 "Close %1$@" = "%1$@ schließen";
@@ -463,6 +464,7 @@
 "Open in Help" = "In der Hilfe öffnen";
 "Open Node" = "Knoten öffnen";
 "Open Node Body" = "Knotenrumpf öffnen";
+"Open Recent" = "Benutzte Dokumente";
 "Open Zone %1$@" = "Zone %1$@ öffnen";
 "Open Zone “%1$@”" = "Zone „%1$@“ öffnen";
 "Open “%1$@”" = "„%1$@“ öffnen";

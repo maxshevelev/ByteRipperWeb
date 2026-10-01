@@ -8,7 +8,7 @@ import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
-import type { OpenedFile } from "@/platform/files/openedFile";
+import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
@@ -31,6 +31,14 @@ import {
   strandingSentence,
   updateInParent,
 } from "@/state/partUpdate";
+import {
+  clearRecentFiles,
+  dropRecentFile,
+  fileFromRecentHandle,
+  recentFilesStore,
+  recordRecentFile,
+  restoreRecentFiles,
+} from "@/state/recentFilesStore";
 import {
   closeSearch,
   noteSearchEdit,
@@ -422,6 +430,10 @@ export function AppShell() {
       // — would stand over the name of the file arriving in its place.
       forgetTransientMessage(slot);
       openInPane(slot, file);
+      // A handle is what makes this file re-openable from File ▸ Open Recent
+      // without a picker, so it is recorded where a file actually opened — the
+      // one place every open path, Open… and a drop, runs through.
+      if (file.handle !== undefined) recordRecentFile(file.handle, file.name);
       slot = slot === "a" ? "b" : "a";
     }
     if (files.length > taken.length) {
@@ -448,6 +460,34 @@ export function AppShell() {
       }
     },
     [accept, state.capabilities]
+  );
+
+  /**
+   * File ▸ Open Recent: re-opens one of the files opened most recently, through
+   * the handle it stored, into the slot an Open… would have chosen. The menu's
+   * click is the user gesture the permission may be asked with, so a file whose
+   * grant has not persisted re-opens with one "allow access" — never a folder
+   * picker, always the same file.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openRecentFile
+   * @upstream-differs upstream re-opens by the path it kept; the page has no
+   * path, only the handle, and the handle re-opens the file with its write access
+   */
+  const openRecentFile = useCallback(
+    (index: number) => {
+      const row = recentFilesStore.getSnapshot().rows[index];
+      if (row === undefined) return;
+      void fileFromRecentHandle(row.handle)
+        .then((file) => accept([openedFileFrom(file, row.handle)]))
+        .catch((error: unknown) => {
+          // A file that is gone (NotFound) drops out of the menu at once; a
+          // refused permission, or any other failure, is kept — the file exists,
+          // and the next re-open can ask for it again.
+          if (error instanceof DOMException && error.name === "NotFound") dropRecentFile(row.name);
+          reportAlert(L("Could not open file."), L("This file could not be opened."));
+        });
+    },
+    [accept]
   );
 
   useEffect(() => {
@@ -717,6 +757,8 @@ export function AppShell() {
     void restoreBookmarks();
     // The favourites and this browser's identity, from the last visit.
     void restoreFavorites();
+    // The files opened most recently, back for File ▸ Open Recent.
+    void restoreRecentFiles();
   }, []);
 
   // The find bar always searches the pane the commands act on — the part in
@@ -2130,6 +2172,8 @@ export function AppShell() {
     <div className="app-shell" data-dragging={dragging ? "" : undefined}>
       <Toolbar
         onOpen={open}
+        onOpenRecent={openRecentFile}
+        onClearRecent={clearRecentFiles}
         onNew={() => openEmptyInPane(slotForNewFile())}
         onNavigate={navigate}
         onSave={() => void doSave(false)}

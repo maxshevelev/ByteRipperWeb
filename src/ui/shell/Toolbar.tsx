@@ -7,6 +7,7 @@ import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
+import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
@@ -85,6 +86,8 @@ import { useKeyboardInput } from "@/ui/shell/useKeyboardInput";
  */
 export function Toolbar({
   onOpen,
+  onOpenRecent,
+  onClearRecent,
   onNew,
   onNavigate,
   onSave,
@@ -107,6 +110,10 @@ export function Toolbar({
   navigation,
 }: {
   readonly onOpen: (into?: SlotId) => void;
+  /** File ▸ Open Recent ▸ «file»: re-opens that recent file. The shell only. */
+  readonly onOpenRecent: (index: number) => void;
+  /** File ▸ Open Recent ▸ Clear Menu: forgets the list. The shell only. */
+  readonly onClearRecent: () => void;
   readonly onNew: () => void;
   readonly onNavigate: (what: "difference" | "same", direction: 1 | -1) => void;
   readonly onSave: () => void;
@@ -141,6 +148,8 @@ export function Toolbar({
   const minimap = frontMap(useStore(minimapStore));
   const tools = useStore(toolController);
   const diff = useStore(diffStore);
+  // File ▸ Open Recent, the shell only: the menu re-sends when the list moves.
+  const recent = useStore(recentFilesStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
   // The Add/Remove wording follows the caret's row, so the item says what it
@@ -541,23 +550,32 @@ export function Toolbar({
       { label: L("Exit"), onSelect: () => desktopBridge()?.quit() },
       { kind: "separator" },
     ];
-    publishNativeMenu([
-      ...entries.slice(0, Math.max(file, 0)),
-      ...exit,
-      ...entries.slice(Math.max(file, 0), viewEnd),
-      { kind: "separator" },
-      { label: L("Zoom In"), shortcut: "⌘+", shellKey: true, onSelect: zoom(1) },
-      { label: L("Zoom Out"), shortcut: "⌘-", shellKey: true, onSelect: zoom(-1) },
-      { label: L("Actual Size"), shortcut: "⌘0", shellKey: true, onSelect: zoom(0) },
-      ...entries.slice(viewEnd, at),
-      { kind: "heading", label: L("Tools"), opensMenu: true },
-      ...toolEntries,
-      ...entries.slice(at),
-      // After the Help pages, where a Windows application keeps it.
-      // @web-only the desktop build replaces itself; a page is replaced by loading it again
-      { kind: "separator" },
-      { label: L("Check for Update…"), onSelect: () => void checkForUpdate() },
-    ]);
+    // File ▸ Open Recent, the shell only: each row re-opens its own file, and
+    // Clear Menu forgets them. @web-only a browser tab has no menu bar to hang it on
+    const openRecent = {
+      rows: recent.rows.map((row, index) => ({ name: row.name, open: () => onOpenRecent(index) })),
+      clear: onClearRecent,
+    };
+    publishNativeMenu(
+      [
+        ...entries.slice(0, Math.max(file, 0)),
+        ...exit,
+        ...entries.slice(Math.max(file, 0), viewEnd),
+        { kind: "separator" },
+        { label: L("Zoom In"), shortcut: "⌘+", shellKey: true, onSelect: zoom(1) },
+        { label: L("Zoom Out"), shortcut: "⌘-", shellKey: true, onSelect: zoom(-1) },
+        { label: L("Actual Size"), shortcut: "⌘0", shellKey: true, onSelect: zoom(0) },
+        ...entries.slice(viewEnd, at),
+        { kind: "heading", label: L("Tools"), opensMenu: true },
+        ...toolEntries,
+        ...entries.slice(at),
+        // After the Help pages, where a Windows application keeps it.
+        // @web-only the desktop build replaces itself; a page is replaced by loading it again
+        { kind: "separator" },
+        { label: L("Check for Update…"), onSelect: () => void checkForUpdate() },
+      ],
+      openRecent
+    );
   });
 
   const keyed: { readonly id: ToolbarItemId; readonly key: string }[] = [];
