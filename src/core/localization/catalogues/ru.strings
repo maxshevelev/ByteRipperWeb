@@ -342,9 +342,9 @@
 "Insert mode, a paste in it, and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line." = "Режим вставки, вставка в нём и «Удалить байты» двигают все байты после правки, поэтому спрашивают заранее. Выключите — и диалога не будет; правки останутся отменяемыми, а режим вставки по-прежнему показывает INS в строке состояния панели.";
 "Insert?" = "Вводить со сдвигом?";
 "Inserting at offset %1$@ shifts every byte from here on — the file structure may be affected." = "Вставка по адресу %1$@ сдвинет все последующие байты — структура файла может быть нарушена.";
-"Inside a range the firmware checks at boot" = "Внутри диапазона, который прошивка проверяет при запуске";
-"Inside the Boot Guard IBB" = "Внутри IBB Boot Guard";
-"Inside the Boot Guard IBB: an edit stops the platform booting" = "Внутри IBB Boot Guard: правка здесь останавливает запуск платформы";
+"Inside a range the firmware checks at boot" = "Диапазон, который прошивка проверяет при запуске";
+"Inside the Boot Guard IBB" = "Область IBB Boot Guard";
+"Inside the Boot Guard IBB: an edit stops the platform booting" = "Область IBB Boot Guard: изменения здесь приводят к незапуску платформы";
 "Integrity" = "Целостность";
 "Integrity %1$@" = "Целостность %1$@";
 "Invalid" = "Неверно";

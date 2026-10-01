@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "4b153864ed0df88a56165dd121d7aec620b6c4c8",
-  "baselineNote": "Verify a release with the fields gh actually has (2026-09-29)"
+  "baseCommit": "f60164cef858ca1aa423c5617e8cd27d57178a48",
+  "baselineNote": "Stop a group whose test host hangs in its exit, and run one group alone (2026-09-30)"
 }
