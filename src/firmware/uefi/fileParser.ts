@@ -1,8 +1,15 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
+import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
 import { readMicrocodeHeader } from "@/firmware/uefi/microcodeParser";
+import { parseNvarStore } from "@/firmware/uefi/nvarParser";
+import {
+  nvramNvarBbDefaultsFileGuid,
+  nvramNvarPeiExternalDefaultsFileGuid,
+  nvramNvarStoreFileGuid,
+} from "@/firmware/uefi/nvramGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { Section, ucs2String, walkSections } from "@/firmware/uefi/sectionParser";
@@ -58,6 +65,13 @@ export const FFS = {
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.rawType */
   rawType: 0x01,
   /**
+   * `EFI_FV_FILETYPE_ALL`: never a file's real type, and read the way a raw
+   * file is where it turns up.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.allType
+   */
+  allType: 0x00,
+  /**
    * In the file's *state* byte, not its attributes.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.erasePolarity
@@ -73,6 +87,21 @@ export const FFS = {
  */
 export function hasSections(type: number): boolean {
   return type !== FFS.rawType && type !== FFS.padType;
+}
+
+/**
+ * The files whose body is an AMI NVAR store (§9): the store itself, and the
+ * two sets of defaults the firmware falls back to.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FFS.holdsNvarStore
+ */
+export function holdsNvarStore(name: EFIGUID, type: number): boolean {
+  return (
+    (type === FFS.rawType || type === FFS.allType) &&
+    (guidEquals(name, nvramNvarStoreFileGuid) ||
+      guidEquals(name, nvramNvarPeiExternalDefaultsFileGuid) ||
+      guidEquals(name, nvramNvarBbDefaultsFileGuid))
+  );
 }
 
 const FILE_TYPE_NAMES: Readonly<Record<number, string>> = {
@@ -215,8 +244,17 @@ export function parseFile(
   // polarities still reads.
   const emptyByte = (state & FFS.erasePolarity) !== 0 ? 0xff : 0x00;
   let children: UEFINode[] = [];
-  if (hasSections(type) && body.end > body.start) {
-    children = walkSections(parser, body, { ffsVersion, emptyByte, depth: depth + 1 });
+  if (holdsNvarStore(name, type) && body.end > body.start) {
+    // The body is the store, with no header of its own; when it does not read
+    // as one, the file stays a leaf and the parse says why.
+    children = parseNvarStore(parser, body, { emptyByte, probe: false, depth: depth + 1 }) ?? [];
+  } else if (hasSections(type) && body.end > body.start) {
+    children = walkSections(parser, body, {
+      ffsVersion,
+      emptyByte,
+      depth: depth + 1,
+      fileGuid: name,
+    });
   } else if (
     type === FFS.rawType &&
     body.end > body.start &&

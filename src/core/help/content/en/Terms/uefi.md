@@ -215,12 +215,35 @@ Where to look:
 @name NVRAM
 @short Where the firmware keeps its settings between boots: setup options, boot order, Secure Boot keys.
 
-NVRAM lives in its own area of the BIOS region, in a format that depends on the firmware vendor. ByteRipper reads the common ones — [[term:vss|VSS/VSS2]], FTW, EVSA, FDC and a few vendor-specific stores — and lists the variables in them.
+NVRAM lives in its own area of the BIOS region, in a format that depends on the firmware vendor. ByteRipper reads the common ones — [[term:vss|VSS/VSS2]], AMI's [[term:nvar|NVAR]], FTW, EVSA, FDC and a few vendor-specific stores — and lists the variables in them.
 
 Two properties of NVRAM are worth noting: the firmware rebuilds most of what it needs when the store is absent, and the store is written on every change rather than only on a firmware update.
 
 @see term:vss
 @see topic:recipe-board-data
+
+@term nvar
+@name NVAR store
+@short The NVRAM format of AMI Aptio firmware. A variable is a chain of entries, and only the last entry of the chain holds its current value.
+
+An NVAR store has no header. It occupies the body of an FFS file or of a raw section and consists of contiguous entries, each beginning with the signature `NVAR`. The entries are followed by free space; the last bytes of the store are a table of GUIDs, which entries reference by index.
+
+The firmware does not overwrite a variable in place. To change a value, it either clears the **Valid** bit of the existing entry and writes a new one, or extends a chain: the first entry retains the name and the GUID, and its **Next entry** field points to a later entry that contains only the new value. A single variable can therefore occupy several rows, each of one of the following kinds:
+
+- **Full** — the complete variable in a single entry.
+- **Link** — an entry that is followed by another in its chain. Its value is obsolete.
+- **Data** — the last entry of a chain, which holds the current value. ByteRipper names it after the chain.
+- **Invalid** — a superseded entry. It remains in the store until the firmware reclaims the space.
+- **Invalid link** — a data entry whose chain cannot be traced back to a valid entry.
+
+When a variable is compared between two dumps, the entry to compare is its **Data** or **Full** entry, not the first entry that carries the name.
+
+AMI stores its default values in the same format: the `StdDefaults` file and the PEI and BB defaults files. They contain the values the firmware restores when its settings are reset, not the settings currently in effect.
+
+An entry with an extended header may carry a checksum. ByteRipper verifies it and marks the entry when the checksum does not match.
+
+@see term:nvram
+@see term:vss
 
 @term vss
 @name VSS / VSS2 store

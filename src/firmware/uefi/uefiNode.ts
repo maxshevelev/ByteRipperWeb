@@ -86,6 +86,14 @@ export type UEFINodeKind =
   | "evsaEntry"
   | "flashMapEntry"
   /**
+   * An AMI NVAR entry (§9). Not under a store node of its own: an NVAR store
+   * has no header, and its entries sit straight under the file or raw section
+   * whose body it is, the way UEFITool shows them.
+   */
+  | "nvarEntry"
+  /** The table of GUIDs at an NVAR store's end, which entries name by index. */
+  | "nvarGuidStore"
+  /**
    * An Insyde H2O Flash Device Map, found by the raw-area scan, and one of its
    * entries — the ranges it names are protected.
    */

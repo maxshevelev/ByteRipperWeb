@@ -91,6 +91,19 @@ describe("which entry a node's ? opens", () => {
   });
 });
 
+describe("an NVAR entry", () => {
+  /**
+   * It has a page of its own: what a reader asks of it is which of a
+   * variable's entries holds the value now.
+   */
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift#UEFIHelpTermsTests.testAnNvarEntryHasItsOwnEntry
+  it("has its own entry", () => {
+    for (const kind of ["nvarEntry", "nvarGuidStore"] as const) {
+      expect(uefiHelpTerm(node(kind)), kind).toBe(termId("nvar"));
+    }
+  });
+});
+
 describe("every mapping lands in the book", () => {
   let book: HelpBook;
   beforeAll(async () => {
@@ -128,6 +141,8 @@ describe("every mapping lands in the book", () => {
       "flashMapEntry",
       "flashDeviceMapStore",
       "flashDeviceMapEntry",
+      "nvarEntry",
+      "nvarGuidStore",
       "padding",
       "freeSpace",
       "nonUEFIData",

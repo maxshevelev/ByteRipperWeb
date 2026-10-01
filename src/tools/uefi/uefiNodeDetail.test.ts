@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
+import { checksummedNvarEntry, nvarStore, nvarVolume } from "@/firmware/testing/testNvar";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 import { jedecName } from "@/firmware/uefi/jedecIds";
 import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import type { ProtectedRange } from "@/firmware/uefi/protectedRanges";
 import { TCGHash } from "@/firmware/uefi/tcgHash";
-import { UEFIImage } from "@/firmware/uefi/uefiImage";
+import { parseUefiImage, UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { isProblemField, type NodeDetail } from "@/tools/toolDetail";
@@ -905,5 +906,53 @@ describe("a node a protected range covers", () => {
       []
     );
     expect(untouched.tables.some((one) => one.title === "Protected by")).toBe(false);
+  });
+});
+
+/**
+ * An NVAR entry shows its attributes in the reference's words, where its chain
+ * goes next, and what its extended header says — the checksum checked the same
+ * way the parser checks it.
+ */
+describe("an NVAR entry", () => {
+  const entryOf = (options: { readonly next?: number; readonly wrongBy?: number }) => {
+    const entry = checksummedNvarEntry({
+      name: "Setup",
+      data: Uint8Array.of(0x10, 0x20),
+      ...(options.next === undefined ? {} : { next: options.next }),
+      ...(options.wrongBy === undefined ? {} : { wrongBy: options.wrongBy }),
+    });
+    const bytes = nvarVolume({ body: nvarStore([entry]) });
+    const parsed = parseUefiImage(sourceOver(bytes));
+    const node = parsed.roots[0]?.children[0]?.children[0] as UEFINode;
+    return { bytes, node, stored: entry[entry.length - 3] as number, entry };
+  };
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnNvarEntryReadsItsAttributesNextAndExtendedHeader
+  it("reads its attributes, next entry and extended header", () => {
+    const { bytes, node, stored } = entryOf({ next: 0x40 });
+    const detail = detailOf(node, bytes);
+
+    expect(detail.title).toBe("Setup");
+    expect(value(detail, "Kind")).toBe("NVAR entry");
+    expect(value(detail, "Attributes")).toBe("0x96 (AsciiName, Guid, ExtHeader, Valid)");
+    expect(value(detail, "Next entry")).toBe(
+      `0x${(node.header.start + 0x40).toString(16).toUpperCase()}`
+    );
+    expect(value(detail, "GUID index")).toBeUndefined();
+    expect(value(detail, "Extended attributes")).toBe("0x1 (Checksum)");
+    expect(value(detail, "Checksum")).toBe(checksumText({ value: stored, valid: true }));
+  });
+
+  // A checksum that does not match says what it should be.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnNvarEntryWithAWrongChecksumSaysWhatItShouldBe
+  it("says what a wrong checksum should be", () => {
+    const { bytes, node, stored } = entryOf({ wrongBy: 1 });
+    const detail = detailOf(node, bytes);
+
+    expect(value(detail, "Next entry")).toBeUndefined();
+    expect(value(detail, "Checksum")).toBe(
+      checksumText({ value: stored, valid: false, expected: (stored - 1) & 0xff })
+    );
   });
 });

@@ -37,6 +37,8 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   sysFEntry: ItemType.sysFEntry,
   evsaEntry: ItemType.evsaEntry,
   flashMapEntry: ItemType.phoenixFlashMapEntry,
+  nvarEntry: ItemType.nvarEntry,
+  nvarGuidStore: ItemType.nvarGuidStore,
   flashDeviceMapStore: ItemType.insydeFlashDeviceMapStore,
   flashDeviceMapEntry: ItemType.insydeFlashDeviceMapEntry,
   padding: ItemType.padding,
@@ -99,7 +101,10 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "sysFEntry":
     case "evsaEntry":
     case "flashMapEntry":
+    case "nvarEntry":
       return node.subtype;
+    case "nvarGuidStore":
+      return undefined;
     case "padding":
       return paddingSubtype(node);
     case "freeSpace":

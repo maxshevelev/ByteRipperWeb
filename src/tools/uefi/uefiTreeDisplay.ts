@@ -165,7 +165,7 @@ function titleLead<T extends DisplayNode<T>>(roots: readonly T[]): string {
  *
  * A node with a GUID is named by the catalogue, by the NVRAM classifier's names
  * while the catalogue has none, and by the GUID itself as the last resort. A VSS
- * variable is the exception: its decoded name — "BootOrder", "PK" — is what a
+ * or NVAR variable is the exception: its decoded name — "BootOrder", "PK" — is what a
  * reader looks for, and many variables share one vendor GUID. A node without a
  * GUID keeps the parser's name, falling back to its kind.
  *
@@ -186,7 +186,9 @@ export function nodeName(
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
-  if (node.kind === "vssEntry" && node.name.length > 0) return node.name;
+  if ((node.kind === "vssEntry" || node.kind === "nvarEntry") && node.name.length > 0) {
+    return node.name;
+  }
   return catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
 }
 
@@ -215,6 +217,8 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   sysFEntry: typeName(ItemType.sysFEntry),
   evsaEntry: typeName(ItemType.evsaEntry),
   flashMapEntry: typeName(ItemType.phoenixFlashMapEntry),
+  nvarEntry: typeName(ItemType.nvarEntry),
+  nvarGuidStore: typeName(ItemType.nvarGuidStore),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
   flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
   padding: L("Padding"),

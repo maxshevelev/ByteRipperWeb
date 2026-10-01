@@ -44,6 +44,8 @@ export type Structure =
   | "resetVector"
   /** An NVRAM store: the VSS / VSS2 / FTW and the rest of an NVRAM volume. */
   | "nvramStore"
+  /** An AMI NVAR entry (§9). */
+  | "nvarEntry"
   /** The Boot Policy Manifest the FIT points at. */
   | "bootPolicy"
   /** A Phoenix or AMI vendor hash table. */
@@ -137,7 +139,14 @@ export type DiagnosticKind =
       readonly kind: "unknownFlashDeviceMapEntries";
       readonly size: number;
       readonly format: number;
-    };
+    }
+  /**
+   * An NVAR entry that does not read — a broken signature, a size that is too
+   * small or runs past the store, a name with no end. The walk stops, and the
+   * store from here on is kept as padding; at the store's first byte, the body
+   * is not an NVAR store at all.
+   */
+  | { readonly kind: "unreadableNvarEntry" };
 
 /**
  * Where a diagnostic raised inside a compressed section really is: an offset in
@@ -198,6 +207,7 @@ export function severityOf(detail: DiagnosticKind): Severity {
     case "truncated":
     case "zeroSize":
     case "recursionLimit":
+    case "unreadableNvarEntry":
       return "error";
     default:
       return "warning";
@@ -218,6 +228,7 @@ const LABELS: () => Readonly<Record<Structure, string>> = localized(() => ({
   microcodeHeader: "microcode header",
   resetVector: "reset vector",
   nvramStore: "NVRAM store",
+  nvarEntry: "NVAR entry",
   bootPolicy: "Boot Policy Manifest",
   vendorHashFile: "vendor hash table",
   flashDeviceMap: "Insyde flash device map",
@@ -303,5 +314,7 @@ function kindMessage(detail: DiagnosticKind): string {
         `Insyde flash device map entries of ${hex(detail.size)} bytes in format ` +
         `${hex(detail.format)} are of no known layout`
       );
+    case "unreadableNvarEntry":
+      return "NVAR entry cannot be read; the store is kept as padding from here";
   }
 }

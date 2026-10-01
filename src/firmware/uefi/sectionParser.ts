@@ -7,8 +7,10 @@ import {
   isCompressedGuid,
   PROCESSING_REQUIRED,
 } from "@/firmware/uefi/compressedSection";
-import type { EFIGUID } from "@/firmware/uefi/efiGuid";
+import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { guidedSection } from "@/firmware/uefi/knownGuids";
+import { parseNvarStore } from "@/firmware/uefi/nvarParser";
+import { nvramNvarExternalDefaultsFileGuid } from "@/firmware/uefi/nvramGuids";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
@@ -131,9 +133,19 @@ export function isKnownSectionType(type: number): boolean {
 export function walkSections(
   parser: Parser,
   body: ImageRange,
-  options: { readonly ffsVersion: number; readonly emptyByte: number; readonly depth: number }
+  options: {
+    readonly ffsVersion: number;
+    readonly emptyByte: number;
+    readonly depth: number;
+    /**
+     * The file the sections belong to, when the walk knows it: a raw section
+     * means something different in some files (§9). A buffer decompressed
+     * from a section is walked without it.
+     */
+    readonly fileGuid?: EFIGUID | undefined;
+  }
 ): UEFINode[] {
-  const { ffsVersion, emptyByte, depth } = options;
+  const { ffsVersion, emptyByte, depth, fileGuid } = options;
   if (depth >= parser.limits.maxDepth) {
     parser.note({ kind: "recursionLimit" }, body.start);
     return [];
@@ -184,7 +196,16 @@ export function walkSections(
     }
 
     nodes.push(
-      parseSection(parser, { offset, end, headerSize, type, ffsVersion, emptyByte, depth })
+      parseSection(parser, {
+        offset,
+        end,
+        headerSize,
+        type,
+        ffsVersion,
+        emptyByte,
+        depth,
+        fileGuid,
+      })
     );
 
     const up = alignUp(end - body.start, Section.alignment);
@@ -207,9 +228,10 @@ function parseSection(
     readonly ffsVersion: number;
     readonly emptyByte: number;
     readonly depth: number;
+    readonly fileGuid: EFIGUID | undefined;
   }
 ): UEFINode {
-  const { offset, end, headerSize, type, ffsVersion, emptyByte, depth } = options;
+  const { offset, end, headerSize, type, ffsVersion, emptyByte, depth, fileGuid } = options;
   let name = sectionTypeName(type);
   let guid: EFIGUID | undefined;
   let bodyStart = offset + headerSize;
@@ -290,7 +312,16 @@ function parseSection(
   let children: UEFINode[] = [];
   if (body.end > body.start) {
     if (readsBodyAsSections) {
-      children = walkSections(parser, body, { ffsVersion, emptyByte, depth: depth + 1 });
+      children = walkSections(parser, body, { ffsVersion, emptyByte, depth: depth + 1, fileGuid });
+    } else if (type === Section.raw) {
+      // The external defaults file's raw section is an NVAR store and is meant
+      // to read as one. Any other raw section is tried, the way the reference
+      // tries every one: a store opens `NVAR`, so a body that does not costs
+      // one read to turn down (§9).
+      const isDefaults =
+        fileGuid !== undefined && guidEquals(fileGuid, nvramNvarExternalDefaultsFileGuid);
+      children =
+        parseNvarStore(parser, body, { emptyByte, probe: !isDefaults, depth: depth + 1 }) ?? [];
     } else if (type === Section.firmwareVolumeImage) {
       // A volume inside a section, and files inside that: the point at which
       // this format starts over one level down.

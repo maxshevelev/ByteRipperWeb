@@ -1,4 +1,4 @@
-@source-sha 447ec9090ae162e30a7bfe19a18250266f9098f7070e44d4374d0e9dcf832fdd
+@source-sha 51e3d3dc900849f1a28418a6b33b10724b6611389e05f9be3bc30f80b5f2c350
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -216,12 +216,35 @@ Wo zu suchen ist:
 @name NVRAM
 @short Wo die Firmware ihre Einstellungen zwischen zwei Starts ablegt: Setup-Optionen, Boot-Reihenfolge, Secure-Boot-Schlüssel.
 
-NVRAM liegt in einem eigenen Bereich der BIOS-Region, in einem Format, das vom Firmware-Hersteller abhängt. ByteRipper liest die gängigen — [[term:vss|VSS/VSS2]], FTW, EVSA, FDC und einige herstellereigene — und führt die Variablen darin auf.
+NVRAM liegt in einem eigenen Bereich der BIOS-Region, in einem Format, das vom Firmware-Hersteller abhängt. ByteRipper liest die gängigen — [[term:vss|VSS/VSS2]], [[term:nvar|NVAR]] von AMI, FTW, EVSA, FDC und einige herstellereigene — und führt die Variablen darin auf.
 
 Zwei Eigenschaften des NVRAM sind festzuhalten: Fehlenden Inhalt legt die Firmware größtenteils neu an, und geschrieben wird er bei jeder Änderung von Einstellungen und nicht nur bei einem Firmware-Update.
 
 @see term:vss
 @see topic:recipe-board-data
+
+@term nvar
+@name NVAR
+@short Das NVRAM-Format der AMI-Aptio-Firmware. Eine Variable ist als Kette von Einträgen abgelegt; ihren aktuellen Wert enthält nur der letzte Eintrag der Kette.
+
+Ein NVAR-Speicher besitzt keinen eigenen Header. Er belegt den Datenteil einer FFS-Datei oder einer Section vom Typ Raw und besteht aus lückenlos aufeinanderfolgenden Einträgen, die jeweils mit der Signatur `NVAR` beginnen. Auf die Einträge folgt freier Speicher; die letzten Bytes des Speichers bilden eine GUID-Tabelle, auf die sich die Einträge über einen Index beziehen.
+
+Beim Ändern einer Variablen überschreibt die Firmware den vorhandenen Eintrag nicht. Sie setzt entweder das **Valid**-Bit des bisherigen Eintrags zurück und legt einen neuen an, oder sie verlängert eine Kette. In diesem Fall verbleiben Name und GUID im ersten Eintrag, dessen Feld **Next entry** auf einen späteren Eintrag verweist, der ausschließlich den neuen Wert enthält. Einer Variablen können daher mehrere Zeilen im Baum entsprechen, jede von einer der folgenden Arten:
+
+- **Full** — die vollständige Variable in einem einzigen Eintrag.
+- **Link** — ein Eintrag, dem in seiner Kette ein weiterer folgt. Sein Wert ist nicht mehr gültig.
+- **Data** — der abschließende Eintrag einer Kette; er enthält den aktuellen Wert. ByteRipper versieht ihn mit dem Namen der Kette.
+- **Invalid** — ein ersetzter Eintrag. Er verbleibt im Speicher, bis die Firmware den belegten Platz freigibt.
+- **Invalid link** — ein Dateneintrag, dessen Kette sich auf keinen gültigen Eintrag zurückführen lässt.
+
+Soll eine Variable in zwei Dumps verglichen werden, ist ihr Eintrag der Art **Data** oder **Full** maßgeblich, nicht der erste Eintrag, der den Namen trägt.
+
+Im selben Format legt AMI die Standardwerte ab: in der Datei `StdDefaults` sowie in den Dateien für PEI- und BB-Defaults. Sie enthalten die Werte, die die Firmware beim Zurücksetzen der Einstellungen wiederherstellt, nicht die aktuell wirksamen Einstellungen.
+
+Ein Eintrag mit erweitertem Header kann eine Prüfsumme enthalten. ByteRipper prüft sie und kennzeichnet den Eintrag, wenn sie nicht übereinstimmt.
+
+@see term:nvram
+@see term:vss
 
 @term vss
 @name VSS / VSS2

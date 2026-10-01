@@ -300,7 +300,12 @@ function walkStores(
  * A run of bytes between NVRAM stores. All the erase byte is free space;
  * anything in it is padding somebody put there.
  */
-function nvramPadding(parser: Parser, start: number, end: number, emptyByte: number): UEFINode[] {
+export function nvramPadding(
+  parser: Parser,
+  start: number,
+  end: number,
+  emptyByte: number
+): UEFINode[] {
   if (start >= end) return [];
   const range: ImageRange = { start, end };
   if (parser.reader.isFilled(range, emptyByte)) {

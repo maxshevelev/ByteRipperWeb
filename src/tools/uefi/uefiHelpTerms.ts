@@ -83,6 +83,11 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     case "flashMapEntry":
     case "flashDeviceMapEntry":
       return termId("vss");
+    // AMI's store is the exception, because what a reader asks of it is
+    // different: which of a variable's entries holds its value now.
+    case "nvarEntry":
+    case "nvarGuidStore":
+      return termId("nvar");
     default:
       // A kind nobody has written an entry for: no button, which is the honest
       // answer rather than a `?` that opens nothing.

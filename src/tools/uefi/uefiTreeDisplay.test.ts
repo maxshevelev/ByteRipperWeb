@@ -190,6 +190,21 @@ describe("the name", () => {
     expect(nodeName(variable, catalogue([[vendor, "Something else"]]))).toBe("BootOrder");
   });
 
+  // An NVAR variable is named the same way, for the same reason.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAnNvarVariableIsNamedByItsNameNotItsGuid
+  it("keeps an NVAR variable's name over its GUID", () => {
+    const owner = guid("11111111-2222-3333-4444-555555555555");
+    const variable = makeNode({
+      kind: "nvarEntry",
+      subtype: 0x86,
+      name: "Setup",
+      guid: owner,
+      header: r(0, 0x20),
+      body: r(0x20, 0x30),
+    });
+    expect(nodeName(variable, catalogue([[owner, "Something else"]]))).toBe("Setup");
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testANodeWithoutAGuidKeepsItsParserName
   it("keeps the parser's name for a node without a GUID", () => {
     expect(

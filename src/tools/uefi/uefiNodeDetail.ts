@@ -16,6 +16,7 @@ import {
   microcodeProcessorText,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
+import { NVAR, nvarChecksumOf } from "@/firmware/uefi/nvarParser";
 import {
   isIbbKind,
   type ProtectedRange,
@@ -491,6 +492,16 @@ function headerFields(
       break;
     }
 
+    case "nvarEntry":
+      fields.push(...nvarFields(node, reader));
+      break;
+
+    case "nvarGuidStore":
+      fields.push(
+        field("GUIDs", `${Math.floor((node.body.end - node.body.start) / NVAR.guidSize)}`)
+      );
+      break;
+
     case "slicData":
       switch (node.subtype) {
         case Sub.pubkeySlicData:
@@ -607,6 +618,94 @@ const NVRAM_ATTRIBUTE_BITS: readonly (readonly [number, string])[] = [
   [0x8000_0000, "AppleChecksum"],
 ];
 
+/**
+ * What an NVAR entry's header and extended header say (§9). The GUID is the
+ * common "GUID" field — the parser found it, in the entry or in the store's
+ * table, or took it from the chain for a later link.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.nvarFields
+ */
+function nvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
+  const h = node.header.start;
+  const fields: DetailField[] = [];
+  const attributes = reader.uint8(h + 9);
+  if (attributes === undefined) return fields;
+  fields.push(field("Attributes", bits(attributes, NVAR_ATTRIBUTE_BITS)));
+  // `next` is relative to the entry; the row says where it lands.
+  const next = reader.uint24(h + 6);
+  if (next !== undefined && next !== NVAR.noNext) fields.push(field("Next entry", hex(h + next)));
+  // An entry that names its GUID by index carries the index right after the
+  // header — on a valid entry that is not a later link.
+  if (
+    (attributes & NVAR.valid) !== 0 &&
+    (attributes & NVAR.dataOnly) === 0 &&
+    (attributes & NVAR.localGuid) === 0
+  ) {
+    const index = reader.uint8(h + NVAR.headerSize);
+    if (index !== undefined) fields.push(field("GUID index", `${index}`));
+  }
+
+  // The extended header is the entry's tail: its attributes first, then a
+  // timestamp and a hash when the variable is time-authenticated, and the
+  // checksum and the header's own size last.
+  const tail = node.tail;
+  const tailSize = tail.end - tail.start;
+  const extended = tailSize >= NVAR.extendedHeaderMinimum ? reader.uint8(tail.start) : undefined;
+  if (extended === undefined) return fields;
+  fields.push(field("Extended attributes", bits(extended, NVAR_EXTENDED_ATTRIBUTE_BITS)));
+  if ((extended & NVAR.extendedTimeBased) !== 0 && tailSize >= 1 + NVAR.timestampSize + 2) {
+    const timestamp = reader.uint64(tail.start + 1);
+    if (timestamp !== undefined) {
+      fields.push(field("Timestamp", hex(timestamp)));
+      const hashEnd = 1 + NVAR.timestampSize + NVAR.hashSize + 2;
+      if ((attributes & NVAR.dataOnly) === 0 && tailSize >= hashEnd) {
+        const hash = reader.bytesAt(tail.start + 1 + NVAR.timestampSize, NVAR.hashSize);
+        if (hash !== undefined) {
+          fields.push(
+            field(
+              "Hash",
+              [...hash].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join("")
+            )
+          );
+        }
+      }
+    }
+  }
+  const checksum = nvarChecksumOf(node, reader);
+  if (checksum !== undefined) {
+    fields.push(
+      field(
+        L("Checksum"),
+        checksumText({
+          value: checksum.stored,
+          valid: checksum.valid,
+          expected: checksum.expected,
+        })
+      )
+    );
+  }
+  return fields;
+}
+
+/** The NVAR attribute bits, in the reference parser's words. */
+const NVAR_ATTRIBUTE_BITS: readonly (readonly [number, string])[] = [
+  [NVAR.runtime, "Runtime"],
+  [NVAR.asciiName, "AsciiName"],
+  [NVAR.localGuid, "Guid"],
+  [NVAR.dataOnly, "DataOnly"],
+  [NVAR.extendedHeader, "ExtHeader"],
+  [NVAR.hwErrorRecord, "HwErrorRecord"],
+  [NVAR.authWrite, "AuthWrite"],
+  [NVAR.valid, "Valid"],
+];
+
+/** The NVAR extended attribute bits; the others are unknown. */
+const NVAR_EXTENDED_ATTRIBUTE_BITS: readonly (readonly [number, string])[] = [
+  [NVAR.extendedChecksum, "Checksum"],
+  [NVAR.extendedAuthWrite, "AuthWrite"],
+  [NVAR.extendedTimeBased, "TimeBasedAuthWrite"],
+];
+
 /** The EVSA data-entry bits: the VSS words, with the extended-header bit. */
 const EVSA_ATTRIBUTE_BITS: readonly (readonly [number, string])[] = [
   [0x0000_0001, "NonVolatile"],
@@ -697,6 +796,7 @@ function typeText(node: UEFINode): string {
     case "sysFEntry":
     case "evsaEntry":
     case "flashMapEntry":
+    case "nvarEntry":
     case "slicData":
       return subtypeName(itemType(node), subtype) ?? hex(subtype);
     default:
