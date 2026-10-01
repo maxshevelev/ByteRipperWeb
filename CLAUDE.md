@@ -83,7 +83,8 @@ Important rules:
   what a page says, not how it says it, so a wording that reads as
   translated-from-English is a wording that is wrong. This governs the words the
   web owns; what the macOS app already has in a language is copied word for word
-  (`Design/LOCALIZATION.md`, "Whose words").
+  (`Design/LOCALIZATION.md`, "Whose words"). The rule and its examples: "The
+  tone, and why a translation is not a copy".
 
 Skills:
 - Skills live in the repo, committed under `Skills/<name>/`: `SKILL.md`

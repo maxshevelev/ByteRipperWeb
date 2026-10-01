@@ -161,6 +161,11 @@ register follows from that, and it is the same rule in both languages:
   `ARB SVN` is in the reader's language, not to invent a name for it.
 - Keep `` `code` ``, `[[topic:…]]`, `[[term:…]]` and every anchor exactly as
   they are. Only the prose is translated.
+- **A strictly technical register, and no calques.** No colloquialisms and no
+  Americanisms; the Russian and the German page is each a text of its own,
+  written as a technical author in that language would write it, saying what
+  the English says. The rule and its examples are in `Design/LOCALIZATION.md`,
+  "The tone, and why a translation is not a copy".
 
 ## What the script does not do
 

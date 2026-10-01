@@ -169,6 +169,20 @@ The three glossaries — `general`, `uefi`, `me` — are firmware vocabulary and
 port very nearly verbatim: `$FPT` is `$FPT` on every platform. Their web edits
 are limited to cross-references that name a page this edition changed.
 
+## Writing a page, in any language
+
+- **A page**: write `Topics/<id>.md` in English, register it in
+  `helpContents.ts`, give it its `@covers` anchors. The tests require it in
+  every shipped language.
+- **A term**: add a `@term` block to the right `Terms/<group>.md`; point at it
+  from a node (`helpTerm`, `uefiHelpTerm`) or from prose.
+- **A language**: copy `content/en` to `content/<code>` and write each page
+  anew in that language. Nothing in the code changes.
+- **The words**, in every language: a strictly technical register, no
+  colloquialisms or Americanisms, and a translation that is a text of its own
+  rather than a calque of the English (`LOCALIZATION.md`, "The tone, and why a
+  translation is not a copy").
+
 ## What is deliberately not done
 
 - **No minimap `?`**, for upstream's reason: the panel is too narrow to spend a
