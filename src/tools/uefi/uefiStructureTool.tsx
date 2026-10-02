@@ -435,6 +435,26 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const roots = state?.roots;
   const status = state?.status;
 
+  // The file in the pane was replaced: the node in focus, the rows open and the scroll
+  // belonged to the tree of the file that was there, and the zones outline bytes of it.
+  // Left standing they pointed into a tree that no longer has those rows — a list
+  // scrolled past its end, a detail for nothing, an outline over the wrong bytes.
+  //
+  // @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
+  const reloads = state?.reloads ?? 0;
+  const seenReloads = useRef(reloads);
+  useEffect(() => {
+    if (seenReloads.current === reloads) return;
+    seenReloads.current = reloads;
+    setSelected(undefined);
+    setMeFocus(undefined);
+    setOpen(new Set());
+    setScrollTarget(undefined);
+    setScrollTop(0);
+    if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
+    clearZones(context.pane);
+  }, [reloads, context.pane]);
+
   /**
    * The Top Swap copy of the boot block, found by the worker with the protected
    * ranges: the rows of the copy say so in their name and open the Top Swap page.

@@ -72,6 +72,15 @@ export interface PaneFirmware {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.dvarSettings
    */
   readonly dvarSettings: DellSetupCatalogue | undefined;
+  /**
+   * How many times the pane's content has been replaced outright — another file
+   * opened into it, a revert. What a panel kept about the tree it read (the node in
+   * focus, the rows open, where it was scrolled) described a file that is no longer
+   * there, and it starts over when this moves.
+   *
+   * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
+   */
+  readonly reloads: number;
 }
 
 export interface FirmwareState {
@@ -90,6 +99,7 @@ const empty: PaneFirmware = {
   detail: undefined,
   protectedRanges: undefined,
   dvarSettings: undefined,
+  reloads: 0,
 };
 
 export const firmwareStore = createStore<FirmwareState>({ panes: { a: undefined, b: undefined } });
@@ -1238,6 +1248,8 @@ export function noteFirmwareContentChange(pane: PaneId, change: ToolContentChang
     //
     // @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
     forgetMeAnalysis(pane);
+    const state = firmwareFor(pane);
+    if (state !== undefined) update(pane, { reloads: state.reloads + 1 });
   }
   // Nothing is reading this pane's tree, so there is nothing to tell — and a
   // tree opened later is read from the content as it is then. Without this the
