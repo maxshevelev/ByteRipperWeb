@@ -2072,7 +2072,13 @@ export function AppShell() {
       {sessionOn(tools, pane).activeIdentifier === undefined ? null : (
         <ToolPanel
           surface={pane}
-          onReveal={(target, start, end) => {
+          onReveal={(target, start, end, select) => {
+            if (!select || start >= end) {
+              // Going there without selecting: the caret moves to the start and the
+              // dump shows it, the selection the user may have untouched.
+              revealIn(target, start, true);
+              return;
+            }
             void paneState(target)?.typing.setSelection(start, end);
             // The range is selected, then shown: scroll alone, so the reveal's
             // caret move does not collapse the selection just made.

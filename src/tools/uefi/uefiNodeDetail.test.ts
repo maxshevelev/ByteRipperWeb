@@ -1135,7 +1135,9 @@ describe("a variable's history", () => {
       );
     };
     variable("Lang", [0x65], false);
-    copies.forEach((value, index) => variable("Setup", value, index < copies.length - 1));
+    for (const [index, value] of copies.entries()) {
+      variable("Setup", value, index < copies.length - 1);
+    }
     const store = makeNode({
       kind: "vss2Store",
       name: "VSS2 store",

@@ -114,7 +114,7 @@ export function ToolDetail({
             {/* A label is the row's identity — and its place, for the node that says one
                 twice: a DVAR entry's header has a Type of its own beside the common one. */}
             {detail.fields.map((one, at) => (
-              <div className="tool-detail-row" key={`${at}\u0000${one.label}`}>
+              <div className="tool-detail-row" key={positional(at, one.label)}>
                 <dt>{one.label}</dt>
                 {/*
                   One rendering for a value that carries a status, wherever it
@@ -216,9 +216,8 @@ function DetailTableView({
         </thead>
         <tbody>
           {table.rows.map((row, rowIndex) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional, rebuilt whole
             <tr
-              key={rowIndex}
+              key={positional(rowIndex, "row")}
               data-target={
                 onSelectNode !== undefined && table.rowTargets?.[rowIndex] !== undefined
                   ? ""
@@ -278,6 +277,12 @@ export function DoneMark() {
     </svg>
   );
 }
+
+/**
+ * The key of something that has no identity but its place: a row rebuilt whole with
+ * its table, or a label a node says twice.
+ */
+const positional = (index: number, what: string): string => `${index}\u0000${what}`;
 
 /** Upstream's system symbols, drawn as the same idea in a line glyph. */
 function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {

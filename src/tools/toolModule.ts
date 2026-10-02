@@ -46,14 +46,17 @@ export interface ToolContext {
    */
   readonly restored: ToolSessionState | undefined;
   /**
-   * Shows a range in the dump, and selects it.
+   * Shows a range in the dump, and selects it — or, with `select` false, moves the
+   * caret to its start and leaves the selection alone: looking is not selecting,
+   * and a user may be part-way through something in the dump. Selecting is the
+   * default; going to a thing's place is the other.
    *
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.reveal
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showZoneStartForTool
    * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.reveal
    */
-  readonly reveal: (start: number, end: number) => void;
+  readonly reveal: (start: number, end: number, select?: boolean) => void;
   /**
    * Something the panel just did, said in the bound pane's own line for a
    * moment: an edit that landed, a write that was refused.

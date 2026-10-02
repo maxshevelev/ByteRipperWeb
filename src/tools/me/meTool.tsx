@@ -410,7 +410,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const choose = useCallback(
     (node: MEANode) => {
       setFocus(keyOf(node.path));
-      if (node.range !== undefined) context.reveal(node.range.start, node.range.end);
+      if (node.range !== undefined) context.reveal(node.range.start, node.range.end, false);
       // The digests are three passes over the region, so they are worked out
       // when somebody looks at them and not before.
       if (node.path.length === 1 && node.title === CHECKSUMS_TITLE && !askedChecksums.current) {

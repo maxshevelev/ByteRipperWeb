@@ -617,7 +617,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       setMeFocus(meKey(node.path));
       setSelected(undefined);
       publishZones(context.pane, meaZones(node));
-      if (node.range !== undefined) context.reveal(node.range.start, node.range.end);
       // Looking at the Checksums row is what asks for the digests: three passes
       // over the whole region, which a parse leaves out.
       me.rowPicked(node);
@@ -727,13 +726,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // over the dump and in the minimap's gutter. Never the children: a store's
       // two hundred variables outlined at once is a dump nobody can read.
       const zones = uefiZones(node, from);
+      // Publishing is all a click does: the shell brings the newly focused zone on
+      // screen by itself, and neither the caret nor the selection moves — picking a
+      // row is looking, not going.
       publishZones(context.pane, zones);
-      // What clicking a row means: the whole node, header through tail — or,
-      // for a node inside a compressed section, the section that holds it,
-      // since its own ranges are offsets into a buffer and the dump has no
-      // bytes to show for them. The outermost zone is that range either way.
-      const whole = zones.zones[0];
-      if (whole !== undefined) context.reveal(whole.start, whole.end);
     },
     [context, roots]
   );

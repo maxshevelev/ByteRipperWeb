@@ -65,7 +65,7 @@ export function ToolPanel({
    * means whatever is in front and a folded panel keeps its own choice (G50).
    */
   readonly surface?: SurfaceId;
-  readonly onReveal: (pane: PaneId, start: number, end: number) => void;
+  readonly onReveal: (pane: PaneId, start: number, end: number, select: boolean) => void;
   /**
    * Files were let go on the panel: they replace the file it is reading, which
    * is what its own pane's Replace Current File band does with them.
@@ -98,8 +98,8 @@ export function ToolPanel({
   const [dragOver, setDragOver] = useState(false);
 
   const reveal = useCallback(
-    (start: number, end: number) => {
-      if (boundPane !== undefined) onReveal(boundPane, start, end);
+    (start: number, end: number, select = true) => {
+      if (boundPane !== undefined) onReveal(boundPane, start, end, select);
     },
     [onReveal, boundPane]
   );

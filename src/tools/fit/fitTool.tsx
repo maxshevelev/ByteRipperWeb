@@ -445,7 +445,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         case "goToOffset": {
           const row = display.rows.find((one) => offsetToGoTo(one) === command.offset);
           const range = row?.targetRange;
-          context.reveal(command.offset, range?.end ?? command.offset + 16);
+          context.reveal(command.offset, range?.end ?? command.offset + 16, false);
           if (row !== undefined) {
             // Nothing is *selected*: an active outline says "this is what you
             // asked for" without touching a selection the user may be
@@ -495,16 +495,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onSelect
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewSelectionDidChange
    */
-  const choose = useCallback(
-    (row: FITDisplayRow) => {
-      setFocus(rowKey(row));
-      setFocusZone(row.zoneId);
-      // The row's own sixteen bytes: selecting a row is about the row, and
-      // going to what it points at is the double-click and the menu's command.
-      context.reveal(row.rowRange.start, row.rowRange.end);
-    },
-    [context]
-  );
+  const choose = useCallback((row: FITDisplayRow) => {
+    setFocus(rowKey(row));
+    setFocusZone(row.zoneId);
+    // Publishing the focus is what moves the outline, and the shell brings the
+    // zone on screen by itself: going to what the row points at is the
+    // double-click and the menu's command.
+  }, []);
 
   /**
    * The table's name: the dump goes to the whole table, and no row is in focus.
@@ -517,7 +514,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     if (table === undefined) return;
     setFocus(undefined);
     setFocusZone(TABLE_ZONE_ID);
-    context.reveal(table.start, table.end);
+    context.reveal(table.start, table.end, false);
   }, [display.zones, context]);
 
   /**
