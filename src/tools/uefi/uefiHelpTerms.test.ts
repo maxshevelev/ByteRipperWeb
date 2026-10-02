@@ -118,6 +118,7 @@ describe("EC firmware in padding", () => {
     expect(uefiHelpTerm({ kind: "padding", name: "EC firmware (ITE8226-EC-V0.00)" })).toBe(
       termId("ec-firmware")
     );
+    expect(uefiHelpTerm({ kind: "padding", name: "EC firmware" })).toBe(termId("ec-firmware"));
     expect(uefiHelpTerm({ kind: "padding", name: "Padding" })).toBe(termId("padding"));
   });
 });

@@ -5,12 +5,12 @@ import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
-import { allECImages } from "@/firmware/uefi/ecFirmware";
+import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
-import { allITEFirmware, ITE_PADDING_NAME_PREFIX } from "@/firmware/uefi/iteFirmware";
+import { allITEFirmware } from "@/firmware/uefi/iteFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
 import {
@@ -562,10 +562,7 @@ function headerFields(
     // Padding the parser named for the ITE image it opens on lists every image.
     case "padding":
       // With a row per image, the rows say it.
-      if (
-        node.name.startsWith(ITE_PADDING_NAME_PREFIX) &&
-        !node.children.some((child) => child.kind === "ecImage")
-      ) {
+      if (isECFirmwarePadding(node) && !node.children.some((child) => child.kind === "ecImage")) {
         fields.push(...iteFields(node, reader));
       }
       break;

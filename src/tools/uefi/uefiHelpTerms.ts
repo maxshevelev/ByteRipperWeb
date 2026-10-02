@@ -16,9 +16,9 @@
  */
 
 import { type HelpTermId, termId } from "@/core/help/helpIds";
+import { isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
-import { ITE_PADDING_NAME_PREFIX } from "@/firmware/uefi/iteFirmware";
 import type { UEFINodeKind } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 
@@ -82,9 +82,7 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     // Padding the parser named for the EC image it opens on is read as what it
     // looks like.
     case "padding":
-      return node.name?.startsWith(ITE_PADDING_NAME_PREFIX) === true
-        ? termId("ec-firmware")
-        : termId("padding");
+      return isECFirmwarePadding(node) ? termId("ec-firmware") : termId("padding");
     case "ecImage":
       return termId("ec-firmware");
     case "freeSpace":

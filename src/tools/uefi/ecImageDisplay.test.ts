@@ -47,7 +47,7 @@ function built(): { image: UEFIImage; reader: ImageReader } {
   const region = makeNode({
     kind: "region",
     subtype: 6,
-    name: "EC region (Microchip MEC image)",
+    name: "EC region",
     header: r(0, 0),
     body: r(0, 0x4000),
     isFixed: true,

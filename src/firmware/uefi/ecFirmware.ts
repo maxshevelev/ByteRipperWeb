@@ -1,7 +1,7 @@
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { guidEquals } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
-import { ITE_PADDING_NAME_PREFIX, readITEFirmware } from "@/firmware/uefi/iteFirmware";
+import { readITEFirmware } from "@/firmware/uefi/iteFirmware";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
 
@@ -173,11 +173,34 @@ export const EC_COPY_SUBTYPE = 1;
 const roundedUp = (size: number): number => Math.ceil(size / STEP) * STEP;
 
 /**
+ * The name padding gets when it holds EC firmware — with the image's name after it
+ * when it holds one, alone when its rows name the images.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.paddingName
+ */
+export const EC_PADDING_NAME = "EC firmware";
+
+/**
+ * Whether `node` is padding the parser named for the EC firmware in it, which the
+ * panel's help and details key on.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.isECFirmwarePadding
+ */
+export const isECFirmwarePadding = (node: {
+  readonly kind: string;
+  readonly name?: string | undefined;
+}): boolean =>
+  node.kind === "padding" &&
+  node.name !== undefined &&
+  (node.name === EC_PADDING_NAME || node.name.startsWith(`${EC_PADDING_NAME} (`));
+
+/**
  * `node` — padding, an EC Firmware region of the flash device map, or the
  * descriptor's EC region — read as the EC firmware it holds
- * (`UEFI_IMAGE_FORMAT.md` §9): named by its first image, and, when it holds more
- * than that one image at its start, given a row per image and padding for what lies
- * between them. Nothing when no image is there.
+ * (`UEFI_IMAGE_FORMAT.md` §9). One image at its start names it; more than that
+ * gives it a row per image, each named by its own, and padding for what lies
+ * between them, and the block keeps a name of its own. Nothing when no image is
+ * there.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#Parser.readingECFirmware
  */
@@ -189,16 +212,18 @@ export function readingECFirmware(
   const images = allECImages(node.body, parser.reader, emptyByte);
   const first = images[0];
   if (first === undefined) return undefined;
+  // Padding names only what opens it: an image further in is a guess about the
+  // bytes before it.
+  if (node.kind === "padding" && first.start !== node.body.start) return undefined;
   const read: UEFINode = { ...node };
-  if (node.kind === "padding") {
-    // Padding names only what opens it: an image further in is a guess about the
-    // bytes before it.
-    if (first.start !== node.body.start) return undefined;
-    read.name = `${ITE_PADDING_NAME_PREFIX}${ecImageName(first)})`;
-  } else {
-    read.name = `${node.name} (${ecImageName(first)})`;
+  const base = node.kind === "padding" ? EC_PADDING_NAME : node.name;
+  // One image at the start: the block is that image, and says which.
+  if (images.length <= 1 && first.start === node.body.start) {
+    read.name = `${base} (${ecImageName(first)})`;
+    return read;
   }
-  if (images.length <= 1 && first.start === node.body.start) return read;
+  // Several: each row names its own, and the block names none of them.
+  read.name = base;
 
   const children: UEFINode[] = [];
   let at = node.body.start;

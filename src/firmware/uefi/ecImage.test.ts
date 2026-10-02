@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
-import { intelImage } from "@/firmware/testing/testImage";
+import { intelImage, volume, volumeTopFile } from "@/firmware/testing/testImage";
 import { iteImage } from "@/firmware/testing/testInsyde";
-import { allECImages, EC_COPY_SUBTYPE } from "@/firmware/uefi/ecFirmware";
+import { allECImages, EC_COPY_SUBTYPE, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { itemSubtype, itemType } from "@/firmware/uefi/itemClassification";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -55,7 +55,8 @@ describe("EC images in a block", () => {
         [0x3000, iteImage({ identification: "ITE8380-EC-V1.43", length: 0x2100 })],
       ])
     );
-    expect(region.name).toBe("EC region (ITE5507-SB-V0.67)");
+    // Each row names its chip; the block names none of them.
+    expect(region.name).toBe("EC region");
     expect(region.children.map((node) => node.kind)).toEqual([
       "ecImage",
       "padding",
@@ -89,6 +90,7 @@ describe("EC images in a block", () => {
     const { region, whole } = ecRegion(ec);
     const rows = region.children;
 
+    expect(region.name).toBe("EC region");
     expect(rows.map((node) => node.kind)).toEqual(["ecImage", "ecImage", "padding"]);
     expect(ranges(rows)).toEqual([r(0x1000, 0x3000), r(0x3000, 0x5000), r(0x5000, 0x9000)]);
     expect(rows[0]?.name).toBe("Microchip MEC image");
@@ -113,6 +115,22 @@ describe("EC images in a block", () => {
     expect(
       region.children.filter((node) => node.kind === "ecImage").map((node) => node.subtype)
     ).toEqual([undefined, undefined]);
+  });
+
+  // Padding holding two images is "EC firmware", and its rows say which.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testPaddingWithSeveralImagesNamesNoneOfThem
+  it("names none of the images of padding that holds several", () => {
+    const bytes = new Uint8Array(0x10000).fill(0xff);
+    bytes.set(iteImage({ identification: "ITE5507-SB-V0.67" }), 0);
+    bytes.set(iteImage({ identification: "ITE8380-EC-V0.00" }), 0x2000);
+    bytes.set(volume({ length: 0x1000, lastFile: volumeTopFile() }), 0xf000);
+    const padding = (parseUefiImage(sourceOver(bytes)).roots[0] as UEFINode)
+      .children[0] as UEFINode;
+    expect(padding.name).toBe("EC firmware");
+    expect(isECFirmwarePadding(padding)).toBe(true);
+    expect(
+      padding.children.filter((node) => node.kind === "ecImage").map((node) => node.name)
+    ).toEqual(["ITE5507-SB-V0.67", "ITE8380-EC-V0.00"]);
   });
 
   // One image at the block's start is the common case: the block is named by it

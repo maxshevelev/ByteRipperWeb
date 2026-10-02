@@ -36,14 +36,6 @@ export interface ITEFirmware {
   readonly signatureOffset: number;
 }
 
-/**
- * The start of the name a padding row gets when it opens on an ITE image, which
- * the help lookup keys on as well.
- *
- * @upstream Packages/UEFIImage/Sources/UEFIImage/ITEFirmware.swift#ITEFirmware.paddingNamePrefix
- */
-export const ITE_PADDING_NAME_PREFIX = "EC firmware (";
-
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/ITEFirmware.swift#ITEFirmware.candidates */
 const CANDIDATES = [0x40, 0x80] as const;
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/ITEFirmware.swift#ITEFirmware.blockSize */
