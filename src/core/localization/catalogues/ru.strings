@@ -178,6 +178,7 @@
 "Not ticked" = "Не отмечен";
 "Value in Setup" = "Значение в Setup";
 "Setup help" = "Справка Setup";
+"This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
 "Picture size" = "Размер изображения";
 "Top Swap" = "Top Swap";
 "Vendor" = "Производитель";

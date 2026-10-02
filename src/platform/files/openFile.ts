@@ -38,10 +38,19 @@ export interface OpenFileOptions {
 export async function openFiles(options: OpenFileOptions = {}): Promise<OpenedFile[]> {
   const capabilities = options.capabilities ?? detectFileCapabilities();
   const types = options.types ?? binaryTypes();
-  return capabilities.canSaveInPlace
+  return capabilities.canSaveInPlace && !pickerRefusesFiles
     ? await openThroughPicker(options.multiple ?? false, types)
     : await openThroughInput(options.multiple ?? false, types);
 }
+
+/**
+ * Set once a handle the picker returned would not give its file. A window that is
+ * not a browser's own — an embedded web view — can offer the picker and still
+ * refuse `getFile()` ("The request is not allowed by the user agent or the platform
+ * in the current context"); the file input reads there, so it is what is used from
+ * then on, and the file that failed is asked for again through it.
+ */
+let pickerRefusesFiles = false;
 
 async function openThroughPicker(
   multiple: boolean,
@@ -60,7 +69,20 @@ async function openThroughPicker(
   }
 
   const opened: OpenedFile[] = [];
-  for (const handle of handles) opened.push(openedFileFrom(await handle.getFile(), handle));
+  try {
+    for (const handle of handles) opened.push(openedFileFrom(await handle.getFile(), handle));
+  } catch (error) {
+    if (!(error instanceof DOMException)) throw error;
+    // Not allowed, or not a context that can read it: the input can, though it
+    // can never save in place. It cannot be opened from here, though: the picker
+    // has used up the click, and an input clicked without one never answers.
+    pickerRefusesFiles = true;
+    throw new Error(
+      L(
+        "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on."
+      )
+    );
+  }
   return opened;
 }
 

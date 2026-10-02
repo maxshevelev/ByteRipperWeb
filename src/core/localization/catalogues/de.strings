@@ -178,6 +178,7 @@
 "Not ticked" = "Nicht angehakt";
 "Value in Setup" = "Wert im Setup";
 "Setup help" = "Setup-Hilfe";
+"This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
 "Top Swap" = "Top Swap";
 "Vendor" = "Hersteller";
