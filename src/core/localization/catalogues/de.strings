@@ -66,6 +66,7 @@
 "%1$@ — the library is read-only until they are answered" = "%1$@ — die Bibliothek ist schreibgeschützt, bis sie beantwortet sind";
 "%1$@%2$@ could not be checked: %3$@ is not computed here" = "%1$@%2$@ ließ sich nicht prüfen: %3$@ wird hier nicht berechnet";
 "%1$@%2$@ does not match its hash" = "%1$@%2$@ stimmt nicht mit seinem Hash überein";
+"%1$@, %2$@ KB" = "%1$@, %2$@ KB";
 "%1$@, %2$@ compressed sections deep" = "%1$@, %2$@ komprimierte Sections tief";
 "(unnamed)" = "(ohne Namen)";
 ". Answering cannot be published: %1$@" = ". Die Antwort lässt sich nicht veröffentlichen: %1$@";

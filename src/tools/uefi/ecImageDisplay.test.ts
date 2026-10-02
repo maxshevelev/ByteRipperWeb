@@ -5,7 +5,7 @@ import { ImageReader } from "@/firmware/imageReader";
 import { EC_COPY_SUBTYPE } from "@/firmware/uefi/ecFirmware";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { nodeName } from "@/tools/uefi/uefiTreeDisplay";
@@ -65,8 +65,13 @@ describe("an EC image row", () => {
     const { image } = built();
     const names = (image.roots[0] as UEFINode).children
       .filter((node) => node.kind === "ecImage")
-      .map((node) => nodeName(node, GuidsCatalogue.empty));
-    expect(names).toEqual(["Microchip MEC image", "Microchip MEC image (copy)"]);
+      .map((node) =>
+        nodeName(
+          { ...node, length: nodeRange(node).end - nodeRange(node).start },
+          GuidsCatalogue.empty
+        )
+      );
+    expect(names).toEqual(["Microchip MEC image, 4 KB", "Microchip MEC image, 4 KB (copy)"]);
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/ECImageDisplayTests.swift#ECImageDisplayTests.testTheDetailsSayWhatTheImageIsAndWhatItCopies

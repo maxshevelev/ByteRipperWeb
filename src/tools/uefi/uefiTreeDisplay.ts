@@ -190,17 +190,32 @@ export interface NamedNode {
   /** What a pad file is named after, so a row that has them says so. */
   readonly children?: readonly { readonly kind: string; readonly isErased?: boolean }[];
   /**
+   * How long the node is, for the rows that are named by their size (an EC image's).
+   */
+  readonly length?: number | undefined;
+  /**
    * Whether the row is outermost in a Top Swap block, which the copy's rows say
    * in their name (`UEFITopSwap`).
    */
   readonly topSwap?: "copy" | "original" | undefined;
 }
 
+const kibibytes = (length: number): number => Math.floor((length + 0x3ff) / 0x400);
+
+/** How long a node as the panel holds it is: header through tail. */
+export const wireLength = (node: {
+  readonly header: readonly [number, number];
+  readonly body: readonly [number, number];
+  readonly tail: readonly [number, number];
+}): number => Math.max(node.header[1], node.body[1], node.tail[1]) - node.header[0];
+
 function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
-  // An EC image is named by what it carries; a copy of an earlier one in the same
-  // block says so.
-  if (node.kind === "ecImage" && node.subtype === EC_COPY_SUBTYPE) {
-    return L("%1$@ (copy)", node.name);
+  // An EC image is named by what it carries and how large it is, in KiB — the
+  // bench sizes EC firmware by it (128, 192, 256) — and a copy of an earlier one
+  // in the same block says so.
+  if (node.kind === "ecImage") {
+    const sized = L("%1$@, %2$@ KB", node.name, kibibytes(node.length ?? 0));
+    return node.subtype === EC_COPY_SUBTYPE ? L("%1$@ (copy)", sized) : sized;
   }
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.

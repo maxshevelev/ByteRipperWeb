@@ -57,7 +57,7 @@ import {
   wireTopSwapRole,
   wireTopSwapTwin,
 } from "@/tools/uefi/uefiTopSwap";
-import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
+import { listed, nodeName, present, summary, wireLength } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import type { MenuEntry } from "@/ui/shell/menuModel";
@@ -1259,6 +1259,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                             guid:
                               row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
                             children: row.node.children,
+                            length: wireLength(row.node),
                             topSwap: wireTopSwapRole(row.node, topSwapCopy, roots ?? [])?.kind,
                           },
                           catalogue.catalogue

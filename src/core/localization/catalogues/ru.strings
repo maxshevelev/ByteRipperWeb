@@ -66,6 +66,7 @@
 "%1$@ — the library is read-only until they are answered" = "%1$@ — библиотека только для чтения, пока нет ответов";
 "%1$@%2$@ could not be checked: %3$@ is not computed here" = "%1$@%2$@ проверить не удалось: %3$@ здесь не вычисляется";
 "%1$@%2$@ does not match its hash" = "%1$@%2$@ не совпадает со своим хешем";
+"%1$@, %2$@ KB" = "%1$@, %2$@ КБ";
 "%1$@, %2$@ compressed sections deep" = "%1$@, вложенность сжатых секций: %2$@";
 "(unnamed)" = "(без имени)";
 ". Answering cannot be published: %1$@" = ". Ответ не опубликовать: %1$@";
