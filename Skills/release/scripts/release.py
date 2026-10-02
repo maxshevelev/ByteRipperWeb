@@ -11,8 +11,8 @@ ahead of what was ported — and <n> is the build of this edition made against
 it, counting from 1: the first release level with upstream 0.9.0 is 0.9.0-1,
 the next 0.9.0-2, and a new upstream release starts again at -1. <n> is read
 from the tags already made, so a tag that exists is never asked for twice. It
-writes the number into the four files that carry it (package.json and
-package-lock.json, here and in desktop/) and prints what it changed. With
+writes the number into the two files that carry it (package.json and
+package-lock.json; desktop/ takes it from them) and prints what it changed. With
 --check it writes nothing and fails if any of them disagrees with the others
 or names another upstream release.
 
@@ -100,8 +100,9 @@ def next_build(upstream: str) -> str:
 
 
 def version_files() -> list[Path]:
-    return [ROOT / "package.json", ROOT / "package-lock.json",
-            DESKTOP / "package.json", DESKTOP / "package-lock.json"]
+    # desktop/ carries no version of its own: electron-builder would refuse one
+    # that is not semver, so desktop/electron-builder.config.cjs hands it this one.
+    return [ROOT / "package.json", ROOT / "package-lock.json"]
 
 
 def versions_in(path: Path) -> list[str]:

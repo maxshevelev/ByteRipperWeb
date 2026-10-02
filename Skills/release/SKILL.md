@@ -68,9 +68,10 @@ python3 Skills/release/scripts/release.py build --skip-html  # the same without 
 python3 Skills/release/scripts/release.py version
 ```
 
-Writes upstream's version at the baseline into `package.json`,
-`package-lock.json`, `desktop/package.json` and `desktop/package-lock.json`,
-and prints what changed. If nothing changed, the version is already set.
+Writes upstream's version at the baseline into `package.json` and
+`package-lock.json`, and prints what changed. `desktop/` has no version of its
+own: `desktop/electron-builder.config.cjs` hands the web's to electron-builder,
+which would refuse it in `desktop/package.json` because it is not semver. If nothing changed, the version is already set.
 
 `<n>` is read from the tags: the script takes one past the highest `v<upstream>-<n>`
 already made, so a second release on the same upstream number is simply the
@@ -121,7 +122,7 @@ what came from upstream; say it in the reader's words, not the port's.
 ### 5. Tag, push, publish
 
 ```bash
-git add package.json package-lock.json desktop/package.json desktop/package-lock.json
+git add package.json package-lock.json
 git commit      # "Set <version>, the upstream release this edition is level with"
 git tag -a v<version> -m "ByteRipperWeb <version>"
 git push origin main v<version>
