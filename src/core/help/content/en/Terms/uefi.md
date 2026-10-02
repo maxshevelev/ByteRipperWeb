@@ -292,6 +292,8 @@ For every store, the detail list states how full it is. **In use** and **Free sp
 
 The firmware does not overwrite a variable in place: it appends a new entry and marks the previous one. When the free space is exhausted, it reclaims the store — copies the current entries and erases the rest. A store that is nearly full and consists mostly of superseded entries is therefore close to such a reclaim. If the reclaim is interrupted, for example by a power loss on a board whose firmware does not guard against it, the store may be left damaged.
 
+Until that reclaim the store still holds a variable's earlier values. The detail list of a VSS or NVAR entry shows them under **Variable history**: every copy of the same variable — the same name and GUID — in this store, oldest first, with its address, whether it is current, superseded or the copy the variable was deleted as, the size of its value, and what it changed against the copy before it: the new size, and the offsets within the value of the bytes that differ. The entry in focus is marked ▸. A superseded entry, which the tree calls Invalid as UEFITool does, names its variable in the row **Variable**. A variable written on every boot keeps hundreds of copies; the table lists the latest 40. What a changed byte means is not stated here: the store keeps values, not their meaning.
+
 Stores of default values, such as Insyde's **Variable Defaults**, are written once and are normally full; this is not a defect.
 
 @see term:vss

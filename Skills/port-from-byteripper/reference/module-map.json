@@ -405,7 +405,9 @@
         ],
         "DescriptorGeneration.swift": "src/firmware/uefi/descriptorGeneration.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/DescriptorGenerationTests.swift": "src/firmware/uefi/descriptorGeneration.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/FileStateTests.swift": "src/firmware/uefi/fileState.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/FileStateTests.swift": "src/firmware/uefi/fileState.test.ts",
+        "NvramVariableHistory.swift": "src/firmware/uefi/nvramVariableHistory.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift": "src/firmware/uefi/nvramVariableHistory.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",

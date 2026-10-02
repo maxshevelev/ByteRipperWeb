@@ -3304,6 +3304,14 @@ button.uefi-title {
   padding: 1px 14px 1px 0;
 }
 
+/* The last column gives way before the others do: cut short, whole on hover. */
+.tool-detail-grid-cell[data-last] {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* A permission is read by its colour as much as by its word. */
 .tool-detail-grid-cell[data-tone="yes"] {
   color: var(--semantic-good);

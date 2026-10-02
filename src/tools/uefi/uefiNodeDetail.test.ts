@@ -16,7 +16,7 @@ import { parseUefiImage, UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { isProblemField, type NodeDetail } from "@/tools/toolDetail";
-import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
+import { buildNodeDetail, HISTORY_ROWS } from "@/tools/uefi/uefiNodeDetail";
 
 /**
  * Ported from upstream's `UEFIDetailTests` and `DescriptorDetailTests`: what the
@@ -1090,6 +1090,124 @@ describe("a variable store", () => {
     expect(value(detail, "Current entries")).toBe("1");
     expect(value(detail, "Superseded entries")).toBe("0");
     expect(value(detail, "Deleted entries")).toBe("0");
+  });
+});
+
+describe("a variable's history", () => {
+  const le32 = (value: number) => [0, 8, 16, 24].map((shift) => (value >>> shift) & 0xff);
+
+  /**
+   * A VSS2 store holding `copies` of Setup — the values given, all but the last
+   * marked — and one other variable, as the parser lays it out: the header
+   * through the name, then the value.
+   */
+  function setupHistory(copies: number[][]): { image: UEFIImage; reader: ImageReader } {
+    const bytes: number[] = new Array(0x1c).fill(0xff);
+    const entries: UEFINode[] = [];
+    const variable = (name: string, value: number[], marked: boolean) => {
+      const offset = bytes.length;
+      const ucs2 = [...name].flatMap((character) => [character.charCodeAt(0), 0]).concat([0, 0]);
+      bytes.push(0xaa, 0x55, marked ? 0x3c : 0x3f, 0x00, 0x03, 0x00, 0x00, 0x00);
+      bytes.push(...le32(ucs2.length), ...le32(value.length));
+      bytes.push(...new Array(16).fill(0x11), ...ucs2);
+      const nameEnd = bytes.length;
+      bytes.push(...value);
+      entries.push(
+        makeNode({
+          kind: "vssEntry",
+          subtype: marked ? Sub.invalidVssEntry : Sub.standardVssEntry,
+          name: marked ? "Invalid" : name,
+          guid: guidFromBytes(Uint8Array.from(new Array(16).fill(0x11))),
+          header: r(offset, nameEnd),
+          body: r(nameEnd, bytes.length),
+          isFixed: true,
+        })
+      );
+    };
+    variable("Lang", [0x65], false);
+    copies.forEach((value, index) => variable("Setup", value, index < copies.length - 1));
+    const store = makeNode({
+      kind: "vss2Store",
+      name: "VSS2 store",
+      header: r(0, 0x1c),
+      body: r(0x1c, bytes.length),
+      children: entries,
+    });
+    return {
+      image: new UEFIImage({ size: bytes.length, roots: [store] }),
+      reader: readerOver(Uint8Array.from(bytes)),
+    };
+  }
+
+  // A marked entry names the variable it is a copy of, and every copy is a row:
+  // where it is, what it is now, its size, and what it changed.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAVariablesCopiesAreAHistoryTable
+  it("makes a variable's copies a history table", () => {
+    const { image, reader } = setupHistory([
+      [0, 0, 0, 0],
+      [0, 1, 1, 0],
+      [0, 1, 1, 0],
+      [0, 1, 1, 0, 5],
+    ]);
+    const store = image.roots[0] as UEFINode;
+    const focus = store.children[2] as UEFINode;
+    const detail = buildNodeDetail(focus, image, reader, []);
+    const history = table(detail, "Variable history");
+
+    // The tree calls it Invalid.
+    expect(value(detail, "Variable")).toBe("Setup");
+    expect(history?.columns).toEqual(["Copy", "Address", "State", "Size", "Change"]);
+    expect(history?.rows.map((row) => row[0]?.text)).toEqual(["1", "▸ 2", "3", "4"]);
+    expect(history?.rows.map((row) => row[1]?.text)).toEqual(
+      store.children.slice(1).map((child) => `0x${child.header.start.toString(16).toUpperCase()}`)
+    );
+    expect(history?.rows.map((row) => row[2]?.text)).toEqual([
+      "Superseded",
+      "Superseded",
+      "Superseded",
+      "Current",
+    ]);
+    expect(history?.rows.map((row) => row[3]?.text)).toEqual(["4", "4", "4", "5"]);
+    expect(history?.rows.map((row) => row[4]?.text)).toEqual([
+      "—",
+      "changed bytes: 2, at +0x1–0x2",
+      "No change",
+      "size 4 → 5",
+    ]);
+  });
+
+  // A variable the store keeps once has no history, and a live entry needs no
+  // name of its variable beside its own.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAVariableWithOneCopyHasNoHistory
+  it("gives a variable with one copy no history", () => {
+    const { image, reader } = setupHistory([[1]]);
+    const detail = buildNodeDetail(
+      (image.roots[0] as UEFINode).children[1] as UEFINode,
+      image,
+      reader,
+      []
+    );
+
+    expect(table(detail, "Variable history")).toBeUndefined();
+    expect(value(detail, "Variable")).toBeUndefined();
+  });
+
+  // Hundreds of copies list the latest, and the one in focus however old.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testALongHistoryShowsTheLatestCopies
+  it("lists the latest copies of a long history", () => {
+    const { image, reader } = setupHistory(Array.from({ length: 50 }, (_, index) => [index]));
+    const detail = buildNodeDetail(
+      (image.roots[0] as UEFINode).children[1] as UEFINode,
+      image,
+      reader,
+      []
+    );
+    const rows = table(detail, "Variable history")?.rows ?? [];
+
+    expect(rows).toHaveLength(HISTORY_ROWS + 2);
+    expect(rows[0]?.[0]?.text).toBe("▸ 1");
+    expect(rows[1]?.[1]?.text).toBe("10 earlier copies not shown");
+    expect(rows.at(-1)?.[0]?.text).toBe("50");
   });
 });
 

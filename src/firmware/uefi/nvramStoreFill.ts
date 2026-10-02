@@ -137,7 +137,11 @@ export function nvramStoreFillOf(node: UEFINode, reader: ImageReader): NvramStor
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramStoreFill.swift#NvramStoreFill.variableName
  */
-function variableName(entry: UEFINode, inVss2: boolean, reader: ImageReader): string | undefined {
+export function variableName(
+  entry: UEFINode,
+  inVss2: boolean,
+  reader: ImageReader
+): string | undefined {
   let start = entry.body.start;
   let end = entry.body.end;
   if (inVss2) {

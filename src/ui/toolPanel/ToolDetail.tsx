@@ -173,6 +173,14 @@ function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly 
  * A table block: a glyph and a heading, a header line, and the cells — as wide
  * as what is in it, so a two-column table of short values reads as a table
  * rather than as two columns at opposite edges.
+ *
+ * The last column gives way when the list is narrower — cut short, whole on
+ * hover — and the others keep their width: a column of numbers squeezed to one
+ * letter says nothing.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.addTable
+ * @upstream-differs a cap on the last column's width, where upstream's compression priority
+ * makes it give way to whatever the list leaves
  */
 function DetailTableView({ table }: { readonly table: DetailTable }) {
   return (
@@ -205,6 +213,8 @@ function DetailTableView({ table }: { readonly table: DetailTable }) {
                     key={column}
                     className="tool-detail-grid-cell"
                     data-tone={one === undefined || one.tone === "plain" ? undefined : one.tone}
+                    data-last={at === table.columns.length - 1 ? "" : undefined}
+                    title={at === table.columns.length - 1 ? one?.text : undefined}
                   >
                     {one?.text ?? ""}
                   </td>
@@ -245,6 +255,7 @@ function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {
     "lock.shield":
       "M8 1.8 13 3.6v4.2c0 3-2.1 5.2-5 6.4-2.9-1.2-5-3.4-5-6.4V3.6ZM6.2 8h3.6v2.8H6.2ZM6.8 8V6.8a1.2 1.2 0 0 1 2.4 0V8",
     "square.split.2x2": "M2.5 2.5h11v11h-11ZM8 2.5v11M2.5 8h11",
+    "clock.arrow.circlepath": "M13.2 8a5.2 5.2 0 1 1-1.6-3.7M13.4 2.4v2.6h-2.6M8 5v3.2l2 1.2",
     cpu: "M4.5 4.5h7v7h-7ZM6.5 2v2.5M9.5 2v2.5M6.5 11.5V14M9.5 11.5V14M2 6.5h2.5M2 9.5h2.5M11.5 6.5H14M11.5 9.5H14",
   };
   return (

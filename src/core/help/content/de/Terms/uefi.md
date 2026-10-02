@@ -1,4 +1,4 @@
-@source-sha 9cd3ecd967880358626c53a03d949f0ca9f049d8b3b857204346bdf625f79cd2
+@source-sha 60179e7673b56201483e0d5e65d0009179f8c67aa35d145980675c76127ca3a0
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -292,6 +292,8 @@ Zwei Eigenschaften des NVRAM sind festzuhalten: Fehlenden Inhalt legt die Firmwa
 Für jeden Speicher gibt die Detailliste an, wie weit er gefüllt ist. **Belegt** und **Freier Platz** nennen die beschriebenen und die noch gelöschten Bytes. Die Einträge werden in drei Gruppen gezählt: **Gültige Einträge** enthalten den aktuellen Wert einer Variablen; **Ersetzte Einträge** wurden durch einen späteren Eintrag derselben Variablen — mit demselben Namen und derselben GUID — abgelöst; **Gelöschte Einträge** gehören zu Variablen, die der Speicher nicht mehr enthält.
 
 Die Firmware überschreibt eine Variable nicht an Ort und Stelle: Sie hängt einen neuen Eintrag an und kennzeichnet den bisherigen. Ist der freie Platz erschöpft, bereinigt sie den Speicher — sie kopiert die gültigen Einträge und löscht den Rest. Ein nahezu voller Speicher, der überwiegend aus ersetzten Einträgen besteht, steht daher kurz vor einer solchen Bereinigung. Wird sie unterbrochen, etwa durch einen Stromausfall auf einem Board, dessen Firmware diesen Fall nicht absichert, kann der Speicher beschädigt zurückbleiben.
+
+Bis zu dieser Bereinigung enthält der Speicher also auch die früheren Werte einer Variablen. Die Detailliste eines VSS- oder NVAR-Eintrags zeigt sie unter **Verlauf der Variable**: jede Kopie derselben Variablen — mit demselben Namen und derselben GUID — in diesem Speicher, die älteste zuerst. Zu jeder Kopie stehen ihre Adresse, ihr Zustand — aktuell, ersetzt oder die Kopie, als die die Variable gelöscht wurde —, die Größe ihres Werts und das, was sie gegenüber der vorigen Kopie geändert hat: die neue Größe und die Offsets der abweichenden Bytes innerhalb des Werts. Der ausgewählte Eintrag ist mit ▸ markiert. Ein ersetzter Eintrag, den der Baum wie UEFITool Invalid nennt, nennt seine Variable in der Zeile **Variable**. Eine Variable, die bei jedem Start geschrieben wird, liegt in Hunderten von Kopien vor; die Tabelle zeigt die letzten 40. Was ein geändertes Byte bedeutet, steht hier nicht: Der Speicher enthält Werte, nicht ihre Bedeutung.
 
 Speicher mit Standardwerten, etwa die **Variable Defaults** von Insyde, werden einmalig beschrieben und sind in der Regel vollständig belegt; ein Defekt ist das nicht.
 

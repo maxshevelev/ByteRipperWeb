@@ -58,7 +58,12 @@ export interface DetailCell {
 }
 
 /** The glyphs a table heading can carry — upstream's system symbols, by meaning. */
-export type DetailSymbol = "key" | "lock.shield" | "cpu" | "square.split.2x2";
+export type DetailSymbol =
+  | "key"
+  | "lock.shield"
+  | "cpu"
+  | "square.split.2x2"
+  | "clock.arrow.circlepath";
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable */
 export interface DetailTable {

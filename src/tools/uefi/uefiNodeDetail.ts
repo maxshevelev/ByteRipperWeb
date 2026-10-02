@@ -38,6 +38,16 @@ import {
   nvramStoreFillOf,
 } from "@/firmware/uefi/nvramStoreFill";
 import {
+  changedBytes,
+  isNoChange,
+  type NvramVariableChange,
+  type NvramVariableHistory,
+  type NvramVariableVersion,
+  variableChange,
+  variableHistoryOf,
+  variableOf,
+} from "@/firmware/uefi/nvramVariableHistory";
+import {
   pictureFormatName,
   pictureFormatOf,
   pictureMimeType,
@@ -91,7 +101,12 @@ export function buildNodeDetail(
   reader: ImageReader,
   repairs: readonly ChecksumRepair[] = []
 ): NodeDetail {
-  const detail = buildDetailRows(node, image, reader, repairs);
+  const detail = withVariableHistory(
+    buildDetailRows(node, image, reader, repairs),
+    node,
+    image,
+    reader
+  );
   // A picture is shown as well as described. Only one the parser recognised and
   // measured: its bytes are exactly the picture's.
   if (node.kind !== "picture") return detail;
@@ -99,6 +114,139 @@ export function buildNodeDetail(
   const format = node.subtype === undefined ? undefined : pictureFormatOf(node.subtype);
   if (bytes === undefined || format === undefined) return detail;
   return { ...detail, picture: { bytes, mime: pictureMimeType(format) } };
+}
+
+/**
+ * A variable's entry: whose copy it is where the tree calls it Invalid, and every
+ * copy the store keeps of it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withVariableHistory(
+  detail: NodeDetail,
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): NodeDetail {
+  if ((node.kind !== "vssEntry" && node.kind !== "nvarEntry") || node.id.length === 0) {
+    return detail;
+  }
+  const store = image.node(node.id.slice(0, -1));
+  if (store === undefined) return detail;
+  const history = variableHistoryOf(node, store, reader);
+  const variable = history ?? variableOf(node, store, reader);
+  const fields =
+    variable !== undefined && variable.name !== node.name
+      ? [...detail.fields, field(L("Variable"), variable.name)]
+      : detail.fields;
+  if (history === undefined) return { ...detail, fields };
+  return { ...detail, fields, tables: [historyTable(history, node.id, reader), ...detail.tables] };
+}
+
+/**
+ * The most copies the table lists. A variable written on every boot keeps
+ * hundreds; the latest are the ones worth reading.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.historyRows
+ */
+export const HISTORY_ROWS = 40;
+
+/**
+ * Every copy the store keeps of the variable, oldest first: where it is, what it
+ * is now, how long its value is, and what it changed against the copy before. The
+ * entry in focus is marked. Past `HISTORY_ROWS` the earliest copies are left out,
+ * except the one in focus.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.historyTable
+ */
+function historyTable(
+  history: NvramVariableHistory,
+  focus: readonly number[],
+  reader: ImageReader
+): DetailTable {
+  const versions = history.versions;
+  const firstShown = Math.max(0, versions.length - HISTORY_ROWS);
+  const isFocus = (version: NvramVariableVersion) =>
+    version.entry.length === focus.length && version.entry.every((part, at) => part === focus[at]);
+  const rows: DetailCell[][] = [];
+  if (firstShown > 0) {
+    const focused = versions.findIndex(isFocus);
+    if (focused >= 0 && focused < firstShown) {
+      rows.push(historyRow(versions, focused, isFocus, reader));
+    }
+    rows.push([
+      cell("…"),
+      cell(L("%1$@ earlier copies not shown", firstShown)),
+      cell(""),
+      cell(""),
+      cell(""),
+    ]);
+  }
+  for (let index = firstShown; index < versions.length; index++) {
+    rows.push(historyRow(versions, index, isFocus, reader));
+  }
+  return {
+    title: L("Variable history"),
+    symbol: "clock.arrow.circlepath",
+    columns: [
+      L("Copy", { context: "variable" }),
+      L("Address", { context: "variable" }),
+      L("State"),
+      L("Size"),
+      L("Change"),
+    ],
+    rows,
+  };
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.historyRow */
+function historyRow(
+  versions: readonly NvramVariableVersion[],
+  index: number,
+  isFocus: (version: NvramVariableVersion) => boolean,
+  reader: ImageReader
+): DetailCell[] {
+  const version = versions[index] as NvramVariableVersion;
+  const number = `${index + 1}`;
+  const state =
+    version.state === "current"
+      ? L("Current")
+      : version.state === "superseded"
+        ? L("Superseded")
+        : L("Deleted", { context: "variable" });
+  const previous = versions[index - 1];
+  const change = previous === undefined ? undefined : variableChange(previous, version, reader);
+  return [
+    cell(isFocus(version) ? `▸ ${number}` : number),
+    cell(hex(version.offset)),
+    cell(state),
+    cell(`${version.value.end - version.value.start}`),
+    cell(change === undefined ? "—" : changeText(change)),
+  ];
+}
+
+/**
+ * What a copy changed: its size, if that moved, and where its bytes differ —
+ * offsets into the value, the first few runs of them.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.changeText
+ */
+function changeText(change: NvramVariableChange): string {
+  if (isNoChange(change)) return L("No change");
+  const parts: string[] = [];
+  if (change.oldSize !== change.newSize) {
+    parts.push(L("size %1$@ → %2$@", change.oldSize, change.newSize));
+  }
+  if (change.changed.length > 0) {
+    const runs = change.changed
+      .slice(0, 4)
+      .map((run) =>
+        run.end - run.start === 1 ? `+${hex(run.start)}` : `+${hex(run.start)}–${hex(run.end - 1)}`
+      );
+    if (change.changed.length > 4) runs.push("…");
+    parts.push(L("changed bytes: %1$@, at %2$@", changedBytes(change), runs.join(", ")));
+  }
+  return parts.join("; ");
 }
 
 function buildDetailRows(

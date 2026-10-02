@@ -92,7 +92,7 @@ interface NvarLink {
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry
  */
-interface NvarEntry {
+export interface NvarEntry {
   readonly offset: number;
   readonly end: number;
   readonly next: number;
@@ -107,7 +107,8 @@ interface NvarEntry {
 }
 
 const isValidEntry = (entry: NvarEntry): boolean => (entry.attributes & NVAR.valid) !== 0;
-const isDataOnlyEntry = (entry: NvarEntry): boolean => (entry.attributes & NVAR.dataOnly) !== 0;
+export const isDataOnlyEntry = (entry: NvarEntry): boolean =>
+  (entry.attributes & NVAR.dataOnly) !== 0;
 
 /**
  * The entries of the NVAR store that fills `store`, then its free space and
@@ -194,15 +195,29 @@ export function parseNvarStore(
   return nodes;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.readNvarEntry */
+function readNvarEntry(parser: Parser, offset: number, store: ImageRange): NvarEntry | undefined {
+  return readNvarEntryIn(parser.reader, offset, store);
+}
+
 /**
  * The entry at `offset`, or nothing when it does not read: the signature is
  * not whole, the size is too small for the header or runs past the store, the
  * name has no end, or the extended header claims more than the data.
  *
+ * The walk reads a superseded entry — its valid bit cleared — as the reference
+ * does, as a header and a body; `asIfValid` reads its GUID, name and extended
+ * header too, which a variable's history needs to tell whose copy it was
+ * (`NvramVariableHistory`).
+ *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.readNvarEntry
  */
-function readNvarEntry(parser: Parser, offset: number, store: ImageRange): NvarEntry | undefined {
-  const reader = parser.reader;
+export function readNvarEntryIn(
+  reader: ImageReader,
+  offset: number,
+  store: ImageRange,
+  asIfValid = false
+): NvarEntry | undefined {
   const size = reader.uint16(offset + 4);
   const next = reader.uint24(offset + 6);
   const attributes = reader.uint8(offset + 9);
@@ -218,7 +233,7 @@ function readNvarEntry(parser: Parser, offset: number, store: ImageRange): NvarE
   const end = offset + size;
   if (end > store.end) return undefined;
 
-  const valid = (attributes & NVAR.valid) !== 0;
+  const valid = (attributes & NVAR.valid) !== 0 || asIfValid;
   const dataOnly = (attributes & NVAR.dataOnly) !== 0;
   let cursor = offset + NVAR.headerSize;
   let guidIndex: number | undefined;

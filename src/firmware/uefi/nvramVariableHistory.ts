@@ -1,0 +1,267 @@
+import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { type EFIGUID, guidKey } from "@/firmware/uefi/efiGuid";
+import { isDataOnlyEntry, NVAR, readNvarEntryIn } from "@/firmware/uefi/nvarParser";
+import { NVRAM } from "@/firmware/uefi/nvramParser";
+import { variableName } from "@/firmware/uefi/nvramStoreFill";
+import type { UEFINode } from "@/firmware/uefi/uefiNode";
+import { Sub } from "@/firmware/uefi/uefiTypes";
+
+/**
+ * The copies an NVRAM store keeps of one variable, oldest first
+ * (`UEFI_IMAGE_FORMAT.md` §9).
+ *
+ * A store is written by appending: a variable that changes gets a new entry, and
+ * the old one is marked rather than overwritten, until the firmware reclaims the
+ * store. So until then the store holds the variable's earlier values as well —
+ * the boot order before the last boot, Setup before the last change in it — and
+ * two copies side by side say what the change was.
+ *
+ * A copy belongs to a variable by name and GUID. A VSS entry carries both,
+ * marked or not, and its name is read from the bytes, since the tree calls a
+ * marked entry `Invalid` as UEFITool does. An NVAR variable is a chain — the
+ * first entry carries the name and GUID, later links only data — or a run of
+ * whole entries, each superseded one with its valid bit cleared; a superseded
+ * entry's name, GUID and value are read as if it were valid.
+ *
+ * The history is the store's, not the image's: the defaults a board keeps in
+ * another store are another variable's copies.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory
+ */
+export interface NvramVariableHistory {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.name */
+  readonly name: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.guid */
+  readonly guid: EFIGUID | undefined;
+  /**
+   * In store order, which is the order they were written in.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.versions
+   */
+  readonly versions: readonly NvramVariableVersion[];
+}
+
+/**
+ * The variable's value now, a value a later copy replaced, or the last copy of a
+ * variable the store no longer holds.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version.State
+ */
+export type NvramVariableState = "current" | "superseded" | "deleted";
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version */
+export interface NvramVariableVersion {
+  /** The entry the copy is. */
+  readonly entry: readonly number[];
+  /** Where the entry starts. */
+  readonly offset: number;
+  /** The variable's value in this copy. */
+  readonly value: ImageRange;
+  readonly state: NvramVariableState;
+}
+
+/**
+ * What one copy changed against the copy before it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change
+ */
+export interface NvramVariableChange {
+  readonly oldSize: number;
+  readonly newSize: number;
+  /** The bytes that differ, as runs of offsets into the value, over the length both copies have. */
+  readonly changed: readonly ImageRange[];
+}
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change.isNone */
+export const isNoChange = (change: NvramVariableChange): boolean =>
+  change.oldSize === change.newSize && change.changed.length === 0;
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change.changedBytes */
+export const changedBytes = (change: NvramVariableChange): number =>
+  change.changed.reduce((sum, run) => sum + (run.end - run.start), 0);
+
+interface Key {
+  readonly name: string;
+  readonly guid: EFIGUID | undefined;
+}
+
+interface Copy {
+  readonly entry: readonly number[];
+  readonly offset: number;
+  readonly key: Key;
+  readonly value: ImageRange;
+  readonly isCurrent: boolean;
+}
+
+const keyText = (key: Key): string =>
+  `${key.name}\u0000${key.guid === undefined ? "" : guidKey(key.guid)}`;
+const sameId = (left: readonly number[], right: readonly number[]): boolean =>
+  left.length === right.length && left.every((part, index) => part === right[index]);
+const isVariableEntry = (node: UEFINode): boolean =>
+  node.kind === "vssEntry" || node.kind === "nvarEntry";
+
+/**
+ * The history of the variable `entry` is a copy of, in the store whose entries
+ * are `store`'s children. Nothing when `entry` is not a VSS or NVAR entry, its
+ * variable cannot be told, or the store keeps one copy of it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.of
+ */
+export function variableHistoryOf(
+  entry: UEFINode,
+  store: UEFINode,
+  reader: ImageReader
+): NvramVariableHistory | undefined {
+  if (!isVariableEntry(entry)) return undefined;
+  const all = copiesIn(store, reader);
+  const mine = all.find((copy) => sameId(copy.entry, entry.id));
+  if (mine === undefined) return undefined;
+  const wanted = keyText(mine.key);
+  const versions = all.filter((copy) => keyText(copy.key) === wanted);
+  if (versions.length <= 1) return undefined;
+
+  const shown: NvramVariableVersion[] = versions.map((copy) => ({
+    entry: copy.entry,
+    offset: copy.offset,
+    value: copy.value,
+    state: copy.isCurrent ? "current" : "superseded",
+  }));
+  // With no current copy the variable was deleted, and the last copy is the one it
+  // was deleted as.
+  if (!shown.some((one) => one.state === "current")) {
+    const last = shown[shown.length - 1];
+    if (last !== undefined) shown[shown.length - 1] = { ...last, state: "deleted" };
+  }
+  return { name: mine.key.name, guid: mine.key.guid, versions: shown };
+}
+
+/**
+ * The variable `entry` is a copy of — its name and GUID — read from the bytes
+ * where the tree cannot name it. Nothing when it cannot be told.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.variable
+ */
+export function variableOf(
+  entry: UEFINode,
+  store: UEFINode,
+  reader: ImageReader
+): { readonly name: string; readonly guid: EFIGUID | undefined } | undefined {
+  if (!isVariableEntry(entry)) return undefined;
+  const found = copiesIn(store, reader).find((copy) => sameId(copy.entry, entry.id));
+  return found === undefined ? undefined : { name: found.key.name, guid: found.key.guid };
+}
+
+/**
+ * `to` against `from`: their sizes, and the runs of bytes that differ.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.change
+ */
+export function variableChange(
+  from: NvramVariableVersion,
+  to: NvramVariableVersion,
+  reader: ImageReader
+): NvramVariableChange | undefined {
+  const old = reader.bytes(from.value);
+  const now = reader.bytes(to.value);
+  if (old === undefined || now === undefined) return undefined;
+  const runs: ImageRange[] = [];
+  let open: number | undefined;
+  const common = Math.min(old.length, now.length);
+  for (let index = 0; index < common; index++) {
+    if (old[index] !== now[index]) {
+      if (open === undefined) open = index;
+    } else if (open !== undefined) {
+      runs.push({ start: open, end: index });
+      open = undefined;
+    }
+  }
+  if (open !== undefined) runs.push({ start: open, end: common });
+  return { oldSize: old.length, newSize: now.length, changed: runs };
+}
+
+// MARK: - Reading the copies
+
+/** Every entry of the store that can be told whose copy it is. */
+function copiesIn(store: UEFINode, reader: ImageReader): Copy[] {
+  const entries = store.children.filter(isVariableEntry);
+  const first = entries[0];
+  if (first === undefined) return [];
+  return first.kind === "vssEntry"
+    ? vssCopies(entries, store.kind === "vss2Store", reader)
+    : nvarCopies(entries, store.body, reader);
+}
+
+function vssCopies(entries: readonly UEFINode[], inVss2: boolean, reader: ImageReader): Copy[] {
+  const copies: Copy[] = [];
+  for (const entry of entries) {
+    const isCurrent = entry.subtype !== Sub.invalidVssEntry;
+    // The same reading for a marked entry and a live one, so the two name a
+    // variable alike.
+    const name = variableName(entry, inVss2, reader) ?? (isCurrent ? entry.name : undefined);
+    if (name === undefined) continue;
+    copies.push({
+      entry: entry.id,
+      offset: entry.header.start,
+      key: { name, guid: entry.guid },
+      value: vssValue(entry, inVss2, reader),
+      isCurrent,
+    });
+  }
+  return copies;
+}
+
+/**
+ * A VSS2 entry's body is its value. A `$VSS` entry's body opens with the name,
+ * as long as the header's name size says.
+ */
+function vssValue(entry: UEFINode, inVss2: boolean, reader: ImageReader): ImageRange {
+  if (inVss2) return entry.body;
+  const h = entry.header.start;
+  const headerSize = entry.header.end - entry.header.start;
+  let nameSize: number | undefined;
+  if (headerSize === NVRAM.vssAuthHeaderSize) nameSize = reader.uint32(h + 36);
+  else if (headerSize === NVRAM.vssIntelLegacyHeaderSize) nameSize = 4;
+  else nameSize = reader.uint32(h + 8);
+  const start = Math.min(entry.body.start + (nameSize ?? 0), entry.body.end);
+  return { start, end: entry.body.end };
+}
+
+/**
+ * NVAR entries, read as if each were valid: a whole entry names its variable, a
+ * later link takes the name of the entry whose `next` points at it — the nearest
+ * one before it, being the last written.
+ */
+function nvarCopies(entries: readonly UEFINode[], store: ImageRange, reader: ImageReader): Copy[] {
+  const linkedFrom = new Map<number, Key>();
+  const copies: Copy[] = [];
+  for (const node of entries) {
+    const offset = node.header.start;
+    const entry = readNvarEntryIn(reader, offset, store, true);
+    if (entry === undefined) continue;
+    let key: Key | undefined;
+    if (isDataOnlyEntry(entry)) {
+      key = linkedFrom.get(offset);
+    } else {
+      let guid = entry.localGuid;
+      if (guid === undefined && entry.guidIndex !== undefined) {
+        const back = NVAR.guidSize * (entry.guidIndex + 1);
+        if (store.end - store.start >= back) guid = reader.guid(store.end - back);
+      }
+      const name = entry.text ?? "";
+      key = {
+        name: name === "" ? (guid === undefined ? "" : guidKey(guid)) : name,
+        guid,
+      };
+    }
+    if (entry.next !== NVAR.noNext && key !== undefined) linkedFrom.set(offset + entry.next, key);
+    if (key === undefined || key.name === "") continue;
+    copies.push({
+      entry: node.id,
+      offset,
+      key,
+      value: { start: entry.dataStart, end: entry.extendedStart },
+      isCurrent: node.subtype === Sub.fullNvarEntry || node.subtype === Sub.dataNvarEntry,
+    });
+  }
+  return copies;
+}
