@@ -1,4 +1,10 @@
 import { L, localized } from "@/core/localization/localization";
+import {
+  type DellSetupCatalogue,
+  type DellSetupSetting,
+  settingName,
+  settingOption,
+} from "@/firmware/uefi/dellSetupForms";
 import { EC_COPY_SUBTYPE } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
@@ -114,15 +120,21 @@ export function isEmptyPadding(node: {
 }
 
 /**
- * `nodes` as the tree lists them: every one, or all but the empty padding.
+ * `nodes` as the tree lists them: every one, or all but the empty padding — and all
+ * but the copies of variables `hiding` names, by their ids as text, which a store's
+ * later entries replaced (`supersededCopies`).
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.listed
  */
-export function listed<T extends { readonly kind: string; readonly isErased: boolean }>(
-  nodes: readonly T[],
-  showsEmptyPadding: boolean
-): readonly T[] {
-  return showsEmptyPadding ? nodes : nodes.filter((node) => !isEmptyPadding(node));
+export function listed<
+  T extends { readonly kind: string; readonly isErased: boolean; readonly id?: readonly number[] },
+>(nodes: readonly T[], showsEmptyPadding: boolean, hiding?: ReadonlySet<string>): readonly T[] {
+  if (showsEmptyPadding && (hiding === undefined || hiding.size === 0)) return nodes;
+  return nodes.filter(
+    (node) =>
+      (showsEmptyPadding || !isEmptyPadding(node)) &&
+      !(hiding !== undefined && node.id !== undefined && hiding.has(node.id.join(".")))
+  );
 }
 
 /**
@@ -202,6 +214,21 @@ export interface NamedNode {
    * in their name (`UEFITopSwap`).
    */
   readonly topSwap?: "copy" | "original" | undefined;
+  /**
+   * For a DVAR entry, how long its value is and, up to eight bytes, what it is as a
+   * little-endian number: the row says its value after its name.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the value
+   */
+  readonly dvarValue?: DvarValue | undefined;
+  /** What Dell's Setup says the DVAR variables are, once the forms have been read. */
+  readonly dvarSettings?: DellSetupCatalogue | undefined;
+}
+
+/** A DVAR entry's value as the panel holds it: its length, and its number when it fits. */
+export interface DvarValue {
+  readonly length: number;
+  readonly number: bigint | undefined;
 }
 
 const kibibytes = (length: number): number => Math.floor((length + 0x3ff) / 0x400);
@@ -239,12 +266,20 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
     }
     return L("Padding file");
   }
-  // A Dell variable is a number in a namespace, and the row says both: the
-  // namespace by its name where the catalogue knows it.
+  // A Dell variable is a number in a namespace. The row says what Setup calls it,
+  // where a Setup page asks about it, and its Name ID where none does — the
+  // namespace is in the detail, and on a Dell dump it is one GUID on almost every
+  // row. Then the value, as Setup words it where it can: "SecureBoot = Not ticked
+  // (0x0)"; a value too long to read as a number, by its size: "0x2 (16 bytes)".
   if (node.kind === "dvarEntry" && node.guid !== undefined) {
-    const namespace =
-      catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
-    return `${namespace} · ${node.name}`;
+    const setting = node.dvarSettings?.settingFor(node);
+    const name = setting === undefined ? `0x${node.name}` : settingName(setting);
+    const value = node.dvarValue;
+    if (value === undefined) return name;
+    const text = dvarValueText(value, setting);
+    if (text === undefined)
+      return value.length > 8 ? L("%1$@ (%2$@ bytes)", name, `${value.length}`) : name;
+    return `${name} = ${text}`;
   }
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
@@ -268,6 +303,44 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
     return node.name;
   }
   return catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
+}
+
+/**
+ * A DVAR value up to eight bytes long, little-endian, as a number — with what Setup
+ * calls it in front, where it says.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dvarValue
+ */
+function dvarValueText(
+  value: DvarValue,
+  setting: DellSetupSetting | undefined
+): string | undefined {
+  if (value.length === 0 || value.length > 8 || value.number === undefined) return undefined;
+  const hex = `0x${value.number.toString(16).toUpperCase()}`;
+  const meaning = setting === undefined ? undefined : dvarMeaning(value.number, setting);
+  return meaning === undefined ? hex : `${meaning} (${hex})`;
+}
+
+/**
+ * What `number` means to the Setup question: ticked or not, the option of a list, a
+ * number as a number. Nothing where Setup does not say.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dvarMeaning
+ */
+export function dvarMeaning(number: bigint, setting: DellSetupSetting): string | undefined {
+  switch (setting.kind) {
+    case "checkbox":
+      return number === 0n ? L("Not ticked") : number === 1n ? L("Ticked") : undefined;
+    case "oneOf": {
+      const text = settingOption(setting, number);
+      return text === undefined || text === "" ? undefined : text;
+    }
+    case "numeric":
+      return `${number}`;
+    case "string":
+    case "other":
+      return undefined;
+  }
 }
 
 const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() => ({

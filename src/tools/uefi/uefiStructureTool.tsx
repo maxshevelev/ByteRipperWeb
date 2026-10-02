@@ -7,6 +7,7 @@ import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
 import { downloadBlob } from "@/platform/files/download";
 import {
   askFirmwareDetail,
+  askFirmwareDvarSettings,
   askFirmwareLayout,
   askFirmwareProtectedRanges,
   expandFirmwareNode,
@@ -61,6 +62,7 @@ import {
 import { listed, nodeName, present, summary, wireLength } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
+import { MenuButton } from "@/ui/shell/MenuButton";
 import type { MenuEntry } from "@/ui/shell/menuModel";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ScopeShapes } from "@/ui/shell/scopeGlyph";
@@ -184,6 +186,40 @@ function storedShowsEmptyPadding(): boolean {
   }
 }
 
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsSupersededEntriesKey */
+const SHOWS_SUPERSEDED_KEY = "byteripper.uefiShowsSupersededEntries";
+
+/** Off until the reader asks for them. */
+function storedShowsSuperseded(): boolean {
+  try {
+    return localStorage.getItem(SHOWS_SUPERSEDED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The row that stands for the node at `key` while the copies of variables later
+ * entries replaced are left out: a hidden copy is shown by the row of the copy that
+ * stands for its variable, and any other node by its own.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.selectAndScroll
+ */
+export function standingRowKey(roots: readonly WireNode[], key: string): string {
+  const path = key.length === 0 ? [] : key.split(".").map(Number);
+  if (path.length === 0) return key;
+  let nodes = roots;
+  let parent: WireNode | undefined;
+  for (const index of path.slice(0, -1)) {
+    parent = nodes[index];
+    if (parent === undefined) return key;
+    nodes = parent.children;
+  }
+  const standing = parent?.hiddenCopies?.find(([hidden]) => hidden === path[path.length - 1]);
+  const stands = standing === undefined ? undefined : nodes[standing[1]];
+  return stands === undefined ? key : pathKey(stands.id);
+}
+
 const pathOf = (key: string): number[] => (key.length === 0 ? [] : key.split(".").map(Number));
 
 /**
@@ -258,9 +294,23 @@ export function rowsOf(
   showsEmptyPadding: boolean,
   meRoots: readonly MEANode[],
   depth: number,
-  rows: Row[] = []
+  rows: Row[] = [],
+  superseded: { readonly shows: boolean; readonly parent?: WireNode | undefined } = {
+    shows: true,
+  }
 ): Row[] {
-  for (const node of listed(nodes, showsEmptyPadding)) {
+  // The copies a store's later entries replaced are left out unless asked for, each
+  // by the row of the copy that stands for its variable.
+  const hiding =
+    superseded.shows || superseded.parent?.hiddenCopies === undefined
+      ? undefined
+      : new Set(
+          superseded.parent.hiddenCopies.flatMap(([hidden]) => {
+            const node = nodes[hidden];
+            return node === undefined ? [] : [pathKey(node.id)];
+          })
+        );
+  for (const node of listed(nodes, showsEmptyPadding, hiding)) {
     const key = pathKey(node.id);
     rows.push({ node, depth, key });
     if (!open.has(key)) continue;
@@ -272,7 +322,10 @@ export function rowsOf(
       continue;
     }
     if (node.children.length > 0)
-      rowsOf(node.children, open, loading, showsEmptyPadding, meRoots, depth + 1, rows);
+      rowsOf(node.children, open, loading, showsEmptyPadding, meRoots, depth + 1, rows, {
+        shows: superseded.shows,
+        parent: node,
+      });
     else if (loading.has(key))
       rows.push({ node: undefined, depth: depth + 1, key: `${key}#loading` });
   }
@@ -313,6 +366,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsEmptyPadding
    */
   const [showsEmptyPadding, setShowsEmptyPadding] = useState(storedShowsEmptyPadding);
+  /**
+   * Whether the tree lists the copies of variables later entries replaced. Off unless
+   * asked for: on a board that writes a variable every boot they are nine rows in
+   * ten, and each one's history is in the detail of the copy that stands.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsSupersededEntries
+   */
+  const [showsSuperseded, setShowsSuperseded] = useState(storedShowsSuperseded);
   /**
    * Whether the tree paints its rows — the legend's Show Markings switch, which
    * is remembered beside the legend's own state.
@@ -397,6 +458,30 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     if (status === "ready") askFirmwareProtectedRanges(context.pane);
   }, [status, context.pane]);
+
+  // What Dell's Setup forms call the DVAR variables, once a DVAR store has turned up:
+  // the worker decodes the compressed volumes for it, so an image with no such store
+  // pays nothing, and the names arrive a few seconds after the store does.
+  // @upstream-differs upstream asks when the tree is shown; a store is only known to
+  // be there once the row that holds it has been opened
+  const hasDvarStore = useMemo(() => {
+    const has = (nodes: readonly WireNode[]): boolean =>
+      nodes.some((one) => one.kind === "dvarStore" || has(one.children));
+    return has(roots ?? []);
+  }, [roots]);
+  useEffect(() => {
+    if (status === "ready" && hasDvarStore) askFirmwareDvarSettings(context.pane);
+  }, [status, hasDvarStore, context.pane]);
+  // The detail on screen is asked again when the forms land: it says what Setup says
+  // about the variable, which it could not before.
+  const settings = state?.dvarSettings;
+  const selectedRow = useRef(selected);
+  selectedRow.current = selected;
+  useEffect(() => {
+    const key = selectedRow.current;
+    if (settings === undefined || key === undefined) return;
+    askFirmwareDetail(context.pane, key.split(".").map(Number));
+  }, [settings, context.pane]);
   useEffect(() => {
     if (roots === undefined || status !== "ready") return;
     // A branch the reader asked for has arrived: the row opens now, once, with
@@ -456,8 +541,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
   const presented = useMemo(() => present(roots ?? []), [roots]);
   const rows = useMemo(
-    () => rowsOf(presented.rows, open, loading, showsEmptyPadding, meRoots, 0),
-    [presented, open, loading, showsEmptyPadding, meRoots]
+    () =>
+      rowsOf(presented.rows, open, loading, showsEmptyPadding, meRoots, 0, [], {
+        shows: showsSuperseded,
+      }),
+    [presented, open, loading, showsEmptyPadding, showsSuperseded, meRoots]
   );
   const maxDepth = useMemo(
     () => rows.reduce((deepest, row) => Math.max(deepest, row.depth), 0),
@@ -648,6 +736,26 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       if (whole !== undefined) context.reveal(whole.start, whole.end);
     },
     [context, roots]
+  );
+
+  /**
+   * A click on a row of a detail table that stands for a node: that node in focus,
+   * its detail and its bytes in the dump — the way to a copy the tree leaves out.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.tableRowClicked
+   */
+  const chooseByPath = useCallback(
+    (path: readonly number[]) => {
+      let nodes = roots ?? [];
+      let found: WireNode | undefined;
+      for (const index of path) {
+        found = nodes[index];
+        if (found === undefined) return;
+        nodes = found.children;
+      }
+      if (found !== undefined) choose(found);
+    },
+    [roots, choose]
   );
 
   /**
@@ -944,7 +1052,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   // Brings a row the panel chose itself into view, once it is in the list.
   useEffect(() => {
     if (scrollTarget === undefined) return;
-    const index = rows.findIndex((row) => row.key === scrollTarget);
+    const index = rows.findIndex(
+      (row) =>
+        row.key === (showsSuperseded ? scrollTarget : standingRowKey(roots ?? [], scrollTarget))
+    );
     const element = scrollRef.current;
     if (index < 0 || element === null) return;
     setScrollTarget(undefined);
@@ -953,7 +1064,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     else if (HEADER_HEIGHT + top + ROW_HEIGHT > element.scrollTop + element.clientHeight) {
       element.scrollTop = HEADER_HEIGHT + top + ROW_HEIGHT - element.clientHeight;
     }
-  }, [rows, scrollTarget]);
+  }, [rows, scrollTarget, showsSuperseded, roots]);
 
   /**
    * The zone the user picked in the dump, brought to the front: the branches on
@@ -1137,6 +1248,16 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     }
   }, []);
 
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.supersededItemClicked */
+  const changeShowsSuperseded = useCallback((shows: boolean) => {
+    setShowsSuperseded(shows);
+    try {
+      localStorage.setItem(SHOWS_SUPERSEDED_KEY, String(shows));
+    } catch {
+      // A private window may refuse to store it; the tree still follows it here.
+    }
+  }, []);
+
   if (state === undefined || state.status === "parsing") {
     return (
       <div className="tool-empty">
@@ -1162,7 +1283,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const shown = selected === undefined ? undefined : state.detail;
   // The row the detail is about, for the `?` that says what kind of thing it
   // is: the detail itself is text the worker built and carries no kind.
-  const selectedNode = rows.find((row) => row.key === selected)?.node;
+  // A copy the tree leaves out is shown by the row of the copy it stands behind; its
+  // own detail stays up.
+  const selectedRowKey =
+    selected === undefined || showsSuperseded ? selected : standingRowKey(state.roots, selected);
+  const selectedNode = rows.find((row) => row.key === selectedRowKey)?.node;
   // Which half of the selection the detail is about. An ME row's detail is its
   // own curated fields, which the worker knows nothing of; a UEFI node's is the
   // header the worker read back.
@@ -1199,17 +1324,38 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             {summary(state.roots, state.protectedRanges?.ranges.length ?? 0)}
           </button>
         )}
-        <label
-          className="uefi-padding-toggle"
-          title={L("List the padding nobody wrote to — erased bytes between structures")}
-        >
-          <input
-            type="checkbox"
-            checked={showsEmptyPadding}
-            onChange={(event) => changeShowsEmptyPadding(event.target.checked)}
-          />
-          {L("Show Empty Padding")}
-        </label>
+        {/* What the tree leaves out — empty padding, the copies later entries
+            replaced — as a menu under one icon, tinted while the tree lists anything it
+            leaves out by default, so a longer tree than usual says why. */}
+        {/* help: panel.uefi.filter */}
+        <MenuButton
+          label={
+            <svg viewBox="0 0 16 16" aria-hidden="true" className="uefi-filter-glyph">
+              <path d="M8 1.8a6.2 6.2 0 1 0 0 12.4A6.2 6.2 0 0 0 8 1.8ZM4.6 5.6h6.8M5.9 8h4.2M7.1 10.4h1.8" />
+            </svg>
+          }
+          title={L("Choose what the tree lists")}
+          ariaLabel={L("Filter")}
+          hangsFromRight
+          className={`uefi-filter${showsEmptyPadding || showsSuperseded ? " is-tinted" : ""}`}
+          entries={[
+            {
+              label: L("Show Empty Padding"),
+              checked: showsEmptyPadding,
+              tooltip: L("List the padding nobody wrote to — erased bytes between structures"),
+              onSelect: () => changeShowsEmptyPadding(!showsEmptyPadding),
+            },
+            {
+              // help: panel.uefi.superseded-entries
+              label: L("Show Superseded Entries"),
+              checked: showsSuperseded,
+              tooltip: L(
+                "List the copies of variables that later entries replaced — their history is in the detail of the copy that stands"
+              ),
+              onSelect: () => changeShowsSuperseded(!showsSuperseded),
+            },
+          ]}
+        />
         <button
           type="button"
           className="uefi-reveal"
@@ -1292,6 +1438,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                             length: wireLength(row.node),
                             namedImageLength: row.node.namedImageLength,
                             topSwap: wireTopSwapRole(row.node, topSwapCopy, roots ?? [])?.kind,
+                            dvarValue:
+                              row.node.dvarValue === undefined
+                                ? undefined
+                                : {
+                                    length: row.node.dvarValue.length,
+                                    number:
+                                      row.node.dvarValue.number === undefined
+                                        ? undefined
+                                        : BigInt(row.node.dvarValue.number),
+                                  },
+                            dvarSettings: state?.dvarSettings,
                           },
                           catalogue.catalogue
                         )
@@ -1300,7 +1457,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   showsMarkings={showsMarkings}
                   showsEmptyPadding={showsEmptyPadding}
                   isOpen={open.has(row.key)}
-                  isSelected={(selected ?? meFocus) === row.key}
+                  isSelected={(selectedRowKey ?? meFocus) === row.key}
                   onToggle={toggle}
                   onChoose={choose}
                   onToggleMe={toggleMe}
@@ -1402,6 +1559,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           subject={meFocus ?? (shown === undefined ? undefined : pathKey(shown.node))}
           detail={meShown !== undefined ? meDetail(meShown) : (shown?.detail ?? EMPTY_DETAIL)}
           placeholder={L("Select a node to see what it is.")}
+          onSelectNode={chooseByPath}
           // The ME sub-tree's rows carry their own term, decided by the
           // curator; every other row's is a function of its kind and subtype.
           helpTerm={

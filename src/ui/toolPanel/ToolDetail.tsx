@@ -31,6 +31,7 @@ export function ToolDetail({
   detail,
   placeholder,
   helpTerm,
+  onSelectNode,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -45,6 +46,13 @@ export function ToolDetail({
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.setTerm
    */
   readonly helpTerm?: HelpTermId | undefined;
+  /**
+   * What a click on a table row that stands for a node does: puts that node in
+   * focus. Without it the rows are text only.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.tableRowClicked
+   */
+  readonly onSelectNode?: ((path: readonly number[]) => void) | undefined;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shownSubject = useRef<string | undefined>(undefined);
@@ -103,9 +111,10 @@ export function ToolDetail({
             </h3>
           )}
           <dl className="tool-detail-fields">
-            {/* A label is said once per node, so it is the row's identity. */}
-            {detail.fields.map((one) => (
-              <div className="tool-detail-row" key={one.label}>
+            {/* A label is the row's identity — and its place, for the node that says one
+                twice: a DVAR entry's header has a Type of its own beside the common one. */}
+            {detail.fields.map((one, at) => (
+              <div className="tool-detail-row" key={`${at}\u0000${one.label}`}>
                 <dt>{one.label}</dt>
                 {/*
                   One rendering for a value that carries a status, wherever it
@@ -127,7 +136,7 @@ export function ToolDetail({
             ))}
           </dl>
           {detail.tables.map((table) => (
-            <DetailTableView key={table.title} table={table} />
+            <DetailTableView key={table.title} table={table} onSelectNode={onSelectNode} />
           ))}
           {detail.picture === undefined ? null : (
             <PicturePreview bytes={detail.picture.bytes} mime={detail.picture.mime} />
@@ -182,7 +191,13 @@ function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly 
  * @upstream-differs a cap on the last column's width, where upstream's compression priority
  * makes it give way to whatever the list leaves
  */
-function DetailTableView({ table }: { readonly table: DetailTable }) {
+function DetailTableView({
+  table,
+  onSelectNode,
+}: {
+  readonly table: DetailTable;
+  readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
+}) {
   return (
     <section className="tool-detail-table">
       <h4 className="tool-detail-table-title">
@@ -202,7 +217,23 @@ function DetailTableView({ table }: { readonly table: DetailTable }) {
         <tbody>
           {table.rows.map((row, rowIndex) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional, rebuilt whole
-            <tr key={rowIndex}>
+            <tr
+              key={rowIndex}
+              data-target={
+                onSelectNode !== undefined && table.rowTargets?.[rowIndex] !== undefined
+                  ? ""
+                  : undefined
+              }
+              onClick={() => {
+                const target = table.rowTargets?.[rowIndex];
+                if (target !== undefined) onSelectNode?.(target);
+              }}
+              title={
+                onSelectNode !== undefined && table.rowTargets?.[rowIndex] !== undefined
+                  ? L("Show this copy")
+                  : undefined
+              }
+            >
               {/* By column, whose names are unique in a table. A permission is read
                   by its colour as much as by its word — a column of green with
                   one red in it answers at a glance. */}

@@ -304,6 +304,19 @@ export interface FirmwareProtectedRangesRequest {
 }
 
 /**
+ * What Dell's Setup forms say each DVAR variable is: the reading of the driver's
+ * HII, over a copy of the tree with the compressed volumes decoded — the one thing
+ * about opening a Dell image that takes seconds. Asked for once a DVAR store has
+ * turned up, and answered with the empty list where there are no forms.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveDvarSettings
+ */
+export interface FirmwareDvarSettingsRequest {
+  readonly kind: "firmwareDvarSettings";
+  readonly id: JobId;
+}
+
+/**
  * The bytes of one buffer, or a range of one: what a compressed section
  * decompresses to, and a node inside it.
  *
@@ -558,6 +571,7 @@ export type FirmwareWorkerRequest =
   | FirmwareLayoutRequest
   | FirmwareSpaceBytesRequest
   | FirmwareProtectedRangesRequest
+  | FirmwareDvarSettingsRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
   | FirmwareInvalidateRequest
@@ -612,6 +626,21 @@ export interface WireNode {
    */
   readonly namedImageLength?: number | undefined;
   /**
+   * For a DVAR entry: how long its value is and, up to eight bytes, what it is as a
+   * little-endian number (decimal text) — what its row says after its name.
+   *
+   * @web-only the panel holds no bytes, so the worker reads the value
+   */
+  readonly dvarValue?: { readonly length: number; readonly number: string | undefined } | undefined;
+  /**
+   * For a store of variable entries: the copies a later one replaced, as child indices
+   * — each hidden copy and the copy that stands for its variable instead. What the
+   * tree leaves out unless superseded entries are asked for.
+   *
+   * @web-only the panel holds no bytes, so the worker reads the variables
+   */
+  readonly hiddenCopies?: readonly (readonly [number, number])[] | undefined;
+  /**
    * The Type and Subtype columns, in UEFITool's words. Worked out where the
    * parsed node is: a volume's subtype is its file system and a capsule's is
    * its GUID, and neither survives the trip as a byte.
@@ -649,6 +678,8 @@ export interface FirmwareChildrenResponse {
   readonly id: JobId;
   readonly node: readonly number[];
   readonly children: readonly WireNode[];
+  /** The node's own `hiddenCopies`, which the node already held when it was asked. */
+  readonly hiddenCopies?: readonly (readonly [number, number])[] | undefined;
   readonly diagnostics: readonly WireDiagnostic[];
 }
 
@@ -705,6 +736,24 @@ export interface FirmwareProtectedRangesResponse {
     readonly backup: readonly [number, number];
   };
   readonly topSwapCopiesMatch?: boolean;
+}
+
+/** One Setup question as it crosses the wire; the option values are decimal text, being 64-bit. */
+export interface WireDvarSetting {
+  readonly namespace: string;
+  readonly nameId: number;
+  readonly prompt: string;
+  readonly keyword: string | undefined;
+  readonly help: string | undefined;
+  readonly form: string | undefined;
+  readonly kind: "checkbox" | "oneOf" | "numeric" | "string" | "other";
+  readonly options: readonly { readonly value: string; readonly text: string }[];
+}
+
+export interface FirmwareDvarSettingsResponse {
+  readonly kind: "firmwareDvarSettings";
+  readonly id: JobId;
+  readonly settings: readonly WireDvarSetting[];
 }
 
 export interface FirmwareProgress {
@@ -848,6 +897,7 @@ export type FirmwareWorkerResponse =
   | FirmwareLayoutResponse
   | FirmwareSpaceBytesResponse
   | FirmwareProtectedRangesResponse
+  | FirmwareDvarSettingsResponse
   | FirmwareNodeAtOffsetResponse
   | FirmwareRepairResponse
   | FirmwareRebuildProgress

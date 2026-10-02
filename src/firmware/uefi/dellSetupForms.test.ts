@@ -1,7 +1,26 @@
 import { describe, expect, it } from "vitest";
+import { sourceOver } from "@/firmware/byteSource";
+import { ImageReader } from "@/firmware/imageReader";
 import { DELL_NAMESPACE, dellDriver } from "@/firmware/testing/testDellSetup";
-import { dellSettingsIn, settingName, settingOption } from "@/firmware/uefi/dellSetupForms";
-import { guidKey } from "@/firmware/uefi/efiGuid";
+import {
+  compressionSection,
+  image,
+  section,
+  sectionedFile,
+  volume,
+} from "@/firmware/testing/testImage";
+import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
+import {
+  dellSettingsIn,
+  PE32_SECTION,
+  settingName,
+  settingOption,
+} from "@/firmware/uefi/dellSetupForms";
+import { DVAR } from "@/firmware/uefi/dvarParser";
+import { guidBytes, guidKey } from "@/firmware/uefi/efiGuid";
+import { DEFAULT_LIMITS } from "@/firmware/uefi/parserState";
+import { dvarSettingsOfTree, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
+import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 
 /** Ported from `DellSetupFormsTests.swift`: what Dell's Setup forms say a DVAR variable is. */
 
@@ -64,5 +83,77 @@ describe("Dell's Setup forms", () => {
     expect(downgrade === undefined ? undefined : settingName(downgrade)).toBe(
       "Allow BIOS Downgrade"
     );
+  });
+});
+
+/** A DVAR store with one stored entry declaring the namespace, as `DvarParserTests.store` builds it. */
+function dvarStoreBytes(): number[] {
+  const bytes = [0x44, 0x56, 0x41, 0x52];
+  const sizeC = 0xffff_ffff - 0x100;
+  for (let index = 0; index < 4; index++) bytes.push(Math.floor(sizeC / 2 ** (8 * index)) & 0xff);
+  bytes.push(0xff - 0x83);
+  bytes.push(
+    0xff - DVAR.stored,
+    0xff - (DVAR.flagNameId | DVAR.flagNamespaceGuid),
+    0xff - DVAR.nameId8Size8,
+    0xff - 0x07,
+    0xff - 1
+  );
+  bytes.push(...guidBytes(DELL_NAMESPACE));
+  bytes.push(0xff - 0x40, 0xff - 1, 1);
+  while (bytes.length < 0x100) bytes.push(0xff);
+  return bytes;
+}
+
+describe("the tree and Dell's Setup forms", () => {
+  // A DVAR store beside a volume whose driver is in a compressed section: the
+  // tree reads the forms off a copy of itself, and an entry is named by what its
+  // question is.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DellSetupFormsTests.swift#DellSetupFormsTests.testTheTreeReadsTheFormsOfAnImageWithADvarStore
+  it("reads the forms of an image with a DVAR store", () => {
+    const driver = sectionedFile({
+      sections: [compressionSection(0, section({ type: PE32_SECTION, body: dellDriver() }))],
+    });
+    const bytes = Uint8Array.from([
+      ...image({ volume: volume({ length: 0x1000, files: [driver] }) }),
+      ...dvarStoreBytes(),
+      ...new Array<number>(0x100).fill(0xff),
+    ]);
+    const entry = parseUefiImage(sourceOver(bytes)).allNodes.find(
+      (node) => node.kind === "dvarEntry"
+    );
+    const reader = new ImageReader(sourceOver(bytes));
+    const roots = stampIds(rootsOf(reader, DEFAULT_LIMITS).nodes, []);
+    const catalogue = dvarSettingsOfTree(
+      roots,
+      bytes.length,
+      reader,
+      DEFAULT_LIMITS,
+      new DecompressedBuffers()
+    );
+
+    const setting = entry === undefined ? undefined : catalogue.settingFor(entry);
+    expect(setting === undefined ? undefined : settingName(setting)).toBe("BootMode");
+    expect(catalogue.settings.size).toBe(2);
+  });
+
+  // No DVAR store, nothing to name: the catalogue is empty.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DellSetupFormsTests.swift#DellSetupFormsTests.testAnImageWithoutAStoreHasNoSettings
+  it("has no settings for an image without a store", () => {
+    const driver = sectionedFile({
+      sections: [section({ type: PE32_SECTION, body: dellDriver() })],
+    });
+    const bytes = image({ volume: volume({ length: 0x1000, files: [driver] }) });
+    const reader = new ImageReader(sourceOver(bytes));
+    const roots = stampIds(rootsOf(reader, DEFAULT_LIMITS).nodes, []);
+    const catalogue = dvarSettingsOfTree(
+      roots,
+      bytes.length,
+      reader,
+      DEFAULT_LIMITS,
+      new DecompressedBuffers()
+    );
+
+    expect(catalogue.isEmpty).toBe(true);
   });
 });

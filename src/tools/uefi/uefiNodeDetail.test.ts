@@ -6,7 +6,14 @@ import { ascii, bvdtTable, ITE_BLOCK } from "@/firmware/testing/testInsyde";
 import { checksummedNvarEntry, nvarStore, nvarVolume } from "@/firmware/testing/testNvar";
 import { repairsForFile } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
-import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
+import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
+import {
+  guid,
+  guidBytes as guidBytesOf,
+  guidFromBytes,
+  guidKey,
+  guidText,
+} from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { jedecName } from "@/firmware/uefi/jedecIds";
@@ -1161,6 +1168,8 @@ describe("a variable's history", () => {
     expect(value(detail, "Variable")).toBe("Setup");
     expect(history?.columns).toEqual(["Copy", "Address", "State", "Size", "Change"]);
     expect(history?.rows.map((row) => row[0]?.text)).toEqual(["1", "▸ 2", "3", "4"]);
+    // A click on a row shows that copy.
+    expect(history?.rowTargets).toEqual(store.children.slice(1).map((child) => child.id));
     expect(history?.rows.map((row) => row[1]?.text)).toEqual(
       store.children.slice(1).map((child) => `0x${child.header.start.toString(16).toUpperCase()}`)
     );
@@ -1245,9 +1254,17 @@ describe("a Dell DVAR entry", () => {
     });
     const detail = detailOf(entry, bytes);
 
-    expect(nodeName(entry, new GuidsCatalogue(new Map()))).toBe(
-      "417ACEE0-6FA9-4A82-99D7-F9B1DD271E48 · 40"
+    const none = new GuidsCatalogue(new Map());
+    // No Setup page names it.
+    expect(nodeName(entry, none)).toBe("0x40");
+    // And its value, little-endian.
+    expect(nodeName({ ...entry, dvarValue: { length: 2, number: 0x201n } }, none)).toBe(
+      "0x40 = 0x201"
     );
+    // Too long for a number: its size.
+    expect(
+      nodeName({ ...entry, name: "2", dvarValue: { length: 16, number: undefined } }, none)
+    ).toBe("0x2 (16 bytes)");
     expect(typeText(entry)).toBe("DVAR entry");
     expect(subtypeText(entry)).toBe("NamespaceGuid");
     expect(value(detail, "State")).toBe("0x5 (Stored)");
@@ -1256,6 +1273,77 @@ describe("a Dell DVAR entry", () => {
     expect(value(detail, "Name ID")).toBe("0x40");
     expect(value(detail, "Data size")).toBe("0x2 (2)");
     expect(uefiHelpTerm(entry)).toBe("dvar");
+  });
+});
+
+describe("a Dell DVAR entry named by Setup", () => {
+  // Where Dell's Setup asks about a DVAR variable, the row is called by the
+  // question's keyword, and the detail says what Setup says: the option, its page,
+  // what this value means there, its help.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testADvarEntryIsNamedByTheSetupQuestionAboutIt
+  it("is named by the Setup question about it", () => {
+    const namespace = guid("417ACEE0-6FA9-4A82-99D7-F9B1DD271E48");
+    // A store's header, then a stored entry declaring the namespace, name id 0x40,
+    // one byte of data: 1.
+    const entryBytes = [0xfa, 0xf9, 0xff, 0xf8, 0xfe, ...guidBytesOf(namespace), 0xbf, 0xfe, 0x01];
+    const bytes = Uint8Array.from([
+      ...[0x44, 0x56, 0x41, 0x52],
+      0xde,
+      0xff,
+      0xff,
+      0xff,
+      0x7c,
+      ...entryBytes,
+    ]);
+    const entry = makeNode({
+      kind: "dvarEntry",
+      subtype: Sub.namespaceGuidDvarEntry,
+      name: "40",
+      guid: namespace,
+      header: r(9, 32),
+      body: r(32, 33),
+      isFixed: true,
+    });
+    const store = makeNode({
+      kind: "dvarStore",
+      name: "",
+      header: r(0, 9),
+      body: r(9, 33),
+      children: [entry],
+    });
+    const key = `${guidKey(namespace)}|${0x40}`;
+    const settings = new DellSetupCatalogue(
+      new Map([
+        [
+          key,
+          {
+            prompt: "Allow BIOS Downgrade",
+            keyword: "AllowBiosDowngrade",
+            help: "Lets an older BIOS be flashed.",
+            form: "Security",
+            kind: "checkbox",
+            options: [],
+          },
+        ],
+      ])
+    );
+    const image = new UEFIImage({ size: 33, roots: [store], dvarSettings: settings });
+    const shown = (image.roots[0] as UEFINode).children[0] as UEFINode;
+    const detail = buildNodeDetail(shown, image, readerOver(bytes), []);
+    const none = new GuidsCatalogue(new Map());
+
+    expect(nodeName({ ...shown, dvarSettings: settings }, none)).toBe("AllowBiosDowngrade");
+    // The value, as Setup words it.
+    expect(
+      nodeName({ ...shown, dvarSettings: settings, dvarValue: { length: 1, number: 1n } }, none)
+    ).toBe("AllowBiosDowngrade = Ticked (0x1)");
+    // Before the forms are read.
+    expect(nodeName(shown, none)).toBe("0x40");
+    expect(value(detail, "Setup option")).toBe("Allow BIOS Downgrade");
+    expect(value(detail, "Keyword")).toBe("AllowBiosDowngrade");
+    expect(value(detail, "Setup page")).toBe("Security");
+    expect(value(detail, "Value in Setup")).toBe("Ticked (0x1)");
+    expect(value(detail, "Setup help")).toBe("Lets an older BIOS be flashed.");
   });
 });
 

@@ -12,6 +12,7 @@ import { nvramVolume, vssStore, vssVariable } from "@/firmware/testing/testNvram
 import {
   changedBytes,
   isNoChange,
+  supersededCopies,
   variableChange,
   variableHistoryOf,
   variableOf,
@@ -129,6 +130,30 @@ describe("a variable's copies", () => {
       [0x65, 0x6e],
       [0x64, 0x65],
     ]);
+  });
+
+  // What a tree can leave out: each replaced copy, standing behind the current
+  // one; a deleted variable keeps its last copy; a variable with one copy, and every
+  // current one, stays.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift#NvramVariableHistoryTests.testSupersededCopiesStandBehindTheCopyThatReplacedThem
+  it("stands each superseded copy behind the copy that replaced it", () => {
+    const { store, reader } = vss([
+      vssVariable({ name: "BootOrder", state: MARKED }),
+      vssVariable({ name: "Gone", state: MARKED }),
+      vssVariable({ name: "BootOrder", state: MARKED }),
+      vssVariable({ name: "Gone", state: MARKED }),
+      vssVariable({ name: "Lang" }),
+      vssVariable({ name: "BootOrder" }),
+    ]);
+    const ids = variableEntries(store).map((node) => node.id);
+
+    expect(supersededCopies(store, reader)).toEqual(
+      new Map([
+        [ids[0]?.join(".") ?? "", ids[5]],
+        [ids[2]?.join(".") ?? "", ids[5]],
+        [ids[1]?.join(".") ?? "", ids[3]],
+      ])
+    );
   });
 
   // The bytes that differ, as runs over the length both copies have, and the

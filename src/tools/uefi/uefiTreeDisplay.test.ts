@@ -3,6 +3,7 @@ import { type EFIGUID, guid, guidKey, guidText } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
+import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import {
@@ -440,6 +441,24 @@ describe("empty padding", () => {
     expect(listed(nodes, true).map((node) => node.name)).toEqual([
       "FFSv2",
       "Empty padding",
+      "Padding",
+      "Free space",
+    ]);
+  });
+
+  // The copies a store's later entries replaced are left out by id, with the empty
+  // padding or without it.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift#EmptyPaddingTests.testTheTreeLeavesOutTheCopiesItIsToldTo
+  it("leaves out the copies it is told to", () => {
+    const image = new UEFIImage({ size: 0x3000, roots: [volume(), erased, data, free] });
+    const ids = image.roots.map((node) => node.id.join("."));
+
+    expect(listed(image.roots, true, new Set([ids[2] ?? ""])).map((node) => node.name)).toEqual([
+      "FFSv2",
+      "Empty padding",
+      "Free space",
+    ]);
+    expect(listed(image.roots, false, new Set([ids[0] ?? ""])).map((node) => node.name)).toEqual([
       "Padding",
       "Free space",
     ]);

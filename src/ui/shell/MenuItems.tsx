@@ -43,6 +43,7 @@ export function MenuItems({
             }
             {...(entry.checked === undefined ? {} : { "aria-checked": entry.checked })}
             disabled={entry.disabled === true}
+            title={entry.tooltip}
             onClick={() => {
               entry.onSelect();
               onChosen();

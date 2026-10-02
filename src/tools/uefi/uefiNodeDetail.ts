@@ -3,6 +3,7 @@ import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import { type ChecksumRepair, volumeErasePolarityOf } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
+import type { DellSetupSetting } from "@/firmware/uefi/dellSetupForms";
 import { generationCodeName, generationSeries } from "@/firmware/uefi/descriptorGeneration";
 import {
   type DescriptorClock,
@@ -75,7 +76,7 @@ import {
   tonedField,
 } from "@/tools/toolDetail";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
-import { kindLabel } from "@/tools/uefi/uefiTreeDisplay";
+import { dvarMeaning, kindLabel } from "@/tools/uefi/uefiTreeDisplay";
 
 /**
  * What the panel says about the selected node, by its type. Ported from
@@ -140,6 +141,35 @@ function withListedRanges(
     ...detail,
     tables: [listedRangesTable(table.listedRanges, node, image), ...detail.tables],
   };
+}
+
+/**
+ * What Setup says the variable is (`DellSetupCatalogue`): the option as its page
+ * words it, its keyword, the page, what this copy's value means there, and the
+ * page's help for it. All the firmware's own English.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.settingFields
+ */
+function settingFields(setting: DellSetupSetting, value: Uint8Array): DetailField[] {
+  const fields: DetailField[] = [field(L("Setup option"), setting.prompt)];
+  if (setting.keyword !== undefined) fields.push(field(L("Keyword"), setting.keyword));
+  if (setting.form !== undefined && setting.form !== setting.prompt) {
+    fields.push(field(L("Setup page"), setting.form));
+  }
+  if (value.length > 0 && value.length <= 8) {
+    let number = 0n;
+    for (let index = value.length - 1; index >= 0; index--) {
+      number = (number << 8n) | BigInt(value[index] ?? 0);
+    }
+    const meaning = dvarMeaning(number, setting);
+    if (meaning !== undefined) {
+      fields.push(
+        field(L("Value in Setup"), `${meaning} (0x${number.toString(16).toUpperCase()})`)
+      );
+    }
+  }
+  if (setting.help !== undefined) fields.push(field(L("Setup help"), setting.help));
+  return fields;
 }
 
 /**
@@ -306,10 +336,16 @@ function withVariableHistory(
       : node.kind === "dvarEntry" && variable.guid !== undefined
         ? `${guidText(variable.guid)} · ${variable.name}`
         : variable.name;
-  const fields =
+  let fields =
     variable !== undefined && variableText !== undefined && variable.name !== node.name
       ? [...detail.fields, field(L("Variable"), variableText)]
       : detail.fields;
+  if (node.kind === "dvarEntry" && variable?.guid !== undefined) {
+    const setting = image.dvarSettings?.settingIn(variable.guid, variable.name);
+    if (setting !== undefined) {
+      fields = [...fields, ...settingFields(setting, reader.bytes(node.body) ?? new Uint8Array(0))];
+    }
+  }
   if (history === undefined) return { ...detail, fields };
   return { ...detail, fields, tables: [historyTable(history, node.id, reader), ...detail.tables] };
 }
@@ -340,10 +376,12 @@ function historyTable(
   const isFocus = (version: NvramVariableVersion) =>
     version.entry.length === focus.length && version.entry.every((part, at) => part === focus[at]);
   const rows: DetailCell[][] = [];
+  const targets: (readonly number[] | undefined)[] = [];
   if (firstShown > 0) {
     const focused = versions.findIndex(isFocus);
     if (focused >= 0 && focused < firstShown) {
       rows.push(historyRow(versions, focused, isFocus, reader));
+      targets.push(versions[focused]?.entry);
     }
     rows.push([
       cell("…"),
@@ -352,10 +390,15 @@ function historyTable(
       cell(""),
       cell(""),
     ]);
+    targets.push(undefined);
   }
   for (let index = firstShown; index < versions.length; index++) {
     rows.push(historyRow(versions, index, isFocus, reader));
+    targets.push(versions[index]?.entry);
   }
+  // A click on a copy puts it in focus: its detail, and its bytes in the dump — the
+  // way to a copy the tree leaves out.
+  // help: panel.uefi.variable-history
   return {
     title: L("Variable history"),
     symbol: "clock.arrow.circlepath",
@@ -367,6 +410,7 @@ function historyTable(
       L("Change"),
     ],
     rows,
+    rowTargets: targets,
   };
 }
 

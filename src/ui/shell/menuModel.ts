@@ -25,6 +25,8 @@ export interface MenuAction {
    * key handler for — the shell's zoom — needs the menu to register it.
    */
   readonly shellKey?: boolean | undefined;
+  /** What a pause over the row says — the phrase upstream's `ControlHelp.describe` sets on an item. */
+  readonly tooltip?: string | undefined;
   readonly onSelect: () => void;
 }
 

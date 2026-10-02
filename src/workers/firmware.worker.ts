@@ -20,9 +20,11 @@ import {
   repairsForVolume,
 } from "@/firmware/uefi/checksumRepair";
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
+import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
+import { supersededCopies } from "@/firmware/uefi/nvramVariableHistory";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import {
   isIbbKind,
@@ -47,7 +49,13 @@ import {
 } from "@/firmware/uefi/secondPass";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import { invalidating } from "@/firmware/uefi/treeInvalidation";
-import { childrenOf, materializeAll, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
+import {
+  childrenOf,
+  dvarSettingsOfTree,
+  materializeAll,
+  rootsOf,
+  stampIds,
+} from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { planRebuild, targetForFileRange } from "@/firmware/uefi/uefiRebuild";
@@ -69,6 +77,7 @@ import type {
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
   WireDiagnostic,
+  WireDvarSetting,
   WireNode,
   WireProtectedRange,
 } from "@/workers/protocol";
@@ -215,6 +224,12 @@ let protectedRanges: ProtectedRanges | undefined;
  * ranges need, and an edit makes it stale the same way.
  */
 let addresses: SecondPass | undefined;
+/**
+ * What Dell's Setup forms say each DVAR variable is, once something has asked: the
+ * reading decodes the compressed volumes, so it is done once and kept until an edit
+ * makes it stale.
+ */
+let dvarSettings: DellSetupCatalogue | undefined;
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
 
@@ -243,10 +258,57 @@ const wireDiagnostics = (diagnostics: readonly UEFIDiagnostic[]): WireDiagnostic
   }));
 
 /**
+ * A DVAR entry's value: its length and, when it is eight bytes or fewer, what it is
+ * as a little-endian number — what the row says after its name.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dvarValue
+ */
+function dvarValueOf(node: UEFINode): { length: number; number: string | undefined } {
+  const length = node.body.end - node.body.start;
+  const bytes = length > 0 && length <= 8 ? readerFor(node)?.bytes(node.body) : undefined;
+  if (bytes === undefined) return { length, number: undefined };
+  let number = 0n;
+  for (let index = bytes.length - 1; index >= 0; index--) {
+    number = (number << 8n) | BigInt(bytes[index] ?? 0);
+  }
+  return { length, number: number.toString() };
+}
+
+/**
+ * The copies of a store's variables a later entry replaced, as child indices: each
+ * hidden copy and the copy that stands for its variable.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.supersededCopies
+ */
+function hiddenCopiesOf(node: UEFINode): [number, number][] | undefined {
+  const first = node.children[0];
+  if (
+    first === undefined ||
+    (first.kind !== "vssEntry" && first.kind !== "nvarEntry" && first.kind !== "dvarEntry")
+  ) {
+    return undefined;
+  }
+  const spaceReader = readerFor(node);
+  if (spaceReader === undefined) return undefined;
+  const hidden = supersededCopies(node, spaceReader);
+  if (hidden.size === 0) return undefined;
+  const indexOf = new Map(node.children.map((child, index) => [child.id.join("."), index]));
+  const pairs: [number, number][] = [];
+  for (const [copy, standing] of hidden) {
+    const from = indexOf.get(copy);
+    const to = indexOf.get(standing.join("."));
+    if (from !== undefined && to !== undefined) pairs.push([from, to]);
+  }
+  return pairs;
+}
+
+/**
  * A node as it crosses the wire: the ranges flattened to pairs and the GUID to
  * its text, because what the panel does with either is show it.
  */
 const wireNode = (node: UEFINode): WireNode => ({
+  ...(node.kind === "dvarEntry" ? { dvarValue: dvarValueOf(node) } : {}),
+  hiddenCopies: hiddenCopiesOf(node),
   id: node.id,
   kind: node.kind,
   subtype: node.subtype,
@@ -364,6 +426,32 @@ function readRanges(): ProtectedRanges {
   protectedRanges = found;
   return found;
 }
+
+/**
+ * What Dell's Setup forms say each DVAR variable is, read over a copy of the tree.
+ * Every volume's files first, which is where a DVAR store turns up; only when there
+ * is one, everything else — the forms' driver sits in a compressed section.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.dvarSettings
+ */
+function readDvarSettings(): DellSetupCatalogue {
+  if (dvarSettings !== undefined) return dvarSettings;
+  if (reader === undefined) return new DellSetupCatalogue();
+  dvarSettings = dvarSettingsOfTree(roots, reader.count, reader, DEFAULT_LIMITS, buffers);
+  return dvarSettings;
+}
+
+const wireDvarSettings = (catalogue: DellSetupCatalogue): WireDvarSetting[] =>
+  catalogue.entries().map(({ namespace, nameId, setting }) => ({
+    namespace,
+    nameId,
+    prompt: setting.prompt,
+    keyword: setting.keyword,
+    help: setting.help,
+    form: setting.form,
+    kind: setting.kind,
+    options: setting.options.map((one) => ({ value: one.value.toString(), text: one.text })),
+  }));
 
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.show */
 const wireProtectedRange = (range: ProtectedRange): WireProtectedRange => ({
@@ -519,6 +607,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         reader = new ImageReader(new BlobByteSource(request.content));
         buffers = new DecompressedBuffers();
         protectedRanges = undefined;
+        dvarSettings = undefined;
         addresses = undefined;
         const sink = new ProgressSink(reader.count, (fraction) =>
           post({ kind: "firmwareProgress", id: request.id, fraction })
@@ -554,6 +643,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // The ranges were read off bytes that may have just been typed over,
         // and their digests over bytes that certainly were.
         protectedRanges = undefined;
+        // The forms too: an edit may have landed in the driver.
+        dvarSettings = undefined;
         addresses = undefined;
         roots = invalidating(roots, edited, request.sizeDelta);
         // No diagnostics come back with this: what was found in the subtrees
@@ -590,6 +681,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           id: request.id,
           node: request.node,
           children: node.children.map(wireNode),
+          hiddenCopies: hiddenCopiesOf(node),
           diagnostics: wireDiagnostics(diagnostics),
         });
         return;
@@ -631,6 +723,14 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         post({ kind: "firmwareAddresses", id: request.id, addressDiff: addressing().addressDiff });
         return;
       }
+
+      case "firmwareDvarSettings":
+        post({
+          kind: "firmwareDvarSettings",
+          id: request.id,
+          settings: wireDvarSettings(readDvarSettings()),
+        });
+        return;
 
       case "firmwareProtectedRanges": {
         const ranges = readRanges();
@@ -705,6 +805,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           // Whatever has been read so far: the detail says what protects a node
           // once something has asked for the ranges, and reads nothing itself.
           protectedRanges,
+          dvarSettings,
         });
         post({
           kind: "firmwareDetail",

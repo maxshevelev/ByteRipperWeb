@@ -1,6 +1,7 @@
 import type { ByteSource } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
+import type { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import type { UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { DEFAULT_LIMITS, type Limits, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import { type ProtectedRanges, readProtectedRanges } from "@/firmware/uefi/protectedRanges";
@@ -60,6 +61,14 @@ export class UEFIImage {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.protectedRanges
    */
   readonly protectedRanges: ProtectedRanges | undefined;
+  /**
+   * What Dell's Setup forms say each DVAR variable is, once they have been read
+   * (`DellSetupCatalogue`). Nothing means not read; an image with no forms reads
+   * as an empty catalogue.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.dvarSettings
+   */
+  readonly dvarSettings: DellSetupCatalogue | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.init */
   constructor(options: {
@@ -69,6 +78,7 @@ export class UEFIImage {
     readonly addressDiff?: number | undefined;
     readonly resetVector?: ResetVector | undefined;
     readonly protectedRanges?: ProtectedRanges | undefined;
+    readonly dvarSettings?: DellSetupCatalogue | undefined;
   }) {
     this.size = options.size;
     // Ids are stamped here, at the end, rather than threaded through the
@@ -79,6 +89,7 @@ export class UEFIImage {
     this.diagnostics = options.diagnostics ?? [];
     this.addressDiff = options.addressDiff;
     this.protectedRanges = options.protectedRanges;
+    this.dvarSettings = options.dvarSettings;
     this.resetVector = options.resetVector;
   }
 

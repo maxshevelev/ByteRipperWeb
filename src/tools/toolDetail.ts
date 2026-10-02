@@ -76,6 +76,13 @@ export interface DetailTable {
   readonly columns: readonly string[];
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.rows */
   readonly rows: readonly (readonly DetailCell[])[];
+  /**
+   * The node each row stands for, where a row stands for one: a click on the row puts
+   * it in focus. Absent, or undefined for a row, when it is text only.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.rowTargets
+   */
+  readonly rowTargets?: readonly (readonly number[] | undefined)[] | undefined;
 }
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail */

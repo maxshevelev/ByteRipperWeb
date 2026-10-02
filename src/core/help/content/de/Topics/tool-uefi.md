@@ -1,4 +1,4 @@
-@source-sha c1290a82b4148af43cbb2caa65a6960a687fcda558107e99e6a5a2d786d7ac35
+@source-sha e9e10b9b94d183240cafb2df24f831b913096f78aed7e217cc38cb1946b0fb52
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -31,6 +31,8 @@ Ein vom Werkzeug erkanntes [[term:picture|Bild]] — JPEG, PNG, GIF oder BMP, im
 
 ## Padding
 
-Zwischen den Strukturen eines Dumps liegt gelöschter Raum. Der Baum lässt ihn weg, solange **Leeres Padding anzeigen** nicht angekreuzt ist. Padding mit Daten wird in jedem Fall aufgeführt, ebenso der freie Speicher eines Volumes, der angibt, wie viel Platz darin noch frei ist.
+Zwischen den Strukturen eines Dumps liegt gelöschter Raum. Der Baum lässt ihn weg, solange im Filtermenü **Leeres Padding anzeigen** nicht abgehakt ist. Das Menü öffnet das Trichtersymbol in der Titelzeile, links neben der Schaltfläche, die den Knoten unter dem Cursor im Baum zeigt. Solange der Baum etwas anzeigt, das er standardmäßig weglässt, ist das Symbol farbig hervorgehoben. Padding mit Daten wird in jedem Fall aufgeführt, ebenso der freie Speicher eines Volumes, der angibt, wie viel Platz darin noch frei ist.
+
+Ein Variablenspeicher behält die früheren Kopien seiner Variablen, bis die Firmware ihn bereinigt; auf einem Board, das eine Variable bei jedem Start schreibt, machen sie den größten Teil seiner Zeilen aus. Der Baum zeigt eine Zeile je Variable — ihre aktuelle Kopie oder, für eine Variable, die der Speicher nicht mehr enthält, die Kopie, als die sie gelöscht wurde —, solange im selben Menü **Ersetzte Einträge anzeigen** nicht abgehakt ist. Die übrigen Kopien stehen unter **Verlauf der Variable** in den Details dieser Zeile; ein Klick auf eine Kopie zeigt ihre eigenen Details und ihre Bytes im Dump, und im Baum bleibt die Zeile der geltenden Kopie ausgewählt. Dasselbe geschieht, wenn der Cursor im Dump in einer Kopie steht, die der Baum weglässt, und sie im Baum angezeigt wird.
 
 Siehe auch: [[topic:tool-fit|FIT-Tabelle]], [[term:vss|NVRAM-Speicher]], [[topic:recipe-checksums|Prüfsummen]].

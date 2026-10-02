@@ -2,6 +2,7 @@ import type { ImageReader } from "@/firmware/imageReader";
 import { type ByteSpace, insideSection, isFileSpace } from "@/firmware/uefi/byteSpace";
 import { algorithmDisplayName, locateCompressedSection } from "@/firmware/uefi/compressedSection";
 import type { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
+import { DellSetupCatalogue, readDellSetup } from "@/firmware/uefi/dellSetupForms";
 import { type DiagnosticKind, locatedIn, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { parseFile } from "@/firmware/uefi/fileParser";
 import { walkNvramVolumeBody } from "@/firmware/uefi/nvramParser";
@@ -14,6 +15,8 @@ import {
 import { parseTopLevel, scanRawArea } from "@/firmware/uefi/rawScan";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { walkSections } from "@/firmware/uefi/sectionParser";
+import { SpaceReaders } from "@/firmware/uefi/spaceReaders";
+import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { childId, type NodeID, nodeRange, ROOT_ID, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume, readVolumeHeader, volumeChildren } from "@/firmware/uefi/volumeParser";
 
@@ -305,6 +308,34 @@ export function materializeAll(
       opensCompressed,
     });
   }
+}
+
+/**
+ * What Dell's Setup forms say each DVAR variable is, read over a copy of the tree
+ * (`DellSetupCatalogue`). Every volume's files first, which is where a DVAR store
+ * turns up; only when there is one, everything else — the forms' driver sits in a
+ * compressed section.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.dvarSettings
+ */
+export function dvarSettingsOfTree(
+  roots: readonly UEFINode[],
+  size: number,
+  reader: ImageReader,
+  limits: Limits,
+  buffers: DecompressedBuffers
+): DellSetupCatalogue {
+  const nodes = structuredClone(roots) as UEFINode[];
+  const discarded: UEFIDiagnostic[] = [];
+  materializeAll(nodes, reader, limits, buffers, discarded, { opensCompressed: false });
+  const hasStore = (list: readonly UEFINode[]): boolean =>
+    list.some((one) => one.kind === "dvarStore" || hasStore(one.children));
+  if (!hasStore(nodes)) return new DellSetupCatalogue();
+  materializeAll(nodes, reader, limits, buffers, discarded);
+  return readDellSetup(
+    new UEFIImage({ size, roots: nodes }),
+    new SpaceReaders(reader, { limits, buffers })
+  );
 }
 
 /**

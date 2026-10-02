@@ -2,6 +2,7 @@ import type { UndoOperation } from "@/core/edit/undoHistory";
 import { currentCatalogue, L } from "@/core/localization/localization";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import { DellSetupCatalogue, type DellSetupSetting } from "@/firmware/uefi/dellSetupForms";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
@@ -63,6 +64,14 @@ export interface PaneFirmware {
    * Nothing means "not read yet", which is not the same as "none".
    */
   readonly protectedRanges: FirmwareProtectedRangesResponse | undefined;
+  /**
+   * What Dell's Setup forms say each DVAR variable is, once the worker has read them.
+   * Nothing means not read yet, which an image with no forms is not: it reads as an
+   * empty catalogue.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.dvarSettings
+   */
+  readonly dvarSettings: DellSetupCatalogue | undefined;
 }
 
 export interface FirmwareState {
@@ -80,6 +89,7 @@ const empty: PaneFirmware = {
   expanding: new Set(),
   detail: undefined,
   protectedRanges: undefined,
+  dvarSettings: undefined,
 };
 
 export const firmwareStore = createStore<FirmwareState>({ panes: { a: undefined, b: undefined } });
@@ -189,6 +199,8 @@ function ensureWorker(pane: PaneId): PaneWorker {
           detail: undefined,
           fraction: 1,
           problem: undefined,
+          // The forms may have been in the bytes the edit touched.
+          dvarSettings: undefined,
         });
         return;
       case "firmwareChildren": {
@@ -196,7 +208,12 @@ function ensureWorker(pane: PaneId): PaneWorker {
         const expanding = new Set(current.expanding);
         expanding.delete(pathKey(response.node));
         update(pane, {
-          roots: replaceChildren(current.roots, response.node, response.children),
+          roots: replaceChildren(
+            current.roots,
+            response.node,
+            response.children,
+            response.hiddenCopies
+          ),
           diagnostics: [...current.diagnostics, ...response.diagnostics],
           expanding,
         });
@@ -292,6 +309,24 @@ function ensureWorker(pane: PaneId): PaneWorker {
           diagnostics: [...(firmwareFor(pane)?.diagnostics ?? []), ...response.diagnostics],
         });
         return;
+      case "firmwareDvarSettings": {
+        const settings = new Map<string, DellSetupSetting>();
+        for (const one of response.settings) {
+          settings.set(`${one.namespace}|${one.nameId}`, {
+            prompt: one.prompt,
+            keyword: one.keyword,
+            help: one.help,
+            form: one.form,
+            kind: one.kind,
+            options: one.options.map((option) => ({
+              value: BigInt(option.value),
+              text: option.text,
+            })),
+          });
+        }
+        update(pane, { dvarSettings: new DellSetupCatalogue(settings) });
+        return;
+      }
       case "firmwareRepair": {
         const waiting = repairWaiters.get(pathKey(response.node));
         repairWaiters.delete(pathKey(response.node));
@@ -407,6 +442,7 @@ export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayou
     expanding: new Set(),
     detail: undefined,
     problem: undefined,
+    dvarSettings: undefined,
   });
   held.worker.postMessage({ kind: "openFirmware", id: held.job, content, layout });
 }
@@ -504,6 +540,24 @@ export function askFirmwareProtectedRanges(pane: PaneId): void {
   if (current.protectedRanges !== undefined) return;
   send(pane, { kind: "firmwareProtectedRanges", id: workers[pane]?.job ?? 0 });
 }
+
+/**
+ * Reads what Dell's Setup forms say each DVAR variable is, once. The worker decodes
+ * the compressed volumes for it, so a panel asks when a DVAR store has turned up and
+ * not before; the names arrive a few seconds later and the rows take them up.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveDvarSettings
+ */
+export function askFirmwareDvarSettings(pane: PaneId): void {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return;
+  if (current.dvarSettings !== undefined || dvarAsked.get(pane) === workers[pane]?.job) return;
+  dvarAsked.set(pane, workers[pane]?.job ?? 0);
+  send(pane, { kind: "firmwareDvarSettings", id: workers[pane]?.job ?? 0 });
+}
+
+/** The job of the tree the pane last asked about, so one ask is made per tree. */
+const dvarAsked = new Map<PaneId, number>();
 
 /**
  * The bytes of one buffer, or a range of one — what a compressed section
@@ -1302,13 +1356,14 @@ export function firmwareNodeAt(
 function replaceChildren(
   roots: readonly WireNode[],
   path: readonly number[],
-  children: readonly WireNode[]
+  children: readonly WireNode[],
+  hiddenCopies?: WireNode["hiddenCopies"]
 ): WireNode[] {
   if (path.length === 0) return [...children];
   const [index, ...rest] = path;
   return roots.map((node, at) => {
     if (at !== index) return node;
-    if (rest.length === 0) return { ...node, children, isExpandable: false };
-    return { ...node, children: replaceChildren(node.children, rest, children) };
+    if (rest.length === 0) return { ...node, children, hiddenCopies, isExpandable: false };
+    return { ...node, children: replaceChildren(node.children, rest, children, hiddenCopies) };
   });
 }

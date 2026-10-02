@@ -7,6 +7,9 @@
 @covers panel.uefi.top-swap
 @covers panel.uefi.save-node
 @covers panel.uefi.picture-preview
+@covers panel.uefi.superseded-entries
+@covers panel.uefi.filter
+@covers panel.uefi.variable-history
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
@@ -36,6 +39,8 @@ A [[term:picture|picture]] the tool recognises — a JPEG, PNG, GIF or BMP, in p
 
 ## Padding
 
-A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume.
+A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked in the filter menu, which the funnel icon in the title row opens, left of the reveal button. The icon is tinted while the tree lists anything it omits by default. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume.
+
+A variable store keeps the earlier copies of its variables until the firmware reclaims it; on a board that writes a variable at every boot they are most of its rows. The tree lists one row per variable — its current copy, or for a variable the store no longer holds, the copy it was deleted as — unless **Show Superseded Entries** is ticked in the same menu. The other copies are listed under **Variable history** in the detail of that row; a click on a copy there shows its own detail and its bytes in the dump, and the tree keeps the row of the copy that stands selected. When the caret in the dump is in a copy the tree leaves out, revealing it does the same.
 
 See also: [[topic:tool-fit|FIT Table]], [[term:vss|NVRAM stores]], [[topic:recipe-checksums|Checksums]].

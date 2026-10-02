@@ -24,6 +24,7 @@ export function MenuButton({
   disabled,
   className,
   pullDown,
+  hangsFromRight,
 }: {
   readonly label: React.ReactNode;
   readonly title: string;
@@ -40,6 +41,11 @@ export function MenuButton({
    * @upstream-differs a chevron drawn after the label, where AppKit's pull-down draws its own
    */
   readonly pullDown?: boolean | undefined;
+  /**
+   * The list hangs from the button's right edge whatever the window says: a button at
+   * the right end of a panel narrower than the window has its list clipped otherwise.
+   */
+  readonly hangsFromRight?: boolean | undefined;
 }) {
   const [open, setOpen] = useState(false);
   /**
@@ -68,10 +74,10 @@ export function MenuButton({
     const button = buttonRef.current;
     if (button !== null) {
       const at = button.getBoundingClientRect();
-      setFromRight(at.left + at.width / 2 > window.innerWidth / 2);
+      setFromRight(hangsFromRight === true || at.left + at.width / 2 > window.innerWidth / 2);
     }
     setOpen(true);
-  }, []);
+  }, [hangsFromRight]);
 
   const close = useCallback((returnFocus: boolean) => {
     setOpen(false);

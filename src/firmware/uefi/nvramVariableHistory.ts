@@ -155,6 +155,44 @@ export function variableOf(
 }
 
 /**
+ * The copies a tree can leave out of a store's rows, each with the copy that stands
+ * for its variable instead: every copy a later one replaced, mapped to the
+ * variable's current copy — or, for a variable the store no longer holds, to the
+ * copy it was deleted as, which stays, so a deleted variable does not vanish. A
+ * current copy is never left out, nor an entry whose variable cannot be told. Empty
+ * for a node that is not a store of VSS, NVAR or DVAR entries.
+ *
+ * Keyed by the entry's id as text (`1.4.2`).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.supersededCopies
+ */
+export function supersededCopies(
+  store: UEFINode,
+  reader: ImageReader
+): Map<string, readonly number[]> {
+  const hidden = new Map<string, readonly number[]>();
+  if (!store.children.some(isVariableEntry)) return hidden;
+  const byVariable = new Map<string, Copy[]>();
+  for (const copy of copiesIn(store, reader)) {
+    const key = keyText(copy.key);
+    const list = byVariable.get(key);
+    if (list === undefined) byVariable.set(key, [copy]);
+    else list.push(copy);
+  }
+  for (const versions of byVariable.values()) {
+    if (versions.length <= 1) continue;
+    const standing = versions.findLast((copy) => copy.isCurrent) ?? versions[versions.length - 1];
+    if (standing === undefined) continue;
+    for (const copy of versions) {
+      if (!copy.isCurrent && !sameId(copy.entry, standing.entry)) {
+        hidden.set(copy.entry.join("."), standing.entry);
+      }
+    }
+  }
+  return hidden;
+}
+
+/**
  * `to` against `from`: their sizes, and the runs of bytes that differ.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.change
