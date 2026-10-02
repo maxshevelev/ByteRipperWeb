@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
@@ -77,6 +87,7 @@ import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { observeDevicePixelRatio } from "@/ui/pane/observeDevicePixelRatio";
 import { PaneStatusLine } from "@/ui/pane/PaneStatusLine";
+import { PaneHeaderHostContext } from "@/ui/pane/paneHeaderHost";
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
 import { remeasuredTop, scrollLink } from "@/ui/pane/scrollLink";
@@ -421,6 +432,7 @@ export function HexPane({
   searchStatus,
 }: HexPaneProps) {
   const readoutId = useId();
+  const headerHost = useContext(PaneHeaderHostContext);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.scrollView */
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -1853,31 +1865,20 @@ export function HexPane({
     [stopAutoscroll]
   );
 
-  return (
-    // Clicking anywhere in a pane makes it the active one — that is the whole
-    // gesture. The keyboard route is the grid's own focus, which fires the same
-    // handler through onFocusCapture.
-    //
-    // A drag over a pane is the one thing that is not the pane's own: it is the
-    // region's, and the region is the element that owns the drop (§22.4). Every
-    // act it offers has a command in the menus, which is the keyboard's route.
-    // biome-ignore lint/a11y/noStaticElementInteractions: a drop region is not interactivity of its own.
-    <div
-      className="hex-pane"
-      // Which pane this is, for the one thing that has to find a dump without
-      // holding a reference to it: the keyboard, when a panel is raised or
-      // folded (`fragmentFocusChanged`).
-      data-pane={paneId}
-      data-active={isActive ? "" : undefined}
-      onPointerDownCapture={onActivate}
-      onFocusCapture={onActivate}
-      onDragOver={dropRegion?.onDragOver}
-      onDragLeave={dropRegion?.onDragLeave}
-      onDrop={dropRegion?.onDrop}
-    >
+  /**
+   * The pane's own title bar. A pane inside a fragment panel hands it to the panel to lay
+   * across the whole of it (`PaneHeaderHostContext`); every other pane keeps it above its
+   * dump. The panel has not mounted the strip yet on the first render, and the bar waits for
+   * it rather than showing twice.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.hoistHeader
+   * @upstream-differs a portal into the panel's strip, where upstream moves the view itself
+   */
+  const paneHeader = (
+    <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu is
-          not interactivity of its own — the keyboard reaches the same commands
-          through the toolbar's menu, and the dump below answers Shift+F10. */}
+        not interactivity of its own — the keyboard reaches the same commands
+        through the toolbar's menu, and the dump below answers Shift+F10. */}
       <header
         className="pane-header"
         // The pane is taken by its header and carried (§22.4). The press that
@@ -1960,8 +1961,8 @@ export function HexPane({
           </button>
         )}
         {/* The chrome's two marks sit at the trailing edge; the name and the
-            link it carries stay together at the leading one, six pixels apart,
-            where upstream pins the link to the title's trailing anchor. */}
+          link it carries stay together at the leading one, six pixels apart,
+          where upstream pins the link to the title's trailing anchor. */}
         <span className="pane-header-gap" aria-hidden="true" />
         {onCollapse === undefined ? null : (
           /*
@@ -1996,6 +1997,39 @@ export function HexPane({
         )}
         <CloseButton label={L("Close %1$@", label)} onClick={onClose} />
       </header>
+    </>
+  );
+  const titleBar =
+    headerHost === undefined
+      ? paneHeader
+      : headerHost.element === null
+        ? null
+        : createPortal(paneHeader, headerHost.element);
+
+  return (
+    // Clicking anywhere in a pane makes it the active one — that is the whole
+    // gesture. The keyboard route is the grid's own focus, which fires the same
+    // handler through onFocusCapture.
+    //
+    // A drag over a pane is the one thing that is not the pane's own: it is the
+    // region's, and the region is the element that owns the drop (§22.4). Every
+    // act it offers has a command in the menus, which is the keyboard's route.
+    // biome-ignore lint/a11y/noStaticElementInteractions: a drop region is not interactivity of its own.
+    <div
+      className="hex-pane"
+      data-header-hoisted={headerHost === undefined ? undefined : ""}
+      // Which pane this is, for the one thing that has to find a dump without
+      // holding a reference to it: the keyboard, when a panel is raised or
+      // folded (`fragmentFocusChanged`).
+      data-pane={paneId}
+      data-active={isActive ? "" : undefined}
+      onPointerDownCapture={onActivate}
+      onFocusCapture={onActivate}
+      onDragOver={dropRegion?.onDragOver}
+      onDragLeave={dropRegion?.onDragLeave}
+      onDrop={dropRegion?.onDrop}
+    >
+      {titleBar}
       {/*
         The scroller is a real scrolling element with a spacer inside it, so the
         browser's own scrollbar, wheel handling, trackpad momentum and

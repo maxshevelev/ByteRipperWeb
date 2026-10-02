@@ -39,6 +39,7 @@ import {
   moduleMarks,
   tableMarks,
 } from "@/tools/meaTreeMarks";
+import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import type { ToolValueTone } from "@/tools/toolValueTone";
@@ -196,10 +197,11 @@ export function presentMEA(
   checksums: MEAChecksums | undefined,
   names: MFSFileNames = MFSFileNames.none,
   efsNames: EFSFileNames = EFSFileNames.none,
-  configPaths: ConfigRecordPaths = ConfigRecordPaths.none
+  configPaths: ConfigRecordPaths = ConfigRecordPaths.none,
+  pending: MEAPending = NOTHING_PENDING
 ): MEANode[] {
   const drafts = [
-    firmware(analysis),
+    firmware(analysis, pending),
     regions(analysis),
     cseLayout(analysis),
     bootPartitions(analysis),
@@ -217,7 +219,7 @@ export function presentMEA(
     oromGroup(analysis),
     rbeGroup(analysis),
     checksumsGroup(checksums),
-    issuesGroup(analysis),
+    issuesGroup(analysis, pending),
   ].filter((one): one is Draft => one !== undefined);
   return drafts.map((draft, index) => finish(draft, [index]));
 }
@@ -293,7 +295,7 @@ export function meaZones(focus: MEANode | undefined): ZoneMap {
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.firmwareImageTool
  * @upstream-differs the Flash Image Tool cell is read inline with the identity rows
  */
-function firmware(a: FirmwareAnalysis): Draft {
+function firmware(a: FirmwareAnalysis, pending: MEAPending): Draft {
   const version = versionText(a.version);
   const fields = new Fields()
     .add("Family", familyText(a.family))
@@ -318,7 +320,11 @@ function firmware(a: FirmwareAnalysis): Draft {
   // The one row of this group that is a verdict rather than a value, and it
   // carries the tone that says so — the same one the Summary's row asks for, so
   // a reader comparing the two panels cannot find two colours for one fact.
-  if (a.mfsState !== undefined) {
+  if (pending.fileTable && a.efsVolume !== undefined && a.mfsState !== undefined) {
+    // An EFS volume lists no files until the file table is read, and whether it holds
+    // any is half of what makes the volume Initialized rather than Configured.
+    fields.rows.push(field("File System State", pendingValue()));
+  } else if (a.mfsState !== undefined) {
     fields.rows.push(
       field("File System State", titleText(a.mfsState), fileSystemState(a.mfsState))
     );
@@ -1285,8 +1291,8 @@ function checksumsGroup(checksums: MEAChecksums | undefined): Draft | undefined 
   return fields.length === 0 ? undefined : { title: CHECKSUMS_TITLE, fields };
 }
 
-function issuesGroup(a: FirmwareAnalysis): Draft | undefined {
-  if (a.issues.length === 0) return undefined;
+function issuesGroup(a: FirmwareAnalysis, pending: MEAPending): Draft | undefined {
+  if (a.issues.length === 0 && !pending.huffman) return undefined;
   const rows = a.issues.map((issue): Draft => {
     const name = titleText(issue.severity);
     return {
@@ -1295,7 +1301,16 @@ function issuesGroup(a: FirmwareAnalysis): Draft | undefined {
       fields: [field(L("Severity"), name), field(L("Message"), issue.message)],
     };
   });
-  return { title: L("Issues"), subtitle: countText(rows.length, "issue"), children: rows };
+  // The module checks wait for the dictionaries, and until they are read the list is
+  // not whole.
+  if (pending.huffman) {
+    rows.push({
+      title: L("Module checks"),
+      subtitle: pendingValue(),
+      fields: [field(L("Module checks"), pendingValue())],
+    });
+  }
+  return { title: L("Issues"), subtitle: countText(a.issues.length, "issue"), children: rows };
 }
 
 // MARK: - A structure nobody hand-mapped

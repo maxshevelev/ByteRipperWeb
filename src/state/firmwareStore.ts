@@ -13,6 +13,7 @@ import { type PaneId, paneState } from "@/state/workspaceStore";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/contentChange";
 import { EFSFileNames } from "@/tools/efsFileNames";
+import { type MeReading, type MeTexts, readMe } from "@/tools/meReads";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import { dvarSettingsFromWire } from "@/workers/dvarWire";
 import type {
@@ -962,6 +963,28 @@ const meAnalysisInFlight = new Map<
 const meGenerationOf = (pane: PaneId): number => paneState(pane)?.document.contentGeneration ?? 0;
 
 /**
+ * The analysis the pane already holds of these bytes against these data files, or
+ * nothing — asked before anything is read, so a switch onto an analysis another panel
+ * made costs no reading at all.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedMEAnalysis
+ */
+export function heldPaneMe(
+  pane: PaneId,
+  databaseText: string | undefined,
+  huffmanText: string | undefined,
+  fileTableText: string | undefined
+): MeAnalyzeResponse | undefined {
+  const cached = meAnalysisCache.get(pane);
+  return cached?.generation === meGenerationOf(pane) &&
+    cached.database === databaseText &&
+    cached.huffman === huffmanText &&
+    cached.fileTable === fileTableText
+    ? cached.response
+    : undefined;
+}
+
+/**
  * Analyses the pane's ME region, against the database and the Huffman
  * dictionaries when there are some — or hands back the analysis already made of
  * these bytes against this database.
@@ -993,15 +1016,8 @@ export function analyzePaneMe(
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
   const generation = meGenerationOf(pane);
-  const cached = meAnalysisCache.get(pane);
-  if (
-    cached?.generation === generation &&
-    cached.database === databaseText &&
-    cached.huffman === huffmanText &&
-    cached.fileTable === fileTableText
-  ) {
-    return Promise.resolve(cached.response);
-  }
+  const cached = heldPaneMe(pane, databaseText, huffmanText, fileTableText);
+  if (cached !== undefined) return Promise.resolve(cached);
   const flight = meAnalysisInFlight.get(pane);
   if (
     flight?.generation === generation &&
@@ -1046,6 +1062,28 @@ export function analyzePaneMe(
     promise,
   });
   return promise;
+}
+
+/**
+ * The pane's ME region read the way every panel reads it: see {@link readMe}.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.read
+ */
+export function readPaneMe(
+  pane: PaneId,
+  texts: MeTexts,
+  quick: boolean,
+  shown: (first: MeReading) => void
+): Promise<MeReading | undefined> {
+  return readMe(
+    {
+      ask: (one) => analyzePaneMe(pane, one.database, one.huffman, one.fileTable),
+      held: (one) => heldPaneMe(pane, one.database, one.huffman, one.fileTable),
+    },
+    texts,
+    quick,
+    shown
+  );
 }
 
 /** Who is waiting for an ME analysis, by pane. */

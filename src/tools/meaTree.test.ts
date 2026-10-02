@@ -5,6 +5,7 @@ import {
   bootFixture,
   chipsetInitFixture,
   codePartitionFixture,
+  efsVolumeFixture,
   manifestFixture,
   mfsBackupFixture,
   mfsVolumeFixture,
@@ -545,5 +546,40 @@ describe("the unlock token", () => {
   // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testAnImageWithoutTheFlagsHasNoNode
   it("has no node for an image without the flags", () => {
     expect(find("Unlock Token", presentMEA(analysisWith(), undefined))).toBeUndefined();
+  });
+});
+
+describe("what is not known yet", () => {
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testFileSystemStateWaitsForTheFileTableOnlyWithAnEFSVolume
+  it("makes the File System State of an EFS image wait for the file table, and no other", () => {
+    const withEfs = analysisWith({ mfsState: "configured", efsVolume: efsVolumeFixture() });
+    const waiting = presentMEA(withEfs, undefined, undefined, undefined, undefined, {
+      fileTable: true,
+      huffman: false,
+    })[0];
+    expect(field("File System State", waiting)).toBe(pendingValue());
+    expect(field("File System State", presentMEA(withEfs, undefined)[0])).toBe("Configured");
+
+    const without = analysisWith({ mfsState: "configured" });
+    const kept = presentMEA(without, undefined, undefined, undefined, undefined, {
+      fileTable: true,
+      huffman: false,
+    })[0];
+    expect(field("File System State", kept)).toBe("Configured");
+  });
+
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testIssuesSayTheModuleChecksAreToCome
+  it("ends the Issues group with the module checks while the dictionaries are on the way", () => {
+    const quiet = analysisWith();
+    const issues = find(
+      "Issues",
+      presentMEA(quiet, undefined, undefined, undefined, undefined, {
+        fileTable: false,
+        huffman: true,
+      })
+    );
+    expect(issues?.children.map((one) => one.title)).toEqual(["Module checks"]);
+    expect(issues?.children[0]?.subtitle).toBe(pendingValue());
+    expect(find("Issues", presentMEA(quiet, undefined))).toBeUndefined();
   });
 });

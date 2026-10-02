@@ -251,45 +251,50 @@ export function ToolPanel({
             @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onSelectPane
             @upstream-differs one control whose shown option is its tick, rather than a menu whose items each carry a tick state
             @web-only the tooltip and the accessible name — "Link to file panel": upstream's popup carries neither, and a control with no visible label of its own needs one here */}
-        <span
-          className={`tool-panel-file${keyboardRing ? " is-keyboard" : ""}`}
-          title={L("Link to file panel")}
-        >
-          <span className="tool-panel-file-name">{slot.name}</span>
-          <svg
-            className={`menu-chevron tool-panel-file-chevron${switchable ? "" : " is-off"}`}
-            width="8"
-            height="5"
-            viewBox="0 0 8 5"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* Not on a fragment panel: a part is the only file its panel holds, and the
+            panel's own header — across the whole panel, above this one — names it.
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.showsFileSelector */}
+        {surface !== WORKSPACE_SURFACE ? null : (
+          <span
+            className={`tool-panel-file${keyboardRing ? " is-keyboard" : ""}`}
+            title={L("Link to file panel")}
           >
-            <ChevronShapes />
-          </svg>
-          <select
-            className="tool-panel-file-select"
-            aria-label={L("Link to file panel")}
-            value={boundPane}
-            disabled={!switchable}
-            onChange={(event) => selectPane(event.target.value as PaneId)}
-          >
-            {choices.map((choice, index) => {
-              const pane = PANE_IDS[index];
-              // One entry per pane, so neither of these can be missing: the
-              // guard is here for the type checker, not for a real case.
-              if (pane === undefined) return null;
-              return (
-                <option key={pane} value={pane} disabled={!choice.isEnabled}>
-                  {choice.fileName}
-                </option>
-              );
-            })}
-          </select>
-        </span>
+            <span className="tool-panel-file-name">{slot.name}</span>
+            <svg
+              className={`menu-chevron tool-panel-file-chevron${switchable ? "" : " is-off"}`}
+              width="8"
+              height="5"
+              viewBox="0 0 8 5"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <ChevronShapes />
+            </svg>
+            <select
+              className="tool-panel-file-select"
+              aria-label={L("Link to file panel")}
+              value={boundPane}
+              disabled={!switchable}
+              onChange={(event) => selectPane(event.target.value as PaneId)}
+            >
+              {choices.map((choice, index) => {
+                const pane = PANE_IDS[index];
+                // One entry per pane, so neither of these can be missing: the
+                // guard is here for the type checker, not for a real case.
+                if (pane === undefined) return null;
+                return (
+                  <option key={pane} value={pane} disabled={!choice.isEnabled}>
+                    {choice.fileName}
+                  </option>
+                );
+              })}
+            </select>
+          </span>
+        )}
         {/* The `?` beside the ✕, opening the page for the instrument that is
             running. The module names the page and the panel draws the button,
             so a new instrument is one line away from having one.

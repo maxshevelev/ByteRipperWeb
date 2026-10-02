@@ -19,7 +19,7 @@ The top level is the layout of the chip itself. On an Intel platform that is the
 
 The **Type** and **Subtype** columns name each node as the reference parser names it. The **Name** column gives the community name for the node's [[term:guid|GUID]] where one exists, and the GUID itself where none does.
 
-The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree.
+The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer.
 
 ## What the tool checks
 

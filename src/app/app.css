@@ -4611,7 +4611,8 @@ button.uefi-title {
      minimap — because a panel is a surface of its own and holds all three
      (G50). One row: a panel has no toolbar and no find bar of its own. */
   grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: minmax(0, 1fr);
+  /* The header across the top, then the one row of the three. */
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   height: var(--fragment-panel-height, 0);
   overflow: hidden;
@@ -4627,18 +4628,43 @@ button.uefi-title {
    panel's one row. Specificity does the overriding, so neither rule needs a
    flag and neither has to know about the other's grid. */
 .fragment-panel > .tool-panel {
-  grid-row: 1;
+  grid-row: 2;
   grid-column: 1;
 }
 
 .fragment-panel > .hex-pane {
-  grid-row: 1;
+  grid-row: 2;
   grid-column: 2;
 }
 
 .fragment-panel > .minimap {
-  grid-row: 1;
+  grid-row: 2;
   grid-column: 3;
+}
+
+/* The pane's title bar, laid across the whole panel (`ui/pane/paneHeaderHost`). The
+   bar is the pane's own markup, so it brings its own chrome; what it took from being
+   inside `.hex-pane` — the bold name of the pane in front — is said here, a panel's
+   pane being always the one in front. */
+.fragment-panel-head {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.fragment-panel > .fragment-panel-head .pane-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.fragment-panel > .fragment-panel-head .pane-document {
+  color: var(--text);
+}
+
+/* Without its title bar the pane's rows are the column header, the dump, the results
+   and the caret readout. */
+.hex-pane[data-header-hoisted] {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
 }
 
 .fragment-dock {

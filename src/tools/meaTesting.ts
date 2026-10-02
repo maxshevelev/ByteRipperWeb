@@ -1,4 +1,9 @@
-import type { MFSBackup, MFSPCHInit, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
+import type {
+  EFSVolume,
+  MFSBackup,
+  MFSPCHInit,
+  MFSVolume,
+} from "@/firmware/me/models/fileSystemFacts";
 import type {
   BootPartition,
   CodePartition,
@@ -203,4 +208,29 @@ export const mfsBackupFixture = (): MFSBackup => ({
       dataCRCValid: true,
     },
   ],
+});
+
+/** The least an EFS volume can be and still be one — only its presence matters here. */
+export const efsVolumeFixture = (): EFSVolume => ({
+  offset: 0x46_3000,
+  pageSize: 0x1000,
+  systemPageCount: 1,
+  dataPageCount: 14,
+  scratchPageCount: 1,
+  scratchPagesEmpty: true,
+  dataPageCountMatchesSystem: true,
+  dictionary: 0x0b,
+  revision: 1,
+  unknown1: 2,
+  dictionaryRevision: 1,
+  dataPagesCommitted: 10,
+  dataPagesReserved: 4,
+  systemHeaderCRCValid: true,
+  indexesCRCValid: true,
+  firstIndexPaddingEmpty: true,
+  dataPageOrder: [],
+  dataPageHeaderCRCsValid: true,
+  dataPageFooterCRCsValid: true,
+  matchesMFSDictionary: undefined,
+  files: [],
 });

@@ -146,13 +146,10 @@ export class MFSFileNames {
  * the FITC partition's payload and a newer volume's own 6/7 streams are keyed
  * into the same table.
  *
- * Upstream's two panels each spell this out in their own private
- * `loadFileNames` (`MEAToolModule.swift`, `UEFIToolModule.swift`); the project
- * rule — code two tools both need moves to shared code — gathers it here,
- * beside the question these IDs answer.
+ * Upstream keeps it with the reads both panels make (`MEReads`); here it is beside
+ * the question these IDs answer.
  *
- * @web-only upstream's is a private function in each tool, so no single anchor
- * names it
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.configurationIDs
  */
 export function meConfigIDs(analysis: FirmwareAnalysis): readonly number[] {
   return [
@@ -222,9 +219,10 @@ export function meFileNamesAsk(analysis: FirmwareAnalysis): MeFileNamesAsk | und
  * about come out of the analysis too, which is what makes the question a
  * function of the analysis alone.
  *
- * Upstream asks the same question in its private `loadFileNames` in each tool
- * (`MEAToolModule.swift`, `UEFIToolModule.swift`) — no single anchor names it —
- * and it is spelled out here as `huffmanDictionariesWanted` spells out its own.
+ * Upstream asks it of the analysis in `MEReads.fileTableWanted`, in two clauses; here
+ * it is the follow-up ask's own answer, which is the same set of images.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileTableWanted
  */
 export function fileTableWanted(analysis: FirmwareAnalysis): boolean {
   return meFileNamesAsk(analysis) !== undefined;

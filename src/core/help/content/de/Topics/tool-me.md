@@ -1,4 +1,4 @@
-@source-sha 04e4fb075407a53044708787d11071467fefbba8eff3215b4c9afa80eaf0b1b5
+@source-sha e8541a923fd3e193afa375c49e8e5b7c0cccd10d9bd4f255a638860cf94da3a7
 # ME Analyzer
 
 > Welche Intel-Management-Engine-Firmware das Image enthält und aus welchen Strukturen sie besteht.
@@ -10,6 +10,8 @@
 Ein Bericht darüber, was die Firmware ist: Familie und Version, die [[term:sku|SKU]], Freigabestand und Typ, die [[term:svn|Sicherheitsnummern]], ob es eine vollständige Firmware oder ein Update ist, sowie die Meldungen, die die Analyse ausgelöst hat. Die einzelnen Zeilen sind unter [[topic:recipe-me-check|Den ME-Bericht lesen]] erläutert.
 
 Die Zeilenbezeichnungen stehen in jeder Sprache der Oberfläche auf Englisch: Es sind die Bezeichnungen des Projekts, auf dem die Analyse beruht. Siehe [[topic:provenance|Woher dieses Wissen stammt]].
+
+Die Registerkarte erscheint, sobald die Region gelesen ist. Manche Werte hängen von Datenbanken des Projekts ab, auf dem die Analyse beruht; sie werden geladen, während der Bereich geöffnet ist. Solange sie nicht geladen und berücksichtigt sind, steht bei diesen Werten **Wird geladen…**, und die Zeile am unteren Rand des Bereichs nennt, was gerade geladen wird. Das betrifft den **File System State** einer Firmware mit EFS-Volume sowie die Zeile **Modulprüfung** am Ende der **Meldungen**; dieselbe Zeile enthält die Gruppe **Probleme** auf der Registerkarte **Vollständige Angaben**. Die Meldungen darüber sind endgültig. Lässt sich eine Datenbank nicht laden, bleiben die angezeigten Werte bestehen.
 
 Die beiden Tasten in der Registerkartenzeile kopieren die Registerkarte als Text oder als Bild des Bereichs.
 

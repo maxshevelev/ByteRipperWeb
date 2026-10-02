@@ -3,7 +3,7 @@ import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
-import { analyzePaneMe, checksumPaneMe, fileNamesPaneMe } from "@/state/firmwareStore";
+import { checksumPaneMe, fileNamesPaneMe, readPaneMe } from "@/state/firmwareStore";
 import { huffmanDictionaryStore, loadHuffmanDictionaries } from "@/state/huffmanDictionaryStore";
 import { loadMEDatabase, meDatabaseStore } from "@/state/meDatabaseStore";
 import { useStore } from "@/state/useStore";
@@ -17,6 +17,8 @@ import {
   meaNodeAt,
   presentMEA,
 } from "@/tools/meaTree";
+import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
+import { type MeReading, pendingOf } from "@/tools/meReads";
 import { fileTableWanted, MFSFileNames, meFileNamesAsk } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { WireNode } from "@/workers/protocol";
@@ -168,7 +170,11 @@ export interface MeSubtree {
   readonly roots: readonly MEANode[];
   /** Why there is no sub-tree, when the reading could not be made. */
   readonly problem: string | undefined;
-  /** Whether an analysis is running right now. */
+  /**
+   * Whether there is nothing to show of the region yet: an analysis is running and has
+   * not given a first reading. A reading that goes on behind one already shown is not
+   * this.
+   */
   readonly isReading: boolean;
   /**
    * The reader opened the ME region: run the analysis, unless the pane already
@@ -218,6 +224,8 @@ export function useMeSubtree(
   /** Whether the reader has opened the region at all. */
   const [wanted, setWanted] = useState(false);
   const [analysis, setAnalysis] = useState<FirmwareAnalysis | undefined>(undefined);
+  /** Which databases the analysis on screen was read with. */
+  const [usedDatabases, setUsedDatabases] = useState({ usedFileTable: false, usedHuffman: false });
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const [isReading, setIsReading] = useState(false);
   const [checksums, setChecksums] = useState<MEAChecksums | undefined>(undefined);
@@ -285,12 +293,10 @@ export function useMeSubtree(
     }
     const job = ++run.current;
     setIsReading(true);
-    void analyzePaneMe(pane, databaseText, huffmanText, fileTableText).then((found) => {
-      if (job !== run.current) return;
-      setIsReading(false);
-      if (found === undefined) return;
-      // A new analysis is a new question: the digests it held were about the
-      // bytes it read, and they go with it — but the pane answers a re-ask of
+    const land = (read: MeReading) => {
+      const found = read.response;
+      // A new analysis is a new question: the digests it held were about
+      // the bytes it read, and they go with it — but the pane answers a re-ask of
       // the same question with the very reading that is on screen, and a tree
       // change the region did not feel is just such a re-ask. Throwing the
       // digests away for that would send the Checksums row back to "Loading…"
@@ -300,8 +306,30 @@ export function useMeSubtree(
         setChecksums(undefined);
       }
       shown.current = found.problem === undefined ? found.analysis : undefined;
+      setUsedDatabases({ usedFileTable: read.usedFileTable, usedHuffman: read.usedHuffman });
       setAnalysis(found.analysis);
       setProblem(found.problem);
+    };
+    // The same reading the ME Analyzer makes: the first one is shown at once, its
+    // database-dependent rows saying "Loading…", and the one with the databases
+    // replaces it. The row opens onto the first, and the reading goes on.
+    //
+    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.runMEAnalysis
+    void readPaneMe(
+      pane,
+      { database: databaseText, huffman: huffmanText, fileTable: fileTableText },
+      shown.current === undefined,
+      (first) => {
+        if (job !== run.current) return;
+        // The row opens onto what is known, and the reading goes on behind it: the
+        // panel holds the row shut for as long as there is nothing to open it onto.
+        land(first);
+        setIsReading(false);
+      }
+    ).then((read) => {
+      if (job !== run.current) return;
+      setIsReading(false);
+      if (read !== undefined) land(read);
     });
   }, [wanted, ready, uefiRoots, pane, databaseText, huffmanText, fileTableText]);
 
@@ -353,10 +381,27 @@ export function useMeSubtree(
     });
   }, [analysis, databaseText, huffmanText, fileTableText, pane]);
 
+  // What the analysis on screen has not been read with yet: a value that depends on
+  // it says "Loading…" until the reading with it lands, and a database that could not
+  // be downloaded is not waited for.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.mePending
+  const pending = useMemo<MEAPending>(
+    () =>
+      analysis === undefined
+        ? NOTHING_PENDING
+        : pendingOf(analysis, usedDatabases, {
+            fileTable: fileTable.status === "failed",
+            huffman: huffman.status === "failed",
+          }),
+    [analysis, usedDatabases, fileTable.status, huffman.status]
+  );
   const roots = useMemo(
     () =>
-      analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),
-    [analysis, checksums, names, efsNames, configPaths]
+      analysis === undefined
+        ? []
+        : presentMEA(analysis, checksums, names, efsNames, configPaths, pending),
+    [analysis, checksums, names, efsNames, configPaths, pending]
   );
 
   /**

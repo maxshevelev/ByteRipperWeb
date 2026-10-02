@@ -166,6 +166,7 @@
 "changed bytes: %1$@, at %2$@" = "geänderte Bytes: %1$@, bei %2$@";
 "Ranges listed in $BME$" = "Bereiche in $BME$";
 "Holds" = "Inhalt";
+"Module checks" = "Modulprüfung";
 "Show Superseded Entries" = "Ersetzte Einträge anzeigen";
 "List the copies of variables that later entries replaced — their history is in the detail of the copy that stands" = "Die Kopien von Variablen anzeigen, die spätere Einträge ersetzt haben; ihr Verlauf steht in den Details der geltenden Kopie";
 "Show this copy" = "Diese Kopie anzeigen";

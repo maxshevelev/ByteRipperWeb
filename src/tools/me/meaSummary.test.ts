@@ -6,6 +6,7 @@ import {
   isEmphasized,
   type MEASummaryRow,
   type MEASummaryValue,
+  PENDING,
   shown,
 } from "@/tools/me/meaSummary";
 import {
@@ -16,6 +17,7 @@ import {
   mfsVolumeFixture,
   versionWith,
 } from "@/tools/meaTesting";
+import { NOTHING_PENDING } from "@/tools/mePending";
 
 /** Ported from upstream's `MEASummaryTests`. */
 
@@ -653,5 +655,44 @@ describe("an independent firmware stored twice", () => {
       identified({ version: versionWith(15, 0, 30, 1659), independentFirmware: [pmc(undefined)] })
     );
     expect(value("Redundant Copy", once[1]?.rows ?? [])).toBeUndefined();
+  });
+});
+
+/**
+ * The panel shows an analysis the moment it has one and reads it again when its
+ * databases arrive, so a row that depends on them says so until then.
+ */
+describe("what is not known yet", () => {
+  const efs = { files: [] } as unknown as FirmwareAnalysis["efsVolume"];
+  const rows = (
+    overrides: Partial<FirmwareAnalysis>,
+    pending: Parameters<typeof buildSummary>[1] = NOTHING_PENDING
+  ) => buildSummary(identified(overrides), pending);
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFileSystemStateOfAnEFSVolumeWaitsForTheFileTable
+  it("gives an EFS volume's File System State no value while the file table is not read", () => {
+    const block = rows(
+      { mfsState: "configured", efsVolume: efs },
+      { fileTable: true, huffman: false }
+    );
+    expect(value("File System State", block[0]?.rows ?? [])).toEqual(PENDING);
+    // And the value the reading gives, once there is one.
+    expect(
+      value("File System State", rows({ mfsState: "initialized", efsVolume: efs })[0]?.rows ?? [])
+    ).toEqual(shown("Initialized"));
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testFileSystemStateWithoutAnEFSVolumeDoesNotWait
+  it("leaves a File System State that does not wait on the file table as it is", () => {
+    const block = rows({ mfsState: "configured" }, { fileTable: true, huffman: false });
+    expect(value("File System State", block[0]?.rows ?? [])).toEqual(shown("Configured"));
+  });
+
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testMessagesSayTheModuleChecksAreToCome
+  it("says the module checks are still to come, beside the messages already known", () => {
+    const block = rows({}, { fileTable: false, huffman: true });
+    const messages = block.find((one) => one.title === "Messages");
+    expect(messages?.rows.at(-1)?.value).toEqual(PENDING);
+    expect(rows({}).find((one) => one.title === "Messages")).toBeUndefined();
   });
 });

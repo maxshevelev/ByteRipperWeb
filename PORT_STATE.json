@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "0bf5fb35d27721dc8d86255e14821de5caa202a8",
-  "baselineNote": "Name Dell's DVAR variables from Setup, and hide superseded copies (2026-10-02)"
+  "baseCommit": "700823d9bbabfa16b69b0b5dcd03bc6c70aebb0f",
+  "baselineNote": "Set 0.9, and say in the README what it is (2026-10-02)"
 }

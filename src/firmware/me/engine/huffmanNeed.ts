@@ -44,7 +44,11 @@ export function hasHuffmanModuleToValidate(codePartition: CodePartition): boolea
   });
 }
 
-/** Whether analysing this image again with the dictionaries would read more of it. */
+/**
+ * Whether analysing this image again with the dictionaries would read more of it.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.huffmanDictionariesWanted
+ */
 export function huffmanDictionariesWanted(analysis: FirmwareAnalysis): boolean {
   const codePartition = analysis.codePartition;
   if (codePartition === undefined) return false;

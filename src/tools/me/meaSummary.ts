@@ -18,7 +18,8 @@ import {
   yesNo,
 } from "@/tools/meaText";
 import { fileSystemState } from "@/tools/meaTones";
-import { manufactureDate } from "@/tools/meaTree";
+import { manufactureDate, pendingValue } from "@/tools/meaTree";
+import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
 import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
 
 /**
@@ -37,7 +38,15 @@ import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
 /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue */
 export type MEASummaryValue =
   | { readonly kind: "value"; readonly text: string }
-  | { readonly kind: "comingSoon" };
+  | { readonly kind: "comingSoon" }
+  /**
+   * The analysis on screen was read without a database this row depends on, and the
+   * reading with it is on the way (`MEAPending`). Not the same thing as `comingSoon`:
+   * this row will have its value in seconds.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.pending
+   */
+  | { readonly kind: "pending" };
 
 /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow */
 export interface MEASummaryRow {
@@ -63,6 +72,19 @@ export interface MEASummaryBlock {
 
 export const shown = (text: string): MEASummaryValue => ({ kind: "value", text });
 export const COMING_SOON: MEASummaryValue = { kind: "comingSoon" };
+export const PENDING: MEASummaryValue = { kind: "pending" };
+
+/**
+ * What the row says — the one wording the panel and a copy of it share.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.text
+ */
+export const summaryValueText = (value: MEASummaryValue): string =>
+  value.kind === "value"
+    ? value.text
+    : value.kind === "pending"
+      ? pendingValue()
+      : L("Coming soon");
 
 /**
  * Whether a row's value is drawn emphasized — bold as well as coloured, so the
@@ -93,7 +115,10 @@ const nonEmpty = (text: string | undefined): text is string =>
  * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummary
  * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummary.build
  */
-export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
+export function buildSummary(
+  a: FirmwareAnalysis,
+  pending: MEAPending = NOTHING_PENDING
+): MEASummaryBlock[] {
   const rows: MEASummaryRow[] = [];
   const add = (label: string, value: MEASummaryValue, tone: ToolValueTone = "standard") =>
     rows.push({ label, value, tone });
@@ -173,7 +198,11 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
   fact(L("Date"), manufactureDate(a));
   // 17 · File System State, in the colour of the state.
   if (isMFSFamily(a)) {
-    if (a.mfsState !== undefined) {
+    // An EFS volume lists no files until the file table is read, and whether it holds
+    // any is half of what makes the volume Initialized rather than Configured.
+    if (pending.fileTable && a.efsVolume !== undefined && a.mfsState !== undefined) {
+      add("File System State", PENDING);
+    } else if (a.mfsState !== undefined) {
       add("File System State", shown(titleText(a.mfsState)), fileSystemState(a.mfsState));
     } else if (identified) {
       add("File System State", COMING_SOON);
@@ -232,15 +261,17 @@ export function buildSummary(a: FirmwareAnalysis): MEASummaryBlock[] {
     const block = independentBlock(firmware, a);
     if (block !== undefined) blocks.push(block);
   }
-  if (a.issues.length > 0) {
-    blocks.push({
-      title: L("Messages"),
-      rows: a.issues.map((issue) => ({
-        label: titleText(issue.severity),
-        value: shown(issue.message),
-        tone: "standard",
-      })),
-    });
+  if (a.issues.length > 0 || pending.huffman) {
+    const messages: MEASummaryRow[] = a.issues.map((issue) => ({
+      label: titleText(issue.severity),
+      value: shown(issue.message),
+      tone: "standard",
+    }));
+    // The module checks are the half of the messages that wait for the dictionaries.
+    if (pending.huffman) {
+      messages.push({ label: L("Module checks"), value: PENDING, tone: "standard" });
+    }
+    blocks.push({ title: L("Messages"), rows: messages });
   }
   return blocks;
 }

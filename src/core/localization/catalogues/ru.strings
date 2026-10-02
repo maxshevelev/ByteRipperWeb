@@ -166,6 +166,7 @@
 "changed bytes: %1$@, at %2$@" = "изменено байт: %1$@, по смещениям %2$@";
 "Ranges listed in $BME$" = "Диапазоны в $BME$";
 "Holds" = "Содержимое";
+"Module checks" = "Проверка модулей";
 "Show Superseded Entries" = "Показывать заменённые записи";
 "List the copies of variables that later entries replaced — their history is in the detail of the copy that stands" = "Показывать копии переменных, заменённые более поздними записями; их история приведена в деталях действующей копии";
 "Show this copy" = "Показать эту копию";

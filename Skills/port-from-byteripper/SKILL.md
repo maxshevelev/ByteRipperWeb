@@ -79,7 +79,18 @@ Only after the work is done and reviewed:
 python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>
 ```
 
-This rewrites `PORT_STATE.json` and nothing else. Do not advance the baseline
+The web edition's version is upstream's release at the baseline, plus a build
+number of its own (`0.9-1`). Whenever the baseline moves, bring the package files
+to it too, and check the number it prints:
+
+```bash
+python3 Skills/release/scripts/release.py version
+```
+
+That is the whole of the version's bookkeeping: when upstream's release number
+has moved, the build number starts again at 1.
+
+`--set-base` itself rewrites `PORT_STATE.json` and nothing else. Do not advance the baseline
 past commits you decided not to port without saying so — put the reason in the
 commit message that moves it, so the next reader knows the gap was a decision
 rather than an oversight.

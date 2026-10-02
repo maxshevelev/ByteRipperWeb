@@ -7,11 +7,11 @@ import { writeImage, writeRichText } from "@/platform/clipboard/richClipboard";
 import { downloadBlob } from "@/platform/files/download";
 import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import {
-  analyzePaneMe,
   checksumPaneMe,
   fileNamesPaneMe,
   firmwareStore,
   parsePaneFirmware,
+  readPaneMe,
 } from "@/state/firmwareStore";
 import {
   cancelHuffmanDictionaries,
@@ -35,6 +35,7 @@ import {
   isEmphasized,
   type MEASummaryBlock,
   type MEASummaryRow,
+  summaryValueText,
 } from "@/tools/me/meaSummary";
 import {
   CHECKSUMS_TITLE,
@@ -45,6 +46,8 @@ import {
   presentMEA,
 } from "@/tools/meaTree";
 import { MEA_TREE_MARKS } from "@/tools/meaTreeMarks";
+import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
+import { type MeReading, pendingOf } from "@/tools/meReads";
 import { fileTableWanted, MFSFileNames, meFileNamesAsk } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
@@ -106,7 +109,16 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
 
 type Result =
   | { readonly phase: "waiting" }
-  | { readonly phase: "done"; readonly analysis: FirmwareAnalysis | undefined }
+  | {
+      readonly phase: "done";
+      readonly analysis: FirmwareAnalysis | undefined;
+      /**
+       * Whether the databases were read with: an analysis shown before they arrived is
+       * read again when they do, and what depends on them says so until then.
+       */
+      readonly usedFileTable: boolean;
+      readonly usedHuffman: boolean;
+    }
   | { readonly phase: "failed"; readonly problem: string };
 
 interface TreeRow {
@@ -222,7 +234,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
    * from a genuinely new reading.
    *
    * Not a gate: whether a reading has to be made again is the *pane's* question
-   * and is answered where the reading is kept (`analyzePaneMe`), which is
+   * and is answered where the reading is kept (`readPaneMe`), which is
    * upstream's arrangement too — its session re-parses on every content change
    * and the pane's cache is what makes that cheap. A gate of the panel's own
    * was answering it a second time and getting it wrong: it keyed on the
@@ -265,10 +277,8 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const analyze = useCallback(() => {
     const job = ++request.current;
     setBusy(true);
-    void analyzePaneMe(pane, databaseText, huffmanText, fileTableText).then((found) => {
-      if (job !== request.current) return;
-      setBusy(false);
-      if (found === undefined) return;
+    const land = (read: MeReading) => {
+      const found = read.response;
       // A new analysis is a new question, and the digests it held were about
       // the bytes it read — but the pane answers a re-ask of the same question
       // with the very reading that is on screen, and throwing the digests away
@@ -280,9 +290,29 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       shown.current = found.problem === undefined ? found.analysis : undefined;
       setResult(
         found.problem === undefined
-          ? { phase: "done", analysis: found.analysis }
+          ? {
+              phase: "done",
+              analysis: found.analysis,
+              usedFileTable: read.usedFileTable,
+              usedHuffman: read.usedHuffman,
+            }
           : { phase: "failed", problem: found.problem }
       );
+    };
+    // The first reading of a file is made without the dictionaries and shown at once —
+    // they are most of an analysis — and the one with them replaces it. An analysis
+    // already on screen stays until the one asked for lands.
+    void readPaneMe(
+      pane,
+      { database: databaseText, huffman: huffmanText, fileTable: fileTableText },
+      shown.current === undefined,
+      (first) => {
+        if (job === request.current) land(first);
+      }
+    ).then((read) => {
+      if (job !== request.current) return;
+      setBusy(false);
+      if (read !== undefined) land(read);
     });
   }, [pane, databaseText, huffmanText, fileTableText]);
 
@@ -331,6 +361,20 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   // Huffman.dat only for an image that has something to decompress with it, the
   // way upstream fetches it in the middle of such an analysis and no other.
   const wantsDictionaries = analysis !== undefined && huffmanDictionariesWanted(analysis);
+  // What the analysis on screen has not been read with yet. It is shown the moment it
+  // exists, and read again when `FileTable.dat` and `Huffman.dat` arrive; a value that
+  // depends on one of them says "Loading…" until then rather than one the second
+  // reading may change. A database that failed to load is not waited for.
+  const pending = useMemo<MEAPending>(
+    () =>
+      result.phase !== "done"
+        ? NOTHING_PENDING
+        : pendingOf(analysis, result, {
+            fileTable: fileTable.status === "failed",
+            huffman: huffman.status === "failed",
+          }),
+    [analysis, result, fileTable.status, huffman.status]
+  );
   useEffect(() => {
     // Asked on every analysis that wants them, not only on the first: what is
     // held answers at once and the day's re-check runs behind it, which is what
@@ -390,10 +434,15 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   }, [analysis, databaseText, huffmanText, fileTableText, pane]);
   const tree = useMemo(
     () =>
-      analysis === undefined ? [] : presentMEA(analysis, checksums, names, efsNames, configPaths),
-    [analysis, checksums, names, efsNames, configPaths]
+      analysis === undefined
+        ? []
+        : presentMEA(analysis, checksums, names, efsNames, configPaths, pending),
+    [analysis, checksums, names, efsNames, configPaths, pending]
   );
-  const blocks = useMemo(() => (analysis === undefined ? [] : buildSummary(analysis)), [analysis]);
+  const blocks = useMemo(
+    () => (analysis === undefined ? [] : buildSummary(analysis, pending)),
+    [analysis, pending]
+  );
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);
   const selected = focus === undefined ? undefined : meaNodeAt(tree, pathOf(focus));
 
@@ -801,6 +850,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               {L("Try Again")}
             </button>
           </>
+        ) : wantsNames && fileTable.status === "loading" ? (
+          // What an EFS volume, a table-named MFS volume and the Configuration records
+          // wait on; its download has no cancel of its own.
+          <span>{L("Downloading %1$@…", "FileTable.dat")}</span>
         ) : notice !== undefined ? (
           <span>{notice}</span>
         ) : null}
@@ -890,8 +943,7 @@ function Placeholder({
   );
 }
 
-const valueText = (row: MEASummaryRow) =>
-  row.value.kind === "value" ? row.value.text : L("Coming soon");
+const valueText = (row: MEASummaryRow) => summaryValueText(row.value);
 
 /** Keys for rows that may say the same thing twice — two identical messages. */
 function uniqueKeys(texts: readonly string[]): string[] {
@@ -933,7 +985,11 @@ function SummaryView({
                     className="me-summary-value"
                     data-tone={row.tone === "standard" ? undefined : row.tone}
                     data-emphasis={isEmphasized(row) ? "" : undefined}
-                    data-soon={row.value.kind === "comingSoon" ? "" : undefined}
+                    data-soon={
+                      row.value.kind === "comingSoon" || row.value.kind === "pending"
+                        ? ""
+                        : undefined
+                    }
                   >
                     {/* A passed check carries its tick here too: the row and
                         the detail ask the same tone for the same string, so the
@@ -1183,7 +1239,7 @@ function summaryPicture(
       // label beside it is neither.
       draw.font = isEmphasized(line.row) ? bold : plain;
       draw.fillStyle =
-        line.row.value.kind === "comingSoon"
+        line.row.value.kind === "comingSoon" || line.row.value.kind === "pending"
           ? token("--text-faint", "#8e8e93")
           : tones[line.row.tone];
       draw.fillText(valueText(line.row), margin + labelWidth + gap, y + lineHeight / 2);

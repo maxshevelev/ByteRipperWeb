@@ -632,29 +632,53 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/RBEPMTests.swift#RBEPMFixture.put*": "n/a — the web fixtures write little-endian fields through their own small helpers",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ModuleIssueTests.swift#ModuleIssueTests.testAnIssueFromBeforeTheFieldHasNoModule": "n/a — a JSON payload from before the field; the port decodes no Codable payloads",
         "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.Entry.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.EFSEntry.init": "n/a — an object literal; there is nothing to construct"
+        "Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.EFSEntry.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.fetchesOverTheNetwork": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.fetchesOverTheNetwork": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.heldDatabase": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.heldDatabase": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.heldFileTable": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.heldFileTable": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.heldHuffmanDictionaries": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.heldHuffmanDictionaries": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)"
       }
     },
     {
       "swift": "Packages/MEReads",
       "web": [
         "src/workers/firmware.worker.ts",
+        "src/tools/meReads.ts",
         "src/workers/protocol.ts",
         "src/state/firmwareStore.ts",
         "src/firmware/me/layout/flashDescriptor.ts"
       ],
       "status": "ported",
-      "note": "The one home for the reads both ME panels make over the region: the bytes the engine is handed, where they begin in the file, the analysis, the digests and the FileTable's names, with the whole-file fallback where no descriptor is. Upstream split it out of the two tool-modules in `e4dbb04` because the reading was written twice and had drifted; the web never had two copies — the worker is the home it dedupes to, one `meRegionBytes()` and one `meAnalyze`/`meChecksums`/`meFileNames` message each, and the region the fallback reads from is the flash descriptor's own `meRegion`. The anchor lives on the message's types and the worker's `meRegionBytes`: the request is the ask, the response is the answer, and the bytes they cross are the regionBytes with their regionBase. The seam upstream names `dataSource` is the web's data-file delivery: the texts travel in the message the store sends, so the source is a message field, not a swappable object — the tests install theirs the same way, through the store.",
+      "note": "The one home for the reads both ME panels make over the region: the bytes the engine is handed, where they begin in the file, the analysis, the digests and the FileTable's names, with the whole-file fallback where no descriptor is. Upstream split it out of the two tool-modules in `e4dbb04` because the reading was written twice and had drifted; the web never had two copies — the worker is the home it dedupes to, one `meRegionBytes()` and one `meAnalyze`/`meChecksums`/`meFileNames` message each, and the region the fallback reads from is the flash descriptor's own `meRegion`. The anchor lives on the message's types and the worker's `meRegionBytes`: the request is the ask, the response is the answer, and the bytes they cross are the regionBytes with their regionBase. The seam upstream names `dataSource` is the web's data-file delivery: the texts travel in the message the store sends, so the source is a message field, not a swappable object — the tests install theirs the same way, through the store. The two-pass read upstream added in `7b98eb6` lives in `src/tools/meReads.ts` (`readMe`, `pendingOf`), reached through `readPaneMe` in the firmware store: a first reading without Huffman.dat, shown at once, and the reading with it behind.",
       "files": {
-        "Sources/MEReads/MEReads.swift": "src/workers/firmware.worker.ts",
-        "Tests/MEReadsTests/MEReadsTests.swift": "src/firmware/me/layout/fpt.test.ts"
+        "Sources/MEReads/MEReads.swift": [
+          "src/workers/firmware.worker.ts",
+          "src/tools/meReads.ts"
+        ],
+        "Tests/MEReadsTests/MEReadsTests.swift": [
+          "src/firmware/me/layout/fpt.test.ts",
+          "src/tools/meReads.test.ts"
+        ]
       },
       "unported": {
         "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.dataSource": "n/a — the data files travel as the message's texts (databaseText, huffmanText, fileTableText); there is no object to swap in",
         "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.readAll": "n/a — the worker keeps the whole image chunked in its storage and reads the region it needs; nothing is materialised as one buffer",
         "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.readRange": "n/a — the worker reads through its reader, which is the chunked storage",
         "Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.describe": "n/a — the worker's own catch names the failure in the message's `problem` field, in the app's own words",
-        "Packages/MEReads/Tests/MEReadsTests/MEReadsTests.swift#MEReadsTests*": "n/a — the region's own resolution is what the buffer choice reads, and it is covered where it is: the flash descriptor's `meRegion` in src/firmware/uefi/descriptorInfo.test.ts and the $FPT search the whole-file fallback relies on in src/firmware/me/layout/fpt.test.ts; the web has no materialised buffer to choose"
+        "Packages/MEReads/Tests/MEReadsTests/MEReadsTests.swift#MEReadsTests*": "n/a — the region's own resolution is what the buffer choice reads, and it is covered where it is: the flash descriptor's `meRegion` in src/firmware/uefi/descriptorInfo.test.ts and the $FPT search the whole-file fallback relies on in src/firmware/me/layout/fpt.test.ts; the web has no materialised buffer to choose",
+        "Packages/MEReads/Sources/MEReads/MEADownloads.swift#MEADatabaseFile": "later — upstream starts the three databases downloading side by side when a reading begins; here they are asked for lazily (MEA.dat when the panel opens, Huffman.dat and FileTable.dat once the first reading says the image wants them), so the largest file is not downloaded for a dump that never asks for it — Design/GAPS.md §2.2",
+        "Packages/MEReads/Sources/MEReads/MEADownloads.swift#MEADownloads": "later — upstream starts the three databases downloading side by side when a reading begins; here they are asked for lazily (MEA.dat when the panel opens, Huffman.dat and FileTable.dat once the first reading says the image wants them), so the largest file is not downloaded for a dump that never asks for it — Design/GAPS.md §2.2",
+        "Packages/MEReads/Sources/MEReads/MEADownloads.swift#MEAReadingStatus": "later — upstream starts the three databases downloading side by side when a reading begins; here they are asked for lazily (MEA.dat when the panel opens, Huffman.dat and FileTable.dat once the first reading says the image wants them), so the largest file is not downloaded for a dump that never asks for it — Design/GAPS.md §2.2",
+        "Packages/MEReads/Tests/MEReadsTests/MEADownloadsTests.swift#MEADownloadsTests*": "later — upstream starts the three databases downloading side by side when a reading begins; here they are asked for lazily (MEA.dat when the panel opens, Huffman.dat and FileTable.dat once the first reading says the image wants them), so the largest file is not downloaded for a dump that never asks for it — Design/GAPS.md §2.2",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#HeldDatabases": "n/a — the engine reaches its databases through the texts the store hands the worker, so a reading 'without' one is a reading asked without its text (`readMe`), and what it did without is read off the analysis (`pendingOf`), not recorded by a wrapping source",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEAFirstReading.analysis": "n/a — the first reading is a `MeReading` and what it did without is read off which texts it was asked with (`pendingOf`)",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEAFirstReading.isComplete": "n/a — the first reading is a `MeReading` and what it did without is read off which texts it was asked with (`pendingOf`)",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEAFirstReading.missedFileTable": "n/a — the first reading is a `MeReading` and what it did without is read off which texts it was asked with (`pendingOf`)",
+        "Packages/MEReads/Sources/MEReads/MEReads.swift#MEAFirstReading.missedHuffman": "n/a — the first reading is a `MeReading` and what it did without is read off which texts it was asked with (`pendingOf`)"
       }
     },
     {
@@ -930,7 +954,10 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.say": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors"
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
+        "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
+        "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.isEmphasized": "n/a — `isEmphasized(row)`, a function over the row, anchored to the view code it was lifted from",
+        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)"
       }
     },
     {
@@ -957,13 +984,15 @@
         "MEACuratorTests.swift": "src/tools/meaTree.test.ts",
         "MFSFileNamesTests.swift": "src/tools/mfsFileNames.test.ts",
         "EFSFileNamesTests.swift": "src/tools/efsFileNames.test.ts",
-        "ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts"
+        "ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts",
+        "MEAPending.swift": "src/tools/mePending.ts"
       },
       "unported": {
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.init": "n/a — an object literal",
         "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testEveryHelpTermANodeNamesIsInTheGlossary": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
-        "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheFirmwareAndPartitionTableRowsExplainThemselves": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's"
+        "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheFirmwareAndPartitionTableRowsExplainThemselves": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
+        "Packages/MEPresentation/Sources/MEPresentation/MEAPending.swift#MEAPending.init": "n/a — an object literal"
       }
     },
     {
@@ -1475,7 +1504,8 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.sourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.refreshSourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onSegmentSourceChanged": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentSources": "n/a — the web keeps one registry per pane at module level (`segmentSources`), not as a `PaneViewModel` member"
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentSources": "n/a — the web keeps one registry per pane at module level (`segmentSources`), not as a `PaneViewModel` member",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isHeaderHoisted": "n/a — whether the pane has handed its bar over is whether `PaneHeaderHostContext` is provided"
       }
     },
     {
@@ -4200,7 +4230,9 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodeAndItsBodySaveToAFile": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testASmallPictureIsPreviewedAtItsOwnSize": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAWidePictureFitsTheListInItsProportions": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSupersededCopiesAreInTheHistoryNotTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSupersededCopiesAreInTheHistoryNotTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAnotherFileShowsNoTableUntilItsOwnIsRead": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnotherFileShowsNothingOfTheLastOne": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)"
       }
     },
     {
@@ -4415,7 +4447,6 @@
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.toolDividerIndex": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.minimapDividerIndex": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.borrowedByToolPanel": "n/a — AppKit layout; CSS lays the window out",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.borrowedByMinimap": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.dumpAreaSlack": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.windowDelta": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.toolPanelWidth": "n/a — AppKit layout; CSS lays the window out",
@@ -4884,7 +4915,9 @@
       ],
       "status": "ported",
       "note": "Freshened's rules, ported whole: a value, the validator the server sent with it, and both of its dates, held in one actor. Nothing held is a fetch, a value younger than the day is not asked for at all, an older one is answered at once with the check running behind it, and a check that could not be made keeps what is held and remembers the failure for five minutes. That is the ETag revalidation upstream does, and it replaces the Cache API's 24-hour lifetime — `remoteSource` is one conditional request where the origin lets a script read the validator and send one (`api.github.com`; `raw.githubusercontent.com` exposes no `ETag` and refuses `If-None-Match`, so there the browser revalidates its own copy for us (`cache: \"no-cache\"`: `max-age=0` and `If-None-Match` on the wire, a `304` back), and the copy the last session left in the Cache API is what a bench with no network opens on.",
-      "unported": {},
+      "unported": {
+        "Packages/FreshData/Sources/FreshData/Freshened.swift#Freshened.heldValue": "n/a — the web's stores keep the held body in the Cache API and answer it at once (`cachedSource.ts`)"
+      },
       "files": {
         "Packages/FreshData/Sources/FreshData/Freshened.swift": [
           "src/platform/net/freshened.ts",

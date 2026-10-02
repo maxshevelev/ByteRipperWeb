@@ -12,6 +12,8 @@ A report of what the firmware is: its family and version, its [[term:sku|SKU]], 
 
 The row labels are in English in every language of the interface, as they are the labels of the project the analysis is derived from. See [[topic:provenance|Where This Knowledge Comes From]].
 
+The tab is shown as soon as the region has been read. Some values depend on databases of the project the analysis is derived from, which are downloaded while the panel is open. Until they have been downloaded and taken into account, those values read **Loading…**, and the line at the bottom of the panel says what is being downloaded. They are the **File System State** of a firmware with an EFS volume, and **Module checks** at the end of **Messages**; the **Issues** group on the **Full Info** tab shows the same row. The messages above it are final. If a database cannot be downloaded, the values shown stand.
+
 The two buttons in the tab row copy the tab as text or as an image of the panel.
 
 ## Full Info

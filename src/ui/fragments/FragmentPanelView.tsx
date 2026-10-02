@@ -1,5 +1,6 @@
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { panelHeight } from "@/ui/fragments/fragmentPanelLayout";
+import { PaneHeaderHostContext } from "@/ui/pane/paneHeaderHost";
 
 /**
  * The area a fragment panel sits in over the panes, and the panel itself
@@ -87,12 +88,23 @@ export function FragmentPanelHost({ children }: { readonly children: ReactNode }
 /**
  * One fragment panel: the chrome around the part's pane.
  *
- * It carries no header of its own. The header with the part's name is the
- * pane's own — the requirement that the panel look like an ordinary hex panel
- * is met by it being one.
+ * One header runs across the whole panel, above the tool, the dump and the map: the
+ * pane's own title bar — the part's name, the link back to the parent, the ⌄ and the
+ * ✕ — taken out of the pane and laid edge to edge. A part is the only file its panel
+ * holds, so there is no second name for the tool's header or the map's to say, and
+ * nothing for the dump's header to be shared with. The strip is empty until the pane
+ * inside has put its bar in it (`PaneHeaderHostContext`).
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView
+ * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.headerHeight
  */
 export function FragmentPanel({ children }: { readonly children: ReactNode }) {
-  return <div className="fragment-panel">{children}</div>;
+  const [strip, setStrip] = useState<HTMLElement | null>(null);
+  const host = useMemo(() => ({ element: strip }), [strip]);
+  return (
+    <div className="fragment-panel">
+      <div ref={setStrip} className="fragment-panel-head" data-active="" />
+      <PaneHeaderHostContext.Provider value={host}>{children}</PaneHeaderHostContext.Provider>
+    </div>
+  );
 }

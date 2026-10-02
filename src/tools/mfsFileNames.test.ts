@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { FileTable } from "@/firmware/me/data/fileTable";
 import type {
-  EFSVolume,
   MFSConfigIDRecord,
   MFSIntegrityTable,
   MFSVolume,
   OEMConfiguration,
 } from "@/firmware/me/models/fileSystemFacts";
-import { analysisWith } from "@/tools/meaTesting";
+import { analysisWith, efsVolumeFixture } from "@/tools/meaTesting";
 import { type MEANode, presentMEA } from "@/tools/meaTree";
 import { fileTableWanted, MFSFileNames, meConfigIDs, meFileNamesAsk } from "@/tools/mfsFileNames";
 
@@ -82,31 +81,6 @@ function volume(
 }
 
 const analysis = (vol: MFSVolume) => analysisWith({ mfsVolume: vol });
-
-/** The least an EFS volume can be and still be one — only its presence matters here. */
-const efsVolumeFixture = (): EFSVolume => ({
-  offset: 0x46_3000,
-  pageSize: 0x1000,
-  systemPageCount: 1,
-  dataPageCount: 14,
-  scratchPageCount: 1,
-  scratchPagesEmpty: true,
-  dataPageCountMatchesSystem: true,
-  dictionary: 0x0b,
-  revision: 1,
-  unknown1: 2,
-  dictionaryRevision: 1,
-  dataPagesCommitted: 10,
-  dataPagesReserved: 4,
-  systemHeaderCRCValid: true,
-  indexesCRCValid: true,
-  firstIndexPaddingEmpty: true,
-  dataPageOrder: [],
-  dataPageHeaderCRCsValid: true,
-  dataPageFooterCRCsValid: true,
-  matchesMFSDictionary: undefined,
-  files: [],
-});
 
 /** One ID-keyed Configuration record — the path it stands for is a table row. */
 const configRecord = (fileID: number): MFSConfigIDRecord => ({

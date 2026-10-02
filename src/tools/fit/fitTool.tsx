@@ -273,6 +273,23 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * table of the bytes before.
    */
   const readAgainst = useRef<readonly WireNode[] | undefined>(undefined);
+  // The file in the pane was replaced — another opened into it, a revert: the table on
+  // screen and the row picked in it describe what is gone, so the panel goes back to
+  // how it opens until the new reading lands. An edit keeps both; it is the same file,
+  // and the row is held by its zone.
+  //
+  // @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.contentChanged
+  const reloads = firmware?.reloads ?? 0;
+  const seenReloads = useRef(reloads);
+  useEffect(() => {
+    if (seenReloads.current === reloads) return;
+    seenReloads.current = reloads;
+    readAgainst.current = undefined;
+    setReport(undefined);
+    setFocus(undefined);
+    setFocusZone(undefined);
+    clearZones(pane);
+  }, [reloads, pane]);
   useEffect(() => {
     if (status !== "ready" || roots === undefined) return;
     let current = true;
