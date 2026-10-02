@@ -361,6 +361,10 @@ The FIT is found through a pointer at a fixed address near the top of the flash.
 
 Because the addresses are absolute, nothing a FIT points at may move. A FIT entry pointing into erased flash is a board that does not post at all.
 
+The structures a FIT points at are usually kept inside a volume, but some vendors place them outside every volume — in padding, or in the body of a [[term:pad-file|pad file]]. The [[topic:tool-uefi|UEFI tool]] cuts such structures out of the padding into rows of their own: FIT, Startup ACM, Boot Guard Key Manifest and Boot Guard Boot Policy. A row starts at the address the FIT gives and is as long as the structure's own header says. The details list the header's version and SVN, and for the ACM its date as well. To UEFITool such a row is still padding, and the Type column shows it as such. In a [[term:top-swap|Top Swap]] copy the same structures are found at the same places.
+
+This requires the image to end with its Volume Top File. A dump with bytes appended after the end of the image keeps the padding as it is.
+
 @see topic:tool-fit
 @see topic:recipe-microcode
 

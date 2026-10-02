@@ -1,4 +1,4 @@
-@source-sha a65d30258d033ebfd5a49920d077da50d926d8405b542c1de321f098e5bc5ff4
+@source-sha 1f7defac5ba428b0a3b3c4873953bb07dbde802c6fb08adbbefb2be08eb86225
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -361,6 +361,10 @@ Jedes Update trägt in seinem Header die CPU-Signatur, eine Revisionsnummer und 
 Die FIT wird über einen Zeiger an einer festen Adresse nahe der oberen Flash-Grenze gefunden. Ihre Einträge zeigen — mit absoluten Adressen — auf [[term:microcode|Microcode-Updates]], ACMs, Boot-Guard-Manifeste und Policy-Einträge.
 
 Weil die Adressen absolut sind, darf sich nichts bewegen, worauf eine FIT zeigt. Ein FIT-Eintrag, der in gelöschten Flash zeigt, ist eine Platine, die gar nicht erst startet.
+
+Die Strukturen, auf die eine FIT zeigt, liegen in der Regel innerhalb eines Volumes; manche Hersteller legen sie jedoch außerhalb aller Volumes ab — im Padding oder im Datenteil einer [[term:pad-file|Padding-Datei]]. Das [[topic:tool-uefi|UEFI-Werkzeug]] trennt solche Strukturen aus dem Padding heraus und zeigt sie als eigene Zeilen: FIT, Startup ACM, Boot Guard Key Manifest und Boot Guard Boot Policy. Eine Zeile beginnt an der Adresse, die die FIT angibt, und ihre Länge entnimmt das Werkzeug dem Kopf der Struktur selbst. Die Details nennen Version und SVN aus dem Kopf, beim ACM zusätzlich dessen Datum. Für UEFITool bleibt eine solche Zeile Padding, und die Spalte „Typ“ weist sie auch so aus. In einer [[term:top-swap|Top-Swap]]-Kopie finden sich dieselben Strukturen an denselben Stellen.
+
+Voraussetzung ist, dass das Abbild mit seinem Volume Top File endet. Ein Dump, an den hinter dem Ende des Abbilds Bytes angehängt sind, behält das Padding unverändert.
 
 @see topic:tool-fit
 @see topic:recipe-microcode

@@ -394,7 +394,9 @@
         "UEFIImage/TopSwap.swift": "src/firmware/uefi/topSwap.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/TopSwapTests.swift": "src/firmware/uefi/topSwap.test.ts",
         "UEFIImage/ECFirmware.swift": "src/firmware/uefi/ecFirmware.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift": "src/firmware/uefi/ecImage.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift": "src/firmware/uefi/ecImage.test.ts",
+        "UEFIImage/FITComponents.swift": "src/firmware/uefi/fitComponents.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/FITComponentTests.swift": "src/firmware/uefi/fitComponents.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -704,7 +706,8 @@
         "UEFIToolTests/ProtectionMarksTests.swift": "src/tools/uefi/uefiTreeMarks.test.ts",
         "UEFITool/UEFITopSwap.swift": "src/tools/uefi/uefiTopSwap.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift": "src/tools/uefi/uefiTopSwap.test.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/ECImageDisplayTests.swift": "src/tools/uefi/ecImageDisplay.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/ECImageDisplayTests.swift": "src/tools/uefi/ecImageDisplay.test.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/FITComponentDisplayTests.swift": "src/tools/uefi/fitComponentDisplay.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",

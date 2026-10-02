@@ -43,13 +43,13 @@ export const topSwapSize = (copy: TopSwapCopy): number => copy.top.end - copy.to
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/TopSwap.swift#TopSwapCopy.fitPointerAddress
  */
-const FIT_POINTER_ADDRESS = 0xffff_ffc0;
+export const FIT_POINTER_ADDRESS = 0xffff_ffc0;
 /**
  * `_FIT_   `, exact as eight bytes: JavaScript has no 64-bit integer.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/TopSwap.swift#TopSwapCopy.fitSignature
  */
-const FIT_SIGNATURE = 0x2020_205f_5449_465fn;
+export const FIT_SIGNATURE = 0x2020_205f_5449_465fn;
 /**
  * The sizes a Top Swap block comes in: a power of two from 64 KiB to 16 MiB.
  *

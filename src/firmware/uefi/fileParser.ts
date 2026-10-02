@@ -2,6 +2,7 @@ import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
+import { readingFITComponents } from "@/firmware/uefi/fitComponents";
 import { nameOfGuid, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
 import { parseNvarStore } from "@/firmware/uefi/nvarParser";
 import {
@@ -399,7 +400,22 @@ function padFileBody(parser: Parser, body: ImageRange, emptyByte: number): UEFIN
     );
   } else {
     parser.note({ kind: "nonUEFIDataInPadFile" }, dataStart);
-    nodes.push(makeSpan({ kind: "padding", name: L("Non-UEFI data"), range: data }));
+    // A vendor that keeps a Boot Guard manifest or the FIT itself in a pad file
+    // gets it named, under the row the reference shows.
+    const pieces = readingFITComponents(
+      parser,
+      parser.padding(data.start, data.end, emptyByte),
+      emptyByte
+    );
+    nodes.push(
+      makeNode({
+        kind: "padding",
+        name: L("Non-UEFI data"),
+        header: { start: dataStart, end: dataStart },
+        body: data,
+        children: pieces.some((piece) => piece.kind === "fitComponent") ? pieces : [],
+      })
+    );
   }
   return nodes;
 }

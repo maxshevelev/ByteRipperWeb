@@ -8,6 +8,11 @@ import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
 import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
+import {
+  acmSubtypeName,
+  fitComponentKindOf,
+  readFITComponentHeader,
+} from "@/firmware/uefi/fitComponents";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
 import { allITEFirmware } from "@/firmware/uefi/iteFirmware";
@@ -599,6 +604,42 @@ function headerFields(
     // Read in `buildNodeDetail`, which has the block the image sits in.
     case "ecImage":
       break;
+
+    // What UEFITool's FIT tab says of the structure, in the header's own words:
+    // the fields are Intel's names, and stay in them.
+    case "fitComponent": {
+      const kind = node.subtype === undefined ? undefined : fitComponentKindOf(node.subtype);
+      const header =
+        kind === undefined ? undefined : readFITComponentHeader(kind, node.body.start, reader);
+      if (header === undefined) break;
+      switch (header.kind) {
+        case "table":
+          fields.push(field("Entries", `${header.rows}`));
+          break;
+        case "acm":
+          fields.push(
+            field("Module subtype", acmSubtypeName(header.subtype) ?? hex(header.subtype))
+          );
+          fields.push(field("Header version", hex(header.headerVersion)));
+          fields.push(field("Chipset ID", hex(header.chipsetID)));
+          fields.push(field(L("Date"), header.date));
+          fields.push(field("ACM SVN", `${header.svn}`));
+          break;
+        case "keyManifest":
+          fields.push(field("Version", hex(header.version)));
+          fields.push(field("KM version", hex(header.kmVersion)));
+          fields.push(field("KM SVN", `${header.svn}`));
+          fields.push(field("KM ID", hex(header.id)));
+          break;
+        case "bootPolicy":
+          fields.push(field("Version", hex(header.version)));
+          fields.push(field("BPM revision", `${header.revision}`));
+          fields.push(field("BP SVN", `${header.svn}`));
+          fields.push(field("ACM SVN", `${header.acmSVN}`));
+          break;
+      }
+      break;
+    }
   }
   return fields;
 }

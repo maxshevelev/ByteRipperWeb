@@ -46,6 +46,7 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   // them.
   flashDeviceMapRegion: ItemType.padding,
   ecImage: ItemType.padding,
+  fitComponent: ItemType.padding,
   padding: ItemType.padding,
   freeSpace: ItemType.freeSpace,
   // Data nobody claimed is a run of bytes with a type, not a structure, so it
@@ -116,6 +117,7 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "padding":
     case "flashDeviceMapRegion":
     case "ecImage":
+    case "fitComponent":
       return paddingSubtype(node);
     case "freeSpace":
     case "nonUEFIData":

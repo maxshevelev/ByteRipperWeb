@@ -182,6 +182,8 @@ describe("every mapping lands in the book", () => {
       "flashDeviceMapStore",
       "flashDeviceMapEntry",
       "flashDeviceMapRegion",
+      "ecImage",
+      "fitComponent",
       "nvarEntry",
       "nvarGuidStore",
       "startupApData",

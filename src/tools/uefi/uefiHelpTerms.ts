@@ -18,6 +18,7 @@
 import { type HelpTermId, termId } from "@/core/help/helpIds";
 import { isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
+import { fitComponentKindOf } from "@/firmware/uefi/fitComponents";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import type { UEFINodeKind } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
@@ -85,6 +86,17 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return isECFirmwarePadding(node) ? termId("ec-firmware") : termId("padding");
     case "ecImage":
       return termId("ec-firmware");
+    case "fitComponent":
+      switch (node.subtype === undefined ? undefined : fitComponentKindOf(node.subtype)) {
+        case "startupACM":
+          return termId("acm");
+        case "keyManifest":
+          return termId("key-manifest");
+        case "bootPolicy":
+          return termId("boot-policy");
+        default:
+          return termId("fit");
+      }
     case "freeSpace":
       return termId("free-space");
     case "nonUEFIData":

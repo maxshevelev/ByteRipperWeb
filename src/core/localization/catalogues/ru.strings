@@ -125,6 +125,7 @@
 "Copy of" = "Копия образа по адресу";
 "Copy of %1$@–%2$@; %3$@" = "Копия блока %1$@–%2$@; %3$@";
 "EC firmware image" = "Образ прошивки EC";
+"FIT component" = "Компонент FIT";
 "Top Swap" = "Top Swap";
 "Vendor" = "Производитель";
 "Written" = "Записано";

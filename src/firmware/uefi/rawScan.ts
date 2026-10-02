@@ -2,6 +2,7 @@ import type { ImageRange } from "@/firmware/imageReader";
 import { parseCapsule } from "@/firmware/uefi/capsuleParser";
 import { hasDescriptorSignature, parseIntelImage } from "@/firmware/uefi/descriptorParser";
 import { readingECFirmwareIn } from "@/firmware/uefi/ecFirmware";
+import { readingFITComponents } from "@/firmware/uefi/fitComponents";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { parseFlashDeviceMap, readingMapRegions } from "@/firmware/uefi/flashDeviceMapParser";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
@@ -167,7 +168,11 @@ export function scanRawArea(
   // whether or not a signature announced itself.
   parser.progressed(range.end);
   nodes.push(...parser.padding(claimed, range.end, emptyByte));
-  return readingECFirmwareIn(parser, readingMapRegions(parser, nodes, emptyByte, depth), emptyByte);
+  return readingECFirmwareIn(
+    parser,
+    readingFITComponents(parser, readingMapRegions(parser, nodes, emptyByte, depth), emptyByte),
+    emptyByte
+  );
 }
 
 /** `_` — the first byte of `_FVH`, and the rarest of its four. */

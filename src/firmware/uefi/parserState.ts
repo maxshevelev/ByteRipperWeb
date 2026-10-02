@@ -1,6 +1,7 @@
 import { WindowedByteSource } from "@/firmware/byteSource";
 import { type ImageRange, ImageReader } from "@/firmware/imageReader";
 import type { DiagnosticKind, UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
+import type { FITComponent } from "@/firmware/uefi/fitComponents";
 import { makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
@@ -86,6 +87,12 @@ export class Parser {
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.diagnostics */
   readonly diagnostics: UEFIDiagnostic[] = [];
   private readonly onProgress: ProgressSink | undefined;
+  /**
+   * What the image's FIT names (`fitComponents`), once it has been asked.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.fitComponentsCache
+   */
+  fitComponentsCache: readonly FITComponent[] | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.init */
   constructor(reader: ImageReader, limits: Limits, progress?: ProgressSink | undefined) {
