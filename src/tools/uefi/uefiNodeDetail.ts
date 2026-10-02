@@ -101,8 +101,8 @@ export function buildNodeDetail(
   reader: ImageReader,
   repairs: readonly ChecksumRepair[] = []
 ): NodeDetail {
-  const detail = withVariableHistory(
-    buildDetailRows(node, image, reader, repairs),
+  const detail = withListedRanges(
+    withVariableHistory(buildDetailRows(node, image, reader, repairs), node, image, reader),
     node,
     image,
     reader
@@ -114,6 +114,119 @@ export function buildNodeDetail(
   const format = node.subtype === undefined ? undefined : pictureFormatOf(node.subtype);
   if (bytes === undefined || format === undefined) return detail;
   return { ...detail, picture: { bytes, mime: pictureMimeType(format) } };
+}
+
+/**
+ * What the BVDT's `$BME$` record lists, placed in the file.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withListedRanges(
+  detail: NodeDetail,
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): NodeDetail {
+  if (
+    node.kind !== "flashDeviceMapRegion" ||
+    node.guid === undefined ||
+    !guidEquals(node.guid, FlashDeviceMap.biosVersionDataTable)
+  ) {
+    return detail;
+  }
+  const table = readInsydeBvdt(node.body, reader);
+  if (table === undefined || table.listedRanges.length === 0) return detail;
+  return {
+    ...detail,
+    tables: [listedRangesTable(table.listedRanges, node, image), ...detail.tables],
+  };
+}
+
+/**
+ * `$BME$`'s ranges, which are offsets into the BIOS region, as addresses in the
+ * file, and the node each one is exactly — the BVDT's own region, a volume —
+ * where one is. What the list is for is not known, so the table says where and
+ * not why.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.listedRangesTable
+ */
+function listedRangesTable(
+  ranges: readonly ImageRange[],
+  near: UEFINode,
+  image: UEFIImage
+): DetailTable {
+  // A dump of the BIOS region alone starts with it.
+  const biosIndex = FLASH_REGIONS.indexOf("bios");
+  const bios =
+    image
+      .nodesContaining(nodeRange(near).start)
+      .find((one) => one.kind === "region" && one.subtype === biosIndex) ?? undefined;
+  const origin = bios === undefined ? 0 : nodeRange(bios).start;
+  return {
+    title: L("Ranges listed in $BME$"),
+    symbol: "list.bullet.rectangle",
+    columns: [L("Start"), L("Size"), L("Holds")],
+    rows: ranges.map((range) => {
+      const start = origin + range.start;
+      const end = origin + range.end;
+      const holder = image.allNodes.find((one) => {
+        const where = nodeRange(one);
+        return (
+          one.space.length === 0 &&
+          where.start === start &&
+          where.end === end &&
+          one.kind !== "region"
+        );
+      });
+      return [
+        cell(hex(start)),
+        cell(sizeText(range.end - range.start)),
+        cell(holder === undefined ? "—" : holderText(holder)),
+      ];
+    }),
+  };
+}
+
+/**
+ * A volume's name is its file system, which alone does not say it is one;
+ * anything else is named by what it is.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.holderText
+ */
+function holderText(node: UEFINode): string {
+  if (node.kind === "volume") return `${kindLabel("volume")} ${node.name}`;
+  return node.name.length === 0 ? kindLabel(node.kind) : node.name;
+}
+
+/**
+ * Microsoft's compiler version, and the Visual Studio it shipped with.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.compilerText
+ */
+function compilerText(version: number): string {
+  const product = visualStudioOf(version);
+  return product === undefined ? `MSC ${version}` : `MSC ${version} (${product})`;
+}
+
+function visualStudioOf(version: number): string | undefined {
+  switch (version) {
+    case 1400:
+      return "Visual Studio 2005";
+    case 1500:
+      return "Visual Studio 2008";
+    case 1600:
+      return "Visual Studio 2010";
+    case 1700:
+      return "Visual Studio 2012";
+    case 1800:
+      return "Visual Studio 2013";
+    case 1900:
+      return "Visual Studio 2015";
+  }
+  if (version >= 1910 && version <= 1916) return "Visual Studio 2017";
+  if (version >= 1920 && version <= 1929) return "Visual Studio 2019";
+  if (version >= 1930 && version <= 1949) return "Visual Studio 2022";
+  return undefined;
 }
 
 /**
@@ -793,6 +906,17 @@ function headerFields(
         }
         if (table?.releaseDate !== undefined) {
           fields.push(field("Release date", table.releaseDate));
+        }
+        if (table?.compilerVersion !== undefined) {
+          fields.push(field("Compiler", compilerText(table.compilerVersion)));
+        }
+        // The board's identity to a capsule update, and the version it would be
+        // compared with.
+        if (table?.esrtClass !== undefined) {
+          fields.push(field("ESRT firmware class", guidText(table.esrtClass)));
+        }
+        if (table?.esrtVersion !== undefined) {
+          fields.push(field("ESRT version", hex(table.esrtVersion)));
         }
       }
       if (

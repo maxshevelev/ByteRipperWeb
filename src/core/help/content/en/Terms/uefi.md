@@ -232,10 +232,15 @@ Insyde firmware keeps a small table that begins with the signature `$BVDT$`. The
 - **Product name** — the model or the board, for example `Legion 570 Series Intel`.
 - **Kernel version** — the version of the InsydeH2O kernel the firmware is built on, for example `05.43.44`.
 - **Release date** — the date in the table's `$RDATE` record.
+- **Compiler** — the version of Microsoft's compiler the firmware was built with, from the `$_MSC_VER=` record, and the Visual Studio it belongs to.
+- **ESRT firmware class** — the GUID by which the operating system identifies the board's system firmware in the EFI System Resource Table. Windows shows it as the hardware ID `UEFI\RES_{…}` of the "System Firmware" device and matches BIOS update packages against it, so two dumps with different GUIDs are firmware for different boards.
+- **ESRT version** — the firmware version stored beside that GUID. Its lowest byte equals the build number in the BIOS version on most of the dumps examined.
+
+The `$BME$` record lists ranges of the BIOS region; the table **Ranges listed in $BME$** places them in the dump and names what lies exactly there. On the dumps examined they are the table's own region, the microcode volume and, on one board, the EC firmware region. What the firmware or its flash utility does with these ranges is not documented.
 
 The table is the quickest way to establish which firmware a dump contains, and whether two dumps contain the same version.
 
-! No specification of the table has been published. Its layout is derived from dumps, and the meaning of the date is an inference: on every dump examined it agrees with the BIOS version. The table's remaining records are not interpreted.
+! No specification of the table has been published. Its layout is derived from dumps, and the meaning of the date is an inference: on every dump examined it agrees with the BIOS version. The meaning of the ESRT version and of the `$BME$` ranges is likewise inferred; the `$QUIRK` record is not interpreted.
 
 @see term:flash-device-map
 

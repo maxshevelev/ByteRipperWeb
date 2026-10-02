@@ -1,15 +1,29 @@
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { type EFIGUID, guidFromBytes } from "@/firmware/uefi/efiGuid";
 
 /**
  * Insyde's BIOS Version Data Table, the `$BVDT$` block the flash device map names
  * `BIOS Version Data Table` (`UEFI_IMAGE_FORMAT.md` §9).
  *
- * No specification describes it; the layout here is what five Insyde dumps agree
+ * No specification describes it; the layout here is what six Insyde dumps agree
  * on. Three strings sit at fixed places, each after a `$`: the BIOS version, the
  * product name and the Insyde kernel version. Further on, a run of `$`-tagged
- * records ends with `$ENDOFBVDT`; of those only `$RDATE` is read — three BCD
- * bytes, year, month, day, which on every dump at hand is a date that fits the
- * BIOS version. The rest (`$BME$`, `$_MSC_VER=`, `$ESRT`, `$QUIRK`) is not read.
+ * records ends with `$ENDOFBVDT`:
+ *
+ * - `$RDATE` — three BCD bytes, year, month, day, which on every dump at hand is
+ *   a date that fits the BIOS version.
+ * - `$_MSC_VER=` — a 16-bit number, the value of Microsoft's compiler macro of
+ *   that name: 1600 or 1900 on the dumps, Visual Studio 2010 and 2015.
+ * - `$ESRT` — a 32-bit version and a GUID. The GUID is the firmware class of the
+ *   board's entry in the EFI System Resource Table, the hardware ID
+ *   (`UEFI\RES_{…}`) Windows Update matches a BIOS capsule against; the
+ *   version's low byte is the BIOS build number on four of the five boards.
+ * - `$BME$` — up to three offset and size pairs in the BIOS region, each followed
+ *   by a `$`. On the dumps they are the table's own region, one FFSv2 volume
+ *   exactly, and on one board the EC firmware region; what the firmware or its
+ *   flash tool does with them is not known.
+ *
+ * `$QUIRK`, on one board, is not read.
  *
  * Public because the details panel shows it, and it is a reading of bytes, which
  * belongs here and not in a view.
@@ -29,6 +43,27 @@ export interface InsydeBVDT {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.releaseDate
    */
   readonly releaseDate?: string | undefined;
+  /**
+   * The `$_MSC_VER=` record: the compiler version the firmware was built with, as
+   * Microsoft numbers it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.compilerVersion
+   */
+  readonly compilerVersion?: number | undefined;
+  /**
+   * The `$ESRT` record's version and firmware class.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.esrtVersion
+   */
+  readonly esrtVersion?: number | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.esrtClass */
+  readonly esrtClass?: EFIGUID | undefined;
+  /**
+   * The `$BME$` record's ranges, as offsets into the BIOS region.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.listedRanges
+   */
+  readonly listedRanges: readonly ImageRange[];
 }
 
 const ascii = (text: string) => Uint8Array.from(text, (character) => character.charCodeAt(0));
@@ -39,6 +74,19 @@ const SIGNATURE = ascii("$BVDT$");
 const END = ascii("$ENDOFBVDT");
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.dateTag */
 const DATE_TAG = ascii("$RDATE");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.compilerTag */
+const COMPILER_TAG = ascii("$_MSC_VER=");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.esrtTag */
+const ESRT_TAG = ascii("$ESRT");
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.rangesTag */
+const RANGES_TAG = ascii("$BME$");
+/**
+ * `$BME$` holds no more pairs than this on any dump at hand, and the next record
+ * follows the third.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.rangeSlots
+ */
+const RANGE_SLOTS = 3;
 
 /**
  * Each string field: where its `$` is, and where the next field begins.
@@ -77,12 +125,62 @@ export function readInsydeBvdt(range: ImageRange, reader: ImageReader): InsydeBV
       releaseDate = `20${hex2(date[0])}-${hex2(date[1])}-${hex2(date[2])}`;
     }
   }
+  const compiler = valueAfter(records, COMPILER_TAG, 2);
+  const esrt = valueAfter(records, ESRT_TAG, 20);
+  const rangesAt = indexOf(records, RANGES_TAG);
   return {
     biosVersion: textField(bytes, BIOS_VERSION_FIELD),
     productName: textField(bytes, PRODUCT_NAME_FIELD),
     kernelVersion: textField(bytes, KERNEL_VERSION_FIELD),
     releaseDate,
+    compilerVersion:
+      compiler === undefined ? undefined : (compiler[0] ?? 0) | ((compiler[1] ?? 0) << 8),
+    esrtVersion: esrt === undefined ? undefined : dword(esrt, 0),
+    esrtClass: esrt === undefined ? undefined : guidFromBytes(esrt.subarray(4, 20)),
+    listedRanges: rangesAt < 0 ? [] : rangesFrom(records, rangesAt + RANGES_TAG.length),
   };
+}
+
+/**
+ * The `count` bytes after `tag` among the records, if they are there.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.value
+ */
+function valueAfter(records: Uint8Array, tag: Uint8Array, count: number): Uint8Array | undefined {
+  const found = indexOf(records, tag);
+  if (found < 0 || found + tag.length + count > records.length) return undefined;
+  return records.subarray(found + tag.length, found + tag.length + count);
+}
+
+const dword = (bytes: Uint8Array, at: number): number =>
+  ((bytes[at] ?? 0) |
+    ((bytes[at + 1] ?? 0) << 8) |
+    ((bytes[at + 2] ?? 0) << 16) |
+    ((bytes[at + 3] ?? 0) << 24)) >>>
+  0;
+
+/**
+ * `$BME$`'s pairs: a 32-bit offset and size, then a `$` when another follows. A
+ * pair that is erased — a size of all ones — is a slot not in use, and so is one
+ * of size zero.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.ranges
+ */
+function rangesFrom(records: Uint8Array, start: number): ImageRange[] {
+  const ranges: ImageRange[] = [];
+  let at = start;
+  for (let slot = 0; slot < RANGE_SLOTS; slot++) {
+    if (at + 8 > records.length) break;
+    const offset = dword(records, at);
+    const size = dword(records, at + 4);
+    if (size !== 0 && size !== 0xffff_ffff && offset < 0xffff_0000) {
+      ranges.push({ start: offset, end: offset + size });
+    }
+    at += 8;
+    if (slot >= RANGE_SLOTS - 1 || at >= records.length || records[at] !== 0x24) break;
+    at += 1;
+  }
+  return ranges;
 }
 
 function textField(bytes: Uint8Array, field: ImageRange): string | undefined {

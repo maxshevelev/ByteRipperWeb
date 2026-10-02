@@ -63,7 +63,8 @@ export type DetailSymbol =
   | "lock.shield"
   | "cpu"
   | "square.split.2x2"
-  | "clock.arrow.circlepath";
+  | "clock.arrow.circlepath"
+  | "list.bullet.rectangle";
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable */
 export interface DetailTable {

@@ -1212,14 +1212,50 @@ describe("a variable's history", () => {
 });
 
 describe("a BVDT region", () => {
-  // The version table's region shows what the table states.
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionShowsTheVersionsTheTableStates
-  it("shows the versions the table states", () => {
+  /**
+   * Upstream's `TestUEFI.bvdtRegion`: two ranges — the table's own region, and a
+   * megabyte where nothing is — then the compiler, the date and the ESRT entry, as
+   * SPI_ALL's.
+   */
+  const bvdtRegion = () => {
     const bytes = bvdtTable({
       version: "JKCN31WW",
       product: "S370-IAU",
       kernel: "05.44.02",
-      records: [...ascii("$RDATE"), 0x22, 0x07, 0x21],
+      ranges: [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x24, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
+        0x10, 0x00, 0xff,
+      ],
+      records: [
+        ...ascii("$_MSC_VER="),
+        0x40,
+        0x06,
+        ...ascii("$RDATE"),
+        0x22,
+        0x07,
+        0x21,
+        ...ascii("$ESRT"),
+        0x31,
+        0x00,
+        0x44,
+        0x52,
+        0xfc,
+        0xe4,
+        0x02,
+        0xf1,
+        0x52,
+        0xeb,
+        0xd9,
+        0x4f,
+        0x80,
+        0x98,
+        0xe5,
+        0x13,
+        0x08,
+        0xe2,
+        0x75,
+        0xf7,
+      ],
     });
     const region = makeNode({
       kind: "flashDeviceMapRegion",
@@ -1229,6 +1265,13 @@ describe("a BVDT region", () => {
       body: r(0, 0x1000),
       isFixed: true,
     });
+    return { bytes, region };
+  };
+
+  // The version table's region shows what the table states.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionShowsTheVersionsTheTableStates
+  it("shows the versions the table states", () => {
+    const { bytes, region } = bvdtRegion();
     const detail = detailOf(region, bytes);
 
     expect(value(detail, "Kind")).toBe("Flash device map region");
@@ -1236,6 +1279,23 @@ describe("a BVDT region", () => {
     expect(value(detail, "Product name")).toBe("S370-IAU");
     expect(value(detail, "Kernel version")).toBe("05.44.02");
     expect(value(detail, "Release date")).toBe("2022-07-21");
+    expect(value(detail, "Compiler")).toBe("MSC 1600 (Visual Studio 2010)");
+    expect(value(detail, "ESRT firmware class")).toBe("F102E4FC-EB52-4FD9-8098-E51308E275F7");
+    expect(value(detail, "ESRT version")).toBe("0x52440031");
+  });
+
+  // The ranges `$BME$` lists, placed in the file, each with what is exactly
+  // there — and a dash where nothing is.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionListsTheRangesOfItsBMERecord
+  it("lists the ranges of its $BME$ record", () => {
+    const { bytes, region } = bvdtRegion();
+    const listed = table(detailOf(region, bytes), "Ranges listed in $BME$");
+
+    expect(listed?.columns).toEqual(["Start", "Size", "Holds"]);
+    expect(listed?.rows.map((row) => row.map((one) => one.text))).toEqual([
+      ["0x0", "0x1000 (4096)", "BIOS Version Data Table"],
+      ["0x100000", "0x100000 (1048576)", "—"],
+    ]);
   });
 });
 
