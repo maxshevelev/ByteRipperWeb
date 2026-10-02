@@ -313,6 +313,7 @@ export function walkVolumeBody(
       limit: body.end,
       ffsVersion,
       volumeRevision,
+      volumeErasePolarity: emptyByte === 0xff,
       depth,
     });
     if (file === undefined) break;

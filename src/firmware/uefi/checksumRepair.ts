@@ -1,6 +1,8 @@
 import type { ImageReader } from "@/firmware/imageReader";
 import { checksum16, sum8, sum8Of, sum32Of } from "@/firmware/uefi/checksums";
-import { FFS } from "@/firmware/uefi/fileParser";
+import { FFS, marksHeaderInvalid, volumeErasePolarity } from "@/firmware/uefi/fileParser";
+import { enclosingVolume } from "@/firmware/uefi/rootLayout";
+import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { FV } from "@/firmware/uefi/volumeFormat";
 
@@ -29,7 +31,9 @@ export interface ChecksumRepair {
 
 /**
  * What to write after a file's body or header changed. Returns only what
- * actually differs, so an empty result means nothing needs fixing.
+ * actually differs, so an empty result means nothing needs fixing — which is also
+ * the answer for a file whose state marks its header invalid, since it owes no
+ * checksum (`marksHeaderInvalid`).
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums
  * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums.repairs
@@ -37,7 +41,8 @@ export interface ChecksumRepair {
 export function repairsForFile(
   file: UEFINode,
   volumeRevision: number,
-  reader: ImageReader
+  reader: ImageReader,
+  volumeErasePolarity?: boolean | undefined
 ): ChecksumRepair[] {
   if (file.kind !== "file") return [];
   const at = file.header.start;
@@ -51,7 +56,8 @@ export function repairsForFile(
     storedBody === undefined ||
     attributes === undefined ||
     state === undefined ||
-    headerBytes === undefined
+    headerBytes === undefined ||
+    marksHeaderInvalid(state, volumeErasePolarity)
   ) {
     return [];
   }
@@ -129,4 +135,21 @@ export function repairsForMicrocode(microcode: UEFINode, reader: ImageReader): C
       bytes: Uint8Array.from([0, 1, 2, 3], (index) => (computed >>> (8 * index)) & 0xff),
     },
   ];
+}
+
+/**
+ * The erase polarity of the volume a node lives in, which is what a file's state
+ * byte is read under (`marksHeaderInvalid`).
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeErasePolarity
+ * @upstream-differs the volume is the node's enclosing one by tree path, in the node's own
+ * space, where upstream looks for the innermost volume whose range holds the node's header
+ */
+export function volumeErasePolarityOf(
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): boolean | undefined {
+  const volume = enclosingVolume(node, image);
+  return volume === undefined ? undefined : volumeErasePolarity(volume, reader);
 }

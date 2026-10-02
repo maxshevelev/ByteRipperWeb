@@ -1,5 +1,5 @@
 import { L } from "@/core/localization/localization";
-import type { ImageRange } from "@/firmware/imageReader";
+import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
 import { readingFITComponents } from "@/firmware/uefi/fitComponents";
@@ -20,6 +20,7 @@ import {
 } from "@/firmware/uefi/sectionParser";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
+import { FV } from "@/firmware/uefi/volumeFormat";
 
 /**
  * `EFI_FFS_FILE_HEADER` and its variants.
@@ -109,6 +110,55 @@ export const FFS = {
    */
   erasePolarity: 0x80,
 } as const;
+
+/**
+ * What a file's state byte says (§5.5).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FileState
+ */
+export const FileState = {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FileState.headerValid */
+  headerValid: 0x02,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FileState.headerInvalid */
+  headerInvalid: 0x20,
+} as const;
+
+/**
+ * Whether the state marks the file's header as not to be trusted — not marked
+ * valid, or marked invalid — read under the volume's erase polarity *and* under
+ * the file's own polarity bit. A file marked so owes no checksum: the firmware
+ * does not take its header, and a sum over it says nothing. Under one reading
+ * only it is a file written under the other polarity, which `1.bin` has one of,
+ * valid the other way round, so its checksums are still checked. Nothing for the
+ * volume's polarity when the file is read without its volume.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FileState.marksHeaderInvalid
+ */
+export function marksHeaderInvalid(
+  state: number,
+  volumeErasePolarity: boolean | undefined
+): boolean {
+  const invalid = (logical: number) =>
+    (logical & FileState.headerInvalid) !== 0 || (logical & FileState.headerValid) === 0;
+  // Under an erase polarity of 1 a bit is set by clearing it, so the byte reads
+  // inverted.
+  const logical = (polarity: boolean) => (polarity ? ~state & 0xff : state);
+  const own = invalid(logical((state & FFS.erasePolarity) !== 0));
+  if (volumeErasePolarity === undefined) return own;
+  return own && invalid(logical(volumeErasePolarity));
+}
+
+/**
+ * A volume's erase polarity, from its header's attributes (§3.5); nothing for a
+ * node that is not a volume or a header that does not read.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#FileState.erasePolarity
+ */
+export function volumeErasePolarity(volume: UEFINode, reader: ImageReader): boolean | undefined {
+  if (volume.kind !== "volume") return undefined;
+  const attributes = reader.uint32(volume.header.start + 0x2c);
+  return attributes === undefined ? undefined : (attributes & FV.erasePolarity) !== 0;
+}
 
 /**
  * Every file's body is a run of sections except these two, which are the bytes
@@ -220,6 +270,7 @@ export function parseFile(
     readonly limit: number;
     readonly ffsVersion: number;
     readonly volumeRevision: number;
+    readonly volumeErasePolarity?: boolean | undefined;
     readonly depth: number;
   }
 ): ParsedFile | undefined {
@@ -280,15 +331,21 @@ export function parseFile(
   const body: ImageRange = { start: offset + headerSize, end: end - tailSize };
   const tail: ImageRange = { start: end - tailSize, end };
 
-  verifyFileChecksums(parser, {
-    offset,
-    headerSize,
-    body,
-    headerChecksum,
-    bodyChecksum,
-    attributes,
-    volumeRevision,
-  });
+  // A file its own state marks invalid is reported as that, and its checksums
+  // are not held against it (§5.5).
+  if (marksHeaderInvalid(state, options.volumeErasePolarity)) {
+    parser.note({ kind: "fileHeaderMarkedInvalid", state }, offset + 0x17);
+  } else {
+    verifyFileChecksums(parser, {
+      offset,
+      headerSize,
+      body,
+      headerChecksum,
+      bodyChecksum,
+      attributes,
+      volumeRevision,
+    });
+  }
   if (type > 0x0f && type !== FFS.padType) {
     parser.note({ kind: "unknownType", structure: "fileHeader", code: type }, offset + 0x12);
   }

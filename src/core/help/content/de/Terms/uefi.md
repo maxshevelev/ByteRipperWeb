@@ -1,4 +1,4 @@
-@source-sha cbbcfcd577ea28f2d501d2c7bd02fd5d7085ea5c6cc4deaabf2d3f03c3446b87
+@source-sha 9cd3ecd967880358626c53a03d949f0ca9f049d8b3b857204346bdf625f79cd2
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -143,6 +143,8 @@ Der Header eines Volumes nennt seine Länge und seine eigene Prüfsumme, und der
 Dateien sind das, was ein Volume enthält. Jede hat eine GUID statt eines Namens, einen Typ (Treiber, Anwendung, Rohdaten, Volume-Abbild) und einen Header mit eigenen Prüfsummen. In einer Datei liegen [[term:section|Sektionen]].
 
 Eine Zeile mit lesbarem Namen wie „DxeCore“ ist eine FFS-Datei, deren GUID der [[topic:databases|Katalog]] kennt.
+
+Das Statusbyte im Header hält fest, wie weit das Schreiben der Datei gekommen ist: Header geschrieben, Daten geschrieben, zur Aktualisierung markiert, gelöscht. Es kann den Header auch als ungültig markieren; die Firmware übernimmt die Datei dann nicht. ByteRipper liest das Byte sowohl unter der Löschpolarität des Volumes als auch unter dem eigenen Polaritätsbit der Datei. Markiert es den Header in beiden Fällen als ungültig, steht in der Zeile **State** **Header als ungültig markiert**, und beide Prüfsummen werden als nicht geprüft statt als falsch angezeigt: Eine Datei, die die Firmware übergeht, schuldet keine Prüfsumme, und **Fix Checksum** hat nichts zu schreiben. Eine Datei, die unter einer der beiden Lesarten gültig ist, wurde unter der anderen Polarität geschrieben und wird wie gewohnt geprüft.
 
 @see term:section
 @see term:pad-file

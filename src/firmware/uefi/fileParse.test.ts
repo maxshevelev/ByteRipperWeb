@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import * as Test from "@/firmware/testing/testImage";
+import { type DiagnosticKind, severityOf } from "@/firmware/uefi/diagnostic";
 import { FFS } from "@/firmware/uefi/fileParser";
 import { FFS_V1, FFS_V3, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
@@ -96,6 +97,37 @@ describe("a file that cannot be believed", () => {
   it("carries its fixed attribute to the node", () => {
     const file = volumeOf([Test.file({ attributes: FFS.fixed, body: bytes(1) })])?.children[0];
     expect(file?.isFixed).toBe(true);
+  });
+
+  // A file whose state marks its header invalid — `0x00` in an erase polarity 1
+  // volume, as HP's "HP FS" volume has one — owes no checksum: it is reported as
+  // marked, once, and its stale sums are not (§5.5).
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileMarkedInvalidIsReportedAsThatAndNotForItsChecksums
+  it("reports a file marked invalid as that, and not for its checksums", () => {
+    const parsed = parse([
+      Test.file({ state: 0x00, body: bytes(1, 2), headerChecksum: 0x11, bodyChecksum: 0x22 }),
+    ]);
+
+    expect(parsed.roots[0]?.children[0]?.kind).toBe("file");
+    expect(parsed.diagnostics.map((one) => one.detail)).toEqual([
+      { kind: "fileHeaderMarkedInvalid", state: 0x00 },
+    ]);
+    expect(parsed.diagnostics[0]?.offset).toBe(0x48 + 0x17);
+    expect(severityOf(parsed.diagnostics[0]?.detail as DiagnosticKind)).toBe("warning");
+  });
+
+  // A state valid under the file's own polarity bit is a file written under the
+  // other polarity, not one marked invalid, and its sums are still checked —
+  // `1.bin` has one.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileValidUnderItsOwnPolarityIsStillChecked
+  it("still checks a file valid under its own polarity", () => {
+    const parsed = parse([
+      Test.file({ state: 0x07, body: bytes(1, 2), bodyChecksum: FFS.fixedChecksum }),
+    ]);
+
+    expect(parsed.diagnostics.map((one) => one.detail)).toEqual([
+      { kind: "checksumMismatch", structure: "fileBody", stored: 0x5a, computed: 0xaa },
+    ]);
   });
 
   // A size of zero would put the walk back on the same offset for ever.

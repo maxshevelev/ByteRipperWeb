@@ -152,7 +152,13 @@ export type DiagnosticKind =
    * the Startup AP data: a pad file is meant to be empty, so data in one is
    * either a vendor's or damage.
    */
-  | { readonly kind: "nonUEFIDataInPadFile" };
+  | { readonly kind: "nonUEFIDataInPadFile" }
+  /**
+   * A file whose state byte marks its header invalid, however the polarity is
+   * read (§5.5). Its checksums are not checked: the firmware does not take the
+   * file.
+   */
+  | { readonly kind: "fileHeaderMarkedInvalid"; readonly state: number };
 
 /**
  * Where a diagnostic raised inside a compressed section really is: an offset in
@@ -322,6 +328,8 @@ function kindMessage(detail: DiagnosticKind): string {
       );
     case "nonUEFIDataInPadFile":
       return "padding file holds data that is not UEFI";
+    case "fileHeaderMarkedInvalid":
+      return `file state ${hex(detail.state)} marks its header invalid; its checksums are not checked`;
     case "unreadableNvarEntry":
       return "NVAR entry cannot be read; the store is kept as padding from here";
   }

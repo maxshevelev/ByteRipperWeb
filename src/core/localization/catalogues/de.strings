@@ -149,6 +149,8 @@
 "Region table" = "Regionstabelle";
 "Base" = "Anfang";
 "Limit" = "Ende";
+"%1$@ — header marked invalid" = "%1$@ — Header als ungültig markiert";
+"%1$@ (not checked)" = "%1$@ (nicht geprüft)";
 "Picture size" = "Bildgröße";
 "Top Swap" = "Top Swap";
 "Vendor" = "Hersteller";

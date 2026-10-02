@@ -157,7 +157,7 @@ const sameSpace = (left: readonly number[], right: readonly number[]): boolean =
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.enclosingVolume
  */
-function enclosingVolume(node: UEFINode, image: UEFIImage): UEFINode | undefined {
+export function enclosingVolume(node: UEFINode, image: UEFIImage): UEFINode | undefined {
   const path = [...node.id];
   while (path.length > 0) {
     path.pop();

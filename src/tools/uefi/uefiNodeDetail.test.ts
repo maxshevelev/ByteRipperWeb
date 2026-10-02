@@ -4,6 +4,7 @@ import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
 import { ascii, bvdtTable, ITE_BLOCK } from "@/firmware/testing/testInsyde";
 import { checksummedNvarEntry, nvarStore, nvarVolume } from "@/firmware/testing/testNvar";
+import { repairsForFile } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
@@ -137,7 +138,7 @@ describe("a file", () => {
     const bytes = Test.file({
       type: 0x07,
       attributes: 0x04,
-      state: 0x80,
+      state: 0xf8,
       headerChecksum: 0xaa,
       bodyChecksum: 0xbb,
       body: new Uint8Array(0xe8),
@@ -149,10 +150,35 @@ describe("a file", () => {
     expect(value(detail, "Type")).toBe("Driver");
     expect(value(detail, "Attributes")).toBe("0x4 (Fixed)");
     expect(value(detail, "Size")).toBe("0x100 (256)");
-    expect(value(detail, "State")).toBe("0x80 (Erase polarity)");
+    expect(value(detail, "State")).toBe("0xF8 (Erase polarity)");
     expect(value(detail, "Header checksum")).toBe("0xAA (Valid)");
     expect(value(detail, "Body checksum")).toBe("0xBB (Valid)");
     expect(value(detail, "Header")).toBe("0x0 · 0x18 (24) bytes");
+  });
+
+  // A file whose state marks its header invalid says so, and its sums are shown
+  // unchecked rather than wrong: it owes none, and there is nothing for Fix
+  // Checksum to write (§5.5).
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAFileMarkedInvalidShowsItsSumsUnchecked
+  it("shows the sums of a file marked invalid unchecked", () => {
+    const bytes = Test.file({
+      type: 0x07,
+      attributes: 0x04,
+      state: 0x00,
+      headerChecksum: 0xaa,
+      bodyChecksum: 0xbb,
+      body: new Uint8Array(0xe8),
+    });
+    const detail = detailOf(fileNode(), bytes);
+    const state = detail.fields.find((one) => one.label === "State");
+
+    expect(state?.value).toBe("0x0 — header marked invalid");
+    expect(state?.tone).toBe("caution");
+    expect(value(detail, "Header checksum")).toBe("0xAA (not checked)");
+    expect(value(detail, "Body checksum")).toBe("0xBB (not checked)");
+    const reader = readerOver(bytes);
+    expect(repairsForFile(fileNode(), 2, reader)).toEqual([]);
+    expect(repairsForFile(fileNode(), 2, reader, true)).toEqual([]);
   });
 
   // A repair on one of the two checksums reads only that one as wrong.

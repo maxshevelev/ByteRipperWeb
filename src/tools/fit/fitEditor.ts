@@ -13,6 +13,7 @@ import { ImageReader as Reader } from "@/firmware/imageReader";
 import { OverlayByteSource } from "@/firmware/overlayByteSource";
 import { repairsForFile } from "@/firmware/uefi/checksumRepair";
 import { alignUp, sum8, sum32Of } from "@/firmware/uefi/checksums";
+import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import {
   type MicrocodeHeader,
   microcodeRange,
@@ -1216,9 +1217,11 @@ function withContainerRepairs(
     // A file that grew is checked over its new extent, not the one the parse
     // found.
     if (grownFile !== undefined && grownFile.id.join(".") === key) file = grownFile;
-    const revision = chain.filter((node) => node.kind === "volume").at(-1)?.subtype ?? 2;
+    const volume = chain.filter((node) => node.kind === "volume").at(-1);
+    const revision = volume?.subtype ?? 2;
+    const polarity = volume === undefined ? undefined : volumeErasePolarity(volume, after);
 
-    for (const repair of repairsForFile(file, revision, after)) {
+    for (const repair of repairsForFile(file, revision, after, polarity)) {
       const end = repair.offset + repair.bytes.length;
       const covering = writes.findIndex(
         (one) => one.offset <= repair.offset && end <= one.offset + one.bytes.length

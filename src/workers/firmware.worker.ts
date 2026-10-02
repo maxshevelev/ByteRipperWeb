@@ -22,6 +22,7 @@ import {
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
+import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import {
   isIbbKind,
@@ -387,6 +388,42 @@ function open(node: UEFINode, into: UEFIDiagnostic[]): void {
 }
 
 /**
+ * The volume a file sits in, found on the way down: its revision, which the fixed
+ * body sum follows, and its erase polarity, which the file's state byte is read
+ * under (`marksHeaderInvalid`).
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeRevision
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeErasePolarity
+ * @upstream-differs found by the node's path in the tree the worker holds, where upstream
+ * looks for the innermost volume whose range holds the node's header
+ */
+function volumeOfPath(path: readonly number[]): {
+  readonly revision: number;
+  readonly polarity: boolean | undefined;
+} {
+  let nodes = roots;
+  let revision = 2;
+  let volume: UEFINode | undefined;
+  for (const index of path) {
+    const next = nodes[index];
+    if (next === undefined) break;
+    if (next.kind === "volume") {
+      volume = next;
+      if (next.subtype !== undefined) revision = next.subtype;
+    }
+    nodes = next.children;
+  }
+  const volumeReader = volume === undefined ? undefined : readerFor(volume);
+  return {
+    revision,
+    polarity:
+      volume === undefined || volumeReader === undefined
+        ? undefined
+        : volumeErasePolarity(volume, volumeReader),
+  };
+}
+
+/**
  * The writes that would put a node's checksums right, which is what lets the
  * detail say a checksum is wrong and what it should read. A file's fixed body
  * sum follows the revision of the volume it sits in, found on the way down.
@@ -402,15 +439,8 @@ function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
     case "microcode":
       return repairsForMicrocode(node, spaceReader);
     case "file": {
-      let nodes = roots;
-      let revision = 2;
-      for (const index of path) {
-        const next = nodes[index];
-        if (next === undefined) break;
-        if (next.kind === "volume" && next.subtype !== undefined) revision = next.subtype;
-        nodes = next.children;
-      }
-      return repairsForFile(node, revision, spaceReader);
+      const { revision, polarity } = volumeOfPath(path);
+      return repairsForFile(node, revision, spaceReader, polarity);
     }
     default:
       return [];
@@ -640,7 +670,12 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               ? repairsForVolume(node, spaceReader)
               : node.kind === "microcode"
                 ? repairsForMicrocode(node, spaceReader)
-                : repairsForFile(node, request.volumeRevision, spaceReader);
+                : repairsForFile(
+                    node,
+                    request.volumeRevision,
+                    spaceReader,
+                    volumeOfPath(request.node).polarity
+                  );
         post({
           kind: "firmwareRepair",
           id: request.id,

@@ -143,6 +143,8 @@ Files are what a volume holds. Each has a GUID for a name, a type (a driver, an 
 
 A row with a readable name like "DxeCore" is an FFS file whose GUID the [[topic:databases|catalogue]] recognises.
 
+The header's state byte records how far the file got: header written, data written, marked for update, deleted. It can also mark the header invalid, and the firmware then does not take the file. ByteRipper reads the byte under the volume's erase polarity and under the file's own polarity bit; when it marks the header invalid under both, the row **State** says **header marked invalid**, and the two checksums are shown as not checked rather than as wrong: a file the firmware ignores owes no checksum, and **Fix Checksum** has nothing to write. A file valid under one of the two readings was written under the other polarity and is checked as usual.
+
 @see term:section
 @see term:pad-file
 

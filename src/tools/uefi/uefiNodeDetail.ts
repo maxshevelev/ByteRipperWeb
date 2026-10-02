@@ -1,7 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
-import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
+import { type ChecksumRepair, volumeErasePolarityOf } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { generationCodeName, generationSeries } from "@/firmware/uefi/descriptorGeneration";
 import {
@@ -12,7 +12,7 @@ import {
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
 import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
-import { fileTypeName } from "@/firmware/uefi/fileParser";
+import { fileTypeName, marksHeaderInvalid } from "@/firmware/uefi/fileParser";
 import {
   acmSubtypeName,
   fitComponentKindOf,
@@ -62,6 +62,7 @@ import {
   field,
   type NodeDetail,
   permission,
+  tonedField,
 } from "@/tools/toolDetail";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { kindLabel } from "@/tools/uefi/uefiTreeDisplay";
@@ -106,7 +107,15 @@ function buildDetailRows(
   reader: ImageReader,
   repairs: readonly ChecksumRepair[]
 ): NodeDetail {
-  const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
+  const fields = [
+    ...commonFields(node, image),
+    ...headerFields(
+      node,
+      reader,
+      repairs,
+      node.kind === "file" ? volumeErasePolarityOf(node, image, reader) : undefined
+    ),
+  ];
   if (node.kind === "ecImage") fields.push(...ecImageFields(node, image, reader));
   const topSwap = uefiTopSwapDetail(node, image);
   if (topSwap !== undefined) fields.push(field(L("Top Swap"), topSwap));
@@ -275,7 +284,8 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
 function headerFields(
   node: UEFINode,
   reader: ImageReader,
-  repairs: readonly ChecksumRepair[]
+  repairs: readonly ChecksumRepair[],
+  volumeErasePolarity: boolean | undefined
 ): DetailField[] {
   const h = node.header.start;
   const fields: DetailField[] = [];
@@ -315,14 +325,33 @@ function headerFields(
       const size = reader.uint24(h + 0x14);
       if (size !== undefined && size !== 0) fields.push(field(L("Size"), sizeText(size)));
       else add(L("Size"), reader.uint64(h + 0x18), sizeText);
-      add("State", reader.uint8(h + 0x17), (value) => bits(value, [[0x80, "Erase polarity"]]));
+      // A state that marks the header invalid says so, and the sums are shown
+      // unchecked rather than valid: the file owes none (§5.5).
+      const state = reader.uint8(h + 0x17);
+      const markedInvalid = state !== undefined && marksHeaderInvalid(state, volumeErasePolarity);
+      if (state !== undefined) {
+        const text = bits(state, [[0x80, "Erase polarity"]]);
+        fields.push(
+          markedInvalid
+            ? tonedField("State", L("%1$@ — header marked invalid", text), "caution")
+            : field("State", text)
+        );
+      }
       const headerChecksum = reader.uint8(h + 0x10);
       if (headerChecksum !== undefined) {
-        fields.push(checksumRow("Header checksum", headerChecksum, 2, repairs, h + 0x10));
+        fields.push(
+          markedInvalid
+            ? field("Header checksum", L("%1$@ (not checked)", hex(headerChecksum)))
+            : checksumRow("Header checksum", headerChecksum, 2, repairs, h + 0x10)
+        );
       }
       const bodyChecksum = reader.uint8(h + 0x11);
       if (bodyChecksum !== undefined) {
-        fields.push(checksumRow("Body checksum", bodyChecksum, 2, repairs, h + 0x11));
+        fields.push(
+          markedInvalid
+            ? field("Body checksum", L("%1$@ (not checked)", hex(bodyChecksum)))
+            : checksumRow("Body checksum", bodyChecksum, 2, repairs, h + 0x11)
+        );
       }
       break;
     }
