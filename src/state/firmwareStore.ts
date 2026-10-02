@@ -2,7 +2,7 @@ import type { UndoOperation } from "@/core/edit/undoHistory";
 import { currentCatalogue, L } from "@/core/localization/localization";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
-import { DellSetupCatalogue, type DellSetupSetting } from "@/firmware/uefi/dellSetupForms";
+import type { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
@@ -14,6 +14,7 @@ import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/contentChange";
 import { EFSFileNames } from "@/tools/efsFileNames";
 import { MFSFileNames } from "@/tools/mfsFileNames";
+import { dvarSettingsFromWire } from "@/workers/dvarWire";
 import type {
   FirmwareDetailResponse,
   FirmwareProtectedRangesResponse,
@@ -319,24 +320,6 @@ function ensureWorker(pane: PaneId): PaneWorker {
           diagnostics: [...(firmwareFor(pane)?.diagnostics ?? []), ...response.diagnostics],
         });
         return;
-      case "firmwareDvarSettings": {
-        const settings = new Map<string, DellSetupSetting>();
-        for (const one of response.settings) {
-          settings.set(`${one.namespace}|${one.nameId}`, {
-            prompt: one.prompt,
-            keyword: one.keyword,
-            help: one.help,
-            form: one.form,
-            kind: one.kind,
-            options: one.options.map((option) => ({
-              value: BigInt(option.value),
-              text: option.text,
-            })),
-          });
-        }
-        update(pane, { dvarSettings: new DellSetupCatalogue(settings) });
-        return;
-      }
       case "firmwareRepair": {
         const waiting = repairWaiters.get(pathKey(response.node));
         repairWaiters.delete(pathKey(response.node));
@@ -548,7 +531,83 @@ export function askFirmwareProtectedRanges(pane: PaneId): void {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return;
   if (current.protectedRanges !== undefined) return;
-  send(pane, { kind: "firmwareProtectedRanges", id: workers[pane]?.job ?? 0 });
+  void askHelper(pane, "firmwareProtectedRanges");
+}
+
+/**
+ * A worker of the pane's own for the readings that take seconds — the protected
+ * ranges hash megabytes, the Setup forms decode every compressed volume. The
+ * worker that holds the tree is single-threaded, so a reading in it holds up every
+ * branch the reader opens while it runs; here it reads the image afresh, beside it,
+ * and hands the answer back.
+ *
+ * @web-only upstream's lazy tree reads both on a background actor
+ */
+interface Helper {
+  readonly worker: Worker;
+  /** The tree's job this helper was opened for. */
+  readonly job: number;
+}
+
+const helpers: Partial<Record<PaneId, Helper>> = {};
+
+/** The asks the helper has been sent for the tree it was opened for. */
+const helperAsked = new Set<string>();
+
+async function askHelper(
+  pane: PaneId,
+  kind: "firmwareProtectedRanges" | "firmwareDvarSettings"
+): Promise<void> {
+  const held = workers[pane];
+  if (held === undefined) return;
+  const key = `${pane}:${held.job}:${kind}`;
+  if (helperAsked.has(key)) return;
+  helperAsked.add(key);
+  const content = await currentContent(pane);
+  // The pane may have moved on while the bytes were being gathered.
+  if (content === undefined || workers[pane] !== held) return;
+
+  let helper = helpers[pane];
+  if (helper === undefined || helper.job !== held.job) {
+    helper?.worker.terminate();
+    const worker = new Worker(new URL("../workers/firmware.worker.ts", import.meta.url), {
+      type: "module",
+    });
+    helper = { worker, job: held.job };
+    helpers[pane] = helper;
+    teachLanguage({ worker, job: 0, latest: new Map() });
+    worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) =>
+      helperAnswered(pane, helper as Helper, event.data)
+    );
+    worker.postMessage({
+      kind: "openFirmware",
+      id: held.job,
+      content,
+      layout: paneState(pane)?.origin?.layout,
+    });
+  }
+  helper.worker.postMessage({ kind, id: held.job });
+}
+
+/** What the helper found, taken up if the tree it read is still the pane's. */
+function helperAnswered(pane: PaneId, helper: Helper, response: FirmwareWorkerResponse): void {
+  const held = workers[pane];
+  if (held === undefined || held.job !== helper.job || response.id !== helper.job) return;
+  if (response.kind === "firmwareProtectedRanges") {
+    const { raw, ...shown } = response;
+    update(pane, {
+      protectedRanges: shown,
+      diagnostics: [...(firmwareFor(pane)?.diagnostics ?? []), ...response.diagnostics],
+    });
+    held.worker.postMessage({ kind: "firmwareInstall", id: held.job, protectedRanges: raw });
+  } else if (response.kind === "firmwareDvarSettings") {
+    update(pane, { dvarSettings: dvarSettingsFromWire(response.settings) });
+    held.worker.postMessage({
+      kind: "firmwareInstall",
+      id: held.job,
+      dvarSettings: response.settings,
+    });
+  }
 }
 
 /**
@@ -561,13 +620,9 @@ export function askFirmwareProtectedRanges(pane: PaneId): void {
 export function askFirmwareDvarSettings(pane: PaneId): void {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return;
-  if (current.dvarSettings !== undefined || dvarAsked.get(pane) === workers[pane]?.job) return;
-  dvarAsked.set(pane, workers[pane]?.job ?? 0);
-  send(pane, { kind: "firmwareDvarSettings", id: workers[pane]?.job ?? 0 });
+  if (current.dvarSettings !== undefined) return;
+  void askHelper(pane, "firmwareDvarSettings");
 }
-
-/** The job of the tree the pane last asked about, so one ask is made per tree. */
-const dvarAsked = new Map<PaneId, number>();
 
 /**
  * The bytes of one buffer, or a range of one — what a compressed section
@@ -1338,6 +1393,8 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
  */
 export function closeFirmware(pane: PaneId): void {
   workers[pane]?.worker.terminate();
+  helpers[pane]?.worker.terminate();
+  delete helpers[pane];
   delete workers[pane];
   forgetMeAnalysis(pane);
   firmwareStore.update((state) => ({ panes: { ...state.panes, [pane]: undefined } }));

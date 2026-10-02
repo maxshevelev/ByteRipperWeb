@@ -73,11 +73,11 @@ import { MFSFileNames } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
+import { dvarSettingsFromWire, dvarSettingsToWire } from "@/workers/dvarWire";
 import type {
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
   WireDiagnostic,
-  WireDvarSetting,
   WireNode,
   WireProtectedRange,
 } from "@/workers/protocol";
@@ -441,18 +441,6 @@ function readDvarSettings(): DellSetupCatalogue {
   return dvarSettings;
 }
 
-const wireDvarSettings = (catalogue: DellSetupCatalogue): WireDvarSetting[] =>
-  catalogue.entries().map(({ namespace, nameId, setting }) => ({
-    namespace,
-    nameId,
-    prompt: setting.prompt,
-    keyword: setting.keyword,
-    help: setting.help,
-    form: setting.form,
-    kind: setting.kind,
-    options: setting.options.map((one) => ({ value: one.value.toString(), text: one.text })),
-  }));
-
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.show */
 const wireProtectedRange = (range: ProtectedRange): WireProtectedRange => ({
   kind: range.kind,
@@ -724,11 +712,19 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      case "firmwareInstall":
+        // What the helper worker read, for this tree to answer details with.
+        if (request.protectedRanges !== undefined) protectedRanges = request.protectedRanges;
+        if (request.dvarSettings !== undefined) {
+          dvarSettings = dvarSettingsFromWire(request.dvarSettings);
+        }
+        return;
+
       case "firmwareDvarSettings":
         post({
           kind: "firmwareDvarSettings",
           id: request.id,
-          settings: wireDvarSettings(readDvarSettings()),
+          settings: dvarSettingsToWire(readDvarSettings()),
         });
         return;
 
@@ -740,6 +736,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           ranges: ranges.ranges.map(wireProtectedRange),
           obbDigests: ranges.obbDigests.map((one) => tcgHashName(one.algorithm)),
           diagnostics: wireDiagnostics(ranges.diagnostics),
+          raw: ranges,
           ...(ranges.topSwap === undefined
             ? {}
             : {

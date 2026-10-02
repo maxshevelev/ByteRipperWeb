@@ -22,6 +22,7 @@ import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
+import type { ProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import type { EFSFileNames } from "@/tools/efsFileNames";
@@ -311,6 +312,21 @@ export interface FirmwareProtectedRangesRequest {
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveDvarSettings
  */
+/**
+ * What the helper worker found, handed to the worker that holds the tree: the
+ * detail it builds says what protects a node and what Setup calls a variable, and
+ * neither is read again there.
+ *
+ * @web-only upstream reads both on a background actor beside the tree; here the
+ * reading is in a worker of its own, so the tree's worker stays free to answer
+ */
+export interface FirmwareInstallRequest {
+  readonly kind: "firmwareInstall";
+  readonly id: JobId;
+  readonly protectedRanges?: ProtectedRanges | undefined;
+  readonly dvarSettings?: readonly WireDvarSetting[] | undefined;
+}
+
 export interface FirmwareDvarSettingsRequest {
   readonly kind: "firmwareDvarSettings";
   readonly id: JobId;
@@ -572,6 +588,7 @@ export type FirmwareWorkerRequest =
   | FirmwareSpaceBytesRequest
   | FirmwareProtectedRangesRequest
   | FirmwareDvarSettingsRequest
+  | FirmwareInstallRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
   | FirmwareInvalidateRequest
@@ -736,6 +753,8 @@ export interface FirmwareProtectedRangesResponse {
     readonly backup: readonly [number, number];
   };
   readonly topSwapCopiesMatch?: boolean;
+  /** The reading itself, for the worker that holds the tree (`FirmwareInstallRequest`). */
+  readonly raw?: ProtectedRanges | undefined;
 }
 
 /** One Setup question as it crosses the wire; the option values are decimal text, being 64-bit. */
