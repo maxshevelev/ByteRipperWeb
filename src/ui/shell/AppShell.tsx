@@ -986,6 +986,11 @@ export function AppShell() {
       if (target.closest(".hex-scroller") !== null) return;
       if (selectableText(target)) return;
       event.preventDefault();
+      // A tool's tree or table keeps the focus a click would have given it:
+      // its rows are what the arrows move, and with the focus left where it was
+      // they went to the dump's caret, or scrolled the list under the pointer.
+      const list = target.closest('[role="tree"], [role="grid"]');
+      if (list instanceof HTMLElement && list.tabIndex >= 0) list.focus({ preventScroll: true });
     };
     window.addEventListener("mousedown", onMouseDown);
     return () => window.removeEventListener("mousedown", onMouseDown);

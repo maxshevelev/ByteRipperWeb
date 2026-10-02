@@ -2877,9 +2877,9 @@ button.uefi-title {
   outline: none;
 }
 
+/* No frame when the list has the focus: the selected row is where it is. */
 .uefi-tree:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: none;
 }
 
 /* Name takes the rest; Type and Subtype are as wide as the words they hold on
@@ -3395,9 +3395,9 @@ button.uefi-title {
   outline: none;
 }
 
+/* No frame when the list has the focus: the selected row is where it is. */
 .fit-entries:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: none;
 }
 
 /* The widths are the panel's to decide (`fittedColumnWidths`) and they add up to
@@ -3766,9 +3766,9 @@ button.uefi-title {
   outline: none;
 }
 
+/* No frame when the list has the focus: the selected row is where it is. */
 .me-tree:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: none;
 }
 
 /* Name takes the rest; the second column holds `offset · size` on most rows.
@@ -3966,9 +3966,9 @@ button.uefi-title {
   outline: none;
 }
 
+/* No frame when the list has the focus: the selected row is where it is. */
 .microcode-list:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: none;
 }
 
 .microcode-table {
