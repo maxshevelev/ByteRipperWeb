@@ -1,4 +1,4 @@
-@source-sha 91d75c7f594e85ae28cd3a327d016234851064321184975ea1cf8bc435bd2da4
+@source-sha 707f934f608f6bd6655350053d7050735e9e356d1b4cae6eeb0f578ba97e4241
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -12,9 +12,9 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 
 ## Wege, einen Dump zu öffnen
 
-- **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Ablage ▸ Öffnen…** im Menü der Symbolleiste. Sind beide Bereiche leer, füllen die ersten beiden gewählten Dateien sie; ist einer frei, geht die Datei dorthin; sind beide belegt, ersetzt sie den **aktiven** Bereich. Was darüber hinaus gewählt ist, wird nicht geöffnet.
+- **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Ablage ▸ Öffnen…** im Menü der Symbolleiste. Die Datei ersetzt den **aktiven** Bereich; einen zweiten Bereich legt der Befehl nicht von selbst an. Nur wenn beide Bereiche leer sind, füllen die ersten beiden gewählten Dateien sie. Was darüber hinaus gewählt ist, wird nicht geöffnet.
 - **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie landet — in diesen Bereich oder daneben. Zwei Dateien auf einmal: die zweite öffnet im anderen Bereich, sofern dieser frei ist.
-- **Ablage ▸ Vergleichen mit…** öffnet einen zweiten Dump in den freien Bereich: der Vergleich in einem Schritt.
+- **Ablage ▸ Vergleichen mit…** öffnet die Datei im anderen Bereich: im freien, sonst im nicht aktiven. So kommt die zweite Datei für den Vergleich hinzu. Der Befehl ist verfügbar, solange eine Datei offen ist.
 - **Ablage ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
 
 ## Wie lange der Tab die Datei hält

@@ -1680,7 +1680,9 @@
         "src/core/document",
         "src/platform/files",
         "src/state/recentFilesStore.ts",
-        "src/ui/dialogs"
+        "src/ui/dialogs",
+        "src/state/openPlacement.ts",
+        "src/state/workspaceStore.ts"
       ],
       "status": "in-progress",
       "note": "File access diverges hardest here: security-scoped bookmarks become IndexedDB handles. src/platform/files carries the capability detection and the open and drop paths as of M2, the save path as of M4, and as of M7 the segment sinks: a picked directory (staged under temporary names and renamed into place, upstream's shape) or a ZIP built in the page, since only Chromium has a directory picker (D7). The ZIP writer is ours — the format's writing half is four records and a CRC, and the compression is the platform's own CompressionStream, so a library would be a dependency for the part already in the browser. SheetControllers' sheets are src/ui/dialogs over the browser's <dialog>: Select Block is across, with its inclusive End converted to the internal half-open range at the edge.",
@@ -1694,7 +1696,10 @@
         "ByteRipperApp/Documents/DuplicateName.swift": "",
         "ByteRipperApp/Documents/FileChangeWatcher.swift": "",
         "ByteRipperApp/Documents/OpenDocumentRegistry.swift": "",
-        "ByteRipperApp/Documents/OpenPlacement.swift": "",
+        "ByteRipperApp/Documents/OpenPlacement.swift": [
+          "src/state/openPlacement.ts",
+          "src/state/workspaceStore.ts"
+        ],
         "ByteRipperApp/Documents/PaneName.swift": "",
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift": ""
       },
@@ -1879,7 +1884,8 @@
     {
       "swift": "ByteRipperTests",
       "web": [
-        "tests/e2e"
+        "tests/e2e",
+        "src/state/openPlacement.test.ts"
       ],
       "status": "in-progress",
       "note": "App flow tests. Each is anchored to the web test that checks the same behaviour, or listed in unported with its file's reason; a test upstream adds is a gap.",
@@ -1951,7 +1957,7 @@
         "ByteRipperTests/NewFileAndSwapTests.swift": "tests/e2e",
         "ByteRipperTests/OffsetColumnAddressTests.swift": "tests/e2e",
         "ByteRipperTests/OffsetContextMenuTests.swift": "tests/e2e",
-        "ByteRipperTests/OpenPlacementTests.swift": "tests/e2e",
+        "ByteRipperTests/OpenPlacementTests.swift": "src/state/openPlacement.test.ts",
         "ByteRipperTests/PaneDragTests.swift": "tests/e2e",
         "ByteRipperTests/PaneHeaderIconTests.swift": "tests/e2e",
         "ByteRipperTests/PaneViewModelTests.swift": "tests/e2e",
@@ -3290,9 +3296,7 @@
         "ByteRipperTests/OpenPlacementTests.swift#OpenPlacementTests.Case.openSecond": "n/a — test scaffolding",
         "ByteRipperTests/OpenPlacementTests.swift#OpenPlacementTests.Case.ignored": "n/a — test scaffolding",
         "ByteRipperTests/OpenPlacementTests.swift#OpenPlacementTests.check": "n/a — test scaffolding",
-        "ByteRipperTests/OpenPlacementTests.swift#OpenPlacementTests.testWithNoPanesOccupiedTheFirstTwoFilesFillBothPanes": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/OpenPlacementTests.swift#OpenPlacementTests.testWithPane1OccupiedTheFileGoesToPane2": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/OpenPlacementTests.swift#OpenPlacementTests.testWithBothPanesOccupiedTheFileReplacesTheActiveOne": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/OpenPlacementTests.swift#OpenIntoActivePaneTests": "n/a — test scaffolding",
         "ByteRipperTests/PaneDragTests.swift#PaneDragTests": "n/a — test scaffolding",
         "ByteRipperTests/PaneDragTests.swift#PaneDragTests.testDroppingOnTheStripTearsOff": "n/a — the New Tab strip is excluded by the owner, and there is no second window to tear a pane off into (D11)",
         "ByteRipperTests/PaneDragTests.swift#PaneDragTests.testEveryPaneHasItsOwnIdentity": "n/a — there is no pane registry: a pane's identity in a workspace is its slot's own name (paneDragStore)",
@@ -4475,6 +4479,7 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.applySuppression": "ported — ConfirmDialog.onCancel(remember) reads the checkbox after any response, whichever button dismissed the box (src/ui/dialogs/ConfirmDialog.tsx, anchored); the setting it writes is the one the Editing tab shows (warnsBeforeShiftingEdits, src/state/settingsStore.ts, read as workspaceStore.confirmShiftingEdits)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.lastAlertTitle": "n/a — a test seam",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSheetAlert": "n/a — window controller plumbing; the shell's components read the stores",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.openRecentFileToCompare": "n/a — the ⌥ twin of an Open Recent row; the desktop shell's menu has no alternate items, and Compare with… is one command away",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.isSandboxAccessDenied": "n/a — a browser cannot reveal, name the path of, or watch a file on disk",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.searchChunkSize": "n/a — the stores own their workers, their cancellation and their progress",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.launchContentWidth": "n/a — AppKit layout; CSS lays the window out",

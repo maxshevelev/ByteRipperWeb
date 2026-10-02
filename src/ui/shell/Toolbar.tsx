@@ -7,6 +7,7 @@ import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
+import type { OpenPanePlacement } from "@/state/openPlacement";
 import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
@@ -54,7 +55,6 @@ import {
   ToolsGlyph,
 } from "@/ui/shell/ToolbarIcons";
 import {
-  freeSlot,
   identicalBadgeAfter,
   paneLayoutOffer,
   type ToolbarContext,
@@ -109,7 +109,7 @@ export function Toolbar({
   onSettings,
   navigation,
 }: {
-  readonly onOpen: (into?: SlotId) => void;
+  readonly onOpen: (into?: SlotId, placement?: OpenPanePlacement) => void;
   /** File ▸ Open Recent ▸ «file»: re-opens that recent file. The shell only. */
   readonly onOpenRecent: (index: number) => void;
   /** File ▸ Open Recent ▸ Clear Menu: forgets the list. The shell only. */
@@ -235,22 +235,17 @@ export function Toolbar({
     { label: L("New File"), shortcut: nativeMenuBar ? "⌘N" : undefined, onSelect: onNew },
     // help: menu.file.open
     { label: L("Open…"), shortcut: "⌘O", onSelect: () => onOpen() },
-    // Compare with… is the web's own item: upstream opens into a named pane
-    // from the pane's own menu, where this fills the free slot. It works while
-    // exactly one file is open — with two there is no free slot, and with none
-    // the command to reach for is Open…. The free slot is whichever one is:
-    // closing File A of a comparison leaves File B where it was, and the
-    // command must stay live for it — upstream's e7953f7 fixed the same
-    // dimming, there caused by a pane promoted into the first slot.
-    // @web-only the second slot is filled from the command menu, not a pane
+    // Compare with… opens into the pane the active one is compared with — the
+    // free one, otherwise the one that is not active — so it needs a file to
+    // compare with. With none open the command to reach for is Open….
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentCompareWithPanel
+    // @upstream-differs no key equivalent, ⌥⌘O being a combination a browser may keep for
+    // itself; and the Open Recent row has no ⌥ twin, a menu here having no alternate items
     {
       // help: menu.file.compare-with
       label: L("Compare with…"),
-      disabled: !panesReachable || freeSlot(state) === undefined,
-      onSelect: () => {
-        const slot = freeSlot(state);
-        if (slot !== undefined) onOpen(slot);
-      },
+      disabled: !panesReachable || state.panes[state.activePane] === undefined,
+      onSelect: () => onOpen(undefined, "otherPane"),
     },
     { kind: "separator" },
     {

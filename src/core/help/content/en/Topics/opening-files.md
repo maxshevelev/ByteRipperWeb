@@ -18,9 +18,9 @@ The second pane is optional. Nothing needs a second file except the comparison i
 
 ## Ways to open a dump
 
-- **The open button** on the empty screen, or **File ▸ Open…** in the toolbar's menu. With both panes empty the first two files you pick fill them; with one pane free the file goes there; with both full it replaces the **active** pane. Anything selected beyond that is not opened.
+- **The open button** on the empty screen, or **File ▸ Open…** in the toolbar's menu. The file replaces the **active** pane; it never adds a second pane by itself. Only with both panes empty do the first two files you pick fill them. Anything selected beyond that is not opened.
 - **Drag and drop.** Drag a file onto the workspace and the drop bands show where it will land — into this pane, or beside it. Drop two files at once and the second opens in the other pane, if that pane is free.
-- **File ▸ Compare with…** opens a second dump into the empty pane, which is the comparison in one step.
+- **File ▸ Compare with…** opens the file in the other pane: the free one, or otherwise the one that is not active. This is how a second file is added for comparison. It is available while a file is open.
 - **File ▸ New File** makes an empty untitled file — somewhere to paste bytes into.
 
 ## How long the tab keeps a file

@@ -1,10 +1,10 @@
-@source-sha d0e876000d962bcd80ab4f866291f95e17e2ed78bcac75ce6e1b8cf8b3deffad
+@source-sha ecf7d46b50d7b483f67fd0373e5f9e8405e81d7c7e54e3a01da37bcdfd4ccd71
 # Ihr erster Vergleich
 
 > Zwei Dumps öffnen, und das Programm nennt die Adressen, an denen sie sich unterscheiden.
 
 1. Öffnen Sie den Dump, den Sie untersuchen: mit der Öffnen-Taste auf dem leeren Bildschirm, über **Ablage ▸ Öffnen…** im Menü der Symbolleiste, oder ziehen Sie die Datei auf den Arbeitsplatz.
-2. Öffnen Sie die zweite Datei auf dieselbe Weise oder benennen Sie sie mit **Ablage ▸ Vergleichen mit…**. Sie landet im anderen Dateibereich, und der Vergleich beginnt selbsttätig.
+2. Öffnen Sie die zweite Datei mit **Ablage ▸ Vergleichen mit…** oder ziehen Sie sie auf den Arbeitsbereich. Sie landet im anderen Dateibereich, und der Vergleich beginnt selbsttätig. (**Ablage ▸ Öffnen…** würde die erste Datei ersetzen.)
 3. Achten Sie auf die Farbe der Bytes. Jedes Byte, das sich zwischen den beiden Dateien unterscheidet, wird **orange** hinterlegt. Eine lange Strecke Farbe bedeutet, dass ein ganzer Bereich abweicht; einzelne verstreute Zellen bedeuten, dass einzelne Bytes abweichen.
 4. Bewegen Sie sich zwischen den Unterschieden: **⌥⌘→** zum nächsten, **⌥⌘←** zum vorherigen. Die Statuszeile nennt den Anteil des Images, der abweicht — `Unterschiede 0.4%` — byteweise gezählt an der Länge der längeren Datei.
 5. Die Statuszeile nennt die Adresse der aktuellen Position der Einfügemarke.

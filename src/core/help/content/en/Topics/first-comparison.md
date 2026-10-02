@@ -3,7 +3,7 @@
 > Open two dumps and the program reports the addresses at which they differ.
 
 1. Open the dump to be examined: the open button on the empty screen, **File ▸ Open…** in the toolbar's menu, or drag the file onto the workspace.
-2. Open the second file the same way, or name it with **File ▸ Compare with…**. It lands in the other file pane, and the comparison starts automatically.
+2. Open the second file with **File ▸ Compare with…**, or drag it onto the workspace. It lands in the other file pane, and the comparison starts automatically. (**File ▸ Open…** would replace the first file.)
 3. Observe the colour of the bytes. Every byte that differs between the two files is painted **orange**. A long stretch of colour means a whole area differs; isolated cells mean individual bytes differ.
 4. Move between the differences: **⌥⌘→** to the next one, **⌥⌘←** to the previous one. The status bar reports the proportion of the image that differs — `differing 0.4%` — counted per byte against the length of the longer file.
 5. The status bar reports the address of the current caret position.

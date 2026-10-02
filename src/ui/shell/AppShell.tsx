@@ -24,6 +24,7 @@ import {
   toggleMinimap,
   watchForMinimap,
 } from "@/state/minimapStore";
+import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlacement";
 import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
   partsLinkedTo,
@@ -399,56 +400,71 @@ export function AppShell() {
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.openSecond
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.ignoredCount
    */
-  const accept = useCallback((files: OpenedFile[], into?: SlotId) => {
-    // Two files chosen at once fill both slots, which is how a comparison is
-    // opened in one gesture — but only into an empty workspace: with a file
-    // already open, a second one would land on top of it. A single file goes
-    // where slotForNewFile says, and the ones left over are said, rather than
-    // silently dropped.
-    const { panes } = workspaceStore.getSnapshot();
-    const bothEmpty = panes.a === undefined && panes.b === undefined;
-    const taken = files.slice(0, into === undefined && bothEmpty ? 2 : 1);
-    let slot = into ?? slotForNewFile();
-    for (const file of taken) {
-      // Replacing an occupied pane throws away whatever is unsaved in it, and
-      // this path had been doing it without a word — the drop onto a pane asks,
-      // and Open… did not, which is the one of the two that gives no warning by
-      // its shape. Asked the same way and in the same words.
-      //
-      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
-      const occupant = workspaceStore.getSnapshot().panes[slot];
-      if (occupant?.document.isDirty === true) {
-        if (
-          !window.confirm(
-            L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, file.name)
-          )
-        ) {
-          return;
+  const accept = useCallback(
+    (files: OpenedFile[], into?: SlotId, placement: OpenPanePlacement = "fillFree") => {
+      // Two files chosen at once fill both slots, which is how a comparison is
+      // opened in one gesture — but only into an empty workspace: with a file
+      // already open, a second one would land on top of it. Where the file goes
+      // is `placement`'s to say, or a pane's own, when one was named; the ones
+      // left over are said, rather than silently dropped.
+      const { panes, activePane } = workspaceStore.getSnapshot();
+      const plan: OpenPlan =
+        into === undefined
+          ? planFor(
+              placement,
+              activePane,
+              panes.a !== undefined,
+              panes.b !== undefined,
+              files.length
+            )
+          : { slots: [into], ignoredCount: Math.max(0, files.length - 1) };
+      for (const [index, slot] of plan.slots.entries()) {
+        const file = files[index];
+        if (file === undefined) break;
+        // Replacing an occupied pane throws away whatever is unsaved in it, and
+        // this path had been doing it without a word — the drop onto a pane asks,
+        // and Open… did not, which is the one of the two that gives no warning by
+        // its shape. Asked the same way and in the same words.
+        //
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
+        const occupant = workspaceStore.getSnapshot().panes[slot];
+        if (occupant?.document.isDirty === true) {
+          if (
+            !window.confirm(
+              L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, file.name)
+            )
+          ) {
+            return;
+          }
         }
+        // A report about the file this pane is losing — "Downloaded bios.bin."
+        // — would stand over the name of the file arriving in its place.
+        forgetTransientMessage(slot);
+        openInPane(slot, file);
+        // A handle is what makes this file re-openable from File ▸ Open Recent
+        // without a picker, so it is recorded where a file actually opened — the
+        // one place every open path, Open… and a drop, runs through.
+        if (file.handle !== undefined) recordRecentFile(file.handle, file.name);
       }
-      // A report about the file this pane is losing — "Downloaded bios.bin."
-      // — would stand over the name of the file arriving in its place.
-      forgetTransientMessage(slot);
-      openInPane(slot, file);
-      // A handle is what makes this file re-openable from File ▸ Open Recent
-      // without a picker, so it is recorded where a file actually opened — the
-      // one place every open path, Open… and a drop, runs through.
-      if (file.handle !== undefined) recordRecentFile(file.handle, file.name);
-      slot = slot === "a" ? "b" : "a";
-    }
-    if (files.length > taken.length) {
-      const ignored = ignoredFilesAlert(files.length - taken.length, "open");
-      reportAlert(ignored.title, ignored.message);
-    }
-  }, []);
+      if (plan.ignoredCount > 0) {
+        const ignored = ignoredFilesAlert(plan.ignoredCount, "open");
+        reportAlert(ignored.title, ignored.message);
+      }
+    },
+    []
+  );
 
   /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentOpenPanel */
   const open = useCallback(
-    async (into?: SlotId) => {
+    async (into?: SlotId, placement: OpenPanePlacement = "activePane") => {
       try {
         accept(
-          await openFiles({ multiple: into === undefined, capabilities: state.capabilities }),
-          into
+          await openFiles({
+            multiple: into === undefined && placement === "activePane",
+            capabilities: state.capabilities,
+          }),
+          into,
+          placement
         );
       } catch (error) {
         // The panel is the app's, so a picker that came back with nothing was
@@ -478,7 +494,7 @@ export function AppShell() {
       const row = recentFilesStore.getSnapshot().rows[index];
       if (row === undefined) return;
       void fileFromRecentHandle(row.handle)
-        .then((file) => accept([openedFileFrom(file, row.handle)]))
+        .then((file) => accept([openedFileFrom(file, row.handle)], undefined, "activePane"))
         .catch((error: unknown) => {
           // A file that is gone (NotFound) drops out of the menu at once; a
           // refused permission, or any other failure, is kept — the file exists,

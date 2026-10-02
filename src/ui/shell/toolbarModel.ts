@@ -1,5 +1,5 @@
 import { L } from "@/core/localization/localization";
-import type { PaneLayout, SlotId, WorkspaceState } from "@/state/workspaceStore";
+import type { PaneLayout } from "@/state/workspaceStore";
 
 /**
  * What the toolbar carries, in what order, and when each item can act —
@@ -154,15 +154,4 @@ export function toolbarItemEnabled(
     default:
       return true;
   }
-}
-
-/**
- * The slot Compare with… fills: the empty one, while exactly one file is open.
- * Either slot can be the empty one — closing File A of a comparison leaves
- * File B where it was.
- */
-export function freeSlot(state: WorkspaceState): SlotId | undefined {
-  const { a, b } = state.panes;
-  if (a === undefined) return b === undefined ? undefined : "a";
-  return b === undefined ? "b" : undefined;
 }

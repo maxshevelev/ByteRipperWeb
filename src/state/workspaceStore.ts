@@ -480,11 +480,7 @@ export function activeDecoder(): ByteDecoder {
  * replacing A means a drop can silently throw away the file the user was
  * looking at while they were looking at it.
  *
- * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement
- * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.plan
- * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result
- * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.firstFilePane
- * @upstream-differs picks the slot for one file; a drop of several fills the empty slots in order
+ * @web-only the slot one new file goes to — `planFill` is the rule for several
  */
 export function slotForNewFile(): SlotId {
   const { panes, activePane } = workspaceStore.getSnapshot();
