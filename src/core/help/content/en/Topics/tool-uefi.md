@@ -4,6 +4,7 @@
 
 @covers panel.uefi
 @covers panel.uefi.fix-checksum
+@covers panel.uefi.top-swap
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
@@ -26,6 +27,7 @@ Right-click a node:
 
 - **Open** the node, or just its body, as a [[topic:fragments|fragment panel]].
 - **Open Decompressed Body** / **Export Decompressed Body…** for a compressed section — what those bytes actually expand to. A node inside one offers the same for its own **Bytes**.
+- **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
 
 ## Padding
 

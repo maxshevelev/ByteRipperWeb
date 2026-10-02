@@ -115,6 +115,110 @@ export function wireTopSwapRole(
 }
 
 /**
+ * Where a node's twin in the other block is: the same bytes one block up or down,
+ * and a node of the same kind. Any node of the file lying wholly inside either
+ * block has one — a file in the copy, a section in the top block — so a reader
+ * can step between the two and see what stands for what.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Counterpart
+ */
+export interface TopSwapCounterpart {
+  /** The twin's range. */
+  readonly range: ImageRange;
+  readonly kind: string;
+  /** Whether the twin is in the copy, so the step goes down. */
+  readonly isInCopy: boolean;
+}
+
+/**
+ * The menu item that steps there.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Counterpart.menuTitle
+ */
+export const counterpartMenuTitle = (counterpart: TopSwapCounterpart): string =>
+  counterpart.isInCopy ? L("Go to Top Swap Copy") : L("Go to Original");
+
+function counterpartOf(
+  node: Placed & { readonly kind: string },
+  copy: TopSwapCopy | undefined
+): TopSwapCounterpart | undefined {
+  if (!node.inFile || copy === undefined) return undefined;
+  const size = copy.top.end - copy.top.start;
+  const shifted = (delta: number): ImageRange => ({
+    start: node.range.start + delta,
+    end: node.range.end + delta,
+  });
+  if (encloses(copy.top, node.range)) {
+    return { range: shifted(-size), kind: node.kind, isInCopy: true };
+  }
+  if (encloses(copy.backup, node.range)) {
+    return { range: shifted(size), kind: node.kind, isInCopy: false };
+  }
+  return undefined;
+}
+
+/**
+ * The twin among `chain` — the nodes covering its first byte, outermost first:
+ * the one with the same range and kind. Where the copies have drifted apart and
+ * no node matches, the innermost node that still holds the whole range, so the
+ * step lands as near as the tree allows.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.twin
+ */
+function twinIn<T extends Placed & { readonly kind: string }>(
+  counterpart: TopSwapCounterpart,
+  chain: readonly T[]
+): T | undefined {
+  const same = chain.findLast(
+    (node) =>
+      node.range.start === counterpart.range.start &&
+      node.range.end === counterpart.range.end &&
+      node.kind === counterpart.kind
+  );
+  return same ?? chain.findLast((node) => node.inFile && encloses(node.range, counterpart.range));
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.counterpart */
+export function uefiTopSwapCounterpart(
+  node: UEFINode,
+  image: UEFIImage
+): TopSwapCounterpart | undefined {
+  return counterpartOf({ ...placedNode(node), kind: node.kind }, image.protectedRanges?.topSwap);
+}
+
+/** The twin among parsed nodes. */
+export function uefiTopSwapTwin(
+  counterpart: TopSwapCounterpart,
+  chain: readonly UEFINode[]
+): UEFINode | undefined {
+  const twin = twinIn(
+    counterpart,
+    chain.map((node) => ({ ...placedNode(node), kind: node.kind, node }))
+  );
+  return twin?.node;
+}
+
+/** The counterpart of a node as the panel holds it. */
+export function wireTopSwapCounterpart(
+  node: WireNode,
+  copy: TopSwapCopy | undefined
+): TopSwapCounterpart | undefined {
+  return counterpartOf({ ...placedWire(node), kind: node.kind }, copy);
+}
+
+/** The twin among the wire nodes along a path, outermost first. */
+export function wireTopSwapTwin(
+  counterpart: TopSwapCounterpart,
+  chain: readonly WireNode[]
+): WireNode | undefined {
+  const twin = twinIn(
+    counterpart,
+    chain.map((node) => ({ ...placedWire(node), kind: node.kind, node }))
+  );
+  return twin?.node;
+}
+
+/**
  * The row's name, with what it is when it is the copy.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.name

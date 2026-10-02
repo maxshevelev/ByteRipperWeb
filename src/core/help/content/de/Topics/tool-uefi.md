@@ -1,4 +1,4 @@
-@source-sha 5c1ee17e97274e59e90d978e000f0f4c8649489fa83f1f8202f8183f4ce4abf3
+@source-sha f928a3dd48c2e433803be3fa42826934e94422f5c5ec7995f9351d4f76680cc2
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -24,6 +24,7 @@ Rechtsklick auf einen Knoten:
 
 - Den Knoten **öffnen**, oder nur seinen Rumpf, als [[topic:fragments|Fragment-Bereich]].
 - **Entpackten Rumpf öffnen** / **Entpackten Rumpf exportieren…** bei einer komprimierten Sektion — das, wozu diese Bytes sich tatsächlich entfalten. Ein Knoten darin bietet dasselbe für seine eigenen **Bytes**.
+- **Zur Top-Swap-Kopie** / **Zum Original** bei einem Knoten in einem der beiden Blöcke eines Images mit [[term:top-swap|Top-Swap]]-Kopie — wählt denselben Knoten im anderen Block aus und zeigt seine Bytes im Dump, sodass sich jedem Teil der Kopie der Teil des obersten Blocks zuordnen lässt, den er wiederholt.
 
 ## Padding
 

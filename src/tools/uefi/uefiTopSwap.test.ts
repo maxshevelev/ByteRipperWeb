@@ -9,7 +9,14 @@ import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, type NodeID, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
-import { topSwapName, uefiTopSwapRole, wireTopSwapRole } from "@/tools/uefi/uefiTopSwap";
+import {
+  counterpartMenuTitle,
+  topSwapName,
+  uefiTopSwapCounterpart,
+  uefiTopSwapRole,
+  uefiTopSwapTwin,
+  wireTopSwapRole,
+} from "@/tools/uefi/uefiTopSwap";
 import { nodeName } from "@/tools/uefi/uefiTreeDisplay";
 import type { WireNode } from "@/workers/protocol";
 
@@ -114,11 +121,49 @@ describe("a Top Swap copy", () => {
     expect(help([0, 1])).toBe(termId("volume"));
   });
 
+  // Any node of either block has a twin one block away, of the same kind: down
+  // into the copy from the top block, up out of it.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift#UEFITopSwapTests.testEveryNodeInEitherBlockHasATwin
+  it("gives every node in either block a twin", () => {
+    const img = image();
+    const file = uefiTopSwapCounterpart(nodeAt(img, [0, 1, 0]), img);
+    expect(file?.range).toEqual(r(0x48, 0x100));
+    expect(file?.kind).toBe("file");
+    expect(file?.isInCopy).toBe(true);
+    expect(file === undefined ? "" : counterpartMenuTitle(file)).toBe("Go to Top Swap Copy");
+
+    const volume = uefiTopSwapCounterpart(nodeAt(img, [0, 0]), img);
+    expect(volume?.range).toEqual(r(0x1_0000, 0x2_0000));
+    expect(volume?.isInCopy).toBe(false);
+    expect(volume === undefined ? "" : counterpartMenuTitle(volume)).toBe("Go to Original");
+
+    // The region holds both blocks and is in neither.
+    expect(uefiTopSwapCounterpart(nodeAt(img, [0]), img)).toBeUndefined();
+  });
+
+  // The twin is the node of that range and kind among those covering its first
+  // byte; where the copies drifted apart, the innermost node that still holds
+  // the range.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift#UEFITopSwapTests.testTheTwinIsFoundAmongTheNodesCoveringIt
+  it("finds the twin among the nodes covering it", () => {
+    const img = image();
+    const counterpart = uefiTopSwapCounterpart(nodeAt(img, [0, 1, 0]), img);
+    expect(counterpart).toBeDefined();
+    if (counterpart === undefined) return;
+    const chain = img.nodesContaining(counterpart.range.start);
+    expect(uefiTopSwapTwin(counterpart, chain)?.id).toEqual([0, 0, 0]);
+
+    const drifted = { ...counterpart, kind: "section" };
+    // No section there: the file holding the range is as near as it gets.
+    expect(uefiTopSwapTwin(drifted, chain)?.id).toEqual([0, 0, 0]);
+  });
+
   // Without the ranges read there is no copy to speak of.
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift#UEFITopSwapTests.testWithoutTheRangesReadNothingIsSaid
   it("says nothing without the ranges read", () => {
     const bare = image(true, false);
     expect(uefiTopSwapRole(nodeAt(bare, [0, 0]), bare)).toBeUndefined();
+    expect(uefiTopSwapCounterpart(nodeAt(bare, [0, 0]), bare)).toBeUndefined();
   });
 });
 

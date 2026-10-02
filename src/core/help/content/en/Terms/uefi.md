@@ -528,7 +528,7 @@ The board keeps two boot blocks and a chipset bit chooses which one the CPU sees
 
 An image may therefore legitimately contain two nearly identical boot blocks, and a comparison reports both.
 
-ByteRipper recognises the copy by its FIT: the block directly below the top block of the BIOS region counts as the copy when it holds a FIT pointer with the same value and a FIT table at the same position. The outermost rows of the copy are marked **(Top Swap copy)**, and the detail list of the outermost rows of either block states where the other copy lies and whether the two are identical.
+ByteRipper recognises the copy by its FIT: the block directly below the top block of the BIOS region counts as the copy when it holds a FIT pointer with the same value and a FIT table at the same position. The outermost rows of the copy are marked **(Top Swap copy)**, and the detail list of the outermost rows of either block states where the other copy lies and whether the two are identical. The context menu of any row in either block offers **Go to Top Swap Copy** or **Go to Original**, which selects the same row in the other block.
 
 The Boot Guard ranges name the top block. With Top Swap set, the chipset maps the copy at the same addresses, and the copy is checked in its place. A change to the boot block therefore has to be made in both copies; the FIT panel does so for the table it edits.
 

@@ -1,4 +1,4 @@
-@source-sha 3bfa111dbda0e966b7e93ae15b0dc811b4225dcadcc4fd359e64c4addbe8b1e7
+@source-sha 9a1cde0c0b9a8787341d4de0aa12ca5f6f60de140a96ee3d6d2d8637ac61a0eb
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -529,7 +529,7 @@ Die Platine hält zwei Boot-Blöcke, und ein Chipsatz-Bit entscheidet, welchen d
 
 Daraus folgt, dass ein Image berechtigterweise zwei fast gleiche Boot-Blöcke enthalten kann, und ein Vergleich zeigt beide.
 
-ByteRipper erkennt die Kopie an ihrer FIT: Als Kopie gilt der Block unmittelbar unter dem obersten Block der BIOS-Region, wenn er einen FIT-Zeiger mit demselben Wert und eine FIT-Tabelle an derselben Stelle enthält. Die äußeren Zeilen der Kopie tragen den Zusatz **(Top-Swap-Kopie)**, und die Detailliste der äußeren Zeilen beider Blöcke gibt an, wo die jeweils andere Kopie liegt und ob die beiden Kopien übereinstimmen.
+ByteRipper erkennt die Kopie an ihrer FIT: Als Kopie gilt der Block unmittelbar unter dem obersten Block der BIOS-Region, wenn er einen FIT-Zeiger mit demselben Wert und eine FIT-Tabelle an derselben Stelle enthält. Die äußeren Zeilen der Kopie tragen den Zusatz **(Top-Swap-Kopie)**, und die Detailliste der äußeren Zeilen beider Blöcke gibt an, wo die jeweils andere Kopie liegt und ob die beiden Kopien übereinstimmen. Das Kontextmenü jeder Zeile beider Blöcke bietet **Zur Top-Swap-Kopie** oder **Zum Original** an; der Befehl wählt dieselbe Zeile im anderen Block aus.
 
 Die Boot-Guard-Bereiche beziehen sich auf den obersten Block. Bei gesetztem Top Swap blendet der Chipsatz die Kopie unter denselben Adressen ein, und geprüft wird dann sie. Eine Änderung am Boot-Block ist deshalb in beiden Kopien vorzunehmen; das FIT-Panel tut dies für die Tabelle, die es bearbeitet.
 

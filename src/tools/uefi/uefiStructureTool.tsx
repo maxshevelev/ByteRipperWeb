@@ -11,6 +11,7 @@ import {
   askFirmwareProtectedRanges,
   expandFirmwareNode,
   findFirmwareNodeAt,
+  firmwareFor,
   firmwareNodeAt,
   firmwareStore,
   fixFirmwareChecksum,
@@ -50,10 +51,16 @@ import {
   partName,
   uefiZones,
 } from "@/tools/uefi/uefiPresenter";
-import { wireTopSwapRole } from "@/tools/uefi/uefiTopSwap";
+import {
+  counterpartMenuTitle,
+  wireTopSwapCounterpart,
+  wireTopSwapRole,
+  wireTopSwapTwin,
+} from "@/tools/uefi/uefiTopSwap";
 import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
+import type { MenuEntry } from "@/ui/shell/menuModel";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ScopeShapes } from "@/ui/shell/scopeGlyph";
 import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
@@ -366,6 +373,23 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const roots = state?.roots;
   const status = state?.status;
 
+  /**
+   * The Top Swap copy of the boot block, found by the worker with the protected
+   * ranges: the rows of the copy say so in their name and open the Top Swap page.
+   *
+   * @upstream-differs upstream reads it from the image it holds; the panel holds
+   * the ranges' answer
+   */
+  const topSwapCopy = useMemo<TopSwapCopy | undefined>(() => {
+    const found = state?.protectedRanges?.topSwap;
+    return found === undefined
+      ? undefined
+      : {
+          top: { start: found.top[0], end: found.top[1] },
+          backup: { start: found.backup[0], end: found.backup[1] },
+        };
+  }, [state?.protectedRanges]);
+
   // The protected ranges, once the tree is there to read them over: the reading
   // opens every volume's files and hashes megabytes, so a panel nobody has
   // opened pays for none of it.
@@ -603,7 +627,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewSelectionDidChange
    */
   const choose = useCallback(
-    (node: WireNode) => {
+    (node: WireNode, from: readonly WireNode[] | undefined = roots) => {
       const key = pathKey(node.id);
       setSelected(key);
       // A UEFI node and an ME row are two halves of one selection: picking a
@@ -613,7 +637,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // The node and its body, the body in focus — upstream's two zones, drawn
       // over the dump and in the minimap's gutter. Never the children: a store's
       // two hundred variables outlined at once is a dump nobody can read.
-      const zones = uefiZones(node, roots);
+      const zones = uefiZones(node, from);
       publishZones(context.pane, zones);
       // What clicking a row means: the whole node, header through tail — or,
       // for a node inside a compressed section, the section that holds it,
@@ -837,6 +861,56 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     if (crossedHalves) clearZones(context.pane);
   }, [context.pane, me, meFocus, meRoots, roots, toggle]);
 
+  /**
+   * Selects the twin of `node` in the other Top Swap block — the same bytes one
+   * block up or down — opening the branches on the way, and brings it on screen
+   * in the dump, so the two copies of a volume or a file can be told apart by
+   * stepping between them.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.goToTopSwapCounterpart
+   */
+  const goToTopSwapCounterpart = useCallback(
+    async (node: WireNode) => {
+      const counterpart = wireTopSwapCounterpart(node, topSwapCopy);
+      if (counterpart === undefined) return;
+      setFinding(true);
+      const path = await findFirmwareNodeAt(context.pane, counterpart.range.start);
+      setFinding(false);
+      const fresh = firmwareFor(context.pane)?.roots;
+      if (path === undefined || fresh === undefined) return;
+      // The nodes covering the twin's first byte, outermost first: every branch
+      // on the way has been opened by the ask.
+      const chain: WireNode[] = [];
+      for (let length = 1; length <= path.length; length++) {
+        const along = firmwareNodeAt(fresh, path.slice(0, length));
+        if (along !== undefined) chain.push(along);
+      }
+      const twin = wireTopSwapTwin(counterpart, chain);
+      if (twin === undefined) return;
+      setOpen((current) => {
+        const next = new Set(current);
+        for (let length = 1; length < twin.id.length; length++) {
+          next.add(pathKey(twin.id.slice(0, length)));
+        }
+        return next;
+      });
+      choose(twin, fresh);
+      setScrollTarget(pathKey(twin.id));
+    },
+    [context.pane, topSwapCopy, choose]
+  );
+
+  /** The menu item that steps to a node's twin, where it has one. */
+  const topSwapItem = (node: WireNode): MenuEntry | undefined => {
+    const counterpart = wireTopSwapCounterpart(node, topSwapCopy);
+    if (counterpart === undefined) return undefined;
+    return {
+      // help: panel.uefi.top-swap
+      label: counterpartMenuTitle(counterpart),
+      onSelect: () => void goToTopSwapCounterpart(node),
+    };
+  };
+
   // Brings a row the panel chose itself into view, once it is in the list.
   useEffect(() => {
     if (scrollTarget === undefined) return;
@@ -898,23 +972,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     [context.pane, roots, meFocus, meRoots, chooseMe]
   );
   useZoneSelection(context.pane, zonePicked);
-
-  /**
-   * The Top Swap copy of the boot block, found by the worker with the protected
-   * ranges: the rows of the copy say so in their name and open the Top Swap page.
-   *
-   * @upstream-differs upstream reads it from the image it holds; the panel holds
-   * the ranges' answer
-   */
-  const topSwapCopy = useMemo<TopSwapCopy | undefined>(() => {
-    const found = state?.protectedRanges?.topSwap;
-    return found === undefined
-      ? undefined
-      : {
-          top: { start: found.top[0], end: found.top[1] },
-          backup: { start: found.backup[0], end: found.backup[1] },
-        };
-  }, [state?.protectedRanges]);
 
   /**
    * What a row wears besides its name, decided in the pure marks of the tree
@@ -1268,6 +1325,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                             label: nodeOpenTitle(node, true) ?? "",
                             onSelect: () => void openNode(node, true),
                           },
+                      // A node of either Top Swap block steps to its twin in the
+                      // other, so the reader sees which copy of a volume or file
+                      // stands for which.
+                      topSwapItem(node),
                     ]);
                   }}
                 />

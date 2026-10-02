@@ -308,6 +308,8 @@
 "From github.com/platomav/CPUMicrocodes — a FIT only ever names Intel microcode." = "Из github.com/platomav/CPUMicrocodes — в FIT бывает только микрокод Intel.";
 "Full Info" = "Полная информация";
 "Getting ready" = "Подготовка";
+"Go to Original" = "Перейти к оригиналу";
+"Go to Top Swap Copy" = "Перейти к копии Top Swap";
 "Getting Started" = "С чего начать";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub ограничивает частоту запросов с этого адреса. Показаны имена из сборки, они обновятся при следующем открытии.";
 "github.com answered %1$@." = "github.com ответил %1$@.";

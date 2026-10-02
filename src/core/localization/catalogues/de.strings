@@ -308,6 +308,8 @@
 "From github.com/platomav/CPUMicrocodes — a FIT only ever names Intel microcode." = "Von github.com/platomav/CPUMicrocodes — eine FIT nennt ausschließlich Intel-Microcode.";
 "Full Info" = "Vollständige Angaben";
 "Getting ready" = "Vorbereitung";
+"Go to Original" = "Zum Original";
+"Go to Top Swap Copy" = "Zur Top-Swap-Kopie";
 "Getting Started" = "Erste Schritte";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub drosselt diese Adresse. Gezeigt werden die Namen aus dem Build; sie erneuern sich beim nächsten Öffnen.";
 "github.com answered %1$@." = "github.com antwortete %1$@.";
