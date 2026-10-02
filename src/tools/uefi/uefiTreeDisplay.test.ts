@@ -243,6 +243,14 @@ describe("the name", () => {
     expect(nodeName(ec, catalogue([[FlashDeviceMap.ecFirmware, "Something else"]]))).toBe(
       "EC Firmware (ITE8380-EC-V1.43)"
     );
+
+    // With the image's length, its size in KiB goes beside it.
+    expect(
+      nodeName(
+        { ...ec, namedImageLength: 0x30000 },
+        catalogue([[FlashDeviceMap.ecFirmware, "Something else"]])
+      )
+    ).toBe("EC Firmware (ITE8380-EC-V1.43, 192 KB)");
   });
 
   // A pad file is named by what its body turned out to hold, the way UEFITool

@@ -217,9 +217,14 @@ export function readingECFirmware(
   if (node.kind === "padding" && first.start !== node.body.start) return undefined;
   const read: UEFINode = { ...node };
   const base = node.kind === "padding" ? EC_PADDING_NAME : node.name;
-  // One image at the start: the block is that image, and says which.
+  // One image at the start: the block is that image, and says which and how long
+  // it is, measured as a row's would be.
   if (images.length <= 1 && first.start === node.body.start) {
     read.name = `${base} (${ecImageName(first)})`;
+    read.namedImageLength = Math.min(
+      roundedUp(Math.max(first.written, 1)),
+      node.body.end - node.body.start
+    );
     return read;
   }
   // Several: each row names its own, and the block names none of them.

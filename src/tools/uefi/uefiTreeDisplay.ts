@@ -190,6 +190,10 @@ export interface NamedNode {
   /** What a pad file is named after, so a row that has them says so. */
   readonly children?: readonly { readonly kind: string; readonly isErased?: boolean }[];
   /**
+   * How long the one EC image a block is named after is (`namedImageLength`).
+   */
+  readonly namedImageLength?: number | undefined;
+  /**
    * How long the node is, for the rows that are named by their size (an EC image's).
    */
   readonly length?: number | undefined;
@@ -216,6 +220,11 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   if (node.kind === "ecImage") {
     const sized = L("%1$@, %2$@ KB", node.name, kibibytes(node.length ?? 0));
     return node.subtype === EC_COPY_SUBTYPE ? L("%1$@ (copy)", sized) : sized;
+  }
+  // A block named after the one image it holds gives that image's size inside the
+  // parentheses: "EC Firmware (ITE EC-V13.6, 128 KB)".
+  if (node.namedImageLength !== undefined && node.name.endsWith(")")) {
+    return `${L("%1$@, %2$@ KB", node.name.slice(0, -1), kibibytes(node.namedImageLength))})`;
   }
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.

@@ -238,6 +238,14 @@ export interface UEFINode {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.childDepth
    */
   childDepth: number;
+  /**
+   * For a block named after the one EC image at its start (`ECImage`): how long
+   * that image is, which the panel puts in the name beside it. Nothing everywhere
+   * else.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.namedImageLength
+   */
+  namedImageLength?: number | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.children */
   children: UEFINode[];

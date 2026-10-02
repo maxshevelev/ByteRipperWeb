@@ -133,13 +133,27 @@ describe("EC images in a block", () => {
     ).toEqual(["ITE5507-SB-V0.67", "ITE8380-EC-V0.00"]);
   });
 
-  // One image at the block's start is the common case: the block is named by it
-  // and gets no rows.
+  // One image at the block's start is the common case: the block is named by it,
+  // keeps its length as a row would, and gets no rows.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testASingleImageAtTheStartAddsNoRows
   it("adds no rows for a single image at the start", () => {
-    const { region } = ecRegion(block(0x4000, [[0x0000, microchip(0x800)]]));
+    const { region } = ecRegion(block(0x4000, [[0x0000, microchip(0x1800)]]));
     expect(region.name).toBe("EC region (Microchip MEC image)");
+    expect(region.namedImageLength).toBe(0x2000);
     expect(region.children).toEqual([]);
+  });
+
+  // Blocks that name no single image carry no length for one.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testOnlyABlockNamedAfterOneImageKeepsItsLength
+  it("keeps a length only for a block named after one image", () => {
+    const { region: several } = ecRegion(
+      block(0x4000, [
+        [0x0000, microchip(0x800)],
+        [0x2000, microchip(0x800)],
+      ])
+    );
+    expect(several.namedImageLength).toBeUndefined();
+    expect(several.children.every((node) => node.namedImageLength === undefined)).toBe(true);
   });
 
   // One image further in gets a row, so the bytes before it are seen.

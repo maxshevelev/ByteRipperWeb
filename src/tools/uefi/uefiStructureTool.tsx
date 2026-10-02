@@ -1260,6 +1260,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                               row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
                             children: row.node.children,
                             length: wireLength(row.node),
+                            namedImageLength: row.node.namedImageLength,
                             topSwap: wireTopSwapRole(row.node, topSwapCopy, roots ?? [])?.kind,
                           },
                           catalogue.catalogue

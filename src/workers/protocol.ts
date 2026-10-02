@@ -607,6 +607,11 @@ export interface WireNode {
   readonly isExpandable: boolean;
   readonly childDepth: number;
   /**
+   * For a block named after the one EC image at its start: how long that image is,
+   * which the panel writes in the reader's language beside the name.
+   */
+  readonly namedImageLength?: number | undefined;
+  /**
    * The Type and Subtype columns, in UEFITool's words. Worked out where the
    * parsed node is: a volume's subtype is its file system and a capsule's is
    * its GUID, and neither survives the trip as a byte.

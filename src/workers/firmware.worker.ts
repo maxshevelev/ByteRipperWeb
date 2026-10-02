@@ -260,6 +260,7 @@ const wireNode = (node: UEFINode): WireNode => ({
   isErased: node.isErased,
   isExpandable: node.isExpandable,
   childDepth: node.childDepth,
+  namedImageLength: node.namedImageLength,
   typeText: typeText(node),
   subtypeText: subtypeText(node),
   children: node.children.map(wireNode),
