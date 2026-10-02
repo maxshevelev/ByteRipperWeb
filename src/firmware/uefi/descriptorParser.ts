@@ -1,4 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
+import { readDescriptorGeneration, regionCount } from "@/firmware/uefi/descriptorGeneration";
 import { readingECFirmware } from "@/firmware/uefi/ecFirmware";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
@@ -22,8 +23,19 @@ export const Descriptor = {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.mapOffset
    */
   mapOffset: 0x14,
-  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.versionOffset */
-  versionOffset: 0x20,
+  /**
+   * Its second word, which carries the master section's base.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.map1Offset
+   */
+  map1Offset: 0x18,
+  /**
+   * Its third, which carries the processor straps' base — and from Tiger Point
+   * on, where the CPU straps sit.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.map2Offset
+   */
+  map2Offset: 0x1c,
   /**
    * Every `*Base` field holds bits [11:4] of a real offset, so the real one is
    * `base << 4` and anything above this is a broken descriptor.
@@ -32,14 +44,12 @@ export const Descriptor = {
    */
   maxBase: 0xe0,
   /**
-   * `0xFFFFFFFF` in the version field means the field is reserved, which means
-   * a version 1 descriptor — and those have five regions, not sixteen.
+   * A region entry of all ones is no region, the way UEFITool reads it: erased
+   * bytes, not an area at the top of a 128 MiB space.
    *
-   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.reservedVersion
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.erasedRegionEntry
    */
-  reservedVersion: 0xffff_ffff,
-  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.version1RegionCount */
-  version1RegionCount: 5,
+  erasedRegionEntry: 0xffff,
 } as const;
 
 /**
@@ -199,14 +209,16 @@ export function flashRegionRange(
  */
 function readRegions(parser: Parser, base: number, limit: number): Region[] {
   const map = parser.reader.uint32(base + Descriptor.mapOffset);
-  const version = parser.reader.uint32(base + Descriptor.versionOffset);
-  if (map === undefined || version === undefined) return [];
+  const generation = readDescriptorGeneration(base, parser.reader)?.generation;
+  if (map === undefined || generation === undefined) return [];
 
   const regionBase = (map >>> 16) & 0xff;
   if (regionBase === 0 || regionBase > Descriptor.maxBase) return [];
   const section = base + regionBase * 16;
-  const count =
-    version === Descriptor.reservedVersion ? Descriptor.version1RegionCount : FLASH_REGIONS.length;
+  // How many pairs the section holds is the generation's: an older one keeps its
+  // masters right behind five, which read as regions would be areas that are not
+  // there.
+  const count = regionCount(generation);
 
   // The descriptor's own region is not read from the table: its base and limit
   // are both zero, which is the table's way of saying "absent". It is the first
@@ -222,7 +234,7 @@ function readRegions(parser: Parser, base: number, limit: number): Region[] {
     if (type === undefined || first === undefined || last === undefined) break;
     // A region is absent when its limit is zero, and the base and limit hold
     // only the top sixteen bits of a 32-bit address.
-    if (last === 0 || first > last) continue;
+    if (last === 0 || first > last || first === Descriptor.erasedRegionEntry) continue;
     const start = base + first * 0x1000;
     const end = base + (last * 0x1000 + 0xfff) + 1;
     if (start >= limit) {

@@ -244,6 +244,7 @@ function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {
     key: "M10.5 2.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8.4 7.6 2.5 13.5M4.5 11.5l1.5 1.5M3 13l1 1",
     "lock.shield":
       "M8 1.8 13 3.6v4.2c0 3-2.1 5.2-5 6.4-2.9-1.2-5-3.4-5-6.4V3.6ZM6.2 8h3.6v2.8H6.2ZM6.8 8V6.8a1.2 1.2 0 0 1 2.4 0V8",
+    "square.split.2x2": "M2.5 2.5h11v11h-11ZM8 2.5v11M2.5 8h11",
     cpu: "M4.5 4.5h7v7h-7ZM6.5 2v2.5M9.5 2v2.5M6.5 11.5V14M9.5 11.5V14M2 6.5h2.5M2 9.5h2.5M11.5 6.5H14M11.5 9.5H14",
   };
   return (

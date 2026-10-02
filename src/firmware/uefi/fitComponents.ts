@@ -43,7 +43,7 @@ export const FIT_COMPONENT_KINDS = {
 } as const;
 export type FITComponentKind = keyof typeof FIT_COMPONENT_KINDS;
 
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.Kind.init */
+/** @web-only the `FITComponent.Kind(rawValue:)` initialiser the enum gets from Swift for nothing */
 export function fitComponentKindOf(type: number): FITComponentKind | undefined {
   return (Object.keys(FIT_COMPONENT_KINDS) as FITComponentKind[]).find(
     (kind) => FIT_COMPONENT_KINDS[kind] === type

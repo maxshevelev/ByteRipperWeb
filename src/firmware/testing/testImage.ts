@@ -430,6 +430,15 @@ export interface RegionPlacement {
  * An Intel flash descriptor: `0x1000` bytes, the signature at `0x10`, and a
  * region section at `RegionBase << 4`.
  *
+ * The master section, the component section and the VSCC table are written only
+ * when a test asks for them: what they say is the descriptor's *detail*, not its
+ * map, and the parse tests that use this fixture do not read them.
+ *
+ * `version1` lays the map out as a Cougar Point board does — byte masks, five
+ * regions — and otherwise as an Alder Point one, the two layouts
+ * `DescriptorGeneration` is told from (§2.5). `component` is the chip count,
+ * `FLCOMP` and the two words of forbidden opcodes.
+ *
  * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#TestImage.descriptor
  */
 export function descriptor(options: {
@@ -441,6 +450,12 @@ export function descriptor(options: {
   readonly masters?: readonly { readonly read: number; readonly write: number }[];
   readonly vsccBase?: number;
   readonly chips?: readonly number[];
+  readonly component?: {
+    readonly chips: number;
+    readonly flcomp: number;
+    readonly flill: number;
+    readonly flill1: number;
+  };
 }): Uint8Array {
   const regionBase = options.regionBase ?? 0x04;
   const bytes = new Uint8Array(Descriptor.size).fill(0xff);
@@ -452,11 +467,30 @@ export function descriptor(options: {
     bytes[at + 1] = (value >>> 8) & 0xff;
   };
   put32(Descriptor.signature, 0x10);
-  put32(regionBase * 0x10000, Descriptor.mapOffset);
+  const componentBase = 0x03;
+  const masters = options.masters ?? [];
+  const version1 = options.version1 === true;
   put32(
-    options.version1 === true ? Descriptor.reservedVersion : 0x0020_0000,
-    Descriptor.versionOffset
+    regionBase * 0x10000 +
+      (options.component === undefined ? 0 : (options.component.chips - 1) * 0x100 + componentBase),
+    Descriptor.mapOffset
   );
+  // The PCH strap length, then the master base — out of range, so no section,
+  // unless masters are asked for.
+  put32(
+    (((version1 ? 0x12 : 0x73) << 24) >>> 0) +
+      (masters.length === 0 ? 0xff : (options.masterBase ?? 0x0a)),
+    Descriptor.map1Offset
+  );
+  put32(version1 ? 0x0021_0120 : 0x0014_01b0, Descriptor.map2Offset);
+  // The MIP table base, which a Cougar Point descriptor has none of.
+  bytes[0x0eff] = version1 ? 0x00 : 0xc0;
+  if (options.component !== undefined) {
+    const at = componentBase * 16;
+    put32(options.component.flcomp, at);
+    put32(options.component.flill, at + 4);
+    put32(options.component.flill1, at + 8);
+  }
 
   const section = regionBase * 16;
   for (let index = 0; index < FLASH_REGIONS.length; index++) {
@@ -478,10 +512,8 @@ export function descriptor(options: {
   // The master section and the VSCC table are written only when a test asks for
   // them: what they say is the descriptor's *detail*, not its map, and the
   // parse tests that use this fixture read neither.
-  const masters = options.masters ?? [];
   if (masters.length > 0) {
     const masterBase = options.masterBase ?? 0x0a;
-    put32(masterBase, 0x18);
     const base = masterBase * 16;
     for (let index = 0; index < masters.length; index++) {
       const master = masters[index];

@@ -115,6 +115,23 @@ describe("an Intel image", () => {
     expect(children.find((one) => one.name === "Microcode region")).toBeUndefined();
   });
 
+  // A pair of all-ones is erased bytes, not a region at the top of the address
+  // space, and is passed over without a word.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testAnErasedRegionEntryIsNoRegion
+  it("passes over an erased region entry without a word", () => {
+    const image = Test.intelImage({
+      size: 0x8000,
+      regions: [region("descriptor", 0, 0x1000), region("bios", 0x1000, 0x8000)],
+    });
+    // The EC pair, at RegionBase << 4 + 8 * 4.
+    image.fill(0xff, 0x60, 0x64);
+
+    const parsed = parse(image);
+
+    expect(kinds(parsed.roots[0]?.children ?? [])).toEqual(["flashDescriptor", "region"]);
+    expect(parsed.diagnostics).toEqual([]);
+  });
+
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/TopLevelParseTests.swift#TopLevelParseTests.testOverlappingRegionsAreReported
   it("reports overlapping regions", () => {
     const parsed = parse(

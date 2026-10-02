@@ -44,7 +44,7 @@ export interface Picture {
 export const PICTURE_FORMATS = { jpeg: 1, png: 2, gif: 3, bmp: 4 } as const;
 export type PictureFormat = keyof typeof PICTURE_FORMATS;
 
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.Format.init */
+/** @web-only the `Picture.Format(rawValue:)` initialiser the enum gets from Swift for nothing */
 export function pictureFormatOf(type: number): PictureFormat | undefined {
   return (Object.keys(PICTURE_FORMATS) as PictureFormat[]).find(
     (format) => PICTURE_FORMATS[format] === type

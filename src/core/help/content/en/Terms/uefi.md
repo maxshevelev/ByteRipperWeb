@@ -6,6 +6,10 @@ The descriptor sits at the very start of the dump and says where every [[term:re
 
 It is the one structure here with real vendor documentation — it is described in Intel's chipset programming guides — so what the tool says about it rests on more than reverse engineering.
 
+The chipset generation is not written in the descriptor. ByteRipper tells it from where the descriptor places its sections and how long it makes them — by the rules flashrom uses — and names it in the details as **Chipset**. Generations that share a layout cannot be told apart and are named together, for example Alder Point / Raptor Point; a layout that no rule covers is read as the nearest known one and marked as assumed. The generation decides how the rest is read: how many regions the table holds, whether a master's masks are a byte or twelve bits wide, and what a clock code means.
+
+From the component section the details give the size of each flash chip the image is laid out for (**Flash chip sizes**) and, with two chips, the address at which the second begins; the SPI clocks the chipset uses to read the chip's ID and status, to write and erase, and for fast reads; and the opcodes the chipset does not send to the chip (**Forbidden opcodes**). A replacement chip has to be rated for these clocks. If the chips add up to a length other than the dump's, the row is marked: the dump holds one chip of two, or was read with the wrong size. The **Region table** lists every region with its base and limit as the descriptor states them.
+
 If the descriptor is damaged, every address that follows it is unreliable.
 
 @see term:region

@@ -3,7 +3,12 @@ import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
-import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
+import { generationCodeName, generationSeries } from "@/firmware/uefi/descriptorGeneration";
+import {
+  type DescriptorClock,
+  type DescriptorInfo,
+  readDescriptorInfo,
+} from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
 import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
@@ -152,13 +157,13 @@ function buildDetailRows(
   }
 
   // A descriptor says more about itself than a header's worth of fields, and
-  // two of the things it says are grids.
+  // four of the things it says are grids.
   if (node.kind !== "flashDescriptor") return { title, fields, tables: protection.tables };
   const descriptor = readDescriptorInfo(node.header.start, reader);
   if (descriptor === undefined) return { title, fields, tables: protection.tables };
   return {
     title,
-    fields: [...fields, ...descriptorFields(descriptor)],
+    fields: [...fields, ...descriptorFields(descriptor, image.size)],
     tables: [...protection.tables, ...descriptorTables(descriptor)],
   };
 }
@@ -751,22 +756,115 @@ function fillFields(fill: NvramStoreFill): DetailField[] {
 
 // MARK: - What a flash descriptor adds
 
-/** The vector it opens with, and where each region it declares begins. */
-function descriptorFields(descriptor: DescriptorInfo): DetailField[] {
+/**
+ * The rows a descriptor has beyond its header: the vector it opens with, the
+ * chipset its layout is, and what its component section says about the chips —
+ * how large, how fast, and which opcodes the chipset will not send them. Where
+ * the regions lie, and what the masters may touch, are grids, and are in
+ * `descriptorTables`.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.descriptorFields
+ */
+function descriptorFields(descriptor: DescriptorInfo, imageSize: number): DetailField[] {
   const fields: DetailField[] = [];
   if (descriptor.reservedVector.length > 0) {
     fields.push(field("Reserved vector", hexBytes(descriptor.reservedVector)));
   }
-  for (const region of descriptor.regionOffsets) {
-    if (region.type === "descriptor") continue;
-    fields.push(field(`${regionLabel(region.type)} offset`, hex(region.offset)));
+  // Told from the layout, not stated; a layout the rules do not know is read as
+  // the nearest one, and says so.
+  const series = generationSeries(descriptor.generation);
+  const codeName = generationCodeName(descriptor.generation);
+  let chipset = series === undefined ? codeName : L("%1$@ (%2$@ series)", codeName, series);
+  if (!descriptor.isGenerationCertain) chipset = L("%1$@, assumed", chipset);
+  fields.push(field(L("Chipset"), chipset));
+
+  const component = descriptor.component;
+  if (component === undefined) return fields;
+  // The chips the image was laid out across, end to end. A dump of another
+  // length is one chip of two, or a read of the wrong size.
+  const sizes = component.chipSizes
+    .map((size) => (size === undefined ? L("Reserved") : capacityText(size)))
+    .join(" + ");
+  const total = component.chipSizes.reduce<number>((sum, size) => sum + (size ?? 0), 0);
+  const mismatch = !component.chipSizes.includes(undefined) && total !== imageSize;
+  fields.push(
+    field(
+      L("Flash chip sizes"),
+      mismatch ? L("%1$@ — the dump is %2$@", sizes, capacityText(imageSize)) : sizes,
+      mismatch
+    )
+  );
+  const first = component.chipSizes[0];
+  if (component.chipSizes.length === 2 && first !== undefined) {
+    fields.push(field(L("Second chip starts at"), hex(first)));
   }
+  fields.push(field(L("Read ID and status clock"), clockText(component.readIDClock)));
+  fields.push(field(L("Write and erase clock"), clockText(component.writeEraseClock)));
+  fields.push(
+    field(
+      L("Fast read clock"),
+      component.fastReadClock === undefined ? L("Off") : clockText(component.fastReadClock)
+    )
+  );
+  fields.push(
+    field(
+      L("Forbidden opcodes"),
+      component.invalidInstructions.length === 0
+        ? L("None")
+        : hexBytes(Uint8Array.from(component.invalidInstructions))
+    )
+  );
   return fields;
 }
 
-/** The masks each master carries, what the BIOS master may do, and the chips. */
+/**
+ * A clock as the bench says it, or the code when the generation reserves it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.clockText
+ */
+function clockText(clock: DescriptorClock): string {
+  if (clock.megahertz === undefined) return L("Reserved (code %1$@)", clock.code);
+  return L("%1$@ MHz", clock.megahertz.join("/"));
+}
+
+/**
+ * A chip's size in the unit it is sold by.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.capacityText
+ */
+function capacityText(bytes: number): string {
+  if (bytes > 0 && bytes % 0x10_0000 === 0) return L("%1$@ MB", bytes / 0x10_0000);
+  if (bytes > 0 && bytes % 0x400 === 0) return L("%1$@ KB", bytes / 0x400);
+  return sizeText(bytes);
+}
+
+/**
+ * The four grids: where each region lies, the masks each master carries, what
+ * the BIOS master may do to each region, and the flash chips this firmware was
+ * built to drive.
+ *
+ * The regions are in the tree as well, as this node's siblings — but the tree
+ * shows where a region *is*, and this shows what the descriptor *says*, which is
+ * the thing being checked when the two disagree.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.descriptorTables
+ */
 function descriptorTables(descriptor: DescriptorInfo): DetailTable[] {
   const tables: DetailTable[] = [];
+  // Its own region is this node.
+  const regions = descriptor.regions.filter((region) => region.type !== "descriptor");
+  if (regions.length > 0) {
+    tables.push({
+      title: L("Region table"),
+      symbol: "square.split.2x2",
+      columns: [L("Region"), L("Base"), L("Limit")],
+      rows: regions.map((region) => [
+        cell(regionLabel(region.type)),
+        cell(hex(region.base)),
+        cell(hex(region.limit)),
+      ]),
+    });
+  }
   const mask = (value: number) =>
     `0x${value.toString(16).toUpperCase().padStart(descriptor.maskDigits, "0")}`;
   if (descriptor.masters.length > 0) {

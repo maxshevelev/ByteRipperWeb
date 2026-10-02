@@ -462,12 +462,91 @@ describe("a flash descriptor", () => {
     );
   });
 
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testEachRegionsOffsetIsARow
-  it("gives each declared region's offset a row, its own excluded", () => {
-    expect(value(detail, "ME region offset")).toBe("0x1000");
-    expect(value(detail, "BIOS region offset")).toBe("0x600000");
-    expect(value(detail, "Descriptor region offset")).toBeUndefined();
-    expect(value(detail, "GbE region offset")).toBeUndefined();
+  // Where each region the descriptor declares lies, base and limit as the table
+  // writes them — its own excluded, which is this node.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheRegionsAreAGridOfBaseAndLimit
+  it("draws the regions as a grid of base and limit", () => {
+    const regions = table(detail, "Region table");
+
+    expect(regions?.columns).toEqual(["Region", "Base", "Limit"]);
+    // No descriptor row, and no GbE: a region with no limit is not there.
+    expect(regions?.rows.map((row) => row.map((one) => one.text))).toEqual([
+      ["BIOS region", "0x600000", "0xFFFFFF"],
+      ["ME region", "0x1000", "0x5FFFFF"],
+    ]);
+    // And not a row as well.
+    expect(value(detail, "BIOS region offset")).toBeUndefined();
+  });
+
+  // The chipset the layout is, with its series where it is sold as one.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheChipsetIsNamed
+  it("names the chipset", () => {
+    expect(value(detail, "Chipset")).toBe("Cougar Point / Panther Point (6/7 series)");
+    const alder = detailOf(
+      node,
+      Test.descriptor({ regions: [{ type: "bios", start: 0x1000, end: 0x1_0000 }] })
+    );
+    expect(value(alder, "Chipset")).toBe("Alder Point / Raptor Point (600/700 series)");
+  });
+
+  /** A descriptor over a dump of `size` bytes, one 16 MB chip unless told otherwise. */
+  const dump = (options: {
+    readonly version1: boolean;
+    readonly chips?: number;
+    readonly flcomp?: number;
+    readonly size: number;
+  }) => {
+    const bytes = new Uint8Array(options.size).fill(0xff);
+    bytes.set(
+      Test.descriptor({
+        regions: [{ type: "bios", start: 0x1000, end: 0x1_0000 }],
+        version1: options.version1,
+        component: {
+          chips: options.chips ?? 1,
+          flcomp: options.flcomp ?? (options.version1 ? 0x2490_0005 : 0x0930_0007),
+          flill: 0xad60_4221,
+          flill1: 0xc7c4_b9b7,
+        },
+      })
+    );
+    return detailOf(node, bytes);
+  };
+
+  // What the component section says: the chip's size, the three clocks, and the
+  // opcodes the chipset will not send — four on Cougar Point.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheComponentSectionIsRows
+  it("gives the component section rows", () => {
+    const shown = dump({ version1: true, size: 0x100_0000 });
+
+    expect(value(shown, "Flash chip sizes")).toBe("16 MB");
+    expect(value(shown, "Second chip starts at")).toBeUndefined();
+    expect(value(shown, "Read ID and status clock")).toBe("50 MHz");
+    expect(value(shown, "Write and erase clock")).toBe("50 MHz");
+    expect(value(shown, "Fast read clock")).toBe("50 MHz");
+    expect(value(shown, "Forbidden opcodes")).toBe("21 42 60 AD");
+    expect(shown.fields.some(isProblemField)).toBe(false);
+  });
+
+  // Two chips: their sizes end to end, where the second one's addresses begin,
+  // and eight opcodes from Sunrise Point on.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTwoChipsSayWhereTheSecondBegins
+  it("says where the second of two chips begins", () => {
+    const shown = dump({ version1: false, chips: 2, flcomp: 0x0930_0054, size: 0x180_0000 });
+
+    expect(value(shown, "Flash chip sizes")).toBe("8 MB + 16 MB");
+    expect(value(shown, "Second chip starts at")).toBe("0x800000");
+    expect(value(shown, "Forbidden opcodes")).toBe("21 42 60 AD B7 B9 C4 C7");
+  });
+
+  // A dump that is not as long as the chips is one chip of two, or a read of the
+  // wrong size, and the row says it.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testADumpShorterThanItsChipsIsAProblem
+  it("marks a dump shorter than its chips", () => {
+    const shown = dump({ version1: false, chips: 2, flcomp: 0x0930_0054, size: 0x80_0000 });
+    const row = shown.fields.find((one) => one.label === "Flash chip sizes");
+
+    expect(row?.value).toBe("8 MB + 16 MB — the dump is 8 MB");
+    expect(row === undefined ? false : isProblemField(row)).toBe(true);
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheMastersMasksAreAGrid

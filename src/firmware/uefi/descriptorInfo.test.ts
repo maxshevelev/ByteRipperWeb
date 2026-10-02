@@ -47,10 +47,10 @@ describe("a descriptor's own header", () => {
     expect([...read.reservedVector]).toEqual([...vector]);
   });
 
-  // Every region the table declares, by where it begins — the descriptor's own
-  // first, which the format states rather than stores.
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testEachDeclaredRegionsOffsetIsRead
-  it("reads each declared region's offset", () => {
+  // Every region the table declares, where it begins and where it ends — the
+  // descriptor's own first, which the format states rather than stores.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testEachDeclaredRegionIsReadWithItsLimit
+  it("reads each declared region with its limit", () => {
     const read = info(
       Test.descriptor({
         regions: [
@@ -60,8 +60,11 @@ describe("a descriptor's own header", () => {
       })
     );
 
-    expect(read.regionOffsets.map((one) => one.type)).toEqual(["descriptor", "bios", "me"]);
-    expect(read.regionOffsets.map((one) => one.offset)).toEqual([0, 0x60_0000, 0x1000]);
+    expect(read.regions).toEqual([
+      { type: "descriptor", base: 0, limit: 0xfff },
+      { type: "bios", base: 0x60_0000, limit: 0xff_ffff },
+      { type: "me", base: 0x1000, limit: 0x5f_ffff },
+    ]);
   });
 
   // A region with a zero limit is not there at all, and is left out rather than
@@ -69,7 +72,85 @@ describe("a descriptor's own header", () => {
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAnAbsentRegionIsNotListed
   it("leaves an absent region out", () => {
     const read = info(Test.descriptor({ regions: [bios] }));
-    expect(read.regionOffsets.map((one) => one.type)).toEqual(["descriptor", "bios"]);
+    expect(read.regions.map((one) => one.type)).toEqual(["descriptor", "bios"]);
+  });
+
+  // The generation the layout is goes with the rest.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheGenerationIsRead
+  it("reads the generation with the rest", () => {
+    const alder = info(Test.descriptor({ regions: [bios] }));
+    expect(alder.generation).toBe("alderPoint");
+    expect(alder.isGenerationCertain).toBe(true);
+    const cougar = info(Test.descriptor({ regions: [bios], version1: true }));
+    expect(cougar.generation).toBe("cougarPoint");
+  });
+});
+
+describe("the component section", () => {
+  // Two chips of four-bit density, the clocks in Alder Point's codes, and eight
+  // forbidden opcodes — `CSME 16`'s component section.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheComponentSectionOfAnAlderPointBoard
+  it("reads an Alder Point board's two chips, clocks and eight opcodes", () => {
+    const read = info(
+      Test.descriptor({
+        regions: [bios],
+        component: { chips: 2, flcomp: 0x0930_f054, flill: 0xad60_4221, flill1: 0xc7c4_b9b7 },
+      })
+    );
+    const component = read.component;
+
+    expect(component?.chipSizes).toEqual([0x80_0000, 0x100_0000]); // 8 MB, then 16 MB
+    expect(component?.readIDClock).toEqual({ code: 1, megahertz: [50] });
+    expect(component?.writeEraseClock.megahertz).toEqual([50]);
+    expect(component?.fastReadClock?.megahertz).toEqual([50]);
+    expect(component?.invalidInstructions).toEqual([
+      0x21, 0x42, 0x60, 0xad, 0xb7, 0xb9, 0xc4, 0xc7,
+    ]);
+  });
+
+  // One chip whose density is three bits, Cougar Point's clock codes, and a
+  // single word of opcodes — the next being the partition boundary.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheComponentSectionOfACougarPointBoard
+  it("reads a Cougar Point board's one chip of three-bit density and one word of opcodes", () => {
+    const read = info(
+      Test.descriptor({
+        regions: [bios],
+        version1: true,
+        component: { chips: 1, flcomp: 0x6490_0024, flill: 0, flill1: 0x1234_5678 },
+      })
+    );
+    const component = read.component;
+
+    // Code 4 in the low three bits; the second chip is not counted.
+    expect(component?.chipSizes).toEqual([0x80_0000]);
+    expect(component?.readIDClock.megahertz).toEqual([50]);
+    expect(component?.fastReadClock?.megahertz).toEqual([50]);
+    // No opcode is forbidden, and the boundary is not one.
+    expect(component?.invalidInstructions).toEqual([]);
+  });
+
+  // Fast reads switched off have no clock; a code the generation reserves is
+  // kept as the code; a density past the largest is no size.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testWhatAComponentSectionDoesNotSay
+  it("keeps what a component section does not say as nothing", () => {
+    // Density 0xE, read-ID code 2 (reserved on Alder Point), fast read off.
+    const read = info(
+      Test.descriptor({
+        regions: [bios],
+        component: { chips: 1, flcomp: 0x1100_000e, flill: 0, flill1: 0 },
+      })
+    );
+    const component = read.component;
+
+    expect(component?.chipSizes).toEqual([undefined]);
+    expect(component?.readIDClock).toEqual({ code: 2, megahertz: undefined });
+    expect(component?.fastReadClock).toBeUndefined();
+  });
+
+  // No component base, no section — not one read from offset zero.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testNoComponentBaseMeansNoComponentSection
+  it("has no section where the map names no base", () => {
+    expect(info(Test.descriptor({ regions: [bios] })).component).toBeUndefined();
   });
 });
 

@@ -1,4 +1,4 @@
-@source-sha 099060af47b522cb8fe3eb249d76ce5c1604f9aceb2835d5fd0a317a969aa74f
+@source-sha cbbcfcd577ea28f2d501d2c7bd02fd5d7085ea5c6cc4deaabf2d3f03c3446b87
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -6,6 +6,10 @@
 Der Descriptor liegt ganz am Anfang des Dumps und sagt, wo jede [[term:region|Region]] beginnt und endet, welche [[term:flash-master|Master]] sie lesen oder beschreiben dürfen und wie die Straps des Chips gesetzt sind.
 
 Er ist die einzige Struktur hier mit echter Hersteller-Dokumentation — beschrieben in Intels Programming Guides zum Chipsatz —, sodass das, was das Werkzeug darüber sagt, auf mehr als Reverse Engineering ruht.
+
+Die Chipsatz-Generation steht nicht im Descriptor. ByteRipper erkennt sie daran, wo der Descriptor seine Abschnitte ablegt und wie lang sie sind — nach denselben Regeln wie flashrom —, und nennt sie in den Details unter **Chipsatz**. Generationen mit gleichem Aufbau lassen sich nicht unterscheiden und werden gemeinsam genannt, etwa Alder Point / Raptor Point; ein Aufbau, den keine Regel erfasst, wird wie der nächstliegende bekannte gelesen und als vermutet gekennzeichnet. Von der Generation hängt ab, wie der Rest zu lesen ist: wie viele Regionen die Tabelle enthält, ob die Masken eines Masters ein Byte oder zwölf Bit breit sind und was ein Taktcode bedeutet.
+
+Aus dem Komponentenabschnitt nennen die Details die Größe jedes Flash-Chips, für den das Image ausgelegt ist (**Größe der Flash-Chips**), bei zwei Chips die Adresse, an der der zweite beginnt; die SPI-Takte, mit denen der Chipsatz ID und Status des Chips liest, schreibt und löscht sowie Fast Read ausführt; und die Opcodes, die der Chipsatz nicht an den Chip sendet (**Gesperrte Opcodes**). Ein Ersatzchip muss für diese Takte ausgelegt sein. Ergeben die Chips zusammen eine andere Länge als der Dump, wird die Zeile hervorgehoben: Der Dump enthält nur einen von zwei Chips oder wurde mit falscher Größe gelesen. Die **Regionstabelle** listet jede Region mit Anfang und Ende so, wie der Descriptor sie angibt.
 
 Ist der Descriptor beschädigt, ist jede danach gerechnete Adresse unzuverlässig.
 
