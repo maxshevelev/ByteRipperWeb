@@ -48,6 +48,7 @@ import {
   nodeIDOfZone,
   nodeOpen,
   nodeOpenTitle,
+  nodeSaveTitle,
   partName,
   uefiZones,
 } from "@/tools/uefi/uefiPresenter";
@@ -779,6 +780,35 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
+   * Saves a node of the tree — or its body alone — to a file: the bytes opening it
+   * would show, wherever the node lives, under the name its panel would have.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.saveNode
+   * @upstream-differs the browser's download flow in place of the save panel, as
+   * the export of a decompressed body has it
+   */
+  const saveNode = useCallback(
+    async (node: WireNode, body: boolean) => {
+      const open = nodeOpen(node, body, roots);
+      if (open === undefined) {
+        context.report(L("There is nothing to save here."));
+        return;
+      }
+      const bytes = await readSpaceBytes(context.pane, open.space, open.range);
+      if (bytes === undefined || bytes.length === 0) {
+        context.report(L("Those bytes could not be read."));
+        return;
+      }
+      downloadBlob(
+        new Blob([bytes.slice()], { type: "application/octet-stream" }),
+        partName(open.suggestedName, paneState(context.pane)?.name ?? "")
+      );
+      context.report(L("Saved %1$@ bytes.", bytes.length));
+    },
+    [context, roots]
+  );
+
+  /**
    * The node under the caret, shown in the tree: every branch on the way
    * opened, its row selected, its detail up. Only the tree moves — the dump is
    * where the reader is standing, so nothing is published that would scroll it
@@ -1326,6 +1356,20 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                         : {
                             label: nodeOpenTitle(node, true) ?? "",
                             onSelect: () => void openNode(node, true),
+                          },
+                      // The same bytes, saved to a file rather than opened.
+                      nodeSaveTitle(node, false) === undefined
+                        ? undefined
+                        : {
+                            // help: panel.uefi.save-node
+                            label: nodeSaveTitle(node, false) ?? "",
+                            onSelect: () => void saveNode(node, false),
+                          },
+                      nodeSaveTitle(node, true) === undefined
+                        ? undefined
+                        : {
+                            label: nodeSaveTitle(node, true) ?? "",
+                            onSelect: () => void saveNode(node, true),
                           },
                       // A node of either Top Swap block steps to its twin in the
                       // other, so the reader sees which copy of a volume or file

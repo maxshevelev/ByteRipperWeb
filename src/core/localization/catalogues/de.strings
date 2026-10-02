@@ -316,6 +316,12 @@
 "Getting ready" = "Vorbereitung";
 "Go to Original" = "Zum Original";
 "Go to Top Swap Copy" = "Zur Top-Swap-Kopie";
+"Save Body of “%1$@” as…" = "Rumpf von „%1$@“ sichern unter…";
+"Save Node Body as…" = "Knotenrumpf sichern unter…";
+"Save Node as…" = "Knoten sichern unter…";
+"Save “%1$@” as…" = "„%1$@“ sichern unter…";
+"Saved %1$@ bytes." = "%1$@ Bytes gesichert.";
+"There is nothing to save here." = "Hier gibt es nichts zu sichern.";
 "Getting Started" = "Erste Schritte";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub drosselt diese Adresse. Gezeigt werden die Namen aus dem Build; sie erneuern sich beim nächsten Öffnen.";
 "github.com answered %1$@." = "github.com antwortete %1$@.";

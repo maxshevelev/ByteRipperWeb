@@ -1,4 +1,4 @@
-@source-sha f928a3dd48c2e433803be3fa42826934e94422f5c5ec7995f9351d4f76680cc2
+@source-sha b3d7f8f8d4ea5cc80e19fd5807d9e9ca51174c80a06c9839b5b7d95139c28664
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -23,6 +23,7 @@ Die Zeile der **ME-Region** öffnet sich in dieselbe Analyse, die der [[topic:to
 Rechtsklick auf einen Knoten:
 
 - Den Knoten **öffnen**, oder nur seinen Rumpf, als [[topic:fragments|Fragment-Bereich]].
+- **… sichern unter…** — den Knoten oder nur seinen Rumpf in eine Datei schreiben: dieselben Bytes, die das Öffnen zeigt, unter demselben Namen — dem des Dumps, gefolgt von dem des Knotens. Wohin die Datei gelangt, bestimmt der Browser wie bei jedem Download: in den Download-Ordner oder an die Stelle, nach der er fragt.
 - **Entpackten Rumpf öffnen** / **Entpackten Rumpf exportieren…** bei einer komprimierten Sektion — das, wozu diese Bytes sich tatsächlich entfalten. Ein Knoten darin bietet dasselbe für seine eigenen **Bytes**.
 - **Zur Top-Swap-Kopie** / **Zum Original** bei einem Knoten in einem der beiden Blöcke eines Images mit [[term:top-swap|Top-Swap]]-Kopie — wählt denselben Knoten im anderen Block aus und zeigt seine Bytes im Dump, sodass sich jedem Teil der Kopie der Teil des obersten Blocks zuordnen lässt, den er wiederholt.
 

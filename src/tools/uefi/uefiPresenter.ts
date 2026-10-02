@@ -220,6 +220,18 @@ export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefine
 }
 
 /**
+ * What the tree's menu calls saving `node` — or its body alone — to a file:
+ * offered wherever opening it is, since it is the same bytes.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeSaveTitle
+ */
+export function nodeSaveTitle(node: ZonedNode, body: boolean): string | undefined {
+  if (nodeOpenTitle(node, body) === undefined) return undefined;
+  if (node.name.length === 0) return body ? L("Save Node Body as…") : L("Save Node as…");
+  return body ? L("Save Body of “%1$@” as…", node.name) : L("Save “%1$@” as…", node.name);
+}
+
+/**
  * What opening `node` would do, or nothing when there is nothing there to open:
  * an empty range, a body that is the whole node, or a part of a buffer whose
  * compressed section cannot be traced back to the file.

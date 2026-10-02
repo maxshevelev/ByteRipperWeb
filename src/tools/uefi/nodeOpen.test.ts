@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { nodeOpen, nodeOpenTitle, partName, type ZonedNode } from "@/tools/uefi/uefiPresenter";
+import {
+  nodeOpen,
+  nodeOpenTitle,
+  nodeSaveTitle,
+  partName,
+  type ZonedNode,
+} from "@/tools/uefi/uefiPresenter";
 
 /**
  * Every node of the tree can be taken out and read as a file of its own, and a
@@ -70,6 +76,25 @@ describe("what the menu offers", () => {
     const empty = node({ name: "Nothing", header: [0x10, 0x10], body: [0x10, 0x10] });
 
     expect(nodeOpenTitle(empty, false)).toBeUndefined();
+  });
+
+  /**
+   * Whatever can be opened can be saved — the node, and its body where it has one
+   * apart from the node — named the same way.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/NodeOpenTests.swift#NodeOpenTests.testWhatCanBeOpenedCanBeSaved
+   */
+  it("offers saving wherever it offers opening", () => {
+    expect(nodeSaveTitle(file, false)).toBe("Save “MyDriver” as…");
+    expect(nodeSaveTitle(file, true)).toBe("Save Body of “MyDriver” as…");
+    const bare = node({ name: "", header: [0, 4], body: [4, 0x40] });
+    expect(nodeSaveTitle(bare, false)).toBe("Save Node as…");
+    expect(nodeSaveTitle(bare, true)).toBe("Save Node Body as…");
+
+    const headerless = node({ name: "Raw", header: [0, 0], body: [0, 0x40] });
+    expect(nodeSaveTitle(headerless, true)).toBeUndefined();
+    const empty = node({ name: "Nothing", header: [0x10, 0x10], body: [0x10, 0x10] });
+    expect(nodeSaveTitle(empty, false)).toBeUndefined();
   });
 });
 

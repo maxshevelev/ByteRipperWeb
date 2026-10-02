@@ -5,6 +5,7 @@
 @covers panel.uefi
 @covers panel.uefi.fix-checksum
 @covers panel.uefi.top-swap
+@covers panel.uefi.save-node
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
@@ -26,6 +27,7 @@ The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyz
 Right-click a node:
 
 - **Open** the node, or just its body, as a [[topic:fragments|fragment panel]].
+- **Save … as…** the node, or just its body, to a file: the same bytes **Open** shows, under the same name — the dump's, followed by the node's. The browser stores the file as it stores any download: in its downloads folder, or where it asks.
 - **Open Decompressed Body** / **Export Decompressed Body…** for a compressed section — what those bytes actually expand to. A node inside one offers the same for its own **Bytes**.
 - **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
 

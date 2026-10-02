@@ -316,6 +316,12 @@
 "Getting ready" = "Подготовка";
 "Go to Original" = "Перейти к оригиналу";
 "Go to Top Swap Copy" = "Перейти к копии Top Swap";
+"Save Body of “%1$@” as…" = "Сохранить тело «%1$@» как…";
+"Save Node Body as…" = "Сохранить тело узла как…";
+"Save Node as…" = "Сохранить узел как…";
+"Save “%1$@” as…" = "Сохранить «%1$@» как…";
+"Saved %1$@ bytes." = "Сохранено байт: %1$@.";
+"There is nothing to save here." = "Здесь нечего сохранять.";
 "Getting Started" = "С чего начать";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub ограничивает частоту запросов с этого адреса. Показаны имена из сборки, они обновятся при следующем открытии.";
 "github.com answered %1$@." = "github.com ответил %1$@.";
