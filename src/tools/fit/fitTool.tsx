@@ -228,6 +228,29 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const [form, setForm] = useState<MicrocodeFormMode | undefined>(undefined);
   /** What the form's line says about a fetch the panel is making for it. */
   const [formStatus, setFormStatus] = useState<MicrocodeFormStatus | undefined>(undefined);
+  /**
+   * The line the panel answers the user in: what an edit did, or why it would
+   * not. A refusal is red.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.say
+   */
+  const [notice, setNotice] = useState<{ text: string; problem: boolean } | undefined>(undefined);
+  /**
+   * Whether the line is one put there in answer to something the user did. Every
+   * edit is followed by a re-read, and the answer would be wiped by it a moment
+   * later, so it survives exactly one: the one its own edit caused.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.noticeAnswersTheUser
+   */
+  const noticeAnswersTheUser = useRef(false);
+  /**
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.fail
+   * @upstream-differs no beep: a page may not sound the system's alert, and the red line is what is left of it
+   */
+  const say = useCallback((text: string, problem = false) => {
+    noticeAnswersTheUser.current = true;
+    setNotice({ text, problem });
+  }, []);
   /** The microcode being fetched for the form, so Cancel can stop it. */
   const download = useRef<AbortController | undefined>(undefined);
 
@@ -297,6 +320,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       if (!current) return;
       readAgainst.current = roots;
       setReport(found);
+      // An answer outlives the one reading its own edit caused, and goes with the next.
+      if (noticeAnswersTheUser.current) noticeAnswersTheUser.current = false;
+      else setNotice(undefined);
     });
     return () => {
       current = false;
@@ -339,10 +365,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       setBusy(false);
       // Exactly one of the two is set: the plan's refusal, or what the write
       // did. Nothing at all when it landed and had nothing to add.
-      const said = done.problem ?? done.summary;
-      if (said !== undefined) context.report(said);
+      if (done.problem !== undefined) say(done.problem, true);
+      else if (done.summary !== undefined) say(done.summary);
     },
-    [pane, context]
+    [pane, say]
   );
 
   /**
@@ -476,21 +502,24 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         case "copyCPUID":
           void navigator.clipboard
             .writeText(command.cpuid)
-            .then(() => context.report(L("CPUID %1$@ copied.", command.cpuid)))
-            .catch(() => context.report(L("This browser would not let the clipboard be written.")));
+            .then(() => say(L("CPUID %1$@ copied.", command.cpuid)))
+            .catch(() => say(L("This browser would not let the clipboard be written."), true));
           return;
         case "fixChecksum": {
           const fix = display.checksumFix;
           if (fix === undefined) return;
           void applyTransaction(pane, fix).then((problem) => {
-            context.report(
-              problem ??
-                // @upstream-differs Undo rather than ⌘Z: the key is the platform's
-                `${
-                  fix.writes.length > 1
-                    ? L("Checksum written, in the Top Swap backup's table too.")
-                    : L("Checksum written.")
-                } ${L("Undo takes it back.")}`
+            if (problem !== undefined) {
+              say(problem, true);
+              return;
+            }
+            say(
+              // @upstream-differs Undo rather than ⌘Z: the key is the platform's
+              `${
+                fix.writes.length > 1
+                  ? L("Checksum written, in the Top Swap backup's table too.")
+                  : L("Checksum written.")
+              } ${L("Undo takes it back.")}`
             );
           });
           return;
@@ -505,7 +534,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           return;
       }
     },
-    [display, context, pane, runEdit, openReplace]
+    [display, context, pane, runEdit, openReplace, say]
   );
 
   /**
@@ -836,6 +865,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
               {L("Cancel")}
             </button>
           </>
+        ) : notice !== undefined ? (
+          <span className="fit-notice" data-problem={notice.problem ? "" : undefined}>
+            {notice.text}
+          </span>
         ) : message !== undefined ? (
           // Named rather than printed as "it failed": being rate-limited is
           // waited out, being offline means yesterday's copy is the best there

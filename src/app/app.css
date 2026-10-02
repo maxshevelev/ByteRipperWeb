@@ -3536,6 +3536,18 @@ button.uefi-title {
 }
 
 /* Named rather than coloured alone: the three failures have three answers. */
+.fit-notice {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* A refusal is red: the one line the user has to read (upstream's `say(asProblem:)`). */
+.fit-notice[data-problem] {
+  color: var(--semantic-bad);
+}
+
 .fit-catalogue-problem {
   flex: 1 1 auto;
   min-width: 0;
