@@ -88,6 +88,14 @@ export interface NodeDetail {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.tables
    */
   readonly tables: readonly DetailTable[];
+  /**
+   * The bytes of the picture the node is, for the panel to draw under the rows —
+   * nothing for every node that is not one. Decoding them is the browser's, which
+   * knows how.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.picture
+   */
+  readonly picture?: { readonly bytes: Uint8Array; readonly mime: string } | undefined;
 }
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.empty */

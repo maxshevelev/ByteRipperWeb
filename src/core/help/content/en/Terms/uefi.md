@@ -188,7 +188,7 @@ Most of a firmware's pictures are the body of a raw [[term:section|section]]: th
 
 A picture is recognised by its opening bytes and taken only when its structure reads through to the end: a JPEG's segments to the end marker, a PNG's chunks to `IEND`, a GIF's blocks to the trailer, a BMP's header with the size it declares. That walk is also what gives its length, since none of the four states its length in one place.
 
-The details give the format — with `JFIF` or `Exif`, the GIF version or the BMP's bits per pixel — and the size in pixels. **Save … as…** offers a file with the format's own extension, which any image viewer opens.
+The details give the format — with `JFIF` or `Exif`, the GIF version or the BMP's bits per pixel — and the size in pixels, and draw the picture underneath. **Save … as…** offers a file with the format's own extension, which any image viewer opens.
 
 ! A BMP whose header declares more bytes than its section holds is shown as far as the section goes, and the details report the declared size as a problem: the rows past the end are missing from the image. One such logo was found in a Dell dump.
 

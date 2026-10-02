@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
@@ -129,9 +129,43 @@ export function ToolDetail({
           {detail.tables.map((table) => (
             <DetailTableView key={table.title} table={table} />
           ))}
+          {detail.picture === undefined ? null : (
+            <PicturePreview bytes={detail.picture.bytes} mime={detail.picture.mime} />
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The picture a node is, drawn under its rows: as wide as the list at most, never
+ * larger than its own pixels, in its own proportions. Bytes the browser cannot
+ * decode leave the rows as they are — the fields have already said what the parser
+ * read.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.addPicture
+ * @upstream-differs an `<img>` over a blob of the bytes, which the browser decodes
+ */
+// help: panel.uefi.picture-preview
+function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly mime: string }) {
+  const [failed, setFailed] = useState(false);
+  const url = useMemo(
+    () => URL.createObjectURL(new Blob([bytes.slice()], { type: mime })),
+    [bytes, mime]
+  );
+  useEffect(() => {
+    setFailed(false);
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
+  if (failed) return null;
+  return (
+    <img
+      className="tool-detail-picture"
+      src={url}
+      alt={L("Picture preview")}
+      onError={() => setFailed(true)}
+    />
   );
 }
 

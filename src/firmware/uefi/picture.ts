@@ -63,6 +63,14 @@ export const pictureFileExtension = (format: PictureFormat): string =>
   format === "jpeg" ? "jpg" : format;
 
 /**
+ * What a browser is told the bytes are when it is asked to draw them: the format's
+ * media type.
+ *
+ * @web-only upstream hands the bytes to AppKit, which sniffs them
+ */
+export const pictureMimeType = (format: PictureFormat): string => `image/${format}`;
+
+/**
  * The format and the size in pixels, the same in every language.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.name

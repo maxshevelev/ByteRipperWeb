@@ -32,7 +32,12 @@ import {
   type NvramStoreFill,
   nvramStoreFillOf,
 } from "@/firmware/uefi/nvramStoreFill";
-import { pictureFormatName, readPicture } from "@/firmware/uefi/picture";
+import {
+  pictureFormatName,
+  pictureFormatOf,
+  pictureMimeType,
+  readPicture,
+} from "@/firmware/uefi/picture";
 import {
   isIbbKind,
   type ProtectedRange,
@@ -79,6 +84,22 @@ export function buildNodeDetail(
   image: UEFIImage,
   reader: ImageReader,
   repairs: readonly ChecksumRepair[] = []
+): NodeDetail {
+  const detail = buildDetailRows(node, image, reader, repairs);
+  // A picture is shown as well as described. Only one the parser recognised and
+  // measured: its bytes are exactly the picture's.
+  if (node.kind !== "picture") return detail;
+  const bytes = reader.bytes(node.body);
+  const format = node.subtype === undefined ? undefined : pictureFormatOf(node.subtype);
+  if (bytes === undefined || format === undefined) return detail;
+  return { ...detail, picture: { bytes, mime: pictureMimeType(format) } };
+}
+
+function buildDetailRows(
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader,
+  repairs: readonly ChecksumRepair[]
 ): NodeDetail {
   const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
   if (node.kind === "ecImage") fields.push(...ecImageFields(node, image, reader));

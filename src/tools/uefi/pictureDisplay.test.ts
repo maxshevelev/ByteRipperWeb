@@ -105,6 +105,16 @@ describe("a picture row", () => {
     expect(value("Picture size")).toBe("2 × 1");
   });
 
+  // The panel is handed the picture's bytes to draw, and only a picture's.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/PictureDisplayTests.swift#PictureDisplayTests.testThePictureIsHandedToThePanel
+  it("hands the picture's bytes to the panel, and only a picture's", () => {
+    const { image, reader } = built();
+    const picture = (image.roots[0] as UEFINode).children[0] as UEFINode;
+    const detail = buildNodeDetail(picture, image, reader, []);
+    expect(detail.picture).toEqual({ bytes: Uint8Array.from(JPEG), mime: "image/jpeg" });
+    expect(buildNodeDetail(image.roots[0] as UEFINode, image, reader, []).picture).toBeUndefined();
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/PictureDisplayTests.swift#PictureDisplayTests.testItOpensItsEntryAndSavesAsAJPEG
   it("opens its own entry and saves as a JPEG", () => {
     const { image } = built();

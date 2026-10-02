@@ -3265,6 +3265,15 @@ button.uefi-title {
   margin-top: 12px;
 }
 
+/* A picture's preview: as wide as the list at most, never larger than its own
+   pixels, in its own proportions. */
+.tool-detail-picture {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 12px;
+}
+
 .tool-detail-table-title {
   display: flex;
   align-items: center;
