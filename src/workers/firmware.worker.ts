@@ -609,6 +609,15 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           ranges: ranges.ranges.map(wireProtectedRange),
           obbDigests: ranges.obbDigests.map((one) => tcgHashName(one.algorithm)),
           diagnostics: wireDiagnostics(ranges.diagnostics),
+          ...(ranges.topSwap === undefined
+            ? {}
+            : {
+                topSwap: {
+                  top: [ranges.topSwap.top.start, ranges.topSwap.top.end] as const,
+                  backup: [ranges.topSwap.backup.start, ranges.topSwap.backup.end] as const,
+                },
+                topSwapCopiesMatch: ranges.topSwapCopiesMatch === true,
+              }),
         });
         return;
       }

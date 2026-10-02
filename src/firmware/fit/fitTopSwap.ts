@@ -1,5 +1,5 @@
 import type { ByteSource } from "@/firmware/byteSource";
-import { FIT, FIT_ENTRY_SIZE } from "@/firmware/fit/fitEntry";
+import { FIT_ENTRY_SIZE } from "@/firmware/fit/fitEntry";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import {
   effectiveSize,
@@ -10,111 +10,53 @@ import {
 } from "@/firmware/fit/fitTable";
 import { type ImageRange, ImageReader } from "@/firmware/imageReader";
 import { microcodeRange } from "@/firmware/uefi/microcodeParser";
+import {
+  findTopSwapCopy,
+  type TopSwapCopy,
+  topSwapCopiesMatch,
+  topSwapped,
+  topSwapSize,
+} from "@/firmware/uefi/topSwap";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 
 /**
- * The Top Swap backup of the block the FIT lives in.
+ * The Top Swap backup of the block the FIT lives in: `UEFIImage`'s `TopSwapCopy`,
+ * which the structure panel names too, with what editing the table needs of it.
  *
- * A chipset with Top Swap set maps the block directly below the top block of
- * the BIOS region at the top of memory instead, so a board can start from a
- * second copy of its boot block while the first is being rewritten. Such an
- * image carries the top block twice — the same volumes, microcode and ACM, and a
- * FIT of its own at the same place in the block naming the same addresses — and
- * a change to the table has to land in both. A change to one leaves the machine
- * starting, after a swap, from a copy that no longer agrees with the other.
- *
- * The block's size is a chipset strap whose place in the descriptor moves from
- * one PCH generation to the next, so the copy is recognised by what it has to
- * hold instead: the FIT pointer with the same value, and the `_FIT_` table at the
- * same distance below.
+ * Such an image carries the top block twice — the same volumes, microcode and
+ * ACM, and a FIT of its own at the same place in the block naming the same
+ * addresses — and a change to the table has to land in both. A change to one
+ * leaves the machine starting, after a swap, from a copy that no longer agrees
+ * with the other.
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup
  */
-export interface FITTopSwapBackup {
-  /**
-   * The top block, ending where the address space does.
-   *
-   * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.top
-   */
-  readonly top: ImageRange;
-  /**
-   * Its copy, directly below.
-   *
-   * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.backup
-   */
-  readonly backup: ImageRange;
-}
+export type FITTopSwapBackup = TopSwapCopy;
 
-/** @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.size */
-export const topSwapSize = (copy: FITTopSwapBackup): number => copy.top.end - copy.top.start;
-
-/**
- * The sizes a Top Swap block comes in: a power of two from 64 KiB to 16 MiB.
- *
- * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.smallestBlock
- */
-const SMALLEST_BLOCK = 0x1_0000;
-/** @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.largestBlock */
-const LARGEST_BLOCK = 0x100_0000;
+export { topSwapCopiesMatch, topSwapped, topSwapSize };
 
 /**
  * The backup of the block holding `table`, or nothing when the image has none.
  *
- * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.find
+ * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#TopSwapCopy.find
  */
 export function findTopSwapBackup(
   table: FITTable,
   reader: ImageReader
 ): FITTopSwapBackup | undefined {
-  const topEnd = table.pointerOffset + (0x1_0000_0000 - FIT.pointerAddress);
-  for (let size = SMALLEST_BLOCK; size <= LARGEST_BLOCK && size * 2 <= topEnd; size *= 2) {
-    const top = { start: topEnd - size, end: topEnd };
-    if (
-      top.start <= table.range.start &&
-      table.range.end <= top.end &&
-      reader.uint32(table.pointerOffset - size) === table.pointerAddress &&
-      reader.uint64Bits(table.range.start - size) === FIT.signature
-    ) {
-      return { top, backup: { start: top.start - size, end: top.start } };
-    }
-  }
-  return undefined;
-}
-
-/**
- * Where an offset is once the blocks trade places: a byte of either block is the
- * same byte of the other, and everything else stays put.
- *
- * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.swap
- */
-export function topSwapped(copy: FITTopSwapBackup, offset: number): number {
-  const size = topSwapSize(copy);
-  if (copy.top.start <= offset && offset < copy.top.end) return offset - size;
-  if (copy.backup.start <= offset && offset < copy.backup.end) return offset + size;
-  return offset;
+  return findTopSwapCopy(
+    {
+      pointerOffset: table.pointerOffset,
+      pointerAddress: table.pointerAddress,
+      table: table.range,
+    },
+    reader
+  );
 }
 
 function sameBytes(left: Uint8Array | undefined, right: Uint8Array | undefined): boolean {
   if (left === undefined || right === undefined || left.length !== right.length) return false;
   for (let index = 0; index < left.length; index++) if (left[index] !== right[index]) return false;
-  return true;
-}
-
-/**
- * Whether the two copies are the same bytes — the one state in which a change
- * worked out for the top block is right for the backup as well.
- *
- * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.copiesMatch
- */
-export function topSwapCopiesMatch(copy: FITTopSwapBackup, reader: ImageReader): boolean {
-  const size = topSwapSize(copy);
-  const chunk = 0x1_0000;
-  for (let offset = 0; offset < size; offset += chunk) {
-    const count = Math.min(chunk, size - offset);
-    const upper = reader.bytesAt(copy.top.start + offset, count);
-    const lower = reader.bytesAt(copy.backup.start + offset, count);
-    if (!sameBytes(upper, lower)) return false;
-  }
   return true;
 }
 

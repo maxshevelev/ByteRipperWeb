@@ -390,7 +390,9 @@
         "UEFIImage/ITEFirmware.swift": "src/firmware/uefi/iteFirmware.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift": "src/firmware/uefi/iteFirmware.test.ts",
         "UEFIImage/NvramStoreFill.swift": "src/firmware/uefi/nvramStoreFill.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/NvramStoreFillTests.swift": "src/firmware/uefi/nvramStoreFill.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/NvramStoreFillTests.swift": "src/firmware/uefi/nvramStoreFill.test.ts",
+        "UEFIImage/TopSwap.swift": "src/firmware/uefi/topSwap.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/TopSwapTests.swift": "src/firmware/uefi/topSwap.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -697,7 +699,9 @@
           "src/state/guidCatalogueSource.ts"
         ],
         "Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift": "src/tools/uefi/uefiTreeDisplay.test.ts",
-        "UEFIToolTests/ProtectionMarksTests.swift": "src/tools/uefi/uefiTreeMarks.test.ts"
+        "UEFIToolTests/ProtectionMarksTests.swift": "src/tools/uefi/uefiTreeMarks.test.ts",
+        "UEFITool/UEFITopSwap.swift": "src/tools/uefi/uefiTopSwap.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift": "src/tools/uefi/uefiTopSwap.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",

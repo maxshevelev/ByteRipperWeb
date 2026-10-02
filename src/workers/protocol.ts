@@ -690,6 +690,16 @@ export interface FirmwareProtectedRangesResponse {
   /** OBB digests the manifest names and does not place, by their algorithms. */
   readonly obbDigests: readonly string[];
   readonly diagnostics: readonly WireDiagnostic[];
+  /**
+   * The Top Swap copy of the block the FIT is in, when the image keeps one, and
+   * whether the two blocks were the same bytes when it was read. What the tree
+   * names its rows from.
+   */
+  readonly topSwap?: {
+    readonly top: readonly [number, number];
+    readonly backup: readonly [number, number];
+  };
+  readonly topSwapCopiesMatch?: boolean;
 }
 
 export interface FirmwareProgress {

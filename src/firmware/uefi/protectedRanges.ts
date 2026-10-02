@@ -11,6 +11,7 @@ import {
 } from "@/firmware/uefi/knownGuids";
 import { Section } from "@/firmware/uefi/sectionParser";
 import { TCGHash, tcgDigest } from "@/firmware/uefi/tcgHash";
+import { findTopSwapCopyIn, type TopSwapCopy, topSwapCopiesMatch } from "@/firmware/uefi/topSwap";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import {
   flattened,
@@ -180,6 +181,22 @@ export interface ProtectedRanges {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.diagnostics
    */
   readonly diagnostics: readonly UEFIDiagnostic[];
+  /**
+   * The Top Swap copy of the block the FIT is in, when the image keeps one. Read
+   * with the ranges because it is found through the same FIT, and because its
+   * ranges are the top block's: the ACM checks whichever copy the chipset maps at
+   * the top.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.topSwap
+   */
+  readonly topSwap?: TopSwapCopy | undefined;
+  /**
+   * Whether the two copies were the same bytes when this was read — false when
+   * there is no copy.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRanges.topSwapCopiesMatch
+   */
+  readonly topSwapCopiesMatch?: boolean | undefined;
 }
 
 /**
@@ -323,7 +340,11 @@ export function readProtectedRanges(image: UEFIImage, file: ImageReader): Protec
   reading.readBootPolicies();
   reading.readVendorHashFiles();
   reading.readFlashDeviceMaps();
-  return reading.finish();
+  const ranges = reading.finish();
+  const copy = findTopSwapCopyIn(image, file);
+  return copy === undefined
+    ? ranges
+    : { ...ranges, topSwap: copy, topSwapCopiesMatch: topSwapCopiesMatch(copy, file) };
 }
 
 /**

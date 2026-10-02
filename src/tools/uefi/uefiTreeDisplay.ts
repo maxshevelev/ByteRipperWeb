@@ -8,6 +8,7 @@ import { nvramGuidName } from "@/firmware/uefi/nvramGuids";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import type { UEFINode, UEFINodeKind } from "@/firmware/uefi/uefiNode";
 import { ItemType, subtypeName, typeName } from "@/firmware/uefi/uefiTypes";
+import { topSwapName } from "@/tools/uefi/uefiTopSwap";
 
 /**
  * What the structure tree says about each node. Ported from upstream's
@@ -172,17 +173,29 @@ function titleLead<T extends DisplayNode<T>>(roots: readonly T[]): string {
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.name
  */
-export function nodeName(
-  node: {
-    readonly kind: string;
-    readonly subtype?: number | undefined;
-    readonly name: string;
-    readonly guid?: EFIGUID | undefined;
-    /** What a pad file is named after, so a row that has them says so. */
-    readonly children?: readonly { readonly kind: string; readonly isErased?: boolean }[];
-  },
-  catalogue: GuidsCatalogue
-): string {
+export function nodeName(node: NamedNode, catalogue: GuidsCatalogue): string {
+  return topSwapName(baseName(node, catalogue), node.topSwap);
+}
+
+/**
+ * What the name is decided from: the kind, the parser's own name and GUID, and the
+ * little the panel knows of the rest.
+ */
+export interface NamedNode {
+  readonly kind: string;
+  readonly subtype?: number | undefined;
+  readonly name: string;
+  readonly guid?: EFIGUID | undefined;
+  /** What a pad file is named after, so a row that has them says so. */
+  readonly children?: readonly { readonly kind: string; readonly isErased?: boolean }[];
+  /**
+   * Whether the row is outermost in a Top Swap block, which the copy's rows say
+   * in their name (`UEFITopSwap`).
+   */
+  readonly topSwap?: "copy" | "original" | undefined;
+}
+
+function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.
   if (node.kind === "file" && node.subtype === 0xf0) {

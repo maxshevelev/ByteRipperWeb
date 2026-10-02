@@ -46,6 +46,7 @@ import {
   type NodeDetail,
   permission,
 } from "@/tools/toolDetail";
+import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { kindLabel } from "@/tools/uefi/uefiTreeDisplay";
 
 /**
@@ -73,6 +74,8 @@ export function buildNodeDetail(
   repairs: readonly ChecksumRepair[] = []
 ): NodeDetail {
   const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
+  const topSwap = uefiTopSwapDetail(node, image);
+  if (topSwap !== undefined) fields.push(field(L("Top Swap"), topSwap));
   const fill = nvramStoreFillOf(node, reader);
   if (fill !== undefined) fields.push(...fillFields(fill));
   const title = node.name.length === 0 ? kindLabel(node.kind) : node.name;

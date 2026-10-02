@@ -17,6 +17,7 @@
 "%1$@ (Invalid)" = "%1$@ (stimmt nicht)";
 "%1$@ (Invalid), should be %2$@" = "%1$@ (stimmt nicht), sollte %2$@ sein";
 "%1$@ (Not checked)" = "%1$@ (nicht geprüft)";
+"%1$@ (Top Swap copy)" = "%1$@ (Top-Swap-Kopie)";
 "%1$@ (Valid)" = "%1$@ (stimmt)";
 "%1$@ at %2$@" = "%1$@ bei %2$@";
 "%1$@ blocks" = "%1$@ Blöcke";
@@ -118,6 +119,9 @@
 "Append File…" = "Datei anhängen…";
 "Apply" = "Anwenden";
 "Ask before edits that shift the file" = "Vor Änderungen fragen, die die Datei verschieben";
+"Copied at %1$@–%2$@; %3$@" = "Kopie bei %1$@–%2$@; %3$@";
+"Copy of %1$@–%2$@; %3$@" = "Kopie des Blocks %1$@–%2$@; %3$@";
+"Top Swap" = "Top Swap";
 "at %1$@" = "bei %1$@";
 "Back" = "Zurück";
 "Backup #%1$@ %2$@" = "Sicherung #%1$@ %2$@";
@@ -637,6 +641,8 @@
 "The catalogue lists a newer revision for this board" = "Der Katalog führt eine neuere Revision für dieses Board";
 "The catalogue lists a newer revision that may not serve this board" = "Der Katalog führt eine neuere Revision, die zu diesem Board möglicherweise nicht passt";
 "The change writes at 0x%1$@ across a Top Swap block boundary, where it cannot be made in both copies. Nothing was changed." = "Die Änderung schreibt bei 0x%1$@ über eine Top-Swap-Blockgrenze hinweg, wo sie sich nicht in beiden Kopien vornehmen lässt. Es wurde nichts geändert.";
+"the copies differ" = "die Kopien unterscheiden sich";
+"the copies match" = "die Kopien stimmen überein";
 "The change writes at 0x%1$@ inside a %2$@: the processor checks it before the firmware runs, and with Boot Guard enforced the platform would not start. Nothing was changed." = "Die Änderung schreibt bei 0x%1$@ in %2$@: der Prozessor prüft diesen Bereich, bevor die Firmware läuft, und bei erzwungenem Boot Guard würde die Plattform nicht starten. Es wurde nichts geändert.";
 "The deletion" = "Die Löschung";
 "The file's cuts and pieces" = "Die Schnitte und Teile der Datei";

@@ -618,7 +618,7 @@ const overlaps = (left: ImageRange, right: ImageRange) =>
  * by the same address. One that reaches into either block without lying wholly
  * inside the top one has no place in the other copy.
  *
- * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITTopSwapBackup.mirroring
+ * @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#TopSwapCopy.mirroring
  */
 export function mirroringTransaction(
   copy: FITTopSwapBackup,

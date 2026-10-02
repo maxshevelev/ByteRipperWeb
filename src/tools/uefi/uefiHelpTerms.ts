@@ -35,6 +35,11 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
 export interface UEFINodeSort {
   readonly kind: UEFINodeKind | string;
   readonly subtype?: number | undefined;
+  /**
+   * Whether the row is outermost in a Top Swap block, which the copy's rows say
+   * in their `?`: what a reader asks of it is why the volumes are there twice.
+   */
+  readonly topSwap?: "copy" | "original" | undefined;
   /** What the parser called it: a padding row is told apart by the name it was given. */
   readonly name?: string | undefined;
   /**
@@ -46,6 +51,9 @@ export interface UEFINodeSort {
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.term */
 export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
+  // A node at the top of a Top Swap copy goes to the page about Top Swap: what a
+  // reader asks of it is why the volumes are there twice.
+  if (node.topSwap === "copy") return termId("top-swap");
   switch (node.kind) {
     case "capsule":
       return termId("capsule");

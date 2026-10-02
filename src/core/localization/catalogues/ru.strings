@@ -17,6 +17,7 @@
 "%1$@ (Invalid)" = "%1$@ (не сходится)";
 "%1$@ (Invalid), should be %2$@" = "%1$@ (не сходится), ожидается %2$@";
 "%1$@ (Not checked)" = "%1$@ (не проверяется)";
+"%1$@ (Top Swap copy)" = "%1$@ (копия Top Swap)";
 "%1$@ (Valid)" = "%1$@ (сходится)";
 "%1$@ at %2$@" = "%1$@ по %2$@";
 "%1$@ blocks" = "блоков: %1$@";
@@ -118,6 +119,9 @@
 "Append File…" = "Дописать файл в конец…";
 "Apply" = "Применить";
 "Ask before edits that shift the file" = "Спрашивать перед правками, сдвигающими файл";
+"Copied at %1$@–%2$@; %3$@" = "Копия расположена по адресу %1$@–%2$@; %3$@";
+"Copy of %1$@–%2$@; %3$@" = "Копия блока %1$@–%2$@; %3$@";
+"Top Swap" = "Top Swap";
 "at %1$@" = "по адресу %1$@";
 "Back" = "Назад";
 "Backup #%1$@ %2$@" = "Резерв #%1$@ %2$@";
@@ -637,6 +641,8 @@
 "The catalogue lists a newer revision for this board" = "Каталог содержит более свежую ревизию для этой платы";
 "The catalogue lists a newer revision that may not serve this board" = "Каталог содержит более свежую ревизию, которая может не подойти этой плате";
 "The change writes at 0x%1$@ across a Top Swap block boundary, where it cannot be made in both copies. Nothing was changed." = "Правка пишет по 0x%1$@ через границу блока Top Swap, где её нельзя внести в обе копии. Ничего не изменено.";
+"the copies differ" = "копии различаются";
+"the copies match" = "копии совпадают";
 "The change writes at 0x%1$@ inside a %2$@: the processor checks it before the firmware runs, and with Boot Guard enforced the platform would not start. Nothing was changed." = "Правка пишет по 0x%1$@ внутрь %2$@: процессор проверяет этот диапазон до запуска прошивки, и при включённом Boot Guard платформа не стартует. Ничего не изменено.";
 "The deletion" = "Удаление";
 "The file's cuts and pieces" = "Разрезы и сегменты файла";

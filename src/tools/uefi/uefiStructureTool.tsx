@@ -3,6 +3,7 @@ import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import { DECOMPRESSED_BODY_LAYOUT } from "@/firmware/uefi/rootLayout";
+import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
 import { downloadBlob } from "@/platform/files/download";
 import {
   askFirmwareDetail,
@@ -49,6 +50,7 @@ import {
   partName,
   uefiZones,
 } from "@/tools/uefi/uefiPresenter";
+import { wireTopSwapRole } from "@/tools/uefi/uefiTopSwap";
 import { listed, nodeName, present, summary } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -898,6 +900,23 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useZoneSelection(context.pane, zonePicked);
 
   /**
+   * The Top Swap copy of the boot block, found by the worker with the protected
+   * ranges: the rows of the copy say so in their name and open the Top Swap page.
+   *
+   * @upstream-differs upstream reads it from the image it holds; the panel holds
+   * the ranges' answer
+   */
+  const topSwapCopy = useMemo<TopSwapCopy | undefined>(() => {
+    const found = state?.protectedRanges?.topSwap;
+    return found === undefined
+      ? undefined
+      : {
+          top: { start: found.top[0], end: found.top[1] },
+          backup: { start: found.backup[0], end: found.backup[1] },
+        };
+  }, [state?.protectedRanges]);
+
+  /**
    * What a row wears besides its name, decided in the pure marks of the tree
    * (`Design/ROW_MARKS.md` §5.1) — read off the node and the parse's
    * diagnostics, which is where this port keeps the checksums.
@@ -1183,6 +1202,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                             guid:
                               row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
                             children: row.node.children,
+                            topSwap: wireTopSwapRole(row.node, topSwapCopy, roots ?? [])?.kind,
                           },
                           catalogue.catalogue
                         )
@@ -1282,7 +1302,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
               ? meShown.helpTerm
               : selectedNode === undefined
                 ? undefined
-                : uefiHelpTerm(selectedNode)
+                : uefiHelpTerm({
+                    ...selectedNode,
+                    topSwap: wireTopSwapRole(selectedNode, topSwapCopy, roots ?? [])?.kind,
+                  })
           }
         />
       </div>
