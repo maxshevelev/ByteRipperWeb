@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import { pictureFileExtension, pictureFormatOf } from "@/firmware/uefi/picture";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { ZoneMap } from "@/tools/zone";
 
@@ -35,6 +36,8 @@ export interface ZonedNode {
    * again around.
    */
   readonly kind?: string | undefined;
+  /** What the picture is, where the caller has it: the extension a save offers. */
+  readonly subtype?: number | undefined;
   readonly header: readonly [number, number];
   readonly body: readonly [number, number];
   readonly tail: readonly [number, number];
@@ -268,9 +271,17 @@ export function nodeOpen(
     range,
     source,
     ...(rebuild === undefined ? {} : { rebuild }),
-    suggestedName: `${fileNameOf(node.name, "node")}${suffix}.bin`,
+    // A picture saves as what it is, so the file opens in a viewer.
+    suggestedName: `${fileNameOf(node.name, "node")}${suffix}.${extensionOf(node)}`,
     menuTitle: title,
   };
+}
+
+/** A picture's own extension, and `bin` for everything else. */
+function extensionOf(node: ZonedNode): string {
+  if (node.kind !== "picture" || node.subtype === undefined) return "bin";
+  const format = pictureFormatOf(node.subtype);
+  return format === undefined ? "bin" : pictureFileExtension(format);
 }
 
 /**

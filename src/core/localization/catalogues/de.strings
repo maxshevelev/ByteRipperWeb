@@ -62,6 +62,7 @@
 "%1$@ tables" = "%1$@ Tabellen";
 "%1$@ — changed here" = "%1$@ — hier geändert";
 "%1$@ — no results." = "%1$@ — keine Treffer.";
+"%1$@ — the section ends earlier" = "%1$@ — die Section endet früher";
 "%1$@ — the library is read-only until it is answered" = "%1$@ — die Bibliothek ist schreibgeschützt, bis sie beantwortet ist";
 "%1$@ — the library is read-only until they are answered" = "%1$@ — die Bibliothek ist schreibgeschützt, bis sie beantwortet sind";
 "%1$@%2$@ could not be checked: %3$@ is not computed here" = "%1$@%2$@ ließ sich nicht prüfen: %3$@ wird hier nicht berechnet";
@@ -124,8 +125,12 @@
 "Copied at %1$@–%2$@; %3$@" = "Kopie bei %1$@–%2$@; %3$@";
 "Copy of" = "Kopie des Abbilds bei";
 "Copy of %1$@–%2$@; %3$@" = "Kopie des Blocks %1$@–%2$@; %3$@";
+"Declared size" = "Größe laut Kopf";
 "EC firmware image" = "EC-Firmware-Abbild";
 "FIT component" = "FIT-Komponente";
+"Format" = "Format";
+"Picture" = "Bild";
+"Picture size" = "Bildgröße";
 "Top Swap" = "Top Swap";
 "Vendor" = "Hersteller";
 "Written" = "Beschrieben";

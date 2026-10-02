@@ -7,6 +7,7 @@ import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { parseFlashDeviceMap, readingMapRegions } from "@/firmware/uefi/flashDeviceMapParser";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
+import { opensPicture, PICTURE_SIGNATURES, parsePicture } from "@/firmware/uefi/picture";
 import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { FV } from "@/firmware/uefi/volumeFormat";
@@ -112,21 +113,22 @@ export function scanRawArea(
     // The two searches are merged rather than run one after the other: a
     // structure claims the bytes after it, so candidates have to be considered
     // in the order they lie in the file.
-    const at = [
-      bytes.indexOf(FV_FIRST_BYTE),
-      bytes.indexOf(MICROCODE_FIRST_BYTE),
-      bytes.indexOf(FDM_FIRST_BYTE),
-    ];
-    const first = [FV_FIRST_BYTE, MICROCODE_FIRST_BYTE, FDM_FIRST_BYTE];
     const limit = bytes.length - 4;
+    /**
+     * The next candidate position at or after `from`, by `search`'s byte: where the
+     * dword the signature is read as would start, or -1.
+     */
+    const next = (search: Search, from: number): number => {
+      const raw = bytes.indexOf(search.byte, from + search.before);
+      const position = raw - search.before;
+      return raw < 0 || position > limit ? -1 : position;
+    };
+    const at = SEARCHES.map((search) => next(search, 0));
 
     for (;;) {
-      for (let which = 0; which < at.length; which++) {
-        if ((at[which] ?? -1) > limit) at[which] = -1;
-      }
-      // The searches are considered together rather than one after the other:
-      // a structure claims the bytes after it, so candidates have to be taken
-      // in the order they lie in the file.
+      // The searches are considered together rather than one after the other: a
+      // structure claims the bytes after it, so candidates have to be taken in the
+      // order they lie in the file.
       let which = -1;
       for (let candidate = 0; candidate < at.length; candidate++) {
         const found = at[candidate] ?? -1;
@@ -145,7 +147,8 @@ export function scanRawArea(
       if (
         dword === FV.signature ||
         dword === Microcode.headerType ||
-        dword === FlashDeviceMap.signature
+        dword === FlashDeviceMap.signature ||
+        opensPicture(dword)
       ) {
         const found = elementAtSignature(parser, dword, offset + index, range, depth);
         if (found !== undefined) {
@@ -156,7 +159,7 @@ export function scanRawArea(
           continue scan;
         }
       }
-      at[which] = bytes.indexOf(first[which] ?? 0, index + 1);
+      at[which] = next(SEARCHES[which] as Search, index + 1);
     }
 
     if (end === range.end) break;
@@ -175,12 +178,34 @@ export function scanRawArea(
   );
 }
 
-/** `_` — the first byte of `_FVH`, and the rarest of its four. */
-const FV_FIRST_BYTE = FV.signature & 0xff;
-/** `0x01` — the first byte of a microcode header's `HeaderType`. */
-const MICROCODE_FIRST_BYTE = Microcode.headerType & 0xff;
-/** `H` — the first byte of the flash device map's `HFDM`. */
-const FDM_FIRST_BYTE = FlashDeviceMap.signature & 0xff;
+/**
+ * One native byte search: the byte, and how many bytes before it the signature's
+ * dword starts. A signature is looked for by its rarest fixed byte.
+ */
+interface Search {
+  readonly byte: number;
+  readonly before: number;
+}
+
+/**
+ * The structures that announce themselves, each by one byte:
+ *
+ * - `_` of `_FVH`, `0x01` of a microcode header's `HeaderType` and `H` of the flash
+ *   device map's `HFDM`;
+ * - a JPEG opens `FF D8 FF`, and `FF` is what an erased chip is made of, so it is
+ *   found by the `D8` after it;
+ * - a PNG by its `0x89`, a GIF by its `G`, a BMP by its `B` — and the opening of
+ *   each is checked on the bytes around before anything is read.
+ */
+const SEARCHES: readonly Search[] = [
+  { byte: FV.signature & 0xff, before: 0 },
+  { byte: Microcode.headerType & 0xff, before: 0 },
+  { byte: FlashDeviceMap.signature & 0xff, before: 0 },
+  { byte: 0xd8, before: 1 },
+  { byte: PICTURE_SIGNATURES.png & 0xff, before: 0 },
+  { byte: PICTURE_SIGNATURES.gif & 0xff, before: 0 },
+  { byte: PICTURE_SIGNATURES.bmp & 0xff, before: 0 },
+];
 
 /**
  * A signature is a candidate, not a find: the four bytes turn up inside
@@ -207,5 +232,8 @@ function elementAtSignature(
   }
   if (dword === Microcode.headerType) return parseMicrocode(parser, offset, range.end);
   if (dword === FlashDeviceMap.signature) return parseFlashDeviceMap(parser, offset, range.end);
+  // A picture announces itself in a dword, a BMP in two bytes, and its header has
+  // to check out field by field before it is one.
+  if (opensPicture(dword)) return parsePicture(parser, offset, range.end);
   return undefined;
 }

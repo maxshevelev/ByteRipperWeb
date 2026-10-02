@@ -16,6 +16,7 @@ import {
 } from "@/firmware/uefi/nvramGuids";
 import { walkStores } from "@/firmware/uefi/nvramParser";
 import type { Parser } from "@/firmware/uefi/parserState";
+import { pictureBody } from "@/firmware/uefi/picture";
 import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
 
@@ -404,7 +405,11 @@ function parseSection(
       const isDefaults =
         fileGuid !== undefined && guidEquals(fileGuid, nvramNvarExternalDefaultsFileGuid);
       children =
-        parseNvarStore(parser, body, { emptyByte, probe: !isDefaults, depth: depth + 1 }) ?? [];
+        parseNvarStore(parser, body, { emptyByte, probe: !isDefaults, depth: depth + 1 }) ??
+        // Most of a firmware's pictures — the logo, the setup screen's icons —
+        // are a raw section's whole body.
+        pictureBody(parser, body, emptyByte) ??
+        [];
     } else if (type === Section.firmwareVolumeImage) {
       // A volume inside a section, and files inside that: the point at which
       // this format starts over one level down.

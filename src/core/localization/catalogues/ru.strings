@@ -62,6 +62,7 @@
 "%1$@ tables" = "таблиц: %1$@";
 "%1$@ — changed here" = "%1$@ — изменено здесь";
 "%1$@ — no results." = "%1$@ — совпадений не найдено.";
+"%1$@ — the section ends earlier" = "%1$@ — секция заканчивается раньше";
 "%1$@ — the library is read-only until it is answered" = "%1$@ — библиотека только для чтения, пока нет ответа";
 "%1$@ — the library is read-only until they are answered" = "%1$@ — библиотека только для чтения, пока нет ответов";
 "%1$@%2$@ could not be checked: %3$@ is not computed here" = "%1$@%2$@ проверить не удалось: %3$@ здесь не вычисляется";
@@ -124,8 +125,12 @@
 "Copied at %1$@–%2$@; %3$@" = "Копия расположена по адресу %1$@–%2$@; %3$@";
 "Copy of" = "Копия образа по адресу";
 "Copy of %1$@–%2$@; %3$@" = "Копия блока %1$@–%2$@; %3$@";
+"Declared size" = "Размер по заголовку";
 "EC firmware image" = "Образ прошивки EC";
 "FIT component" = "Компонент FIT";
+"Format" = "Формат";
+"Picture" = "Изображение";
+"Picture size" = "Размер изображения";
 "Top Swap" = "Top Swap";
 "Vendor" = "Производитель";
 "Written" = "Записано";

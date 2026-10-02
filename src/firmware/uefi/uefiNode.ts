@@ -122,6 +122,13 @@ export type UEFINodeKind =
    */
   | "fitComponent"
   /**
+   * A picture — JPEG, PNG, GIF or BMP — the raw-area scan found outside every
+   * volume, or the body of a raw section opens with (`UEFI_IMAGE_FORMAT.md` §9).
+   * The subtype is its `PictureFormat`; it is named by format and size in pixels,
+   * and is padding to UEFITool.
+   */
+  | "picture"
+  /**
    * The x86 Startup AP data EDK2's GenFv writes into the pad file before the
    * Volume Top File: a far jump the application processors start at. It is code
    * at a fixed address, so it does not move.

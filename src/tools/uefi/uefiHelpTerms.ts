@@ -86,6 +86,8 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return isECFirmwarePadding(node) ? termId("ec-firmware") : termId("padding");
     case "ecImage":
       return termId("ec-firmware");
+    case "picture":
+      return termId("picture");
     case "fitComponent":
       switch (node.subtype === undefined ? undefined : fitComponentKindOf(node.subtype)) {
         case "startupACM":

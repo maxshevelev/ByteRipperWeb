@@ -32,6 +32,7 @@ import {
   type NvramStoreFill,
   nvramStoreFillOf,
 } from "@/firmware/uefi/nvramStoreFill";
+import { pictureFormatName, readPicture } from "@/firmware/uefi/picture";
 import {
   isIbbKind,
   type ProtectedRange,
@@ -604,6 +605,33 @@ function headerFields(
     // Read in `buildNodeDetail`, which has the block the image sits in.
     case "ecImage":
       break;
+
+    // Read again: the node keeps only its name.
+    case "picture": {
+      const picture = readPicture(node.body.start, node.body.end, reader, true);
+      if (picture === undefined) break;
+      fields.push(
+        field(
+          L("Format"),
+          picture.variant === undefined
+            ? pictureFormatName(picture.format)
+            : `${pictureFormatName(picture.format)} (${picture.variant})`
+        )
+      );
+      fields.push(field(L("Picture size"), `${picture.width} × ${picture.height}`));
+      // A BMP whose header asks for more than its section holds: the rows past the
+      // end are missing from the image.
+      if (picture.declaredLength !== undefined) {
+        fields.push(
+          field(
+            L("Declared size"),
+            L("%1$@ — the section ends earlier", sizeText(picture.declaredLength)),
+            true
+          )
+        );
+      }
+      break;
+    }
 
     // What UEFITool's FIT tab says of the structure, in the header's own words:
     // the fields are Intel's names, and stay in them.

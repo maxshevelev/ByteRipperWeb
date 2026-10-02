@@ -176,7 +176,26 @@ Erased padding is a dump's filler — usually `FF`. The tree hides it unless you
 
 Padding that **holds data** is always listed: something is there, whether or not the parser knows what.
 
+Where the data turns out to be a picture — a JPEG boot logo, for example — it gets a row of its own; see [[term:picture|Picture]]. To UEFITool such a row is still padding.
+
 @see term:free-space
+
+@term picture
+@name Picture
+@short A logo, an icon or a splash screen the firmware keeps as an ordinary image file: JPEG, PNG, GIF or BMP.
+
+Most of a firmware's pictures are the body of a raw [[term:section|section]]: the boot logo, the vendor's splash, the icons of the setup screen, often inside a compressed volume. Some vendors keep the boot logo outside every volume, in [[term:padding|padding]]. The [[topic:tool-uefi|UEFI tool]] recognises all four formats in both places and shows each picture as a row of its own, named by its format and size in pixels, for example `BMP 300×300` or `JPEG 800×480`.
+
+A picture is recognised by its opening bytes and taken only when its structure reads through to the end: a JPEG's segments to the end marker, a PNG's chunks to `IEND`, a GIF's blocks to the trailer, a BMP's header with the size it declares. That walk is also what gives its length, since none of the four states its length in one place.
+
+The details give the format — with `JFIF` or `Exif`, the GIF version or the BMP's bits per pixel — and the size in pixels. **Save … as…** offers a file with the format's own extension, which any image viewer opens.
+
+! A BMP whose header declares more bytes than its section holds is shown as far as the section goes, and the details report the declared size as a problem: the rows past the end are missing from the image. One such logo was found in a Dell dump.
+
+To UEFITool a picture row is padding, and the Type column says so.
+
+@see term:section
+@see term:padding
 
 @term flash-device-map
 @name Insyde flash device map
