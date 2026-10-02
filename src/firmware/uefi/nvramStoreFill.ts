@@ -1,4 +1,5 @@
 import type { ImageReader } from "@/firmware/imageReader";
+import { dvarCopies } from "@/firmware/uefi/dvarParser";
 import { type EFIGUID, guidKey } from "@/firmware/uefi/efiGuid";
 import { isAuthenticatedVss2Variable, NVRAM } from "@/firmware/uefi/nvramParser";
 import type { UEFINode, UEFINodeKind } from "@/firmware/uefi/uefiNode";
@@ -79,6 +80,7 @@ const ENTRY_KINDS: ReadonlySet<UEFINodeKind> = new Set<UEFINodeKind>([
   "sysFEntry",
   "evsaEntry",
   "nvarEntry",
+  "dvarEntry",
 ]);
 
 const isMarked = (entry: UEFINode): boolean =>
@@ -108,6 +110,20 @@ export function nvramStoreFillOf(node: UEFINode, reader: ImageReader): NvramStor
   let current = 0;
   let superseded = 0;
   let deleted = 0;
+  // A DVAR entry's state says which copy is in force, and its variable is read
+  // from its header whatever the tree calls it.
+  if (node.kind === "dvarStore") {
+    const copies = dvarCopies(node, reader);
+    const alive = new Set(
+      copies.filter((copy) => copy.isCurrent).map((copy) => keyOf(copy.name, copy.guid))
+    );
+    for (const copy of copies) {
+      if (copy.isCurrent) current += 1;
+      else if (alive.has(keyOf(copy.name, copy.guid))) superseded += 1;
+      else deleted += 1;
+    }
+    return { size: bodySize, free: Math.min(free, bodySize), current, superseded, deleted };
+  }
   const live = new Set(
     entries
       .filter((entry) => !isMarked(entry) && entry.subtype !== Sub.linkNvarEntry)

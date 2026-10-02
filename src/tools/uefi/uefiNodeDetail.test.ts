@@ -8,6 +8,7 @@ import { repairsForFile } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { guid, guidBytes as guidBytesOf, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { jedecName } from "@/firmware/uefi/jedecIds";
 import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import type { ProtectedRange } from "@/firmware/uefi/protectedRanges";
@@ -16,7 +17,9 @@ import { parseUefiImage, UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { isProblemField, type NodeDetail } from "@/tools/toolDetail";
+import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { buildNodeDetail, HISTORY_ROWS } from "@/tools/uefi/uefiNodeDetail";
+import { nodeName, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 
 /**
  * Ported from upstream's `UEFIDetailTests` and `DescriptorDetailTests`: what the
@@ -1208,6 +1211,51 @@ describe("a variable's history", () => {
     expect(rows[0]?.[0]?.text).toBe("▸ 1");
     expect(rows[1]?.[1]?.text).toBe("10 earlier copies not shown");
     expect(rows.at(-1)?.[0]?.text).toBe("50");
+  });
+});
+
+describe("a Dell DVAR entry", () => {
+  // A Dell variable is a number in a namespace: its row says both, and its detail
+  // the header's fields, each complemented back.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testADvarEntryIsNamedByItsNamespaceAndNumber
+  it("is named by its namespace and number", () => {
+    const namespace = guid("417ACEE0-6FA9-4A82-99D7-F9B1DD271E48");
+    // Stored, NameId and NamespaceGuid, 8-bit fields, attributes 7, id 1, the
+    // GUID, name id 0x40, two bytes of data.
+    const bytes = Uint8Array.from([
+      0xfa,
+      0xf9,
+      0xff,
+      0xf8,
+      0xfe,
+      ...guidBytesOf(namespace),
+      0xbf,
+      0xfd,
+      0x01,
+      0x02,
+    ]);
+    const entry = makeNode({
+      kind: "dvarEntry",
+      subtype: Sub.namespaceGuidDvarEntry,
+      name: "40",
+      guid: namespace,
+      header: r(0, 23),
+      body: r(23, 25),
+      isFixed: true,
+    });
+    const detail = detailOf(entry, bytes);
+
+    expect(nodeName(entry, new GuidsCatalogue(new Map()))).toBe(
+      "417ACEE0-6FA9-4A82-99D7-F9B1DD271E48 · 40"
+    );
+    expect(typeText(entry)).toBe("DVAR entry");
+    expect(subtypeText(entry)).toBe("NamespaceGuid");
+    expect(value(detail, "State")).toBe("0x5 (Stored)");
+    expect(value(detail, "Entry flags")).toBe("0x6 (NameId, NamespaceGuid)");
+    expect(value(detail, "Namespace ID")).toBe("0x1");
+    expect(value(detail, "Name ID")).toBe("0x40");
+    expect(value(detail, "Data size")).toBe("0x2 (2)");
+    expect(uefiHelpTerm(entry)).toBe("dvar");
   });
 });
 

@@ -132,6 +132,11 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     case "nvarEntry":
     case "nvarGuidStore":
       return termId("nvar");
+    // Dell's store names its variables by number, which is what a reader needs
+    // explained.
+    case "dvarStore":
+    case "dvarEntry":
+      return termId("dvar");
     default:
       // A kind nobody has written an entry for: no button, which is the honest
       // answer rather than a `?` that opens nothing.

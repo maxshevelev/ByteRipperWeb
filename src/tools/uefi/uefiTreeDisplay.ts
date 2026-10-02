@@ -239,6 +239,13 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
     }
     return L("Padding file");
   }
+  // A Dell variable is a number in a namespace, and the row says both: the
+  // namespace by its name where the catalogue knows it.
+  if (node.kind === "dvarEntry" && node.guid !== undefined) {
+    const namespace =
+      catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
+    return `${namespace} · ${node.name}`;
+  }
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
@@ -290,6 +297,8 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   flashMapEntry: typeName(ItemType.phoenixFlashMapEntry),
   nvarEntry: typeName(ItemType.nvarEntry),
   nvarGuidStore: typeName(ItemType.nvarGuidStore),
+  dvarStore: typeName(ItemType.dellDvarStore),
+  dvarEntry: typeName(ItemType.dellDvarEntry),
   startupApData: typeName(ItemType.startupApDataEntry),
   flashDeviceMapRegion: L("Flash device map region"),
   ecImage: L("EC firmware image"),

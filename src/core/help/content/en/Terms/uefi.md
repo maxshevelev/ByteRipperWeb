@@ -289,7 +289,7 @@ Where to look:
 @name NVRAM
 @short Where the firmware keeps its settings between boots: setup options, boot order, Secure Boot keys.
 
-NVRAM lives in its own area of the BIOS region, in a format that depends on the firmware vendor. ByteRipper reads the common ones — [[term:vss|VSS/VSS2]], AMI's [[term:nvar|NVAR]], FTW, EVSA, FDC and a few vendor-specific stores — and lists the variables in them.
+NVRAM lives in its own area of the BIOS region, in a format that depends on the firmware vendor. ByteRipper reads the common ones — [[term:vss|VSS/VSS2]], AMI's [[term:nvar|NVAR]], Dell's [[term:dvar|DVAR]], FTW, EVSA, FDC and a few vendor-specific stores — and lists the variables in them.
 
 Two properties of NVRAM are worth noting: the firmware rebuilds most of what it needs when the store is absent, and the store is written on every change rather than only on a firmware update.
 
@@ -297,7 +297,7 @@ For every store, the detail list states how full it is. **In use** and **Free sp
 
 The firmware does not overwrite a variable in place: it appends a new entry and marks the previous one. When the free space is exhausted, it reclaims the store — copies the current entries and erases the rest. A store that is nearly full and consists mostly of superseded entries is therefore close to such a reclaim. If the reclaim is interrupted, for example by a power loss on a board whose firmware does not guard against it, the store may be left damaged.
 
-Until that reclaim the store still holds a variable's earlier values. The detail list of a VSS or NVAR entry shows them under **Variable history**: every copy of the same variable — the same name and GUID — in this store, oldest first, with its address, whether it is current, superseded or the copy the variable was deleted as, the size of its value, and what it changed against the copy before it: the new size, and the offsets within the value of the bytes that differ. The entry in focus is marked ▸. A superseded entry, which the tree calls Invalid as UEFITool does, names its variable in the row **Variable**. A variable written on every boot keeps hundreds of copies; the table lists the latest 40. What a changed byte means is not stated here: the store keeps values, not their meaning.
+Until that reclaim the store still holds a variable's earlier values. The detail list of a VSS, NVAR or DVAR entry shows them under **Variable history**: every copy of the same variable — the same name and GUID — in this store, oldest first, with its address, whether it is current, superseded or the copy the variable was deleted as, the size of its value, and what it changed against the copy before it: the new size, and the offsets within the value of the bytes that differ. The entry in focus is marked ▸. A superseded entry, which the tree calls Invalid as UEFITool does, names its variable in the row **Variable**. A variable written on every boot keeps hundreds of copies; the table lists the latest 40. What a changed byte means is not stated here: the store keeps values, not their meaning.
 
 Stores of default values, such as Insyde's **Variable Defaults**, are written once and are normally full; this is not a defect.
 
@@ -325,6 +325,23 @@ AMI stores its default values in the same format: the `StdDefaults` file and the
 An entry with an extended header may carry a checksum. ByteRipper verifies it and marks the entry when the checksum does not match.
 
 How full a store is, and how many of its entries are superseded, is explained under [[term:nvram|NVRAM]].
+
+@see term:nvram
+@see term:vss
+
+@term dvar
+@name DVAR store
+@short Dell's NVRAM format: variables named by a number within a namespace.
+
+Dell firmware keeps its own settings in a store that begins with the signature `DVAR`, beside or instead of a [[term:vss|VSS]] store. Every field after the signature is stored as its complement, so a value is written by clearing bits, the way a flash chip is programmed.
+
+A DVAR variable has no name of its own. It is a number, the **Name ID**, within a namespace identified by a GUID. An entry that declares a namespace carries the GUID and the number the store files it under, the **Namespace ID**; every other entry refers to its namespace by that number. ByteRipper names each row after the namespace and the Name ID, for example `417ACEE0-6FA9-4A82-99D7-F9B1DD271E48 · 40`.
+
+Each entry has a state: Storing, Stored, Deleting or Deleted. Only a stored entry holds a variable's current value; the others are earlier values or variables that were deleted, and the tree calls them Invalid, as UEFITool does. An entry that declares a namespace is shown as valid whatever its state, because the declaration remains in force; the value it carries is superseded like any other. On one of the dumps examined, two stores follow each other.
+
+What a Name ID stands for is not published. ByteRipper shows the number and the value, not the setting behind them.
+
+How full a store is, and the earlier values of a variable, are explained under [[term:nvram|NVRAM]].
 
 @see term:nvram
 @see term:vss

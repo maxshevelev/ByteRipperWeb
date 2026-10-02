@@ -1,6 +1,7 @@
 import type { ImageRange } from "@/firmware/imageReader";
 import { parseCapsule } from "@/firmware/uefi/capsuleParser";
 import { hasDescriptorSignature, parseIntelImage } from "@/firmware/uefi/descriptorParser";
+import { DVAR, parseDvarStore } from "@/firmware/uefi/dvarParser";
 import { readingECFirmwareIn } from "@/firmware/uefi/ecFirmware";
 import { readingFITComponents } from "@/firmware/uefi/fitComponents";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
@@ -148,9 +149,10 @@ export function scanRawArea(
         dword === FV.signature ||
         dword === Microcode.headerType ||
         dword === FlashDeviceMap.signature ||
+        dword === DVAR.signature ||
         opensPicture(dword)
       ) {
-        const found = elementAtSignature(parser, dword, offset + index, range, depth);
+        const found = elementAtSignature(parser, dword, offset + index, range, emptyByte, depth);
         if (found !== undefined) {
           nodes.push(...parser.padding(claimed, nodeRange(found).start, emptyByte));
           nodes.push(found);
@@ -191,7 +193,7 @@ interface Search {
  * The structures that announce themselves, each by one byte:
  *
  * - `_` of `_FVH`, `0x01` of a microcode header's `HeaderType` and `H` of the flash
- *   device map's `HFDM`;
+ *   device map's `HFDM`, and the `V` of Dell's `DVAR`;
  * - a JPEG opens `FF D8 FF`, and `FF` is what an erased chip is made of, so it is
  *   found by the `D8` after it;
  * - a PNG by its `0x89`, a GIF by its `G`, a BMP by its `B` — and the opening of
@@ -201,6 +203,8 @@ const SEARCHES: readonly Search[] = [
   { byte: FV.signature & 0xff, before: 0 },
   { byte: Microcode.headerType & 0xff, before: 0 },
   { byte: FlashDeviceMap.signature & 0xff, before: 0 },
+  // `DVAR`'s second byte, `V`.
+  { byte: (DVAR.signature >>> 8) & 0xff, before: 1 },
   { byte: 0xd8, before: 1 },
   { byte: PICTURE_SIGNATURES.png & 0xff, before: 0 },
   { byte: PICTURE_SIGNATURES.gif & 0xff, before: 0 },
@@ -220,6 +224,7 @@ function elementAtSignature(
   dword: number,
   offset: number,
   range: ImageRange,
+  emptyByte: number,
   depth: number
 ): UEFINode | undefined {
   if (dword === FV.signature) {
@@ -232,6 +237,7 @@ function elementAtSignature(
   }
   if (dword === Microcode.headerType) return parseMicrocode(parser, offset, range.end);
   if (dword === FlashDeviceMap.signature) return parseFlashDeviceMap(parser, offset, range.end);
+  if (dword === DVAR.signature) return parseDvarStore(parser, offset, range.end, emptyByte);
   // A picture announces itself in a dword, a BMP in two bytes, and its header has
   // to check out field by field before it is one.
   if (opensPicture(dword)) return parsePicture(parser, offset, range.end);

@@ -1,4 +1,5 @@
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { dvarCopies } from "@/firmware/uefi/dvarParser";
 import { type EFIGUID, guidKey } from "@/firmware/uefi/efiGuid";
 import { isDataOnlyEntry, NVAR, readNvarEntryIn } from "@/firmware/uefi/nvarParser";
 import { NVRAM } from "@/firmware/uefi/nvramParser";
@@ -21,7 +22,9 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
  * marked entry `Invalid` as UEFITool does. An NVAR variable is a chain — the
  * first entry carries the name and GUID, later links only data — or a run of
  * whole entries, each superseded one with its valid bit cleared; a superseded
- * entry's name, GUID and value are read as if it were valid.
+ * entry's name, GUID and value are read as if it were valid. A Dell DVAR variable
+ * is a name id in a namespace, and an entry's state says whether it is the copy in
+ * force (`dvarCopies`).
  *
  * The history is the store's, not the image's: the defaults a board keeps in
  * another store are another variable's copies.
@@ -98,7 +101,7 @@ const keyText = (key: Key): string =>
 const sameId = (left: readonly number[], right: readonly number[]): boolean =>
   left.length === right.length && left.every((part, index) => part === right[index]);
 const isVariableEntry = (node: UEFINode): boolean =>
-  node.kind === "vssEntry" || node.kind === "nvarEntry";
+  node.kind === "vssEntry" || node.kind === "nvarEntry" || node.kind === "dvarEntry";
 
 /**
  * The history of the variable `entry` is a copy of, in the store whose entries
@@ -183,6 +186,15 @@ export function variableChange(
 
 /** Every entry of the store that can be told whose copy it is. */
 function copiesIn(store: UEFINode, reader: ImageReader): Copy[] {
+  if (store.kind === "dvarStore") {
+    return dvarCopies(store, reader).map((copy) => ({
+      entry: copy.node.id,
+      offset: copy.node.header.start,
+      key: { name: copy.name, guid: copy.guid },
+      value: copy.node.body,
+      isCurrent: copy.isCurrent,
+    }));
+  }
   const entries = store.children.filter(isVariableEntry);
   const first = entries[0];
   if (first === undefined) return [];

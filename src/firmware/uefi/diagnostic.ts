@@ -158,7 +158,14 @@ export type DiagnosticKind =
    * read (§5.5). Its checksums are not checked: the firmware does not take the
    * file.
    */
-  | { readonly kind: "fileHeaderMarkedInvalid"; readonly state: number };
+  | { readonly kind: "fileHeaderMarkedInvalid"; readonly state: number }
+  /**
+   * A Dell DVAR entry of a state, flags or type the format is not known to use:
+   * the rest of the store is kept as padding (§9).
+   */
+  | { readonly kind: "unknownDvarEntry" }
+  /** A DVAR variable whose namespace id no entry of the store declares. */
+  | { readonly kind: "dvarNamespaceMissing" };
 
 /**
  * Where a diagnostic raised inside a compressed section really is: an offset in
@@ -328,6 +335,10 @@ function kindMessage(detail: DiagnosticKind): string {
       );
     case "nonUEFIDataInPadFile":
       return "padding file holds data that is not UEFI";
+    case "unknownDvarEntry":
+      return "DVAR entry of an unknown state, flags or type; the store is kept as padding from here";
+    case "dvarNamespaceMissing":
+      return "DVAR variable names a namespace no entry of the store declares";
     case "fileHeaderMarkedInvalid":
       return `file state ${hex(detail.state)} marks its header invalid; its checksums are not checked`;
     case "unreadableNvarEntry":

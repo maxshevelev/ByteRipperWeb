@@ -407,7 +407,9 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/DescriptorGenerationTests.swift": "src/firmware/uefi/descriptorGeneration.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/FileStateTests.swift": "src/firmware/uefi/fileState.test.ts",
         "NvramVariableHistory.swift": "src/firmware/uefi/nvramVariableHistory.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift": "src/firmware/uefi/nvramVariableHistory.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift": "src/firmware/uefi/nvramVariableHistory.test.ts",
+        "DvarParser.swift": "src/firmware/uefi/dvarParser.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/DvarParserTests.swift": "src/firmware/uefi/dvarParser.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -740,6 +742,8 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onExportDecompressed": "n/a — the row menu is built where it is opened and calls the command directly; there is no view controller between the two",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenDecompressed": "n/a — the row menu is built where it is opened and calls the command directly; there is no view controller between the two",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenRowsChanged": "n/a — the open rows are the panel's own and travel in its parked session state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.listedChildren": "n/a — AppKit asks an outline for a branch's children one index at a time; the panel's virtual list is given a branch whole",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.sameStorage": "n/a — the guard of that cache",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openRows": "n/a — as onOpenRowsChanged: upstream keeps them on the pane, and here they belong to the panel",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.restoreOpenRows": "n/a — as onOpenRowsChanged: the panel seeds its open rows from the state it was handed",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showBusy": "n/a — the busy and notice lines are rendered from state",

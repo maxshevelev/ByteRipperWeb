@@ -1,4 +1,4 @@
-@source-sha d3ee25e95ea525f7a8931f37fa5eaa02842d85b24a7bc16b58fa28671409544d
+@source-sha 978293bd4f89ae3caaf818a3b8d1db0e2a3d06815f85d6d973ca62b9fa8c4d4f
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -290,7 +290,7 @@ Wo zu suchen ist:
 @name NVRAM
 @short Wo die Firmware ihre Einstellungen zwischen zwei Starts ablegt: Setup-Optionen, Boot-Reihenfolge, Secure-Boot-Schlüssel.
 
-NVRAM liegt in einem eigenen Bereich der BIOS-Region, in einem Format, das vom Firmware-Hersteller abhängt. ByteRipper liest die gängigen — [[term:vss|VSS/VSS2]], [[term:nvar|NVAR]] von AMI, FTW, EVSA, FDC und einige herstellereigene — und führt die Variablen darin auf.
+NVRAM liegt in einem eigenen Bereich der BIOS-Region, in einem Format, das vom Firmware-Hersteller abhängt. ByteRipper liest die gängigen — [[term:vss|VSS/VSS2]], [[term:nvar|NVAR]] von AMI, [[term:dvar|DVAR]] von Dell, FTW, EVSA, FDC und einige herstellereigene — und führt die Variablen darin auf.
 
 Zwei Eigenschaften des NVRAM sind festzuhalten: Fehlenden Inhalt legt die Firmware größtenteils neu an, und geschrieben wird er bei jeder Änderung von Einstellungen und nicht nur bei einem Firmware-Update.
 
@@ -298,7 +298,7 @@ Für jeden Speicher gibt die Detailliste an, wie weit er gefüllt ist. **Belegt*
 
 Die Firmware überschreibt eine Variable nicht an Ort und Stelle: Sie hängt einen neuen Eintrag an und kennzeichnet den bisherigen. Ist der freie Platz erschöpft, bereinigt sie den Speicher — sie kopiert die gültigen Einträge und löscht den Rest. Ein nahezu voller Speicher, der überwiegend aus ersetzten Einträgen besteht, steht daher kurz vor einer solchen Bereinigung. Wird sie unterbrochen, etwa durch einen Stromausfall auf einem Board, dessen Firmware diesen Fall nicht absichert, kann der Speicher beschädigt zurückbleiben.
 
-Bis zu dieser Bereinigung enthält der Speicher also auch die früheren Werte einer Variablen. Die Detailliste eines VSS- oder NVAR-Eintrags zeigt sie unter **Verlauf der Variable**: jede Kopie derselben Variablen — mit demselben Namen und derselben GUID — in diesem Speicher, die älteste zuerst. Zu jeder Kopie stehen ihre Adresse, ihr Zustand — aktuell, ersetzt oder die Kopie, als die die Variable gelöscht wurde —, die Größe ihres Werts und das, was sie gegenüber der vorigen Kopie geändert hat: die neue Größe und die Offsets der abweichenden Bytes innerhalb des Werts. Der ausgewählte Eintrag ist mit ▸ markiert. Ein ersetzter Eintrag, den der Baum wie UEFITool Invalid nennt, nennt seine Variable in der Zeile **Variable**. Eine Variable, die bei jedem Start geschrieben wird, liegt in Hunderten von Kopien vor; die Tabelle zeigt die letzten 40. Was ein geändertes Byte bedeutet, steht hier nicht: Der Speicher enthält Werte, nicht ihre Bedeutung.
+Bis zu dieser Bereinigung enthält der Speicher also auch die früheren Werte einer Variablen. Die Detailliste eines VSS-, NVAR- oder DVAR-Eintrags zeigt sie unter **Verlauf der Variable**: jede Kopie derselben Variablen — mit demselben Namen und derselben GUID — in diesem Speicher, die älteste zuerst. Zu jeder Kopie stehen ihre Adresse, ihr Zustand — aktuell, ersetzt oder die Kopie, als die die Variable gelöscht wurde —, die Größe ihres Werts und das, was sie gegenüber der vorigen Kopie geändert hat: die neue Größe und die Offsets der abweichenden Bytes innerhalb des Werts. Der ausgewählte Eintrag ist mit ▸ markiert. Ein ersetzter Eintrag, den der Baum wie UEFITool Invalid nennt, nennt seine Variable in der Zeile **Variable**. Eine Variable, die bei jedem Start geschrieben wird, liegt in Hunderten von Kopien vor; die Tabelle zeigt die letzten 40. Was ein geändertes Byte bedeutet, steht hier nicht: Der Speicher enthält Werte, nicht ihre Bedeutung.
 
 Speicher mit Standardwerten, etwa die **Variable Defaults** von Insyde, werden einmalig beschrieben und sind in der Regel vollständig belegt; ein Defekt ist das nicht.
 
@@ -326,6 +326,23 @@ Im selben Format legt AMI die Standardwerte ab: in der Datei `StdDefaults` sowie
 Ein Eintrag mit erweitertem Header kann eine Prüfsumme enthalten. ByteRipper prüft sie und kennzeichnet den Eintrag, wenn sie nicht übereinstimmt.
 
 Wie der Füllstand eines Speichers und die Zahl seiner ersetzten Einträge ermittelt werden, erläutert der Eintrag [[term:nvram|NVRAM]].
+
+@see term:nvram
+@see term:vss
+
+@term dvar
+@name DVAR-Speicher
+@short Das NVRAM-Format von Dell: Variablen, die durch eine Nummer innerhalb eines Namensraums bezeichnet werden.
+
+Dell-Firmware legt ihre eigenen Einstellungen in einem Speicher ab, der mit der Signatur `DVAR` beginnt — neben einem [[term:vss|VSS]]-Speicher oder an seiner Stelle. Jedes Feld nach der Signatur ist als Komplement gespeichert; ein Wert wird also durch Löschen von Bits geschrieben, so wie ein Flash-Chip programmiert wird.
+
+Eine DVAR-Variable hat keinen eigenen Namen. Sie ist eine Nummer, die **Name ID**, innerhalb eines Namensraums, der durch eine GUID bezeichnet ist. Ein Eintrag, der einen Namensraum deklariert, enthält dessen GUID und die Nummer, unter der der Speicher ihn führt, die **Namespace ID**; alle übrigen Einträge verweisen über diese Nummer auf ihren Namensraum. ByteRipper benennt jede Zeile nach Namensraum und Name ID, etwa `417ACEE0-6FA9-4A82-99D7-F9B1DD271E48 · 40`.
+
+Jeder Eintrag hat einen Zustand: Storing, Stored, Deleting oder Deleted. Nur ein Eintrag im Zustand Stored enthält den aktuellen Wert einer Variablen; die übrigen sind frühere Werte oder gelöschte Variablen, und der Baum nennt sie wie UEFITool Invalid. Ein Eintrag, der einen Namensraum deklariert, wird unabhängig von seinem Zustand als gültig angezeigt, weil die Deklaration weiter gilt; der Wert, den er trägt, wird wie jeder andere ersetzt. Auf einem der untersuchten Dumps folgen zwei Speicher aufeinander.
+
+Wofür eine Name ID steht, ist nicht veröffentlicht. ByteRipper zeigt die Nummer und den Wert, nicht die Einstellung dahinter.
+
+Wie voll ein Speicher ist und welche früheren Werte eine Variable hatte, ist unter [[term:nvram|NVRAM]] erklärt.
 
 @see term:nvram
 @see term:vss

@@ -143,6 +143,54 @@ function withListedRanges(
 }
 
 /**
+ * The header the reference prints for a DVAR entry: the state by its name, the
+ * flags and type, the namespace id it is filed under, the name id and the data
+ * size.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.dvarFields
+ */
+function dvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
+  const h = node.header.start;
+  const raw = reader.bytesAt(h, 5);
+  if (raw === undefined) return [];
+  const state = 0xff - (raw[0] ?? 0);
+  const flags = 0xff - (raw[1] ?? 0);
+  const type = 0xff - (raw[2] ?? 0);
+  const stateNames: Readonly<Record<number, string>> = {
+    1: "Storing",
+    5: "Stored",
+    21: "Deleting",
+    85: "Deleted",
+  };
+  const stateName = stateNames[state];
+  const fields: DetailField[] = [
+    field("State", stateName === undefined ? hex(state) : `${hex(state)} (${stateName})`),
+    field(
+      "Entry flags",
+      bits(flags, [
+        [0x02, "NameId"],
+        [0x04, "NamespaceGuid"],
+      ])
+    ),
+    field("Type", hex(type)),
+    field("Attributes", hex(0xff - (raw[3] ?? 0))),
+    field("Namespace ID", hex(0xff - (raw[4] ?? 0))),
+  ];
+  // Past the namespace's GUID, when the entry declares one, the name id and the
+  // data size, one or two bytes each by the type.
+  let cursor = h + 5 + ((flags & 0x04) !== 0 ? 16 : 0);
+  const wideName = type !== 0x00;
+  const wideSize = type === 0x05;
+  const nameId = wideName ? reader.uint16(cursor) : reader.uint8(cursor);
+  if (nameId !== undefined) fields.push(field("Name ID", hex((wideName ? 0xffff : 0xff) - nameId)));
+  cursor += wideName ? 2 : 1;
+  const size = wideSize ? reader.uint16(cursor) : reader.uint8(cursor);
+  if (size !== undefined)
+    fields.push(field("Data size", sizeText((wideSize ? 0xffff : 0xff) - size)));
+  return fields;
+}
+
+/**
  * `$BME$`'s ranges, which are offsets into the BIOS region, as addresses in the
  * file, and the node each one is exactly — the BVDT's own region, a volume —
  * where one is. What the list is for is not known, so the table says where and
@@ -241,16 +289,26 @@ function withVariableHistory(
   image: UEFIImage,
   reader: ImageReader
 ): NodeDetail {
-  if ((node.kind !== "vssEntry" && node.kind !== "nvarEntry") || node.id.length === 0) {
+  if (
+    (node.kind !== "vssEntry" && node.kind !== "nvarEntry" && node.kind !== "dvarEntry") ||
+    node.id.length === 0
+  ) {
     return detail;
   }
   const store = image.node(node.id.slice(0, -1));
   if (store === undefined) return detail;
   const history = variableHistoryOf(node, store, reader);
   const variable = history ?? variableOf(node, store, reader);
+  // A Dell variable is a number, and only its namespace says whose.
+  const variableText =
+    variable === undefined
+      ? undefined
+      : node.kind === "dvarEntry" && variable.guid !== undefined
+        ? `${guidText(variable.guid)} · ${variable.name}`
+        : variable.name;
   const fields =
-    variable !== undefined && variable.name !== node.name
-      ? [...detail.fields, field(L("Variable"), variable.name)]
+    variable !== undefined && variableText !== undefined && variable.name !== node.name
+      ? [...detail.fields, field(L("Variable"), variableText)]
       : detail.fields;
   if (history === undefined) return { ...detail, fields };
   return { ...detail, fields, tables: [historyTable(history, node.id, reader), ...detail.tables] };
@@ -834,6 +892,17 @@ function headerFields(
       fields.push(...nvarFields(node, reader));
       break;
 
+    // Every DVAR field is stored as its complement; these are the values.
+    case "dvarStore": {
+      const flags = reader.uint8(h + 8);
+      if (flags !== undefined) fields.push(field("Store flags", hex(0xff - flags)));
+      break;
+    }
+
+    case "dvarEntry":
+      fields.push(...dvarFields(node, reader));
+      break;
+
     case "nvarGuidStore":
       fields.push(
         field("GUIDs", `${Math.floor((node.body.end - node.body.start) / NVAR.guidSize)}`)
@@ -1399,6 +1468,7 @@ function typeText(node: UEFINode): string {
     case "evsaEntry":
     case "flashMapEntry":
     case "nvarEntry":
+    case "dvarEntry":
     case "startupApData":
     case "slicData":
       return subtypeName(itemType(node), subtype) ?? hex(subtype);

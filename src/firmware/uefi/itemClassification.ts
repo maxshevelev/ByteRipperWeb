@@ -39,6 +39,8 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   flashMapEntry: ItemType.phoenixFlashMapEntry,
   nvarEntry: ItemType.nvarEntry,
   nvarGuidStore: ItemType.nvarGuidStore,
+  dvarStore: ItemType.dellDvarStore,
+  dvarEntry: ItemType.dellDvarEntry,
   flashDeviceMapStore: ItemType.insydeFlashDeviceMapStore,
   flashDeviceMapEntry: ItemType.insydeFlashDeviceMapEntry,
   startupApData: ItemType.startupApDataEntry,
@@ -100,6 +102,7 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "flashMapStore":
     case "evsaStore":
     case "cmdbStore":
+    case "dvarStore":
       return undefined;
     // An entry and a SLIC blob carry the subtype the parser derived — the byte
     // is not on the node, the parser worked it out from the header.
@@ -109,6 +112,7 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "evsaEntry":
     case "flashMapEntry":
     case "nvarEntry":
+    case "dvarEntry":
       return node.subtype;
     case "nvarGuidStore":
       return undefined;
