@@ -52,7 +52,13 @@ export interface NvramVariableHistory {
  */
 export type NvramVariableState = "current" | "superseded" | "deleted";
 
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version */
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version.entry
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version.offset
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version.value
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Version.state
+ */
 export interface NvramVariableVersion {
   /** The entry the copy is. */
   readonly entry: readonly number[];
@@ -67,6 +73,9 @@ export interface NvramVariableVersion {
  * What one copy changed against the copy before it.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change.oldSize
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change.newSize
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Change.changed
  */
 export interface NvramVariableChange {
   readonly oldSize: number;

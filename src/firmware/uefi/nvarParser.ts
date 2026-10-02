@@ -32,45 +32,65 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
  */
 export const NVAR = {
   /** `NVAR`. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.signature
   signature: 0x5241_564e,
   /**
    * The byte the reference's walk decides on: an entry starts here, or the
    * store has ended.
    */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.signatureFirst
   signatureFirst: 0x4e,
   /** Signature, a 16-bit size, a 24-bit `next` and the attributes byte. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.headerSize
   headerSize: 10,
   /** A `next` with every bit set is the end of a chain. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.noNext
   noNext: 0xff_ffff,
 
   // The attribute bits (`NVRAM_NVAR_ENTRY_*`).
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.runtime
   runtime: 0x01,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.asciiName
   asciiName: 0x02,
   /** The GUID is in the entry, not an index into the store's GUID table. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.localGuid
   localGuid: 0x04,
   /** No GUID and no name: a later link of a chain. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.dataOnly
   dataOnly: 0x08,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.extendedHeader
   extendedHeader: 0x10,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.hwErrorRecord
   hwErrorRecord: 0x20,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.authWrite
   authWrite: 0x40,
   /** Cleared when the firmware supersedes the entry. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.valid
   valid: 0x80,
 
   // The extended attribute bits (`NVRAM_NVAR_ENTRY_EXT_*`).
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.extendedChecksum
   extendedChecksum: 0x01,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.extendedAuthWrite
   extendedAuthWrite: 0x10,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.extendedTimeBased
   extendedTimeBased: 0x20,
 
   /**
    * The extended header ends in its own 16-bit size, and is at least its
    * attributes byte and that size to count as one.
    */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.extendedHeaderMinimum
   extendedHeaderMinimum: 3,
   /** The checksum, when there is one, is the byte before the size. */
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.extendedChecksumMinimum
   extendedChecksumMinimum: 4,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.timestampSize
   timestampSize: 8,
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.hashSize
   hashSize: 32,
 
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#NVAR.guidSize
   guidSize: 16,
 } as const;
 
@@ -91,6 +111,15 @@ interface NvarLink {
  * header.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.attributes
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.dataStart
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.end
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.extendedStart
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.guidIndex
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.localGuid
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.next
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.offset
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.text
  */
 export interface NvarEntry {
   readonly offset: number;
@@ -106,7 +135,9 @@ export interface NvarEntry {
   readonly text: string | undefined;
 }
 
+// @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.isValid
 const isValidEntry = (entry: NvarEntry): boolean => (entry.attributes & NVAR.valid) !== 0;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/NvarParser.swift#Parser.NvarEntry.isDataOnly
 export const isDataOnlyEntry = (entry: NvarEntry): boolean =>
   (entry.attributes & NVAR.dataOnly) !== 0;
 

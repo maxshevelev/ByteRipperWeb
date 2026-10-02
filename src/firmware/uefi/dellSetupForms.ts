@@ -41,7 +41,11 @@ export const BINDS_VARIABLE = 0x1d;
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.pe32Section */
 export const PE32_SECTION = 0x10;
 
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Key */
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Key
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Key.namespace
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Key.nameId
+ */
 export interface DellSetupKey {
   readonly namespace: EFIGUID;
   readonly nameId: number;
@@ -50,7 +54,11 @@ export interface DellSetupKey {
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.Kind */
 export type DellSetupKind = "checkbox" | "oneOf" | "numeric" | "string" | "other";
 
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.Option */
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.Option
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.Option.value
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.Option.text
+ */
 export interface DellSetupOption {
   readonly value: bigint;
   readonly text: string;
@@ -60,6 +68,12 @@ export interface DellSetupOption {
  * One Setup question, as its page shows it.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.prompt
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.keyword
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.help
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.form
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.kind
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.options
  */
 export interface DellSetupSetting {
   /** The line on the page, in English. */
@@ -232,6 +246,11 @@ export function dellSettingsIn(bytes: Uint8Array): Map<string, DellSetupSetting>
 
 // MARK: - HII string packages
 
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.StringPackage
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.StringPackage.language
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.StringPackage.strings
+ */
 interface StringPackage {
   readonly language: string;
   readonly strings: Map<number, string>;
@@ -391,11 +410,17 @@ function stringBlocks(
 
 // MARK: - IFR form packages
 
+// @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.formSetOp
 const FORM_SET_OP = 0x0e;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.formOp
 const FORM_OP = 0x01;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.oneOfOptionOp
 const ONE_OF_OPTION_OP = 0x09;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.guidOp
 const GUID_OP = 0x5f;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.endOp
 const END_OP = 0x29;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.questionKinds
 const QUESTION_KINDS: ReadonlyMap<number, DellSetupKind> = new Map([
   [0x05, "oneOf"],
   [0x06, "checkbox"],
@@ -438,6 +463,15 @@ function formPackages(bytes: Uint8Array): { start: number; end: number }[] {
   return found;
 }
 
+/**
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question.prompt
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question.help
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question.form
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question.kind
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question.keys
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Question.options
+ */
 interface Question {
   readonly prompt: number;
   readonly help: number;

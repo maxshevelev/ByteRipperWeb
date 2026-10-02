@@ -307,6 +307,7 @@ export function walkStores(
  * A run of bytes between NVRAM stores. All the erase byte is free space;
  * anything in it is padding somebody put there.
  */
+// @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.nvramPadding
 export function nvramPadding(
   parser: Parser,
   start: number,

@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "f60164cef858ca1aa423c5617e8cd27d57178a48",
-  "baselineNote": "Stop a group whose test host hangs in its exit, and run one group alone (2026-09-30)"
+  "baseCommit": "0bf5fb35d27721dc8d86255e14821de5caa202a8",
+  "baselineNote": "Name Dell's DVAR variables from Setup, and hide superseded copies (2026-10-02)"
 }

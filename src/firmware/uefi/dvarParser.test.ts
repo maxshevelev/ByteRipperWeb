@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { ImageReader } from "@/firmware/imageReader";
 import { DVAR } from "@/firmware/uefi/dvarParser";
-import { guid, guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
+import { guid, guidBytes, guidEquals, guidKey } from "@/firmware/uefi/efiGuid";
 import { itemType } from "@/firmware/uefi/itemClassification";
+import { nvramStoreFillOf } from "@/firmware/uefi/nvramStoreFill";
+import { variableHistoryOf, variableOf } from "@/firmware/uefi/nvramVariableHistory";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
-import { nodeRange } from "@/firmware/uefi/uefiNode";
+import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { ItemType, Sub } from "@/firmware/uefi/uefiTypes";
 
 /**
@@ -138,5 +141,64 @@ describe("a DVAR store", () => {
       store === undefined ? undefined : nodeRange(store).end
     );
     expect(image.diagnostics.map((one) => one.detail)).toEqual([{ kind: "unknownDvarEntry" }]);
+  });
+
+  // A signature that is not a store — a size that does not fit what is left, or
+  // entries that run past the store — is not a store, and no defect either.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DvarParserTests.swift#DvarParserTests.testASignatureThatIsNotAStoreLeavesNothing
+  it("leaves nothing of a signature that is not a store", () => {
+    const tooBig = dvarStore([], 0x20);
+    tooBig[4] = 0x00; // a size far past the area
+    expect(parse(tooBig).store).toBeUndefined();
+    const cut = dvarStore(
+      [
+        dvarEntry({
+          state: DVAR.stored,
+          declares: true,
+          nameId: 1,
+          data: new Array<number>(40).fill(0),
+        }),
+      ],
+      0x30
+    );
+    const parsed = parse(cut);
+    expect(parsed.store).toBeUndefined();
+    expect(parsed.image.diagnostics).toEqual([]);
+  });
+
+  // A copy is current when its state is stored; the others are its history, the
+  // declaration's value among them.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DvarParserTests.swift#DvarParserTests.testTheStoresCopiesAreCountedAndAreAHistory
+  it("counts a store's copies and keeps them as a history", () => {
+    const bytes = Uint8Array.from(
+      dvarStore([
+        dvarEntry({ state: DVAR.deleted, declares: true, nameId: 0x40, data: [1] }),
+        dvarEntry({ state: DVAR.deleted, nameId: 0x40, data: [2] }),
+        dvarEntry({ state: DVAR.stored, nameId: 0x40, data: [3] }),
+        dvarEntry({ state: DVAR.deleted, nameId: 0x50, data: [4] }),
+      ])
+    );
+    const image = parseUefiImage(sourceOver(bytes));
+    const store = image.allNodes.find((node) => node.kind === "dvarStore") as UEFINode;
+    const reader = new ImageReader(sourceOver(bytes));
+    const fill = nvramStoreFillOf(store, reader);
+    expect([fill?.current, fill?.superseded, fill?.deleted]).toEqual([1, 2, 1]);
+
+    const history = variableHistoryOf(store.children[1] as UEFINode, store, reader);
+    expect(history?.name).toBe("40");
+    expect(history?.guid === undefined ? undefined : guidKey(history.guid)).toBe(
+      guidKey(NAMESPACE)
+    );
+    expect(history?.versions.map((one) => one.state)).toEqual([
+      "superseded",
+      "superseded",
+      "current",
+    ]);
+    expect(history?.versions.map((one) => [...(reader.bytes(one.value) ?? [])])).toEqual([
+      [1],
+      [2],
+      [3],
+    ]);
+    expect(variableOf(store.children[3] as UEFINode, store, reader)?.name).toBe("50");
   });
 });

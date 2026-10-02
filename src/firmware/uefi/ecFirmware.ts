@@ -60,7 +60,9 @@ export const ecImageName = (image: ECImage): string =>
   image.vendor.kind === "ite" ? image.vendor.identification : "Microchip MEC image";
 
 /** `PHCM`, `MCHP` reversed: the header Microchip's MEC boot ROM reads. */
+// @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.microchipSignature
 const MICROCHIP_SIGNATURE = 0x4d43_4850;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.step
 const STEP = 0x1000;
 
 const sameVendor = (left: ECVendor, right: ECVendor): boolean =>

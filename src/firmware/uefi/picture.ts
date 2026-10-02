@@ -105,8 +105,11 @@ export const opensPicture = (dword: number): boolean =>
   (dword & 0xffff) === PICTURE_SIGNATURES.bmp;
 
 /** Larger than any picture a firmware keeps: a walk past it is not one. */
+// @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.largest
 const LARGEST = 0x100_0000;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.largestSide
 const LARGEST_SIDE = 0x4000;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.maxBlocks
 const MAX_BLOCKS = 0x1_0000;
 /** What every format's opening needs before anything else is read. */
 const HEAD = 34;

@@ -60,17 +60,23 @@ export const fitComponentName = (kind: FITComponentKind): string =>
   })[kind];
 
 /** `__KEYM__`. */
+// @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.keyManifestID
 const KEY_MANIFEST_ID = 0x5f5f_4d59_454b_5f5fn;
 /** `__ACBP__`, `__IBBS__`, `__PMDA__`, `__PMSG__`: the Boot Policy's own, as eight bytes. */
 const BOOT_POLICY_ID = 0x5f5f_5042_4341_5f5fn;
 const IBBS = 0x5f5f_5342_4249_5f5fn;
 const PMDA = 0x5f5f_4144_4d50_5f5fn;
 const PMSG = 0x5f5f_4753_4d50_5f5fn;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.acmModuleType
 const ACM_MODULE_TYPE = 0x0002;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.intelVendor
 const INTEL_VENDOR = 0x8086;
 /** Larger than any of them is: a length past it is not a length. */
+// @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.largestManifest
 const LARGEST_MANIFEST = 0x1_0000;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.largestACM
 const LARGEST_ACM = 0x10_0000;
+// @upstream Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.rowSize
 const ROW_SIZE = 16;
 
 /**

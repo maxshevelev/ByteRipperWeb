@@ -152,7 +152,11 @@ export function nvarStore(
   return join(body, new Uint8Array(free).fill(options.emptyByte ?? 0xff), table.bytes);
 }
 
-/** An FFSv2 volume holding one raw file whose body is `body`. */
+/**
+ * An FFSv2 volume holding one raw file whose body is `body`.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/TestNVAR.swift#TestNVAR.volume
+ */
 export function nvarVolume(options: {
   readonly fileGuid?: EFIGUID;
   readonly body: Uint8Array;

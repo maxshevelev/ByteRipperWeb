@@ -300,7 +300,10 @@
         "src/firmware/testing/testNvar.ts",
         "src/firmware/testing/testInsyde.ts",
         "src/firmware/testing/testPicture.ts",
-        "src/firmware/testing/testDellSetup.ts"
+        "src/firmware/testing/testDellSetup.ts",
+        "src/workers/protocol.ts",
+        "src/state/firmwareStore.ts",
+        "src/workers/firmware.worker.ts"
       ],
       "status": "done",
       "note": "Across whole at M8, with every one of its tests. Swift's protocol extensions become free functions taking a Parser, which is the same layering with the syntax the language has. Two divergences worth knowing. Reads are synchronous here as they are there, which is why parsing belongs in a worker: a worker has FileReaderSync, so six thousand lines written against synchronous reads port as they stand. And words are assembled by multiplication rather than by shifting, because JavaScript's bitwise operators are 32-bit — a dword with its top bit set comes back negative from a shift. Eight-byte fields are exact to 2^53 (every real offset and size) with a bigint path where the bits matter. Upstream's tests came across with the fixtures they need (TestImage.swift), which is what a port of a parser is checked by. One divergence the port had to find for itself: the raw-area scan finds its candidates with Uint8Array.indexOf rather than by stepping a dword along, because a loop that runs once per byte of a 32 MB image is the whole cost of a parse — measured 65 ms, then 52 with a rolled dword, then 25 with the native search (16 MB, synthetic worst case). And FV's constants live in a leaf module of their own: the scan and the volume parser import each other, which is fine for functions and not for a constant read at module load.",
@@ -415,6 +418,12 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/DellSetupFormsTests.swift": [
           "src/firmware/uefi/dellSetupForms.test.ts",
           "src/firmware/testing/testDellSetup.ts"
+        ],
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift": [
+          "src/firmware/uefi/treeInvalidation.ts",
+          "src/state/firmwareStore.ts",
+          "src/workers/firmware.worker.ts",
+          "src/workers/protocol.ts"
         ]
       },
       "unported": {
@@ -448,7 +457,15 @@
         "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.adding": "n/a — the parse builds the image with its ranges rather than copying one to add them",
         "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRangeReading.init": "n/a — the reading's constructor takes the same two values the class holds",
         "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRange.Digest.algorithmName": "n/a — the name of an algorithm id is tcgHashName, read where a panel shows it rather than off the digest",
-        "Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#TestBootGuard.sha384": "n/a — the ported tests call sha384 from the ME digests directly; there is nothing for a one-line helper to wrap"
+        "Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#TestBootGuard.sha384": "n/a — the ported tests call sha384 from the ME digests directly; there is nothing for a one-line helper to wrap",
+        "Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Key.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.Option.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/UEFIImage/Sources/UEFIImage/DellSetupForms.swift#DellSetup.Setting.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/UEFIImage/Sources/UEFIImage/FITComponents.swift#FITComponent.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.isTruncated": "n/a — a computed property, read where it is used as `declaredLength !== undefined`",
+        "Packages/UEFIImage/Sources/UEFIImage/TopSwap.swift#TopSwapCopy.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/UEFIImage/Tests/UEFIImageTests/RootLayoutTests.swift#RootLayoutTests.testALazyTreeReadsItsRootByItsLayout": "n/a — there is no LazyUEFITree here; the worker answers layouts (`layoutOf`), tested in rootLayout.test.ts"
       }
     },
     {
@@ -727,7 +744,9 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift": "src/tools/uefi/uefiTopSwap.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/ECImageDisplayTests.swift": "src/tools/uefi/ecImageDisplay.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/FITComponentDisplayTests.swift": "src/tools/uefi/fitComponentDisplay.test.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/PictureDisplayTests.swift": "src/tools/uefi/pictureDisplay.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/PictureDisplayTests.swift": "src/tools/uefi/pictureDisplay.test.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/NodeOpenTests.swift": "src/tools/uefi/nodeOpen.test.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift": "src/tools/uefi/uefiHelpTerms.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
@@ -772,7 +791,10 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenMERegion": "n/a — the callbacks between upstream's controller and its session; the panel is both here, so the open and its ending are one effect",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onMERegionLoading": "n/a — the callbacks between upstream's controller and its session; the panel is both here, so the open and its ending are one effect",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.meRegionOpening": "n/a — the placeholder's clock is the same timer every held-shut row uses (uefiStructureTool.toggle)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMERegion": "n/a — the open and the selection it settles on are the landing effect in uefiStructureTool"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMERegion": "n/a — the open and the selection it settles on are the landing effect in uefiStructureTool",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onGoToTopSwapCounterpart": "n/a — the row menu is built where it is opened and calls the command directly; there is no view controller between the two",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSaveNode": "n/a — the row menu is built where it is opened and calls the command directly; there is no view controller between the two"
       }
     },
     {
@@ -871,7 +893,8 @@
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.Row.*": "n/a — the fields of the web fixture's TestRow",
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#BinaryWriter*": "n/a — the web fixtures write their bytes through local helpers of their own",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewColumnDidResize": "n/a — AppKit table column resizing",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "n/a — upstream's tree calls the session back when the ranges land; the panel here reads them from the firmware store, which re-renders on its own"
+        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "n/a — upstream's tree calls the session back when the ranges land; the panel here reads them from the firmware store, which re-renders on its own",
+        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors"
       }
     },
     {
@@ -906,7 +929,8 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.endBusy": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.say": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to"
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to",
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors"
       }
     },
     {
@@ -937,7 +961,9 @@
       },
       "unported": {
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
-        "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.init": "n/a — an object literal"
+        "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.init": "n/a — an object literal",
+        "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testEveryHelpTermANodeNamesIsInTheGlossary": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
+        "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheFirmwareAndPartitionTableRowsExplainThemselves": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's"
       }
     },
     {
@@ -1553,7 +1579,10 @@
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.draggingEnded": "n/a — AppKit ends a drag twice, on exit and on end; a browser fires dragleave for the one and nothing for the other, and the drop handler takes the zone down itself",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneCaption": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneIsRefusing": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided"
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneIsRefusing": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.helpButtonFrameInHeader": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.shownHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React"
       }
     },
     {
@@ -1674,7 +1703,12 @@
         "ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.draggedRow": "n/a — AppKit view plumbing",
         "ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.*ForTests": "n/a — AppKit view plumbing",
         "ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.cellForTests": "n/a — AppKit view plumbing",
-        "ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.messageForTests": "n/a — AppKit view plumbing"
+        "ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.messageForTests": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.fitToCurrentTab": "n/a — AppKit's settings window; the web's Settings is a dialog component",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.label": "n/a — AppKit's settings window; the web's Settings is a dialog component",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.language": "n/a — AppKit's settings window; the web's Settings is a dialog component",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.tabIdentifiers": "n/a — AppKit's settings window; the web's Settings is a dialog component",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbarLabels": "n/a — AppKit's settings window; the web's Settings is a dialog component"
       },
       "files": {
         "ByteRipperApp/Settings/AppearanceSettings.swift": "",
@@ -1772,7 +1806,8 @@
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.resolveAndStartAccess": "n/a — the macOS sandbox's security-scoped bookmarks",
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.load": "n/a — the macOS sandbox's security-scoped bookmarks",
         "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.loadOrder": "n/a — the macOS sandbox's security-scoped bookmarks",
-        "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.pruneNow": "n/a — the macOS sandbox's security-scoped bookmarks"
+        "ByteRipperApp/Documents/SandboxBookmarkStore.swift#SandboxBookmarkStore.pruneNow": "n/a — the macOS sandbox's security-scoped bookmarks",
+        "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.cancelButton": "n/a — an AppKit sheet's button; the web's dialogs own theirs"
       }
     },
     {
@@ -1822,7 +1857,8 @@
         "src/ui/shell/Toolbar.tsx",
         "src/ui/shell/MenuButton.tsx",
         "src/ui/shell/AboutDialog.tsx",
-        "src/state/aboutStore.ts"
+        "src/state/aboutStore.ts",
+        "src/ui/shell/desktopMenu.ts"
       ],
       "status": "in-progress",
       "note": "MainMenu.swift is the one to watch: a web page has no menu bar, so its File, Edit and View submenus are one popup behind a button at the head of the toolbar, in the same sections and the same order — a command added upstream belongs there. What does not port: New Window and New Tab (a window manager this application does not have, D11) and Enter Full Screen (the browser's own key). Two commands also keep a toolbar button, as the minimap does upstream: Go To and the minimap toggle. The right-click menus are the same entries through the same renderer (src/ui/shell/menuModel.ts and MenuItems.tsx): one popup host, src/ui/shell/ContextMenu.tsx, opened with the entries a caller builds at the moment of the click. Upstream's popUpContextMenu blocks for the menu's lifetime and nothing in a browser does, so whatever it does around that call — placing the caret at the right-clicked byte — the caller does before opening.",
@@ -1833,7 +1869,8 @@
         "ByteRipperApp/App/AppDelegate.swift": "",
         "ByteRipperApp/App/AppTheme.swift": "",
         "ByteRipperApp/App/MainWindowController.swift": "",
-        "ByteRipperApp/App/AppMain.swift": ""
+        "ByteRipperApp/App/AppMain.swift": "",
+        "ByteRipperApp/App/OpenRecentMenuController.swift": "src/ui/shell/desktopMenu.ts"
       },
       "unported": {
         "ByteRipperApp/App/AboutCredits.swift#AboutCredits.Project.name": "ported — a field of the Project interface in src/ui/shell/AboutDialog.tsx",
@@ -1869,7 +1906,8 @@
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.increaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.decreaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.validateMenuItem": "n/a — it only dims Zoom In and Zoom Out, and the browser's page zoom is the zoom (ANALYSIS.md)",
-        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)"
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)",
+        "ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.menuNeedsUpdate": "n/a — the delegate callback that fills the submenu on display; the shell's menu is built at publish time and re-sent when the list changes (`injectOpenRecent`)"
       }
     },
     {
@@ -1878,7 +1916,8 @@
         "Design/"
       ],
       "status": "planned",
-      "note": "A new design document upstream usually means a decision this project has to take a position on."
+      "note": "A new design document upstream usually means a decision this project has to take a position on.",
+      "files": {}
     },
     {
       "swift": "Skills/",
@@ -4156,7 +4195,12 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAMappableMENodePublishesItsRange": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAnInfoLeafMENodePublishesNoZone": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentLinkTests.swift#SegmentLinkCommandTests": "later — an app flow test (the strip menu's revert and the length question are the platform layer's); its two source-changed-prompt tests are n/a — a page holds its bytes in memory, so no source changes behind its back",
-        "ByteRipperTests/SegmentLinkTests.swift#SegmentSourceWriteGuardTests": "later — an app flow test; the guard's state is unit-tested in `segmentSources.test.ts`, but the save panel's re-show loop is the platform layer's"
+        "ByteRipperTests/SegmentLinkTests.swift#SegmentSourceWriteGuardTests": "later — an app flow test; the guard's state is unit-tested in `segmentSources.test.ts`, but the save panel's re-show loop is the platform layer's",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.dvarImage": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodeAndItsBodySaveToAFile": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testASmallPictureIsPreviewedAtItsOwnSize": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAWidePictureFitsTheListInItsProportions": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSupersededCopiesAreInTheHistoryNotTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet"
       }
     },
     {
@@ -4771,7 +4815,28 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.makeCell*": "n/a — the cell, its warning slot and its badges are elements the panels render (RowMarks.tsx, app.css)",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.color": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.font": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.draw": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element"
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.draw": "n/a — a browser draws a tone from the stylesheet: the colour is a CSS custom property, the weight and the monospaced digits are the rule on the value, and the tick is the detail's own element",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.frameInWindow": "n/a — an AppKit test hook of the detail's term button; the web's component keeps no such frames",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.shownTerm": "n/a — an AppKit test hook of the detail's term button; the web's component keeps no such frames",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.termButtonForTesting": "n/a — an AppKit test hook of the detail's term button; the web's component keeps no such frames",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.termButtonFrameInWindow": "n/a — an AppKit test hook of the detail's term button; the web's component keeps no such frames",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMarks.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.VerdictEntry": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.VerdictEntry.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.VerdictEntry.meaning": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.VerdictEntry.symbol": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.VerdictEntry.tint": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.bodyGap": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.isExpanded": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.lineSpacing": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.listedMeanings": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.margin": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.onShowMarkingsChanged": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.setExpanded": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.setMarks": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.setShowsMarkings": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testACellWearsTheProblemAndTheBadges": "later — a test of the AppKit cell's problem tint and badges; the port draws them in React and tests the row marks' words"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -4939,7 +5004,12 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.choiceKey": "n/a — the defaults key; the choice is a field of the web's settings store, which owns its own persistence",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.defaults": "n/a — UserDefaults, replaceable so a test can drive resolution; the web's core reads no store at all, tests installing a catalogue directly",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.language": "the web's currentLanguage() reads it off the catalogue in force, there being no lazily loaded one to ask",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module",
+        "Packages/Localization/Sources/Localization/AppLanguage.swift#LanguageChoice.storedValue": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.entries": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
       }
     },
     {
@@ -4971,7 +5041,55 @@
         "Packages/HelpBook/Sources/HelpBook/HelpContents.swift#HelpSection.init": "n/a — the web's section is an object literal; there is nothing to construct",
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.init": "the web's topicId() mints one; the raw-value and label forms are one function here",
         "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.init": "the web's termId() mints one; the raw-value and label forms are one function here",
-        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpSearchResult.id": "the web's linkKey() spells the same string, a result being keyed by where it goes"
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpSearchResult.id": "the web's linkKey() spells the same string, a result being keyed by where it goes",
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpBook.glossaryNames": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpBook.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpBook.sections": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpContents.swift#HelpSection.id": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpContents.swift#HelpSection.name": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpContents.swift#HelpSection.topics": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.rawValue": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.benchSafety": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.bookmarks": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.colors": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.databases": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.editing": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.firstComparison": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.flashWrites": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.fragments": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.hexView": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.joinDuplicate": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.largeFiles": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.minimap": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.navigation": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.openingFiles": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.overview": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.provenance": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.rawValue": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.recipeBoardData": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.recipeChecksums": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.recipeDonor": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.recipeMECheck": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.recipeMicrocode": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.saving": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.search": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.segments": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.settings": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.toolFIT": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.toolME": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.toolUEFI": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.toolsOverview": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.blocks": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.group": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.id": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.name": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.seeAlso": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.summary": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.blocks": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.covers": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.id": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.summary": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.title": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
       }
     },
     {
@@ -5002,7 +5120,32 @@
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.caution": "n/a — the attributes of a caution; the web's rule beside the prose",
         "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.opens": "n/a — the destination read back for upstream's own tests; the web's button takes it as a prop, which a test reads from the element",
         "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.present": "n/a — an NSPopover's placement off a view; the web's dialog is positioned under the button that opened it",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.loadView": "n/a — AppKit view plumbing; the web's popover is what it renders"
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.loadView": "n/a — AppKit view plumbing; the web's popover is what it renders",
+        "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.onFollow": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.shownText": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.close": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.isShown": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.show": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.shownTerm": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size.body": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size.caption": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size.heading": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size.title": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.link": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.renderBrief": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.scheme": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.url": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.init": "n/a — a memberwise initialiser; the port builds the object literal",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.listedTitles": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.outlineView": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.outlineViewSelectionDidChange": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.reveal": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.show": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.shownLink": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.shownText": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
       }
     },
     {

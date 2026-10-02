@@ -17,6 +17,7 @@ import type { WireNode } from "@/workers/protocol";
  * details where the other copy is and whether the two still agree.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Role
  */
 export type TopSwapRole =
   /** The node is in the copy; `of` is the top block it copies. */
@@ -121,6 +122,9 @@ export function wireTopSwapRole(
  * can step between the two and see what stands for what.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Counterpart
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Counterpart.range
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Counterpart.kind
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITopSwap.swift#UEFITopSwap.Counterpart.isInCopy
  */
 export interface TopSwapCounterpart {
   /** The twin's range. */

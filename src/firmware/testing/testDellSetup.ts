@@ -8,7 +8,10 @@ import { type EFIGUID, guid } from "@/firmware/uefi/efiGuid";
  * `TestDellSetup`, in a fixture module because the tree's tests read it too.
  */
 
-/** @upstream Packages/UEFIImage/Tests/UEFIImageTests/DvarParserTests.swift#DvarParserTests.namespace */
+/**
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/DvarParserTests.swift#DvarParserTests.namespace
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/DellSetupFormsTests.swift#TestDellSetup.namespace
+ */
 export const DELL_NAMESPACE = guid("417ACEE0-6FA9-4A82-99D7-F9B1DD271E48");
 
 /**
@@ -127,6 +130,7 @@ export function ifrFormPackage(forms: readonly (readonly number[])[]): number[] 
   ];
 }
 
+/** @upstream Packages/UEFIImage/Tests/UEFIImageTests/DellSetupFormsTests.swift#TestDellSetup.le32 */
 const le32 = (value: number): number[] => [0, 8, 16, 24].map((shift) => (value >>> shift) & 0xff);
 
 /**

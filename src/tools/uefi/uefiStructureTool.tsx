@@ -1248,7 +1248,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     }
   }, []);
 
-  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.supersededItemClicked */
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.supersededItemClicked
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.setShowsSupersededEntries
+   */
   const changeShowsSuperseded = useCallback((shows: boolean) => {
     setShowsSuperseded(shows);
     try {

@@ -85,6 +85,16 @@ const STATES: ReadonlySet<number> = new Set([
  * One entry's header, its fields already complemented back.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.offset
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.state
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.flags
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.type
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.attributes
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.namespaceId
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.namespaceGuid
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.nameId
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.dataStart
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Entry.end
  */
 export interface DvarEntry {
   readonly offset: number;
@@ -200,6 +210,10 @@ export function dvarNamespaces(
  * value it carries is replaced like any other.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Copy
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Copy.node
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Copy.name
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Copy.guid
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.Copy.isCurrent
  */
 export interface DvarCopy {
   readonly node: UEFINode;
