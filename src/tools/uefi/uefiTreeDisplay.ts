@@ -1,4 +1,5 @@
 import { L, localized } from "@/core/localization/localization";
+import { EC_COPY_SUBTYPE } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
 import { regionTypeName } from "@/firmware/uefi/flashDeviceMapFormat";
@@ -196,6 +197,11 @@ export interface NamedNode {
 }
 
 function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
+  // An EC image is named by what it carries; a copy of an earlier one in the same
+  // block says so.
+  if (node.kind === "ecImage" && node.subtype === EC_COPY_SUBTYPE) {
+    return L("%1$@ (copy)", node.name);
+  }
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.
   if (node.kind === "file" && node.subtype === 0xf0) {
@@ -262,6 +268,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   nvarGuidStore: typeName(ItemType.nvarGuidStore),
   startupApData: typeName(ItemType.startupApDataEntry),
   flashDeviceMapRegion: L("Flash device map region"),
+  ecImage: L("EC firmware image"),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
   flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
   padding: L("Padding"),

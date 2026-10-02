@@ -1,8 +1,4 @@
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
-import { guidEquals } from "@/firmware/uefi/efiGuid";
-import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
-import type { Parser } from "@/firmware/uefi/parserState";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * The identification an ITE embedded controller's firmware carries near its start
@@ -107,33 +103,4 @@ function isSignature(block: Uint8Array): boolean {
     block[14] === 0x55 &&
     block[15] === 0x55
   );
-}
-
-/**
- * `nodes` with every stretch of padding — or EC Firmware region — that opens on
- * an ITE image named by the identification it carries
- * (`UEFI_IMAGE_FORMAT.md` §9). The bytes stay what they were; only the name says
- * what they look like.
- *
- * @upstream Packages/UEFIImage/Sources/UEFIImage/ITEFirmware.swift#Parser.namingECFirmware
- */
-export function namingECFirmware(parser: Parser, nodes: readonly UEFINode[]): UEFINode[] {
-  return nodes.map((node) => {
-    const candidate =
-      (node.kind === "padding" && !node.isErased) ||
-      (node.kind === "flashDeviceMapRegion" &&
-        node.guid !== undefined &&
-        guidEquals(node.guid, FlashDeviceMap.ecFirmware));
-    if (!candidate) return node;
-    const range = nodeRange(node);
-    const firmware = readITEFirmware(range.start, range.end, parser.reader);
-    if (firmware === undefined) return node;
-    return {
-      ...node,
-      name:
-        node.kind === "padding"
-          ? `${ITE_PADDING_NAME_PREFIX}${firmware.identification})`
-          : `${node.name} (${firmware.identification})`,
-    };
-  });
 }

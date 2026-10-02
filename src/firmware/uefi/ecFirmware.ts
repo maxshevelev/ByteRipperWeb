@@ -1,0 +1,245 @@
+import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { guidEquals } from "@/firmware/uefi/efiGuid";
+import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { ITE_PADDING_NAME_PREFIX, readITEFirmware } from "@/firmware/uefi/iteFirmware";
+import type { Parser } from "@/firmware/uefi/parserState";
+import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
+
+/**
+ * An embedded controller's firmware image, recognised by what it carries
+ * (`UEFI_IMAGE_FORMAT.md` §9): an ITE image by the signature block and
+ * identification near its start (`ITEFirmware`), a Microchip MEC image by the
+ * `PHCM` header it opens with.
+ *
+ * A block that holds EC firmware often holds more than one image — a second
+ * controller's, a copy for recovery — each on a 4 KiB boundary. Nothing in either
+ * format that is known says how long an image is. An image whose bytes begin with
+ * the whole of an earlier one is a copy of it and as long as it — which keeps what
+ * follows the last copy, a Dell EC region's log, out of it; any other image runs
+ * to its last written byte before the next one. An erased run inside does not end
+ * it: an ITE image keeps data at the end of its slot, past 40 KiB of erased bytes.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage
+ */
+export interface ECImage {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.vendor */
+  readonly vendor: ECVendor;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.start */
+  readonly start: number;
+  /**
+   * How long the image is: to its last written byte, or the length of the earlier
+   * image it copies.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.written
+   */
+  readonly written: number;
+  /**
+   * Where the earlier image this one copies byte for byte starts.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.copyOf
+   */
+  readonly copyOf?: number | undefined;
+}
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.Vendor */
+export type ECVendor =
+  /** The identification the image carries, such as `ITE8380-EC-V1.43`. */
+  | { readonly kind: "ite"; readonly identification: string }
+  /**
+   * A `PHCM` header. No string in the image names the chip or the version, and
+   * the header's fields are not decoded.
+   */
+  | { readonly kind: "microchip" };
+
+/**
+ * What the image says it is, in the image's own words where it has any.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.name
+ */
+export const ecImageName = (image: ECImage): string =>
+  image.vendor.kind === "ite" ? image.vendor.identification : "Microchip MEC image";
+
+/** `PHCM`, `MCHP` reversed: the header Microchip's MEC boot ROM reads. */
+const MICROCHIP_SIGNATURE = 0x4d43_4850;
+const STEP = 0x1000;
+
+const sameVendor = (left: ECVendor, right: ECVendor): boolean =>
+  left.kind === right.kind &&
+  (left.kind !== "ite" || left.identification === (right as typeof left).identification);
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.image */
+function vendorAt(start: number, limit: number, reader: ImageReader): ECVendor | undefined {
+  if (reader.uint32(start) === MICROCHIP_SIGNATURE) return { kind: "microchip" };
+  const ite = readITEFirmware(start, limit, reader);
+  return ite === undefined ? undefined : { kind: "ite", identification: ite.identification };
+}
+
+/**
+ * Every image in `range`, at each 4 KiB boundary, each running to its last written
+ * byte before the next one starts.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.all
+ */
+export function allECImages(range: ImageRange, reader: ImageReader, emptyByte = 0xff): ECImage[] {
+  const starts: { readonly at: number; readonly vendor: ECVendor }[] = [];
+  for (let at = range.start; at < range.end; at += STEP) {
+    const vendor = vendorAt(at, range.end, reader);
+    if (vendor !== undefined) starts.push({ at, vendor });
+  }
+  const images: ECImage[] = [];
+  starts.forEach((found, index) => {
+    const end = starts[index + 1]?.at ?? range.end;
+    const written = lastWritten({ start: found.at, end }, reader, emptyByte) - found.at;
+    const original = copiedFrom(found.vendor, found.at, written, images, reader);
+    images.push(
+      original === undefined
+        ? { vendor: found.vendor, start: found.at, written }
+        : {
+            vendor: found.vendor,
+            start: found.at,
+            written: original.written,
+            copyOf: original.start,
+          }
+    );
+  });
+  return images;
+}
+
+/**
+ * The image's bytes, as far as written: what a copy is told by.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.range
+ */
+export const ecImageRange = (image: ECImage): ImageRange => ({
+  start: image.start,
+  end: image.start + image.written,
+});
+
+/**
+ * The end of the last byte in `range` that is not `emptyByte`, or the range's start
+ * when every byte is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.lastWritten
+ */
+function lastWritten(range: ImageRange, reader: ImageReader, emptyByte: number): number {
+  let end = range.end;
+  while (end > range.start) {
+    const start = end - Math.min(STEP, end - range.start);
+    const bytes = reader.bytesAt(start, end - start);
+    if (bytes === undefined) return end;
+    const last = bytes.findLastIndex((byte) => byte !== emptyByte);
+    if (last >= 0) return start + last + 1;
+    end = start;
+  }
+  return range.start;
+}
+
+/**
+ * The earlier image whose whole bytes this one begins with, if any — of the same
+ * vendor, and no longer than what this one has written.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.copied
+ */
+function copiedFrom(
+  vendor: ECVendor,
+  start: number,
+  written: number,
+  earlier: readonly ECImage[],
+  reader: ImageReader
+): ECImage | undefined {
+  return earlier.find((original) => {
+    if (!sameVendor(original.vendor, vendor) || original.written === 0) return false;
+    if (original.written > written) return false;
+    const mine = reader.bytesAt(start, original.written);
+    const theirs = reader.bytes(ecImageRange(original));
+    return (
+      mine !== undefined &&
+      theirs !== undefined &&
+      mine.length === theirs.length &&
+      mine.every((byte, index) => byte === theirs[index])
+    );
+  });
+}
+
+/**
+ * The node subtype an EC image row carries when it is a copy of an earlier image
+ * in the same block. Not UEFITool's — it classifies these bytes as padding — so it
+ * is free to say this.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.copySubtype
+ */
+export const EC_COPY_SUBTYPE = 1;
+
+const roundedUp = (size: number): number => Math.ceil(size / STEP) * STEP;
+
+/**
+ * `node` — padding, an EC Firmware region of the flash device map, or the
+ * descriptor's EC region — read as the EC firmware it holds
+ * (`UEFI_IMAGE_FORMAT.md` §9): named by its first image, and, when it holds more
+ * than that one image at its start, given a row per image and padding for what lies
+ * between them. Nothing when no image is there.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#Parser.readingECFirmware
+ */
+export function readingECFirmware(
+  parser: Parser,
+  node: UEFINode,
+  emptyByte: number
+): UEFINode | undefined {
+  const images = allECImages(node.body, parser.reader, emptyByte);
+  const first = images[0];
+  if (first === undefined) return undefined;
+  const read: UEFINode = { ...node };
+  if (node.kind === "padding") {
+    // Padding names only what opens it: an image further in is a guess about the
+    // bytes before it.
+    if (first.start !== node.body.start) return undefined;
+    read.name = `${ITE_PADDING_NAME_PREFIX}${ecImageName(first)})`;
+  } else {
+    read.name = `${node.name} (${ecImageName(first)})`;
+  }
+  if (images.length <= 1 && first.start === node.body.start) return read;
+
+  const children: UEFINode[] = [];
+  let at = node.body.start;
+  images.forEach((image, index) => {
+    children.push(...parser.padding(at, image.start, emptyByte));
+    const next = images[index + 1]?.start ?? node.body.end;
+    const end = Math.min(image.start + roundedUp(Math.max(image.written, 1)), next);
+    children.push(
+      makeNode({
+        kind: "ecImage",
+        subtype: image.copyOf === undefined ? undefined : EC_COPY_SUBTYPE,
+        name: ecImageName(image),
+        header: { start: image.start, end: image.start },
+        body: { start: image.start, end },
+        isFixed: true,
+      })
+    );
+    at = end;
+  });
+  children.push(...parser.padding(at, node.body.end, emptyByte));
+  read.children = children;
+  return read;
+}
+
+/**
+ * `nodes` with the padding and the EC Firmware map regions that hold EC firmware
+ * read as it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#Parser.readingECFirmware
+ */
+export function readingECFirmwareIn(
+  parser: Parser,
+  nodes: readonly UEFINode[],
+  emptyByte: number
+): UEFINode[] {
+  return nodes.map((node) => {
+    const candidate =
+      (node.kind === "padding" && !node.isErased) ||
+      (node.kind === "flashDeviceMapRegion" &&
+        node.guid !== undefined &&
+        guidEquals(node.guid, FlashDeviceMap.ecFirmware));
+    return candidate ? (readingECFirmware(parser, node, emptyByte) ?? node) : node;
+  });
+}

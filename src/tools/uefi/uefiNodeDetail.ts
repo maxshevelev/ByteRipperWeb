@@ -5,6 +5,7 @@ import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
+import { allECImages } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
@@ -74,6 +75,7 @@ export function buildNodeDetail(
   repairs: readonly ChecksumRepair[] = []
 ): NodeDetail {
   const fields = [...commonFields(node, image), ...headerFields(node, reader, repairs)];
+  if (node.kind === "ecImage") fields.push(...ecImageFields(node, image, reader));
   const topSwap = uefiTopSwapDetail(node, image);
   if (topSwap !== undefined) fields.push(field(L("Top Swap"), topSwap));
   const fill = nvramStoreFillOf(node, reader);
@@ -559,7 +561,13 @@ function headerFields(
 
     // Padding the parser named for the ITE image it opens on lists every image.
     case "padding":
-      if (node.name.startsWith(ITE_PADDING_NAME_PREFIX)) fields.push(...iteFields(node, reader));
+      // With a row per image, the rows say it.
+      if (
+        node.name.startsWith(ITE_PADDING_NAME_PREFIX) &&
+        !node.children.some((child) => child.kind === "ecImage")
+      ) {
+        fields.push(...iteFields(node, reader));
+      }
       break;
 
     // A map region has no header: the map says where it is and what type it is,
@@ -581,12 +589,46 @@ function headerFields(
           fields.push(field("Release date", table.releaseDate));
         }
       }
-      if (node.guid !== undefined && guidEquals(node.guid, FlashDeviceMap.ecFirmware)) {
+      if (
+        node.guid !== undefined &&
+        guidEquals(node.guid, FlashDeviceMap.ecFirmware) &&
+        !node.children.some((child) => child.kind === "ecImage")
+      ) {
         fields.push(...iteFields(node, reader));
       }
       break;
     }
+
+    // Read in `buildNodeDetail`, which has the block the image sits in.
+    case "ecImage":
+      break;
   }
+  return fields;
+}
+
+/**
+ * What an EC image row adds: who made it, what it says it is, how long it is, and
+ * which earlier image in the block it copies. Read again from the block the image
+ * sits in, since a copy is told by the images before it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.ecImageFields
+ */
+function ecImageFields(node: UEFINode, image: UEFIImage, reader: ImageReader): DetailField[] {
+  const block = node.id.length === 0 ? undefined : image.node(node.id.slice(0, -1));
+  if (block === undefined) return [];
+  const start = nodeRange(node).start;
+  const found = allECImages(block.body, reader).find((one) => one.start === start);
+  if (found === undefined) return [];
+  const fields: DetailField[] = [];
+  if (found.vendor.kind === "ite") {
+    fields.push(field(L("Vendor"), "ITE"));
+    fields.push(field("ITE identification", found.vendor.identification));
+  } else {
+    fields.push(field(L("Vendor"), "Microchip"));
+    fields.push(field("Signature", "PHCM"));
+  }
+  fields.push(field(L("Written"), sizeText(found.written)));
+  if (found.copyOf !== undefined) fields.push(field(L("Copy of"), hex(found.copyOf)));
   return fields;
 }
 

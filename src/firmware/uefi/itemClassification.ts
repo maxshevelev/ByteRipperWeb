@@ -45,6 +45,7 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   // UEFITool's word for these bytes; the row's name says what the map makes of
   // them.
   flashDeviceMapRegion: ItemType.padding,
+  ecImage: ItemType.padding,
   padding: ItemType.padding,
   freeSpace: ItemType.freeSpace,
   // Data nobody claimed is a run of bytes with a type, not a structure, so it
@@ -114,6 +115,7 @@ export function itemSubtype(node: UEFINode): number | undefined {
       return Sub.x86128kStartupApDataEntry;
     case "padding":
     case "flashDeviceMapRegion":
+    case "ecImage":
       return paddingSubtype(node);
     case "freeSpace":
     case "nonUEFIData":

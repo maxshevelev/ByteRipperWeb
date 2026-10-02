@@ -1,4 +1,4 @@
-@source-sha 9a1cde0c0b9a8787341d4de0aa12ca5f6f60de140a96ee3d6d2d8637ac61a0eb
+@source-sha 7e8c6996cac54daeeae3c7b1e05e938e94e810c0fba36fc0c2caa0f62f678429
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -226,9 +226,11 @@ Woran man sie üblicherweise erkennt:
 - **Die Größe.** Verbreitet sind 128 KB (131 072 Bytes) und 192 KB (196 608 Bytes).
 - **ITE-Controller** enthalten bei Offset `0x40` oder `0x80` vom Anfang des Abbilds einen Signaturblock aus sechs `A5`-Bytes, auf den eine Kennung folgt.
 - **ENE-Controller** tragen die Zeichenfolge `ENE` in den ersten Bytes.
-- **Microchip-Firmware (MEC)** liegt häufiger im ersten Volume der BIOS-Region als in einer Füllung.
+- **Microchip-Abbilder (MEC)** beginnen mit dem Header `PHCM`. Auf einem Board mit EC-Region liegen sie in dieser Region; nach derselben Quelle der Community befinden sie sich auf älteren Boards häufiger im ersten Volume der BIOS-Region.
 
-Beginnt ein ITE-Abbild am Anfang eines Padding-Blocks oder der Region **EC Firmware** aus der Map, benennt ByteRipper die Zeile nach der Kennung, die das Abbild hinter seinem Signaturblock trägt, etwa **EC Firmware (ITE8380-EC-V1.43)** oder **EC firmware (ITE8226-EC-V0.00)**. Die Detailliste führt jedes im Block gefundene ITE-Abbild mit seiner Adresse auf: Ein Block kann mehrere enthalten, etwa die Firmware eines zweiten Controllers oder eine zweite Kopie.
+Beginnt ein EC-Abbild am Anfang eines Padding-Blocks, der Region **EC Firmware** aus der Map oder der EC-Region des Deskriptors, benennt ByteRipper die Zeile nach diesem Abbild: ein ITE-Abbild nach der Kennung hinter seinem Signaturblock, etwa **EC Firmware (ITE8380-EC-V1.43)** oder **EC firmware (ITE8226-EC-V0.00)**, ein Abbild mit dem Header `PHCM`, der weder Chip noch Version nennt, als **Microchip MEC image**. Ein Block kann mehrere Abbilder enthalten, jedes an einer 4-KiB-Grenze — die Firmware eines zweiten Controllers oder eine zweite Kopie. Jedes Abbild erhält dann eine eigene Zeile, und der Raum dazwischen bleibt Padding. Ein Abbild, das ein früheres Byte für Byte wiederholt, trägt den Zusatz **(Kopie)**; ob der Controller es als Sicherung verwendet, ist nicht dokumentiert.
+
+Kein bekannter Header gibt die Länge eines Abbilds an. ByteRipper nimmt an, dass ein Abbild bis zu seinem letzten beschriebenen Byte vor dem nächsten reicht und eine Kopie so lang ist wie das Abbild, das sie wiederholt. Die Detailliste einer Abbild-Zeile nennt Hersteller, Kennung, beschriebene Länge und bei einer Kopie die Adresse des Originals.
 
 ! Die Kennung ist ein Text, den der Entwickler der Firmware in das Abbild geschrieben hat. Sie nennt den Controller, für den die Firmware erstellt wurde, und muss nicht mit dem Modell des tatsächlich auf dem Board bestückten Controllers übereinstimmen: Eine Firmware kann für mehrere kompatible Controller bestimmt sein, und die Version in der Kennung wird nicht immer gepflegt — mehrere Dumps tragen `V0.00`. Welcher Controller bestückt ist, zeigt die Beschriftung auf seinem Gehäuse.
 

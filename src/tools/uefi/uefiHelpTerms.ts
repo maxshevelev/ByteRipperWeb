@@ -85,6 +85,8 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return node.name?.startsWith(ITE_PADDING_NAME_PREFIX) === true
         ? termId("ec-firmware")
         : termId("padding");
+    case "ecImage":
+      return termId("ec-firmware");
     case "freeSpace":
       return termId("free-space");
     case "nonUEFIData":

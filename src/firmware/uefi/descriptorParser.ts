@@ -1,4 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
+import { readingECFirmware } from "@/firmware/uefi/ecFirmware";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -166,7 +167,7 @@ function intelImageChildren(parser: Parser, range: ImageRange, depth: number): U
       continue;
     }
     nodes.push(...parser.padding(claimed, region.range.start, DEFAULT_EMPTY_BYTE));
-    nodes.push(regionNode(region, depth));
+    nodes.push(regionNode(parser, region, depth));
     claimed = region.range.end;
   }
   nodes.push(...parser.padding(claimed, range.end, DEFAULT_EMPTY_BYTE));
@@ -241,9 +242,9 @@ function readRegions(parser: Parser, base: number, limit: number): Region[] {
  * when something actually asks. A region that is a format of its own — ME, GbE
  * — is not expandable at all: it has no raw area to scan.
  */
-function regionNode(region: Region, depth: number): UEFINode {
+function regionNode(parser: Parser, region: Region, depth: number): UEFINode {
   if (region.type === "descriptor") return descriptorNode(region.range);
-  return makeNode({
+  const node = makeNode({
     kind: "region",
     subtype: FLASH_REGIONS.indexOf(region.type),
     name: regionLabel(region.type),
@@ -254,6 +255,13 @@ function regionNode(region: Region, depth: number): UEFINode {
     isExpandable: readsAsRawArea(region.type),
     childDepth: depth + 1,
   });
+  // The EC region is read here rather than when opened: a look at each 4 KiB
+  // boundary of a megabyte or so, not a scan, and the name it gives the row belongs
+  // on it before anything is opened.
+  if (region.type === "ec") {
+    return readingECFirmware(parser, node, DEFAULT_EMPTY_BYTE) ?? node;
+  }
+  return node;
 }
 
 function descriptorNode(range: ImageRange): UEFINode {

@@ -19,6 +19,7 @@
 "%1$@ (Not checked)" = "%1$@ (nicht geprüft)";
 "%1$@ (Top Swap copy)" = "%1$@ (Top-Swap-Kopie)";
 "%1$@ (Valid)" = "%1$@ (stimmt)";
+"%1$@ (copy)" = "%1$@ (Kopie)";
 "%1$@ at %2$@" = "%1$@ bei %2$@";
 "%1$@ blocks" = "%1$@ Blöcke";
 "%1$@ Bookmarks Here:" = "%1$@ Lesezeichen hier:";
@@ -120,8 +121,12 @@
 "Apply" = "Anwenden";
 "Ask before edits that shift the file" = "Vor Änderungen fragen, die die Datei verschieben";
 "Copied at %1$@–%2$@; %3$@" = "Kopie bei %1$@–%2$@; %3$@";
+"Copy of" = "Kopie des Abbilds bei";
 "Copy of %1$@–%2$@; %3$@" = "Kopie des Blocks %1$@–%2$@; %3$@";
+"EC firmware image" = "EC-Firmware-Abbild";
 "Top Swap" = "Top Swap";
+"Vendor" = "Hersteller";
+"Written" = "Beschrieben";
 "at %1$@" = "bei %1$@";
 "Back" = "Zurück";
 "Backup #%1$@ %2$@" = "Sicherung #%1$@ %2$@";
