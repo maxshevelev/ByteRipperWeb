@@ -1,3 +1,4 @@
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { BinaryWriter, DRIVER_GUID, volume } from "@/firmware/testing/testImage";
@@ -476,7 +477,7 @@ export function evsaStore(
     .u8(NVRAM.evsaEntryTypeStore)
     .u8(0) // checksum
     .u16(NVRAM.evsaStoreHeaderSize)
-    .raw(options.signature ?? new TextEncoder().encode("EVSA"))
+    .raw(options.signature ?? encodeUtf8("EVSA"))
     .u32(0) // attributes
     .u32(storeSize)
     .u32(0); // reserved

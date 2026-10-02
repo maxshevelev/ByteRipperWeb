@@ -1,3 +1,4 @@
+import { decodeUtf8, decodeUtf16le } from "@/core/text/utf";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { sum8 } from "@/firmware/uefi/checksums";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
@@ -292,7 +293,7 @@ export function readNvarEntryIn(
     if ((attributes & NVAR.asciiName) !== 0) {
       const zero = bytes.indexOf(0);
       if (zero < 0) return undefined;
-      text = new TextDecoder("utf-8").decode(bytes.subarray(0, zero));
+      text = decodeUtf8(bytes.subarray(0, zero));
       cursor += zero + 1;
     } else {
       let index = 0;
@@ -306,7 +307,7 @@ export function readNvarEntryIn(
         }
       }
       if (!terminated) return undefined;
-      text = new TextDecoder("utf-16le").decode(bytes.subarray(0, index - 2));
+      text = decodeUtf16le(bytes.subarray(0, index - 2));
       cursor += index;
     }
   }

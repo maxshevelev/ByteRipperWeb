@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { DELL_NAMESPACE, dellDriver } from "@/firmware/testing/testDellSetup";
@@ -69,7 +70,7 @@ describe("Dell's Setup forms", () => {
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DellSetupFormsTests.swift#DellSetupFormsTests.testWithoutKeywordsThePromptNamesIt
   it("names a row by its prompt without keywords", () => {
     const driver = dellDriver();
-    const tag = [...new TextEncoder().encode("x-UEFI")];
+    const tag = [...encodeUtf8("x-UEFI")];
     let found = -1;
     for (let index = 0; index + tag.length <= driver.length && found < 0; index++) {
       if (tag.every((byte, offset) => driver[index + offset] === byte)) found = index;

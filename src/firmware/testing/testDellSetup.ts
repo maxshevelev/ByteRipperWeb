@@ -1,3 +1,4 @@
+import { encodeUtf8 } from "@/core/text/utf";
 import { BinaryWriter } from "@/firmware/testing/testImage";
 import { BINDS_VARIABLE, DELL_OPCODE_GUID } from "@/firmware/uefi/dellSetupForms";
 import { type EFIGUID, guid } from "@/firmware/uefi/efiGuid";
@@ -40,7 +41,7 @@ export function hiiStrings(language: string, texts: readonly string[]): number[]
       .u32(headerSize)
       .raw(new Array<number>(32).fill(0))
       .u16(1)
-      .raw([...new TextEncoder().encode(language), 0])
+      .raw([...encodeUtf8(language), 0])
       .raw(blocks).bytes,
   ];
 }

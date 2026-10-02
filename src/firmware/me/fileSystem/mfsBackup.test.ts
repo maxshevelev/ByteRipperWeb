@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { crc32 } from "@/firmware/me/crypto/checksum";
 import { parseMfsBackup, reconstructR0Body } from "@/firmware/me/fileSystem/mfsBackup";
 
@@ -11,7 +12,7 @@ import { parseMfsBackup, reconstructR0Body } from "@/firmware/me/fileSystem/mfsB
 // Spelled out, not taken from the decoder's constant: a fixture built from the
 // constant under test agrees with it whatever it says, which is how a signature
 // reading "BSFM" passed every test here.
-const SIGNATURE = new TextEncoder().encode("MFSB");
+const SIGNATURE = encodeUtf8("MFSB");
 const R1_HEADER_SIZE = 0x24;
 const ENTRY_HEADER_SIZE = 0x10;
 
@@ -310,7 +311,7 @@ describe("detection", () => {
     expect(parse(r0)?.format).toBe("r0");
     expect(parse(r1)?.format).toBe("r1");
 
-    const swapped = new TextEncoder().encode("BSFM");
+    const swapped = encodeUtf8("BSFM");
     expect(parse(makeR0(body, swapped))).toBeUndefined();
     expect(parse(makeR1(fill(0x10), fill(0x20), fill(0x30), 1, swapped))).toBeUndefined();
   });

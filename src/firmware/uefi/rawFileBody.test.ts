@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import {
   BinaryWriter,
@@ -68,7 +69,7 @@ describe("a raw file's body", () => {
   // file a leaf, quietly.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/RawFileBodyTests.swift#RawFileBodyTests.testPlainDataLeavesTheFileALeaf
   it("leaves the file a leaf for plain data", () => {
-    const { file: raw, parsed } = rawFile(new TextEncoder().encode("BM\u0001\u0002 a logo, say"));
+    const { file: raw, parsed } = rawFile(encodeUtf8("BM\u0001\u0002 a logo, say"));
     expect(raw.children).toEqual([]);
     expect(parsed.diagnostics).toEqual([]);
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { section } from "@/firmware/testing/testImage";
@@ -56,7 +57,7 @@ describe("a JPEG", () => {
   it("is none without its end marker or the segment that names the format", () => {
     expect(read(jpegPicture({ end: false }))).toBeUndefined();
     const bare = jpegPicture();
-    bare.set(new TextEncoder().encode("JFXX"), 6);
+    bare.set(encodeUtf8("JFXX"), 6);
     expect(read(bare)).toBeUndefined();
   });
 

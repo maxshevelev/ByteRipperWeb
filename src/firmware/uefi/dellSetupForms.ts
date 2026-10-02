@@ -1,3 +1,4 @@
+import { decodeUtf8 } from "@/core/text/utf";
 import { type EFIGUID, guid, guidBytes, guidFromBytes, guidKey } from "@/firmware/uefi/efiGuid";
 import type { SpaceReaders } from "@/firmware/uefi/spaceReaders";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
@@ -324,7 +325,7 @@ function stringBlocks(
     const zero = bytes.subarray(from, end).indexOf(0);
     if (zero < 0) return undefined;
     return {
-      text: new TextDecoder("utf-8").decode(bytes.subarray(from, from + zero)),
+      text: decodeUtf8(bytes.subarray(from, from + zero)),
       next: from + zero + 1,
     };
   };

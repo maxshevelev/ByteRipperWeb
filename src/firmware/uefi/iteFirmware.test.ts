@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { volume, volumeTopFile } from "@/firmware/testing/testImage";
@@ -39,7 +40,7 @@ describe("an ITE image's identification", () => {
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testOnlySixteenBytesAreRead
   it("is sixteen bytes and no more", () => {
     const bytes = iteImage({ identification: "ITE5507-SB-V0.67" });
-    bytes.set(new TextEncoder().encode("20230426"), 0xa0);
+    bytes.set(encodeUtf8("20230426"), 0xa0);
     expect(read(bytes)?.identification).toBe("ITE5507-SB-V0.67");
   });
 

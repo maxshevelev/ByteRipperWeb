@@ -325,7 +325,7 @@ export function dvarSettingsOfTree(
   limits: Limits,
   buffers: DecompressedBuffers
 ): DellSetupCatalogue {
-  const nodes = structuredClone(roots) as UEFINode[];
+  const nodes = clonePlain(roots) as UEFINode[];
   const discarded: UEFIDiagnostic[] = [];
   materializeAll(nodes, reader, limits, buffers, discarded, { opensCompressed: false });
   const hasStore = (list: readonly UEFINode[]): boolean =>
@@ -354,4 +354,20 @@ export function stampIds(nodes: UEFINode[], parent: NodeID): UEFINode[] {
     stampIds(node.children, node.id);
   }
   return nodes;
+}
+
+/**
+ * A deep copy of plain data — objects, arrays and primitives, which is all a parsed
+ * tree holds. `structuredClone` is a platform global the domain half may not reach.
+ *
+ * @web-only upstream's nodes are value types and copy by assignment
+ */
+function clonePlain<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(clonePlain) as T;
+  if (typeof value === "object" && value !== null) {
+    const copy: Record<string, unknown> = {};
+    for (const [key, one] of Object.entries(value)) copy[key] = clonePlain(one);
+    return copy as T;
+  }
+  return value;
 }

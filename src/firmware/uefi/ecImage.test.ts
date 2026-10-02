@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { intelImage, volume, volumeTopFile } from "@/firmware/testing/testImage";
@@ -18,7 +19,7 @@ import { ItemType, Sub } from "@/firmware/uefi/uefiTypes";
 /** A Microchip image: the `PHCM` header and `length` bytes of something that is not the erase byte. */
 const microchip = (length: number, fill = 0x5a): Uint8Array => {
   const bytes = new Uint8Array(length).fill(fill);
-  bytes.set(new TextEncoder().encode("PHCM"), 0);
+  bytes.set(encodeUtf8("PHCM"), 0);
   return bytes;
 };
 

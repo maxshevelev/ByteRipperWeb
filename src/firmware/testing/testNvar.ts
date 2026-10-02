@@ -1,3 +1,4 @@
+import { encodeUtf8 } from "@/core/text/utf";
 import {
   BinaryWriter,
   DRIVER_GUID,
@@ -57,7 +58,7 @@ export function nvarEntry(
     else fields.u8(options.guidIndex ?? 0);
     const name = options.name ?? "Setup";
     if ((attributes & NVAR.asciiName) !== 0) {
-      fields.raw([...new TextEncoder().encode(name), 0]);
+      fields.raw([...encodeUtf8(name), 0]);
     } else {
       fields.raw(ucs2(name));
     }

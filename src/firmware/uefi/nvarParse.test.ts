@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { BinaryWriter, DRIVER_GUID, section } from "@/firmware/testing/testImage";
 import {
@@ -295,7 +296,7 @@ describe("raw sections", () => {
   it("leaves a raw section that is not a store alone, quietly", () => {
     for (const body of [
       bytes(0x4d, 0x5a, 0x90, 0x00),
-      new TextEncoder().encode("Nope"),
+      encodeUtf8("Nope"),
       bytes(0xff, 0xff, 0xff, 0xff),
     ]) {
       const parsed = parse(nvarSectionVolume({ sections: [section({ type: Section.raw, body })] }));

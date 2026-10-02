@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { section, sectionedFile, volume } from "@/firmware/testing/testImage";
 import * as N from "@/firmware/testing/testNvram";
@@ -234,7 +235,7 @@ describe("the leaf stores", () => {
     const right = rootOf([N.evsaStore({ entries })]);
     expect(right.children[0]?.kind).toBe("evsaStore");
 
-    const swapped = N.evsaStore({ entries, signature: new TextEncoder().encode("ESVA") });
+    const swapped = N.evsaStore({ entries, signature: encodeUtf8("ESVA") });
     expect(rootOf([swapped]).children.some((one) => one.kind === "evsaStore")).toBe(false);
   });
 

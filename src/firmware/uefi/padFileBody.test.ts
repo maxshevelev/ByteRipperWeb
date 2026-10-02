@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeUtf8 } from "@/core/text/utf";
 import { sourceOver } from "@/firmware/byteSource";
 import { file, volume } from "@/firmware/testing/testImage";
 import { GUID_ZERO } from "@/firmware/uefi/efiGuid";
@@ -74,7 +75,7 @@ describe("a pad file's body", () => {
   // Anything else is data, kept and reported.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/PadFileBodyTests.swift#PadFileBodyTests.testOtherDataIsReported
   it("reports other data", () => {
-    const { file: pad, parsed } = padFile(join(erased(0x10), new TextEncoder().encode("__KEYM__")));
+    const { file: pad, parsed } = padFile(join(erased(0x10), encodeUtf8("__KEYM__")));
     expect(pad.children.map((node) => node.kind)).toEqual(["freeSpace", "padding"]);
     expect((pad.children[1] as UEFINode).isErased).toBe(false);
     expect(parsed.diagnostics.map((one) => one.detail.kind)).toEqual(["nonUEFIDataInPadFile"]);
