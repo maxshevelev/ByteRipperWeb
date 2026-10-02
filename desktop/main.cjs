@@ -96,6 +96,26 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+/**
+ * Whether an address is the app's own page — `app://byteripper/…`, or a `blob:`
+ * it made. Only that page is given the bridge's answers, the permissions and
+ * the window: anything else that ended up in the window would otherwise be
+ * handed every permission and an installer.
+ */
+function isApp(address) {
+  try {
+    const url = new URL(String(address).replace(/^blob:/, ""));
+    return url.protocol === `${SCHEME}:` && url.host === HOST;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether an IPC message came from the app's own page, in its own frame. */
+function fromApp(event) {
+  return isApp(event.senderFrame?.url);
+}
+
 /** The file under `web/` a request names, or nothing for a path outside it. */
 function fileFor(requestUrl) {
   const { pathname } = new URL(requestUrl);
@@ -123,6 +143,18 @@ function createWindow() {
     if (url.startsWith("https://")) void shell.openExternal(url);
     return { action: "deny" };
   });
+  // The window shows the app and nothing else: a link that would take it away —
+  // a file dropped on it, a page that sets `location` — goes nowhere, and a web
+  // link goes to the system's browser as the help's links do.
+  window.webContents.on("will-navigate", (event, url) => {
+    if (isApp(url)) return;
+    event.preventDefault();
+    if (url.startsWith("https://")) void shell.openExternal(url);
+  });
+  window.webContents.on("will-redirect", (event, url) => {
+    if (!isApp(url)) event.preventDefault();
+  });
+  window.webContents.on("will-attach-webview", (event) => event.preventDefault());
   // The page arms `beforeunload` while anything is unsaved. A browser asks the
   // reader; Electron, given no handler, silently keeps the window open — Exit
   // and the window's ✕ would do nothing. So the shell asks, in the system's
@@ -154,11 +186,14 @@ app.whenReady().then(() => {
   });
 
   // What the page asks the browser for — opening and saving files, the
-  // clipboard — is what the app is for, and there is no one else to ask.
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, grant) =>
-    grant(true)
+  // clipboard — is what the app is for, and there is no one else to ask. The
+  // app's page, that is: nothing else is given anything.
+  session.defaultSession.setPermissionRequestHandler((contents, _permission, grant, details) =>
+    grant(isApp(details?.requestingUrl || contents.getURL()))
   );
-  session.defaultSession.setPermissionCheckHandler(() => true);
+  session.defaultSession.setPermissionCheckHandler((_contents, _permission, origin, details) =>
+    isApp(details?.requestingUrl || origin)
+  );
 
   // No menu bar until the page hands over its own: Electron's default one
   // carries Reload, which would throw every open file away.
@@ -169,6 +204,7 @@ app.whenReady().then(() => {
   // the items but not registered — the page answers its own keys, and a menu
   // that answered them too would run every command twice.
   ipcMain.on("menu:set", (event, menus) => {
+    if (!fromApp(event)) return;
     // The page's command runs as a user gesture: Chromium shows a file picker
     // — Open…, Save As… — only to code handling one, and a message over IPC
     // carries none. `userGesture` is what a click in the page itself has.
@@ -219,6 +255,7 @@ app.whenReady().then(() => {
   // page has (Help ▸ Moving around). Chromium's own Ctrl+Plus/Minus went with
   // the default menu, so the menu answers them.
   ipcMain.on("zoom", (event, step) => {
+    if (!fromApp(event)) return;
     const contents = event.sender;
     const level = clampZoom(step === 0 ? 0 : contents.getZoomLevel() + step * ZOOM_STEP);
     contents.setZoomLevel(level);
@@ -227,9 +264,11 @@ app.whenReady().then(() => {
 
   // File ▸ Exit: the window closes as its ✕ would, so unsaved work is asked
   // about on the way out, and the last window closing quits the app.
-  ipcMain.on("quit", (event) => BrowserWindow.fromWebContents(event.sender)?.close());
+  ipcMain.on("quit", (event) => {
+    if (fromApp(event)) BrowserWindow.fromWebContents(event.sender)?.close();
+  });
 
-  updates.register(ipcMain, BrowserWindow);
+  updates.register(ipcMain, BrowserWindow, fromApp);
 
   createWindow();
 });

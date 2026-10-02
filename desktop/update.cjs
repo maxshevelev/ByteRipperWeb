@@ -7,9 +7,18 @@
 // What it trusts, and what it does not. It never takes a URL from the page — it
 // is given a version, and builds that release's addresses itself, and only
 // downloads from this repository's own release files. The setup is checked
-// against the release's `SHA256SUMS`, which catches a corrupt or truncated
-// download; it is not a signature, and the build is not signed (Windows
+// against the release's `SHA256SUMS`, and `SHA256SUMS` against its Ed25519
+// signature, `SHA256SUMS.sig`, by the public key this build carries
+// (`release-key.cjs`). The checksum says the download is whole; the signature
+// says it is ours — the private key is never on GitHub, so whoever can upload
+// to a release, or answer for github.com with a certificate of their own,
+// cannot make a setup this runs. The executable itself is not signed (Windows
 // SmartScreen may say so).
+//
+// It never goes back: a version that is not newer than this build is refused,
+// so a page that has been led astray cannot install an older release with a
+// bug fixed since. And the setup is hashed again just before it is run, since
+// it waits in the temporary folder until the app has quit.
 //
 // Only an installed build can be replaced: a portable `.exe` unpacks to a
 // temporary folder and an unpacked `.zip` was never installed, so for those the
@@ -19,6 +28,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+const RELEASE_KEY = require("./release-key.cjs");
 
 const DOWNLOADS = "https://github.com/maxshevelev/ByteRipperWeb/releases/download/";
 
@@ -31,7 +41,10 @@ function canInstall() {
   );
 }
 
-/** The setup to run when the app has quit, once one is downloaded and checked. */
+/**
+ * The setup to run when the app has quit, once one is downloaded and checked:
+ * `{ file, hash }`, the hash being the one the signed checksums gave.
+ */
 let pending;
 /** Answers the page's request when the reader keeps the window open instead. */
 let cancelRequest;
@@ -85,6 +98,43 @@ function latestRelease() {
   });
 }
 
+/**
+ * Whether `version` comes after `current`: compared part by part as numbers, a
+ * missing part counting as nothing, so 0.9-1 < 0.9-2 < 0.9.1-1 — the page's own
+ * rule (src/core/updates/appVersion.ts).
+ */
+function isNewer(version, current) {
+  const parts = (text) =>
+    String(text)
+      .split(/[.-]/)
+      .map((one) => Number.parseInt(one, 10) || 0);
+  const [a, b] = [parts(version), parts(current)];
+  for (let index = 0; index < Math.max(a.length, b.length); index++) {
+    const [x, y] = [a[index] ?? 0, b[index] ?? 0];
+    if (x !== y) return x > y;
+  }
+  return false;
+}
+
+/** Whether `signature` (base64) is the release key's signature of `sums`. */
+function isSigned(sums, signature) {
+  try {
+    return crypto.verify(
+      null,
+      sums,
+      crypto.createPublicKey(RELEASE_KEY),
+      Buffer.from(signature.trim(), "base64")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** The SHA-256 of a file on disk, as hex. */
+function hashOfFile(file) {
+  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
 /** The `hash  name` line of a SHA256SUMS file for `name`. */
 function expectedHash(sums, name) {
   for (const line of sums.split(/\r?\n/)) {
@@ -107,14 +157,27 @@ async function download(version, window, report, signal) {
   const setupName = `ByteRipper-${version}-setup.exe`;
   const setup = { url: `${DOWNLOADS}v${version}/${setupName}` };
   const sums = { url: `${DOWNLOADS}v${version}/SHA256SUMS` };
+  const signature = { url: `${DOWNLOADS}v${version}/SHA256SUMS.sig` };
 
-  let expected;
+  let sumsBytes;
   try {
-    expected = expectedHash(await (await fetchOk(sums.url, "download", signal)).text(), setupName);
+    sumsBytes = Buffer.from(await (await fetchOk(sums.url, "download", signal)).arrayBuffer());
   } catch (error) {
     if (error.reason === "missing") throw new Failure("unavailable");
     throw new Failure("download");
   }
+  // A release without a signature, or with one this key does not check, is not
+  // ours to run — whatever its checksums say, since whoever wrote the setup
+  // could have written them too.
+  let signatureText;
+  try {
+    signatureText = await (await fetchOk(signature.url, "download", signal)).text();
+  } catch (error) {
+    if (error.reason === "missing") throw new Failure("checksum");
+    throw new Failure("download");
+  }
+  if (!isSigned(sumsBytes, signatureText)) throw new Failure("checksum");
+  const expected = expectedHash(sumsBytes.toString("utf8"), setupName);
   if (expected === undefined) throw new Failure("checksum");
 
   const folder = path.join(app.getPath("temp"), "ByteRipper-update");
@@ -156,7 +219,7 @@ async function download(version, window, report, signal) {
     fs.rmSync(folder, { recursive: true, force: true });
     throw new Failure("checksum");
   }
-  return file;
+  return { file, hash: expected };
 }
 
 /** The reader kept the window open: the setup is not to run at some later quit. */
@@ -169,19 +232,29 @@ function stayed() {
 /**
  * @param ipcMain Electron's
  * @param BrowserWindow Electron's
+ * @param fromApp whether an IPC message came from the app's own page; nothing
+ *   else is answered
  */
-function register(ipcMain, BrowserWindow) {
+function register(ipcMain, BrowserWindow, fromApp) {
   ipcMain.on("update:installable", (event) => {
-    event.returnValue = canInstall();
+    event.returnValue = fromApp(event) && canInstall();
   });
 
-  ipcMain.on("update:cancel", () => abort?.abort());
+  ipcMain.on("update:cancel", (event) => {
+    if (fromApp(event)) abort?.abort();
+  });
 
-  ipcMain.handle("update:latest", () => latestRelease());
+  ipcMain.handle("update:latest", (event) => (fromApp(event) ? latestRelease() : undefined));
 
   ipcMain.handle("update:install", async (event, version) => {
     const window = BrowserWindow.fromWebContents(event.sender);
-    if (!canInstall() || !window || !/^\d+(\.\d+)*(-\d+)?$/.test(String(version))) {
+    if (
+      !fromApp(event) ||
+      !canInstall() ||
+      !window ||
+      !/^\d+(\.\d+)*(-\d+)?$/.test(String(version)) ||
+      !isNewer(version, app.getVersion())
+    ) {
       return { status: "failed", reason: "unavailable" };
     }
     const report = (progress) => {
@@ -214,8 +287,15 @@ function register(ipcMain, BrowserWindow) {
   // is done, and `--force-run` says so for a build that would not.
   app.on("quit", () => {
     if (pending === undefined) return;
-    spawn(pending, ["--force-run"], { detached: true, stdio: "ignore" }).unref();
+    // The file has waited in the temporary folder since it was checked; what
+    // runs is what was checked, or nothing.
+    try {
+      if (hashOfFile(pending.file) !== pending.hash) return;
+    } catch {
+      return;
+    }
+    spawn(pending.file, ["--force-run"], { detached: true, stdio: "ignore" }).unref();
   });
 }
 
-module.exports = { register, stayed, latestRelease };
+module.exports = { register, stayed, latestRelease, isNewer, isSigned, expectedHash };

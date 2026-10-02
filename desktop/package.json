@@ -24,6 +24,7 @@
       "main.cjs",
       "preload.cjs",
       "update.cjs",
+      "release-key.cjs",
       "web/**/*"
     ],
     "win": {

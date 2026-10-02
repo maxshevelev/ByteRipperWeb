@@ -5,7 +5,7 @@ description: Cut a ByteRipperWeb release — set the version to the upstream rel
 
 # Releasing ByteRipperWeb
 
-A release is an annotated tag on `main` and a GitHub release carrying five
+A release is an annotated tag on `main` and a GitHub release carrying six
 files:
 
 - **`ByteRipperWeb-<version>.html`** — the whole app in one page, to keep on a
@@ -14,9 +14,18 @@ files:
   and **`ByteRipper-<version>-win.zip`** — the optional Windows build
   (`desktop/`, D15). The setup is the one that starts fast and the one the
   build's **Check for Update…** installs;
-- **`SHA256SUMS`** — which that update checks the setup against. Both names
-  are looked up by the installed app in the *latest* release, so they must be
+- **`SHA256SUMS`** and **`SHA256SUMS.sig`** — the checksums the update checks
+  the setup against, and their Ed25519 signature, which it checks first with the
+  public key the build carries (`desktop/release-key.cjs`). All three names are
+  looked up by the installed app in the release it updates to, so they must be
   spelled exactly so.
+
+**The signing key is never on GitHub.** It lives at
+`~/.config/byteripperweb/release-ed25519.pem` (or `$BYTERIPPER_SIGNING_KEY`),
+made once by `release.py keygen`, with a copy kept offline: whoever can upload
+to a release cannot sign, and an installed build runs nothing unsigned. A lost
+key means the installed builds can no longer update themselves — a new key
+reaches them only by a manual install — so `keygen` refuses to overwrite one.
 
 **The hosted page moves with the release, and only with it.**
 `.github/workflows/deploy-pages.yml` builds https://maxshevelev.github.io/ByteRipperWeb/
@@ -47,7 +56,7 @@ The mechanical parts are a script; the notes are the work.
 ```bash
 python3 Skills/release/scripts/release.py version          # upstream's version into the package files
 python3 Skills/release/scripts/release.py version --check  # or only check them
-python3 Skills/release/scripts/release.py build            # release/<version>/: the page, the setup, the .exe, the .zip, SHA256SUMS
+python3 Skills/release/scripts/release.py build            # release/<version>/: the page, the setup, the .exe, the .zip, SHA256SUMS(.sig)
 python3 Skills/release/scripts/release.py build --skip-html  # the same without the single-file page
 ```
 
@@ -95,7 +104,8 @@ out when they have just run), then:
   upstream's icon (`desktop/make-icon.py`); the script checks the icon is in
   the executable. It is cross-built on the Mac and not signed.
 
-Everything lands in `release/<version>/` (git-ignored) with `SHA256SUMS`.
+Everything lands in `release/<version>/` (git-ignored) with `SHA256SUMS`, signed
+and the signature checked against the build's public key.
 
 **Open the page from disk once** before publishing — the driver does it:
 `node Skills/run-byteripperweb/scripts/drive.mjs open <dump> --tool UEFI --url file://$PWD/release/<version>/ByteRipperWeb-<version>.html`.
@@ -130,6 +140,7 @@ gh release create v<version> release/<version>/ByteRipperWeb-<version>.html \
     release/<version>/ByteRipper-<version>-setup.exe \
     release/<version>/ByteRipper-<version>-portable.exe \
     release/<version>/ByteRipper-<version>-win.zip release/<version>/SHA256SUMS \
+    release/<version>/SHA256SUMS.sig \
     --title "ByteRipperWeb <version> — …" --notes-file <notes.md> --latest
 ```
 
@@ -142,7 +153,7 @@ Publishing is outward-facing: confirm with the owner before `git push` and
 gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 ```
 
-Five assets, the tag is the latest release, and the CI run on the tagged
+Six assets, the tag is the latest release, and the CI run on the tagged
 commit is green (`gh run list --limit 3`). The *Deploy to Pages* run for the
 tag has finished, and https://maxshevelev.github.io/ByteRipperWeb/ says
 "ByteRipper <version>" on its landing screen. Report the release URL.

@@ -23,10 +23,14 @@ could be published:
     have to fetch;
   - ByteRipper-<version>-setup.exe, -portable.exe and -win.zip — the Windows
     build (desktop/, `npm run dist:win`), checked for the version in their
-    names and for upstream's icon inside the executable. The setup and
-    SHA256SUMS are what the Windows build's Check for Update… installs from:
-    it looks for exactly those two names in the latest release.
-They land in release/<version>/ (git-ignored) with a SHA256SUMS file.
+    names and for upstream's icon inside the executable. The setup,
+    SHA256SUMS and SHA256SUMS.sig are what the Windows build's Check for
+    Update… installs from: it looks for exactly those names in the release.
+They land in release/<version>/ (git-ignored) with a SHA256SUMS file and its
+Ed25519 signature, SHA256SUMS.sig, made with the key outside the repository
+($BYTERIPPER_SIGNING_KEY, or ~/.config/byteripperweb/release-ed25519.pem) and
+checked against desktop/release-key.cjs, the public half the Windows build
+carries. `keygen` makes that pair, once.
 
 Standard library only, like every script under Skills/.
 """
@@ -48,6 +52,15 @@ DESKTOP = ROOT / "desktop"
 PORT_STATE = ROOT / "PORT_STATE.json"
 VERSION_RE = re.compile(r'^\s*MARKETING_VERSION:\s*"?([^"\s]+)"?\s*$', re.M)
 ICON = "ByteRipperApp/Assets.xcassets/AppIcon.appiconset/icon_256x256.png"
+SIGN = Path(__file__).resolve().parent / "sign.mjs"
+PUBLIC_KEY = DESKTOP / "release-key.cjs"
+
+
+def signing_key() -> Path:
+    """The private key SHA256SUMS is signed with: never in the repository, never on GitHub."""
+    return Path(os.environ.get(
+        "BYTERIPPER_SIGNING_KEY", Path.home() / ".config" / "byteripperweb" / "release-ed25519.pem"
+    ))
 
 
 def fail(message: str) -> None:
@@ -189,8 +202,18 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def cmd_keygen() -> None:
+    """Makes the signing key, once. A second key would orphan every installed build."""
+    run(["node", str(SIGN), "keygen", str(signing_key()), str(PUBLIC_KEY)], ROOT)
+
+
 def cmd_build(out: Path | None, skip_checks: bool, skip_html: bool) -> None:
     version = cmd_version(check=True)
+    # Asked first: a build that cannot be signed is a build the installed copies refuse.
+    if not signing_key().exists():
+        fail(f"no signing key at {signing_key()} (copy it there, or set $BYTERIPPER_SIGNING_KEY)")
+    if not PUBLIC_KEY.exists():
+        fail(f"no {PUBLIC_KEY.relative_to(ROOT)} (release.py keygen)")
     target = out or ROOT / "release" / version
     if not skip_checks:
         run(["npm", "run", "check"], ROOT)
@@ -227,11 +250,18 @@ def cmd_build(out: Path | None, skip_checks: bool, skip_html: bool) -> None:
     ]
     sums = "".join(f"{sha256(Path(one))}  {Path(one).name}\n" for one in shipped)
     (target / "SHA256SUMS").write_text(sums)
+    # Signed, then checked with the public key the build carries: a signature
+    # the installed copies cannot check is caught here, not on their machines.
+    run(["node", str(SIGN), "sign", str(signing_key()), str(target / "SHA256SUMS"),
+         str(target / "SHA256SUMS.sig")], ROOT)
+    run(["node", str(SIGN), "verify", str(PUBLIC_KEY), str(target / "SHA256SUMS"),
+         str(target / "SHA256SUMS.sig")], ROOT)
     print(f"\nrelease {version} in {target.relative_to(ROOT) if target.is_relative_to(ROOT) else target}:")
     for one in shipped:
         size = Path(one).stat().st_size
         print(f"  {Path(one).name}  {size / 1_000_000:.1f} MB")
     print("  SHA256SUMS")
+    print("  SHA256SUMS.sig")
 
 
 def main() -> None:
@@ -243,9 +273,12 @@ def main() -> None:
     build.add_argument("--out", type=Path, help="where the artifacts go (default release/<version>/)")
     build.add_argument("--skip-checks", action="store_true", help="skip the test, lint and help checks")
     build.add_argument("--skip-html", action="store_true", help="leave the single-file page out of the release")
+    sub.add_parser("keygen", help="make the key the releases are signed with (once)")
     args = parser.parse_args()
     if args.command == "version":
         cmd_version(args.check)
+    elif args.command == "keygen":
+        cmd_keygen()
     else:
         cmd_build(args.out, args.skip_checks, args.skip_html)
 
