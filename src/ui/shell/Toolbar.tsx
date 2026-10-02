@@ -18,6 +18,7 @@ import {
   menuState,
   panesSwapped,
   toolController,
+  toolKeyEquivalent,
 } from "@/state/toolController";
 import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { checkForUpdate } from "@/state/updateStore";
@@ -508,10 +509,14 @@ export function Toolbar({
       onSelect: () => activate(undefined),
     },
     { kind: "separator" },
-    ...TOOLS.map((tool) => {
+    ...TOOLS.map((tool, index) => {
       const row = menuState(tool.id, active !== undefined);
+      const key = toolKeyEquivalent(index);
       return {
         label: tool.title,
+        // ⌘1, ⌘2, … only where the window is the app's: a browser keeps them for its
+        // own tabs and never hands them to a page.
+        shortcut: nativeMenuBar && key !== undefined ? `⌘${key}` : undefined,
         checked: row.checked,
         disabled: !row.enabled,
         onSelect: () => activate(tool.id),

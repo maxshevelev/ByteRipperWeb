@@ -373,6 +373,18 @@ export function selectPane(pane: PaneId): void {
 }
 
 /**
+ * The key a tool's menu row answers to, in the menu's order: 1, 2, … — digits run
+ * out at nine. None has none here: ⌘0 is Actual Size, where the window is the
+ * app's.
+ *
+ * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeToolsMenu
+ * @upstream-differs upstream's None answers to ⌘0, which this window's zoom reset has
+ */
+export function toolKeyEquivalent(index: number): string | undefined {
+  return index < 9 ? String(index + 1) : undefined;
+}
+
+/**
  * Whether the menu row for `identifier` is available, and whether it is the
  * checked one. A tool reads and writes the open file, so it needs one; None
  * stays available always, since it is how the panel is closed.

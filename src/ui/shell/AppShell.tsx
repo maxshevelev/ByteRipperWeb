@@ -52,10 +52,13 @@ import {
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { languageStore } from "@/state/settingsStore";
 import {
+  activate,
+  menuState,
   paneClosed,
   panesSwapped,
   sessionOn,
   toolController,
+  toolKeyEquivalent,
   zoneSelected,
 } from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
@@ -98,6 +101,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
+import { TOOLS } from "@/tools/registry";
 import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
@@ -131,6 +135,7 @@ import { addCut, saveAllPieces, segmentAsks } from "@/ui/segments/segmentCommand
 import { SettingsDialog, type SettingsTab } from "@/ui/settings/SettingsDialog";
 import { AboutDialog } from "@/ui/shell/AboutDialog";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
+import { desktopBridge } from "@/ui/shell/desktopMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
 import { windowTitle } from "@/ui/shell/emptyWindow";
 import { ignoredFilesAlert } from "@/ui/shell/ignoredFiles";
@@ -2173,6 +2178,18 @@ export function AppShell() {
       } else if (key === "w" && !event.shiftKey && anyOpen) {
         event.preventDefault();
         void closeWithWarning(front);
+      } else if (
+        desktopBridge() !== undefined &&
+        !event.shiftKey &&
+        TOOLS.some((_, index) => toolKeyEquivalent(index) === key)
+      ) {
+        // The Tools menu's keys, in the menu's order; the row's own enabled state
+        // decides, as a menu item's validation does — a tool needs a file.
+        const tool = TOOLS.find((_, index) => toolKeyEquivalent(index) === key);
+        if (tool === undefined || !menuState(tool.id, paneState(front) !== undefined).enabled)
+          return;
+        event.preventDefault();
+        activate(tool.id);
       } else if (key === "s" && anyOpen) {
         const target = event.target;
         if (target instanceof Element && target.closest(".hex-scroller") !== null) return;

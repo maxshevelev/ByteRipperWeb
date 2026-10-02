@@ -12,6 +12,7 @@ import {
   selectPane,
   sessionOn,
   toolController,
+  toolKeyEquivalent,
 } from "@/state/toolController";
 import {
   closePane,
@@ -478,5 +479,15 @@ describe("a drop on the tool panel", () => {
     expect(panelTakesDrops("panes")).toBe(true);
     expect(panelTakesDrops(part)).toBe(false);
     expect(paneDropTitle(part, "b")).toBeUndefined();
+  });
+});
+
+describe("the keys of the Tools menu", () => {
+  // ⌘1, ⌘2, … in the menu's order; digits run out at nine.
+  // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeToolsMenu
+  it("numbers the tools from one, and stops at nine", () => {
+    expect([0, 1, 2].map(toolKeyEquivalent)).toEqual(["1", "2", "3"]);
+    expect(toolKeyEquivalent(8)).toBe("9");
+    expect(toolKeyEquivalent(9)).toBeUndefined();
   });
 });
