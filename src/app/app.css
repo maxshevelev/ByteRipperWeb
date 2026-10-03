@@ -604,6 +604,18 @@ textarea,
   top: 0;
   left: 0;
   display: block;
+  /*
+   * The CSS size is the scroller's content box itself, as a percentage of it:
+   * exact to the fraction of a pixel the layout lands on. Sizing it in script
+   * from `clientWidth` instead rounded the box to a whole pixel, and at the
+   * zoom levels where the box is fractional that rounding went up — the canvas
+   * then overflowed the box by a fraction of a pixel, and the fraction is
+   * enough for the browser to draw the scroll bar it would not otherwise show,
+   * the grid still well short of the pane's edge. `100%` cannot overflow, so
+   * the bar appears only when the row really is wider than the pane.
+   */
+  width: 100%;
+  height: 100%;
   /* The canvas must not eat the pointer events the scroller listens for. */
   pointer-events: none;
 }

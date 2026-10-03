@@ -452,8 +452,9 @@ export class HexGridRenderer {
       const scale = config.devicePixelRatio;
       this.canvas.width = Math.max(1, Math.round(viewport.widthCss * scale));
       this.canvas.height = Math.max(1, Math.round(viewport.heightCss * scale));
-      this.canvas.style.width = `${viewport.widthCss}px`;
-      this.canvas.style.height = `${viewport.heightCss}px`;
+      // The canvas's CSS size is the stylesheet's (`100%` of the scroller's
+      // content box): set here it would be a whole pixel, and the fraction it
+      // rounds off is what drew the pane a scroll bar it did not need.
       // A resized canvas is a cleared canvas: nothing of the old paint survives
       // to be blitted, so there is nothing to preserve.
       this.invalidateAll();
