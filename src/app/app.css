@@ -3380,12 +3380,38 @@ button.uefi-title {
 }
 
 /* A picture's preview: as wide as the list at most, never larger than its own
-   pixels, in its own proportions. */
+   pixels, in its own proportions, in a hairline frame — a logo is often white or
+   transparent, and the frame is what says where the picture is. */
 .tool-detail-picture {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 12px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.tool-detail-picture-img {
   display: block;
   max-width: 100%;
   height: auto;
-  margin-top: 12px;
+}
+
+/* The checkerboard: an 8-pixel square, so transparency reads at any size. */
+.tool-detail-picture-checkerboard {
+  background-image: conic-gradient(
+    var(--picture-checker-light) 25%,
+    var(--picture-checker-dark) 0 50%,
+    var(--picture-checker-light) 0 75%,
+    var(--picture-checker-dark) 0
+  );
+  background-size: 16px 16px;
+}
+
+.tool-detail-picture-contrast {
+  background-color: var(--picture-contrast);
 }
 
 .tool-detail-table-title {

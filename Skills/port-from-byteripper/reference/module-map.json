@@ -775,7 +775,11 @@
         "Modules/UEFITool/Tests/UEFIToolTests/FITComponentDisplayTests.swift": "src/tools/uefi/fitComponentDisplay.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/PictureDisplayTests.swift": "src/tools/uefi/pictureDisplay.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/NodeOpenTests.swift": "src/tools/uefi/nodeOpen.test.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift": "src/tools/uefi/uefiHelpTerms.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHelpTermsTests.swift": "src/tools/uefi/uefiHelpTerms.test.ts",
+        "Sources/UEFIToolUI/PicturePreviewView.swift": [
+          "src/ui/toolPanel/pictureBackground.ts",
+          "src/ui/toolPanel/ToolDetail.tsx"
+        ]
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
@@ -828,7 +832,15 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.unpackedTabName": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openUnpackedInNewTab": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenUnpacked": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnOverridesVariableIsReadAsRules": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then"
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnOverridesVariableIsReadAsRules": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
+        "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.pictureFileExtension": "n/a — the name of the file Quick Look writes, and Quick Look is not ported (the owner's decision, 2026-10-04); the web's preview keeps the mime, not a name",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.acceptsPreviewPanelControl": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.beginPreviewPanelControl": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.endPreviewPanelControl": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.numberOfPreviewItems": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.previewPanel": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.quickLookFile": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.toggleQuickLook": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)"
       }
     },
     {
@@ -4244,7 +4256,8 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnotherFileShowsNothingOfTheLastOne": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testARefusalIsASheetAndAudible": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testABZip2VariableOpensItsUnpackedText": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testABZip2VariableOpensItsUnpackedText": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsThePictureInQuickLook": "later — an app flow test; Quick Look on Space is not ported (the owner's decision, 2026-10-04), and the web has no end-to-end test of the click yet"
       }
     },
     {

@@ -116,6 +116,12 @@
   --segment-4: #e3d9f7;
   --segment-5: #fce3d1;
 
+  /* The picture's ground: a checker that shows a transparent logo, and the
+     panel's own contrast for a click's third stop (upstream: 1.0 / 0.8 / 0.0). */
+  --picture-checker-light: #ffffff;
+  --picture-checker-dark: #cccccc;
+  --picture-contrast: #000000;
+
   color-scheme: light dark;
 }
 
@@ -181,6 +187,11 @@
     --segment-3: #4a4526;
     --segment-4: #3b304f;
     --segment-5: #4f3b29;
+
+    /* As the light block, the greys pulled to the dark side (upstream: 0.3 / 0.18 / 1.0). */
+    --picture-checker-light: #4c4c4c;
+    --picture-checker-dark: #2e2e2e;
+    --picture-contrast: #ffffff;
   }
 }
 
@@ -251,6 +262,11 @@
   --segment-3: #4a4526;
   --segment-4: #3b304f;
   --segment-5: #4f3b29;
+
+  /* As the light block, the greys pulled to the dark side (upstream: 0.3 / 0.18 / 1.0). */
+  --picture-checker-light: #4c4c4c;
+  --picture-checker-dark: #2e2e2e;
+  --picture-contrast: #ffffff;
 }
 
 /*

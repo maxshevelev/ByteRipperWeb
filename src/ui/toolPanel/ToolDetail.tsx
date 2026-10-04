@@ -5,6 +5,11 @@ import { L } from "@/core/localization/localization";
 import type { DetailSymbol, DetailTable, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
+import {
+  initialPictureBackground,
+  nextPictureBackground,
+  type PictureBackground,
+} from "@/ui/toolPanel/pictureBackground";
 
 /**
  * A panel's detail: a title, a column of label/value rows, and the tables after
@@ -149,32 +154,92 @@ export function ToolDetail({
 
 /**
  * The picture a node is, drawn under its rows: as wide as the list at most, never
- * larger than its own pixels, in its own proportions. Bytes the browser cannot
- * decode leave the rows as they are — the fields have already said what the parser
- * read.
+ * larger than its own pixels, in its own proportions, in a hairline frame, on a
+ * ground a click changes. Bytes the browser cannot decode leave the rows as they
+ * are — the fields have already said what the parser read.
+ *
+ * The frame and the ground are upstream's `PicturePreviewView`: a logo is often
+ * white or transparent, so the frame says where the picture is whatever its
+ * colours, and the ground is what lets its pixels be seen. The ground is chosen
+ * by what the decoded pixels say about an alpha channel, not by the mime, and is
+ * not remembered — the next picture starts from what suits it.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.addPicture
- * @upstream-differs an `<img>` over a blob of the bytes, which the browser decodes
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/PicturePreviewView.swift#PicturePreviewView
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/PicturePreviewView.swift#PicturePreviewView.background
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/PicturePreviewView.swift#PicturePreviewView.mouseDown
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/PicturePreviewView.swift#PicturePreviewView.accessibilityPerformPress
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/PicturePreviewView.swift#PicturePreviewView.resetCursorRects
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/PicturePreviewView.swift#PicturePreviewView.draw
+ * @upstream-differs an `<img>` in a framed `<button>`, which the browser decodes;
+ * the frame and the ground are CSS, and the button's one click answers both the
+ * pointer and the keyboard's press, where upstream has a mouse event and an
+ * accessibility press
  */
 // help: panel.uefi.picture-preview
 function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly mime: string }) {
   const [failed, setFailed] = useState(false);
+  const [background, setBackground] = useState<PictureBackground | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const url = useMemo(
     () => URL.createObjectURL(new Blob([bytes.slice()], { type: mime })),
     [bytes, mime]
   );
+  // A new picture is a new ground: whatever the last one was cycled to goes.
   useEffect(() => {
     setFailed(false);
+    setBackground(null);
     return () => URL.revokeObjectURL(url);
   }, [url]);
+
+  // The alpha, found by decoding rather than by the mime: a PNG without an alpha
+  // channel and a JPEG both start on the panel's own, whatever the name says.
+  const onImageLoad = () => {
+    const img = imgRef.current;
+    if (img === null || img.naturalWidth === 0 || img.naturalHeight === 0) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (context === null) return;
+    context.drawImage(img, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let hasAlpha = false;
+    for (let at = 3; at < pixels.length; at += 4) {
+      if ((pixels[at] ?? 0) < 255) {
+        hasAlpha = true;
+        break;
+      }
+    }
+    setBackground(initialPictureBackground(hasAlpha));
+  };
+
+  const cycle = () => setBackground((one) => (one === null ? one : nextPictureBackground(one)));
+
   if (failed) return null;
+  // A button, not a div with a role: the browser's own press of a button — the
+  // pointer's and the keyboard's alike — is one click, as upstream's two handlers
+  // are one intent.
   return (
-    <img
-      className="tool-detail-picture"
-      src={url}
-      alt={L("Picture preview")}
-      onError={() => setFailed(true)}
-    />
+    <button
+      type="button"
+      className={
+        background === null
+          ? "tool-detail-picture"
+          : `tool-detail-picture tool-detail-picture-${background}`
+      }
+      title={L("Click to change the background")}
+      onClick={cycle}
+    >
+      <img
+        ref={imgRef}
+        className="tool-detail-picture-img"
+        src={url}
+        alt={L("Picture preview")}
+        onLoad={onImageLoad}
+        onError={() => setFailed(true)}
+      />
+    </button>
   );
 }
 
