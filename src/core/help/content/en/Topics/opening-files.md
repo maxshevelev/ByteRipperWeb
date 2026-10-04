@@ -25,10 +25,10 @@ The second pane is optional. Nothing needs a second file except the comparison i
 
 ## How long the [[edition:tab||window]] keeps a file
 
-Nothing is uploaded: a file you open is read inside [[edition:this browser tab||this window]], and its bytes stay on this machine. In return, [[edition:the tab holds a *reference* to the file, and the reference lives only while the page is open||the window holds a *reference* to the file, and the reference lives only while the window is open]]. Two things follow:
+[[edition:Nothing is uploaded: a file you open is read inside this browser tab, and its bytes stay on this machine. In return, the tab holds a *reference* to the file, and the reference lives only while the page is open. Two things follow:||The window holds the files it has open, and only while it is open. Closing it, or relaunching the application, starts from the empty screen. **File ▸ Open Recent** keeps the last ten files you opened, most recent first, and picking one from the list opens the file again.]]
 
-- **A reload forgets every file.** [[edition:Closing the tab, reloading it, or coming back tomorrow all start from the empty screen, and the dumps must be opened again.||Closing the window, reloading it, or coming back tomorrow all start from the empty screen; **File ▸ Open Recent** keeps the last ten files you opened, most recent first, and picking one from the list opens the file again.]]
-- [[edition:**Permission is asked once per file, per page.** The browser asks to read a file once while the page is open and does not ask about it again until the page reloads. In a Chromium browser, saving back to a file may ask a second time — that is the browser's own prompt, not the app's.||**Permission is asked once per file.** The window asks to read a file once, and a file that **File ▸ Open Recent** reopens is read with the grant it was given, asking again only where that grant is no longer kept.]]
+[[edition:- **A reload forgets every file.** Closing the tab, reloading it, or coming back tomorrow all start from the empty screen, and the dumps must be opened again.||]]
+[[edition:- **Permission is asked once per file, per page.** The browser asks to read a file once while the page is open and does not ask about it again until the page reloads. In a Chromium browser, saving back to a file may ask a second time — that is the browser's own prompt, not the app's.||]]
 
 [[edition:! Keep your dumps in a folder you can find again. A web page is never told where a file is, so the app cannot reopen one of yesterday's.||! The list keeps ten files, most recent first: a dump is in it while it is one of the last ten opened and its file has not been moved or deleted.]]
 

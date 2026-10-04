@@ -1,4 +1,4 @@
-@source-sha 1e99aee9f0a3d8337ea58317ccf090c160ed073697372de884a8e916687d87f0
+@source-sha 081d414472eedda0fb6630d5735ba4220330c7a16ed93e30295adcc0b90b7682
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -19,10 +19,10 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 
 ## Wie lange [[edition:der Tab||das Fenster]] die Datei hält
 
-Es wird nichts hochgeladen: eine geöffnete Datei wird in [[edition:diesem Browser-Tab||diesem Fenster]] gelesen, und ihre Bytes bleiben auf diesem Rechner. Dafür hält [[edition:der Tab einen *Verweis* auf die Datei, und der lebt nur, solange die Seite offen ist||das Fenster einen *Verweis* auf die Datei, und der lebt nur, solange das Fenster offen ist]]. Zwei Dinge ergeben sich daraus:
+[[edition:Es wird nichts hochgeladen: eine geöffnete Datei wird in diesem Browser-Tab gelesen, und ihre Bytes bleiben auf diesem Rechner. Dafür hält der Tab einen *Verweis* auf die Datei, und der lebt nur, solange die Seite offen ist. Zwei Dinge ergeben sich daraus:||Das Fenster hält die offenen Dateien — nur, solange es offen ist. Schließen Sie es, oder starten Sie die Anwendung neu, und es beginnt wieder beim leeren Bildschirm. **Ablage ▸ Benutzte Dokumente** hält die zuletzt geöffneten zehn Dateien, die jüngsten zuerst, und eine Auswahl aus der Liste öffnet die Datei erneut.]]
 
-- **Beim Neuladen sind alle Dateien weg.** [[edition:Den Tab schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm, und die Dumps müssen erneut geöffnet werden.||Das Fenster schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm; **Ablage ▸ Benutzte Dokumente** hält die zuletzt geöffneten zehn Dateien, die jüngsten zuerst, und eine Auswahl aus der Liste öffnet die Datei erneut.]]
-- [[edition:**Die Erlaubnis wird einmal je Datei und Seite erfragt.** Solange die Seite offen ist, fragt der Browser nach dieser Datei nicht noch einmal. In einem Chromium-Browser kann ein Zurückschreiben ein zweites Mal nachfragen — das ist die Frage des Browsers, nicht die des Programms.||**Die Erlaubnis wird einmal je Datei erfragt.** Das Fenster fragt einmal nach dem Lesen einer Datei, und eine Datei, die **Ablage ▸ Benutzte Dokumente** erneut öffnet, wird mit der erteilten Erlaubnis gelesen — erneut gefragt wird nur, wo diese Erlaubnis nicht mehr aufbewahrt wird.]]
+[[edition:- **Beim Neuladen sind alle Dateien weg.** Den Tab schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm, und die Dumps müssen erneut geöffnet werden.||]]
+[[edition:- **Die Erlaubnis wird einmal je Datei und Seite erfragt.** Solange die Seite offen ist, fragt der Browser nach dieser Datei nicht noch einmal. In einem Chromium-Browser kann ein Zurückschreiben ein zweites Mal nachfragen — das ist die Frage des Browsers, nicht die des Programms.||]]
 
 [[edition:! Halten Sie Ihre Dumps in einem Ordner, den Sie wiederfinden. Eine Webseite weiß nicht, wo eine Datei liegt, das Programm kann also keine Datei von gestern von selbst wieder öffnen.||! Die Liste hält zehn Dateien, die jüngsten zuerst: ein Dump steht darin, solange er zu den zuletzt zehn geöffneten gehört und seine Datei weder verschoben noch gelöscht wurde.]]
 
