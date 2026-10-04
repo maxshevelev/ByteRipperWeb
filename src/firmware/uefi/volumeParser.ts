@@ -3,7 +3,11 @@ import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FFS, parseFile } from "@/firmware/uefi/fileParser";
-import { ffsVersionOfFileSystem, nameOfGuid } from "@/firmware/uefi/knownGuids";
+import {
+  APPLE_RESERVED_VOLUME,
+  ffsVersionOfFileSystem,
+  nameOfGuid,
+} from "@/firmware/uefi/knownGuids";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
@@ -264,6 +268,14 @@ export function volumeChildren(
   }
   if (guidEquals(header.fileSystem, FV.appleMicrocodeFileSystem)) {
     return walkMicrocodeVolumeBody(parser, body, emptyByte);
+  }
+  // Apple's reserved volume is a header and erased bytes: free space, not an
+  // unknown file system, while it is erased.
+  if (
+    guidEquals(header.fileSystem, APPLE_RESERVED_VOLUME) &&
+    parser.reader.isFilled(body, emptyByte)
+  ) {
+    return [makeSpan({ kind: "freeSpace", name: L("Free space"), range: body, isErased: true })];
   }
   const ffsVersion = ffsVersionOfFileSystem(header.fileSystem);
   if (ffsVersion === undefined) {

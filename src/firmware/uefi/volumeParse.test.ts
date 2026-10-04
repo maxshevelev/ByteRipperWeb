@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import * as Test from "@/firmware/testing/testImage";
 import { guid } from "@/firmware/uefi/efiGuid";
-import { FFS_V2 } from "@/firmware/uefi/knownGuids";
+import { APPLE_RESERVED_VOLUME, FFS_V2 } from "@/firmware/uefi/knownGuids";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 
@@ -63,6 +63,17 @@ describe("finding a volume", () => {
     bytes.set([0x5f, 0x46, 0x56, 0x48], 0x10);
 
     expect(kinds(parse(bytes).roots)).toEqual(["padding"]);
+  });
+
+  // Apple's reserved volume in a 2010 or 2011 MacBook is a header and erased
+  // bytes: it is free space, not an unknown file system.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAnErasedAppleReservedVolumeReadsAsFreeSpace
+  it("reads an erased Apple reserved volume as free space", () => {
+    const parsed = parse(Test.volume({ fileSystem: APPLE_RESERVED_VOLUME, length: 0x400 }));
+
+    expect(parsed.roots.map((one) => one.name)).toEqual(["Apple reserved FV"]);
+    expect(kinds(parsed.roots[0]?.children ?? [])).toEqual(["freeSpace"]);
+    expect(parsed.diagnostics).toEqual([]);
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testARevisionOutsideOneAndTwoIsNotAVolume
