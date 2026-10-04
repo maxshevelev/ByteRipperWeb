@@ -281,14 +281,32 @@ textarea,
   cursor: pointer;
 }
 
-/* The marks: a different subject from the landing screen, so more air above. */
+/* The landing screen's bottom: the marks and the release's own words. Capped
+   and centred like the sign-off above it. While there are marks the two share
+   the row, each its half (`--split`); while there are none the notes stand
+   alone in the single column. */
+.empty-state-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px 28px;
+  /* 30 above the row, less the stack's own 14. */
+  margin-top: 16px;
+  width: min(680px, 100%);
+  text-align: left;
+}
+
+.empty-state-bottom--split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* The marks, one half of the bottom: a different subject from the landing
+   screen, so the air above now belongs to the row that holds it. */
 .empty-state-bookmarks {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  /* 30 above the section, less the stack's own 14. */
-  margin-top: 16px;
+  align-self: start;
 }
 
 .empty-state-bookmarks-heading {
@@ -331,6 +349,33 @@ textarea,
   white-space: nowrap;
   color: var(--text);
   font-size: 12px;
+}
+
+/* The other half of the bottom: the release's own words, a secondary label and
+   the hint's size for the body. Left-aligned like the marks, so the two halves
+   read as a pair. */
+.empty-state-release-notes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  align-self: start;
+  min-width: 0;
+}
+
+.empty-state-release-notes-heading {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty-state-release-notes-body {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
 }
 
 :focus-visible {

@@ -1049,6 +1049,8 @@
 "Version %1$@ is available" = "Version %1$@ ist verfügbar";
 "Update to version %1$@" = "Auf Version %1$@ aktualisieren";
 "Updating to Version %1$@" = "Aktualisierung auf Version %1$@";
+"What's new in release %1$@" = "Was ist neu in Version %1$@";
+"What's new in the new release %1$@" = "Was ist neu in der neuen Version %1$@";
 "Contacting GitHub…" = "Verbindung zu GitHub…";
 "Downloading… %1$@ of %2$@" = "Herunterladen… %1$@ von %2$@";
 "Downloading…" = "Herunterladen…";

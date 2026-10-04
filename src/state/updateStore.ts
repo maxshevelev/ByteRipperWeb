@@ -72,6 +72,24 @@ export const checkForNewerRelease = (): Promise<Release | undefined> =>
   newerRelease(source, runningVersion());
 
 /**
+ * The newest published release, asked the page's own way for the notes under
+ * the version: the page fetches github.com's API, whose answer carries the
+ * release's body — the shell's redirect, which the check above uses, carries
+ * only the tag. Held one request a day like the check, and asked in the
+ * background: it answers when it answers, and nothing is printed while it has
+ * not. In the desktop shell this is the page's fetch, not the shell's — the
+ * notes are not the update, so they take the page's allowance rather than
+ * spending the shell's.
+ *
+ * @web-only the notes are read out of the page's own API answer; upstream links
+ * to the release's page and prints no text of it
+ */
+const notesSource: ReleaseSource = new GitHubReleases();
+
+export const latestReleaseForNotes = (): Promise<Release | undefined> =>
+  notesSource.latestRelease().catch(() => undefined);
+
+/**
  * What to tell a person whose check failed, for the reason it failed: a network
  * that is down is theirs to look at, a limit that is spent only has to wait, and
  * an answer that is an error is GitHub's own trouble.

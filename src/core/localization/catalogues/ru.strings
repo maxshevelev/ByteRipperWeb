@@ -1048,6 +1048,8 @@
 "Version %1$@ is available" = "Доступна версия %1$@";
 "Update to version %1$@" = "Обновить до версии %1$@";
 "Updating to Version %1$@" = "Обновление до версии %1$@";
+"What's new in release %1$@" = "Что нового в версии %1$@";
+"What's new in the new release %1$@" = "Что нового в новой версии %1$@";
 "Contacting GitHub…" = "Связь с GitHub…";
 "Downloading… %1$@ of %2$@" = "Загрузка… %1$@ из %2$@";
 "Downloading…" = "Загрузка…";

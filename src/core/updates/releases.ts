@@ -22,6 +22,15 @@ export interface Release {
   readonly page: string;
   /** The files attached to it, by name. */
   readonly assets: readonly { readonly name: string; readonly url: string }[];
+  /**
+   * The release's own text, as written on github.com: what the landing screen
+   * prints under the version. Absent when the release has none, or when the
+   * answer comes from the shell's redirect, which carries only the tag.
+   *
+   * @web-only the page reads the body out of the API's answer; upstream links
+   * to the release's page rather than printing its text
+   */
+  readonly body?: string | undefined;
 }
 
 /**
@@ -99,6 +108,7 @@ export function releaseFromJson(data: unknown, repository: string): Release | un
     tag_name?: unknown;
     html_url?: unknown;
     assets?: unknown;
+    body?: unknown;
   };
   if (typeof payload.tag_name !== "string") return undefined;
   const version = parseAppVersion(payload.tag_name);
@@ -117,5 +127,6 @@ export function releaseFromJson(data: unknown, repository: string): Release | un
           : [];
       })
     : [];
-  return { version, page, assets };
+  const body = typeof payload.body === "string" ? payload.body : undefined;
+  return { version, page, assets, body };
 }
