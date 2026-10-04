@@ -66,8 +66,9 @@ python3 Skills/release/scripts/release.py build --skip-html  # the same without 
 
 - On `main`, clean tree, up to date with `origin/main`.
 - **The port is current, or knowingly not.** Run
-  `python3 Skills/port-from-byteripper/scripts/port_report.py`: a release made
-  with upstream commits waiting says so in its notes, or waits for the port.
+  `python3 Skills/port-from-byteripper/scripts/port_report.py`: with upstream
+  commits waiting, either wait for the port or cut the release — the notes
+  cover only this build either way (step 4).
 - The ByteRipper clone is fetched and contains the baseline commit — `version`
   reads `project.yml` there.
 
@@ -113,13 +114,21 @@ What a page opened from disk cannot do, it says in the notes (see below).
 
 ### 4. The release notes
 
-Written to a file in the scratchpad, never committed. Upstream's shape, which
-this edition's releases keep:
+Written to a file in the scratchpad, never committed. The notes are for the
+end user, and they cover this release only: what it added and what it fixed,
+in the reader's words. They do not say that upstream has commits this build
+does not carry — a port that is not level is a reason to wait (step 1), not a
+line in the notes. Upstream's shape, which this edition's releases keep:
 
 - **Title:** `ByteRipperWeb <version> — <what the release is about>`, lower
   case after the dash.
-- **Opening paragraph:** what the release is about, in two or three sentences,
-  and which upstream release it is level with.
+- **Opening paragraph:** what the release is about, in two or three sentences
+  — short and dense, a look at the changes rather than a list. This is the
+  paragraph the empty screen's **What's new** prints (`firstParagraph` of the
+  release body, `src/core/updates/releaseNotes.ts`), so it is read on the
+  bench, not on the release page: it carries no link to upstream and no word
+  on which upstream release the build is level with — a developer's detail the
+  screen does not need.
 - **`###` sections**, the larger themes first, each a short paragraph and
   bullets with the feature in **bold** where it starts; then `### Smaller
   things` and `### Fixes` — a fix says what the user saw go wrong.
