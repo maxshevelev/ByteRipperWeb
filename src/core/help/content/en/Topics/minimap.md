@@ -6,7 +6,7 @@
 @covers menu.view.minimap-overview
 @covers shell.minimap
 
-**View ▸ Show Minimap** (⌘M), or the button at the right end of the toolbar, opens a narrow column beside the dump. In comparison mode it shows both files, split the way the panes are.
+**View ▸ Show Minimap** ([[key:minimap]]), or the button at the right end of the toolbar, opens a narrow column beside the dump. In comparison mode it shows both files, split the way the panes are.
 
 ## Two modes
 

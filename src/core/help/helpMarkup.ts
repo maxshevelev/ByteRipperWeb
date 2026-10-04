@@ -19,11 +19,20 @@
  *   `- **[[term:fpt|the table]]** — …` — but cannot nest in bold.
  * - `[[web:https://…|the words to show]]` — a link out to a source. https only:
  *   a page of ours will not send a reader over plain http.
+ * - `[[key:find]]` — a chord. The page names the command, and the spelling is
+ *   the reader's platform's (`⌘F` on a Mac, `Ctrl+F` elsewhere), so one page is
+ *   read correctly on every keyboard without the author writing both words.
+ * - `[[edition:…]]` — a phrase that reads one way in the browser and another in
+ *   the desktop shell, `[[edition:the menu is the way||the panel has a key]]`:
+ *   the first half is the browser, the second the shell, and with no `||` the
+ *   phrase is the same for both. A half may itself hold links, keys and bold,
+ *   which is why the split is made before the line is cut into its runs.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup
  */
 
 import { type HelpLink, termId, termLink, topicId, topicLink } from "@/core/help/helpIds";
+import { canonicalKeyResolver, type HelpKeyResolver } from "@/core/help/helpKeys";
 
 /**
  * A run of text inside one block: plain words, something emphasised, a value to
@@ -51,7 +60,27 @@ export type HelpSpan =
    * document has to say where the claim comes from, and a reader who wants to
    * check has to be able to get there.
    */
-  | { readonly kind: "web"; readonly text: string; readonly url: string };
+  | { readonly kind: "web"; readonly text: string; readonly url: string }
+  /**
+   * A keyboard chord. `command` is the id the page wrote (`find`, `nextDifference`);
+   * what is shown and searched is that id's spelling on the reader's platform,
+   * which the view and the search each resolve — the span itself holds only the id,
+   * so the book is one file and the spelling is decided where the keyboard is.
+   */
+  | { readonly kind: "key"; readonly command: string };
+
+/**
+ * Which edition of the app a page is being read in.
+ *
+ * The same file is read in a browser and in the desktop shell, and the two are
+ * not the same application: a chord the shell binds the browser keeps for its
+ * own tabs, and the shell saves in place where a browser downloads. A page may
+ * therefore mark a phrase as different for the two, and the loader keeps the
+ * one the reader is in. The string is the same `AppEdition` the platform probe
+ * returns; it is named here rather than imported so the book stays in `core`,
+ * which does not reach into the platform layer to ask where it is running.
+ */
+export type HelpEdition = "browser" | "desktop";
 
 /**
  * One block of a page. A page is a list of these, in the order they were
@@ -89,12 +118,15 @@ function stepBody(line: string): string | undefined {
 }
 
 /**
- * `topic:opening-files`, `term:fpt`, `web:https://…`, or any of them with
- * `|the words to show`. Nothing for anything else, which leaves the brackets in
- * the text as written — a page that says `[[` and means it reads as it was
- * typed rather than losing the line.
+ * `topic:opening-files`, `term:fpt`, `key:find`, `web:https://…`, or a link
+ * form with `|the words to show`. Nothing for anything else, which leaves the
+ * brackets in the text as written — a page that says `[[` and means it reads as
+ * it was typed rather than losing the line.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.linkSpan
+ * @upstream-differs upstream's book has no chords and no two editions, so it has
+ * no `key:` or `edition:` form; these are the web's answer to being read on two
+ * keyboards and in two applications
  */
 function linkSpan(body: string): HelpSpan | undefined {
   const bar = body.indexOf("|");
@@ -107,6 +139,14 @@ function linkSpan(body: string): HelpSpan | undefined {
     // and goes nowhere.
     const url = webUrl(target.slice("web:".length));
     return url === undefined ? undefined : { kind: "web", text: shown === "" ? url : shown, url };
+  }
+
+  if (target.startsWith("key:")) {
+    // A chord has no words of its own to show: its spelling on the platform is
+    // what reads, so `|` is not read here. The id is kept as written; how it is
+    // spelled is the resolver's, and one the table does not carry reads as its id.
+    const command = target.slice("key:".length).trim();
+    return command === "" ? undefined : { kind: "key", command };
   }
 
   const link = parseHelpLink(target);
@@ -214,9 +254,17 @@ export function helpSpans(line: string): HelpSpan[] {
 /**
  * The blocks a page is written as.
  *
+ * `edition` chooses which half of every `[[edition:…]]` phrase the page keeps:
+ * it is done before the line is cut into its runs, because a half may itself
+ * hold links and keys that the pass then parses as if the author had written
+ * that half directly. A page with no such phrase reads the same on either
+ * edition, which is why the default is the one the book was written for.
+ *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.parse
+ * @upstream-differs upstream has one edition, so its parse has no such parameter
  */
-export function parseHelpMarkup(source: string): HelpBlock[] {
+export function parseHelpMarkup(source: string, edition: HelpEdition = "browser"): HelpBlock[] {
+  source = applyEdition(source, edition);
   const blocks: HelpBlock[] = [];
   // The paragraph being gathered: prose lines join up until a blank line or a
   // line that starts a block of another kind.
@@ -285,33 +333,151 @@ export function parseHelpMarkup(source: string): HelpBlock[] {
 }
 
 /**
+ * Every `[[edition:…]]` in the source, replaced by the half the reader's edition
+ * keeps.
+ *
+ * The split is textual, before the line is cut into its runs: a half may itself
+ * hold links and keys, and those are parsed on the ordinary pass over the
+ * result as if the author had written that half directly. The closing `]]` is
+ * found by balancing the inner `[[` and `]]` the phrase carries, so a half that
+ * holds `[[key:tool1]]` does not end the phrase early. The two halves are split
+ * on the first `||` that sits outside any `[[ … ]]` — a single `|` inside a
+ * half's own link is not the split — and with no such `||` the phrase is the
+ * same for both editions and is kept whole.
+ *
+ * @web-only upstream has one edition; there is nothing here to choose
+ */
+export function applyEdition(source: string, edition: HelpEdition): string {
+  if (!source.includes("[[edition:")) return source;
+  const out: string[] = [];
+  let at = 0;
+  for (;;) {
+    const start = source.indexOf("[[edition:", at);
+    if (start === -1) {
+      out.push(source.slice(at));
+      break;
+    }
+    out.push(source.slice(at, start));
+    const close = editionClose(source, start + "[[edition:".length);
+    if (close === -1) {
+      // An unbalanced phrase: keep it as written rather than eating the line,
+      // and stop — there is nothing after a phrase that has no close.
+      out.push(source.slice(start));
+      break;
+    }
+    out.push(editionBranch(source.slice(start + "[[edition:".length, close), edition));
+    at = close + 2;
+  }
+  return out.join("");
+}
+
+/** The index of the `]]` that closes the phrase begun at `from`, or -1. */
+function editionClose(source: string, from: number): number {
+  let depth = 1;
+  let at = from;
+  while (at < source.length) {
+    if (source.startsWith("[[", at)) {
+      depth += 1;
+      at += 2;
+    } else if (source.startsWith("]]", at)) {
+      depth -= 1;
+      at += 2;
+      if (depth === 0) return at - 2;
+    } else {
+      at += 1;
+    }
+  }
+  return -1;
+}
+
+/** The half of a phrase's body that `edition` keeps. */
+function editionBranch(body: string, edition: HelpEdition): string {
+  const bar = topLevelEditionBar(body);
+  const chosen =
+    edition === "desktop"
+      ? bar === -1
+        ? body
+        : body.slice(bar + 2)
+      : bar === -1
+        ? body
+        : body.slice(0, bar);
+  return chosen.trim();
+}
+
+/**
+ * The `||` that splits a phrase's halves, or -1: the first double pipe that is
+ * not inside a `[[ … ]]` a half carries.
+ */
+function topLevelEditionBar(body: string): number {
+  let depth = 0;
+  let at = 0;
+  while (at < body.length) {
+    if (body.startsWith("[[", at)) {
+      depth += 1;
+      at += 2;
+    } else if (body.startsWith("]]", at)) {
+      depth -= 1;
+      at += 2;
+    } else {
+      if (depth === 0 && body[at] === "|" && body[at + 1] === "|") return at;
+      at += 1;
+    }
+  }
+  return -1;
+}
+
+/**
  * The blocks as running text, for searching and for a one-line preview. Links
- * read as the words they show — what the reader sees is what a search over the
- * book matches.
+ * read as the words they show, and a chord reads as the spelling `resolveKey`
+ * gives it — so a search matches what the reader sees. With no resolver in hand
+ * a chord reads as the book wrote it: the Mac's spelling, the one form the book
+ * was authored in.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.plainText
+ * @upstream-differs upstream's book has no chords, so its plainText has no resolver;
+ * `resolveKey` is the web's way of keeping a search on the platform its reader is on
  */
-export function helpPlainText(blocks: readonly HelpBlock[]): string {
-  return blocks.map(blockPlainText).join("\n");
+export function helpPlainText(
+  blocks: readonly HelpBlock[],
+  resolveKey: HelpKeyResolver = canonicalKeyResolver
+): string {
+  return blocks.map((block) => blockPlainText(block, resolveKey)).join("\n");
 }
 
 /** @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.plainText */
-export function blockPlainText(block: HelpBlock): string {
+export function blockPlainText(
+  block: HelpBlock,
+  resolveKey: HelpKeyResolver = canonicalKeyResolver
+): string {
   switch (block.kind) {
     case "heading":
       return block.text;
     case "paragraph":
     case "caution":
-      return spansPlainText(block.spans);
+      return spansPlainText(block.spans, resolveKey);
     case "bullets":
     case "steps":
-      return block.items.map(spansPlainText).join("\n");
+      return block.items.map((item) => spansPlainText(item, resolveKey)).join("\n");
   }
 }
 
 /** @upstream Packages/HelpBook/Sources/HelpBook/HelpMarkup.swift#HelpMarkup.plainText */
-export const spansPlainText = (spans: readonly HelpSpan[]): string =>
-  spans.map((span) => (span.kind === "strong" ? spansPlainText(span.spans) : span.text)).join("");
+export const spansPlainText = (
+  spans: readonly HelpSpan[],
+  resolveKey: HelpKeyResolver = canonicalKeyResolver
+): string =>
+  spans
+    .map((span) => {
+      switch (span.kind) {
+        case "strong":
+          return spansPlainText(span.spans, resolveKey);
+        case "key":
+          return resolveKey(span.command);
+        default:
+          return span.text;
+      }
+    })
+    .join("");
 
 /** Bold may hold a link, so a flat walk flattens it one level first. */
 function flattened(spans: readonly HelpSpan[]): HelpSpan[] {

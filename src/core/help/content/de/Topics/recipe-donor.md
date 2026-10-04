@@ -1,4 +1,4 @@
-@source-sha 423f7a646125e9a9c76a38eed8cae3bf53fad6e8b5a5d6a5d45bd4cc7d223f45
+@source-sha c03411d9fb56c5ff2eeff81c96ab909ae5a744a2deb1fb857181655d673a50fe
 # Einen Bereich von einem Image in ein anderes übertragen
 
 > Die Mittel, die das Programm bereitstellt, um einen Byte-Bereich aus einem geöffneten Image an derselben Adresse in ein anderes zu kopieren.
@@ -24,7 +24,7 @@ Die Übertragung selbst ist ein Befehl, **Bearbeiten ▸ In den anderen Bereich 
 5. **Bearbeiten ▸ In den anderen Bereich kopieren** schreibt ihn in den Zielbereich.
 6. Der Vergleich wird erneut gelesen. Jeder verbleibende Unterschied ist einer, den der Vorgang nicht betroffen hat.
 
-Schritt 5 ist ein Widerrufsschritt (⌘Z) in der Zieldatei.
+Schritt 5 ist ein Widerrufsschritt ([[key:undo]]) in der Zieldatei.
 
 ## Was das Programm nicht tut
 

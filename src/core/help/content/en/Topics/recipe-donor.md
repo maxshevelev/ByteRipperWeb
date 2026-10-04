@@ -23,7 +23,7 @@ The transfer itself is one command, **Edit ▸ Copy to Other Pane**. Finding out
 5. **Edit ▸ Copy to Other Pane** writes it into the destination pane.
 6. The comparison is read again. Every remaining difference is a difference the operation did not address.
 
-Step 5 is one undo step (⌘Z) in the destination file.
+Step 5 is one undo step ([[key:undo]]) in the destination file.
 
 ## What the program does not do
 

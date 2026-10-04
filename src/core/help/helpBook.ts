@@ -9,6 +9,7 @@
  */
 
 import type { HelpLink, HelpTermId, HelpTopicId } from "@/core/help/helpIds";
+import { canonicalKeyResolver, type HelpKeyResolver } from "@/core/help/helpKeys";
 import {
   HELP_TERM_GROUPS,
   type HelpSection,
@@ -170,16 +171,23 @@ const folded = (text: string): string =>
  * inventing a problem: the book is forty pages, and what the reader typed is
  * nearly always a term that appears in two of them.
  *
+ * A chord in an entry reads as `resolveKey` spells it, so a reader who types
+ * the chord their keyboard uses — `Ctrl+F`, not the book's `⌘F` — finds it.
+ *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpBook.swift#HelpBook.search
  */
-export function searchHelp(book: HelpBook, query: string): HelpSearchResult[] {
+export function searchHelp(
+  book: HelpBook,
+  query: string,
+  resolveKey: HelpKeyResolver = canonicalKeyResolver
+): HelpSearchResult[] {
   const needle = folded(query.trim());
   if (needle === "") return [];
   const topics: HelpSearchResult[] = helpTopics(book)
-    .filter((topic) => folded(topicSearchText(topic)).includes(needle))
+    .filter((topic) => folded(topicSearchText(topic, resolveKey)).includes(needle))
     .map((topic) => ({ kind: "topic", topic }));
   const terms: HelpSearchResult[] = helpTerms(book)
-    .filter((term) => folded(termSearchText(term)).includes(needle))
+    .filter((term) => folded(termSearchText(term, resolveKey)).includes(needle))
     .map((term) => ({ kind: "term", term }));
   return [...topics, ...terms];
 }

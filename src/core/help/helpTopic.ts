@@ -6,6 +6,7 @@
  */
 
 import type { HelpLink, HelpTermId, HelpTopicId } from "@/core/help/helpIds";
+import { canonicalKeyResolver, type HelpKeyResolver } from "@/core/help/helpKeys";
 import { type HelpBlock, helpPlainText } from "@/core/help/helpMarkup";
 
 /**
@@ -83,13 +84,19 @@ export interface HelpSection {
 
 /**
  * Title, summary and body as one string — what a search over the book matches
- * against.
+ * against. A chord in the body reads as `resolveKey` spells it, so a reader who
+ * types the chord their keyboard uses finds it; with no resolver it reads as
+ * the book wrote it.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.searchText
  */
-export const topicSearchText = (topic: HelpTopic): string =>
-  [topic.title, topic.summary, helpPlainText(topic.blocks)].join("\n");
+export const topicSearchText = (
+  topic: HelpTopic,
+  resolveKey: HelpKeyResolver = canonicalKeyResolver
+): string => [topic.title, topic.summary, helpPlainText(topic.blocks, resolveKey)].join("\n");
 
 /** @upstream Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTerm.searchText */
-export const termSearchText = (term: HelpTerm): string =>
-  [term.id, term.name, term.summary, helpPlainText(term.blocks)].join("\n");
+export const termSearchText = (
+  term: HelpTerm,
+  resolveKey: HelpKeyResolver = canonicalKeyResolver
+): string => [term.id, term.name, term.summary, helpPlainText(term.blocks, resolveKey)].join("\n");

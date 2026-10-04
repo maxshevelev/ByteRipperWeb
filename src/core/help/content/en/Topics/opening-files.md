@@ -18,23 +18,23 @@ The second pane is optional. Nothing needs a second file except the comparison i
 
 ## Ways to open a dump
 
-- **The open button** on the empty screen, or **File ▸ Open…** in the toolbar's menu. The file replaces the **active** pane; it never adds a second pane by itself. Only with both panes empty do the first two files you pick fill them. Anything selected beyond that is not opened.
+- **The open button** on the empty screen, or **File ▸ Open…** [[edition:in the toolbar's menu||in the menu]]. The file replaces the **active** pane; it never adds a second pane by itself. Only with both panes empty do the first two files you pick fill them. Anything selected beyond that is not opened.
 - **Drag and drop.** Drag a file onto the workspace and the drop bands show where it will land — into this pane, or beside it. Drop two files at once and the second opens in the other pane, if that pane is free.
 - **File ▸ Compare with…** opens the file in the other pane: the free one, or otherwise the one that is not active. This is how a second file is added for comparison. It is available while a file is open.
 - **File ▸ New File** makes an empty untitled file — somewhere to paste bytes into.
 
-## How long the tab keeps a file
+## How long the [[edition:tab||window]] keeps a file
 
-Nothing is uploaded: a file you open is read inside this browser tab, and its bytes stay on this machine. In return, the tab holds a *reference* to the file, and the reference lives only while the page is open. Two things follow:
+Nothing is uploaded: a file you open is read inside [[edition:this browser tab||this window]], and its bytes stay on this machine. In return, [[edition:the tab holds a *reference* to the file, and the reference lives only while the page is open||the window holds a *reference* to the file, and the reference lives only while the window is open]]. Two things follow:
 
-- **A reload forgets every file.** Closing the tab, reloading it, or coming back tomorrow all start from the empty screen, and the dumps must be opened again.
-- **Permission is asked once per file, per page.** The browser asks to read a file once while the page is open and does not ask about it again until the page reloads. In a Chromium browser, saving back to a file may ask a second time — that is the browser's own prompt, not the app's.
+- **A reload forgets every file.** [[edition:Closing the tab, reloading it, or coming back tomorrow all start from the empty screen, and the dumps must be opened again.||Closing the window, reloading it, or coming back tomorrow all start from the empty screen; **File ▸ Open Recent** keeps the last ten files you opened, most recent first, and picking one from the list opens the file again.]]
+- [[edition:**Permission is asked once per file, per page.** The browser asks to read a file once while the page is open and does not ask about it again until the page reloads. In a Chromium browser, saving back to a file may ask a second time — that is the browser's own prompt, not the app's.||**Permission is asked once per file.** The window asks to read a file once, and a file that **File ▸ Open Recent** reopens is read with the grant it was given, asking again only where that grant is no longer kept.]]
 
-! Keep your dumps in a folder you can find again. A web page is never told where a file is, so the app cannot reopen one of yesterday's.
+[[edition:! Keep your dumps in a folder you can find again. A web page is never told where a file is, so the app cannot reopen one of yesterday's.||! The list keeps ten files, most recent first: a dump is in it while it is one of the last ten opened and its file has not been moved or deleted.]]
 
-## One job per browser tab
+## One job per [[edition:browser tab||window]]
 
-There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one tab, EC dumps in the next.
+There are no tabs inside the app[[edition: and no second window||]]: **one workspace is one [[edition:browser tab||window]]**. That is how several boards are kept apart on one screen — [[edition:open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one tab, EC dumps in the next.||open the application a second time and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one window, EC dumps in the other.]]
 
 Each pane header names its file and whether it has unsaved changes; the status line below it gives the size. The ✕ in the header closes that pane and leaves the other one open.
 

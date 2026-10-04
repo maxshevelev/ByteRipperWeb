@@ -1,9 +1,9 @@
-@source-sha 5c7901c6e175c76d0bc8be08497c1324ee6f13e9b5c3634cb6e9b5398d9f9559
+@source-sha c570db0dc8f30a09d5f74acc342e90e73d4090aa29605c0534229e232a54d8f8
 # Die Minimap
 
 > Die Gestalt des ganzen Dumps in einer Spalte und die Bewegung darin mit dem Zeiger.
 
-**Darstellung ▸ Minimap einblenden** (⌘M) oder die Taste ganz rechts in der Symbolleiste öffnet eine schmale Spalte neben dem Dump. Im Vergleichsmodus zeigt sie beide Dateien, geteilt wie die Bereiche.
+**Darstellung ▸ Minimap einblenden** ([[key:minimap]]) oder die Taste ganz rechts in der Symbolleiste öffnet eine schmale Spalte neben dem Dump. Im Vergleichsmodus zeigt sie beide Dateien, geteilt wie die Bereiche.
 
 ## Zwei Modi
 

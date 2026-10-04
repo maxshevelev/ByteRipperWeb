@@ -13,7 +13,7 @@ The **Tools** menu turns on one panel at a time beside the dump. Each panel read
 - **[[topic:tool-me|ME Analyzer]]** — the Intel Management Engine firmware held in the image: its version, its partitions and its configuration.
 - **[[topic:tool-fit|FIT Table]]** — the Firmware Interface Table, and whether its entries point at what they declare.
 
-In the Windows application the panels have the keys **⌘1**, **⌘2**, **⌘3** in the order the menu lists them (⌘ is the Control key there); a browser keeps these keys for its own tabs, so in a browser the menu is the way. The key of the panel already shown does nothing.
+[[edition:A browser keeps **[[key:tool1]]**, **[[key:tool2]]** and **[[key:tool3]]** for its own tabs, so in a browser the panels turn on from the **Tools** menu in the order it lists them.||The panels have the keys **[[key:tool1]]**, **[[key:tool2]]** and **[[key:tool3]]** in the order the **Tools** menu lists them.]] The key of the panel already shown does nothing.
 
 ## What they have in common
 

@@ -27,6 +27,7 @@ import {
   searchHelp,
 } from "@/core/help/helpBook";
 import { type HelpLink, linkKey, sameLink, termLink, topicLink } from "@/core/help/helpIds";
+import { type HelpKeyResolver, spellHelpKey } from "@/core/help/helpKeys";
 import { helpSpans, spansPlainText } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS, type HelpTermGroup } from "@/core/help/helpTopic";
 import { L } from "@/core/localization/localization";
@@ -46,8 +47,18 @@ import { useStore } from "@/state/useStore";
 import { foldParts } from "@/state/workspaceStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
 import { helpNameOf, plainHelpName } from "@/ui/help/helpNames";
+import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
+
+/**
+ * The chord a reader on this keyboard types — what a search over the book
+ * should match. Bound to the platform at call time, not at import, so a context
+ * with no `navigator` in hand (a test importing the panel) answers the default
+ * rather than failing the module.
+ */
+const platformKeyResolver: HelpKeyResolver = (command) =>
+  spellHelpKey(command, detectKeyboardPlatform());
 
 /**
  * The whole panel: a header that says where the reader is and how to leave, and
@@ -76,7 +87,8 @@ export function HelpPanel() {
     if (page.current !== null) page.current.scrollTop = 0;
   }, [here === undefined ? undefined : linkKey(here), query.trim() === ""]);
 
-  const results = book === undefined || query.trim() === "" ? [] : searchHelp(book, query);
+  const results =
+    book === undefined || query.trim() === "" ? [] : searchHelp(book, query, platformKeyResolver);
 
   return (
     <section className="help-panel" aria-label={L("Help", { context: "panel" })}>
@@ -169,24 +181,40 @@ export function HelpPanel() {
   );
 }
 
-/** A name with its quoting drawn, for the one place that has room for it. */
-function Name({ name }: { readonly name: string }) {
+/**
+ * A title, a name or a summary with its inline forms drawn, for the places that
+ * have room for them: a chord reads as the reader's keyboard spells it, a code
+ * run keeps its face, and everything else is read as words.
+ */
+function Inline({ text }: { readonly text: string }) {
   return (
     <>
-      {helpSpans(name).map((span, index) =>
-        span.kind === "code" ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the run's place in the name is its identity
-          <code key={index} className="help-code">
-            {span.text}
-          </code>
-        ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the run's place in the name is its identity
-          <span key={index}>{spansPlainText([span])}</span>
-        )
-      )}
+      {helpSpans(text).map((span, index) => {
+        if (span.kind === "key")
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the run's place in the line is its identity
+            <kbd key={index} className="help-key">
+              {spellHelpKey(span.command, detectKeyboardPlatform())}
+            </kbd>
+          );
+        if (span.kind === "code")
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the run's place in the line is its identity
+            <code key={index} className="help-code">
+              {span.text}
+            </code>
+          );
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the run's place in the line is its identity
+          <span key={index}>{spansPlainText([span], platformKeyResolver)}</span>
+        );
+      })}
     </>
   );
 }
+
+/** A title as words alone, a chord read the way the reader's keyboard spells it. */
+const plainTitle = (title: string): string => spansPlainText(helpSpans(title), platformKeyResolver);
 
 /** The section and the page, so a reader who arrived by a link knows where they are. */
 function whereAmI(book: HelpBook, link: HelpLink | undefined): string {
@@ -200,7 +228,8 @@ function whereAmI(book: HelpBook, link: HelpLink | undefined): string {
   const topic = helpTopic(book, link.id);
   const section = book.sections.find((one) => one.topics.includes(link.id));
   if (topic === undefined) return L("Help", { context: "panel" });
-  return section === undefined ? topic.title : `${section.name} ▸ ${topic.title}`;
+  const title = plainTitle(topic.title);
+  return section === undefined ? title : `${section.name} ▸ ${title}`;
 }
 
 /**
@@ -308,9 +337,13 @@ function Page({ book, link }: { readonly book: HelpBook; readonly link: HelpLink
     return (
       <article className="help-article">
         <h1 className="help-title">
-          <Name name={term.name} />
+          <Inline text={term.name} />
         </h1>
-        {term.summary === "" ? null : <p className="help-summary">{term.summary}</p>}
+        {term.summary === "" ? null : (
+          <p className="help-summary">
+            <Inline text={term.summary} />
+          </p>
+        )}
         <HelpBlocks blocks={term.blocks} onFollow={goToHelp} />
         {term.seeAlso.length === 0 ? null : (
           <p className="help-see-also">
@@ -335,8 +368,14 @@ function Page({ book, link }: { readonly book: HelpBook; readonly link: HelpLink
   if (topic === undefined) return <MissingPage />;
   return (
     <article className="help-article">
-      <h1 className="help-title">{topic.title}</h1>
-      {topic.summary === "" ? null : <p className="help-summary">{topic.summary}</p>}
+      <h1 className="help-title">
+        <Inline text={topic.title} />
+      </h1>
+      {topic.summary === "" ? null : (
+        <p className="help-summary">
+          <Inline text={topic.summary} />
+        </p>
+      )}
       <HelpBlocks blocks={topic.blocks} onFollow={goToHelp} />
     </article>
   );
@@ -355,7 +394,7 @@ const MissingPage = () => (
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.search
  */
 function Results({ book, query }: { readonly book: HelpBook; readonly query: string }) {
-  const hits = searchHelp(book, query);
+  const hits = searchHelp(book, query, platformKeyResolver);
   if (hits.length === 0) {
     return <p className="help-waiting">{L("Nothing in the help matches “%1$@”.", query.trim())}</p>;
   }
@@ -365,7 +404,9 @@ function Results({ book, query }: { readonly book: HelpBook; readonly query: str
         <li key={linkKey(resultLink(hit))}>
           <button type="button" className="help-result" onClick={() => goToHelp(resultLink(hit))}>
             <span className="help-result-title">{plainHelpName(resultTitle(hit))}</span>
-            <span className="help-result-summary">{resultSummary(hit)}</span>
+            <span className="help-result-summary">
+              <Inline text={resultSummary(hit)} />
+            </span>
           </button>
         </li>
       ))}

@@ -76,6 +76,20 @@ Important rules:
   the page drifting from the app, the app needing the page's better name, or a
   control reaching the screen without `L()` — which `help-coverage` cannot see,
   since it only knows the strings that went through `L()`.
+- **A page the browser and the shell both read carries two forms for it.** The
+  two editions differ — the browser keeps some chords for its own tabs and saves
+  through a download; the shell binds them and saves in place — so a page holds
+  `[[key:…]]` chords and `[[edition:…||…]]` phrases rather than one prose word
+  (`Design/HELP.md`, "One set of files, two editions"). After editing a help
+  page, adding or re-wording a chord, or porting an upstream change a page
+  names, also run:
+  `python3 Skills/help-editions/scripts/help_editions.py`
+  It fails on a chord written as a spelling instead of an id, an unbalanced or
+  nested edition phrase, and a phrase one side of the split cannot resolve. Its
+  manifest lists the passages that read differently by edition; the shell's half
+  of each is the claim to re-check, being the one the browser never shows. As
+  with `help-names`, it checks the forms, not the truth — a well-formed phrase
+  that says the wrong thing is found by reading the code.
 - **The help is technical documentation, not a translated interface.** It is
   written in a strictly technical register — no slang, no Americanisms — and the
   Russian and German are not calques of the English: they are help of their own,

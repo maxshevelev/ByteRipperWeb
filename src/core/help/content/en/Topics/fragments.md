@@ -22,7 +22,7 @@ Only one panel is up at a time. Raising another folds the one that was up, which
 
 A fragment panel is a reading surface in its own right rather than a second view of the parent's, and it carries the same two instruments the workspace carries:
 
-- **Its own minimap.** **View ▸ Show Minimap** (⌘M) and the button at the right end of the toolbar act on whichever panel is in front, so the column beside a fragment maps the fragment: its own bookmarks, its own segment strip, and the zones a tool published in it.
+- **Its own minimap.** **View ▸ Show Minimap** ([[key:minimap]]) and the button at the right end of the toolbar act on whichever panel is in front, so the column beside a fragment maps the fragment: its own bookmarks, its own segment strip, and the zones a tool published in it.
 - **Its own tool panel.** The **Tools** menu and the toolbar's tool button act on the panel in front in the same way, and the tool that opens there reads the fragment's bytes. It is bound to that one fragment: where a tool in the workspace can be pointed at either of the open files, a tool in a panel has one and offers no switch.
 
 ## When putting it back is refused

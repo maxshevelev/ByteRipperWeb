@@ -19,8 +19,8 @@ The boundary is recorded as a [[topic:segments|segment]] cut, so **Save All as S
 
 Two properties of the result follow from this:
 
-- **The joined document has no file of its own.** It is untitled, so ⌘S asks where to write it and cannot overwrite either half ([[topic:saving|Saving]]).
-- **The join is one undo step.** ⌘Z removes the added bytes *and* re-attaches the pane to the file it was opened from.
+- **The joined document has no file of its own.** It is untitled, so [[key:save]] asks where to write it and cannot overwrite either half ([[topic:saving|Saving]]).
+- **The join is one undo step.** [[key:undo]] removes the added bytes *and* re-attaches the pane to the file it was opened from.
 
 ## Duplicate: a copy of the dump as it was
 

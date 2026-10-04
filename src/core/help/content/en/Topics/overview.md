@@ -28,7 +28,7 @@ This is a deliberate property. A flash dump has a fixed layout in which an addre
 
 ## Reaching this book
 
-The **?** in the toolbar opens the same short list as the **Help** block of the toolbar's menu: this page, the first comparison, the editing constraints and the glossaries. **F1** and **⌘/** open the book from anywhere in the application, with no file open and whatever has the keyboard.
+The **?** in the toolbar opens the same short list as the **Help** block of the toolbar's menu: this page, the first comparison, the editing constraints and the glossaries. **F1** and **[[key:help]]** open the book from anywhere in the application, with no file open and whatever has the keyboard.
 
 ## Where to go next
 

@@ -169,6 +169,39 @@ The three glossaries — `general`, `uefi`, `me` — are firmware vocabulary and
 port very nearly verbatim: `$FPT` is `$FPT` on every platform. Their web edits
 are limited to cross-references that name a page this edition changed.
 
+## One set of files, two editions
+
+The rewrites above are prose. On top of them the pages carry two inline forms,
+because the book is read in two applications that are not the same: a browser,
+and the desktop shell (`desktop/`). The browser keeps some of the keyboard chords
+for its own tabs and saves through a download; the shell binds those chords and
+saves in place for every file. A page that wrote one of those words as fixed
+prose would be right in one application and wrong in the other, so the forms let
+one file serve both editions:
+
+- **`[[key:find]]`** names the *command*, and the spelling is decided at read
+  time by the reader's keyboard — `⌘F` in a Mac's browser, `Ctrl+F` in the
+  shell. The closed set a page may name is the `HelpCommand` union in
+  `helpKeys.ts`, and the Mac→shell mapping in that file is the same rule the
+  shell's menu uses, so a chord the help shows and a chord the menu shows cannot
+  disagree.
+- **`[[edition:…||…]]`** is a phrase that reads one way in the browser and
+  another in the shell: the first half is the browser, the second the shell.
+  With no `||` the phrase is the same for both. A half may itself hold links,
+  chords and bold, which is why the split is made on the first `||` that sits
+  *outside* any `[[ … ]]`. An empty half is a device: a line written as
+  `[[edition:…||]]` exists in the browser and vanishes in the shell.
+
+The parser is `helpMarkup.ts` (`applyEdition`, `editionClose`,
+`topLevelEditionBar`) and the spellings are `helpKeys.ts`. Because upstream has
+one edition, none of it is a port: the forms carry `@web-only`, and the check
+for them — that every chord names a command the table carries, every phrase
+balances, and each half of a split resolves — is `Skills/help-editions`. It also
+prints the passages that read differently by edition, the shell's half beside
+the browser's: that manifest is the review surface for the port cycle, for when
+an upstream change re-writes a page and the shell's half — the one the browser
+never shows — is the claim to re-check.
+
 ## Writing a page, in any language
 
 - **A page**: write `Topics/<id>.md` in English, register it in

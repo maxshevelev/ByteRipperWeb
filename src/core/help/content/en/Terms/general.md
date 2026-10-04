@@ -46,7 +46,7 @@ Like any checksum it is a check against accident, not against tampering: it can 
 @name Signature
 @short Two different things wear this name: a magic string, and a cryptographic signature.
 
-**A magic signature** is a short fixed string at the start of a structure that says what the structure is: `_FVH` for a firmware volume, `$FPT` for the ME partition table, `_FIT_` for the interface table. That is how a parser finds things in a raw dump, and it is what a search for a few bytes ([[topic:search|⌘F]]) is usually looking for.
+**A magic signature** is a short fixed string at the start of a structure that says what the structure is: `_FVH` for a firmware volume, `$FPT` for the ME partition table, `_FIT_` for the interface table. That is how a parser finds things in a raw dump, and it is what a search for a few bytes ([[topic:search|Search]], [[key:find]]) is usually looking for.
 
 **A cryptographic signature** is a number computed over a region with a private key. It proves who produced those bytes, and it cannot be recomputed by anyone who does not hold the key. This is what makes some parts of a firmware image impossible to patch.
 

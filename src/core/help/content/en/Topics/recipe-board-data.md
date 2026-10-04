@@ -37,7 +37,7 @@ Because the area is not a tree node, it is located by searching for a value that
 
 - The two panes and the comparison report every address at which two images differ, which is how the extent of per-unit data is established for a given model.
 - The UEFI panel gives the address and length of the GbE region, the ME region and the NVRAM stores.
-- **Select Block from Here at…**, in the pane's right-click menu, selects such a range by number, and ⌘V overwrites it without moving any following byte.
+- **Select Block from Here at…**, in the pane's right-click menu, selects such a range by number, and [[key:paste]] overwrites it without moving any following byte.
 - Bookmarks are shared by both panes at the same address, so the same range is found in both images.
 
 The program does not identify which values are correct for a given board, and does not read anything from the board itself.

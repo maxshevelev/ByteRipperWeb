@@ -1,6 +1,6 @@
 # Finding Bytes and Text
 
-> ⌘F. Hex bytes or text, over the whole dump, in the background.
+> [[key:find]]. Hex bytes or text, over the whole dump, in the background.
 
 @covers menu.edit.find
 @covers shell.find-bar
@@ -46,7 +46,7 @@ The matches are marked in the [[topic:minimap|minimap]] as well, where their dis
 
 ## Patterns you use often
 
-**⌘F with bytes selected** loads the selection as the search pattern, which is how a sequence selected in one dump is then looked for in the other. Upstream keeps that on a key of its own (⌘E); here the one key carries both meanings, because with a selection there is only one thing Find can sensibly mean.
+**[[key:find]] with bytes selected** loads the selection as the search pattern, which is how a sequence selected in one dump is then looked for in the other. Upstream keeps that on a key of its own (⌘E); here [[key:find]] carries both meanings, because with a selection there is only one thing Find can sensibly mean.
 
 Patterns can be named and kept in a pattern library (**Settings ▸ Search Patterns**) — for instance the recurring signatures `_FVH`, `$FPT` or `24 00 00 00`. The library lives in this browser; it can be exported and imported anywhere, and in a Chromium browser it can be synchronised through a folder so that several installations share it — including the macOS application, whose file format it is.
 

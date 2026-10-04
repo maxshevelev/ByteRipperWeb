@@ -1,4 +1,4 @@
-@source-sha 707f934f608f6bd6655350053d7050735e9e356d1b4cae6eeb0f578ba97e4241
+@source-sha 1e99aee9f0a3d8337ea58317ccf090c160ed073697372de884a8e916687d87f0
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -12,23 +12,23 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 
 ## Wege, einen Dump zu öffnen
 
-- **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Ablage ▸ Öffnen…** im Menü der Symbolleiste. Die Datei ersetzt den **aktiven** Bereich; einen zweiten Bereich legt der Befehl nicht von selbst an. Nur wenn beide Bereiche leer sind, füllen die ersten beiden gewählten Dateien sie. Was darüber hinaus gewählt ist, wird nicht geöffnet.
+- **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Ablage ▸ Öffnen…** [[edition:im Menü der Symbolleiste||im Menü]]. Die Datei ersetzt den **aktiven** Bereich; einen zweiten Bereich legt der Befehl nicht von selbst an. Nur wenn beide Bereiche leer sind, füllen die ersten beiden gewählten Dateien sie. Was darüber hinaus gewählt ist, wird nicht geöffnet.
 - **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie landet — in diesen Bereich oder daneben. Zwei Dateien auf einmal: die zweite öffnet im anderen Bereich, sofern dieser frei ist.
 - **Ablage ▸ Vergleichen mit…** öffnet die Datei im anderen Bereich: im freien, sonst im nicht aktiven. So kommt die zweite Datei für den Vergleich hinzu. Der Befehl ist verfügbar, solange eine Datei offen ist.
 - **Ablage ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
 
-## Wie lange der Tab die Datei hält
+## Wie lange [[edition:der Tab||das Fenster]] die Datei hält
 
-Es wird nichts hochgeladen: eine geöffnete Datei wird in diesem Browser-Tab gelesen, und ihre Bytes bleiben auf diesem Rechner. Dafür hält der Tab einen *Verweis* auf die Datei, und der lebt nur, solange die Seite offen ist. Zwei Dinge ergeben sich daraus:
+Es wird nichts hochgeladen: eine geöffnete Datei wird in [[edition:diesem Browser-Tab||diesem Fenster]] gelesen, und ihre Bytes bleiben auf diesem Rechner. Dafür hält [[edition:der Tab einen *Verweis* auf die Datei, und der lebt nur, solange die Seite offen ist||das Fenster einen *Verweis* auf die Datei, und der lebt nur, solange das Fenster offen ist]]. Zwei Dinge ergeben sich daraus:
 
-- **Beim Neuladen sind alle Dateien weg.** Den Tab schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm, und die Dumps müssen erneut geöffnet werden.
-- **Die Erlaubnis wird einmal je Datei und Seite erfragt.** Solange die Seite offen ist, fragt der Browser nach dieser Datei nicht noch einmal. In einem Chromium-Browser kann ein Zurückschreiben ein zweites Mal nachfragen — das ist die Frage des Browsers, nicht die des Programms.
+- **Beim Neuladen sind alle Dateien weg.** [[edition:Den Tab schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm, und die Dumps müssen erneut geöffnet werden.||Das Fenster schließen, neu laden oder morgen wiederkommen — alles beginnt beim leeren Bildschirm; **Ablage ▸ Benutzte Dokumente** hält die zuletzt geöffneten zehn Dateien, die jüngsten zuerst, und eine Auswahl aus der Liste öffnet die Datei erneut.]]
+- [[edition:**Die Erlaubnis wird einmal je Datei und Seite erfragt.** Solange die Seite offen ist, fragt der Browser nach dieser Datei nicht noch einmal. In einem Chromium-Browser kann ein Zurückschreiben ein zweites Mal nachfragen — das ist die Frage des Browsers, nicht die des Programms.||**Die Erlaubnis wird einmal je Datei erfragt.** Das Fenster fragt einmal nach dem Lesen einer Datei, und eine Datei, die **Ablage ▸ Benutzte Dokumente** erneut öffnet, wird mit der erteilten Erlaubnis gelesen — erneut gefragt wird nur, wo diese Erlaubnis nicht mehr aufbewahrt wird.]]
 
-! Halten Sie Ihre Dumps in einem Ordner, den Sie wiederfinden. Eine Webseite weiß nicht, wo eine Datei liegt, das Programm kann also keine Datei von gestern von selbst wieder öffnen.
+[[edition:! Halten Sie Ihre Dumps in einem Ordner, den Sie wiederfinden. Eine Webseite weiß nicht, wo eine Datei liegt, das Programm kann also keine Datei von gestern von selbst wieder öffnen.||! Die Liste hält zehn Dateien, die jüngsten zuerst: ein Dump steht darin, solange er zu den zuletzt zehn geöffneten gehört und seine Datei weder verschoben noch gelöscht wurde.]]
 
-## Eine Aufgabe je Browser-Tab
+## Eine Aufgabe je [[edition:Browser-Tab||Fenster]]
 
-Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**. So hält man mehrere Platinen auf einem Bildschirm auseinander — öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Tab verglichen, EC-Dumps im nächsten.
+[[edition:Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**||Es gibt keine Tabs im Programm: **ein Arbeitsbereich ist ein Fenster**]]. So hält man mehrere Platinen auf einem Bildschirm auseinander — [[edition:öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Tab verglichen, EC-Dumps im nächsten.||öffnen Sie die Anwendung ein zweites Mal, und sie hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Fenster verglichen, EC-Dumps im anderen.]]
 
 Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; die Größe steht in der Statuszeile darunter. Das ✕ im Kopf schließt diesen Bereich und lässt den anderen offen.
 

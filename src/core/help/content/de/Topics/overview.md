@@ -1,4 +1,4 @@
-@source-sha c3dba583359864542e460146946068c57d2dfbcee441b1915e7707e711b11613
+@source-sha 74c43ebe82f4546e7cf448782c16897aef5033eed512433696fdc648f997fd28
 # Wofür ByteRipper da ist
 
 > Ein Hex-Editor für Firmware-Images, aufgebaut um den Vergleich zweier Dumps an gleichen Adressen.
@@ -25,7 +25,7 @@ Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung, in der eine Adresse e
 
 ## Zu diesem Handbuch
 
-Das **?** in der Symbolleiste öffnet dieselbe kurze Liste wie der Block **Hilfe** in seinem Menü: diese Seite, den ersten Vergleich, die Einschränkungen beim Bearbeiten und die Glossare. **F1** und **⌘/** öffnen das Handbuch von überall im Programm — auch ohne offene Datei und gleich, was die Tastatur hält.
+Das **?** in der Symbolleiste öffnet dieselbe kurze Liste wie der Block **Hilfe** in seinem Menü: diese Seite, den ersten Vergleich, die Einschränkungen beim Bearbeiten und die Glossare. **F1** und **[[key:help]]** öffnen das Handbuch von überall im Programm — auch ohne offene Datei und gleich, was die Tastatur hält.
 
 ## Wie es weitergeht
 

@@ -1,7 +1,7 @@
-@source-sha c77bca8bed003a2c68a7727c29bdb85fbe69e55b49a9b35b6e0fe2c05ff701e0
+@source-sha 30f0603f4291dac93826a23bcdef750110e0d11c203d9e3a3b0a25fed2a7e1f4
 # Bytes und Text finden
 
-> ⌘F. Suche nach einer Byte-Folge oder einer Zeichenfolge über den ganzen Dump, im Hintergrund.
+> [[key:find]]. Suche nach einer Byte-Folge oder einer Zeichenfolge über den ganzen Dump, im Hintergrund.
 
 Die Suchleiste durchsucht den **aktiven Bereich** über seinen aktuellen Inhalt, ungesicherte Änderungen eingeschlossen.
 
@@ -42,7 +42,7 @@ Die Treffer werden auch in der [[topic:minimap|Minimap]] markiert, in der ihre V
 
 ## Häufig gebrauchte Muster
 
-**⌘F mit ausgewählten Bytes** übernimmt die Auswahl als Suchmuster; so wird eine in einem Dump ausgewählte Folge im anderen gesucht. Die macOS-Ausgabe hat dafür eine eigene Taste (⌘E); hier trägt ⌘F beide Bedeutungen, denn mit einer Auswahl kann „Suchen“ nur eines sinnvoll heißen.
+**[[key:find]] mit ausgewählten Bytes** übernimmt die Auswahl als Suchmuster; so wird eine in einem Dump ausgewählte Folge im anderen gesucht. Die macOS-Ausgabe hat dafür eine eigene Taste (⌘E); hier trägt [[key:find]] beide Bedeutungen, denn mit einer Auswahl kann „Suchen“ nur eines sinnvoll heißen.
 
 Muster lassen sich benennen und in einer Musterbibliothek halten (**Einstellungen ▸ Suchmuster**) — etwa regelmäßig gebrauchte Signaturen wie `_FVH`, `$FPT` oder `24 00 00 00`. Die Bibliothek lebt in diesem Browser; sie lässt sich überall exportieren und importieren, und in einem Chromium-Browser über einen Ordner abgleichen, sodass mehrere Installationen dieselbe verwenden — auch die macOS-Ausgabe, deren Dateiformat sie benutzt.
 

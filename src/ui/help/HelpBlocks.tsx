@@ -14,7 +14,9 @@
 
 import type { HelpLink } from "@/core/help/helpIds";
 import { linkKey } from "@/core/help/helpIds";
+import { spellHelpKey } from "@/core/help/helpKeys";
 import type { HelpBlock, HelpSpan } from "@/core/help/helpMarkup";
+import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 
 /**
  * One run of text.
@@ -42,6 +44,11 @@ function Span({
       );
     case "code":
       return <code className="help-code">{span.text}</code>;
+    // A chord reads as the reader's keyboard spells it: the page wrote the
+    // command, and this is the one place the spelling is decided — so `Ctrl+F`
+    // on a Windows bench and `⌘F` on a Mac come from the same page.
+    case "key":
+      return <kbd className="help-key">{spellHelpKey(span.command, detectKeyboardPlatform())}</kbd>;
     case "link":
       return (
         <button type="button" className="help-link" onClick={() => onFollow(span.link)}>

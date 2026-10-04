@@ -1,4 +1,4 @@
-@source-sha 9efd752c377a9ce5418a20a97bf9d4fed9528f7a2aaab84532a0f04b8cc7632c
+@source-sha b86042e5ebadf059924cb2c9676bbe962308ca6757e045158e01d5f2d195afdb
 @term dump
 @name Dump
 @short Der Inhalt eines Chips, in eine Datei ausgelesen.
@@ -47,7 +47,7 @@ Wie jede Prüfsumme schützt er gegen Zufall, nicht gegen Absicht: wer die Bytes
 @name Signatur
 @short Ein Wort für zwei Dinge: eine Magic-Kennung und eine kryptografische Signatur.
 
-Eine **Magic-Signatur** ist eine kurze feste Zeichenfolge am Anfang einer Struktur, die sagt, was sie ist: `_FVH` bei einem Firmware-Volume, `$FPT` bei der ME-Partitionstabelle, `_FIT_` bei der Interface-Tabelle. So findet ein Parser Dinge in einem rohen Dump, und danach sucht man üblicherweise mit [[topic:search|⌘F]].
+Eine **Magic-Signatur** ist eine kurze feste Zeichenfolge am Anfang einer Struktur, die sagt, was sie ist: `_FVH` bei einem Firmware-Volume, `$FPT` bei der ME-Partitionstabelle, `_FIT_` bei der Interface-Tabelle. So findet ein Parser Dinge in einem rohen Dump, und danach sucht man üblicherweise mit [[key:find]] ([[topic:search|Bytes und Text finden]]).
 
 Eine **kryptografische Signatur** ist eine Zahl, die mit einem privaten Schlüssel über einen Bereich berechnet wurde. Sie beweist, wer diese Bytes hergestellt hat, und ohne den Schlüssel lässt sie sich nicht nachrechnen. Deshalb sind manche Teile eines Firmware-Images grundsätzlich nicht zu ändern.
 

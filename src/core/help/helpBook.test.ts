@@ -23,7 +23,9 @@ import {
 } from "@/core/help/helpBook";
 import { ALL_HELP_TOPICS } from "@/core/help/helpContents";
 import { TOPIC, termId, topicId } from "@/core/help/helpIds";
+import { spellHelpKey } from "@/core/help/helpKeys";
 import { type HelpContentReader, loadHelpBook } from "@/core/help/helpLoader";
+import { helpPlainText } from "@/core/help/helpMarkup";
 
 /** A book of a few files, the way a test would write one. */
 const reader = (files: Readonly<Record<string, string>>): HelpContentReader => {
@@ -125,6 +127,50 @@ describe("loading the book", () => {
     const book = await loadHelpBook("en", async () => undefined);
     expect(book.missing.length).toBe(ALL_HELP_TOPICS.length);
     expect(helpIsEmpty(book)).toBe(true);
+  });
+});
+
+/**
+ * The web's book is read in two applications, so a load is built for one of
+ * them: each `[[edition:…]]` phrase keeps the half the edition is, and a
+ * `[[key:…]]` chord stays a chord for the reader's keyboard to spell. The
+ * upstream book has neither form, so this is the web's own test.
+ */
+describe("the edition a load is built for", () => {
+  const files = () => ({
+    ...everyPage("en"),
+    [`en/Topics/${TOPIC.saving}.md`]: [
+      "# [[edition:Saving a download||Saving a file in place]]",
+      "",
+      "> [[edition:the download||the file in place]] stays on the machine.",
+      "",
+      "Save with [[key:save]].",
+    ].join("\n"),
+    "en/Terms/general.md":
+      "@term dump\n@name [[edition:a download of the chip||the chip's file in place]]",
+  });
+
+  it("keeps the half the edition is, in titles, summaries, bodies and terms", async () => {
+    for (const edition of ["browser", "desktop"] as const) {
+      const book = await loadHelpBook("en", reader(files()), edition);
+      const topic = helpTopic(book, TOPIC.saving);
+      expect(topic?.title).toBe(
+        edition === "browser" ? "Saving a download" : "Saving a file in place"
+      );
+      expect(topic?.summary).toBe(
+        edition === "browser"
+          ? "the download stays on the machine."
+          : "the file in place stays on the machine."
+      );
+      expect(helpTerm(book, termId("dump"))?.name).toBe(
+        edition === "browser" ? "a download of the chip" : "the chip's file in place"
+      );
+      // The chord the body names keeps its id through the load: it is spelled
+      // at the read, per the keyboard the reader is on.
+      expect(helpPlainText(topic?.blocks ?? [])).toBe("Save with ⌘S.");
+      const other = (command: string) => spellHelpKey(command, "other");
+      expect(helpPlainText(topic?.blocks ?? [], other)).toBe("Save with Ctrl+S.");
+    }
   });
 });
 

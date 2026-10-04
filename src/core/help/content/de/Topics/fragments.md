@@ -1,4 +1,4 @@
-@source-sha 1e048d9d8a0ed6b6f050e74ece9b8efd62d6d67044d33949f1c5940ce197ec9a
+@source-sha 1d787a49971820722fea60ae4a98fc3011e625b074785df729781c70333b81f9
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -20,7 +20,7 @@ Es ist immer nur ein Panel oben. Ein anderes hochzuholen klappt das bisherige ei
 
 Ein Fragment-Bereich ist eine eigenständige Lesefläche und nicht eine zweite Ansicht der Quelle; er trägt dieselben zwei Instrumente wie der Arbeitsbereich:
 
-- **Eine eigene Minimap.** **Darstellung ▸ Minimap einblenden** (⌘M) und die Taste ganz rechts in der Symbolleiste wirken auf den jeweils vordersten Bereich, sodass die Spalte neben einem Fragment das Fragment selbst abbildet: dessen Lesezeichen, dessen Segmentstreifen und die Zonen, die ein Werkzeug darin veröffentlicht hat.
+- **Eine eigene Minimap.** **Darstellung ▸ Minimap einblenden** ([[key:minimap]]) und die Taste ganz rechts in der Symbolleiste wirken auf den jeweils vordersten Bereich, sodass die Spalte neben einem Fragment das Fragment selbst abbildet: dessen Lesezeichen, dessen Segmentstreifen und die Zonen, die ein Werkzeug darin veröffentlicht hat.
 - **Ein eigener Werkzeugbereich.** Das Menü **Werkzeuge** und die Werkzeugtaste der Symbolleiste wirken ebenso auf den vordersten Bereich, und das dort geöffnete Werkzeug liest die Bytes des Fragments. Es ist an dieses eine Fragment gebunden: Wo sich ein Werkzeug im Arbeitsbereich auf jede der geöffneten Dateien richten lässt, hat eines im Bereich eine einzige und bietet keinen Wechsel an.
 
 ## Wenn das Zurückschreiben abgelehnt wird

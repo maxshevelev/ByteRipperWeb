@@ -10,9 +10,9 @@ The capacity of a flash chip is fixed, and every address inside a firmware image
 
 The program's default editing behaviour follows from this:
 
-- Typing overwrites, and ⌘V overwrites. Neither moves any following byte.
+- Typing overwrites, and [[key:paste]] overwrites. Neither moves any following byte.
 - Delete and Backspace fill with `0x00` rather than shortening the file, and **Edit ▸ Fill Selection with…** fills a selection with a chosen byte.
-- The three operations that do change the length — switching insert mode on, a ⌘V made in it, and **Edit ▸ Delete Bytes…** — each raise a confirmation before acting. The confirmations can be turned off in [[topic:settings|Settings ▸ Editing]].
+- The three operations that do change the length — switching insert mode on, a [[key:paste]] made in it, and **Edit ▸ Delete Bytes…** — each raise a confirmation before acting. The confirmations can be turned off in [[topic:settings|Settings ▸ Editing]].
 
 The size of the file is reported in the status line under each pane. See [[topic:editing|Editing Bytes]].
 
@@ -32,7 +32,7 @@ An image obtained from another board, or from the internet, carries the identify
 
 ## What the program keeps separate
 
-- **The file on disk is not changed until it is saved.** Edited bytes are shown in red and exist only inside ByteRipper until ⌘S ([[topic:saving|Saving]]).
+- **The file on disk is not changed until it is saved.** Edited bytes are shown in red and exist only inside ByteRipper until [[key:save]] ([[topic:saving|Saving]]).
 - **Every edit is one undo step**, including the large ones: joining files, filling, a write made by a tool panel, a fragment written back to its parent.
 - **File ▸ Duplicate** copies the content of a pane into a free pane as a new unsaved document, which is how a file is edited without the original being the thing edited.
 - **A comparison against the original file** reports every address at which the edited image differs from it.

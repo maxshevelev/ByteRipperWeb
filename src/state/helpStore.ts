@@ -22,6 +22,7 @@ import { helpDestinationExists } from "@/core/help/helpBook";
 import { type HelpLink, sameLink, TOPIC, topicLink } from "@/core/help/helpIds";
 import { HELP_FALLBACK_LANGUAGE, loadHelpBook } from "@/core/help/helpLoader";
 import { currentLanguage } from "@/core/localization/localization";
+import { appEdition } from "@/platform/edition";
 import { languageStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { closeHelpPanel, openHelpPanel } from "@/state/workspaceStore";
@@ -84,7 +85,10 @@ export async function ensureHelpBook(): Promise<HelpBook> {
   helpStore.update((state) => ({ ...state, loading: true }));
   loading = (async () => {
     const language = BUNDLED_HELP_LANGUAGES.includes(wanted) ? wanted : HELP_FALLBACK_LANGUAGE;
-    const book = await loadHelpBook(language, bundledHelpContent);
+    // The reader is in one application for the whole session, so the book is
+    // built for it once: a page's `[[edition:…]]` phrases keep the half of the
+    // application the page is running in, and never the other.
+    const book = await loadHelpBook(language, bundledHelpContent, appEdition());
     helpStore.update((state) => ({ ...state, book, language: wanted, loading: false }));
     return book;
   })();

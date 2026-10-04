@@ -1,4 +1,4 @@
-@source-sha 37c72c2a33c64db65379f158a2c0732e101e7e30b8ab5536f1786a7a5f0cfda1
+@source-sha e7967c42672fcf1dad338c88a6a8a4e070f211786414460db0461007304b90ec
 # Die Hex-Ansicht lesen
 
 > Sechzehn Bytes je Zeile, der Offset links, der Text rechts.
@@ -14,7 +14,7 @@ Jeder Bereich zeigt seine Datei als gewöhnlichen Hex-Dump:
 - **Alles zählt ab null.** Offset `0x1000` ist das 4097. Byte der Datei und, bei einem geraden SPI-Lesevorgang, das Byte an Adresse `0x1000` des Chips.
 - **`0xFF` heißt leer.** Gelöschter Flash liest sich als `FF`. Ein Bildschirm voll `FF` ist kein Schaden, sondern ein Teil des Chips, in den nie jemand geschrieben hat. Ein Bildschirm voll `00` ist dagegen meist etwas: eine genullte Region, keine gelöschte.
 - **Wortbreite.** **Darstellung ▸ Wortbreite** gruppiert die Bytes zu zweit, viert oder acht. Nützlich beim Lesen einer Tabelle von 32-Bit-Werten; es ändert nur den Abstand, nie die Reihenfolge und nie die Adressen.
-- **Größe.** Schrift, Größe und Zeilenhöhe stehen in den [[topic:settings|Einstellungen ▸ Darstellung]]. Einen eigenen Zoom hat das Programm nicht: ⌘+ und ⌘− sind der Seitenzoom des Browsers, der den ganzen Arbeitsbereich vergrößert — und genau das ist auf einem Laptopbildschirm das Richtige.
+- **Größe.** Schrift, Größe und Zeilenhöhe stehen in den [[topic:settings|Einstellungen ▸ Darstellung]]. Einen eigenen Zoom hat das Programm nicht: [[key:zoomIn]] und [[key:zoomOut]] sind [[edition:der Seitenzoom des Browsers||der Seitenzoom des Fensters]], der den ganzen Arbeitsbereich vergrößert — und genau das ist auf einem Laptopbildschirm das Richtige.
 
 ## Die Statuszeile
 

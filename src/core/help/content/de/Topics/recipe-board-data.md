@@ -1,4 +1,4 @@
-@source-sha a749aa344a7f6bcadb5dd744521863644af4742fd51cd18ea8571a6f155170b7
+@source-sha 534a23c708bf6f5b61a73f0732437a3314e9c4625d49b90f9882ed657acd933a
 # Platinenspezifische Daten
 
 > Welche Teile eines Firmware-Images einer einzelnen Platine gehören statt dem Modell, und an welcher Stelle des Images sie liegen.
@@ -38,7 +38,7 @@ Da es keinen Knoten im Baum gibt, wird die Lage des Bereichs über die Suche nac
 
 - Die beiden Bereiche und der Vergleich zeigen alle Adressen, an denen zwei Images sich unterscheiden; so wird der tatsächliche Umfang der individuellen Daten für ein bestimmtes Modell ermittelt.
 - Das UEFI-Werkzeug nennt Adresse und Länge der GbE-Region, der ME-Region und der NVRAM-Speicher.
-- **Block ab hier auswählen, bei…** im Kontextmenü des Bereichs wählt einen solchen Bereich über seine Zahlengrenzen aus, und ⌘V überschreibt ihn, ohne nachfolgende Bytes zu verschieben.
+- **Block ab hier auswählen, bei…** im Kontextmenü des Bereichs wählt einen solchen Bereich über seine Zahlengrenzen aus, und [[key:paste]] überschreibt ihn, ohne nachfolgende Bytes zu verschieben.
 - Lesezeichen gelten für beide Bereiche an derselben Adresse, sodass derselbe Adressbereich in beiden Images gefunden wird.
 
 Das Programm bestimmt nicht, welche Werte für eine bestimmte Platine die richtigen sind, und liest nichts von der Platine selbst.

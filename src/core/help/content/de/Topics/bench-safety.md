@@ -1,4 +1,4 @@
-@source-sha 3b5e5cddafda2fb12591cfb08576833da7874ffd41bfc901744690ddfb7205f2
+@source-sha 1955ad56a84b4f682b87419473a52757a59ad94f20c5436bbe026fbac2b48d2b
 # Einschränkungen beim Bearbeiten eines Images
 
 > Die Eigenschaften eines Firmware-Images, die zulässige Änderungen begrenzen, und die Rückfragen, die das Programm deshalb stellt.
@@ -11,9 +11,9 @@ Die Kapazität eines Flash-Bausteins ist fest, und jede Adresse in einem Firmwar
 
 Daraus folgt das voreingestellte Verhalten beim Bearbeiten:
 
-- Tippen und Einsetzen mit ⌘V überschreiben und verschieben kein nachfolgendes Byte.
+- Tippen und Einsetzen mit [[key:paste]] überschreiben und verschieben kein nachfolgendes Byte.
 - Entf und Rückschritt füllen mit `0x00`, statt die Datei zu kürzen; **Bearbeiten ▸ Auswahl füllen mit…** füllt die Auswahl mit einem gewählten Byte.
-- Die drei Vorgänge, die die Länge doch ändern — das Einschalten des Einfügemodus, ein ⌘V darin und **Bearbeiten ▸ Bytes löschen…** — fragen vor der Ausführung nach. Die Rückfragen lassen sich in den [[topic:settings|Einstellungen ▸ Bearbeiten]] abschalten.
+- Die drei Vorgänge, die die Länge doch ändern — das Einschalten des Einfügemodus, ein [[key:paste]] darin und **Bearbeiten ▸ Bytes löschen…** — fragen vor der Ausführung nach. Die Rückfragen lassen sich in den [[topic:settings|Einstellungen ▸ Bearbeiten]] abschalten.
 
 Die Größe der Datei steht in der Statuszeile unter jedem Bereich. Siehe [[topic:editing|Bytes bearbeiten]].
 
@@ -33,7 +33,7 @@ Ein Image von einer anderen Platine oder aus öffentlicher Quelle enthält die I
 
 ## Was das Programm auseinanderhält
 
-- **Die Datei auf der Festplatte ändert sich erst beim Sichern.** Geänderte Bytes werden rot dargestellt und bestehen bis zum ⌘S nur innerhalb von ByteRipper ([[topic:saving|Sichern]]).
+- **Die Datei auf der Festplatte ändert sich erst beim Sichern.** Geänderte Bytes werden rot dargestellt und bestehen bis zum [[key:save]] nur innerhalb von ByteRipper ([[topic:saving|Sichern]]).
 - **Jede Änderung ist ein Widerrufsschritt**, auch die großen: das Zusammenfügen von Dateien, das Füllen, ein von einem Werkzeug geschriebener Vorgang, das Zurückschreiben eines Fragments in die Ausgangsdatei.
 - **Ablage ▸ Duplizieren** kopiert den Inhalt eines Bereichs als neues, ungesichertes Dokument in den freien Bereich, sodass die Kopie bearbeitet wird und nicht die Ausgangsdatei.
 - **Der Vergleich mit der Ausgangsdatei** zeigt alle Adressen, an denen das bearbeitete Image von ihr abweicht.

@@ -11,18 +11,18 @@
 @covers menu.view.previous-same
 @covers dialog.go-to
 
-**About the keys below.** ⌘ is the Command key on a Mac and the Control key on Windows and Linux; ⌥ is Option, or Alt. The app takes these keys before the browser does, so ⌘F is this app's search and not the browser's find bar.
+**About the keys below.** [[edition:⌘ is the Command key on a Mac and the Control key on Windows and Linux; ⌥ is Option, or Alt. The app takes these keys before the browser does, so [[key:find]] is this app's search and not the browser's find bar.||A chord is written in the order the menu writes it: Ctrl first, then Alt, then Shift, then the key. A chord printed with the glyphs ⌘ and ⌥ is the macOS application's: ⌘ is its Command key, ⌥ its Option. The application takes these keys for itself, so [[key:find]] is its search and nothing else in the window answers to them.]]
 
 ## Between differences
 
-- **⌥⌘→** — next difference, **⌥⌘←** — previous difference.
-- **⇧⌥⌘→ / ⇧⌥⌘←** — next / previous *matching* block: the start of the next stretch over which the two files agree. This is the complementary movement for an image in which most addresses differ.
+- **[[key:nextDifference]]** — next difference, **[[key:previousDifference]]** — previous difference.
+- **[[key:nextSameBlock]] / [[key:previousSameBlock]]** — next / previous *matching* block: the start of the next stretch over which the two files agree. This is the complementary movement for an image in which most addresses differ.
 
 For the purpose of this movement a difference is a whole run of differing bytes rather than each byte in it: a differing block of 4 KB is one stop, not four thousand.
 
 ## To an address
 
-**⌘L** opens Go To. Type an address and press Return:
+**[[key:goTo]]** opens Go To. Type an address and press Return:
 
 - `0x1FE00` — hex, with the `0x` prefix (already in the field).
 - `130560` — decimal, without a prefix.
@@ -43,6 +43,6 @@ The two panes are locked together in scroll position, caret and selection. **Vie
 
 ## Making everything bigger
 
-There is no zoom of the app's own: **the browser's page zoom is the zoom** (⌘+ and ⌘−, ⌘0 to come back). The dump's own typeface and size are a setting instead — see [[topic:settings|Settings]].
+There is no zoom of the app's own: **[[edition:the browser's page zoom is the zoom||the window's page zoom is the zoom]]** ([[key:zoomIn]] and [[key:zoomOut]], [[key:zoomReset]] to come back). The dump's own typeface and size are a setting instead — see [[topic:settings|Settings]].
 
 See also: [[topic:minimap|The Minimap]], for moving by pointing rather than by address.

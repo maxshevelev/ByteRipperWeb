@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { TOPIC, termId, topicId } from "@/core/help/helpIds";
+import { spellHelpKey } from "@/core/help/helpKeys";
 import { parseHelpSections, parseHelpTermFile, parseHelpTopicFile } from "@/core/help/helpLoader";
 import {
   type HelpBlock,
@@ -200,6 +201,74 @@ describe("the markup a translator has to keep", () => {
   /** An emphasis or a quote nobody closed is prose, not a swallowed line. */
   it("leaves an unclosed form as the characters it is", () => {
     expect(helpSpans("**unclosed and `also this")).toEqual([text("**unclosed and `also this")]);
+  });
+});
+
+/**
+ * The two inline forms the web added because its book is read on two keyboards
+ * and in two applications: a chord, and a phrase that differs per edition.
+ * Neither has an upstream test, because upstream has neither a second keyboard
+ * spelling nor a second edition.
+ */
+describe("the web's own inline forms: chords and the two editions", () => {
+  it("reads a chord as a span that holds only its id", () => {
+    expect(helpSpans("find with [[key:find]] now")).toEqual([
+      text("find with "),
+      { kind: "key", command: "find" },
+      text(" now"),
+    ]);
+  });
+
+  it("keeps a chord a chord when it is bold", () => {
+    expect(helpSpans("**[[key:undo]]**")).toEqual([strong({ kind: "key", command: "undo" })]);
+  });
+
+  it("reads a chord the way the book wrote it with no resolver in hand", () => {
+    expect(helpPlainText(parseHelpMarkup("undo is [[key:undo]]"))).toBe("undo is ⌘Z");
+  });
+
+  it("reads a chord the way the reader's platform spells it with a resolver in hand", () => {
+    const other = (command: string) => spellHelpKey(command, "other");
+    expect(helpPlainText(parseHelpMarkup("undo is [[key:undo]]"), other)).toBe("undo is Ctrl+Z");
+  });
+
+  it("reads a chord the table does not carry as its id, not as a throw", () => {
+    expect(helpPlainText(parseHelpMarkup("[[key:noSuchKey]]"))).toBe("noSuchKey");
+  });
+
+  it("keeps the half of an edition phrase the reader is in", () => {
+    const source = "save is [[edition:the download||the file in place]] done";
+    expect(helpPlainText(parseHelpMarkup(source, "browser"))).toBe("save is the download done");
+    expect(helpPlainText(parseHelpMarkup(source, "desktop"))).toBe(
+      "save is the file in place done"
+    );
+  });
+
+  it("lets a half hold a chord, spelled for the platform", () => {
+    const source = "[[edition:the menu is the way||the keys are [[key:tool1]] and [[key:tool2]]]]";
+    const other = (command: string) => spellHelpKey(command, "other");
+    expect(helpPlainText(parseHelpMarkup(source, "desktop"), other)).toBe(
+      "the keys are Ctrl+1 and Ctrl+2"
+    );
+    expect(helpPlainText(parseHelpMarkup(source, "browser"))).toBe("the menu is the way");
+  });
+
+  it("keeps a phrase whole when it has no split", () => {
+    const source = "a [[edition:shared phrase]] here";
+    expect(helpPlainText(parseHelpMarkup(source, "browser"))).toBe("a shared phrase here");
+    expect(helpPlainText(parseHelpMarkup(source, "desktop"))).toBe("a shared phrase here");
+  });
+
+  it("does not split a phrase on the pipe inside a half's own link", () => {
+    const source = "[[edition:see [[topic:settings|Settings]]||see the shell]] now";
+    expect(helpPlainText(parseHelpMarkup(source, "browser"))).toBe("see Settings now");
+    expect(helpPlainText(parseHelpMarkup(source, "desktop"))).toBe("see the shell now");
+  });
+
+  it("leaves an unbalanced edition phrase as it was typed", () => {
+    expect(helpPlainText(parseHelpMarkup("a [[edition:unclosed phrase"))).toBe(
+      "a [[edition:unclosed phrase"
+    );
   });
 });
 

@@ -1,4 +1,4 @@
-@source-sha ae9d99f1b69bf96714a4574d8f51efa57079fabbc9f116962fdc4cff1f7b6c7d
+@source-sha 2fa8401d365d925873e19ff4d340be4886a999b64ac19c39b007ad07227c19f3
 # Die Werkzeugbereiche
 
 > Werkzeuge, die den geöffneten Dump decodieren und melden, welche Strukturen er enthält.
@@ -9,7 +9,7 @@ Das Menü **Werkzeuge** schaltet jeweils einen Bereich neben dem Dump ein. Jedes
 - **[[topic:tool-me|ME Analyzer]]** — was für eine Intel-Management-Engine-Firmware im Image steckt: ihre Version, ihre Partitionen, ihre Konfiguration.
 - **[[topic:tool-fit|FIT-Tabelle]]** — die Firmware Interface Table und ob ihre Einträge noch auf das zeigen, was sie behaupten.
 
-In der Windows-Anwendung haben die Werkzeuge die Tasten **⌘1**, **⌘2**, **⌘3** in der Reihenfolge des Menüs (⌘ ist dort die Strg-Taste); ein Browser behält diese Tasten für seine eigenen Tabs, daher bleibt im Browser nur das Menü. Die Taste des gerade gezeigten Werkzeugs bewirkt nichts.
+[[edition:Ein Browser behält **[[key:tool1]]**, **[[key:tool2]]** und **[[key:tool3]]** für seine eigenen Tabs, daher werden die Werkzeuge im Browser aus dem Menü **Werkzeuge** in der Reihenfolge eingeblendet, in der es sie auflistet.||Die Werkzeuge haben die Tasten **[[key:tool1]]**, **[[key:tool2]]** und **[[key:tool3]]** in der Reihenfolge, in der das Menü **Werkzeuge** sie auflistet.]] Die Taste des gerade gezeigten Werkzeugs bewirkt nichts.
 
 ## Was sie gemeinsam haben
 

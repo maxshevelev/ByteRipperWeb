@@ -1,4 +1,4 @@
-@source-sha 606ce65ca93c9fb0f287e457607e0243b62b132ba2e8078cc9198cd64156db6c
+@source-sha d89ac429289921ace294324a42e6279a69b82665ab6d206d71b5cdf127fe788c
 # Zusammenfügen und Duplizieren
 
 > Die Dumps zweier Bausteine zu einem Image zusammenfügen und ein Image duplizieren, um die Kopie zu bearbeiten.
@@ -16,8 +16,8 @@ Die Grenze ist als [[topic:segments|Segmentschnitt]] festgehalten, sodass **Alle
 
 Daraus folgen zwei Dinge, die gut zu wissen sind:
 
-- **Das zusammengefügte Dokument hat keine Datei.** Es ist unbenannt, ⌘S fragt also, wohin damit, und kann keine der Hälften versehentlich überschreiben.
-- **Das Zusammenfügen ist ein Widerrufsschritt.** ⌘Z entfernt die hinzugefügten Bytes *und* bindet den Bereich wieder an die Datei, aus der er geöffnet wurde.
+- **Das zusammengefügte Dokument hat keine Datei.** Es ist unbenannt, [[key:save]] fragt also, wohin damit, und kann keine der Hälften versehentlich überschreiben.
+- **Das Zusammenfügen ist ein Widerrufsschritt.** [[key:undo]] entfernt die hinzugefügten Bytes *und* bindet den Bereich wieder an die Datei, aus der er geöffnet wurde.
 
 ## Duplizieren: eine Kopie des Dumps, wie er war
 

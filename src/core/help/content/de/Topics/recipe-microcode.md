@@ -1,4 +1,4 @@
-@source-sha 239983ab70d561a682b788854512a1200cf00330279af5e1812071da73a8d22c
+@source-sha 1099d6f1fb494d50394ae275260d50e40fd259d163f8c5f68444bdadf2ecb135
 # Microcode und die FIT-Tabelle
 
 > Was das Werkzeug „FIT-Tabelle“ über den Microcode eines Images meldet und was seine Befehle an der Tabelle ändern.
@@ -38,7 +38,7 @@ Der Befehl leistet dann Folgendes:
 2. Er schreibt einen neuen Eintrag in die Tabelle, nutzt dafür einen freien Platz, sofern die Tabelle einen hat, und verlängert die Tabelle sonst in die sechzehn freien Bytes dahinter.
 3. Er berichtigt die Anzahl der Einträge im Header und die Prüfsumme der Tabelle.
 
-**Die Länge der Datei ändert sich dabei nicht.** Der Vorgang bildet einen Widerrufsschritt (⌘Z) und wird entweder vollständig ausgeführt oder mit Angabe des Grundes abgelehnt.
+**Die Länge der Datei ändert sich dabei nicht.** Der Vorgang bildet einen Widerrufsschritt ([[key:undo]]) und wird entweder vollständig ausgeführt oder mit Angabe des Grundes abgelehnt.
 
 ## Ersetzen und Entfernen
 

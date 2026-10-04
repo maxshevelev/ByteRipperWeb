@@ -325,6 +325,14 @@ export function AppShell() {
   const revealToken = useRef(0);
 
   /**
+   * The window-level key handler below runs with `[]` deps, so it would hold
+   * the mount-time `navigate` — one that still sees an empty comparison. `navigate`
+   * is memoised on the comparison's state and is therefore not stable; this ref is
+   * reassigned to it every render so the handler always calls the live one.
+   */
+  const navigateRef = useRef<(what: "difference" | "same", direction: 1 | -1) => void>(() => {});
+
+  /**
    * The one-time warning before an edit that shifts every offset after it.
    *
    * It resolves a promise the editing queue is waiting on, so the keystrokes
@@ -830,9 +838,27 @@ export function AppShell() {
       // everything else below is Alt-free. The dump has no handler for it, so
       // it is taken here wherever the keyboard is.
       if (event.altKey) {
-        if (shortcutKey(event) === "b") {
+        const key = shortcutKey(event);
+        if (key === "b") {
           event.preventDefault();
           setGoTo("bookmarks");
+          return;
+        }
+        // Difference and matching-block navigation. The Mac's hand is ⌥⌘→, with
+        // ⇧ for the matching block; the same position on Windows is Ctrl+Alt+→,
+        // and the mapping is the menu's own (⌘→Ctrl, ⌥→Alt, ⇧→Shift). `navigate`
+        // no-ops when there is no comparison or nowhere to go, so it is safe to
+        // call on every Alt+arrow.
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.navigateBlock
+        // @upstream-differs taken as a window-level key handler, so it works wherever
+        // the keyboard is and maps ⌘→Ctrl on Windows, rather than as a menu key equivalent
+        if (key === "ArrowRight" || key === "ArrowLeft") {
+          event.preventDefault();
+          navigateRef.current(
+            event.shiftKey ? "same" : "difference",
+            key === "ArrowRight" ? 1 : -1
+          );
+          return;
         }
         return;
       }
@@ -1819,6 +1845,7 @@ export function AppShell() {
     },
     [diff.hunks, selections, state.activePane]
   );
+  navigateRef.current = navigate;
 
   /**
    * Where a pane's selection is recorded — and only when it has moved.

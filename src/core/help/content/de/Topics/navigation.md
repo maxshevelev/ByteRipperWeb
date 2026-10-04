@@ -1,20 +1,20 @@
-@source-sha 6b2e17d3b9b69adc1b83b5c31b7acd3950344c0151faf5c5906911f15294025c
+@source-sha 4844a1c579c831b6ed546a2a356cc61913a951bee94ce7fe93838de8105b7598
 # Sich bewegen
 
 > Zwischen Unterschieden springen, zu einer Adresse springen oder auf einem Byte stehen und ablesen, wo man ist.
 
-**Zu den Tasten unten.** ⌘ ist die Command-Taste auf dem Mac und die Control-Taste unter Windows und Linux; ⌥ ist Option, also Alt. Das Programm nimmt diese Tasten vor dem Browser, sodass ⌘F die Suche dieses Programms ist und nicht die Suchleiste des Browsers.
+**Zu den Tasten unten.** [[edition:⌘ ist die Command-Taste auf dem Mac und die Control-Taste unter Windows und Linux; ⌥ ist Option, also Alt. Das Programm nimmt diese Tasten vor dem Browser, sodass [[key:find]] die Suche dieses Programms ist und nicht die Suchleiste des Browsers.||Ein Akkord ist in der Reihenfolge geschrieben, in der das Menü ihn schreibt: zuerst Strg, dann Alt, dann Umschalt, dann die Taste. Ein Akkord, der mit den Glyphen ⌘ und ⌥ gedruckt ist, ist der der macOS-Ausgabe: ⌘ ist ihre Command-Taste, ⌥ ihre Option. Das Programm nimmt diese Tasten für sich, sodass [[key:find]] seine Suche ist und nichts anderes im Fenster darauf antwortet.]]
 
 ## Zwischen Unterschieden
 
-- **⌥⌘→** — nächster Unterschied, **⌥⌘←** — vorheriger.
-- **⇧⌥⌘→ / ⇧⌥⌘←** — nächster / vorheriger **gleicher** Block: der Anfang der nächsten Strecke, auf der die Dateien übereinstimmen. Nützlich, wenn sich fast das ganze Image unterscheidet und man die Inseln sucht, die passen.
+- **[[key:nextDifference]]** — nächster Unterschied, **[[key:previousDifference]]** — vorheriger.
+- **[[key:nextSameBlock]] / [[key:previousSameBlock]]** — nächster / vorheriger **gleicher** Block: der Anfang der nächsten Strecke, auf der die Dateien übereinstimmen. Nützlich, wenn sich fast das ganze Image unterscheidet und man die Inseln sucht, die passen.
 
 Ein „Unterschied“ ist beim Springen eine ganze Folge abweichender Bytes, nicht jedes einzelne: ein abweichender 4-KB-Block ist eine Station, nicht viertausend.
 
 ## Zu einer Adresse
 
-**⌘L** öffnet „Gehe zu“. Geben Sie eine Adresse ein und drücken Sie Return:
+**[[key:goTo]]** öffnet „Gehe zu“. Geben Sie eine Adresse ein und drücken Sie Return:
 
 - `0x1FE00` — hexadezimal, mit dem Präfix `0x` (es steht schon im Feld).
 - `130560` — dezimal, ohne Präfix.
@@ -35,6 +35,6 @@ Die beiden Bereiche sind in Scrollposition, Einfügemarke und Auswahl miteinande
 
 ## Alles größer machen
 
-Einen eigenen Zoom hat das Programm nicht: **der Seitenzoom des Browsers ist der Zoom** (⌘+ und ⌘−, ⌘0 zurück). Die Schrift des Dumps und ihre Größe sind stattdessen eine Einstellung — siehe [[topic:settings|Einstellungen]].
+Einen eigenen Zoom hat das Programm nicht: **[[edition:der Seitenzoom des Browsers ist der Zoom||der Seitenzoom des Fensters ist der Zoom]]** ([[key:zoomIn]] und [[key:zoomOut]], [[key:zoomReset]] zurück). Die Schrift des Dumps und ihre Größe sind stattdessen eine Einstellung — siehe [[topic:settings|Einstellungen]].
 
 Siehe auch: [[topic:minimap|Die Minimap]] — Bewegung mit dem Zeiger statt über Adressen.

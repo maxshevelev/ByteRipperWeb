@@ -37,7 +37,7 @@ What the command then does:
 2. It writes a new entry into the table, using an empty slot where the table has one and extending the table into the sixteen free bytes after it where it has not.
 3. It corrects the header's entry count and the table checksum.
 
-**The file does not change length.** The operation is one undo step (⌘Z), and either lands complete or is refused with the reason.
+**The file does not change length.** The operation is one undo step ([[key:undo]]), and either lands complete or is refused with the reason.
 
 ## Replacing and removing
 

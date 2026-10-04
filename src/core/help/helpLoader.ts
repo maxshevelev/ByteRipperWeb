@@ -17,7 +17,12 @@ import { type HelpBook, makeHelpBook } from "@/core/help/helpBook";
 import { ALL_HELP_TOPICS, HELP_SECTIONS } from "@/core/help/helpContents";
 import type { HelpLink, HelpTopicId } from "@/core/help/helpIds";
 import { termId } from "@/core/help/helpIds";
-import { parseHelpLink, parseHelpMarkup } from "@/core/help/helpMarkup";
+import {
+  applyEdition,
+  type HelpEdition,
+  parseHelpLink,
+  parseHelpMarkup,
+} from "@/core/help/helpMarkup";
 import {
   HELP_TERM_GROUPS,
   type HelpSection,
@@ -55,13 +60,20 @@ export type HelpContentReader = (language: string, path: string) => Promise<stri
  * missing, the coverage script says so louder, and the reader keeps the other
  * thirty-nine.
  *
+ * `edition` chooses which half of each page's `[[edition:…]]` phrases the book
+ * keeps: the reader is in one application for the whole session, so the choice
+ * is made once, here, rather than carried into every view. A book with no such
+ * phrases reads the same on either edition, which is the browser's.
+ *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpLoader.load
  * @upstream-differs upstream throws `missingTopic`; here a missing page is left
- * out and reported, a thrown error in a browser costing the reader the book
+ * out and reported, a thrown error in a browser costing the reader the book.
+ * It also has one edition, so its load takes no `edition`
  */
 export async function loadHelpBook(
   language: string,
-  read: HelpContentReader
+  read: HelpContentReader,
+  edition: HelpEdition = "browser"
 ): Promise<HelpBook & { readonly missing: readonly HelpTopicId[] }> {
   /**
    * One file, from the reader's language or — when that language has not got to
@@ -90,12 +102,14 @@ export async function loadHelpBook(
       missing.push(id);
       continue;
     }
-    topics.push(parseHelpTopicFile(text, id));
+    topics.push(parseHelpTopicFile(text, id, edition));
   }
 
   const terms: HelpTerm[] = [];
   for (const group of HELP_TERM_GROUPS) {
-    terms.push(...parseHelpTermFile((await readWithFallback(`Terms/${group}.md`)) ?? "", group));
+    terms.push(
+      ...parseHelpTermFile((await readWithFallback(`Terms/${group}.md`)) ?? "", group, edition)
+    );
   }
 
   const glossaryNames: Partial<Record<HelpTermGroup, string>> = {};
@@ -157,7 +171,11 @@ export function parseHelpSections(source: string): Record<string, string> {
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpTopicFile.parse
  */
-export function parseHelpTopicFile(source: string, id: HelpTopicId): HelpTopic {
+export function parseHelpTopicFile(
+  source: string,
+  id: HelpTopicId,
+  edition: HelpEdition = "browser"
+): HelpTopic {
   let title = "";
   let summary = "";
   const body: string[] = [];
@@ -175,11 +193,11 @@ export function parseHelpTopicFile(source: string, id: HelpTopicId): HelpTopic {
     if (inHeader) {
       if (line === "") continue;
       if (title === "" && line.startsWith("# ")) {
-        title = line.slice(2);
+        title = applyEdition(line.slice(2), edition);
         continue;
       }
       if (summary === "" && line.startsWith("> ")) {
-        summary = line.slice(2);
+        summary = applyEdition(line.slice(2), edition);
         continue;
       }
       inHeader = false;
@@ -190,7 +208,7 @@ export function parseHelpTopicFile(source: string, id: HelpTopicId): HelpTopic {
     id,
     title: title === "" ? id : title,
     summary,
-    blocks: parseHelpMarkup(body.join("\n")),
+    blocks: parseHelpMarkup(body.join("\n"), edition),
     covers,
   };
 }
@@ -208,7 +226,11 @@ export function parseHelpTopicFile(source: string, id: HelpTopicId): HelpTopic {
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/HelpLoader.swift#HelpTermFile.parse
  */
-export function parseHelpTermFile(source: string, group: HelpTermGroup): HelpTerm[] {
+export function parseHelpTermFile(
+  source: string,
+  group: HelpTermGroup,
+  edition: HelpEdition = "browser"
+): HelpTerm[] {
   const terms: HelpTerm[] = [];
   let id: string | undefined;
   let name = "";
@@ -222,7 +244,7 @@ export function parseHelpTermFile(source: string, group: HelpTermGroup): HelpTer
       id: termId(id),
       name: name === "" ? id : name,
       summary: short,
-      blocks: parseHelpMarkup(body.join("\n")),
+      blocks: parseHelpMarkup(body.join("\n"), edition),
       seeAlso,
       group,
     });
@@ -243,7 +265,7 @@ export function parseHelpTermFile(source: string, group: HelpTermGroup): HelpTer
     }
     const written = keywordValue("@name", line);
     if (written !== undefined) {
-      name = written;
+      name = applyEdition(written, edition);
       continue;
     }
     const sentence = keywordValue("@short", line);

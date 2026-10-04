@@ -1,12 +1,12 @@
-@source-sha ea40ee33d971116e1da4deed198e885729740ebb6316428e109bd742c00f1e0b
+@source-sha 72ab58abbdfaa1c33a2bd94d77539e2bf6dd7f0031ff4d1364f7bd935b72ba75
 # Lesezeichen
 
 > Markierte Adressen, zu denen schnell zurückgekehrt werden kann: auf der Zeile angezeigt und beiden Bereichen gemeinsam.
 
-**⌘D** setzt ein Lesezeichen auf der Zeile, auf der die Einfügemarke steht, oder entfernt ein vorhandenes. Die Adresse dieser Zeile wird dann auf einem violetten Pfeil dargestellt, und die Zeile wird in derselben Farbe am Rand der [[topic:minimap|Minimap]] markiert. Lesezeichen stehen auch auf dem leeren Bildschirm, sodass ein Arbeitsbereich ohne offene Datei weiterhin nennt, was zuletzt betrachtet wurde.
+**[[key:bookmark]]** setzt ein Lesezeichen auf der Zeile, auf der die Einfügemarke steht, oder entfernt ein vorhandenes. Die Adresse dieser Zeile wird dann auf einem violetten Pfeil dargestellt, und die Zeile wird in derselben Farbe am Rand der [[topic:minimap|Minimap]] markiert. Lesezeichen stehen auch auf dem leeren Bildschirm, sodass ein Arbeitsbereich ohne offene Datei weiterhin nennt, was zuletzt betrachtet wurde.
 
-- **⇧⌘D** gibt dem Lesezeichen einen Namen oder ändert den vorhandenen. Ein Lesezeichen ohne Namen zeigt seine Adresse.
-- **⌘L** öffnet „Gehe zu“, und die untere Hälfte dieses Formulars ist die Lesezeichenliste: Tab bringt die Tastatur hinein, Return springt zum ausgewählten Lesezeichen.
+- **[[key:editBookmark]]** gibt dem Lesezeichen einen Namen oder ändert den vorhandenen. Ein Lesezeichen ohne Namen zeigt seine Adresse.
+- **[[key:goTo]]** öffnet „Gehe zu“, und die untere Hälfte dieses Formulars ist die Lesezeichenliste: Tab bringt die Tastatur hinein, Return springt zum ausgewählten Lesezeichen.
 
 ## Was ein Lesezeichen markiert
 
