@@ -16,7 +16,6 @@ import {
 } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
-import { jedecName } from "@/firmware/uefi/jedecIds";
 import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import type { ProtectedRange } from "@/firmware/uefi/protectedRanges";
 import { TCGHash } from "@/firmware/uefi/tcgHash";
@@ -530,6 +529,7 @@ describe("a flash descriptor", () => {
     readonly version1: boolean;
     readonly chips?: number;
     readonly flcomp?: number;
+    readonly vscchips?: readonly number[];
     readonly size: number;
   }) => {
     const bytes = new Uint8Array(options.size).fill(0xff);
@@ -543,6 +543,7 @@ describe("a flash descriptor", () => {
           flill: 0xad60_4221,
           flill1: 0xc7c4_b9b7,
         },
+        ...(options.vscchips !== undefined ? { chips: options.vscchips } : {}),
       })
     );
     return detailOf(node, bytes);
@@ -609,13 +610,60 @@ describe("a flash descriptor", () => {
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheVsccTableIsAGridOfChips
   it("draws the VSCC table as a grid of chips", () => {
-    const vscc = table(detail, "Flash chips in VSCC table");
+    const shown = dump({
+      version1: true,
+      vscchips: [0x1f_4700, 0x1c_7018, 0xc2_2019, 0xef_4019],
+      size: 0x100_0000,
+    });
+    const vscc = table(shown, "Flash chips in VSCC table");
+
     expect(vscc?.symbol).toBe("cpu");
-    expect(vscc?.columns).toEqual(["JEDEC ID", "Chip"]);
-    expect(vscc?.rows.map((row) => row[0]?.text)).toEqual(["1F4700", "C22019"]);
-    expect(vscc?.rows.map((row) => row[1]?.text)).toEqual(
-      chips.map((id) => jedecName(id) ?? "Unknown")
+    expect(vscc?.columns).toEqual(["JEDEC ID", "Chip", "Size", "Source"]);
+    expect(vscc?.rows.map((row) => row[0]?.text)).toEqual(["1F4700", "1C7018", "C22019", "EF4019"]);
+    expect(vscc?.rows.map((row) => row[1]?.text)).toEqual([
+      "Atmel AT25DF321",
+      "EON EN25QH128",
+      "Macronix MX25L256",
+      "Winbond W25Q256",
+    ]);
+    expect(vscc?.rows.map((row) => row[2]?.text)).toEqual(["4 MB", "16 MB", "32 MB", "32 MB"]);
+    // Red where the chip (4 MB) is smaller than the 16 MB dump.
+    expect(vscc?.rows.map((row) => row[2]?.tone)).toEqual(["no", "plain", "plain", "plain"]);
+    expect(vscc?.rows.map((row) => row[3]?.text)).toEqual(
+      Array.from({ length: 4 }, () => "UEFITool")
     );
+  });
+
+  // A chip that holds the whole dump is not marked, however much bigger it is;
+  // the red is only for one the dump does not fit into.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testNoChipIsRedWhenTheDumpFitsAll
+  it("does not mark a chip red when the dump fits all of them", () => {
+    const shown = dump({
+      version1: true,
+      vscchips: [0x1f_4700, 0x1c_7018, 0xc2_2019, 0xef_4019],
+      size: 0x40_0000,
+    });
+    const vscc = table(shown, "Flash chips in VSCC table");
+
+    expect(vscc?.rows.map((row) => row[2]?.tone)).toEqual(["plain", "plain", "plain", "plain"]);
+  });
+
+  // Two chips: no one chip has to hold the dump, but one smaller than the
+  // smallest the descriptor declares cannot be either of them.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testWithTwoChipsRedIsASizeBelowTheSmallest
+  it("with two chips, red is a size below the smallest declared", () => {
+    const shown = dump({
+      version1: true,
+      chips: 2,
+      flcomp: 0x2490_002c,
+      vscchips: [0x1f_4700, 0x1c_7018, 0xc2_2019, 0xef_4019],
+      size: 0x180_0000,
+    });
+    const vscc = table(shown, "Flash chips in VSCC table");
+
+    expect(vscc?.rows.map((row) => row[2]?.text)).toEqual(["4 MB", "16 MB", "32 MB", "32 MB"]);
+    // Red where the chip (4 MB) is below the smallest declared (8 MB).
+    expect(vscc?.rows.map((row) => row[2]?.tone)).toEqual(["no", "plain", "plain", "plain"]);
   });
 
   // A version 2 descriptor writes twelve bits, so its masks are three digits

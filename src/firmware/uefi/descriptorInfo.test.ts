@@ -250,12 +250,26 @@ describe("the BIOS access table", () => {
 
 describe("the VSCC table", () => {
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheVsccTableIsReadAndItsChipsNamed
-  it("names the chips the catalogue knows", () => {
+  it("names the chips the catalogue knows, with their size and source", () => {
     const read = info(Test.descriptor({ regions: [bios], chips: [0x1f4700, 0xef4019, 0x0a0b0c] }));
 
     expect(read.chips).toEqual([
-      { jedecId: 0x1f4700, name: "Atmel AT25DF321" },
-      { jedecId: 0xef4019, name: "Winbond W25Q256" },
+      { jedecId: 0x1f4700, name: "Atmel AT25DF321", sizeKB: 4096, source: "uefiTool" },
+      { jedecId: 0xef4019, name: "Winbond W25Q256", sizeKB: 32768, source: "uefiTool" },
+      { jedecId: 0x0a0b0c, name: undefined },
+    ]);
+  });
+
+  // An id the catalogue does not know still names its maker, from the first
+  // byte; a code nobody here knows names nothing, and a named chip carries no
+  // vendor of its own.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAnUnlistedChipIsNamedByItsVendor
+  it("names an unlisted chip by its vendor", () => {
+    const read = info(Test.descriptor({ regions: [bios], chips: [0xef0000, 0xef4019, 0x0a0b0c] }));
+
+    expect(read.chips).toEqual([
+      { jedecId: 0xef0000, name: undefined, vendor: "Winbond" },
+      { jedecId: 0xef4019, name: "Winbond W25Q256", sizeKB: 32768, source: "uefiTool" },
       { jedecId: 0x0a0b0c, name: undefined },
     ]);
   });

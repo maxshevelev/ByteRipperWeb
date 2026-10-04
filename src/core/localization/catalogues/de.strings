@@ -684,6 +684,7 @@
 "Smart Search — the encoding is whichever one finds a match" = "Intelligente Suche — die Codierung ist die, in der etwas gefunden wird";
 "Smart search." = "Intelligente Suche.";
 "Something is wrong: the pointer says what" = "Etwas stimmt nicht: der Zeiger sagt, was";
+"Source" = "Quelle";
 "Split Here at %1$@" = "Hier bei %1$@ schneiden";
 "Split Here…" = "Hier trennen…";
 "Stack Panes" = "Bereiche übereinander";
@@ -783,6 +784,7 @@
 "Undo" = "Widerrufen";
 "Undo %1$@" = "%1$@ widerrufen";
 "Unknown" = "Unbekannt";
+"Unknown (%1$@)" = "Unbekannt (%1$@)";
 "Unmatched Hashes" = "Nicht zugeordnete Hashes";
 "Unsaved changes" = "Ungesicherte Änderungen";
 "Untitled" = "Ohne Titel";

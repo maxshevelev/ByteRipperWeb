@@ -684,6 +684,7 @@
 "Smart Search — the encoding is whichever one finds a match" = "Умный поиск — кодировка та, в которой нашлось совпадение";
 "Smart search." = "Умный поиск.";
 "Something is wrong: the pointer says what" = "Обнаружена ошибка: подробности — во всплывающей подсказке";
+"Source" = "Источник";
 "Split Here at %1$@" = "Разрезать здесь, по %1$@";
 "Split Here…" = "Разрезать здесь…";
 "Stack Panes" = "Панели друг над другом";
@@ -783,6 +784,7 @@
 "Undo" = "Отменить";
 "Undo %1$@" = "Отменить: %1$@";
 "Unknown" = "Неизвестно";
+"Unknown (%1$@)" = "Неизвестно (%1$@)";
 "Unmatched Hashes" = "Несопоставленные хеши";
 "Unsaved changes" = "Несохранённые изменения";
 "Untitled" = "Без имени";

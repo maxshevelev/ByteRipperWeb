@@ -6,6 +6,7 @@ import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import type { DellSetupSetting } from "@/firmware/uefi/dellSetupForms";
 import { generationCodeName, generationSeries } from "@/firmware/uefi/descriptorGeneration";
 import {
+  type DescriptorChipSource,
   type DescriptorClock,
   type DescriptorInfo,
   readDescriptorInfo,
@@ -536,7 +537,7 @@ function buildDetailRows(
   return {
     title,
     fields: [...fields, ...descriptorFields(descriptor, image.size)],
-    tables: [...protection.tables, ...descriptorTables(descriptor)],
+    tables: [...protection.tables, ...descriptorTables(descriptor, image.size)],
   };
 }
 
@@ -1263,7 +1264,7 @@ function capacityText(bytes: number): string {
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.descriptorTables
  */
-function descriptorTables(descriptor: DescriptorInfo): DetailTable[] {
+function descriptorTables(descriptor: DescriptorInfo, imageSize: number): DetailTable[] {
   const tables: DetailTable[] = [];
   // Its own region is this node.
   const regions = descriptor.regions.filter((region) => region.type !== "descriptor");
@@ -1306,18 +1307,48 @@ function descriptorTables(descriptor: DescriptorInfo): DetailTable[] {
     });
   }
   if (descriptor.chips.length > 0) {
+    const declared = descriptor.component?.chipSizes ?? [];
+    const declaredSizes = declared.filter((one): one is number => one !== undefined);
+    const smallest =
+      declared.length === 1
+        ? imageSize
+        : declaredSizes.length > 0
+          ? Math.min(...declaredSizes)
+          : undefined;
     tables.push({
       title: L("Flash chips in VSCC table"),
       symbol: "cpu",
-      columns: [L("JEDEC ID"), L("Chip")],
-      rows: descriptor.chips.map((chip) => [
-        cell(chip.jedecId.toString(16).toUpperCase().padStart(6, "0")),
-        cell(chip.name ?? L("Unknown")),
-      ]),
+      columns: [L("JEDEC ID"), L("Chip"), L("Size"), L("Source")],
+      rows: descriptor.chips.map((chip) => {
+        // With one chip the dump is that chip's, so a smaller chip cannot be
+        // the one it came from. With several the split is the descriptor's,
+        // and a chip smaller than the smallest of them cannot stand in for
+        // any of them.
+        const bytes = chip.sizeKB === undefined ? undefined : chip.sizeKB << 10;
+        const invalid = bytes !== undefined && smallest !== undefined && bytes < smallest;
+        return [
+          cell(chip.jedecId.toString(16).toUpperCase().padStart(6, "0")),
+          cell(
+            chip.name ??
+              (chip.vendor === undefined ? L("Unknown") : L("Unknown (%1$@)", chip.vendor))
+          ),
+          { text: bytes === undefined ? "" : capacityText(bytes), tone: invalid ? "no" : "plain" },
+          // Names of the projects the table was read from, as they call
+          // themselves, in every language.
+          cell(chip.source === undefined ? "" : SOURCE_NAMES[chip.source]),
+        ];
+      }),
     });
   }
   return tables;
 }
+
+/** The project that named a VSCC chip, as it calls itself. */
+const SOURCE_NAMES: Readonly<Record<DescriptorChipSource, string>> = {
+  uefiTool: "UEFITool",
+  linux: "Linux",
+  flashrom: "flashrom",
+};
 
 // MARK: - NVRAM helpers
 

@@ -424,7 +424,8 @@
           "src/state/firmwareStore.ts",
           "src/workers/firmware.worker.ts",
           "src/workers/protocol.ts"
-        ]
+        ],
+        "FlashVendors.swift": "src/firmware/uefi/flashVendors.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -465,7 +466,8 @@
         "Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.init": "n/a — a memberwise initialiser; the port builds the object literal",
         "Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.isTruncated": "n/a — a computed property, read where it is used as `declaredLength !== undefined`",
         "Packages/UEFIImage/Sources/UEFIImage/TopSwap.swift#TopSwapCopy.init": "n/a — a memberwise initialiser; the port builds the object literal",
-        "Packages/UEFIImage/Tests/UEFIImageTests/RootLayoutTests.swift#RootLayoutTests.testALazyTreeReadsItsRootByItsLayout": "n/a — there is no LazyUEFITree here; the worker answers layouts (`layoutOf`), tested in rootLayout.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/RootLayoutTests.swift#RootLayoutTests.testALazyTreeReadsItsRootByItsLayout": "n/a — there is no LazyUEFITree here; the worker answers layouts (`layoutOf`), tested in rootLayout.test.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.init": "n/a — an object literal; there is nothing to construct"
       }
     },
     {

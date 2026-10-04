@@ -9,7 +9,8 @@ import {
   regionCount,
 } from "@/firmware/uefi/descriptorGeneration";
 import { Descriptor, FLASH_REGIONS, type FlashRegionType } from "@/firmware/uefi/descriptorParser";
-import { jedecName } from "@/firmware/uefi/jedecIds";
+import { flashVendor } from "@/firmware/uefi/flashVendors";
+import { jedecChip } from "@/firmware/uefi/jedecIds";
 
 /**
  * What a flash descriptor says about itself, beyond the regions it maps: the
@@ -51,13 +52,40 @@ export interface DescriptorAccess {
   readonly write: boolean;
 }
 
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip */
+/**
+ * A chip in the VSCC table: the JEDEC id the table lists, and the chip that
+ * id names when it is one the catalogue knows. For an id it does not know,
+ * `vendor` is still the maker the first byte names, when that code is one
+ * `flashVendor` has.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip
+ */
 export interface DescriptorChip {
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.jedecID */
   readonly jedecId: number;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.name */
   readonly name: string | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.vendor */
+  readonly vendor: string | undefined;
+  /**
+   * The chip's capacity in kilobytes, when the catalogue lists one.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.sizeKB
+   */
+  readonly sizeKB: number | undefined;
+  /**
+   * Where the catalogue took the name from; undefined when it has none.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.source
+   */
+  readonly source: DescriptorChipSource | undefined;
 }
+
+/** Where the catalogue took a VSCC chip's name from.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.Source
+ */
+export type DescriptorChipSource = "uefiTool" | "linux" | "flashrom";
 
 /**
  * A region the descriptor declares, where it begins and where it ends —
@@ -469,7 +497,14 @@ function chips(base: number, reader: ImageReader): DescriptorChip[] {
     const id = (vendor << 16) | (device0 << 8) | device1;
     // An erased or empty tail is not a chip.
     if (id === 0 || id === 0xff_ffff) continue;
-    found.push({ jedecId: id, name: jedecName(id) });
+    const known = jedecChip(id);
+    found.push({
+      jedecId: id,
+      name: known?.name,
+      vendor: known === undefined ? flashVendor(id) : undefined,
+      sizeKB: known?.sizeKB,
+      source: known?.source,
+    });
   }
   return found;
 }
