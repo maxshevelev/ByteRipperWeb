@@ -118,6 +118,7 @@
 "Already a favourite, as “%1$@”." = "Уже в избранном под именем «%1$@».";
 "Analyzing the ME firmware…" = "Анализ прошивки ME…";
 "Appearance" = "Внешний вид";
+"Apple ROM information" = "Сведения о ROM Apple";
 "Append at End" = "Дописать в конец";
 "Append File…" = "Дописать файл в конец…";
 "Apply" = "Применить";
@@ -177,6 +178,7 @@
 "Setup page" = "Страница Setup";
 "Ticked" = "Отмечен";
 "Not ticked" = "Не отмечен";
+"Value" = "Значение";
 "Value in Setup" = "Значение в Setup";
 "Setup help" = "Справка Setup";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
@@ -190,8 +192,10 @@
 "Backup %1$@" = "Резерв: %1$@";
 "Backup FIT pointer" = "Резервный указатель FIT";
 "Backup FIT table" = "Резервная таблица FIT";
+"BIOS ID" = "BIOS ID";
 "BIOS access table" = "Таблица доступа BIOS";
 "Bit position" = "Позиция бита";
+"Board" = "Плата";
 "Body" = "Тело";
 "Bookmark name" = "Имя закладки";
 "Bookmark offset" = "Адрес закладки";
@@ -204,6 +208,7 @@
 "Boot Partitions (BPDT)" = "Загрузочные разделы (BPDT)";
 "Both" = "Обе";
 "Both apply to the hex views already open, and are what the next visit opens with." = "Оба применяются к уже открытым дампам и с ними же откроется следующий визит.";
+"Build date" = "Дата сборки";
 "ByteRipper Help" = "Справка ByteRipper";
 "ByteRipper Settings" = "Настройки ByteRipper";
 "Bytes from offset %1$@ will be removed. Subsequent offsets will shift — the file structure may be affected." = "Байты начиная с адреса %1$@ будут удалены. Последующие адреса сдвинутся — структура файла может быть нарушена.";
@@ -338,6 +343,7 @@
 "file missing" = "файл недоступен";
 "File name" = "Имя файла";
 "File System (MFS)" = "Файловая система (MFS)";
+"Field" = "Поле";
 "file was" = "файл";
 "Files" = "Файлы";
 "Files are identical" = "Файлы совпадают";
@@ -465,6 +471,7 @@
 "Loading…" = "Загрузка…";
 "Local" = "Вблизи";
 "Manage Search Patterns…" = "Управление шаблонами поиска…";
+"Major version" = "Старшая версия";
 "Manifest" = "Манифест";
 "Master" = "Master";
 "Match Case" = "Учитывать регистр";
@@ -481,6 +488,7 @@
 "Mine" = "Локальную";
 "Minimap" = "Миникарта";
 "Minimap mode" = "Режим миникарты";
+"Minor version" = "Младшая версия";
 "Modified" = "Изменён";
 "Modified file" = "Изменённый файл";
 "Modified new file" = "Изменённый новый файл";
@@ -524,6 +532,7 @@
 "Nothing more to show for this row." = "Для этой строки больше нет данных.";
 "Nothing was changed in %1$@." = "В %1$@ ничего не изменено.";
 "Nothing was written inside a Boot Guard or vendor protected range." = "Внутрь диапазона, защищённого Boot Guard или вендором, ничего не записано.";
+"OEM" = "OEM";
 "OEM Configuration" = "OEM-конфигурация";
 "Offset" = "Адрес";
 "fit|Offset" = "Адрес в файле";

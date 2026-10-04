@@ -118,6 +118,7 @@
 "Already a favourite, as “%1$@”." = "Bereits als Favorit vorhanden, unter „%1$@“.";
 "Analyzing the ME firmware…" = "ME-Firmware wird analysiert…";
 "Appearance" = "Darstellung";
+"Apple ROM information" = "Apple-ROM-Informationen";
 "Append at End" = "Am Ende anhängen";
 "Append File…" = "Datei anhängen…";
 "Apply" = "Anwenden";
@@ -177,6 +178,7 @@
 "Setup page" = "Setup-Seite";
 "Ticked" = "Angehakt";
 "Not ticked" = "Nicht angehakt";
+"Value" = "Wert";
 "Value in Setup" = "Wert im Setup";
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
@@ -190,8 +192,10 @@
 "Backup %1$@" = "Sicherung: %1$@";
 "Backup FIT pointer" = "FIT-Zeiger der Sicherung";
 "Backup FIT table" = "FIT-Tabelle der Sicherung";
+"BIOS ID" = "BIOS-ID";
 "BIOS access table" = "BIOS-Zugriffstabelle";
 "Bit position" = "Bitposition";
+"Board" = "Platine";
 "Body" = "Rumpf";
 "Bookmark name" = "Name des Lesezeichens";
 "Bookmark offset" = "Offset des Lesezeichens";
@@ -204,6 +208,7 @@
 "Boot Partitions (BPDT)" = "Boot-Partitionen (BPDT)";
 "Both" = "Beide";
 "Both apply to the hex views already open, and are what the next visit opens with." = "Beides gilt für die bereits geöffneten Dumps und ist auch der Stand beim nächsten Besuch.";
+"Build date" = "Build-Datum";
 "ByteRipper Help" = "ByteRipper-Hilfe";
 "ByteRipper Settings" = "ByteRipper-Einstellungen";
 "Bytes from offset %1$@ will be removed. Subsequent offsets will shift — the file structure may be affected." = "Die Bytes ab Offset %1$@ werden entfernt. Die folgenden Offsets verschieben sich — die Dateistruktur kann darunter leiden.";
@@ -338,6 +343,7 @@
 "file missing" = "Datei fehlt";
 "File name" = "Dateiname";
 "File System (MFS)" = "Dateisystem (MFS)";
+"Field" = "Feld";
 "file was" = "Datei wurde";
 "Files" = "Dateien";
 "Files are identical" = "Die Dateien sind identisch";
@@ -465,6 +471,7 @@
 "Loading…" = "Wird geladen…";
 "Local" = "Lokal";
 "Manage Search Patterns…" = "Suchmuster verwalten…";
+"Major version" = "Hauptversion";
 "Manifest" = "Manifest";
 "Master" = "Master";
 "Match Case" = "Groß-/Kleinschreibung";
@@ -481,6 +488,7 @@
 "Mine" = "Lokale Fassung";
 "Minimap" = "Minimap";
 "Minimap mode" = "Minimap-Modus";
+"Minor version" = "Nebenversion";
 "Modified" = "Geändert";
 "Modified file" = "Geänderte Datei";
 "Modified new file" = "Geänderte neue Datei";
@@ -524,6 +532,7 @@
 "Nothing more to show for this row." = "Zu dieser Zeile gibt es nichts weiter.";
 "Nothing was changed in %1$@." = "In %1$@ wurde nichts geändert.";
 "Nothing was written inside a Boot Guard or vendor protected range." = "In einen von Boot Guard oder vom Hersteller geschützten Bereich wurde nichts geschrieben.";
+"OEM" = "OEM";
 "OEM Configuration" = "OEM-Konfiguration";
 "Offset" = "Offset";
 "fit|Offset" = "Offset in der Datei";

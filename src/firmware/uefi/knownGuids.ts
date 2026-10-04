@@ -123,6 +123,9 @@ const NAMES = new Map<string, string>(
       [guid("FFF12B8D-7696-4C8B-A985-2747075B4F50"), "NVRAM store"],
       [guid("00504624-8A59-4EEB-BD0F-6B36E96128E0"), "NVRAM additional store"],
 
+      [guid("18CEC42B-F0FC-4EFA-84AE-27D2184E873A"), "Apple ROM Information"],
+      [guid("C3E36D09-8294-4B97-A857-D5288FE33E28"), "BIOS ID"],
+
       [VOLUME_TOP_FILE, "Volume Top File"],
       [DXE_CORE, "DXE Core"],
       [AMI_DXE_CORE, "AMI DXE Core"],

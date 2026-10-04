@@ -425,7 +425,10 @@
           "src/workers/firmware.worker.ts",
           "src/workers/protocol.ts"
         ],
-        "FlashVendors.swift": "src/firmware/uefi/flashVendors.ts"
+        "FlashVendors.swift": "src/firmware/uefi/flashVendors.ts",
+        "BIOSIdentifier.swift": "src/firmware/uefi/biosIdentifier.ts",
+        "AppleROMInformation.swift": "src/firmware/uefi/appleRomInformation.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/FirmwareTextBlockTests.swift": "src/firmware/uefi/firmwareTextBlock.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",

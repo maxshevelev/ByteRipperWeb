@@ -290,6 +290,8 @@ function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {
     key: "M10.5 2.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8.4 7.6 2.5 13.5M4.5 11.5l1.5 1.5M3 13l1 1",
     "lock.shield":
       "M8 1.8 13 3.6v4.2c0 3-2.1 5.2-5 6.4-2.9-1.2-5-3.4-5-6.4V3.6ZM6.2 8h3.6v2.8H6.2ZM6.8 8V6.8a1.2 1.2 0 0 1 2.4 0V8",
+    number: "M2.8 2.8h10.4v10.4H2.8ZM7 5.2 6.4 10.8M10 5.2 9.4 10.8M5 6.9h6.2M4.8 9.1h6.2",
+    "info.circle": "M8 1.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4ZM8 7.2v4M8 4.8v.02",
     "square.split.2x2": "M2.5 2.5h11v11h-11ZM8 2.5v11M2.5 8h11",
     "clock.arrow.circlepath": "M13.2 8a5.2 5.2 0 1 1-1.6-3.7M13.4 2.4v2.6h-2.6M8 5v3.2l2 1.2",
     "list.bullet.rectangle":

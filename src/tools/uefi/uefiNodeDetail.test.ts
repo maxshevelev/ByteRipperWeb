@@ -73,6 +73,21 @@ const volumeNode = (options: { readonly guid?: typeof FFS_V2; readonly name?: st
     body: r(0x48, 0x1000),
   });
 
+// A node over the whole of its bytes: a text block, as a raw section or as the
+// padding the BIOS region opens with.
+// @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.textBuilt
+const textBuilt = (kind: "section" | "padding", bytes: Uint8Array): UEFINode =>
+  kind === "section"
+    ? makeNode({
+        kind,
+        subtype: 0x19,
+        name: "x",
+        header: r(0, 0),
+        body: r(0, bytes.length),
+        isFixed: true,
+      })
+    : makeSpan({ kind, name: "x", range: r(0, bytes.length) });
+
 describe("a volume", () => {
   const bytes = Test.volume({ length: 0x1000, checksum: 0x1234 });
 
@@ -290,6 +305,24 @@ describe("a section", () => {
     expect(value(detail, "Size")).toBe("0x100000 (1048576)");
     expect(value(detail, "Header")).toBe("0x0 · 0x8 (8) bytes");
   });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABIOSIDSectionIsATableOfItsParts
+  it("reads a BIOS ID section as a table of its parts", () => {
+    const string = "  MBP141.88Z.0167.B00.1708080034"
+      .split("")
+      .flatMap((ch) => [ch.charCodeAt(0), 0]);
+    const bytes = new Uint8Array([...ascii("$IBIOSI$"), ...string, 0, 0]);
+    const detail = detailOf(textBuilt("section", bytes), bytes);
+
+    expect(table(detail, "BIOS ID")?.rows.map((row) => row.map((one) => one.text))).toEqual([
+      ["BIOS ID", "MBP141.88Z.0167.B00.1708080034"],
+      ["Board", "MBP141"],
+      ["OEM", "88Z"],
+      ["Major version", "0167"],
+      ["Minor version", "B00"],
+      ["Build date", "2017-08-08 00:34"],
+    ]);
+  });
 });
 
 describe("a microcode", () => {
@@ -389,6 +422,20 @@ describe("a node with no header of its own", () => {
     expect(value(detail, "Total")).toBe("0x0 · 0x100 (256) bytes");
     expect(value(detail, "Length")).toBeUndefined();
     expect(value(detail, "Signature")).toBeUndefined();
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testTheROMInformationInPaddingIsATable
+  it("reads the ROM information left in padding as a table", () => {
+    const text = "Apple ROM Version\n  Model:        MBA71\n  Date:         Fri\n";
+    const bytes = new Uint8Array([0xff, 0xff, ...ascii(text), 0xff]);
+    const detail = detailOf(textBuilt("padding", bytes), bytes);
+
+    expect(
+      table(detail, "Apple ROM information")?.rows.map((row) => row.map((one) => one.text))
+    ).toEqual([
+      ["Model", "MBA71"],
+      ["Date", "Fri"],
+    ]);
   });
 });
 

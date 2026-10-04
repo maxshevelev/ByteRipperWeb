@@ -62,6 +62,8 @@ export type DetailSymbol =
   | "key"
   | "lock.shield"
   | "cpu"
+  | "number"
+  | "info.circle"
   | "square.split.2x2"
   | "clock.arrow.circlepath"
   | "list.bullet.rectangle";

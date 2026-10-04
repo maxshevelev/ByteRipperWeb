@@ -1,5 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { readAppleROMInformation, searchLimit } from "@/firmware/uefi/appleRomInformation";
+import { readBIOSIdentifier } from "@/firmware/uefi/biosIdentifier";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import { type ChecksumRepair, volumeErasePolarityOf } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
@@ -465,6 +467,16 @@ function changeText(change: NvramVariableChange): string {
   return parts.join("; ");
 }
 
+/**
+ * A raw section (type `0x19`): the only kind whose bytes are a text block
+ * rather than code that happens to contain the words.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.isRawSection
+ */
+function isRawSection(node: UEFINode): boolean {
+  return node.kind === "section" && node.subtype === 0x19;
+}
+
 function buildDetailRows(
   node: UEFINode,
   image: UEFIImage,
@@ -500,20 +512,21 @@ function buildDetailRows(
           tables: [protectedByTable(protectedBy)],
         };
   fields.push(...protection.fields);
+  const tables: DetailTable[] = [...protection.tables];
+  const cell = (text: string): DetailCell => ({ text, tone: "plain" });
 
   // An update for more than one processor lists the others in a table of its
   // own, which reads as the grid it is.
   if (node.kind === "microcode") {
     const extended = readMicrocodeHeader(node.header.start, reader)?.extendedTable;
     if (extended === undefined || extended.signatures.length === 0) {
-      return { title, fields, tables: protection.tables };
+      return { title, fields, tables };
     }
-    const cell = (text: string) => ({ text, tone: "plain" as const });
     return {
       title,
       fields,
       tables: [
-        ...protection.tables,
+        ...tables,
         {
           title: L("Extended signatures"),
           symbol: "cpu",
@@ -529,15 +542,57 @@ function buildDetailRows(
     };
   }
 
+  // The node's own bytes, where they are short enough to be searched: a body
+  // longer than the bound is not read at all.
+  const bodyBytes =
+    node.body.end - node.body.start <= searchLimit ? reader.bytes(node.body) : undefined;
+
+  // The BIOS ID string, taken apart where it follows Intel's layout.
+  if (bodyBytes !== undefined && isRawSection(node)) {
+    const id = readBIOSIdentifier(bodyBytes);
+    if (id !== undefined) {
+      const rows: DetailCell[][] = [[cell(L("BIOS ID")), cell(id.text)]];
+      for (const [label, value] of [
+        [L("Board"), id.board],
+        [L("OEM"), id.oem],
+        [L("Major version"), id.majorVersion],
+        [L("Minor version"), id.minorVersion],
+        [L("Build date"), id.buildDate],
+      ] as const) {
+        if (value !== undefined) rows.push([cell(label), cell(value)]);
+      }
+      tables.push({
+        title: L("BIOS ID"),
+        symbol: "number",
+        columns: [L("Field"), L("Value")],
+        rows,
+      });
+    }
+  }
+
+  // The text block Apple's firmware carries about its own build, whether it is
+  // a file of its own or left in the padding the BIOS region opens with.
+  if (bodyBytes !== undefined && (isRawSection(node) || node.kind === "padding")) {
+    const info = readAppleROMInformation(bodyBytes);
+    if (info !== undefined) {
+      tables.push({
+        title: L("Apple ROM information"),
+        symbol: "info.circle",
+        columns: [L("Field"), L("Value")],
+        rows: info.entries.map((entry) => [cell(entry.key), cell(entry.value)]),
+      });
+    }
+  }
+
   // A descriptor says more about itself than a header's worth of fields, and
   // four of the things it says are grids.
-  if (node.kind !== "flashDescriptor") return { title, fields, tables: protection.tables };
+  if (node.kind !== "flashDescriptor") return { title, fields, tables };
   const descriptor = readDescriptorInfo(node.header.start, reader);
-  if (descriptor === undefined) return { title, fields, tables: protection.tables };
+  if (descriptor === undefined) return { title, fields, tables };
   return {
     title,
     fields: [...fields, ...descriptorFields(descriptor, image.size)],
-    tables: [...protection.tables, ...descriptorTables(descriptor, image.size)],
+    tables: [...tables, ...descriptorTables(descriptor, image.size)],
   };
 }
 
