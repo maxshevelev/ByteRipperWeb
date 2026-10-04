@@ -25,6 +25,13 @@ describe("a shortcut as an accelerator", () => {
     expect(acceleratorOf("⌘-")).toBe("CmdOrCtrl+-");
     expect(acceleratorOf("⌘0")).toBe("CmdOrCtrl+0");
     expect(acceleratorOf("⌃F4")).toBe("Ctrl+F4");
+    // Difference and matching-block navigation: the designation the native menu
+    // draws beside the row is the same chord the page answers (Ctrl+Alt+arrow
+    // on Windows) and the help carries for the shell edition.
+    expect(acceleratorOf("⌥⌘→")).toBe("CmdOrCtrl+Alt+Right");
+    expect(acceleratorOf("⌥⌘←")).toBe("CmdOrCtrl+Alt+Left");
+    expect(acceleratorOf("⇧⌥⌘→")).toBe("CmdOrCtrl+Alt+Shift+Right");
+    expect(acceleratorOf("⇧⌥⌘←")).toBe("CmdOrCtrl+Alt+Shift+Left");
   });
 
   it("leaves out what it cannot spell", () => {

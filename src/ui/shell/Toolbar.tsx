@@ -426,17 +426,22 @@ export function Toolbar({
     {
       // help: menu.view.next-difference
       label: L("Next Difference"),
+      // The page answers the key wherever the keyboard is (AppShell's window
+      // handler); the menu only draws the designation, so no shellKey.
+      shortcut: "⌥⌘→",
       disabled: !canNavigate,
       onSelect: () => onNavigate("difference", 1),
     },
     {
       // help: menu.view.previous-difference
       label: L("Previous Difference"),
+      shortcut: "⌥⌘←",
       disabled: !canNavigate,
       onSelect: () => onNavigate("difference", -1),
     },
     {
       label: L("Next Same Block"),
+      shortcut: "⇧⌥⌘→",
       disabled: !canNavigate,
       // help: menu.view.next-same
       onSelect: () => onNavigate("same", 1),
@@ -444,6 +449,7 @@ export function Toolbar({
     {
       // help: menu.view.previous-same
       label: L("Previous Same Block"),
+      shortcut: "⇧⌥⌘←",
       disabled: !canNavigate,
       onSelect: () => onNavigate("same", -1),
     },
