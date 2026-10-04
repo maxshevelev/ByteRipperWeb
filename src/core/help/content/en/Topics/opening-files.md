@@ -40,10 +40,10 @@ Each pane header names its file and whether it has unsaved changes; the status l
 
 ## If the file is already open
 
-Nothing is refused here — a tab cannot tell whether a file is open elsewhere:
+Nothing is refused here — [[edition:a tab||a window]] cannot tell whether a file is open elsewhere:
 
 - **In the other pane** — allowed, and useful: the two panes are two documents over one file, so you can edit one of them and watch the comparison against the other. Your own edits show in red anyway; and when two copies side by side are what you want, **File ▸ Duplicate** makes one in the other pane.
-- **In another browser tab** — that tab is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.
+- **[[edition:In another browser tab||In another window]]** — [[edition:that tab||that window]] is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.
 - **In this very pane** — it re-reads the file, which is how a dump is picked up again after a programmer has rewritten it.
 
 ! Replacing the file in a pane that holds unsaved edits asks for confirmation, whether the file arrives by a drop or through **Open…**. A discarded pane cannot be restored.

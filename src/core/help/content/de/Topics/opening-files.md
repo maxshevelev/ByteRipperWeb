@@ -1,4 +1,4 @@
-@source-sha 081d414472eedda0fb6630d5735ba4220330c7a16ed93e30295adcc0b90b7682
+@source-sha 0aee558b6251318b429ac6ef1d7f1428af12418d27cbc6922f21c49636986abb
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -34,10 +34,10 @@ Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; di
 
 ## Wenn die Datei schon offen ist
 
-Hier wird nichts abgelehnt — ein Tab kann nicht wissen, ob die Datei woanders offen ist:
+Hier wird nichts abgelehnt — [[edition:ein Tab||ein Fenster]] kann nicht wissen, ob die Datei woanders offen ist:
 
 - **Im anderen Bereich** — erlaubt, und nützlich: die beiden Bereiche sind zwei Dokumente über einer Datei, also lässt sich eines bearbeiten und der Vergleich zum anderen dabei mitlesen. Ihre eigenen Änderungen sieht man ohnehin, in Rot; und wenn Sie wirklich zwei Kopien nebeneinander brauchen, macht **Ablage ▸ Duplizieren** eine im anderen Bereich.
-- **In einem anderen Browser-Tab** — jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.
+- **[[edition:In einem anderen Browser-Tab||In einem anderen Fenster]]** — [[edition:jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht||jenes Fenster ist ein eigener Arbeitsbereich, und dieses sieht es nicht]]. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.
 - **In genau diesem Bereich** — die Datei wird neu gelesen; so nimmt man einen Dump wieder auf, nachdem ein Programmer ihn überschrieben hat.
 
 ! Die Datei in einem Bereich mit ungesicherten Änderungen zu ersetzen, verlangt eine Bestätigung — ob die Datei per Drop oder über **Öffnen…** kommt. Verworfene Änderungen lassen sich nicht wiederherstellen.
