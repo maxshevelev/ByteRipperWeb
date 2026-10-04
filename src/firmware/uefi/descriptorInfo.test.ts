@@ -3,7 +3,7 @@ import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
 import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
-import { JEDEC_COUNT, jedecName } from "@/firmware/uefi/jedecIds";
+import { JEDEC_COUNT, jedecChip, jedecCount, jedecName } from "@/firmware/uefi/jedecIds";
 
 /**
  * Ported from `DescriptorInfoTests.swift`: what a flash descriptor says about
@@ -275,12 +275,34 @@ describe("the VSCC table", () => {
     expect(read.masters).toEqual([]);
   });
 
-  // The catalogue is the whole of upstream's table, not a truncated read of it.
+  // The catalogue is the whole of upstream's table, not a truncated read of it:
+  // the converter refuses under a hundred, and these are the counts it produced.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheChipCatalogueIsComplete
   it("carries the whole chip catalogue", () => {
-    expect(JEDEC_COUNT).toBe(185);
+    expect(jedecCount("uefiTool")).toBe(185);
+    expect(jedecCount("linux")).toBeGreaterThan(50);
+    expect(jedecCount("flashrom")).toBeGreaterThan(100);
+    expect(JEDEC_COUNT).toBe(429);
     expect(jedecName(0x1c7018)).toBe("EON EN25QH128");
     expect(jedecName(0xc22019)).toBe("Macronix MX25L256");
     expect(jedecName(0x000000)).toBeUndefined();
+  });
+
+  // Where several sources know an id, the first names it (UEFITool, Linux,
+  // flashrom) and the size is the first any lists, also for an entry named by
+  // UEFITool; an id only one source lists carries that source.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheCatalogueKeepsEachEntrysSourceAndSize
+  it("keeps each entry's source and size", () => {
+    expect(jedecChip(0xef4019)).toEqual({
+      name: "Winbond W25Q256",
+      sizeKB: 32768,
+      source: "uefiTool",
+    });
+    expect(jedecChip(0xc84017)?.sizeKB).toBe(8192);
+    expect(jedecChip(0x207017)).toEqual({
+      name: "XMC XM25QH64A",
+      sizeKB: 8192,
+      source: "linux",
+    });
   });
 });
