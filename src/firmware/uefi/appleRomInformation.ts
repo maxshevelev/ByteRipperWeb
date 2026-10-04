@@ -1,3 +1,5 @@
+import { decodeUtf8 } from "@/core/text/utf";
+
 /**
  * The "Apple ROM Version" block a Mac's firmware carries as plain text: the
  * model or BIOS ID, the EFI version, who built it and when, the compiler and
@@ -67,7 +69,7 @@ export function readAppleROMInformation(bytes: Uint8Array): AppleROMInformation 
     if (byte !== 0x0a && (byte < 0x20 || byte > 0x7e)) break;
     end++;
   }
-  const text = new TextDecoder().decode(bytes.subarray(start, end));
+  const text = decodeUtf8(bytes.subarray(start, end));
 
   const entries: ROMInformationEntry[] = [];
   for (const line of text
