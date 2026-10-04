@@ -39,10 +39,17 @@ export interface MenuHeading {
   readonly label: string;
   /**
    * A heading that is a menu of its own — File, Edit, View — rather than the
-   * title of a group inside one. The page's menu draws both alike; the desktop
-   * shell's menu bar makes the first kind its top-level menus.
+   * title of a group inside one. The page's commands menu makes the first kind
+   * its first level and its commands the second (see `sectionsOf`); the desktop
+   * shell's menu bar makes it its top-level menus.
    */
   readonly opensMenu?: boolean | undefined;
+}
+
+/** One section of the commands menu: a name at the first level, its commands at the second. */
+export interface MenuSection {
+  readonly label: string;
+  readonly items: MenuEntry[];
 }
 
 export type MenuEntry = MenuAction | MenuSeparator | MenuHeading;
@@ -75,4 +82,25 @@ export function compactEntries(entries: readonly (MenuEntry | undefined)[]): Men
     result.pop();
   }
   return result;
+}
+
+/**
+ * The flat command list as its sections, for the commands menu's two levels:
+ * every heading that opens a menu of its own — File, Edit, … — opens a section
+ * and owns the entries up to the next such heading. What comes before the
+ * first heading is not a section's: the first level is the names, and the one
+ * item that used to stand there (Settings…) sits at the foot of File now.
+ */
+export function sectionsOf(entries: readonly MenuEntry[]): MenuSection[] {
+  const sections: MenuSection[] = [];
+  let current: MenuSection | undefined;
+  for (const entry of entries) {
+    if (entry.kind === "heading" && entry.opensMenu === true) {
+      current = { label: entry.label, items: [] };
+      sections.push(current);
+      continue;
+    }
+    if (current !== undefined) current.items.push(entry);
+  }
+  return sections;
 }

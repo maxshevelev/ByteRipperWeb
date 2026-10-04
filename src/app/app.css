@@ -1905,6 +1905,42 @@ textarea,
   right: 0;
 }
 
+/* The commands menu's first level: the section names, each wearing the mark
+   that says a list opens at its side. A name is not a command, so it stands
+   where a command does and takes no tick. */
+.menu-section {
+  font-weight: 600;
+}
+
+.menu-section.is-open {
+  background: var(--selection);
+}
+
+/* The submenu's arrow: the pull-down's chevron points down, because its list
+   drops from the button; this one points where the list goes. */
+.menu-arrow {
+  flex: none;
+  color: var(--text-faint);
+}
+
+/* The commands menu's second level: the open section's commands, the same box
+   as the popup. The place is set from the row that opened it (SectionMenu),
+   so the class only says the box is placed from outside. */
+.menu-flyout {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+/* The commands menu's first level: the section names only. The popup's width
+   floor is the commands' — a word with its shortcut at the right — and it
+   would stand beside the names as an empty margin, so the level takes the
+   width of its widest row instead. */
+.menu-level {
+  min-width: 0;
+  width: max-content;
+}
+
 .menu-item {
   display: flex;
   align-items: center;

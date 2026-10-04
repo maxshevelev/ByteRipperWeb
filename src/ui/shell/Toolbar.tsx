@@ -41,8 +41,9 @@ import { canCopyToOtherPane, copySelectionToOtherPane } from "@/ui/shell/copyToO
 import { desktopBridge, publishNativeMenu } from "@/ui/shell/desktopMenu";
 import { helpMenuEntries } from "@/ui/shell/helpMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
-import { compactEntries, type MenuEntry } from "@/ui/shell/menuModel";
+import { compactEntries, type MenuEntry, sectionsOf } from "@/ui/shell/menuModel";
 import { revertItem } from "@/ui/shell/paneMenus";
+import { SectionMenu } from "@/ui/shell/SectionMenu";
 import {
   BackwardGlyph,
   FindGlyph,
@@ -195,11 +196,13 @@ export function Toolbar({
   /**
    * The commands, in the macOS app's own sections and order.
    *
-   * File, Edit, View — the menu bar's three document menus, flattened into one
-   * popup because a web page has only one place to put them. What does not port
-   * is left out rather than stubbed: New Window and New Tab belong to a window
-   * manager this application does not have (D11), and Enter Full Screen is the
-   * browser's own key.
+   * The list is the menu bar's, and a web page keeps it in two levels where the
+   * bar has two places: the section names — File, Edit, Bookmarks, Segments,
+   * View, Help — stand at the first, and the commands of the section that is
+   * open stand at the second, beside their name (SectionMenu, `sectionsOf`).
+   * What does not port is left out rather than stubbed: New Window and New Tab
+   * belong to a window manager this application does not have (D11), and Enter
+   * Full Screen is the browser's own key.
    *
    * The list has a fixed shape, as a menu bar does: a command that does not
    * apply is greyed, not removed. Upstream builds its menus once and answers
@@ -216,18 +219,11 @@ export function Toolbar({
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeViewMenu
    * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeToolsMenu
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateMenuItem
-   * @upstream-differs one command menu in the toolbar with File, Edit, Bookmarks, Segments and View sections; the browser keeps the menu bar, and Tools and the word size are the toolbar's alone
+   * @upstream-differs one command menu in the toolbar, in two levels: the section names at the first, the open section's commands at the second; the browser keeps the menu bar, and Tools and the word size are the toolbar's alone
    */
   // In the optional Windows shell the command menu is the window's menu bar.
   const nativeMenuBar = desktopBridge() !== undefined;
   const entries = compactEntries([
-    // The application menu's Settings…, which has nowhere else to go. No ⌘, —
-    // in a browser that is the browser's own settings.
-    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showSettings
-    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.settingsWindowController
-    // @upstream-differs an item in the command menu, with no key equivalent
-    { label: L("Settings…"), onSelect: onSettings },
-    { kind: "separator" },
     { kind: "heading", label: L("File", { context: "menu" }), opensMenu: true },
     // Upstream's five File keys. ⌘N and ⌘W only where the window is the
     // app's: a browser keeps both for its own windows and tabs, and a menu
@@ -297,6 +293,15 @@ export function Toolbar({
       disabled: active === undefined,
       onSelect: onClose,
     },
+    // The application menu's Settings…, which has nowhere else to go: the
+    // first level holds the section names only, so it sits at the foot of
+    // File, where the shell's File menu puts it (nativeMenus). No ⌘, — in a
+    // browser that is the browser's own settings.
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showSettings
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.settingsWindowController
+    // @upstream-differs at the foot of File, with no key equivalent
+    { kind: "separator" },
+    { label: L("Settings…"), onSelect: onSettings },
 
     { kind: "separator" },
     { kind: "heading", label: L("Edit", { context: "menu" }), opensMenu: true },
@@ -820,8 +825,17 @@ export function Toolbar({
   return (
     <header className="toolbar">
       {/* The web edition's menu bar, before everything: a page has nowhere else
-          to put File, Edit and View. */}
-      {nativeMenuBar ? null : <MenuButton label="☰" title={L("Commands")} entries={entries} />}
+          to put File, Edit and View. Two levels, as the bar has two places —
+          the section names at the first, the open section's commands at the
+          second. */}
+      {nativeMenuBar ? null : (
+        <SectionMenu
+          label="☰"
+          ariaLabel={L("Commands")}
+          title={L("Commands")}
+          sections={sectionsOf(entries)}
+        />
+      )}
       {keyed.map((one) => item(one.id, one.key))}
     </header>
   );

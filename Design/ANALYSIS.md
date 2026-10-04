@@ -177,7 +177,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Settings: font, size, row density, theme, grouping distance, decoding table | Same | Persisted in IndexedDB. |
 | Light and dark themes, colour *and* form for every state | Same | Follows `prefers-color-scheme` with a manual override. |
 | Sandbox, entitlements, notarisation, Gatekeeper | Dropped | The browser *is* the sandbox. This is the point of the project. |
-| Menu bar | Adapted | A toolbar plus a command palette. See below. |
+| Menu bar | Adapted | A toolbar plus a commands menu, in the bar's own two levels. See below. |
 
 ### Help and languages
 
@@ -227,8 +227,9 @@ save, `Cmd/Ctrl+F` find, `Cmd/Ctrl+L` go to, `Cmd/Ctrl+D` bookmark,
 `Cmd/Ctrl+V`. Modifiers are normalised so a Windows bench presses Ctrl and a Mac
 bench presses Cmd for the same command.
 
-`Cmd/Ctrl+K` opens a command palette — the honest web replacement for a menu
-bar, and a better one for a tool with this many commands.
+The ☰ at the head of the toolbar opens the commands menu — the menu bar's
+replacement, in two levels: the section names at the first, and the commands
+of the section that is open at the second, beside their name.
 
 ### Clipboard
 
