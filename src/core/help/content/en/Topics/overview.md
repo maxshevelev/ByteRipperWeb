@@ -3,6 +3,7 @@
 > A hex editor for firmware images, built around the comparison of two dumps at equal addresses.
 
 @covers shell.empty-state
+@covers shell.empty-state.release-notes
 @covers menu.help.book
 @covers toolbar.help
 
@@ -25,6 +26,10 @@ ByteRipper compares by absolute address only. It does not search for the same bl
 This is a deliberate property. A flash dump has a fixed layout in which an address is a position on the chip: a byte that has moved is at the wrong address, and the presence of an identical byte nearby does not alter that. A comparison that aligned two dumps against each other would conceal exactly the discrepancies the comparison is performed to find.
 
 ! ByteRipper does not communicate with a programmer and does not write to hardware. It edits files. Reading a chip and writing it back are performed by the programmer.
+
+## What the landing screen shows
+
+On a window with no file open, below the version, the landing screen shows the opening paragraph of the notes of the newest published release: of the build running, or of a newer release when one has been published. When the window has bookmarks, they stand to the left and the release notes to the right. The complete notes are on the release's page on github.com.
 
 ## Reaching this book
 

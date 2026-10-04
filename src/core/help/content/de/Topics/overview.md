@@ -1,4 +1,4 @@
-@source-sha 74c43ebe82f4546e7cf448782c16897aef5033eed512433696fdc648f997fd28
+@source-sha d90d8c7e13b142c87293c9baa3fd8c777d4c70d74f44a046caaa5cdba4bce1d6
 # Wofür ByteRipper da ist
 
 > Ein Hex-Editor für Firmware-Images, aufgebaut um den Vergleich zweier Dumps an gleichen Adressen.
@@ -22,6 +22,10 @@ ByteRipper vergleicht ausschließlich über absolute Adressen. Es sucht dieselbe
 Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung, in der eine Adresse eine Position auf dem Baustein ist: Ein verschobenes Byte steht an der falschen Adresse, und ein gleiches Byte in der Nähe ändert daran nichts. Ein Vergleich, der zwei Dumps gegeneinander ausrichtet, verbärge genau die Abweichungen, um derentwillen verglichen wird.
 
 ! ByteRipper arbeitet nicht mit einem Programmiergerät und schreibt nichts in Hardware. Das Programm bearbeitet Dateien. Das Lesen eines Bausteins und das Schreiben in ihn übernimmt das Programmiergerät.
+
+## Was der Startbildschirm zeigt
+
+In einem Fenster ohne geöffnete Datei zeigt der Startbildschirm unter der Version den ersten Absatz der Notizen des zuletzt veröffentlichten Releases: des laufenden Builds oder eines neueren Releases, wenn eines veröffentlicht wurde. Hat das Fenster Lesezeichen, stehen sie links und die Release-Notizen rechts. Die vollständigen Notizen stehen auf der Seite des Releases auf github.com.
 
 ## Zu diesem Handbuch
 

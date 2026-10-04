@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "700823d9bbabfa16b69b0b5dcd03bc6c70aebb0f",
-  "baselineNote": "Set 0.9, and say in the README what it is (2026-10-02)"
+  "baseCommit": "643363e932d28b23e60a44e5de2350db988a2dc3",
+  "baselineNote": "Tell the landing screen what's new in the version running, or in a newer one (2026-10-04)"
 }

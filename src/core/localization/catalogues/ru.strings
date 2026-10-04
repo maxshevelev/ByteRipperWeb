@@ -798,6 +798,8 @@
 "Version" = "Версия";
 "menu|View" = "Вид";
 "volume header" = "заголовок тома";
+"What's new in version %1$@" = "Что нового в версии %1$@";
+"What's new in the new version %1$@" = "Что нового в новой версии %1$@";
 "Where This Knowledge Comes From" = "Откуда взяты эти знания";
 "Where to start reading the help book" = "С чего начать в справке";
 "Whether Boot Guard is enforced is set in the chipset's fuses, not in this image: the marks say what an edit would break if it is. Vendor hashes are checked by the firmware itself." = "Включён ли Boot Guard, задано в фьюзах чипсета, а не в этом образе: пометки говорят, что сломает правка, если он включён. Хеши вендора проверяет сама прошивка.";
@@ -1048,8 +1050,6 @@
 "Version %1$@ is available" = "Доступна версия %1$@";
 "Update to version %1$@" = "Обновить до версии %1$@";
 "Updating to Version %1$@" = "Обновление до версии %1$@";
-"What's new in release %1$@" = "Что нового в версии %1$@";
-"What's new in the new release %1$@" = "Что нового в новой версии %1$@";
 "Contacting GitHub…" = "Связь с GitHub…";
 "Downloading… %1$@ of %2$@" = "Загрузка… %1$@ из %2$@";
 "Downloading…" = "Загрузка…";

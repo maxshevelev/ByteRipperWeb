@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAppVersion } from "@/core/updates/appVersion";
-import { NO_RELEASES, newerRelease, releaseFromJson } from "@/core/updates/releases";
+import { NO_RELEASES, releaseFromJson, releaseToAnnounce } from "@/core/updates/releases";
 import { GitHubReleases, REPOSITORY, ReleaseCheckError } from "@/platform/net/githubReleases";
 import { checkFailure } from "@/state/updateStore";
 
@@ -40,22 +40,33 @@ describe("reading a release", () => {
   });
 });
 
-describe("the question 'is there a newer version'", () => {
+describe("the question 'what is announced'", () => {
   const source = (tag: string) => ({
     latestRelease: async () => releaseFromJson({ ...payload, tag_name: tag }, REPOSITORY),
   });
 
-  it("answers the release when it is newer than what runs", async () => {
-    expect((await newerRelease(source("v0.8.5-2"), running("0.8.5-1")))?.version.text).toBe(
-      "0.8.5-2"
-    );
-    expect(await newerRelease(source("v0.8.6-1"), running("0.8.5-9"))).toBeDefined();
+  it("answers the release when it is newer than what runs, in the newer case", async () => {
+    const answer = await releaseToAnnounce(source("v0.8.5-2"), running("0.8.5-1"));
+    expect(answer?.release.version.text).toBe("0.8.5-2");
+    expect(answer?.isRunningBuild).toBe(false);
+    expect(await releaseToAnnounce(source("v0.8.6-1"), running("0.8.5-9"))).toBeDefined();
   });
 
-  it("answers nothing for the same version, an older one, or a labelled build of it", async () => {
-    expect(await newerRelease(source("v0.8.5-2"), running("0.8.5-2"))).toBeUndefined();
-    expect(await newerRelease(source("v0.8.5-2"), running("0.8.5-3"))).toBeUndefined();
-    expect(await newerRelease(source("v0.8.5-2"), running("0.8.5-2-dev"))).toBeUndefined();
+  it("answers the build running when the release is it, in the running case", async () => {
+    const answer = await releaseToAnnounce(source("v0.8.5-2"), running("0.8.5-2"));
+    expect(answer?.release.version.text).toBe("0.8.5-2");
+    expect(answer?.isRunningBuild).toBe(true);
+    // A labelled build of it is the build, for the comparison's purposes.
+    expect(
+      (await releaseToAnnounce(source("v0.8.5-2"), running("0.8.5-2-dev")))?.isRunningBuild
+    ).toBe(true);
+  });
+
+  it("answers nothing for an older published release", async () => {
+    // A bench on a build made after the release was published is not told to
+    // go back to the older one: no published release is either the build or
+    // news about it.
+    expect(await releaseToAnnounce(source("v0.8.5-2"), running("0.8.5-3"))).toBeUndefined();
   });
 
   it("answers nothing when anything goes wrong, or there is nothing to compare", async () => {
@@ -64,9 +75,9 @@ describe("the question 'is there a newer version'", () => {
         throw new Error("offline");
       },
     };
-    expect(await newerRelease(failing, running("0.8.5"))).toBeUndefined();
-    expect(await newerRelease(NO_RELEASES, running("0.8.5"))).toBeUndefined();
-    expect(await newerRelease(source("v0.9.0"), undefined)).toBeUndefined();
+    expect(await releaseToAnnounce(failing, running("0.8.5"))).toBeUndefined();
+    expect(await releaseToAnnounce(NO_RELEASES, running("0.8.5"))).toBeUndefined();
+    expect(await releaseToAnnounce(source("v0.9.0"), undefined)).toBeUndefined();
   });
 });
 

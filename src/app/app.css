@@ -299,6 +299,12 @@ textarea,
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
+/* A window with neither marks nor notes is a window with no row: what is left
+   of the row is the space above it, and that goes away with the row. */
+.empty-state-bottom:empty {
+  margin-top: 0;
+}
+
 /* The marks, one half of the bottom: a different subject from the landing
    screen, so the air above now belongs to the row that holds it. */
 .empty-state-bookmarks {

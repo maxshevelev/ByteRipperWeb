@@ -1,6 +1,11 @@
 import { L } from "@/core/localization/localization";
 import { compareAppVersions, parseAppVersion } from "@/core/updates/appVersion";
-import { newerRelease, type Release, type ReleaseSource } from "@/core/updates/releases";
+import {
+  type Release,
+  type ReleaseAnnouncement,
+  type ReleaseSource,
+  releaseToAnnounce,
+} from "@/core/updates/releases";
 import { GitHubReleases, HeldReleases, ReleaseCheckError } from "@/platform/net/githubReleases";
 import { createStore } from "@/state/store";
 import { reportAlert } from "@/state/workspaceStore";
@@ -21,7 +26,7 @@ import { type DesktopBridge, desktopBridge, type UpdateProgress } from "@/ui/she
  * runs it. The page asks, the shell downloads and checks the file and runs it
  * when the window has closed (`desktop/main.cjs`).
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.announceNewerRelease
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.announceRelease
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.releases
  * @upstream-differs upstream only announces; this edition's desktop build can also install, on request
  */
@@ -64,16 +69,22 @@ export function setReleaseSource(next: ReleaseSource): void {
 }
 
 /**
- * The newer release the landing screen announces, or nothing.
+ * The newer release the landing screen announces, or nothing: the build
+ * running is not newer than itself, and a build made after the newest release
+ * was published is not told to go back to the older one.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.announceNewerRelease
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.announceRelease
  */
-export const checkForNewerRelease = (): Promise<Release | undefined> =>
-  newerRelease(source, runningVersion());
+export const checkForNewerRelease = async (): Promise<Release | undefined> => {
+  const announcement = await releaseToAnnounce(source, runningVersion());
+  return announcement === undefined || announcement.isRunningBuild
+    ? undefined
+    : announcement.release;
+};
 
 /**
- * The newest published release, asked the page's own way for the notes under
- * the version: the page fetches github.com's API, whose answer carries the
+ * The announcement the landing screen's notes are drawn from, asked the
+ * page's own way: the page fetches github.com's API, whose answer carries the
  * release's body — the shell's redirect, which the check above uses, carries
  * only the tag. Held one request a day like the check, and asked in the
  * background: it answers when it answers, and nothing is printed while it has
@@ -81,13 +92,15 @@ export const checkForNewerRelease = (): Promise<Release | undefined> =>
  * notes are not the update, so they take the page's allowance rather than
  * spending the shell's.
  *
- * @web-only the notes are read out of the page's own API answer; upstream links
- * to the release's page and prints no text of it
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.announceRelease
+ * @upstream-differs upstream draws the line and the notes from one source; the
+ * notes here come from the page's own API answer, because the shell's redirect
+ * carries no body
  */
 const notesSource: ReleaseSource = new GitHubReleases();
 
-export const latestReleaseForNotes = (): Promise<Release | undefined> =>
-  notesSource.latestRelease().catch(() => undefined);
+export const releaseAnnouncementForNotes = (): Promise<ReleaseAnnouncement | undefined> =>
+  releaseToAnnounce(notesSource, runningVersion());
 
 /**
  * What to tell a person whose check failed, for the reason it failed: a network

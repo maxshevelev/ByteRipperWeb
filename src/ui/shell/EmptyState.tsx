@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
-import { firstParagraph } from "@/core/updates/releaseNotes";
-import { isNewerRelease, type Release } from "@/core/updates/releases";
+import { releaseSummary } from "@/core/updates/releaseNotes";
+import type { Release } from "@/core/updates/releases";
 import { saveNotice } from "@/platform/files/capabilities";
 import { bookmarksStore } from "@/state/bookmarksStore";
-import { checkForNewerRelease, latestReleaseForNotes, offerUpdate } from "@/state/updateStore";
+import {
+  checkForNewerRelease,
+  offerUpdate,
+  releaseAnnouncementForNotes,
+} from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { HelpButton } from "@/ui/help/HelpButton";
-import { appNameAndVersion, runningVersion } from "@/ui/shell/appVersion";
+import { appNameAndVersion } from "@/ui/shell/appVersion";
 import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
 
 /**
@@ -147,12 +151,12 @@ function NewerRelease() {
  * asked in the background like the newer-build line and never waited for. The
  * text is the release's own, as written on github.com, so it reads in the
  * language the release was written in rather than the reader's. The heading
- * says whose release it is: named while it is the one being offered, simply
- * "what is new" while it is the build the reader already runs. Hidden while
- * there is nothing to show — no release, no body, no network.
+ * says which of the two cases the release is in: the build the reader runs, or
+ * one newer than it. Hidden while there is nothing to show — no release, no
+ * body, no network, and a release the reader is newer than, which is told
+ * nothing.
  *
- * @web-only the notes are read out of the release's body; upstream links to the
- * release's page and prints no text of it
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.showReleaseNotes
  */
 function ReleaseNotes() {
   // The release's data, not its words: the heading is asked in the render, so
@@ -160,23 +164,22 @@ function ReleaseNotes() {
   // otherwise freeze in the language that was current when the notes arrived.
   const [info, setInfo] = useState<{
     readonly version: string;
-    readonly isNew: boolean;
+    readonly isRunningBuild: boolean;
     readonly text: string;
   } | null>(null);
 
   useEffect(() => {
     let current = true;
-    void latestReleaseForNotes().then((release) => {
+    void releaseAnnouncementForNotes().then((announcement) => {
       // The answer is older than the question: a file may have been opened since.
-      if (!current || release === undefined) return;
-      const text = firstParagraph(release.body ?? "");
+      if (!current || announcement === undefined) return;
+      const text = releaseSummary(announcement.release);
       if (text === "") return;
-      // The notes are the release's own, so the version they name is the
-      // release's: the build the reader runs while it is the newest published,
-      // or the one being offered while a newer release is.
-      const running = runningVersion();
-      const isNew = running !== undefined && isNewerRelease(release, running);
-      setInfo({ version: release.version.text, isNew, text });
+      setInfo({
+        version: announcement.release.version.text,
+        isRunningBuild: announcement.isRunningBuild,
+        text,
+      });
     });
     return () => {
       current = false;
@@ -184,11 +187,12 @@ function ReleaseNotes() {
   }, []);
 
   if (info === null) return null;
-  const heading = info.isNew
-    ? L("What's new in the new release %1$@", info.version)
-    : L("What's new in release %1$@", info.version);
+  const heading = info.isRunningBuild
+    ? L("What's new in version %1$@", info.version)
+    : L("What's new in the new version %1$@", info.version);
   return (
     <section className="empty-state-release-notes" aria-label={heading}>
+      {/* help: shell.empty-state.release-notes */}
       <h2 className="empty-state-release-notes-heading">{heading}</h2>
       <p className="empty-state-release-notes-body">{info.text}</p>
     </section>

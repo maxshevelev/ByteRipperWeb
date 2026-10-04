@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { firstParagraph } from "@/core/updates/releaseNotes";
+import { firstParagraph, releaseSummary } from "@/core/updates/releaseNotes";
+
+const release = (body?: string) => ({
+  version: { text: "0.8.5-2", parts: [0, 8, 5, 2] },
+  page: "https://github.com/maxshevelev/ByteRipperWeb/releases/tag/v0.8.5-2",
+  assets: [],
+  body,
+});
 
 describe("the first paragraph of a release's notes", () => {
   it("returns a plain paragraph, trimmed", () => {
@@ -11,6 +18,20 @@ describe("the first paragraph of a release's notes", () => {
   it("joins a paragraph that runs over several lines", () => {
     expect(firstParagraph("First line\nsecond line\nthird line")).toBe(
       "First line second line third line"
+    );
+  });
+
+  it("joins the opening's wrapped lines and stops at the blank line", () => {
+    const body =
+      "A release about the structure tree reading what was padding before: the\n" +
+      "variable stores of every vendor the bench meets. And the ME Analyzer\n" +
+      "shows its summary the moment the region is read.\n\n" +
+      "### Smaller things\n\n" +
+      "- One more thing.";
+    expect(firstParagraph(body)).toBe(
+      "A release about the structure tree reading what was padding before: the " +
+        "variable stores of every vendor the bench meets. And the ME Analyzer " +
+        "shows its summary the moment the region is read."
     );
   });
 
@@ -28,25 +49,9 @@ describe("the first paragraph of a release's notes", () => {
     expect(firstParagraph("Summary.\r\n\r\n### Later")).toBe("Summary.");
   });
 
-  it("drops the markers of a heading the block starts with", () => {
-    expect(firstParagraph("## The summary words")).toBe("The summary words");
-  });
-
-  it("drops a list item's marker", () => {
-    expect(firstParagraph("- fix the reader\n- add the writer")).toBe(
-      "fix the reader add the writer"
-    );
-  });
-
   it("keeps a link's words and not its address", () => {
     expect(firstParagraph("See the [release page](https://github.com) for more.")).toBe(
       "See the release page for more."
-    );
-  });
-
-  it("keeps an image's label and not its address", () => {
-    expect(firstParagraph("Shown here: ![the diagram](/img/diagram.png).")).toBe(
-      "Shown here: the diagram."
     );
   });
 
@@ -60,8 +65,31 @@ describe("the first paragraph of a release's notes", () => {
     );
   });
 
+  it("reduces the marks the prose carries to the prose", () => {
+    const body =
+      "Reads the **variable stores** and the `FSEG` header, as [the book](https://github.com/maxshevelev/ByteRipper) says.";
+    expect(firstParagraph(body)).toBe(
+      "Reads the variable stores and the FSEG header, as the book says."
+    );
+  });
+
   it("says nothing when the body is empty or only blank lines", () => {
     expect(firstParagraph("")).toBe("");
     expect(firstParagraph("\n\n  \n\n")).toBe("");
+  });
+});
+
+describe("the release's summary", () => {
+  it("is the first paragraph of the notes it carries", () => {
+    expect(
+      releaseSummary(
+        release("A release about the structure tree.\n\n### Smaller things\n\n- One more thing.")
+      )
+    ).toBe("A release about the structure tree.");
+  });
+
+  it("is nothing when the release has no notes, or none to read", () => {
+    expect(releaseSummary(release(undefined))).toBe("");
+    expect(releaseSummary(release("\n\n  \n\n"))).toBe("");
   });
 });

@@ -23,12 +23,15 @@ export interface Release {
   /** The files attached to it, by name. */
   readonly assets: readonly { readonly name: string; readonly url: string }[];
   /**
-   * The release's own text, as written on github.com: what the landing screen
-   * prints under the version. Absent when the release has none, or when the
-   * answer comes from the shell's redirect, which carries only the tag.
+   * The notes as published: markdown. What the landing screen prints under the
+   * version is their first paragraph and nothing else (`releaseSummary`); the
+   * rest is where a click on the line above goes. Absent when the release has
+   * none, or when the answer comes from the shell's redirect, which carries
+   * only the tag.
    *
-   * @web-only the page reads the body out of the API's answer; upstream links
-   * to the release's page rather than printing its text
+   * @upstream ByteRipperApp/Updates/GitHubReleases.swift#Release.body
+   * @upstream-differs absent for a release the shell's redirect answers, which
+   * carries only the tag
    */
   readonly body?: string | undefined;
 }
@@ -71,27 +74,57 @@ export const isNewerRelease = (release: Release, running: AppVersion): boolean =
   compareAppVersions(release.version, running) > 0;
 
 /**
- * The newest published release, if it is newer than the version running — the
- * whole question in one place, so that no caller has to remember both halves of
- * it and get the second one wrong.
+ * What the landing screen is told about, and which of its two cases it is: the
+ * build running, or one the build is older than.
  *
- * Everything that can go wrong answers `undefined`: no network, a rate limit, a
- * repository with no releases, a build with no version to compare against. The
- * landing screen is there to open a file, not to report on github.com.
- *
- * @upstream ByteRipperApp/Updates/GitHubReleases.swift#ReleaseSource.newerRelease
+ * @upstream ByteRipperApp/Updates/GitHubReleases.swift#ReleaseAnnouncement
  */
-export async function newerRelease(
+export interface ReleaseAnnouncement {
+  /**
+   * @upstream ByteRipperApp/Updates/GitHubReleases.swift#ReleaseAnnouncement.release
+   */
+  readonly release: Release;
+  /**
+   * Whether the release is the build running — as opposed to being newer than
+   * it, the case that also gets the "available" line.
+   *
+   * @upstream ByteRipperApp/Updates/GitHubReleases.swift#ReleaseAnnouncement.isRunningBuild
+   */
+  readonly isRunningBuild: boolean;
+}
+
+/**
+ * The release the landing screen shows its notes about — the newest published
+ * one, when it is the build running or one newer than it — and which of the
+ * two cases that is.
+ *
+ * Everything that can go wrong, and every case that leaves nothing to say,
+ * answers `undefined`: no network, a rate limit, a repository with no
+ * releases, a build with no version to compare against, and a build made after
+ * the newest release was published — for that one no published release is
+ * either the build or news about it. The landing screen is there to open a
+ * file, not to report on github.com; a bench whose window says nothing has lost
+ * nothing, and one that is told a check failed has been handed a problem it
+ * cannot act on.
+ *
+ * @upstream ByteRipperApp/Updates/GitHubReleases.swift#ReleaseSource.releaseToAnnounce
+ */
+export async function releaseToAnnounce(
   source: ReleaseSource,
   running: AppVersion | undefined
-): Promise<Release | undefined> {
+): Promise<ReleaseAnnouncement | undefined> {
   if (running === undefined) return undefined;
+  let release: Release | undefined;
   try {
-    const release = await source.latestRelease();
-    return release !== undefined && isNewerRelease(release, running) ? release : undefined;
+    release = await source.latestRelease();
   } catch {
     return undefined;
   }
+  if (release === undefined) return undefined;
+  if (compareAppVersions(release.version, running) === 0) {
+    return { release, isRunningBuild: true };
+  }
+  return isNewerRelease(release, running) ? { release, isRunningBuild: false } : undefined;
 }
 
 /**

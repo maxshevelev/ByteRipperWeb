@@ -1,35 +1,45 @@
+import type { Release } from "@/core/updates/releases";
+
 /**
- * The first paragraph of a release's notes, as the landing screen prints it
- * under the version: the build's own summary, not the whole body.
+ * The first paragraph of a release body, read as the prose it is written in.
  *
- * A release body is markdown, so the reading strips what a reader would not
- * read — the heading markers, the link and image addresses, the emphasis — and
- * leaves the words. A block is a run of lines the body sets off from its
- * neighbours with a blank line; the first block that is not empty is the
- * paragraph, and the rest is not wanted, so the reading stops there.
+ * The body is markdown, but the opening paragraph is the summary the release
+ * is written with — plain sentences, wrapped over source lines the way a
+ * paragraph wraps. The reading is: the first paragraph that says anything, its
+ * wrapped lines joined into one line, and the marks the prose may carry
+ * reduced to the prose itself — **bold** and `code` lose their marks, a link
+ * keeps its words and loses its destination. What is left is what the landing
+ * screen prints under the version, and it is the whole of it: the sections and
+ * the lists the body carries are not a summary.
  *
- * @web-only the notes are the web edition's own; the macOS app links to the
- * release's page and prints no text of it
+ * @upstream ByteRipperApp/Updates/GitHubReleases.swift#Release.firstParagraph
  */
 export function firstParagraph(body: string): string {
-  for (const block of body.split(/\r?\n\s*\r?\n/)) {
-    const text = block
-      .split(/\r?\n/)
-      .map((line) => line.replace(HEADING, "").replace(LIST, ""))
-      .join(" ")
-      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-      .replace(/`([^`]+)`/g, "$1")
-      .replace(/\*\*([^*]+)\*\*/g, "$1")
-      .replace(/__([^_]+)__/g, "$1")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (text.length > 0) return text;
-  }
-  return "";
+  const normalized = body.replaceAll("\r\n", "\n");
+  // A paragraph ends at a blank line; a single newline inside one is a wrap,
+  // not a break.
+  const first = normalized.split("\n\n").find((block) => block.trim() !== "");
+  if (first === undefined) return "";
+  let text = first
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "")
+    .join(" ");
+  // `[words](destination)` keeps its words. Measured against the shape the
+  // bodies carry: the words have no `]` in them, and the destination has no
+  // `)` in it.
+  text = text.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
+  text = text.replaceAll("**", "");
+  text = text.replaceAll("`", "");
+  return text.trim();
 }
 
-/** The start of a heading line: its markers, so what is left is the line's words. */
-const HEADING = /^\s*#{1,6}\s+/;
-/** The start of a list item line: its marker, so what is left is the item's words. */
-const LIST = /^\s*(?:[-*+]|\d+[.)])\s+/;
+/**
+ * The opening paragraph of the notes as plain prose — the only part the
+ * landing screen shows — or nothing when there is no paragraph to show: no
+ * notes at all, or notes whose first paragraph is empty.
+ *
+ * @upstream ByteRipperApp/Updates/GitHubReleases.swift#Release.summary
+ */
+export const releaseSummary = (release: Release): string =>
+  release.body === undefined ? "" : firstParagraph(release.body);

@@ -2458,7 +2458,6 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAParseStandsTheAddButtonDown": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAddingAMicrocodeWritesTheComponentAndTheRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheFormOffersReplaceForACpuidTheTableAlreadyNames": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testARefusalIsRedAndAudible": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testWhatWentRightIsQuiet": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAnEntryThatMayGoOffersIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheAddFormOpensWithTheCatalogue": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -4232,7 +4231,8 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAWidePictureFitsTheListInItsProportions": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSupersededCopiesAreInTheHistoryNotTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAnotherFileShowsNoTableUntilItsOwnIsRead": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnotherFileShowsNothingOfTheLastOne": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnotherFileShowsNothingOfTheLastOne": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testARefusalIsASheetAndAudible": "later — an app flow test; the port has no component or end-to-end test for it yet"
       }
     },
     {
@@ -4338,7 +4338,11 @@
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingBookmarksForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.bookmarkAddressColorForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneOperation": "n/a — one workspace per browser tab (D11): no tabs or windows",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting": "n/a — a test seam"
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting": "n/a — a test seam",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseNotesForTesting": "n/a — a test seam",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingReleaseNotesForTesting": "n/a — a test seam",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.bookmarkScrollWidthForTesting": "n/a — a test seam",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseNotesWidthForTesting": "n/a — a test seam"
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
