@@ -193,6 +193,42 @@ describe("the regions a flash device map names", () => {
     ]);
   });
 
+  // The image in an EC Firmware region is as long as the map's entry, not as its
+  // last written byte: the entry is the firmware's own slot, and the erased tail is
+  // part of it.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testAnECRegionsImageIsAsLongAsItsEntry
+  it("measures an EC region's image by the map's entry", () => {
+    const bytes = image({
+      maps: [[{ type: FlashDeviceMap.ecFirmware, offset: 0x2000, size: 0x2000 }]],
+    });
+    bytes.set(iteImage(), 0x2000);
+    const region = regions(top(bytes))[0] as UEFINode;
+
+    expect(nodeRange(region)).toEqual({ start: 0x2000, end: 0x4000 });
+    expect(region.namedImageLength).toBe(0x2000);
+  });
+
+  // An entry gives the region's size, not each image's: with several images in the
+  // region each runs to its last written byte, as anywhere else.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testSeveralImagesInAnECRegionAreMeasuredByTheirBytes
+  it("measures several images in an EC region by their bytes", () => {
+    const bytes = image({
+      maps: [[{ type: FlashDeviceMap.ecFirmware, offset: 0x2000, size: 0x2000 }]],
+    });
+    bytes.set(iteImage({ identification: "ITE5507-SB-V0.67", length: 0x800 }), 0x2000);
+    bytes.set(iteImage({ identification: "ITE8380-EC-V0.00", length: 0x800 }), 0x3000);
+    const region = regions(top(bytes))[0] as UEFINode;
+
+    expect(region.name).toBe("EC Firmware");
+    expect(region.namedImageLength).toBeUndefined();
+    expect(
+      region.children.filter((node) => node.kind === "ecImage").map((node) => nodeRange(node))
+    ).toEqual([
+      { start: 0x2000, end: 0x3000 },
+      { start: 0x3000, end: 0x4000 },
+    ]);
+  });
+
   // The map's rows are named by region type, the way UEFITool names them.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testAnEntryIsNamedByItsRegionType
   it("names an entry by its region type", () => {

@@ -230,13 +230,16 @@ export function readingECFirmware(
   const read: UEFINode = { ...node };
   const base = node.kind === "padding" ? EC_PADDING_NAME : node.name;
   // One image at the start: the block is that image, and says which and how long
-  // it is, measured as a row's would be.
+  // it is. A region of the flash device map is as long as its entry says — the
+  // firmware's own statement of its slot, erased tail and all; anything else is
+  // measured as a row would be. With several images the entry is the region's size
+  // and no one image's, so the rows below are measured by their bytes.
   if (images.length <= 1 && first.start === node.body.start) {
     read.name = `${base} (${ecImageName(first)})`;
-    read.namedImageLength = Math.min(
-      roundedUp(Math.max(first.written, 1)),
-      node.body.end - node.body.start
-    );
+    read.namedImageLength =
+      node.kind === "flashDeviceMapRegion"
+        ? node.body.end - node.body.start
+        : Math.min(roundedUp(Math.max(first.written, 1)), node.body.end - node.body.start);
     return read;
   }
   // Several: each row names its own, and the block names none of them.
