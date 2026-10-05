@@ -66,6 +66,7 @@ export type DetailSymbol =
   | "info.circle"
   | "square.split.2x2"
   | "clock.arrow.circlepath"
+  | "checkmark.seal"
   | "list.bullet.rectangle";
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable */

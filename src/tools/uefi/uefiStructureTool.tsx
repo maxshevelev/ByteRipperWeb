@@ -1487,6 +1487,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                                         ? undefined
                                         : BigInt(row.node.dvarValue.number),
                                   },
+                            valueRow: row.node.valueRow,
                             dvarSettings: state?.dvarSettings,
                           },
                           catalogue.catalogue

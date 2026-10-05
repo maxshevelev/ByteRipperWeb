@@ -14,6 +14,12 @@ import { makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/ue
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { FV } from "@/firmware/uefi/volumeFormat";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
+import {
+  decodedVssName,
+  isValidVssVariable,
+  readVssVariable,
+  vssVariableEnd,
+} from "@/firmware/uefi/vssVariable";
 
 export { isStoreVolume };
 
@@ -468,116 +474,44 @@ function vssVariables(
  * One VSS variable, or nothing when its header does not check out.
  *
  * The header shape is decided by the state and attribute bits, the way the
- * reference parser's Kaitai struct decides it: Intel legacy, authenticated,
- * Apple (a data CRC), or the plain standard form.
+ * reference parser's Kaitai struct decides it: Intel legacy, authenticated, Apple
+ * (a data CRC), or the plain standard form (`readVssVariable`).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#Parser.vssVariable
  */
 function vssVariable(parser: Parser, offset: number, storeEnd: number): UEFINode | undefined {
   const reader = parser.reader;
   if (reader.uint8(offset + 1) !== NVRAM.variableMarkerLast) return undefined;
-  const state = reader.uint8(offset + 2);
-  const attributes = reader.uint32(offset + 4);
-  if (state === undefined || attributes === undefined) return undefined;
-
-  const isIntelLegacy =
-    state === NVRAM.vssVariableIntelInvalid || state === NVRAM.vssVariableIntelValid;
-
-  let headerSize: number;
-  let nameRange: ImageRange;
-  let dataRange: ImageRange;
-  let subtype: number;
-
-  if (isIntelLegacy) {
-    // Intel legacy: a total size in place of the name and data sizes, and the
-    // name and value run together after the vendor GUID.
-    headerSize = NVRAM.vssIntelLegacyHeaderSize;
-    const totalSize = reader.uint32(offset + 8);
-    if (totalSize === undefined) return undefined;
-    const end = Math.min(offset + totalSize, storeEnd);
-    const nameEnd = Math.min(offset + headerSize + 4, end);
-    nameRange = { start: offset + headerSize, end: nameEnd };
-    dataRange = { start: nameEnd, end };
-    subtype = Sub.intelVssEntry;
-  } else {
-    // The two size fields are read up front whatever the header turns out to
-    // be: for an authenticated variable they are the monotonic counter's two
-    // halves. A standard variable always carries a name and data, so two fields
-    // that both read zero cannot be that — the variable is authenticated, with
-    // a counter that happens to be zero, and its real name and data sizes come
-    // after the timestamp and key index. Firmware that never increments the
-    // counter writes every variable this way, so the zero check matters as much
-    // as the attribute bit.
-    const sizeLow = reader.uint32(offset + 8);
-    const sizeHigh = reader.uint32(offset + 12);
-    if (sizeLow === undefined || sizeHigh === undefined) return undefined;
-
-    const isAuth =
-      (attributes &
-        (NVRAM.vssAttributeAuthWrite |
-          NVRAM.vssAttributeTimeBasedAuth |
-          NVRAM.vssAttributeAppendWrite)) !==
-        0 ||
-      sizeLow === 0 ||
-      sizeHigh === 0;
-
-    if (isAuth) {
-      // Authenticated: the name and data sizes come after the timestamp and key
-      // index.
-      headerSize = NVRAM.vssAuthHeaderSize;
-      const nameSize = reader.uint32(offset + 36);
-      const dataSize = reader.uint32(offset + 40);
-      if (nameSize === undefined || dataSize === undefined) return undefined;
-      const nameStart = offset + headerSize;
-      const nameEnd = Math.min(nameStart + nameSize, storeEnd);
-      nameRange = { start: nameStart, end: nameEnd };
-      dataRange = { start: nameEnd, end: Math.min(nameEnd + dataSize, storeEnd) };
-      subtype = Sub.authVssEntry;
-    } else {
-      // Standard, or Apple when the data-checksum bit is set (one extra word
-      // after the vendor GUID).
-      const apple = (attributes & NVRAM.vssAttributeAppleDataChecksum) !== 0;
-      headerSize = apple ? NVRAM.vssAppleHeaderSize : NVRAM.vssStandardHeaderSize;
-      const nameStart = offset + headerSize;
-      const nameEnd = Math.min(nameStart + sizeLow, storeEnd);
-      nameRange = { start: nameStart, end: nameEnd };
-      dataRange = { start: nameEnd, end: Math.min(nameEnd + sizeHigh, storeEnd) };
-      subtype = apple ? Sub.appleVssEntry : Sub.standardVssEntry;
-    }
-  }
+  const variable = readVssVariable(offset, storeEnd, false, reader);
+  if (variable === undefined) return undefined;
 
   // A variable whose state is not one of the valid ones is invalid, whatever it
   // otherwise looked like.
-  const isValid =
-    state === NVRAM.vssVariableValid || state === NVRAM.vssVariableAdded || isIntelLegacy;
-  if (!isValid) subtype = Sub.invalidVssEntry;
+  const valid = isValidVssVariable(variable);
+  let subtype: number;
+  if (!valid) subtype = Sub.invalidVssEntry;
+  else if (variable.form === "intelLegacy") subtype = Sub.intelVssEntry;
+  else if (variable.form === "authenticated") subtype = Sub.authVssEntry;
+  else if (variable.form === "apple") subtype = Sub.appleVssEntry;
+  else subtype = Sub.standardVssEntry;
 
-  // The vendor GUID is the variable's owner, and the last sixteen bytes of the
-  // header before the name in every shape but Apple's — where a data-CRC word
-  // follows the GUID and pushes the name four bytes on. So an authenticated
-  // variable, whose header is 60 bytes long, keeps its GUID at offset 44, not
-  // the 16 a standard 32-byte header does.
-  const vendorGuid =
-    headerSize === NVRAM.vssAppleHeaderSize
-      ? reader.guid(offset + 16)
-      : reader.guid(offset + headerSize - 16);
-
-  // The name is the decoded variable name, or the vendor GUID for a variable
-  // whose name is not a readable string.
-  const decoded = isValid ? ucs2String(parser, nameRange) : undefined;
+  // The vendor GUID is the variable's owner, read where this form's header keeps it
+  // and set on the node: the details panel shows the common GUID field for every
+  // form, and only the header's form says where the GUID sits. The name is the
+  // decoded variable name, or the vendor GUID for a variable whose name is not a
+  // readable string.
+  const vendorGuid = variable.vendorGuid;
+  const decoded = valid ? decodedVssName(variable, reader) : undefined;
   const name =
-    decoded !== undefined && decoded.length > 0
-      ? decoded
-      : vendorGuid !== undefined
-        ? guidText(vendorGuid)
-        : "Invalid";
+    decoded !== undefined ? decoded : vendorGuid !== undefined ? guidText(vendorGuid) : "Invalid";
 
-  const entryEnd = Math.max(dataRange.end, nameRange.end);
   return makeNode({
     kind: "vssEntry",
     subtype,
-    name: isValid ? name : L("Invalid"),
+    name: valid ? name : L("Invalid"),
     guid: vendorGuid,
-    header: { start: offset, end: offset + headerSize },
-    body: { start: offset + headerSize, end: entryEnd },
+    header: variable.header,
+    body: { start: variable.header.end, end: vssVariableEnd(variable) },
     isFixed: true,
   });
 }
@@ -703,66 +637,32 @@ function vss2Variables(
 function vss2Variable(parser: Parser, offset: number, storeEnd: number): UEFINode | undefined {
   const reader = parser.reader;
   if (reader.uint8(offset + 1) !== NVRAM.variableMarkerLast) return undefined;
-  const state = reader.uint8(offset + 2);
-  const attributes = reader.uint32(offset + 4);
-  const lenName = reader.uint32(offset + 8);
-  const lenData = reader.uint32(offset + 12);
-  if (
-    state === undefined ||
-    attributes === undefined ||
-    lenName === undefined ||
-    lenData === undefined
-  ) {
-    return undefined;
-  }
+  const variable = readVssVariable(offset, storeEnd, true, reader);
+  if (variable === undefined) return undefined;
 
-  const isAuth = isAuthenticatedVss2Variable({ attributes, lenName, lenData });
+  // A variable whose state is not one of the valid ones is invalid.
+  const valid = isValidVssVariable(variable);
+  const subtype = !valid
+    ? Sub.invalidVssEntry
+    : variable.form === "authenticated"
+      ? Sub.authVssEntry
+      : Sub.standardVssEntry;
 
-  let headerSize: number;
-  let nameSize: number;
-  let dataSize: number;
-  let subtype: number;
-
-  if (isAuth) {
-    headerSize = NVRAM.vssAuthHeaderSize;
-    const nameSizeAuth = reader.uint32(offset + 36);
-    const dataSizeAuth = reader.uint32(offset + 40);
-    if (nameSizeAuth === undefined || dataSizeAuth === undefined) return undefined;
-    nameSize = nameSizeAuth;
-    dataSize = dataSizeAuth;
-    subtype = Sub.authVssEntry;
-  } else {
-    headerSize = NVRAM.vssStandardHeaderSize;
-    nameSize = lenName;
-    dataSize = lenData;
-    subtype = Sub.standardVssEntry;
-  }
+  // The name is the decoded variable name, or the vendor GUID for a variable whose
+  // name is not a readable string.
+  const vendorGuid = variable.vendorGuid;
+  const decoded = valid ? decodedVssName(variable, reader) : undefined;
+  const name =
+    decoded !== undefined ? decoded : vendorGuid !== undefined ? guidText(vendorGuid) : "Invalid";
 
   // The name is in the header; the data is the body.
-  const nameStart = offset + headerSize;
-  const nameEnd = Math.min(nameStart + nameSize, storeEnd);
-  const dataEnd = Math.min(nameEnd + dataSize, storeEnd);
-
-  const isValid = state === NVRAM.vssVariableValid || state === NVRAM.vssVariableAdded;
-  if (!isValid) subtype = Sub.invalidVssEntry;
-
-  // The vendor GUID is the sixteen bytes just before the name.
-  const vendorGuid = reader.guid(offset + headerSize - 16);
-  const decoded = isValid ? ucs2String(parser, { start: nameStart, end: nameEnd }) : undefined;
-  const name =
-    decoded !== undefined && decoded.length > 0
-      ? decoded
-      : vendorGuid !== undefined
-        ? guidText(vendorGuid)
-        : "Invalid";
-
   return makeNode({
     kind: "vssEntry",
     subtype,
-    name: isValid ? name : L("Invalid"),
+    name: valid ? name : L("Invalid"),
     guid: vendorGuid,
-    header: { start: offset, end: nameEnd },
-    body: { start: nameEnd, end: dataEnd },
+    header: { start: offset, end: variable.name.end },
+    body: { start: variable.name.end, end: variable.data.end },
     isFixed: true,
   });
 }

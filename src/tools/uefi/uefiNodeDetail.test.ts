@@ -17,6 +17,7 @@ import {
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
+import { GLOBAL_VARIABLE } from "@/firmware/uefi/nvramValue";
 import type { ProtectedRange } from "@/firmware/uefi/protectedRanges";
 import { TCGHash } from "@/firmware/uefi/tcgHash";
 import { parseUefiImage, UEFIImage } from "@/firmware/uefi/uefiImage";
@@ -819,36 +820,122 @@ describe("the NVRAM stores and entries", () => {
     expect(value(detail, "Reserved1")).toBe("0x0");
   });
 
-  // The vendor GUID is the common GUID row, and the attributes read as words.
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAVssVariableShowsItsVendorGuidAndAttributeWords
-  it("shows a VSS variable's vendor GUID and attribute words", () => {
+  /**
+   * A standard `$VSS` variable: the 32-byte header — the marker, state, reserved,
+   * attributes, the two size words, and the vendor GUID — then its UCS-2 name and its
+   * value, which make up the body.
+   */
+  const vssVariable = (
+    options: {
+      readonly name?: string;
+      readonly data?: readonly number[];
+      readonly state?: number;
+      readonly attributes?: number;
+      readonly guid?: typeof vendor;
+    } = {}
+  ) => {
+    const name = options.name ?? "BootOrder";
+    const data = options.data ?? [0x01, 0x00];
+    const nameBytes = [...name].flatMap((one) => [
+      one.charCodeAt(0) & 0xff,
+      one.charCodeAt(0) >> 8,
+    ]);
+    nameBytes.push(0, 0);
+    const owner = options.guid ?? vendor;
     const bytes = Uint8Array.from([
       0xaa,
       0x55,
-      0x7f,
+      options.state ?? 0x7f,
       0,
-      ...le32(7),
-      ...le32(0),
-      ...le32(0),
-      ...guidBytesOf(vendor),
+      ...le32(options.attributes ?? 7),
+      ...le32(nameBytes.length),
+      ...le32(data.length),
+      ...guidBytesOf(owner),
+      ...nameBytes,
+      ...data,
     ]);
     const node = makeNode({
       kind: "vssEntry",
       subtype: Sub.standardVssEntry,
-      name: "BootOrder",
-      guid: vendor,
+      name,
+      guid: owner,
       header: r(0, 32),
-      body: r(32, 32),
+      body: r(32, bytes.length),
     });
+    return { bytes, node };
+  };
+
+  // The vendor GUID is the common GUID row, and the attributes read as words.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAVssVariableShowsItsVendorGuidAndAttributeWords
+  it("shows a VSS variable's vendor GUID and attribute words", () => {
+    const { bytes, node } = vssVariable();
     const detail = detailOf(node, bytes);
 
     expect(detail.title).toBe("BootOrder");
     expect(value(detail, "Kind")).toBe("VSS entry");
     expect(value(detail, "Type")).toBe("Standard");
     expect(value(detail, "GUID")).toBe(guidText(vendor));
-    expect(value(detail, "State")).toBe("0x7F");
+    expect(value(detail, "State")).toBe("0x7F (Header valid)");
     expect(value(detail, "Reserved")).toBe("0x0");
     expect(value(detail, "Attributes")).toBe("0x7 (NonVolatile, BootService, Runtime)");
+    expect(value(detail, "Name size")).toBe("0x14 (20)");
+    expect(value(detail, "Data size")).toBe("0x2 (2)");
+  });
+
+  // The value, whole, as its type, and what decided the type: a variable the spec
+  // defines by name is read the spec's way, and the detail says whether the GUID was
+  // the spec's too.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAVssVariableShowsItsValueAndWhatItWasReadAs
+  it("shows a VSS variable's value and what it was read as", () => {
+    const order = vssVariable({ data: [0x01, 0x00, 0x80, 0x20], guid: GLOBAL_VARIABLE });
+    let detail = detailOf(order.node, order.bytes);
+    expect(value(detail, "Value")).toBe("Boot0001, Boot2080");
+    expect(value(detail, "Read as")).toBe(
+      "List of boot entries — as the UEFI specification defines the variable"
+    );
+
+    const lang = vssVariable({ name: "Lang", data: [...new TextEncoder().encode("eng")] });
+    detail = detailOf(lang.node, lang.bytes);
+    expect(value(detail, "Value")).toBe("eng");
+    expect(value(detail, "Read as")).toBe(
+      "ASCII text — by its name, which the UEFI specification defines; the GUID is a vendor's"
+    );
+
+    const blob = vssVariable({ name: "Setup", data: [0x00, 0x01, 0x02] });
+    detail = detailOf(blob.node, blob.bytes);
+    expect(value(detail, "Value")).toBe("00 01 02");
+    expect(value(detail, "Read as")).toBe("Bytes — guessed from the bytes");
+  });
+
+  // An Apple variable's data CRC is checked against its value.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnAppleVssVariablesDataCRCIsChecked
+  it("checks an Apple VSS variable's data CRC", () => {
+    const data = [...new TextEncoder().encode("MacBook")];
+    const name = [0x6e, 0, 0, 0];
+    const crc = crc32(Uint8Array.from(data));
+    const bytes = Uint8Array.from([
+      0xaa,
+      0x55,
+      0x3f,
+      0x00,
+      ...le32(0x8000_0007),
+      ...le32(name.length),
+      ...le32(data.length),
+      ...new Array(16).fill(0x11),
+      ...le32(crc),
+      ...name,
+      ...data,
+    ]);
+    const node = makeNode({
+      kind: "vssEntry",
+      subtype: Sub.appleVssEntry,
+      name: "n",
+      header: r(0, 36),
+      body: r(36, bytes.length),
+    });
+    const detail = detailOf(node, bytes);
+    expect(value(detail, "Data CRC32")).toBe(checksumText({ value: crc, valid: true, digits: 8 }));
+    expect(value(detail, "Value")).toBe("MacBook");
   });
 
   // The CRC is not re-verified here — the parser already reports a mismatch —

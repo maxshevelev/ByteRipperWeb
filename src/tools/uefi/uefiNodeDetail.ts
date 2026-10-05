@@ -47,6 +47,7 @@ import {
   type NvramStoreFill,
   nvramStoreFillOf,
 } from "@/firmware/uefi/nvramStoreFill";
+import { readNvramValue } from "@/firmware/uefi/nvramValue";
 import {
   changedBytes,
   isNoChange,
@@ -75,6 +76,13 @@ import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub, subtypeName } from "@/firmware/uefi/uefiTypes";
 import {
+  decodedVssName,
+  isZeroTime,
+  readVssEntryIn,
+  timeText,
+  type VSSVariable,
+} from "@/firmware/uefi/vssVariable";
+import {
   cell,
   type DetailCell,
   type DetailField,
@@ -85,6 +93,11 @@ import {
   permission,
   tonedField,
 } from "@/tools/toolDetail";
+import {
+  nvarValueAttributes,
+  nvramSignaturesTable,
+  nvramValueFields,
+} from "@/tools/uefi/nvramValueText";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { dvarMeaning, kindLabel } from "@/tools/uefi/uefiTreeDisplay";
 
@@ -616,6 +629,38 @@ function buildDetailRows(
     ),
   ];
   if (node.kind === "ecImage") fields.push(...ecImageFields(node, image, reader));
+  const valueTables: DetailTable[] = [];
+  if (node.kind === "vssEntry") {
+    const variable = readVssEntryIn(node, image, reader);
+    if (variable !== undefined) {
+      fields.push(...vssFields(variable, reader));
+      // The value, read as its type — by the name the entry carries, so a superseded
+      // copy reads as the variable it was.
+      const bytes = reader.bytes(variable.data);
+      if (bytes !== undefined) {
+        const value = readNvramValue(
+          decodedVssName(variable, reader) ?? "",
+          variable.vendorGuid,
+          variable.attributes,
+          bytes
+        );
+        fields.push(...nvramValueFields(value, bytes));
+        const signatures = nvramSignaturesTable(value);
+        if (signatures !== undefined) valueTables.push(signatures);
+      }
+    }
+  }
+  // An NVAR entry's body is its value; a link's is one a later entry replaced, and it
+  // reads as what it was.
+  if (node.kind === "nvarEntry" && node.name.length > 0) {
+    const bytes = reader.bytes(node.body);
+    if (bytes !== undefined) {
+      const value = readNvramValue(node.name, node.guid, nvarValueAttributes(node, reader), bytes);
+      fields.push(...nvramValueFields(value, bytes));
+      const signatures = nvramSignaturesTable(value);
+      if (signatures !== undefined) valueTables.push(signatures);
+    }
+  }
   const topSwap = uefiTopSwapDetail(node, image);
   if (topSwap !== undefined) fields.push(field(L("Top Swap"), topSwap));
   const fill = nvramStoreFillOf(node, reader);
@@ -635,7 +680,7 @@ function buildDetailRows(
           tables: [protectedByTable(protectedBy)],
         };
   fields.push(...protection.fields);
-  const tables: DetailTable[] = [...protection.tables];
+  const tables: DetailTable[] = [...valueTables, ...protection.tables];
   const cell = (text: string): DetailCell => ({ text, tone: "plain" });
 
   // An update for more than one processor lists the others in a table of its
@@ -1086,10 +1131,7 @@ function headerFields(
     }
 
     case "vssEntry":
-      // The variable's vendor GUID is the common "GUID" field.
-      add("State", reader.uint8(h + 2), hex);
-      add("Reserved", reader.uint8(h + 3), hex);
-      add("Attributes", reader.uint32(h + 4), (value) => bits(value, NVRAM_ATTRIBUTE_BITS));
+      // Read in `buildDetailRows`, which knows the store and so the header's form.
       break;
 
     case "evsaEntry": {
@@ -1740,6 +1782,73 @@ function guidDetailText(guid: EFIGUID): string {
  * A byte length, in hex and in decimal — `0x800 (2048)` — and `Empty` for none,
  * the word that stands for that everywhere rather than a dash.
  */
+/**
+ * The header a VSS variable's form carries (`VSSVariable`): the state by its name, the
+ * attributes, the sizes, and what the form adds — the authenticated form's count, time
+ * stamp and key index, Apple's data CRC, Intel's total size. The vendor GUID is the
+ * common "GUID" field.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.vssFields
+ */
+function vssFields(variable: VSSVariable, reader: ImageReader): DetailField[] {
+  const states: Readonly<Record<number, string>> =
+    variable.form === "intelLegacy"
+      ? { 252: "Valid", 248: "Invalid" }
+      : {
+          127: "Header valid",
+          63: "Added",
+          62: "Added, in deleted transition",
+          61: "Deleted",
+          60: "Deleted",
+        };
+  const stateName = states[variable.state];
+  const fields: DetailField[] = [
+    field(
+      "State",
+      stateName === undefined ? hex(variable.state) : `${hex(variable.state)} (${stateName})`
+    ),
+    field("Reserved", hex(variable.reserved)),
+    field("Attributes", bits(variable.attributes, NVRAM_ATTRIBUTE_BITS)),
+  ];
+  if (variable.totalSize !== undefined)
+    fields.push(field("Total size", sizeText(variable.totalSize)));
+  if (variable.monotonicCount !== undefined) {
+    fields.push(field("Monotonic count", `${variable.monotonicCount}`));
+  }
+  if (variable.timestamp !== undefined) {
+    fields.push(
+      field(
+        "Timestamp",
+        isZeroTime(variable.timestamp)
+          ? L("Not set")
+          : (timeText(variable.timestamp) ?? L("Not a date"))
+      )
+    );
+  }
+  if (variable.publicKeyIndex !== undefined) {
+    fields.push(field("Public key index", `${variable.publicKeyIndex}`));
+  }
+  if (variable.nameSize !== undefined) fields.push(field("Name size", sizeText(variable.nameSize)));
+  if (variable.dataSize !== undefined) fields.push(field("Data size", sizeText(variable.dataSize)));
+  const data = variable.dataCRC32 === undefined ? undefined : reader.bytes(variable.data);
+  if (variable.dataCRC32 !== undefined && data !== undefined) {
+    const computed = crc32(data);
+    fields.push(
+      field(
+        "Data CRC32",
+        checksumText({
+          value: variable.dataCRC32,
+          valid: computed === variable.dataCRC32,
+          expected: computed,
+          digits: 8,
+        }),
+        computed !== variable.dataCRC32
+      )
+    );
+  }
+  return fields;
+}
+
 function sizeText(bytes: number): string {
   return bytes === 0 ? L("Empty") : `${hex(bytes)} (${bytes})`;
 }

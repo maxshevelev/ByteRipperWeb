@@ -122,6 +122,15 @@ export function isEmptyPadding(node: {
 }
 
 /**
+ * Whether the row of `node` says a value, and so needs the bytes.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.showsValue
+ */
+export function showsValue(node: { readonly kind: string }): boolean {
+  return node.kind === "dvarEntry" || node.kind === "vssEntry" || node.kind === "nvarEntry";
+}
+
+/**
  * `nodes` as the tree lists them: every one, or all but the empty padding — and all
  * but the copies of variables `hiding` names, by their ids as text, which a store's
  * later entries replaced (`supersededCopies`).
@@ -223,6 +232,13 @@ export interface NamedNode {
    * @upstream-differs the panel holds no bytes, so the worker reads the value
    */
   readonly dvarValue?: DvarValue | undefined;
+  /**
+   * For a live VSS or NVAR variable: its row with the value after the name, read as its
+   * type. Absent for any other node, and where the value is not read.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the value
+   */
+  readonly valueRow?: string | undefined;
   /** What Dell's Setup says the DVAR variables are, once the forms have been read. */
   readonly dvarSettings?: DellSetupCatalogue | undefined;
 }
@@ -286,8 +302,11 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
+  // A live VSS variable's value follows its name, as its type reads: `BootOrder =
+  // 0003, 2001`, `Lang = "eng"`. So does an NVAR variable's, on the entry that holds it
+  // now. The store says where the value is.
   if ((node.kind === "vssEntry" || node.kind === "nvarEntry") && node.name.length > 0) {
-    return node.name;
+    return node.valueRow ?? node.name;
   }
   // A flash device map entry's GUID is a region *type*, and UEFITool names the
   // row by what the type is: "Variable Defaults", "Password".

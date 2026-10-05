@@ -1,4 +1,4 @@
-@source-sha 148209c46431231bc5478e9bd5a190ec395f01ca2eb12752bafb0338fccaff80
+@source-sha c2438861c6b44410195e94a3f6042191a351c1ba1e34eed5e597f290d4734390
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -354,6 +354,18 @@ Wie voll ein Speicher ist und welche früheren Werte eine Variable hatte, ist un
 @short Das häufigste NVRAM-Format: ein Speicher benannter Variablen.
 
 Jeder Eintrag ist eine Variable mit Namen (`BootOrder`, `PK`, `Setup`), Hersteller-GUID und Wert. ByteRipper benennt die Zeile nach dem Variablennamen statt nach der GUID: viele Variablen teilen sich eine Hersteller-GUID.
+
+Nach einem Gleichheitszeichen nennt die Zeile den Wert der Variablen, gelesen nach seinem Typ: `BootOrder = 0003, 2001`, `Lang = "eng"`, `Timeout = 5`, `Boot0001 = Windows Boot Manager`, `ConOut = PciRoot(0x0)/Pci(0x2,0x0)`. Eine Zahl steht dezimal und, wo sich beide Schreibweisen unterscheiden, zusätzlich hexadezimal: `300 (0x12C)`. Text steht in Anführungszeichen. Ein Wert bis zu acht Byte, der sich auf keine dieser Arten lesen lässt, steht als seine Bytes, `WRDD = 00 50 41`; ein längerer mit seiner Größe, `Setup (1686 Byte)`. Ein Wert, der nicht in die Zeile passt, wird mit Auslassungspunkten abgeschnitten. Eine Zeile Invalid nennt keinen Wert.
+
+Der Kopf eines VSS-Eintrags gibt den Typ seines Werts nicht an. Der Typ wird daher wie folgt bestimmt:
+
+- Die UEFI-Spezifikation legt eine Reihe von Variablen nach Name und GUID fest; diese werden so gelesen, wie sie es vorgibt. `BootOrder` und `DriverOrder` sind Listen von Booteintragsnummern; `Boot####` ist ein Booteintrag mit Beschreibung, Gerätepfad und optionalen Daten; `Lang` und `PlatformLang` sind ASCII-Text; `ConIn`, `ConOut` und `ErrOut` sind Gerätepfade; `PK`, `KEK`, `db` und `dbx` sind Signaturdatenbanken; `Timeout`, `SecureBoot` und `SetupMode` sind Zahlen. Eine gleichnamige Variable mit der GUID eines anderen Herstellers wird ebenso gelesen, und die Detailliste weist darauf hin.
+- Das Attribut HwErrorRecord kennzeichnet einen Eintrag über einen Hardwarefehler.
+- Alle übrigen Werte werden aus ihren Bytes gelesen: als Signaturdatenbank oder Gerätepfad, wenn die Bytes einen solchen vollständig bilden, als Text, wenn es druckbare Zeichen sind, und als Zahl, wenn der Wert 1, 2, 4 oder 8 Byte lang ist. Diese Lesart ist eine Vermutung. Ein Wert von vier Byte wird als Zahl angezeigt, auch wenn die Firmware ihn als vier einzelne Bytes verwendet, und ein kurzer Wert, dessen Bytes zufällig druckbar sind, wird als Zahl und nicht als Text angezeigt, sofern ihm keine abschließende Null folgt.
+
+Die Detailliste nennt die Felder des Kopfes, die von der Form des Eintrags abhängen. Jede Form hat **State** und **Attributes**. Die Standardform und die authentifizierte Form geben **Name size** und **Data size** an; eine authentifizierte Variable ergänzt **Monotonic count**, **Timestamp** und **Public key index**, eine Apple-Variable eine **Data CRC32**, die ByteRipper gegen den Wert prüft. Die ältere Form von Intel gibt statt der beiden Größen eine **Total size** an. **Wert** nennt anschließend den vollständigen Wert: Text und Gerätepfade ganz, einen als Bytes gelesenen Wert bis zu seinen ersten 256 Bytes. **Gelesen als** gibt den Typ an und wodurch er bestimmt ist. Bei einem Booteintrag nennt die Liste außerdem den **Gerätepfad**, die Attribute des Eintrags und die Größe unter **Optionale Daten**. Bei einer Signaturdatenbank führt die Tabelle **Signaturen** jedes Zertifikat mit seinem Antragsteller auf, dem Namen, auf den es ausgestellt ist, und zählt die Hashes. Ein Plattformschlüssel mit einem Antragsteller wie `DO NOT TRUST - AMI Test PK` zeigt, dass die Platine mit dem Testschlüssel des Firmware-Herstellers ausgeliefert wurde und nicht mit dem Schlüssel ihres Herstellers.
+
+Was die Felder einer großen Struktur wie `Setup` bedeuten, wird hier nicht angegeben: Das legen die Setup-Seiten der Firmware fest, und für VSS-Variablen liest ByteRipper diese Seiten nicht.
 
 Im selben Bereich finden sich verwandte Speicher: **FTW** (der Eintrag eines fehlertoleranten Schreibvorgangs — das Journal, das ein Variablen-Update einen Stromausfall überstehen lässt), **EVSA**, **FDC**, **CMDB** und herstellereigene Flash-Maps. Das sind die Antworten verschiedener Hersteller auf dieselbe Aufgabe.
 

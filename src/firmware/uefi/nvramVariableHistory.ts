@@ -2,10 +2,10 @@ import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { dvarCopies } from "@/firmware/uefi/dvarParser";
 import { type EFIGUID, guidKey } from "@/firmware/uefi/efiGuid";
 import { isDataOnlyEntry, NVAR, readNvarEntryIn } from "@/firmware/uefi/nvarParser";
-import { NVRAM } from "@/firmware/uefi/nvramParser";
 import { variableName } from "@/firmware/uefi/nvramStoreFill";
 import type { UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
+import { readVssEntry } from "@/firmware/uefi/vssVariable";
 
 /**
  * The copies an NVRAM store keeps of one variable, oldest first
@@ -270,19 +270,14 @@ function vssCopies(entries: readonly UEFINode[], inVss2: boolean, reader: ImageR
 }
 
 /**
- * A VSS2 entry's body is its value. A `$VSS` entry's body opens with the name,
- * as long as the header's name size says.
+ * A VSS2 entry's body is its value. A `$VSS` entry's body opens with the name, as
+ * long as the header says.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.vssValue
  */
 function vssValue(entry: UEFINode, inVss2: boolean, reader: ImageReader): ImageRange {
   if (inVss2) return entry.body;
-  const h = entry.header.start;
-  const headerSize = entry.header.end - entry.header.start;
-  let nameSize: number | undefined;
-  if (headerSize === NVRAM.vssAuthHeaderSize) nameSize = reader.uint32(h + 36);
-  else if (headerSize === NVRAM.vssIntelLegacyHeaderSize) nameSize = 4;
-  else nameSize = reader.uint32(h + 8);
-  const start = Math.min(entry.body.start + (nameSize ?? 0), entry.body.end);
-  return { start, end: entry.body.end };
+  return readVssEntry(entry, false, reader)?.data ?? entry.body;
 }
 
 /**

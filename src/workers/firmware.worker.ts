@@ -71,6 +71,7 @@ import {
 } from "@/tools/fit/fitEditor";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
+import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 import { dvarSettingsFromWire, dvarSettingsToWire } from "@/workers/dvarWire";
@@ -307,8 +308,11 @@ function hiddenCopiesOf(node: UEFINode): [number, number][] | undefined {
  * A node as it crosses the wire: the ranges flattened to pairs and the GUID to
  * its text, because what the panel does with either is show it.
  */
-const wireNode = (node: UEFINode): WireNode => ({
+const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   ...(node.kind === "dvarEntry" ? { dvarValue: dvarValueOf(node) } : {}),
+  ...(node.kind === "vssEntry" || node.kind === "nvarEntry"
+    ? { valueRow: valueRowOf(node, store, readerFor(node)) }
+    : {}),
   hiddenCopies: hiddenCopiesOf(node),
   id: node.id,
   kind: node.kind,
@@ -327,7 +331,7 @@ const wireNode = (node: UEFINode): WireNode => ({
   namedImageLength: node.namedImageLength,
   typeText: typeText(node),
   subtypeText: subtypeText(node),
-  children: node.children.map(wireNode),
+  children: node.children.map((child) => wireNode(child, node)),
 });
 
 function nodeAt(path: readonly number[]): UEFINode | undefined {
@@ -610,7 +614,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           kind: "firmwareRoots",
           id: request.id,
           size: reader.count,
-          roots: roots.map(wireNode),
+          roots: roots.map((root) => wireNode(root)),
           diagnostics: wireDiagnostics(built.diagnostics),
         });
         return;
@@ -645,7 +649,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           kind: "firmwareInvalidated",
           id: request.id,
           size: reader.count,
-          roots: roots.map(wireNode),
+          roots: roots.map((root) => wireNode(root)),
         });
         return;
       }
@@ -669,7 +673,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           kind: "firmwareChildren",
           id: request.id,
           node: request.node,
-          children: node.children.map(wireNode),
+          children: node.children.map((child) => wireNode(child, node)),
           hiddenCopies: hiddenCopiesOf(node),
           diagnostics: wireDiagnostics(diagnostics),
         });
@@ -697,7 +701,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         post({
           kind: "firmwareNodeAtOffset",
           id: request.id,
-          roots: roots.map(wireNode),
+          roots: roots.map((root) => wireNode(root)),
           path,
           diagnostics: wireDiagnostics(diagnostics),
         });

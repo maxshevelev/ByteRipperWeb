@@ -650,6 +650,14 @@ export interface WireNode {
    */
   readonly dvarValue?: { readonly length: number; readonly number: string | undefined } | undefined;
   /**
+   * For a live VSS or NVAR variable: its row as it reads with the value after the name,
+   * read as its type — `BootOrder = 0003, 2001`, `Lang = "eng"`.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the value and the
+   * store's format that says where it lies
+   */
+  readonly valueRow?: string | undefined;
+  /**
    * For a store of variable entries: the copies a later one replaced, as child indices
    * — each hidden copy and the copy that stands for its variable instead. What the
    * tree leaves out unless superseded entries are asked for.

@@ -1,4 +1,4 @@
-@source-sha 71b50bad822b1a8aaa346591d3ce464de8d8903765901d497c0abd8626a46f97
+@source-sha 58cad389eb72583275face8bfbe2b77ce8e85db144e933b41ecda851a795a84a
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -34,6 +34,10 @@ Ein vom Werkzeug erkanntes [[term:picture|Bild]] — JPEG, PNG, GIF oder BMP, im
 ## Padding
 
 Zwischen den Strukturen eines Dumps liegt gelöschter Raum. Der Baum lässt ihn weg, solange im Filtermenü **Leeres Padding anzeigen** nicht abgehakt ist. Das Menü öffnet das Trichtersymbol in der Titelzeile, links neben **der Schaltfläche in Form einer Zielscheibe**. Solange der Baum etwas anzeigt, das er standardmäßig weglässt, ist das Symbol farbig hervorgehoben. Padding mit Daten wird in jedem Fall aufgeführt, ebenso der freie Speicher eines Volumes, der angibt, wie viel Platz darin noch frei ist.
+
+## Variablenwerte
+
+Die Zeile einer [[term:vss|VSS]]-, [[term:nvar|NVAR]]- oder [[term:dvar|DVAR]]-Variablen nennt nach einem Gleichheitszeichen ihren Wert — `BootOrder = 0003, 2001`, `Lang = "eng"`, `Boot0001 = Windows Boot Manager` —, und die Detailliste gibt den vollständigen Wert unter **Wert** an. Ein VSS- oder NVAR-Wert wird nach seinem Typ gelesen: Text als Text, eine Zahl als Zahl, ein Gerätepfad in der Textform der UEFI-Spezifikation. **Gelesen als** gibt an, als welcher Typ der Wert gelesen wurde und ob die Spezifikation diesen Typ festlegt oder ob er aus den Bytes vermutet ist. Wie der Typ bestimmt wird, erläutert der Eintrag [[term:vss|VSS]]; ein NVAR-Wert wird ebenso gelesen. Die Zeile eines NVAR-Kettenglieds (Link) nennt keinen Wert, weil ein späterer Eintrag der Kette ihn ersetzt hat.
 
 ## Regionen einer Insyde-Map
 
