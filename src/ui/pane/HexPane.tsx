@@ -83,7 +83,7 @@ import {
   type GridPoint,
   pointerTarget,
 } from "@/ui/pane/hexPointer";
-import { BrokenLinkShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
+import { BrokenLinkShapes, DownloadShapes, LinkShapes } from "@/ui/pane/linkGlyphs";
 import { OperationStrip } from "@/ui/pane/OperationStrip";
 import { observeDevicePixelRatio } from "@/ui/pane/observeDevicePixelRatio";
 import { PaneStatusLine } from "@/ui/pane/PaneStatusLine";
@@ -162,6 +162,15 @@ export interface HexPaneProps {
         readonly explanation: string;
         readonly state: "intact" | "parentClosed" | "sourceChanged";
         readonly onReveal: () => void;
+        /**
+         * Whether the header offers to put the part's bytes back: the parent is
+         * still open and the bytes here are no longer the ones it has.
+         *
+         * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateOffered
+         */
+        readonly updateOffered: boolean;
+        /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onUpdateInParent */
+        readonly onUpdate: () => void;
       }
     | undefined;
   /** The comparison, when there are two files. */
@@ -1958,6 +1967,45 @@ export function HexPane({
               {link.state === "parentClosed" ? <BrokenLinkShapes /> : <LinkShapes />}
             </svg>
             <span className="pane-origin-name">{link.parentName}</span>
+          </button>
+        )}
+        {link === undefined || !link.updateOffered ? null : (
+          /*
+           * The word and the glyph in one bordered button, so what it says and
+           * what it does are one thing to press, right after the parent's name.
+           * Not the red of a modified byte — that means "not saved yet", and
+           * this means "not in the parent yet". It holds its words while the
+           * parent's name, which is longer and says less, gives way before it,
+           * and takes no place while it is not shown.
+           *
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateButton
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateTapped
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateUpdateOffer
+           */
+          // help: pane.header.update-in-parent
+          <button
+            type="button"
+            className="pane-update"
+            title={L(
+              "Put this part's changes back into the document it was opened from, as one undo step there. Nothing is written to disk."
+            )}
+            aria-label={L("Update in Parent")}
+            onClick={link.onUpdate}
+          >
+            <svg
+              viewBox="0 0 12 12"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <DownloadShapes />
+            </svg>
+            <span>{L("Modified")}</span>
           </button>
         )}
         {/* The chrome's two marks sit at the trailing edge; the name and the

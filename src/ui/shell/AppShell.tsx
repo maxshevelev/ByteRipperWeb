@@ -199,6 +199,10 @@ function PartDump({
               explanation: link.explanation,
               state: link.state,
               onReveal: onRevealOrigin,
+              // The parent is open and holds fewer of these bytes than the part
+              // does: the same answer the menu item is enabled by.
+              updateOffered: link.update.enabled,
+              onUpdate: onUpdateInParent,
             }
       }
       onHeaderMenu={(event) =>

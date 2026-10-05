@@ -1042,6 +1042,7 @@
 "ME firmware structure" = "Структура прошивки ME";
 "Opening the branches to the caret…" = "Раскрываются ветви до курсора…";
 "Planning the change…" = "Готовится правка…";
+"Put this part's changes back into the document it was opened from, as one undo step there. Nothing is written to disk." = "Записать изменения этой части обратно в документ, из которого она открыта, одним шагом отмены в нём. На диск ничего не пишется.";
 "Reading the file first: the region is found in its tree." = "Сначала читается файл: регион находится по его дереву.";
 "Resize the detail" = "Изменить высоту подробностей";
 "That change writes nothing." = "Эта правка ничего не записывает.";
@@ -1050,6 +1051,7 @@
 "There was nothing to put back." = "Возвращать было нечего.";
 "This browser would not let the clipboard be written." = "Этот браузер не дал записать в буфер обмена.";
 "Two writes cover 0x%1$@." = "Две записи перекрываются на 0x%1$@.";
+"Undo in “%1$@” takes it back." = "«Отменить» в «%1$@» возвращает всё назад.";
 "Undo takes it back." = "«Отменить» возвращает всё назад.";
 "%1$@ copy" = "%1$@ копия";
 "Zoom In" = "Увеличить";

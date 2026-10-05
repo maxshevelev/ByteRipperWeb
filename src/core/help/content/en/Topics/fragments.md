@@ -4,6 +4,7 @@
 
 @covers shell.fragments
 @covers shell.fragment-dock
+@covers pane.header.update-in-parent
 
 A part of an image supplied by a [[topic:tools-overview|tool panel]] — a region, a volume, a module, the decompressed body of a section — opens as a **fragment panel**: a panel that rises from the bottom of the workspace, over the dump it was taken from.
 
@@ -15,7 +16,7 @@ Only one panel is up at a time. Raising another folds the one that was up, which
 
 - Reading and searching as an ordinary file, with its own addresses beginning at zero rather than at the address it occupies in the parent.
 - Editing.
-- **Update in Parent**, in the panel's own header menu, which writes the edited bytes back into the range they came from as a single undo step in the parent document. Fold the panel down and the change is there in the dump behind it.
+- **Update in Parent**, in the panel's own header menu, which writes the edited bytes back into the range they came from as a single undo step in the parent document. Fold the panel down and the change is there in the dump behind it. Once the fragment differs from what it was opened with, its header shows a **Modified** button, with a download-arrow icon, right after the parent's name, that does the same; a dialog then says what was written and that Undo in the parent takes it back.
 - Saving as a file of its own, where the extracted part is what is required rather than an edited parent. What that means in this browser is in [[topic:saving|Saving]].
 
 ## The panel's own minimap and tool panel

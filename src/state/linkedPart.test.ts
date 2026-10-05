@@ -212,6 +212,32 @@ describe("update in parent", () => {
   });
 
   /**
+   * The header offers the update while the part holds bytes its parent does not
+   * have, and takes it away once they are back; the update says last where it
+   * can be undone — in the parent. The web's level is the answer the header's
+   * button is shown by (`updateInParentItem`) and the alert the update leaves.
+   *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testTheHeaderOffersTheUpdateWhileThePartIsModified
+   */
+  it("is offered in the header while the part is modified, and says where undo takes it back", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+    expect((await updateInParentItem(part)).enabled).toBe(false);
+
+    await paneState(part)?.document.overwrite(0, Uint8Array.from([0x55]));
+    expect((await updateInParentItem(part)).enabled).toBe(true);
+
+    await updateInParent(part);
+
+    expect((await bytesOf("a"))[0x10]).toBe(0x55);
+    const alert = workspaceStore.getSnapshot().alert;
+    expect(alert?.title).toBe("Updated “bios.bin”");
+    expect(alert?.message).toBe("Undo in “bios.bin” takes it back.");
+    expect(alert?.outcome).toBe("success");
+    expect((await updateInParentItem(part)).enabled).toBe(false);
+  });
+
+  /**
    * A part goes back only at its own length: the bytes after it in the file are
    * not this part's to move.
    *

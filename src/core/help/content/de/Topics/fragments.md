@@ -1,4 +1,4 @@
-@source-sha 1d787a49971820722fea60ae4a98fc3011e625b074785df729781c70333b81f9
+@source-sha 015cb99a2801a558960bc86e39a90b5cb6cf84aea8d0cb93e5f7dc9d960bc45d
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -13,7 +13,7 @@ Es ist immer nur ein Panel oben. Ein anderes hochzuholen klappt das bisherige ei
 
 - Lesen und Suchen wie in einer gewöhnlichen Datei, mit eigenen Adressen ab null statt mit den Adressen, die der Teil in der Quelle einnimmt.
 - Bearbeiten.
-- **In der Quelle aktualisieren**, im Kopfmenü des Bereichs selbst, schreibt die geänderten Bytes zurück in den Bereich, aus dem sie stammen, als einen einzigen Widerrufsschritt im Quelldokument. Klappen Sie den Bereich ein, und die Änderung steht schon da, im Dump dahinter.
+- **In der Quelle aktualisieren**, im Kopfmenü des Bereichs selbst, schreibt die geänderten Bytes zurück in den Bereich, aus dem sie stammen, als einen einzigen Widerrufsschritt im Quelldokument. Klappen Sie den Bereich ein, und die Änderung steht schon da, im Dump dahinter. Sobald sich das Fragment von dem unterscheidet, mit dem es geöffnet wurde, zeigt seine Kopfzeile unmittelbar hinter dem Namen der Quelle die Schaltfläche **Geändert** mit einem Pfeil-nach-unten-Symbol, die dasselbe tut; ein Dialog meldet dann, was geschrieben wurde und dass „Widerrufen“ im Quelldokument es zurücknimmt.
 - Sichern als eigene Datei, wenn der entnommene Teil gebraucht wird und nicht die geänderte Quelle. Was das in diesem Browser heißt, steht in [[topic:saving|Sichern]].
 
 ## Eigene Minimap, eigener Werkzeugbereich

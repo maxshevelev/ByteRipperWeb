@@ -1,4 +1,4 @@
-@source-sha ee1db93c7c3b50f3582125695b1ad44f4b66ceb879c921b92c8d91e65e42efb3
+@source-sha 5d99b8ab5d4824030f21e2e8022b4b99d0d113a8d9715ef3729cabe6da502ff4
 # FIT-Tabelle
 
 > Die Firmware Interface Table: was der Prozessor laden soll, bevor er Firmware-Code ausführt, und ob diese Bauteile vorhanden sind.

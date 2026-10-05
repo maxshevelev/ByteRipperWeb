@@ -32,3 +32,20 @@ export function BrokenLinkShapes() {
     </>
   );
 }
+
+/**
+ * An arrow into a tray: the download glyph on the header's Modified button, the
+ * mark for bytes going back where they came from. Upstream's
+ * `square.and.arrow.down`, drawn on the same 12×12 box.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateButton
+ * @upstream-differs drawn shapes, where upstream names the platform's symbol
+ */
+export function DownloadShapes() {
+  return (
+    <>
+      <path d="M6 1.4v6.2M3.6 5.3 6 7.7l2.4-2.4" />
+      <path d="M1.8 7.8v1.9c0 .5.4.9.9.9h6.6c.5 0 .9-.4.9-.9V7.8" />
+    </>
+  );
+}

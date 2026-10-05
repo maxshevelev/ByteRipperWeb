@@ -887,6 +887,29 @@ textarea,
   flex: none;
 }
 
+/* The header's Modified: a small bordered button, the one thing in the header to
+   press. It holds its words while the parent's name gives way, and takes no place
+   when it is not rendered. */
+.pane-update {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pane-update:hover {
+  background: var(--surface-sunken);
+}
+
 .pane-origin-name {
   min-width: 0;
   overflow: hidden;

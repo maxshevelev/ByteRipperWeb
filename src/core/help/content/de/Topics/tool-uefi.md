@@ -1,4 +1,4 @@
-@source-sha d7dc10ce785487f6886bb9ead053957066ae382f2481a577e332b5374c1484d9
+@source-sha 505eec7316db220b914d0a5184b5a1200d2e27dd5df75bd687df6cb1f5cab763
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.

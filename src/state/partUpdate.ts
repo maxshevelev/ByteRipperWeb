@@ -87,7 +87,20 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     reportAlert(L("Could not update “%1$@”.", origin.parentName), problem, "problem");
     return { kind: "refused" };
   }
+  // It says last where it can be taken back: in the parent, not in the part.
+  reportAlert(L("Updated “%1$@”", origin.parentName), undoLine(origin), "success");
   return { kind: "updated", parent: origin.parent };
+}
+
+/**
+ * What an update says last: where it can be taken back. The update is one undo
+ * step in the parent, not in the part it was made in.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undoLine
+ * @upstream-differs Undo rather than ⌘Z: the key is the platform's
+ */
+function undoLine(origin: DocumentOrigin): string {
+  return L("Undo in “%1$@” takes it back.", origin.parentName);
 }
 
 /**
@@ -171,8 +184,8 @@ async function rebuildIntoParent(
   reportAlert(
     L("Updated “%1$@”", origin.parentName),
     built.warnings.length === 0
-      ? L("Nothing was written inside a Boot Guard or vendor protected range.")
-      : built.warnings.join("\n\n"),
+      ? `${L("Nothing was written inside a Boot Guard or vendor protected range.")}\n\n${undoLine(origin)}`
+      : `${built.warnings.join("\n\n")}\n\n${undoLine(origin)}`,
     "success"
   );
   return { kind: "updated", parent: origin.parent };

@@ -1043,6 +1043,7 @@
 "ME firmware structure" = "Struktur der ME-Firmware";
 "Opening the branches to the caret…" = "Die Zweige bis zur Einfügemarke werden geöffnet…";
 "Planning the change…" = "Die Änderung wird geplant…";
+"Put this part's changes back into the document it was opened from, as one undo step there. Nothing is written to disk." = "Die Änderungen dieses Teils zurück in das Dokument schreiben, aus dem er geöffnet wurde, als ein Widerrufsschritt dort. Auf den Datenträger wird nichts geschrieben.";
 "Reading the file first: the region is found in its tree." = "Zuerst wird die Datei gelesen: die Region findet sich in ihrem Baum.";
 "Resize the detail" = "Höhe der Details ändern";
 "That change writes nothing." = "Diese Änderung schreibt nichts.";
@@ -1051,6 +1052,7 @@
 "There was nothing to put back." = "Es gab nichts zurückzuschreiben.";
 "This browser would not let the clipboard be written." = "Dieser Browser hat das Schreiben in die Zwischenablage nicht erlaubt.";
 "Two writes cover 0x%1$@." = "Zwei Schreibvorgänge überdecken 0x%1$@.";
+"Undo in “%1$@” takes it back." = "„Widerrufen“ in „%1$@“ nimmt es zurück.";
 "Undo takes it back." = "„Widerrufen“ nimmt es zurück.";
 "%1$@ copy" = "%1$@ Kopie";
 "Zoom In" = "Vergrößern";

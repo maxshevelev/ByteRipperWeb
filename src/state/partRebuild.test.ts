@@ -202,6 +202,9 @@ describe("a part the image is laid out again around", () => {
     expect(checksumComplaints(bytes)).toEqual([]);
     expect(workspaceStore.getSnapshot().alert?.title).toBe("Updated “bios.bin”");
     expect(workspaceStore.getSnapshot().alert?.outcome).toBe("success");
+    expect(workspaceStore.getSnapshot().alert?.message).toContain(
+      "Undo in “bios.bin” takes it back."
+    );
     const origin = paneState(part)?.origin;
     expect(await origin?.state()).toBe("intact");
     expect(
