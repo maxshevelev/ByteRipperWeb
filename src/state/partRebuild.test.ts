@@ -201,6 +201,7 @@ describe("a part the image is laid out again around", () => {
     expect(bytes[file.start + last]).toBe(0x00);
     expect(checksumComplaints(bytes)).toEqual([]);
     expect(workspaceStore.getSnapshot().alert?.title).toBe("Updated “bios.bin”");
+    expect(workspaceStore.getSnapshot().alert?.outcome).toBe("success");
     const origin = paneState(part)?.origin;
     expect(await origin?.state()).toBe("intact");
     expect(
@@ -261,6 +262,7 @@ describe("a part the image is laid out again around", () => {
 
     expect(outcome.kind).toBe("refused");
     expect(workspaceStore.getSnapshot().alert?.title).toBe("“body” cannot be put back");
+    expect(workspaceStore.getSnapshot().alert?.outcome).toBe("problem");
     expect((await parentBytes())[0x20]).toBe(0xff);
   });
 

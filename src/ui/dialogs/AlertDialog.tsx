@@ -1,5 +1,8 @@
 import { L } from "@/core/localization/localization";
+import type { Alert } from "@/state/workspaceStore";
+import { alertOutcomeIcon } from "@/ui/dialogs/alertOutcomeIcon";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { TintedSymbol } from "@/ui/theme/TintedSymbol";
 
 /**
  * A problem, told in the way upstream tells one: a title, a message, and a
@@ -18,11 +21,17 @@ import { Dialog } from "@/ui/dialogs/Dialog";
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentAlert
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentModal
+ * An alert that says how an operation ended wears its icon — a green check for
+ * what was done, a red octagon for what was refused — beside the message; one
+ * that only informs has none.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSheetAlert
  * @upstream-differs `alertStyle` has no CSS counterpart; every alert is the
- * same informational plate, where upstream draws a critical one for `presentError`
+ * same plate, where upstream draws a critical one for `presentError`, and the
+ * icon sits in the plate's own row rather than in a system alert's corner
  */
 export interface AlertDialogProps {
-  readonly alert: { readonly title: string; readonly message: string } | undefined;
+  readonly alert: Alert | undefined;
   readonly onDismiss: () => void;
 }
 
@@ -30,7 +39,10 @@ export function AlertDialog({ alert, onDismiss }: AlertDialogProps) {
   return (
     <Dialog open={alert !== undefined} title={alert?.title ?? ""} onClose={onDismiss}>
       <div className="dialog-body">
-        <p className="dialog-message">{alert?.message ?? ""}</p>
+        <div className="dialog-alert">
+          {alert?.outcome === undefined ? null : <AlertOutcomeIcon outcome={alert.outcome} />}
+          <p className="dialog-message">{alert?.message ?? ""}</p>
+        </div>
         <div className="dialog-actions">
           {/*
             The first focusable element in the dialog, so `<dialog>`'s own focus
@@ -44,4 +56,9 @@ export function AlertDialog({ alert, onDismiss }: AlertDialogProps) {
       </div>
     </Dialog>
   );
+}
+
+function AlertOutcomeIcon({ outcome }: { readonly outcome: NonNullable<Alert["outcome"]> }) {
+  const { name, color } = alertOutcomeIcon(outcome);
+  return <TintedSymbol name={name} color={color} className="dialog-alert-icon" />;
 }

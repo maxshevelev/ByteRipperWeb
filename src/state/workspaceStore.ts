@@ -344,8 +344,29 @@ export interface WorkspaceState {
  */
 export interface Alert {
   readonly title: string;
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.lastAlertMessage
+   */
   readonly message: string;
+  /**
+   * How the operation the alert tells of ended; nothing for one that only
+   * informs.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.lastAlertOutcome
+   */
+  readonly outcome?: AlertOutcome | undefined;
 }
+
+/**
+ * How an operation ended, for the icon its alert wears: a green check for what
+ * was done, a red octagon for what was refused or failed. An alert that only
+ * informs has neither.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#AlertOutcome
+ * @upstream-differs a string union, where upstream has an enum with the icon as
+ * a member; the icon is the dialog's (`AlertOutcomeIcon`)
+ */
+export type AlertOutcome = "success" | "problem";
 
 /**
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.windowModel
@@ -694,8 +715,8 @@ export async function restoreSettings(): Promise<void> {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentFileError
  * @upstream-differs one entry point for upstream's three, and no `isSandboxAccessDenied` upgrade
  */
-export function reportAlert(title: string, message: string): void {
-  workspaceStore.update((state) => ({ ...state, alert: { title, message } }));
+export function reportAlert(title: string, message: string, outcome?: AlertOutcome): void {
+  workspaceStore.update((state) => ({ ...state, alert: { title, message, outcome } }));
 }
 
 /**

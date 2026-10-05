@@ -64,7 +64,7 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
 
   const plan = await origin.planUpdate(slot.document);
   if (plan.kind === "refused") {
-    reportAlert(plan.title, plan.message);
+    reportAlert(plan.title, plan.message, "problem");
     return { kind: "refused" };
   }
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
@@ -84,7 +84,7 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
   });
   if (problem !== undefined) {
     origin.restore(snapshot);
-    reportAlert(L("Could not update “%1$@”.", origin.parentName), problem);
+    reportAlert(L("Could not update “%1$@”.", origin.parentName), problem, "problem");
     return { kind: "refused" };
   }
   return { kind: "updated", parent: origin.parent };
@@ -140,7 +140,8 @@ async function rebuildIntoParent(
   if (built === undefined) {
     reportAlert(
       L("“%1$@” cannot be put back", origin.partName),
-      answer?.refusal ?? L("Nothing was changed in %1$@.", origin.parentName)
+      answer?.refusal ?? L("Nothing was changed in %1$@.", origin.parentName),
+      "problem"
     );
     return { kind: "refused" };
   }
@@ -149,7 +150,8 @@ async function rebuildIntoParent(
   if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
     reportAlert(
       L("“%1$@” changed", origin.parentName),
-      L("It changed while the update was being worked out. Nothing was written.")
+      L("It changed while the update was being worked out. Nothing was written."),
+      "problem"
     );
     return { kind: "refused" };
   }
@@ -162,7 +164,7 @@ async function rebuildIntoParent(
     });
     if (problem !== undefined) {
       origin.restore(snapshot);
-      reportAlert(L("Could not update “%1$@”.", origin.parentName), problem);
+      reportAlert(L("Could not update “%1$@”.", origin.parentName), problem, "problem");
       return { kind: "refused" };
     }
   }
@@ -170,7 +172,8 @@ async function rebuildIntoParent(
     L("Updated “%1$@”", origin.parentName),
     built.warnings.length === 0
       ? L("Nothing was written inside a Boot Guard or vendor protected range.")
-      : built.warnings.join("\n\n")
+      : built.warnings.join("\n\n"),
+    "success"
   );
   return { kind: "updated", parent: origin.parent };
 }

@@ -311,7 +311,7 @@ function protectionWarnings(
     if (hit === undefined) continue;
     if (range.kind === "ibb") {
       throw new Refusal(
-        `The change writes at 0x${hex(Math.max(hit.start, range.range.start))} inside “${range.name}”, part of the Boot Guard IBB: the processor checks it before the firmware runs, and an edit there stops the platform starting. Nothing was changed.`
+        `The change writes at 0x${hex(Math.max(hit.start, range.range.start))} inside “${range.name}”, part of the Boot Guard IBB: the processor checks it before the firmware runs, and an edit there stops the platform starting (§6.4 of UPDATE_IN_PARENT.md). Nothing was changed.`
       );
     }
     // A list names several ranges one way — every entry of an Insyde flash
@@ -780,7 +780,7 @@ class Context {
     const newLength = replacement.length;
     if (flattened(child).some(isVolumeTop)) {
       throw new Refusal(
-        `“${child.name}” holds the Volume Top File, which has to end at the top of the address space, so it keeps its size of 0x${hex(oldLength)} bytes and this one is 0x${hex(newLength)}.`
+        `“${child.name}” holds the Volume Top File, which has to end at the top of the address space, so it keeps its size of 0x${hex(oldLength)} bytes and this one is 0x${hex(newLength)} (§7 of UPDATE_IN_PARENT.md).`
       );
     }
     const next = siblings.find((one) => {
@@ -801,7 +801,7 @@ class Context {
       if (room < needed) {
         const before = next === undefined ? endName : `“${next.name}”`;
         throw new Refusal(
-          `“${child.name}” is 0x${hex(needed)} bytes longer than before, and only 0x${hex(room)} empty bytes follow it before ${before}, which stays where it is.`
+          `“${child.name}” is 0x${hex(needed)} bytes longer than before, and only 0x${hex(room)} empty bytes follow it before ${before}, which stays where it is (§7 of UPDATE_IN_PARENT.md).`
         );
       }
     }
@@ -980,12 +980,12 @@ class Context {
       for (const node of moving) {
         if (flattened(node).some((one) => one.isFixed)) {
           throw new Refusal(
-            `“${node.name}” would move, and it is fixed at its address — the Volume Top File, a FIT target or a file marked fixed.`
+            `“${node.name}” would move, and it is fixed at its address — the Volume Top File, a FIT target or a file marked fixed (§6.4 of UPDATE_IN_PARENT.md).`
           );
         }
         if (node.subtype !== undefined && [0x03, 0x04, 0x06, 0x08].includes(node.subtype)) {
           throw new Refusal(
-            `“${node.name}” would move, and it is code that runs in place from flash: moving it needs a rebase this editor does not do.`
+            `“${node.name}” would move, and it is code that runs in place from flash: moving it needs a rebase this editor does not do (§6.4 of UPDATE_IN_PARENT.md).`
           );
         }
       }
@@ -1032,7 +1032,7 @@ class Context {
         );
       }
       throw new Refusal(
-        `“${volume.name}” has 0x${hex(absorbEnd - absorbStart)} bytes free where it can take room, and the change needs 0x${hex(newAbsorbStart - absorbStart)}.`
+        `“${volume.name}” has 0x${hex(absorbEnd - absorbStart)} bytes free where it can take room, and the change needs 0x${hex(newAbsorbStart - absorbStart)} (§6.3 of UPDATE_IN_PARENT.md).`
       );
     }
     if (padBeforeTop !== undefined) {
@@ -1096,13 +1096,13 @@ class Context {
     const blockLength = Bytes.oneBlockLength(bytes, start, end);
     if (blockLength === undefined) {
       throw new Refusal(
-        `“${volume.name}” has no room for 0x${hex(needed)} more bytes, and its block map is not one a new size can be written into.`
+        `“${volume.name}” has no room for 0x${hex(needed)} more bytes, and its block map is not one a new size can be written into (§6.5 of UPDATE_IN_PARENT.md).`
       );
     }
     const length = end - start;
     if (length % blockLength !== 0) {
       throw new Refusal(
-        `“${volume.name}” has no room for 0x${hex(needed)} more bytes, and its size is not a whole number of its blocks.`
+        `“${volume.name}” has no room for 0x${hex(needed)} more bytes, and its size is not a whole number of its blocks (§6.5 of UPDATE_IN_PARENT.md).`
       );
     }
     const extra = Math.ceil(needed / blockLength) * blockLength;
@@ -1374,7 +1374,9 @@ const Bytes = {
     } else {
       headerSize = FFS.headerSize;
       if (bytes.length > 0xff_ffff) {
-        throw new Refusal(`“${name}” would grow past 16 MiB in a file with no large-file header.`);
+        throw new Refusal(
+          `“${name}” would grow past 16 MiB in a file with no large-file header (§6.4 of UPDATE_IN_PARENT.md).`
+        );
       }
       Bytes.put(bytes.length, 3, 0x14, bytes);
     }

@@ -1194,6 +1194,19 @@ textarea,
   color: var(--text-muted);
 }
 
+/* The icon of how an operation ended, beside the message it belongs to. */
+.dialog-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dialog-alert-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
 .dialog-message {
   color: var(--text);
   line-height: 1.45;

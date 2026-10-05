@@ -5,6 +5,7 @@ import { L } from "@/core/localization/localization";
 import type { DetailSymbol, DetailTable, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
+import { TintedSymbol } from "@/ui/theme/TintedSymbol";
 import {
   initialPictureBackground,
   nextPictureBackground,
@@ -333,13 +334,17 @@ function DetailTableView({
  * than as "this checks out".
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolValueTone.swift#ToolValueTone.attributedValue
- * @upstream-differs an element in the text, where upstream attaches an image to the attributed string
+ * @upstream-differs an element in the text, where upstream attaches an image to the attributed string,
+ * tinted through the one helper the app tints its symbols with
  */
 export function DoneMark() {
   return (
-    <svg className="tool-detail-done" viewBox="0 0 16 16" role="img" aria-label={L("Done")}>
-      <path d="M3.2 8.6 6.4 11.8 12.8 4.6" />
-    </svg>
+    <TintedSymbol
+      name="checkmark"
+      color="currentColor"
+      label={L("Done")}
+      className="tool-detail-done"
+    />
   );
 }
 

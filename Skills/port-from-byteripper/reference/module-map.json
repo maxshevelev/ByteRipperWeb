@@ -722,7 +722,8 @@
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors.icon": "n/a — as above: --empty-state-icon, read by .empty-state-icon and .empty-state-headline"
       },
       "files": {
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift": "src/ui/theme/hexColors.ts"
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift": "src/ui/theme/hexColors.ts",
+        "Packages/AppPalette/Sources/AppPalette/TintedSymbol.swift": "src/ui/theme/TintedSymbol.tsx"
       }
     },
     {
