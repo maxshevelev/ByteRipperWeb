@@ -155,6 +155,7 @@
 "%1$@ MB" = "%1$@ МБ";
 "%1$@ KB" = "%1$@ КБ";
 "Region table" = "Таблица регионов";
+"Regions of the flash device map" = "Регионы Flash Device Map";
 "Base" = "Начало";
 "Limit" = "Конец";
 "%1$@ — header marked invalid" = "%1$@ — заголовок помечен недействительным";
@@ -178,6 +179,7 @@
 "Show Superseded Entries" = "Показывать заменённые записи";
 "List the copies of variables that later entries replaced — their history is in the detail of the copy that stands" = "Показывать копии переменных, заменённые более поздними записями; их история приведена в деталях действующей копии";
 "Show this copy" = "Показать эту копию";
+"Show this region in the dump" = "Показать этот регион в дампе";
 "Filter" = "Фильтр";
 "Choose what the tree lists" = "Выбрать, что показывать в дереве";
 "Setup option" = "Параметр Setup";

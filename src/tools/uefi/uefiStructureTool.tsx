@@ -52,6 +52,7 @@ import {
   nodeSaveTitle,
   partName,
   uefiZones,
+  uefiZonesOutlining,
 } from "@/tools/uefi/uefiPresenter";
 import {
   counterpartMenuTitle,
@@ -752,6 +753,24 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       publishZones(context.pane, zones);
     },
     [context, roots]
+  );
+
+  /**
+   * A click on a row of a detail table that names bytes which are not one node — a
+   * region an Insyde map names: outlined in the dump beside the focused node's own
+   * zones, and the host brings the newly focused zone on screen. The tree and the
+   * detail stay where they are; the next selection publishes over it.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOutlineRange
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.outline
+   */
+  const outlineRange = useCallback(
+    (start: number, end: number, name: string) => {
+      const from = roots ?? [];
+      const node = selected === undefined ? undefined : firmwareNodeAt(from, pathOf(selected));
+      publishZones(context.pane, uefiZonesOutlining({ start, end }, name, uefiZones(node, from)));
+    },
+    [context.pane, roots, selected]
   );
 
   /**
@@ -1580,6 +1599,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           detail={meShown !== undefined ? meDetail(meShown) : (shown?.detail ?? EMPTY_DETAIL)}
           placeholder={L("Select a node to see what it is.")}
           onSelectNode={chooseByPath}
+          onOutlineRange={outlineRange}
           // The ME sub-tree's rows carry their own term, decided by the
           // curator; every other row's is a function of its kind and subtype.
           helpTerm={

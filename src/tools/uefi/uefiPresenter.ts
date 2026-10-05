@@ -343,6 +343,31 @@ export function uefiZones(node: ZonedNode | undefined, roots?: readonly ZonedNod
 }
 
 /**
+ * The zones of the node in focus with a range added and put in focus — a region
+ * an Insyde map names, picked in the detail: the reader sees where it lies
+ * without the tree moving off the map. The range's id is no node's path, so
+ * picking it in the dump leads nowhere.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.zones
+ */
+export function uefiZonesOutlining(
+  range: { readonly start: number; readonly end: number },
+  name: string,
+  focused: ZoneMap
+): ZoneMap {
+  const outline = {
+    id: `range:${range.start}-${range.end}`,
+    name,
+    start: range.start,
+    end: range.end,
+  };
+  return {
+    zones: [...focused.zones.filter((zone) => zone.id !== outline.id), outline],
+    focus: outline.id,
+  };
+}
+
+/**
  * The file-space node whose header starts at `offset` — the compressed section a
  * space names, found the way upstream finds it: down the chain of nodes covering
  * that byte of the file, and only one of the file's own.

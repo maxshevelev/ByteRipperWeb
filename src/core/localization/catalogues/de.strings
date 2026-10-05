@@ -155,6 +155,7 @@
 "%1$@ MB" = "%1$@ MB";
 "%1$@ KB" = "%1$@ KB";
 "Region table" = "Regionstabelle";
+"Regions of the flash device map" = "Regionen der Flash Device Map";
 "Base" = "Anfang";
 "Limit" = "Ende";
 "%1$@ — header marked invalid" = "%1$@ — Header als ungültig markiert";
@@ -178,6 +179,7 @@
 "Show Superseded Entries" = "Ersetzte Einträge anzeigen";
 "List the copies of variables that later entries replaced — their history is in the detail of the copy that stands" = "Die Kopien von Variablen anzeigen, die spätere Einträge ersetzt haben; ihr Verlauf steht in den Details der geltenden Kopie";
 "Show this copy" = "Diese Kopie anzeigen";
+"Show this region in the dump" = "Diese Region im Dump zeigen";
 "Filter" = "Filter";
 "Choose what the tree lists" = "Festlegen, was der Baum anzeigt";
 "Setup option" = "Setup-Option";

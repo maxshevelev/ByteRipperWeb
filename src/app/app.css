@@ -3480,13 +3480,13 @@ button.uefi-title {
   padding: 1px 14px 1px 0;
 }
 
-/* A row that stands for a node is a way to it: its address reads as a link, the one
-   cue a grid of text can give. */
+/* A row that stands for something is a way to it: the cell that says where reads as
+   a link, the one cue a grid of text can give. */
 .tool-detail-grid tr[data-target] {
   cursor: pointer;
 }
 
-.tool-detail-grid tr[data-target] .tool-detail-grid-cell:nth-child(2) {
+.tool-detail-grid tr[data-target] .tool-detail-grid-cell[data-link] {
   color: var(--accent);
   text-decoration: underline;
 }

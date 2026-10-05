@@ -211,6 +211,8 @@ Insyde H2O firmware carries a table with the signature `HFDM`, frequently in two
 
 Several of these regions lie outside every firmware volume and have no signature of their own, so only the map identifies them. UEFITool shows them as padding. ByteRipper reads the map and names each such region by its type — **EC Firmware**, **BIOS Version Data Table**, **Lenovo User Password** — while the Type column still reads Padding. A region of the type **Variable Defaults** is parsed further: it contains the variable stores holding the firmware's default settings.
 
+The detail list of the map, and of each of its entries, contains the table **Regions of the flash device map**: for each entry the region type, the address at which the firmware accesses the region, where the region starts in the dump, its size, and the element of the tree that occupies exactly that range. The table also covers regions inside a firmware volume or the variable store, which the tree does not show as rows of their own. Where the dump's addresses cannot be determined, only the address in the processor's address space is given. A click on a row whose start is shown outlines that region in the dump.
+
 An empty region is erased and contains nothing. Whether that means, for example, that no password is set depends on the vendor and is not documented.
 
 The type names are those of UEFITool. A type it does not know is shown as its GUID.
@@ -236,7 +238,7 @@ Insyde firmware keeps a small table that begins with the signature `$BVDT$`. The
 - **ESRT firmware class** — the GUID by which the operating system identifies the board's system firmware in the EFI System Resource Table. Windows shows it as the hardware ID `UEFI\RES_{…}` of the "System Firmware" device and matches BIOS update packages against it, so two dumps with different GUIDs are firmware for different boards.
 - **ESRT version** — the firmware version stored beside that GUID. Its lowest byte equals the build number in the BIOS version on most of the dumps examined.
 
-The `$BME$` record lists ranges of the BIOS region; the table **Ranges listed in $BME$** places them in the dump and names what lies exactly there. On the dumps examined they are the table's own region, the microcode volume and, on one board, the EC firmware region. What the firmware or its flash utility does with these ranges is not documented.
+The `$BME$` record lists ranges of the BIOS region; the table **Ranges listed in $BME$** places them in the dump and names what lies exactly there. On the dumps examined they are the table's own region, the microcode volume and, on two boards, the EC firmware region. A click on a row whose range lies in the dump outlines that range in the dump. What the firmware or its flash utility does with these ranges is not documented.
 
 The table is the quickest way to establish which firmware a dump contains, and whether two dumps contain the same version.
 

@@ -1,4 +1,4 @@
-@source-sha 2042298c2c5ff5e27f8902bc71ca57ac1395409c4402236a8fd7f65d60d74c0c
+@source-sha 71b50bad822b1a8aaa346591d3ce464de8d8903765901d497c0abd8626a46f97
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -34,6 +34,10 @@ Ein vom Werkzeug erkanntes [[term:picture|Bild]] — JPEG, PNG, GIF oder BMP, im
 ## Padding
 
 Zwischen den Strukturen eines Dumps liegt gelöschter Raum. Der Baum lässt ihn weg, solange im Filtermenü **Leeres Padding anzeigen** nicht abgehakt ist. Das Menü öffnet das Trichtersymbol in der Titelzeile, links neben **der Schaltfläche in Form einer Zielscheibe**. Solange der Baum etwas anzeigt, das er standardmäßig weglässt, ist das Symbol farbig hervorgehoben. Padding mit Daten wird in jedem Fall aufgeführt, ebenso der freie Speicher eines Volumes, der angibt, wie viel Platz darin noch frei ist.
+
+## Regionen einer Insyde-Map
+
+Bei Insyde-Firmware enthalten die Details der [[term:flash-device-map|Flash Device Map]] und jedes ihrer Einträge die Tabelle **Regionen der Flash Device Map** mit den Regionen, die die Map nennt. Der Anfang einer Region, die im Dump liegt, ist ein Link: Ein Klick auf ihre Zeile umrandet die Region im Dump, beschriftet sie mit ihrem Typ und bringt sie ins Bild. Das gilt auch für Regionen, die der Baum nicht als eigene Zeile zeigt, weil sie mehrere Knoten umfassen oder innerhalb eines Knotens liegen. Baum und Details bleiben bei der Map; die Auswahl eines anderen Knotens ersetzt die Umrandung. Ebenso verlinkt die Tabelle **Bereiche in $BME$** in den Details der [[term:bvdt|BIOS Version Data Table]] ihre Bereiche.
 
 ## Variablenkopien
 

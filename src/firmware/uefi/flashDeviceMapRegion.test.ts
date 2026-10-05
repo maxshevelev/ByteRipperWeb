@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
-import { BinaryWriter, volume, volumeTopFile } from "@/firmware/testing/testImage";
+import { BinaryWriter, descriptor, volume, volumeTopFile } from "@/firmware/testing/testImage";
 import { iteImage } from "@/firmware/testing/testInsyde";
 import { vssStore, vssVariable } from "@/firmware/testing/testNvram";
 import { sum8 } from "@/firmware/uefi/checksums";
@@ -197,6 +197,32 @@ describe("the regions a flash device map names", () => {
     const nodes = top(image({ trailing: 0x100 }));
     expect(regions(nodes)).toEqual([]);
     expect(nodes.some((node) => node.kind === "vssStore")).toBe(false);
+  });
+
+  // A full dump with bytes appended after it: the descriptor says where the BIOS
+  // region ends, and that end is the one mapped at the top.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testBytesAppendedAfterTheBiosRegionDoNotHideTheRegions
+  it("finds the regions with bytes appended after the BIOS region", () => {
+    const bytes = image({ trailing: 0xc00 });
+    bytes.set(
+      descriptor({
+        regions: [
+          { type: "descriptor", start: 0, end: 0x1000 },
+          { type: "bios", start: 0x1000, end: SIZE },
+        ],
+      }),
+      0
+    );
+    const parsed = parseUefiImage(sourceOver(bytes));
+    const region = (parsed.roots[0] as UEFINode).children.find((node) => node.kind === "region");
+    expect(regions((region as UEFINode).children).map((node) => node.name)).toEqual([
+      "Variable Defaults",
+      "Password",
+    ]);
+    expect(regions((region as UEFINode).children).map((node) => nodeRange(node))).toEqual([
+      { start: 0x1000, end: 0x3000 },
+      { start: 0x3000, end: 0x3100 },
+    ]);
   });
 
   // A Variable Defaults region nobody wrote is a region still, with no stores in

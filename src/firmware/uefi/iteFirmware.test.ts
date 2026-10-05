@@ -44,6 +44,16 @@ describe("an ITE image's identification", () => {
     expect(read(bytes)?.identification).toBe("ITE5507-SB-V0.67");
   });
 
+  // The pair after `85 12` is `5A 5A` on most images, and something else on the
+  // `ITE EC-V14.0` ones — which are no less ITE for it.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testTheSecondPairMayVary
+  it("may carry another second pair", () => {
+    const bytes = iteImage({ identification: "ITE EC-V14.0  ", at: 0x40 });
+    bytes.set([0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0x10], 0x40);
+    bytes.set([0x85, 0x12, 0xb9, 0x9d, 0xaa, 0x7f, 0x55, 0x55], 0x48);
+    expect(read(bytes)?.identification).toBe("ITE EC-V14.0");
+  });
+
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testWithoutTheBlockThereIsNoIdentification
   it("is absent without the block", () => {
     const bytes = iteImage();

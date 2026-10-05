@@ -22,7 +22,12 @@ import {
   fitComponentKindOf,
   readFITComponentHeader,
 } from "@/firmware/uefi/fitComponents";
-import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { FlashDeviceMap, regionTypeName } from "@/firmware/uefi/flashDeviceMapFormat";
+import {
+  type FlashDeviceMapEntry,
+  flashDeviceMapEntries,
+  flashDeviceMapEntryRange,
+} from "@/firmware/uefi/flashDeviceMapParser";
 import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
 import { allITEFirmware } from "@/firmware/uefi/iteFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
@@ -73,6 +78,7 @@ import {
   type DetailCell,
   type DetailField,
   type DetailTable,
+  type DetailTableTarget,
   field,
   type NodeDetail,
   permission,
@@ -105,8 +111,13 @@ export function buildNodeDetail(
   reader: ImageReader,
   repairs: readonly ChecksumRepair[] = []
 ): NodeDetail {
-  const detail = withListedRanges(
-    withVariableHistory(buildDetailRows(node, image, reader, repairs), node, image, reader),
+  const detail = withMapRegions(
+    withListedRanges(
+      withVariableHistory(buildDetailRows(node, image, reader, repairs), node, image, reader),
+      node,
+      image,
+      reader
+    ),
     node,
     image,
     reader
@@ -243,28 +254,127 @@ function listedRangesTable(
       .nodesContaining(nodeRange(near).start)
       .find((one) => one.kind === "region" && one.subtype === biosIndex) ?? undefined;
   const origin = bios === undefined ? 0 : nodeRange(bios).start;
+  const rows: DetailCell[][] = [];
+  const targets: (DetailTableTarget | undefined)[] = [];
+  for (const range of ranges) {
+    const start = origin + range.start;
+    const end = origin + range.end;
+    const holder = image.allNodes.find((one) => {
+      const where = nodeRange(one);
+      return (
+        one.space.length === 0 &&
+        where.start === start &&
+        where.end === end &&
+        one.kind !== "region"
+      );
+    });
+    rows.push([
+      cell(hex(start)),
+      cell(sizeText(range.end - range.start)),
+      cell(holder === undefined ? "—" : holderText(holder)),
+    ]);
+    // An empty slot — `SPI_EF6018`'s second is a size of zero — and a range past
+    // the end have nothing to outline.
+    targets.push(
+      end > start && end <= image.size
+        ? {
+            kind: "range",
+            start,
+            end,
+            name: holder === undefined ? "$BME$" : holderText(holder),
+          }
+        : undefined
+    );
+  }
   return {
     title: L("Ranges listed in $BME$"),
     symbol: "list.bullet.rectangle",
     columns: [L("Start"), L("Size"), L("Holds")],
-    rows: ranges.map((range) => {
-      const start = origin + range.start;
-      const end = origin + range.end;
-      const holder = image.allNodes.find((one) => {
-        const where = nodeRange(one);
-        return (
-          one.space.length === 0 &&
-          where.start === start &&
-          where.end === end &&
-          one.kind !== "region"
-        );
-      });
-      return [
-        cell(hex(start)),
-        cell(sizeText(range.end - range.start)),
-        cell(holder === undefined ? "—" : holderText(holder)),
-      ];
-    }),
+    rows,
+    rowTargets: targets,
+    linkColumn: 0,
+  };
+}
+
+/**
+ * Where the regions an Insyde map names lie in the file — the whole map on its
+ * own row, one region on an entry's.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withMapRegions(
+  detail: NodeDetail,
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): NodeDetail {
+  if (node.kind !== "flashDeviceMapStore" && node.kind !== "flashDeviceMapEntry") return detail;
+  const store =
+    node.kind === "flashDeviceMapStore"
+      ? node
+      : node.id.length === 0
+        ? undefined
+        : image.node(node.id.slice(0, -1));
+  if (store === undefined) return detail;
+  const entries = flashDeviceMapEntries(store, reader).filter(
+    (entry) => node.kind === "flashDeviceMapStore" || entry.offset === node.header.start
+  );
+  if (entries.length === 0) return detail;
+  return { ...detail, tables: [...detail.tables, mapRegionsTable(entries, image)] };
+}
+
+/**
+ * Each entry's region as the firmware addresses it and as the file holds it, with
+ * the node that is exactly that range where there is one. Before the image's
+ * mapping is known, only the address can be given.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.mapRegionsTable
+ */
+function mapRegionsTable(entries: readonly FlashDeviceMapEntry[], image: UEFIImage): DetailTable {
+  const rows: DetailCell[][] = [];
+  const targets: (DetailTableTarget | undefined)[] = [];
+  for (const entry of entries) {
+    const type = regionTypeName(entry.type) ?? nameOfGuid(entry.type) ?? guidText(entry.type);
+    const placed =
+      image.addressDiff === undefined
+        ? undefined
+        : flashDeviceMapEntryRange(entry, image.addressDiff);
+    const holder =
+      placed === undefined
+        ? undefined
+        : image.allNodes.find((one) => {
+            const where = nodeRange(one);
+            return (
+              one.space.length === 0 &&
+              where.start === placed.start &&
+              where.end === placed.end &&
+              one.kind !== "region"
+            );
+          });
+    rows.push([
+      cell(type),
+      cell(hex(entry.address)),
+      cell(placed === undefined ? "—" : hex(placed.start)),
+      cell(sizeText(entry.size)),
+      cell(holder === undefined ? "—" : holderText(holder)),
+    ]);
+    // Only what lies in the file can be shown in it.
+    targets.push(
+      placed !== undefined && placed.end > placed.start && placed.end <= image.size
+        ? { kind: "range", start: placed.start, end: placed.end, name: type }
+        : undefined
+    );
+  }
+  // A click on a region outlines its bytes in the dump: the way to see where a
+  // region the tree does not cut out lies.
+  // help: panel.uefi.map-regions
+  return {
+    title: L("Regions of the flash device map"),
+    symbol: "list.bullet.rectangle",
+    columns: [L("Type"), L("Address"), L("Start"), L("Size"), L("Holds")],
+    rows,
+    rowTargets: targets,
+    linkColumn: 2,
   };
 }
 
@@ -379,12 +489,12 @@ function historyTable(
   const isFocus = (version: NvramVariableVersion) =>
     version.entry.length === focus.length && version.entry.every((part, at) => part === focus[at]);
   const rows: DetailCell[][] = [];
-  const targets: (readonly number[] | undefined)[] = [];
+  const targets: (DetailTableTarget | undefined)[] = [];
   if (firstShown > 0) {
     const focused = versions.findIndex(isFocus);
     if (focused >= 0 && focused < firstShown) {
       rows.push(historyRow(versions, focused, isFocus, reader));
-      targets.push(versions[focused]?.entry);
+      targets.push(nodeTarget(versions[focused]?.entry));
     }
     rows.push([
       cell("…"),
@@ -397,7 +507,7 @@ function historyTable(
   }
   for (let index = firstShown; index < versions.length; index++) {
     rows.push(historyRow(versions, index, isFocus, reader));
-    targets.push(versions[index]?.entry);
+    targets.push(nodeTarget(versions[index]?.entry));
   }
   // A click on a copy puts it in focus: its detail, and its bytes in the dump — the
   // way to a copy the tree leaves out.
@@ -414,8 +524,13 @@ function historyTable(
     ],
     rows,
     rowTargets: targets,
+    linkColumn: 1,
   };
 }
+
+/** A click on the row puts the node in focus, where there is one. */
+const nodeTarget = (path: readonly number[] | undefined): DetailTableTarget | undefined =>
+  path === undefined ? undefined : { kind: "node", path };
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.historyRow */
 function historyRow(

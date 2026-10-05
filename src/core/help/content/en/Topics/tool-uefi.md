@@ -11,6 +11,7 @@
 @covers panel.uefi.filter
 @covers panel.uefi.variable-history
 @covers panel.uefi.reveal
+@covers panel.uefi.map-regions
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
@@ -43,6 +44,10 @@ A [[term:picture|picture]] the tool recognises — a JPEG, PNG, GIF or BMP, in p
 ## Padding
 
 A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked in the filter menu, which the funnel icon in the title row opens, left of **the reveal button**. The icon is tinted while the tree lists anything it omits by default. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume.
+
+## Regions of an Insyde map
+
+On Insyde firmware the detail of the [[term:flash-device-map|flash device map]], and of each of its entries, lists the regions the map names under **Regions of the flash device map**. The start of a region that lies in the dump is a link: a click on its row outlines the region in the dump under the region's type and brings it into view, including a region the tree does not show as a row of its own because it spans several nodes or lies inside one. The tree and the detail stay on the map; selecting another node replaces the outline. The table **Ranges listed in $BME$** in the detail of the [[term:bvdt|BIOS Version Data Table]] links its ranges the same way.
 
 ## Variable copies
 

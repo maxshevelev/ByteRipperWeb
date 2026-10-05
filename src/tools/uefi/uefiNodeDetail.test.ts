@@ -1266,7 +1266,10 @@ describe("a variable's history", () => {
     expect(history?.columns).toEqual(["Copy", "Address", "State", "Size", "Change"]);
     expect(history?.rows.map((row) => row[0]?.text)).toEqual(["1", "▸ 2", "3", "4"]);
     // A click on a row shows that copy.
-    expect(history?.rowTargets).toEqual(store.children.slice(1).map((child) => child.id));
+    expect(history?.rowTargets).toEqual(
+      store.children.slice(1).map((child) => ({ kind: "node", path: child.id }))
+    );
+    expect(history?.linkColumn).toBe(1);
     expect(history?.rows.map((row) => row[1]?.text)).toEqual(
       store.children.slice(1).map((child) => `0x${child.header.start.toString(16).toUpperCase()}`)
     );
@@ -1528,6 +1531,106 @@ describe("a BVDT region", () => {
     expect(listed?.rows.map((row) => row.map((one) => one.text))).toEqual([
       ["0x0", "0x1000 (4096)", "BIOS Version Data Table"],
       ["0x100000", "0x100000 (1048576)", "—"],
+    ]);
+    // The start is the link; a range past the end of the image has nowhere to be
+    // outlined.
+    expect(listed?.linkColumn).toBe(0);
+    expect(listed?.rowTargets).toEqual([
+      { kind: "range", start: 0, end: 0x1000, name: "BIOS Version Data Table" },
+      undefined,
+    ]);
+  });
+});
+
+describe("where an Insyde map's regions are", () => {
+  // An Insyde map lists its regions placed in the file, each with what is exactly
+  // there; an entry lists its own. A region whose address falls outside the image,
+  // or an image whose mapping is not known yet, gets a dash where the start would
+  // be.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAFlashDeviceMapListsWhereItsRegionsAre
+  it("lists where its regions are in the file", () => {
+    const base = 0xffff_e000;
+    const bytes = new Uint8Array(0x2000).fill(0xff);
+    const put = (value: number, size: number, at: number) => {
+      for (let index = 0; index < size; index++) {
+        bytes[at + index] = Math.floor(value / 2 ** (8 * index)) & 0xff;
+      }
+    };
+    for (let index = 0; index < 8; index++)
+      bytes[0x14 + index] = index < 4 ? (base >>> (8 * index)) & 0xff : 0;
+    const types = [FlashDeviceMap.ecFirmware, FlashDeviceMap.biosVersionDataTable];
+    const offsets = [0x1000, 0x1_0000_0000 - 0xffff_e000 + 0x3e000 - 0x2000];
+    types.forEach((type, index) => {
+      const entry = 0x1c + index * 0x54;
+      bytes.set(guidBytesOf(type), entry);
+      put(offsets[index] ?? 0, 8, entry + 0x20);
+      put(0x1000, 8, entry + 0x28);
+      put(1, 4, entry + 0x30);
+    });
+    const entries = types.map((type, index) =>
+      makeNode({
+        kind: "flashDeviceMapEntry",
+        name: "",
+        guid: type,
+        header: r(0x1c + index * 0x54, 0x1c + (index + 1) * 0x54),
+        body: r(0x1c + (index + 1) * 0x54, 0x1c + (index + 1) * 0x54),
+        id: [0, index],
+      })
+    );
+    const store = makeNode({
+      kind: "flashDeviceMapStore",
+      name: "Insyde flash device map",
+      header: r(0, 0x1c),
+      body: r(0x1c, 0xc4),
+      isFixed: true,
+      children: entries,
+      id: [0],
+    });
+    const region = makeNode({
+      kind: "flashDeviceMapRegion",
+      name: "EC Firmware",
+      guid: FlashDeviceMap.ecFirmware,
+      header: r(0x1000, 0x1000),
+      body: r(0x1000, 0x2000),
+      isFixed: true,
+      id: [1],
+    });
+    const rowsOf = (node: UEFINode, image: UEFIImage) => {
+      const found = table(
+        buildNodeDetail(node, image, readerOver(bytes)),
+        "Regions of the flash device map"
+      );
+      expect(found?.columns).toEqual(["Type", "Address", "Start", "Size", "Holds"]);
+      return found?.rows.map((row) => row.map((one) => one.text));
+    };
+
+    const image = new UEFIImage({ size: 0x2000, roots: [store, region], addressDiff: base });
+    const whole = table(
+      buildNodeDetail(image.roots[0] as UEFINode, image, readerOver(bytes)),
+      "Regions of the flash device map"
+    );
+    expect(whole?.linkColumn).toBe(2);
+    expect(whole?.rowTargets?.[0]).toEqual({
+      kind: "range",
+      start: 0x1000,
+      end: 0x2000,
+      name: "EC Firmware",
+    });
+    expect(rowsOf(image.roots[0] as UEFINode, image)?.[0]).toEqual([
+      "EC Firmware",
+      "0xFFFFF000",
+      "0x1000",
+      "0x1000 (4096)",
+      "EC Firmware",
+    ]);
+    expect(rowsOf((image.roots[0] as UEFINode).children[0] as UEFINode, image)).toEqual([
+      ["EC Firmware", "0xFFFFF000", "0x1000", "0x1000 (4096)", "EC Firmware"],
+    ]);
+
+    const unmapped = new UEFIImage({ size: 0x2000, roots: [store, region] });
+    expect(rowsOf(unmapped.roots[0] as UEFINode, unmapped)?.map((row) => row[2])).toEqual([
+      "—",
+      "—",
     ]);
   });
 });

@@ -1,3 +1,4 @@
+import { flashRegionRange, hasDescriptorSignature } from "@/firmware/uefi/descriptorParser";
 import { guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FFS } from "@/firmware/uefi/fileParser";
 import { nameOfGuid, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
@@ -170,17 +171,22 @@ export function addressDiffFromTail(parser: Parser): number | undefined {
  * files, which upstream measured at half a second on a 24 MiB dump — and every
  * panel that wants an address waits for it.
  *
- * Nothing when the tail holds no VTF whose size lands it exactly at the end: an
- * image mapped some other way, a region cut out of one, a dump with bytes
- * appended. The caller then walks, and gets the same answer the slow way.
+ * The end it looks at is the image's — or, in an image that opens on a flash
+ * descriptor, the BIOS region's, which is what the chipset maps up to the top: a
+ * programmer's dump can carry bytes appended after the chip's, and a descriptor
+ * can place another region after the BIOS.
+ *
+ * Nothing when that tail holds no VTF whose size lands it exactly at the end: an
+ * image mapped some other way, a region cut out of one. The caller then walks,
+ * and gets the same answer the slow way.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/SecondPass.swift#Parser.volumeTopFileInTail
  */
 export function volumeTopFileInTail(parser: Parser, window = 0x10000): UEFINode | undefined {
-  const count = parser.reader.count;
-  if (count <= FFS.headerSize) return undefined;
-  const start = count > window ? count - window : 0;
-  const bytes = parser.reader.bytes({ start, end: count });
+  const top = addressSpaceTop(parser);
+  if (top <= FFS.headerSize) return undefined;
+  const start = top > window ? top - window : 0;
+  const bytes = parser.reader.bytes({ start, end: top });
   if (bytes === undefined) return undefined;
 
   const wanted = guidBytes(VOLUME_TOP_FILE);
@@ -196,19 +202,33 @@ export function volumeTopFileInTail(parser: Parser, window = 0x10000): UEFINode 
     if (!matches) continue;
     const header = start + index;
     // The size field of the FFS header this GUID would be the name of. It has
-    // to land the file's last byte on the image's.
+    // to land the file's last byte on the top's.
     const size = parser.reader.uint24(header + 0x14);
-    if (size === undefined || size <= FFS.headerSize || header + size !== count) continue;
+    if (size === undefined || size <= FFS.headerSize || header + size !== top) continue;
     found = makeNode({
       kind: "file",
       name: nameOfGuid(VOLUME_TOP_FILE) ?? "Volume Top File",
       guid: VOLUME_TOP_FILE,
       header: { start: header, end: header + FFS.headerSize },
-      body: { start: header + FFS.headerSize, end: count },
+      body: { start: header + FFS.headerSize, end: top },
       isFixed: true,
     });
   }
   return found;
+}
+
+/**
+ * Where the byte mapped at `0xFFFFFFFF` ends in the file: the end of the BIOS
+ * region a descriptor at the image's start names, or the image's own end when
+ * there is no descriptor to say.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SecondPass.swift#Parser.addressSpaceTop
+ */
+export function addressSpaceTop(parser: Parser): number {
+  const count = parser.reader.count;
+  if (!hasDescriptorSignature(parser, 0)) return count;
+  const bios = flashRegionRange(parser, "bios", 0, count, false);
+  return bios === undefined ? count : bios.end;
 }
 
 /**

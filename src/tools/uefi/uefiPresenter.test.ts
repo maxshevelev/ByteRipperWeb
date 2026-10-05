@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { nodeIDOfZone, uefiZones, type ZonedNode } from "@/tools/uefi/uefiPresenter";
+import {
+  nodeIDOfZone,
+  uefiZones,
+  uefiZonesOutlining,
+  type ZonedNode,
+} from "@/tools/uefi/uefiPresenter";
 import { normalizedZones, zonesContaining } from "@/tools/zone";
 
 /** Ported from upstream's `UEFIToolTests` — the zones a selected node publishes. */
@@ -123,5 +128,30 @@ describe("a zone id read back into a node's path", () => {
     expect(nodeIDOfZone("0x10")).toBeUndefined();
     expect(nodeIDOfZone(" ")).toBeUndefined();
     expect(nodeIDOfZone("+1.2")).toEqual([1, 2]);
+  });
+});
+
+describe("a range outlined from a detail row", () => {
+  // A region picked in the detail is outlined beside the focused node's zones and
+  // takes the focus; picking it again does not draw it twice.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testOutliningARangeAddsItOverTheFocusedNode
+  it("is added over the focused node and takes the focus, once", () => {
+    const focused = uefiZones(
+      node({ id: [0], name: "Insyde flash device map", header: [0, 0x1c], body: [0x1c, 0xc4] })
+    );
+    const outlined = uefiZonesOutlining({ start: 0x1000, end: 0x2000 }, "EC Firmware", focused);
+
+    expect(outlined.zones.slice(0, -1)).toEqual(focused.zones);
+    expect(outlined.zones.at(-1)).toMatchObject({
+      start: 0x1000,
+      end: 0x2000,
+      name: "EC Firmware",
+    });
+    expect(outlined.focus).toBe(outlined.zones.at(-1)?.id);
+    // Picking it in the dump leads to no node.
+    expect(nodeIDOfZone(outlined.focus ?? "")).toBeUndefined();
+    expect(uefiZonesOutlining({ start: 0x1000, end: 0x2000 }, "EC Firmware", outlined)).toEqual(
+      outlined
+    );
   });
 });

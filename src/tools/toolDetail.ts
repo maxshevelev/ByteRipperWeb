@@ -79,13 +79,36 @@ export interface DetailTable {
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.rows */
   readonly rows: readonly (readonly DetailCell[])[];
   /**
-   * The node each row stands for, where a row stands for one: a click on the row puts
-   * it in focus. Absent, or undefined for a row, when it is text only.
+   * What each row stands for, where a row stands for something: a click on the row
+   * goes there. Absent, or undefined for a row, when it is text only.
    *
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.rowTargets
    */
-  readonly rowTargets?: readonly (readonly number[] | undefined)[] | undefined;
+  readonly rowTargets?: readonly (DetailTableTarget | undefined)[] | undefined;
+  /**
+   * The column a row with a target draws as a link: the one that says where the
+   * target is. Absent means the second.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.linkColumn
+   */
+  readonly linkColumn?: number | undefined;
 }
+
+/**
+ * Where a click on a row goes.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Target
+ * @upstream-differs a tagged object, where upstream has an enum with payloads
+ */
+export type DetailTableTarget =
+  /** A node: the click puts it in focus, its detail and its bytes. */
+  | { readonly kind: "node"; readonly path: readonly number[] }
+  /**
+   * Bytes that are not one node — a region an Insyde map names, which can span
+   * several or lie inside one. The click outlines them in the dump under `name`
+   * and leaves the focus where it is.
+   */
+  | { readonly kind: "range"; readonly start: number; readonly end: number; readonly name: string };
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail */
 export interface NodeDetail {

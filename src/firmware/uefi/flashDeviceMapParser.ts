@@ -1,4 +1,4 @@
-import type { ImageRange } from "@/firmware/imageReader";
+import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { sum8 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap, regionTypeName } from "@/firmware/uefi/flashDeviceMapFormat";
@@ -18,6 +18,84 @@ import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
  *
  * Ported from `Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift`.
  */
+
+/**
+ * One entry of a map, as the firmware reads it: where its region is in the
+ * address space and how long it is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry
+ */
+export interface FlashDeviceMapEntry {
+  /**
+   * Where the entry itself is in the file.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry.offset
+   */
+  readonly offset: number;
+  /**
+   * The region's type, the entry's first GUID.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry.type
+   */
+  readonly type: EFIGUID;
+  /**
+   * `FdBaseAddress + RegionOffset`, in 32 bits as the reference computes it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry.address
+   */
+  readonly address: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry.size */
+  readonly size: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry.attributes */
+  readonly attributes: number;
+}
+
+/**
+ * Where the entry's region is in the file, given the image's mapping. Nothing
+ * when the address lies below the image.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.Entry.range
+ */
+export function flashDeviceMapEntryRange(
+  entry: FlashDeviceMapEntry,
+  addressDiff: number
+): ImageRange | undefined {
+  if (entry.address < addressDiff) return undefined;
+  const start = entry.address - addressDiff;
+  return { start, end: start + entry.size };
+}
+
+/**
+ * Every entry of the map `store` heads, in the order it lists them. Empty for a
+ * store whose entry layout is not the known one: its node has no entry rows
+ * then.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.entries
+ */
+export function flashDeviceMapEntries(store: UEFINode, reader: ImageReader): FlashDeviceMapEntry[] {
+  if (store.kind !== "flashDeviceMapStore") return [];
+  const base = reader.uint64(store.header.start + FlashDeviceMap.baseAddressOffset);
+  if (base === undefined) return [];
+  const found: FlashDeviceMapEntry[] = [];
+  for (const entry of store.children) {
+    const at = entry.header.start;
+    if (entry.kind !== "flashDeviceMapEntry" || entry.guid === undefined) continue;
+    const offset = reader.uint64(at + FlashDeviceMap.regionOffsetOffset);
+    const size = reader.uint64(at + FlashDeviceMap.regionSizeOffset);
+    const attributes = reader.uint32(at + FlashDeviceMap.attributesOffset);
+    if (offset === undefined || size === undefined || attributes === undefined) continue;
+    found.push({
+      offset: at,
+      type: entry.guid,
+      // The same arithmetic the protected ranges use: 32 bits, as the reference
+      // does.
+      address: ((base >>> 0) + (offset >>> 0)) >>> 0,
+      size: size >>> 0,
+      attributes,
+    });
+  }
+  return found;
+}
 
 /**
  * A store the raw-area scan found by its signature. Nothing when the header does
@@ -142,22 +220,11 @@ export function readingMapRegions(
 
   const regions: { readonly type: EFIGUID; readonly range: ImageRange }[] = [];
   for (const map of maps) {
-    const base = parser.reader.uint64(map.header.start + FlashDeviceMap.baseAddressOffset);
-    if (base === undefined) continue;
-    for (const entry of map.children) {
-      if (entry.kind !== "flashDeviceMapEntry" || entry.guid === undefined) continue;
-      const at = entry.header.start;
-      const offset = parser.reader.uint64(at + FlashDeviceMap.regionOffsetOffset);
-      const size = parser.reader.uint64(at + FlashDeviceMap.regionSizeOffset);
-      if (offset === undefined || size === undefined) continue;
-      // The same arithmetic the protected ranges use (§5.3): 32 bits, as the
-      // reference does.
-      const address = ((base >>> 0) + (offset >>> 0)) >>> 0;
-      if (address < addressDiff) continue;
-      const start = address - addressDiff;
-      const range: ImageRange = { start, end: start + (size >>> 0) };
+    for (const entry of flashDeviceMapEntries(map, parser.reader)) {
+      const range = flashDeviceMapEntryRange(entry, addressDiff);
+      if (range === undefined) continue;
       // A board can carry the map twice, and both copies name the same ranges.
-      const type = entry.guid;
+      const type = entry.type;
       if (
         range.end > range.start &&
         !regions.some(

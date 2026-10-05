@@ -1,4 +1,4 @@
-@source-sha ec123d15d98a8d6eeb85949b97da0f8e4379b4e28807d839ccb7481b9507db50
+@source-sha df03bcd09ffb0d102b140db01cd7431b1cd3a1a63afd6b2a9152fb6128918e26
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -237,7 +237,7 @@ Insyde-Firmware enthält eine kleine Tabelle, die mit der Signatur `$BVDT$` begi
 - **ESRT firmware class** — die GUID, unter der das Betriebssystem die System-Firmware des Boards in der EFI System Resource Table führt. Windows zeigt sie als Hardware-ID `UEFI\RES_{…}` des Geräts „System Firmware“ an und ordnet ihr BIOS-Updatepakete zu; zwei Dumps mit unterschiedlicher GUID enthalten daher Firmware für unterschiedliche Boards.
 - **ESRT version** — die neben dieser GUID gespeicherte Firmware-Version. Auf den meisten untersuchten Dumps entspricht ihr niedrigstes Byte der Build-Nummer in der BIOS-Version.
 
-Der Eintrag `$BME$` listet Bereiche der BIOS-Region auf; die Tabelle **Bereiche in $BME$** gibt ihre Adressen im Dump an und nennt, was genau in diesen Grenzen liegt. Auf den untersuchten Dumps sind das die eigene Region der Tabelle, das Microcode-Volume und auf einem Board die Region der EC-Firmware. Was die Firmware oder ihr Flash-Werkzeug mit diesen Bereichen macht, ist nicht dokumentiert.
+Der Eintrag `$BME$` listet Bereiche der BIOS-Region auf; die Tabelle **Bereiche in $BME$** gibt ihre Adressen im Dump an und nennt, was genau in diesen Grenzen liegt. Auf den untersuchten Dumps sind das die eigene Region der Tabelle, das Microcode-Volume und auf zwei Boards die Region der EC-Firmware. Ein Klick auf eine Zeile, deren Bereich im Dump liegt, umrandet diesen Bereich im Dump. Was die Firmware oder ihr Flash-Werkzeug mit diesen Bereichen macht, ist nicht dokumentiert.
 
 Anhand der Tabelle lässt sich am schnellsten feststellen, welche Firmware ein Dump enthält und ob zwei Dumps dieselbe Version enthalten.
 

@@ -189,7 +189,8 @@ function intelImageChildren(parser: Parser, range: ImageRange, depth: number): U
  * region table — no raw-area scan, whether or not the region has ever been
  * expanded. This is what lets the ME analyser ask for the ME region's bytes
  * without either scanning the file itself or waiting for the BIOS region's own
- * volumes to be walked.
+ * volumes to be walked. `reporting: false` leaves a truncated map unremarked,
+ * for a caller that only looks and whose diagnostics would say it a second time.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Parser.flashRegionRange
  */
@@ -197,9 +198,10 @@ export function flashRegionRange(
   parser: Parser,
   type: FlashRegionType,
   base: number,
-  limit: number
+  limit: number,
+  reporting = true
 ): ImageRange | undefined {
-  return readRegions(parser, base, limit).find((region) => region.type === type)?.range;
+  return readRegions(parser, base, limit, reporting).find((region) => region.type === type)?.range;
 }
 
 /**
@@ -207,7 +209,7 @@ export function flashRegionRange(
  * cannot be believed — which the caller turns into a raw scan rather than into
  * nothing.
  */
-function readRegions(parser: Parser, base: number, limit: number): Region[] {
+function readRegions(parser: Parser, base: number, limit: number, reporting = true): Region[] {
   const map = parser.reader.uint32(base + Descriptor.mapOffset);
   const generation = readDescriptorGeneration(base, parser.reader)?.generation;
   if (map === undefined || generation === undefined) return [];
@@ -238,10 +240,11 @@ function readRegions(parser: Parser, base: number, limit: number): Region[] {
     const start = base + first * 0x1000;
     const end = base + (last * 0x1000 + 0xfff) + 1;
     if (start >= limit) {
-      parser.note({ kind: "truncated", structure: "flashDescriptor" }, entry);
+      if (reporting) parser.note({ kind: "truncated", structure: "flashDescriptor" }, entry);
       continue;
     }
-    if (end > limit) parser.note({ kind: "truncated", structure: "flashDescriptor" }, entry);
+    if (end > limit && reporting)
+      parser.note({ kind: "truncated", structure: "flashDescriptor" }, entry);
     regions.push({ type, range: { start, end: Math.min(end, limit) } });
   }
   return regions;

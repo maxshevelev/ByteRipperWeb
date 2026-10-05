@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
-import type { DetailSymbol, DetailTable, NodeDetail } from "@/tools/toolDetail";
+import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
@@ -38,6 +38,7 @@ export function ToolDetail({
   placeholder,
   helpTerm,
   onSelectNode,
+  onOutlineRange,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -59,6 +60,13 @@ export function ToolDetail({
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.tableRowClicked
    */
   readonly onSelectNode?: ((path: readonly number[]) => void) | undefined;
+  /**
+   * What a click on a table row that names bytes which are not one node does:
+   * outlines them in the dump under the name, and leaves the focus where it is.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOutlineRange
+   */
+  readonly onOutlineRange?: ((start: number, end: number, name: string) => void) | undefined;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const shownSubject = useRef<string | undefined>(undefined);
@@ -142,7 +150,12 @@ export function ToolDetail({
             ))}
           </dl>
           {detail.tables.map((table) => (
-            <DetailTableView key={table.title} table={table} onSelectNode={onSelectNode} />
+            <DetailTableView
+              key={table.title}
+              table={table}
+              onSelectNode={onSelectNode}
+              onOutlineRange={onOutlineRange}
+            />
           ))}
           {detail.picture === undefined ? null : (
             <PicturePreview bytes={detail.picture.bytes} mime={detail.picture.mime} />
@@ -260,10 +273,17 @@ function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly 
 function DetailTableView({
   table,
   onSelectNode,
+  onOutlineRange,
 }: {
   readonly table: DetailTable;
   readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
+  readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
 }) {
+  const linkColumn = table.linkColumn ?? 1;
+  /** Whether a click on this row goes anywhere here. */
+  const goes = (target: DetailTableTarget | undefined): boolean =>
+    target !== undefined &&
+    (target.kind === "node" ? onSelectNode !== undefined : onOutlineRange !== undefined);
   return (
     <section className="tool-detail-table">
       <h4 className="tool-detail-table-title">
@@ -284,19 +304,19 @@ function DetailTableView({
           {table.rows.map((row, rowIndex) => (
             <tr
               key={positional(rowIndex, "row")}
-              data-target={
-                onSelectNode !== undefined && table.rowTargets?.[rowIndex] !== undefined
-                  ? ""
-                  : undefined
-              }
+              data-target={goes(table.rowTargets?.[rowIndex]) ? "" : undefined}
               onClick={() => {
                 const target = table.rowTargets?.[rowIndex];
-                if (target !== undefined) onSelectNode?.(target);
+                if (target === undefined) return;
+                if (target.kind === "node") onSelectNode?.(target.path);
+                else onOutlineRange?.(target.start, target.end, target.name);
               }}
               title={
-                onSelectNode !== undefined && table.rowTargets?.[rowIndex] !== undefined
-                  ? L("Show this copy")
-                  : undefined
+                !goes(table.rowTargets?.[rowIndex])
+                  ? undefined
+                  : table.rowTargets?.[rowIndex]?.kind === "node"
+                    ? L("Show this copy")
+                    : L("Show this region in the dump")
               }
             >
               {/* By column, whose names are unique in a table. A permission is read
@@ -310,6 +330,7 @@ function DetailTableView({
                     className="tool-detail-grid-cell"
                     data-tone={one === undefined || one.tone === "plain" ? undefined : one.tone}
                     data-last={at === table.columns.length - 1 ? "" : undefined}
+                    data-link={at === linkColumn ? "" : undefined}
                     title={at === table.columns.length - 1 ? one?.text : undefined}
                   >
                     {one?.text ?? ""}
