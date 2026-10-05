@@ -3316,6 +3316,10 @@ button.uefi-title {
   -webkit-user-select: text;
 }
 
+.tool-detail:focus {
+  outline: none;
+}
+
 /* The large view of a panel's details: the pane under the table folds away (the split's
    rows are set to give the table the whole height) while the list stands in a card on the
    right of the window (`state/largeDetailStore`). */
@@ -3415,6 +3419,8 @@ button.uefi-title {
 
 .tool-detail-row dt {
   color: var(--text-muted);
+  /* A name too long for its column continues on the next line. */
+  overflow-wrap: anywhere;
 }
 
 .tool-detail-row dd {
@@ -3553,19 +3559,16 @@ button.uefi-title {
   padding: 1px 14px 1px 0;
 }
 
-/* A row that stands for something is a way to it: the cell that says where reads as
-   a link, the one cue a grid of text can give. */
-.tool-detail-grid tr[data-target] {
-  cursor: pointer;
-}
-
-.tool-detail-grid tr[data-target] .tool-detail-grid-cell[data-link] {
+/* A link leads only from its own zone: the link cell's text, under a pointing hand. A
+   click anywhere else on the row is a click on text. */
+.tool-detail-link {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--accent);
+  font: inherit;
   text-decoration: underline;
-}
-
-.tool-detail-grid tr[data-target]:hover {
-  background: var(--row-hover, color-mix(in srgb, currentcolor 8%, transparent));
+  cursor: pointer;
 }
 
 /* The last column gives way before the others do: cut short, whole on hover. */

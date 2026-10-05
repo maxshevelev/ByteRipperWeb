@@ -11,6 +11,8 @@
 @covers panel.uefi.filter
 @covers panel.uefi.variable-history
 @covers panel.uefi.folding-table
+@covers panel.uefi.table-copy
+@covers panel.detail-select
 @covers panel.uefi.variable-value
 @covers panel.uefi.reveal
 @covers panel.uefi.map-regions
@@ -27,7 +29,7 @@ The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyz
 
 **The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree.
 
-A long table in the details — **PCH straps** in the details of the [[term:flash-descriptor|flash descriptor]] — is folded under its heading at first, so that the rest of the details remains in view. A click on the triangle or on the heading unfolds it; it then stays unfolded on other nodes until the app is quit.
+A long table in the details — **PCH straps** in the details of the [[term:flash-descriptor|flash descriptor]] — is folded under its heading at first, so that the rest of the details remains in view. A click on the triangle or on the heading unfolds it; it then stays unfolded on other nodes until the app is quit. In a table only a link leads anywhere, and only a click on the link itself. The text of the details — the fields of a node as well as the tables — is selected as any text is: by dragging across rows, a word by a double click, a row by a triple click, the whole list of fields or the whole table by ⌘A. ⌘C copies the selection with a tab between a field's name and its value or between cells, and a line per row, so that a spreadsheet receives a table as a table. **Copy** in the context menu of a row copies the selection or, when nothing is selected, the name, value or cell under the pointer. A field name too long for its column continues on the next line.
 
 ## What the tool checks
 
@@ -55,10 +57,10 @@ The row of a [[term:vss|VSS]], [[term:nvar|NVAR]] or [[term:dvar|DVAR]] variable
 
 ## Regions of an Insyde map
 
-On Insyde firmware the detail of the [[term:flash-device-map|flash device map]], and of each of its entries, lists the regions the map names under **Regions of the flash device map**. The start of a region that lies in the dump is a link: a click on its row outlines the region in the dump under the region's type and brings it into view, including a region the tree does not show as a row of its own because it spans several nodes or lies inside one. The tree and the detail stay on the map; selecting another node replaces the outline. The table **Ranges listed in $BME$** in the detail of the [[term:bvdt|BIOS Version Data Table]] links its ranges the same way.
+On Insyde firmware the detail of the [[term:flash-device-map|flash device map]], and of each of its entries, lists the regions the map names under **Regions of the flash device map**. The start of a region that lies in the dump is a link: a click on it outlines the region in the dump under the region's type and brings it into view, including a region the tree does not show as a row of its own because it spans several nodes or lies inside one. The tree and the detail stay on the map; selecting another node replaces the outline. The table **Ranges listed in $BME$** in the detail of the [[term:bvdt|BIOS Version Data Table]] links its ranges the same way.
 
 ## Variable copies
 
-[[term:vss|VSS]], [[term:nvar|NVAR]] and [[term:dvar|DVAR]] — the [[term:nvram|NVRAM]] formats whose entries the tree folds to one row per variable — keep the earlier copies of a variable until the firmware reclaims the store; on a board that writes a variable at every boot the copies are most of the rows. The row is the variable's current copy, or for a variable the store no longer holds, the copy it was deleted as, unless **Show Superseded Entries** is ticked in the same menu. The other copies are listed under **Variable history** in the detail of that row; a click on a copy there shows its own detail and its bytes in the dump, and the tree keeps the row of the copy that stands selected. When the caret in the dump is in a copy the tree leaves out, revealing it does the same.
+[[term:vss|VSS]], [[term:nvar|NVAR]] and [[term:dvar|DVAR]] — the [[term:nvram|NVRAM]] formats whose entries the tree folds to one row per variable — keep the earlier copies of a variable until the firmware reclaims the store; on a board that writes a variable at every boot the copies are most of the rows. The row is the variable's current copy, or for a variable the store no longer holds, the copy it was deleted as, unless **Show Superseded Entries** is ticked in the same menu. The other copies are listed under **Variable history** in the detail of that row; a click on a copy's address there shows its own detail and its bytes in the dump, and the tree keeps the row of the copy that stands selected. When the caret in the dump is in a copy the tree leaves out, revealing it does the same.
 
 See also: [[topic:tool-fit|FIT Table]], [[term:vss|NVRAM stores]], [[topic:recipe-checksums|Checksums]].

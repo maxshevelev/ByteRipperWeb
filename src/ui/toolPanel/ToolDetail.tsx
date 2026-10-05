@@ -10,6 +10,7 @@ import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
+import { detailCopyText } from "@/ui/toolPanel/detailCopy";
 import {
   initialPictureBackground,
   nextPictureBackground,
@@ -62,7 +63,7 @@ export function ToolDetail({
    * What a click on a table row that stands for a node does: puts that node in
    * focus. Without it the rows are text only.
    *
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.tableRowClicked
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#DetailTableRow.follow
    */
   readonly onSelectNode?: ((path: readonly number[]) => void) | undefined;
   /**
@@ -107,6 +108,7 @@ export function ToolDetail({
   useEffect(() => () => closeLargeDetail(), []);
 
   const bodyProps = { detail, placeholder, helpTerm, subject };
+  const selecting = detailSelectionHandlers();
   return (
     // Space in the details opens the large view, and hands the focus to the table, so
     // the arrow keys move it — a reader who has clicked into the details to select a
@@ -117,8 +119,11 @@ export function ToolDetail({
       className="tool-detail"
       ref={paneRef}
       data-large={open ? "" : undefined}
+      tabIndex={selecting.tabIndex}
+      onCopy={selecting.onCopy}
       // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShut
       onKeyDown={(event) => {
+        if (selecting.selectAll(event)) return;
         if (event.key !== " " || event.ctrlKey || event.metaKey || event.altKey) return;
         if (isTextEntryTarget(event.target)) return;
         if (toggleLargeDetail(hasRows)) {
@@ -143,6 +148,41 @@ export function ToolDetail({
         : null}
     </div>
   );
+}
+
+/**
+ * The text of the details is selected as any text is — a drag across rows, a word by a
+ * double click, a row by a triple click — and Ctrl+A or ⌘A takes the whole list, the
+ * fields and the tables together. Copying puts it on the clipboard with a tab between a
+ * field's name and its value or between cells, and a line per row.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSelectableRows.swift#ToolSelectableRows
+ */
+function detailSelectionHandlers() {
+  // help: panel.detail-select
+  // help: panel.uefi.table-copy
+  return {
+    // Focusable by a click, so the keys and the copy arrive here.
+    tabIndex: -1,
+    onCopy: (event: React.ClipboardEvent<HTMLElement>) => {
+      const selection = window.getSelection();
+      if (selection === null || selection.isCollapsed || selection.rangeCount === 0) return;
+      const text = detailCopyText(selection.getRangeAt(0).cloneContents());
+      if (text.length === 0) return;
+      event.clipboardData.setData("text/plain", text);
+      event.preventDefault();
+    },
+    /** Ctrl+A or ⌘A on the details: the whole list. True when it was taken. */
+    selectAll: (event: React.KeyboardEvent<HTMLElement>): boolean => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "a") {
+        return false;
+      }
+      if (isTextEntryTarget(event.target)) return false;
+      window.getSelection()?.selectAllChildren(event.currentTarget);
+      event.preventDefault();
+      return true;
+    },
+  };
 }
 
 /**
@@ -239,6 +279,7 @@ function LargeDetailCard({
   readonly onClose: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const selecting = detailSelectionHandlers();
   useScrollToTopOnSubject(cardRef, subject, hasRows);
 
   useEffect(() => {
@@ -284,6 +325,11 @@ function LargeDetailCard({
       ref={cardRef}
       role="dialog"
       aria-label={L("Details")}
+      tabIndex={selecting.tabIndex}
+      onCopy={selecting.onCopy}
+      onKeyDown={(event) => {
+        selecting.selectAll(event);
+      }}
     >
       <ExpandButton open onClick={onClose} />
       <DetailBody
@@ -563,57 +609,75 @@ function DetailTableView({
           </>
         )}
       </h4>
-      <table className="tool-detail-grid" hidden={!open}>
-        <thead>
-          <tr>
-            {table.columns.map((column) => (
-              <th key={column} scope="col" className="tool-detail-grid-head">
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((row, rowIndex) => (
-            <tr
-              key={positional(rowIndex, "row")}
-              data-target={goes(table.rowTargets?.[rowIndex]) ? "" : undefined}
-              onClick={() => {
+      {
+        // The rows of a table that folds are built when it is opened, not before: a
+        // descriptor's strap words are some seventy lines nobody has asked for.
+        // @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#DetailTableView
+        !open ? null : (
+          <table className="tool-detail-grid">
+            <thead>
+              <tr>
+                {table.columns.map((column) => (
+                  <th key={column} scope="col" className="tool-detail-grid-head">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {table.rows.map((row, rowIndex) => {
                 const target = table.rowTargets?.[rowIndex];
-                if (target === undefined) return;
-                if (target.kind === "node") onSelectNode?.(target.path);
-                else onOutlineRange?.(target.start, target.end, target.name);
-              }}
-              title={
-                !goes(table.rowTargets?.[rowIndex])
-                  ? undefined
-                  : table.rowTargets?.[rowIndex]?.kind === "node"
-                    ? L("Show this copy")
-                    : L("Show this region in the dump")
-              }
-            >
-              {/* By column, whose names are unique in a table. A permission is read
+                return (
+                  <tr key={positional(rowIndex, "row")}>
+                    {/* By column, whose names are unique in a table. A permission is read
                   by its colour as much as by its word — a column of green with
                   one red in it answers at a glance. */}
-              {table.columns.map((column, at) => {
-                const one = row[at];
-                return (
-                  <td
-                    key={column}
-                    className="tool-detail-grid-cell"
-                    data-tone={one === undefined || one.tone === "plain" ? undefined : one.tone}
-                    data-last={at === table.columns.length - 1 ? "" : undefined}
-                    data-link={at === linkColumn ? "" : undefined}
-                    title={at === table.columns.length - 1 ? one?.text : undefined}
-                  >
-                    {one?.text ?? ""}
-                  </td>
+                    {table.columns.map((column, at) => {
+                      const one = row[at];
+                      const text = one?.text ?? "";
+                      return (
+                        <td
+                          key={column}
+                          className="tool-detail-grid-cell"
+                          data-tone={
+                            one === undefined || one.tone === "plain" ? undefined : one.tone
+                          }
+                          data-last={at === table.columns.length - 1 ? "" : undefined}
+                          data-link={at === linkColumn ? "" : undefined}
+                          title={at === table.columns.length - 1 ? one?.text : undefined}
+                        >
+                          {/* A link leads only from its own zone — the link cell's text,
+                              under a pointing hand, with what it does under the pointer —
+                              and a click anywhere else on the row is a click on text. */}
+                          {at === linkColumn && target !== undefined && goes(target) ? (
+                            <button
+                              type="button"
+                              className="tool-detail-link"
+                              title={
+                                target.kind === "node"
+                                  ? L("Show this copy")
+                                  : L("Show this region in the dump")
+                              }
+                              onClick={() => {
+                                if (target.kind === "node") onSelectNode?.(target.path);
+                                else onOutlineRange?.(target.start, target.end, target.name);
+                              }}
+                            >
+                              {text}
+                            </button>
+                          ) : (
+                            text
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        )
+      }
     </section>
   );
 }

@@ -779,7 +779,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * A click on a row of a detail table that stands for a node: that node in focus,
    * its detail and its bytes in the dump — the way to a copy the tree leaves out.
    *
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.tableRowClicked
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#DetailTableRow.follow
    */
   const chooseByPath = useCallback(
     (path: readonly number[]) => {

@@ -780,7 +780,8 @@
         "Sources/UEFIToolUI/PicturePreviewView.swift": [
           "src/ui/toolPanel/pictureBackground.ts",
           "src/ui/toolPanel/ToolDetail.tsx"
-        ]
+        ],
+        "Sources/UEFIToolUI/DetailTableView.swift": "src/ui/toolPanel/ToolDetail.tsx"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
@@ -834,7 +835,8 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openUnpackedInNewTab": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenUnpacked": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnOverridesVariableIsReadAsRules": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
+        "Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#*": "n/a — AppKit view mechanics: one view per row, measured and drawn by hand, with its own selection and its own accessibility. The browser lays out, draws and selects the text of a table itself; what is left of it — a link only from its cell, the folded rows built when opened, and the copy with a tab between cells — is in `ToolDetail.tsx` and `detailCopy.ts`"
       }
     },
     {
