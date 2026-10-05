@@ -217,7 +217,7 @@ An empty region is erased and contains nothing. Whether that means, for example,
 
 The type names are those of UEFITool. A type it does not know is shown as its GUID.
 
-The map states addresses in the processor's address space. ByteRipper converts them into dump addresses from the end of the BIOS region; where that conversion is not possible, the regions remain padding.
+The map states addresses in the processor's address space. ByteRipper converts them into dump addresses from the end of the BIOS region. On AMD boards the dump ends in no Volume Top File; there ByteRipper takes the conversion from the map's own entry, the one of the type Flash Device Map, since the map's position in the dump is known. Where neither is possible, the regions remain padding.
 
 @see term:bvdt
 @see term:ec-firmware
@@ -260,6 +260,8 @@ What usually gives it away:
 - **Microchip (MEC)** images begin with the header `PHCM`. On a board with an EC region they sit in that region; according to the same community source, older boards more often keep them inside the BIOS region's first volume.
 
 Where an EC image begins — at the start of a padding block, of the map's **EC Firmware** region or of the descriptor's EC region — ByteRipper names the row after it and gives the image's size: an ITE image by the identification it carries after its signature block, for example **EC Firmware (ITE8380-EC-V1.43, 148 KB)** or **EC firmware (ITE8226-EC-V0.00, 172 KB)**, and an image with a `PHCM` header, which names neither chip nor version, as **Microchip MEC image**. A block can hold several images, each on a 4 KiB boundary — the firmware of a second controller, or a second copy. Each then becomes a row of its own, named after its image and its size, for example **ITE8380-EC-V0.00, 192 KB**, while the block itself names none of them — **EC Firmware**, **EC region** or **EC firmware** — and the space between the images remains padding. An image that repeats an earlier one byte for byte is marked **(copy)**; whether the controller uses it as a backup is not documented.
+
+An ITE image does not have to open a padding block. On AMD boards the first padding block begins with the data of the [[term:psp|PSP]], and the EC firmware lies further in. ByteRipper then cuts the image out of the block: the bytes before and after it remain padding, and the image becomes a row of its own, for example **EC firmware (ITE8380-EC-V0.00, 108 KB)**. Its size runs to its last written byte; where the [[term:flash-device-map|flash device map]] names the region, the row covers the region within the bounds the map gives. A `PHCM` header is too short to be recognised away from the start of a block, so a Microchip image is found only where a block or a region begins.
 
 No known header states how long an image is. ByteRipper takes an image to extend to its last written byte before the next one, and a copy to be as long as the image it repeats; the size in a name is that length, rounded up to 4 KB. The detail list of an image row gives the vendor, the identification, the written length and, for a copy, the address of the original.
 

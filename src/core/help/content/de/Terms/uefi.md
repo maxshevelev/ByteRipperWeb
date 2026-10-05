@@ -1,4 +1,4 @@
-@source-sha df03bcd09ffb0d102b140db01cd7431b1cd3a1a63afd6b2a9152fb6128918e26
+@source-sha c27035ace9a0a83c681cad2a2df67e48994f9d644c82e18c89340999b5b09725
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -216,7 +216,7 @@ Eine leere Region ist gelöscht und enthält nichts. Ob dies beispielsweise bede
 
 Die Typbezeichnungen stammen aus UEFITool. Ein dort unbekannter Typ erscheint als seine GUID.
 
-Die Map gibt Adressen im Adressraum des Prozessors an. ByteRipper rechnet sie anhand des Endes der BIOS-Region in Adressen des Dumps um; ist diese Umrechnung nicht möglich, bleiben die Regionen Padding.
+Die Map gibt Adressen im Adressraum des Prozessors an. ByteRipper rechnet sie anhand des Endes der BIOS-Region in Adressen des Dumps um. Auf AMD-Boards endet der Dump nicht mit einer Volume Top File; dann entnimmt ByteRipper die Umrechnung dem eigenen Eintrag der Map, dem Eintrag vom Typ Flash Device Map, da die Lage der Map im Dump bekannt ist. Ist beides nicht möglich, bleiben die Regionen Padding.
 
 @see term:bvdt
 @see term:ec-firmware
@@ -259,6 +259,8 @@ Woran man sie üblicherweise erkennt:
 - **Microchip-Abbilder (MEC)** beginnen mit dem Header `PHCM`. Auf einem Board mit EC-Region liegen sie in dieser Region; nach derselben Quelle der Community befinden sie sich auf älteren Boards häufiger im ersten Volume der BIOS-Region.
 
 Beginnt ein EC-Abbild am Anfang eines Padding-Blocks, der Region **EC Firmware** aus der Map oder der EC-Region des Deskriptors, benennt ByteRipper die Zeile nach diesem Abbild und gibt dessen Größe an: ein ITE-Abbild nach der Kennung hinter seinem Signaturblock, etwa **EC Firmware (ITE8380-EC-V1.43, 148 KB)** oder **EC firmware (ITE8226-EC-V0.00, 172 KB)**, ein Abbild mit dem Header `PHCM`, der weder Chip noch Version nennt, als **Microchip MEC image**. Ein Block kann mehrere Abbilder enthalten, jedes an einer 4-KiB-Grenze — die Firmware eines zweiten Controllers oder eine zweite Kopie. Jedes Abbild erhält dann eine eigene Zeile mit seinem Namen und seiner Größe, etwa **ITE8380-EC-V0.00, 192 KB**; der Block selbst nennt keines davon — **EC Firmware**, **EC region** oder **EC firmware** —, und der Raum zwischen den Abbildern bleibt Padding. Ein Abbild, das ein früheres Byte für Byte wiederholt, trägt den Zusatz **(Kopie)**; ob der Controller es als Sicherung verwendet, ist nicht dokumentiert.
+
+Ein ITE-Abbild muss nicht am Anfang eines Padding-Blocks stehen. Auf AMD-Boards beginnt der erste Padding-Block mit den Daten des [[term:psp|PSP]], und die EC-Firmware liegt weiter hinten. ByteRipper schneidet das Abbild dann aus dem Block heraus: Die Bytes davor und danach bleiben Padding, und das Abbild erhält eine eigene Zeile, etwa **EC firmware (ITE8380-EC-V0.00, 108 KB)**. Seine Größe reicht bis zum letzten beschriebenen Byte; nennt die [[term:flash-device-map|Flash Device Map]] die Region, umfasst die Zeile die Region in den Grenzen der Map. Der Header `PHCM` ist zu kurz, um ihn abseits eines Blockanfangs zu erkennen; ein Microchip-Abbild wird daher nur am Anfang eines Blocks oder einer Region gefunden.
 
 Kein bekannter Header gibt die Länge eines Abbilds an. ByteRipper nimmt an, dass ein Abbild bis zu seinem letzten beschriebenen Byte vor dem nächsten reicht und eine Kopie so lang ist wie das Abbild, das sie wiederholt; die Größe im Namen ist diese Länge, auf 4 KB aufgerundet. Die Detailliste einer Abbild-Zeile nennt Hersteller, Kennung, beschriebene Länge und bei einer Kopie die Adresse des Originals.
 

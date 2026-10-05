@@ -25,6 +25,7 @@ import {
 import { FlashDeviceMap, regionTypeName } from "@/firmware/uefi/flashDeviceMapFormat";
 import {
   type FlashDeviceMapEntry,
+  flashDeviceMapAddressDiff,
   flashDeviceMapEntries,
   flashDeviceMapEntryRange,
 } from "@/firmware/uefi/flashDeviceMapParser";
@@ -320,25 +321,32 @@ function withMapRegions(
     (entry) => node.kind === "flashDeviceMapStore" || entry.offset === node.header.start
   );
   if (entries.length === 0) return detail;
-  return { ...detail, tables: [...detail.tables, mapRegionsTable(entries, image)] };
+  // The image's mapping, or — on an AMD board, whose flash ends in no Volume Top
+  // File — the one the map states about itself.
+  const addressDiff =
+    image.addressDiff ??
+    (store.space.length === 0 ? flashDeviceMapAddressDiff(store, reader) : undefined);
+  return { ...detail, tables: [...detail.tables, mapRegionsTable(entries, addressDiff, image)] };
 }
 
 /**
  * Each entry's region as the firmware addresses it and as the file holds it, with
- * the node that is exactly that range where there is one. Before the image's
- * mapping is known, only the address can be given.
+ * the node that is exactly that range where there is one. With no mapping known,
+ * only the address can be given.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.mapRegionsTable
  */
-function mapRegionsTable(entries: readonly FlashDeviceMapEntry[], image: UEFIImage): DetailTable {
+function mapRegionsTable(
+  entries: readonly FlashDeviceMapEntry[],
+  addressDiff: number | undefined,
+  image: UEFIImage
+): DetailTable {
   const rows: DetailCell[][] = [];
   const targets: (DetailTableTarget | undefined)[] = [];
   for (const entry of entries) {
     const type = regionTypeName(entry.type) ?? nameOfGuid(entry.type) ?? guidText(entry.type);
     const placed =
-      image.addressDiff === undefined
-        ? undefined
-        : flashDeviceMapEntryRange(entry, image.addressDiff);
+      addressDiff === undefined ? undefined : flashDeviceMapEntryRange(entry, addressDiff);
     const holder =
       placed === undefined
         ? undefined

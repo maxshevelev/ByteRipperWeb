@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { ImageReader } from "@/firmware/imageReader";
 import { BinaryWriter, descriptor, volume, volumeTopFile } from "@/firmware/testing/testImage";
 import { iteImage } from "@/firmware/testing/testInsyde";
 import { vssStore, vssVariable } from "@/firmware/testing/testNvram";
 import { sum8 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { flashDeviceMapAddressDiff } from "@/firmware/uefi/flashDeviceMapParser";
 import { itemSubtype, itemType } from "@/firmware/uefi/itemClassification";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { ItemType, Sub } from "@/firmware/uefi/uefiTypes";
 
 /**
@@ -223,6 +225,62 @@ describe("the regions a flash device map names", () => {
       { start: 0x1000, end: 0x3000 },
       { start: 0x3000, end: 0x3100 },
     ]);
+  });
+
+  // An AMD board's flash ends in no Volume Top File; the map's entry for its own
+  // region says where it is, and places the rest by it.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testWithNoVolumeTopFileTheMapPlacesItselfByItsOwnEntry
+  it("places itself by its own entry with no Volume Top File", () => {
+    const nodes = top(
+      image({
+        maps: [
+          [
+            { type: FlashDeviceMap.variableDefaults, offset: 0x1000, size: 0x2000 },
+            { type: PASSWORD, offset: 0x3000, size: 0x100 },
+            { type: FlashDeviceMap.flashDeviceMap, offset: 0x4000, size: 0x1000 },
+          ],
+        ],
+        trailing: 0x100,
+      })
+    );
+    expect(regions(nodes).map((node) => node.name)).toEqual(["Variable Defaults", "Password"]);
+    expect(regions(nodes).map((node) => nodeRange(node))).toEqual([
+      { start: 0x1000, end: 0x3000 },
+      { start: 0x3000, end: 0x3100 },
+    ]);
+  });
+
+  // A copy of the map somewhere else — inside a file — keeps the original's
+  // entries; an answer that is not a whole number of 4 KiB blocks is that, and is
+  // not taken.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testAMapAwayFromItsOwnRegionDoesNotPlaceItself
+  it("does not place a map away from its own region", () => {
+    const store = map([{ type: FlashDeviceMap.flashDeviceMap, offset: 0x4000, size: 0x1000 }]);
+    const bytes = new Uint8Array(0x8000).fill(0xff);
+    bytes.set(store, 0x4000);
+    bytes.set(store, 0x5124);
+    const reader = new ImageReader(sourceOver(bytes));
+    const nodeAt = (offset: number): UEFINode => {
+      const entry = offset + FlashDeviceMap.headerSize;
+      const end = entry + FlashDeviceMap.entrySize;
+      return makeNode({
+        kind: "flashDeviceMapStore",
+        name: "",
+        header: { start: offset, end: entry },
+        body: { start: entry, end },
+        children: [
+          makeNode({
+            kind: "flashDeviceMapEntry",
+            name: "",
+            guid: FlashDeviceMap.flashDeviceMap,
+            header: { start: entry, end },
+            body: { start: end, end },
+          }),
+        ],
+      });
+    };
+    expect(flashDeviceMapAddressDiff(nodeAt(0x4000), reader)).toBe(BASE);
+    expect(flashDeviceMapAddressDiff(nodeAt(0x5124), reader)).toBeUndefined();
   });
 
   // A Variable Defaults region nobody wrote is a region still, with no stores in

@@ -98,6 +98,32 @@ export function flashDeviceMapEntries(store: UEFINode, reader: ImageReader): Fla
 }
 
 /**
+ * The mapping the map states about itself: its own entry gives the address of the
+ * region it sits at the start of, and where it sits in the file is known. On an
+ * AMD board the flash's last bytes are no Volume Top File — the PSP loads the BIOS
+ * — so this is the one anchor such an image has.
+ *
+ * Nothing when the map names no region of its own, or the answer is not a whole
+ * number of 4 KiB blocks: a copy of the map inside a file, which keeps the
+ * original's entries at an offset of its own, or a store read out of a
+ * decompressed buffer.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.addressDiff
+ */
+export function flashDeviceMapAddressDiff(
+  store: UEFINode,
+  reader: ImageReader
+): number | undefined {
+  const start = nodeRange(store).start;
+  const own = flashDeviceMapEntries(store, reader).find((entry) =>
+    guidEquals(entry.type, FlashDeviceMap.flashDeviceMap)
+  );
+  if (own === undefined || own.address < start) return undefined;
+  const diff = own.address - start;
+  return diff % 0x1000 === 0 ? diff : undefined;
+}
+
+/**
  * A store the raw-area scan found by its signature. Nothing when the header does
  * not hold together — a size that does not fit what is left of the area, a data
  * offset outside it — which is the scan's cue to keep looking and no defect.
@@ -202,8 +228,10 @@ export function parseFlashDeviceMap(
  *
  * The map gives physical addresses, and this runs before the second pass has
  * worked out the mapping — so it takes it from a Volume Top File at the image's
- * tail, as address resolution does first. An image with no VTF at its tail — a
- * BIOS region followed by another region — keeps the ranges as padding.
+ * tail, as address resolution does first: the BIOS region's end where a descriptor
+ * names one, the file's otherwise. With no VTF there — an AMD board's flash — each
+ * map is placed by its own entry (`flashDeviceMapAddressDiff`); a map that cannot
+ * say keeps its ranges as padding.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#Parser.readingMapRegions
  */
@@ -215,11 +243,12 @@ export function readingMapRegions(
 ): UEFINode[] {
   const maps = nodes.filter((node) => node.kind === "flashDeviceMapStore");
   if (maps.length === 0) return [...nodes];
-  const addressDiff = addressDiffFromTail(parser);
-  if (addressDiff === undefined) return [...nodes];
+  const fromTail = addressDiffFromTail(parser);
 
   const regions: { readonly type: EFIGUID; readonly range: ImageRange }[] = [];
   for (const map of maps) {
+    const addressDiff = fromTail ?? flashDeviceMapAddressDiff(map, parser.reader);
+    if (addressDiff === undefined) continue;
     for (const entry of flashDeviceMapEntries(map, parser.reader)) {
       const range = flashDeviceMapEntryRange(entry, addressDiff);
       if (range === undefined) continue;

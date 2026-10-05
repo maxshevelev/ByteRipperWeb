@@ -59,6 +59,14 @@ export type ECVendor =
 export const ecImageName = (image: ECImage): string =>
   image.vendor.kind === "ite" ? image.vendor.identification : "Microchip MEC image";
 
+/**
+ * Whether the image is ITE's: the one vendor told by a signature long enough to be
+ * believed away from a block's start.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.isITE
+ */
+const isITE = (image: ECImage): boolean => image.vendor.kind === "ite";
+
 /** `PHCM`, `MCHP` reversed: the header Microchip's MEC boot ROM reads. */
 // @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.microchipSignature
 const MICROCHIP_SIGNATURE = 0x4d43_4850;
@@ -215,7 +223,7 @@ export function readingECFirmware(
   const first = images[0];
   if (first === undefined) return undefined;
   // Padding names only what opens it: an image further in is a guess about the
-  // bytes before it.
+  // bytes before it, and is cut out of it instead (`cuttingECFirmware`).
   if (node.kind === "padding" && first.start !== node.body.start) return undefined;
   const read: UEFINode = { ...node };
   const base = node.kind === "padding" ? EC_PADDING_NAME : node.name;
@@ -266,12 +274,51 @@ export function readingECFirmwareIn(
   nodes: readonly UEFINode[],
   emptyByte: number
 ): UEFINode[] {
-  return nodes.map((node) => {
-    const candidate =
-      (node.kind === "padding" && !node.isErased) ||
-      (node.kind === "flashDeviceMapRegion" &&
-        node.guid !== undefined &&
-        guidEquals(node.guid, FlashDeviceMap.ecFirmware));
-    return candidate ? (readingECFirmware(parser, node, emptyByte) ?? node) : node;
+  return nodes.flatMap((node): UEFINode[] => {
+    if (
+      node.kind === "flashDeviceMapRegion" &&
+      node.guid !== undefined &&
+      guidEquals(node.guid, FlashDeviceMap.ecFirmware)
+    ) {
+      return [readingECFirmware(parser, node, emptyByte) ?? node];
+    }
+    if (node.kind !== "padding" || node.isErased) return [node];
+    const read = readingECFirmware(parser, node, emptyByte);
+    if (read !== undefined) return [read];
+    return cuttingECFirmware(parser, node, emptyByte) ?? [node];
   });
+}
+
+/**
+ * Padding that holds an ITE image further in than its start, split round it: the
+ * padding before, the EC firmware, the padding after. An AMD board's first padding
+ * is like this — the PSP's directories and their blobs, then the EC image, with
+ * nothing to announce any of them to the raw-area scan. The image starts the block
+ * it is cut into, so that block is named the way padding opening on one is; it ends
+ * where the last image's bytes do. Only ITE's signature is trusted this far from a
+ * start: a `PHCM` dword is four bytes, which data turns up. Nothing when there is
+ * no ITE image inside.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#Parser.cuttingECFirmware
+ */
+export function cuttingECFirmware(
+  parser: Parser,
+  node: UEFINode,
+  emptyByte: number
+): UEFINode[] | undefined {
+  const images = allECImages(node.body, parser.reader, emptyByte).filter(isITE);
+  const first = images[0];
+  const last = images[images.length - 1];
+  if (first === undefined || last === undefined || first.start <= node.body.start) {
+    return undefined;
+  }
+  const end = Math.min(last.start + roundedUp(Math.max(last.written, 1)), node.body.end);
+  const block = parser.padding(first.start, end, emptyByte)[0];
+  const named = block === undefined ? undefined : readingECFirmware(parser, block, emptyByte);
+  if (named === undefined) return undefined;
+  return [
+    ...parser.padding(node.body.start, first.start, emptyByte),
+    named,
+    ...parser.padding(end, node.body.end, emptyByte),
+  ];
 }

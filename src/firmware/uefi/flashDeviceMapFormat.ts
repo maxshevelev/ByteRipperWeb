@@ -77,6 +77,12 @@ export const FlashDeviceMap = {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.ecFirmware
    */
   ecFirmware: guid("A73EF3BF-33CC-43A9-B39C-A912C7489A57"),
+  /**
+   * `INSYDE_FLASH_MAP_REGION_FLASH_MAP_GUID`: the map's own region.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/FlashDeviceMapParser.swift#FlashDeviceMap.flashDeviceMap
+   */
+  flashDeviceMap: guid("F078C1A0-FC52-4C3F-BE1F-D688815A62C0"),
 } as const;
 
 /**
