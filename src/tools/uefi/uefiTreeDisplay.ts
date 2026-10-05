@@ -122,6 +122,34 @@ export function isEmptyPadding(node: {
 }
 
 /**
+ * A row that stands for room rather than for content: erased padding ("Empty
+ * (FFh)"), free space, and a pad file with an erased body. The tree draws it grey, the
+ * way the ME tree draws a section that holds nothing — a place in the layout, not
+ * something to go and look at. Erased padding with rows read inside it is not one, nor
+ * is a pad file that holds data: what was read there is content.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.isEmptySpace
+ */
+export function isEmptySpace(node: {
+  readonly kind: string;
+  readonly subtype?: number | undefined;
+  readonly isErased: boolean;
+  readonly children?: readonly unknown[] | undefined;
+}): boolean {
+  if ((node.children?.length ?? 0) > 0) return false;
+  switch (node.kind) {
+    case "freeSpace":
+      return true;
+    case "padding":
+      return node.isErased;
+    case "file":
+      return node.subtype === 0xf0;
+    default:
+      return false;
+  }
+}
+
+/**
  * Whether the row of `node` says a value, and so needs the bytes.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.showsValue

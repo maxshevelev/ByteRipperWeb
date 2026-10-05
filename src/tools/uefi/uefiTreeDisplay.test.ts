@@ -9,6 +9,7 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
 import {
   imageType,
   isEmptyPadding,
+  isEmptySpace,
   listed,
   nodeName,
   present,
@@ -427,6 +428,45 @@ describe("empty padding", () => {
     expect(isEmptyPadding(data)).toBe(false);
     expect(isEmptyPadding(free)).toBe(false);
     expect(isEmptyPadding(volume())).toBe(false);
+  });
+
+  // Erased padding and free space are room, not content, and read grey; padding with
+  // data, or with rows read inside it, does not.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testEmptyPaddingAndFreeSpaceAreEmptySpace
+  it("reads erased padding and free space as empty space", () => {
+    const holding = { ...erased, children: [data] };
+    expect(isEmptySpace(erased)).toBe(true);
+    expect(isEmptySpace(free)).toBe(true);
+    expect(isEmptySpace(data)).toBe(false);
+    expect(isEmptySpace(holding)).toBe(false);
+    expect(isEmptySpace(volume())).toBe(false);
+  });
+
+  // An erased pad file is room and reads grey; one that holds data does not, and
+  // neither does any other file with nothing under it.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAnEmptyPadFileIsEmptySpace
+  it("reads an erased pad file as empty space", () => {
+    const empty = makeNode({
+      kind: "file",
+      subtype: 0xf0,
+      name: "Padding file",
+      header: r(0, 0x18),
+      body: r(0x18, 0x100),
+    });
+    const holding = {
+      ...empty,
+      children: [makeSpan({ kind: "padding", name: "Non-UEFI data", range: r(0x40, 0x100) })],
+    };
+    const raw = makeNode({
+      kind: "file",
+      subtype: 0x01,
+      name: "",
+      header: r(0, 0x18),
+      body: r(0x18, 0x100),
+    });
+    expect(isEmptySpace(empty)).toBe(true);
+    expect(isEmptySpace(holding)).toBe(false);
+    expect(isEmptySpace(raw)).toBe(false);
   });
 
   // Erased padding with rows read into it — an Insyde map's region nobody has

@@ -16,7 +16,7 @@ entry with the reason, a test the web has no level for a `later` entry.
 - [x] **V1 — small interface: the reveal button's description, headings, the minimap at an empty window** (`9349066`, `b151d16`)
 - [x] **V2 — EC images and the Insyde map: appended bytes, ITE in padding, region sizing, padding kept in place** (`65837d5`, `789f1d6`, `e461d44`, `0335e5a`)
 - [x] **V3 — VSS and NVAR values after the name, the VSS header** (`ebd2293`)
-- [ ] **V4 — empty padding, free space and erased pad files grey in the tree** (`8eef0c3`, `8bd5507`)
+- [x] **V4 — empty padding, free space and erased pad files grey in the tree** (`8eef0c3`, `8bd5507`)
 - [ ] **V5 — descriptor straps: words, soft-disable bit, GPR0 and eSPI clock, a folded table, grey Empty rows** (`74516a7`, `72bf1e8`, `b54a13f`)
 - [ ] **V6 — the large view of a row's details on Space** (`8322049`, `54efa22`, `df1eaef`, `7c59fd1`)
 - [ ] **V7 — detail tables and fields as selectable views** (`ba682d7`, `5139501`, `f324a97`)
