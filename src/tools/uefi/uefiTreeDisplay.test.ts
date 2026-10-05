@@ -469,6 +469,28 @@ describe("empty padding", () => {
     expect(isEmptySpace(raw)).toBe(false);
   });
 
+  // Every row the Subtype column calls "Empty (FFh)" is grey — an Insyde map's region
+  // nobody has written as much as plain padding — and one that holds data is not.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAnErasedMapRegionIsGreyLikeErasedPadding
+  it("reads an erased map region as empty space, like erased padding", () => {
+    const unused = makeSpan({
+      kind: "flashDeviceMapRegion",
+      name: "Unused",
+      range: r(0, 0x1000),
+      isErased: true,
+    });
+    const written = makeSpan({
+      kind: "flashDeviceMapRegion",
+      name: "Unknown",
+      range: r(0, 0x1000),
+    });
+    expect(subtypeText(unused)).toBe("Empty (FFh)");
+    expect(isEmptySpace(unused)).toBe(true);
+    expect(isEmptySpace(written)).toBe(false);
+    // Rows read inside it are content.
+    expect(isEmptySpace({ ...unused, children: [written] })).toBe(false);
+  });
+
   // Erased padding with rows read into it — an Insyde map's region nobody has
   // written — is listed, or its rows would go with it.
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift#EmptyPaddingTests.testErasedPaddingWithRowsIsListed

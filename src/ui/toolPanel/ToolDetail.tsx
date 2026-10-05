@@ -6,6 +6,7 @@ import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
+import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import {
   initialPictureBackground,
   nextPictureBackground,
@@ -258,6 +259,13 @@ function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly 
 }
 
 /**
+ * The folding tables the reader has opened, by title — kept for the panel's life.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.unfoldedTables
+ */
+const unfoldedTables = new Set<string>();
+
+/**
  * A table block: a glyph and a heading, a header line, and the cells — as wide
  * as what is in it, so a two-column table of short values reads as a table
  * rather than as two columns at opposite edges.
@@ -280,6 +288,17 @@ function DetailTableView({
   readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
 }) {
   const linkColumn = table.linkColumn ?? 1;
+  // A table that folds is folded at first, and stays as the reader left it for the
+  // panel's life: a table opened on one node is open on the next.
+  // help: panel.uefi.folding-table
+  const folds = table.startsFolded === true;
+  const [unfolded, setUnfolded] = useState(() => unfoldedTables.has(table.title));
+  const open = !folds || unfolded;
+  const toggle = () => {
+    if (unfolded) unfoldedTables.delete(table.title);
+    else unfoldedTables.add(table.title);
+    setUnfolded(!unfolded);
+  };
   /** Whether a click on this row goes anywhere here. */
   const goes = (target: DetailTableTarget | undefined): boolean =>
     target !== undefined &&
@@ -287,10 +306,27 @@ function DetailTableView({
   return (
     <section className="tool-detail-table">
       <h4 className="tool-detail-table-title">
-        <Glyph symbol={table.symbol} />
-        {table.title}
+        {folds ? (
+          // The whole heading is the switch: the triangle alone is a small target.
+          <button
+            type="button"
+            className="tool-detail-fold"
+            aria-expanded={open}
+            title={L("Show or hide the table")}
+            onClick={toggle}
+          >
+            <DisclosureChevron open={open} />
+            <Glyph symbol={table.symbol} />
+            {table.title}
+          </button>
+        ) : (
+          <>
+            <Glyph symbol={table.symbol} />
+            {table.title}
+          </>
+        )}
       </h4>
-      <table className="tool-detail-grid">
+      <table className="tool-detail-grid" hidden={!open}>
         <thead>
           <tr>
             {table.columns.map((column) => (
@@ -385,6 +421,8 @@ function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {
     "info.circle": "M8 1.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4ZM8 7.2v4M8 4.8v.02",
     "square.split.2x2": "M2.5 2.5h11v11h-11ZM8 2.5v11M2.5 8h11",
     "clock.arrow.circlepath": "M13.2 8a5.2 5.2 0 1 1-1.6-3.7M13.4 2.4v2.6h-2.6M8 5v3.2l2 1.2",
+    "slider.horizontal.3":
+      "M2.5 4.5h6M11.5 4.5h2M2.5 8h2M7.5 8h6M2.5 11.5h7M12.5 11.5h1M9.9 3.2v2.6M5.9 6.7v2.6M10.9 10.2v2.6",
     "checkmark.seal":
       "M8 1.6l1.5 1.1 1.9-.1.7 1.8 1.6 1.1-.5 1.8.5 1.8-1.6 1.1-.7 1.8-1.9-.1L8 14.4l-1.5-1.1-1.9.1-.7-1.8-1.6-1.1.5-1.8-.5-1.8 1.6-1.1.7-1.8 1.9.1ZM5.6 8.2l1.8 1.8 3-3.4",
     "list.bullet.rectangle":

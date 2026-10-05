@@ -10,6 +10,7 @@
 @covers panel.uefi.superseded-entries
 @covers panel.uefi.filter
 @covers panel.uefi.variable-history
+@covers panel.uefi.folding-table
 @covers panel.uefi.variable-value
 @covers panel.uefi.reveal
 @covers panel.uefi.map-regions
@@ -25,6 +26,8 @@ The **Type** and **Subtype** columns name each node as the reference parser name
 The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer.
 
 **The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree.
+
+A long table in the details — **PCH straps** in the details of the [[term:flash-descriptor|flash descriptor]] — is folded under its heading at first, so that the rest of the details remains in view. A click on the triangle or on the heading unfolds it; it then stays unfolded on other nodes until the app is quit.
 
 ## What the tool checks
 
@@ -44,7 +47,7 @@ A [[term:picture|picture]] the tool recognises — a JPEG, PNG, GIF or BMP, in p
 
 ## Padding
 
-A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked in the filter menu, which the funnel icon in the title row opens, left of **the reveal button**. The icon is tinted while the tree lists anything it omits by default. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume. Erased padding (**Empty (FFh)**), free space and a pad file with an erased body (**Padding file**) are shown in grey: a place in the layout that holds nothing.
+A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked in the filter menu, which the funnel icon in the title row opens, left of **the reveal button**. The icon is tinted while the tree lists anything it omits by default. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume. Every erased row whose subtype reads **Empty (FFh)** — padding, and also a region of an Insyde [[term:flash-device-map|flash device map]] nobody has written, such as **Unused** or a password slot — free space and a pad file with an erased body (**Padding file**) are shown in grey: a place in the layout that holds nothing.
 
 ## Variable values
 

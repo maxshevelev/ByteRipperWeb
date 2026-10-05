@@ -67,6 +67,7 @@ export type DetailSymbol =
   | "square.split.2x2"
   | "clock.arrow.circlepath"
   | "checkmark.seal"
+  | "slider.horizontal.3"
   | "list.bullet.rectangle";
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable */
@@ -93,6 +94,14 @@ export interface DetailTable {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.linkColumn
    */
   readonly linkColumn?: number | undefined;
+  /**
+   * Whether the table folds under its heading, and is folded until the reader opens it:
+   * one long enough to push everything after it out of sight, and read only now and then
+   * — a descriptor's strap words.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.startsFolded
+   */
+  readonly startsFolded?: boolean | undefined;
 }
 
 /**

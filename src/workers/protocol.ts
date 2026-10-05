@@ -658,6 +658,14 @@ export interface WireNode {
    */
   readonly valueRow?: string | undefined;
   /**
+   * Whether the row stands for room rather than content, which the tree draws grey
+   * (`isEmptySpace`).
+   *
+   * @upstream-differs the panel holds the node's text, not the classification the
+   * Subtype column is made from, so the worker asks
+   */
+  readonly isEmptySpace?: boolean | undefined;
+  /**
    * For a store of variable entries: the copies a later one replaced, as child indices
    * — each hidden copy and the copy that stands for its variable instead. What the
    * tree leaves out unless superseded entries are asked for.

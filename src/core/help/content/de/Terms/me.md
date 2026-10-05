@@ -1,4 +1,4 @@
-@source-sha 3a47e3a2101272e30de3c52546adbf6abbd6e323fba8af052ea73c03778a42b6
+@source-sha fcfefb578998c9c830e92b2a2f0dafe9da90385342d7222a38ad6ca63e877393
 @term me
 @name Intel ME / CSME
 @short Ein kleiner Prozessor im Chipsatz, mit eigener Firmware in einer eigenen Flash-Region.
@@ -167,7 +167,7 @@ Intel hat es für ein US-Regierungsprogramm eingebaut, die High Assurance Platfo
 
 Die Engine startet weiterhin und prüft weiterhin ihre eigene Firmware. Das Bit hält sie nur davon ab, weiterzugehen.
 
-ByteRipper dekodiert es nicht. Seine Position wandert mit der Chipsatzgeneration, und Intel dokumentiert sie nicht — deshalb nennt das Werkzeug die Anzahl der Strap-Wörter und überlässt das Lesen eines bestimmten Bits einem Werkzeug, das dafür gebaut ist.
+ByteRipper zeigt es in den Details des [[term:flash-descriptor|Deskriptors]] als eigene Zeile: **HAP-Bit** ab Sunrise Point (ME 11), **AltMeDisable-Bit** von Ibex Peak bis Wildcat Point, **ICH_MeDisable-Bit** bei ICH8 – ICH10. Intel dokumentiert seine Position nicht. Welches Wort und welches Bit es trägt, ist dem ifdtool aus coreboot und me_cleaner entnommen, den Werkzeugen, die es setzen; für Bay Trail nennt keines der beiden eines, und die Zeile entfällt. Ein gesetztes Bit wird hervorgehoben: Es ist der Grund, warum eine ME mit sonst intakter Region nicht läuft.
 
 ! Dieses Bit zu setzen ist keine Reparatur. Ein Board mit tatsächlich beschädigter ME-Region kommt meist gar nicht hoch, und die Engine abzuschalten ändert daran nichts.
 

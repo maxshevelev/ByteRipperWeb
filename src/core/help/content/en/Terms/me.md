@@ -166,7 +166,7 @@ Intel added it for a United States government programme, the High Assurance Plat
 
 The engine still starts and still verifies its own firmware. The bit only stops it going further.
 
-ByteRipper does not decode it. Its position moves with the chipset generation and Intel does not document it, so the tool says how many strap words there are and leaves reading a particular bit to a tool built for that.
+ByteRipper shows it in the details of the [[term:flash-descriptor|flash descriptor]] as a row of its own: **HAP bit** from Sunrise Point (ME 11) on, **AltMeDisable bit** from Ibex Peak to Wildcat Point, **ICH_MeDisable bit** on ICH8 – ICH10. Intel does not document its position. Which word and which bit hold it is taken from coreboot's ifdtool and from me_cleaner, the tools that set it; on Bay Trail neither names one, and the row is not shown. A set bit is marked: it is the reason an ME region that is otherwise intact does not run.
 
 ! Setting this bit is not a repair. A board whose ME region is actually damaged usually will not come up at all, and disabling the engine afterwards does not change that.
 

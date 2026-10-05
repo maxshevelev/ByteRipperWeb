@@ -760,6 +760,134 @@ describe("a flash descriptor", () => {
     expect(access?.rows.map((row) => row[2]?.tone)).toEqual(["yes", "yes", "yes", "yes", "yes"]);
   });
 
+  // The strap words as a grid of numbers, each row outlining its four bytes in the dump;
+  // only the ME-disable word says anything about its bits.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheStrapsAreAGridOfWords
+  it("draws the straps as a grid of words", () => {
+    const words = new Array<number>(11).fill(0);
+    words[1] = 0x1234_5678;
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: true,
+        straps: words,
+      })
+    );
+    const straps = table(shown, "PCH straps");
+
+    expect(straps?.columns).toEqual(["Strap", "Offset", "Value", "Meaning"]);
+    // Every word the Cougar Point map counts.
+    expect(straps?.rows).toHaveLength(0x12);
+    expect(straps?.rows[1]?.map((one) => one.text)).toEqual([
+      "PCHSTRP1",
+      "0x204",
+      "0x12345678",
+      "Unknown",
+    ]);
+    expect(straps?.rows[10]?.[3]?.text).toBe("AltMeDisable in bit 7; the other bits unknown");
+    expect(straps?.rowTargets?.[1]).toEqual({
+      kind: "range",
+      start: 0x204,
+      end: 0x208,
+      name: "PCHSTRP1",
+    });
+    expect(straps?.linkColumn).toBe(1);
+    // Seventy words and more stay folded until asked for; the short tables are open.
+    expect(straps?.startsFolded).toBe(true);
+    expect(table(shown, "Region table")?.startsFolded).not.toBe(true);
+  });
+
+  // The bit that soft-disables the ME is a row of its own, and set it reads as a state —
+  // the reason an otherwise whole ME does not run.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheMEDisableBitIsARow
+  it("shows the ME disable bit as a row", () => {
+    const regions = [{ type: "me" as const, start: 0x1000, end: 0x60_0000 }];
+    const clear = detailOf(node, Test.descriptor({ regions, version1: false, straps: [0] }));
+    expect(value(clear, "HAP bit")).toBe("Not set");
+
+    const set = detailOf(
+      node,
+      Test.descriptor({ regions, version1: false, straps: [0x0001_0000] })
+    );
+    const row = set.fields.find((one) => one.label === "HAP bit");
+    expect(row?.value).toBe("Set — the ME is soft-disabled");
+    expect(row?.tone).toBe("caution");
+  });
+
+  // The desktop layout's words are other fields, so neither row is shown.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testADesktopLayoutHasNeitherRow
+  it("shows neither GPR0 nor the eSPI clock on a desktop layout", () => {
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: false,
+        straps: [0x2222_2222],
+      })
+    );
+    expect(value(shown, "GPR0")).toBeUndefined();
+    expect(value(shown, "eSPI clock")).toBeUndefined();
+  });
+
+  // No strap section, no strap table and no bit row.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testNoStrapsMeansNoStrapRows
+  it("has no strap rows without straps", () => {
+    const shown = detailOf(
+      node,
+      Test.descriptor({ regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }] })
+    );
+    expect(table(shown, "PCH straps")).toBeUndefined();
+    expect(value(shown, "AltMeDisable bit")).toBeUndefined();
+  });
+
+  // On the mobile Alder Point layout GPR0 and the eSPI clock are rows, and their words
+  // say what they hold.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testGPR0AndTheESPIClockAreRowsOnAMobileLayout
+  it("shows GPR0 and the eSPI clock on a mobile layout", () => {
+    const words = new Array<number>(23).fill(0);
+    words[21] = 0x829b_0001;
+    words[22] = 0x0058_0e20;
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: false,
+        straps: words,
+        strapCount: 70,
+      })
+    );
+
+    const gpr0 = shown.fields.find((one) => one.label === "GPR0");
+    expect(gpr0?.value).toBe("0x1000 – 0x29BFFF: writes refused");
+    expect(gpr0?.tone).toBe("caution");
+    expect(value(shown, "eSPI clock")).toBe("60 MHz");
+
+    const straps = table(shown, "PCH straps");
+    expect(straps?.rows).toHaveLength(70);
+    expect(straps?.rows[21]?.[3]?.text).toBe("GPR0, the whole word");
+    expect(straps?.rows[22]?.[3]?.text).toBe("eSPI clock in bits 3–5; the other bits unknown");
+  });
+
+  // A zero GPRD is off, and a clock code nobody defines shows the code.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testAnOffGPR0AndAnUnknownClock
+  it("shows an off GPR0 and an unknown clock", () => {
+    const words = new Array<number>(23).fill(0);
+    words[22] = 6 << 3;
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: false,
+        straps: words,
+        strapCount: 70,
+      })
+    );
+    expect(value(shown, "GPR0")).toBe("Off");
+    expect(shown.fields.find((one) => one.label === "GPR0")?.tone).toBe("standard");
+    expect(value(shown, "eSPI clock")).toBe("Unknown (code 6)");
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testOnlyADescriptorCarriesTheDescriptorBlock
   it("is the only node that carries the descriptor block", () => {
     const volume = detailOf(volumeNode(), Test.volume({ length: 0x1000 }));

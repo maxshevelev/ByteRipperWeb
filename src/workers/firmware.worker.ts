@@ -73,7 +73,7 @@ import { MFSFileNames } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
-import { subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
+import { isEmptySpace, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 import { dvarSettingsFromWire, dvarSettingsToWire } from "@/workers/dvarWire";
 import type {
   FirmwareWorkerRequest,
@@ -314,6 +314,7 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
     ? { valueRow: valueRowOf(node, store, readerFor(node)) }
     : {}),
   hiddenCopies: hiddenCopiesOf(node),
+  isEmptySpace: isEmptySpace(node),
   id: node.id,
   kind: node.kind,
   subtype: node.subtype,

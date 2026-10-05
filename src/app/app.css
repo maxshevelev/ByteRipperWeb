@@ -3463,6 +3463,23 @@ button.uefi-title {
   color: var(--text-muted);
 }
 
+/* A table that folds: the heading is the switch, a button that looks like the heading. */
+.tool-detail-fold {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tool-detail-grid[hidden] {
+  display: none;
+}
+
 .tool-detail-grid {
   border-collapse: collapse;
 }

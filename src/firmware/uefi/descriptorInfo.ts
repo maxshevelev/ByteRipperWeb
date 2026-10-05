@@ -2,11 +2,14 @@ import type { ImageReader } from "@/firmware/imageReader";
 import {
   type DescriptorGeneration,
   densityBits,
+  espiClockOf,
   generationClock,
   hasEightInvalidInstructions,
   hasWideMasks,
+  meDisableBit,
   readDescriptorGeneration,
   regionCount,
+  strapFields,
 } from "@/firmware/uefi/descriptorGeneration";
 import { Descriptor, FLASH_REGIONS, type FlashRegionType } from "@/firmware/uefi/descriptorParser";
 import { flashVendor } from "@/firmware/uefi/flashVendors";
@@ -216,7 +219,111 @@ export interface DescriptorInfo {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.chips
    */
   readonly chips: readonly DescriptorChip[];
+  /**
+   * The PCH strap section: the words the chipset reads at power-on, before any
+   * firmware runs. Nothing when its base is not one or it is empty.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.straps
+   */
+  readonly straps: DescriptorStraps | undefined;
 }
+
+/**
+ * The strap words as they stand. Their layout is the chipset's and changes with every
+ * generation — and between the mobile and desktop parts of one — and next to none of it
+ * is published, so a word is kept as a number rather than read as fields nobody can
+ * justify.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps
+ */
+export interface DescriptorStraps {
+  /**
+   * Where the first word lies, in the file's own offsets.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.base
+   */
+  readonly base: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.words */
+  readonly words: readonly number[];
+  /**
+   * The one bit with a settled meaning on every generation that names it; nothing on
+   * one that does not, or a section too short to hold it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.meDisable
+   */
+  readonly meDisable: DescriptorMEDisable | undefined;
+  /**
+   * The clock the chipset drives the eSPI bus to the EC at. Nothing where the layout is
+   * not one whose word for it is known.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.espiClock
+   */
+  readonly espiClock: DescriptorESPIClock | undefined;
+  /**
+   * The flash range the chipset protects from the host, from the strap the SPI controller
+   * loads its GPR0 register from. Nothing where the layout is not one whose word for it
+   * is known.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.gpr0
+   */
+  readonly gpr0: DescriptorProtectedRange | undefined;
+}
+
+/**
+ * The eSPI clock: bits 3–5 of its word.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ESPIClock
+ */
+export interface DescriptorESPIClock {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ESPIClock.word */
+  readonly word: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ESPIClock.clock */
+  readonly clock: DescriptorClock;
+}
+
+/**
+ * The bit that soft-disables the ME, under the name the trade knows it by on this
+ * generation (HAP, AltMeDisable, ICH_MeDisable).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MEDisable
+ */
+export interface DescriptorMEDisable {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MEDisable.name */
+  readonly name: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MEDisable.word */
+  readonly word: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MEDisable.bit */
+  readonly bit: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MEDisable.isSet */
+  readonly isSet: boolean;
+}
+
+/**
+ * A GPRD word: a start and an end in 4 KiB units, inclusive, and whether reads and
+ * writes inside are refused. Neither refused, the range is off whatever it says.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange
+ */
+export interface DescriptorProtectedRange {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange.word */
+  readonly word: number;
+  /**
+   * In the file's own offsets, as the region table's are.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange.start
+   */
+  readonly start: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange.end */
+  readonly end: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange.readProtected */
+  readonly readProtected: boolean;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange.writeProtected */
+  readonly writeProtected: boolean;
+}
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProtectedRange.isOn */
+export const isProtectedRangeOn = (range: DescriptorProtectedRange): boolean =>
+  range.readProtected || range.writeProtected;
 
 /**
  * The region bits a master's access mask carries.
@@ -294,6 +401,69 @@ export function readDescriptorInfo(base: number, reader: ImageReader): Descripto
     maskDigits: isVersion1 ? 2 : 3,
     biosAccess: biosAccess(masterBase, isVersion1, reader),
     chips: chips(base, reader),
+    straps: straps(base, map1, generation, reader),
+  };
+}
+
+/**
+ * The PCH strap section, at `PchStrapBase << 4`, as many words long as the map's strap
+ * length says — cut at the descriptor's end, past which nothing is a strap however long
+ * an erased length claims to be.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.straps
+ */
+function straps(
+  base: number,
+  map1: number,
+  generation: DescriptorGeneration,
+  reader: ImageReader
+): DescriptorStraps | undefined {
+  const strapAt = (map1 >>> 16) & 0xff;
+  if (strapAt === 0 || strapAt > Descriptor.maxBase) return undefined;
+  const offset = strapAt * 16;
+  const count = Math.min(map1 >>> 24, Math.floor((Descriptor.size - offset) / 4));
+  const section = base + offset;
+  const words: number[] = [];
+  for (let index = 0; index < count; index++) {
+    const word = reader.uint32(section + index * 4);
+    if (word === undefined) break;
+    words.push(word);
+  }
+  if (words.length === 0) return undefined;
+  const named = meDisableBit(generation);
+  const namedWord = named === undefined ? undefined : words[named.word];
+  const meDisable =
+    named === undefined || namedWord === undefined
+      ? undefined
+      : {
+          name: named.name,
+          word: named.word,
+          bit: named.bit,
+          isSet: ((namedWord >>> named.bit) & 1) !== 0,
+        };
+  const fields = strapFields(generation, words.length);
+  if (fields === undefined) {
+    return { base: section, words, meDisable, espiClock: undefined, gpr0: undefined };
+  }
+  const code = ((words[fields.espiClockWord] ?? 0) >>> 3) & 0x7;
+  // Fifteen bits of start, a read enable, fifteen of end, a write enable — ifdtool's
+  // `union gprd`.
+  const gprd = words[fields.gpr0Word] ?? 0;
+  return {
+    base: section,
+    words,
+    meDisable,
+    espiClock: {
+      word: fields.espiClockWord,
+      clock: { code, megahertz: espiClockOf(code) },
+    },
+    gpr0: {
+      word: fields.gpr0Word,
+      start: base + (gprd & 0x7fff) * 0x1000,
+      end: base + (((gprd >>> 16) & 0x7fff) * 0x1000 + 0xfff),
+      readProtected: ((gprd >>> 15) & 1) !== 0,
+      writeProtected: ((gprd >>> 31) & 1) !== 0,
+    },
   };
 }
 

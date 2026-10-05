@@ -188,6 +188,73 @@ export function hasEightInvalidInstructions(generation: DescriptorGeneration): b
 }
 
 /**
+ * The PCH strap bit that soft-disables the ME, as ifdtool and me_cleaner set it:
+ * `ICH_MeDisable` in the first word up to ICH10, `AltMeDisable` in the eleventh from
+ * Ibex Peak to Wildcat Point, and HAP in the first from Sunrise Point on. Nothing
+ * where neither tool names one — Bay Trail's TXE, and Emmitsburg, which ifdtool does
+ * not know.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.meDisableBit
+ */
+export function meDisableBit(
+  generation: DescriptorGeneration
+): { readonly name: string; readonly word: number; readonly bit: number } | undefined {
+  switch (generation) {
+    case "ich8":
+    case "ich9":
+    case "ich10":
+      return { name: "ICH_MeDisable", word: 0, bit: 0 };
+    case "ibexPeak":
+    case "cougarPoint":
+    case "lynxPoint":
+      return { name: "AltMeDisable", word: 10, bit: 7 };
+    case "bayTrail":
+    case "emmitsburg":
+      return undefined;
+    default:
+      return { name: "HAP", word: 0, bit: 16 };
+  }
+}
+
+/**
+ * Which strap words hold the eSPI clock and the GPR0 range, for a strap section of
+ * `count` words. A layout is the generation's *and* the length's: the mobile and
+ * desktop parts of one generation make the section different lengths and put the same
+ * field in different words. So only the layouts ifdtool's offsets were checked against
+ * are here — Tiger and Alder Point mobile, 70 words — and on Tiger Point H (101) or
+ * Alder Point S (115) the same words are other fields.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.strapFields
+ */
+export function strapFields(
+  generation: DescriptorGeneration,
+  count: number
+): { readonly espiClockWord: number; readonly gpr0Word: number } | undefined {
+  if ((generation === "tigerPoint" || generation === "alderPoint") && count === 70) {
+    return { espiClockWord: 22, gpr0Word: 21 };
+  }
+  return undefined;
+}
+
+/**
+ * The eSPI clock a three-bit strap code stands for, in MHz, on the generations
+ * `strapFields` knows: ifdtool's 500-series table.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.espiClock
+ */
+export function espiClockOf(code: number): readonly number[] | undefined {
+  return ESPI_CLOCKS.get(code);
+}
+
+const ESPI_CLOCKS: ReadonlyMap<number, readonly number[]> = new Map([
+  [0, [20]],
+  [1, [24]],
+  [2, [25]],
+  [3, [48]],
+  [4, [60]],
+]);
+
+/**
  * The SPI clock a three-bit code stands for, in MHz. A code the generation
  * reserves has none; Apollo and Gemini Lake give one code two clocks.
  *

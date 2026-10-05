@@ -10,7 +10,10 @@ import { generationCodeName, generationSeries } from "@/firmware/uefi/descriptor
 import {
   type DescriptorChipSource,
   type DescriptorClock,
+  type DescriptorComponent,
   type DescriptorInfo,
+  type DescriptorProtectedRange,
+  isProtectedRangeOn,
   readDescriptorInfo,
 } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
@@ -1394,7 +1397,9 @@ function fillFields(fill: NvramStoreFill): DetailField[] {
 
 /**
  * The rows a descriptor has beyond its header: the vector it opens with, the
- * chipset its layout is, and what its component section says about the chips —
+ * chipset its layout is, what the straps say where they are read — the bit that
+ * soft-disables the ME, the GPR0 range, the eSPI clock — and what its component
+ * section says about the chips —
  * how large, how fast, and which opcodes the chipset will not send them. Where
  * the regions lie, and what the masters may touch, are grids, and are in
  * `descriptorTables`.
@@ -1413,9 +1418,52 @@ function descriptorFields(descriptor: DescriptorInfo, imageSize: number): Detail
   let chipset = series === undefined ? codeName : L("%1$@ (%2$@ series)", codeName, series);
   if (!descriptor.isGenerationCertain) chipset = L("%1$@, assumed", chipset);
   fields.push(field(L("Chipset"), chipset));
+  // The one strap bit with a settled meaning. Set, it is the reason an ME that is
+  // otherwise whole does not run, so it reads as a state.
+  const meDisable = descriptor.straps?.meDisable;
+  if (meDisable !== undefined) {
+    fields.push(
+      tonedField(
+        L("%1$@ bit", meDisable.name),
+        meDisable.isSet ? L("Set — the ME is soft-disabled") : L("Not set", { context: "bit" }),
+        meDisable.isSet ? "caution" : "standard"
+      )
+    );
+  }
+  // A range the chipset keeps the host from writing — coreboot puts the ME region
+  // under it — is the other reason a region the masks open cannot be written from
+  // the OS.
+  const gpr0 = descriptor.straps?.gpr0;
+  if (gpr0 !== undefined) {
+    fields.push(
+      tonedField("GPR0", gpr0Text(gpr0), isProtectedRangeOn(gpr0) ? "caution" : "standard")
+    );
+  }
 
-  const component = descriptor.component;
-  if (component === undefined) return fields;
+  if (descriptor.component !== undefined) {
+    fields.push(...componentFields(descriptor.component, imageSize));
+  }
+  const espi = descriptor.straps?.espiClock;
+  if (espi !== undefined) {
+    fields.push(
+      field(
+        L("eSPI clock"),
+        espi.clock.megahertz === undefined
+          ? L("Unknown (code %1$@)", espi.clock.code)
+          : L("%1$@ MHz", espi.clock.megahertz.join("/"))
+      )
+    );
+  }
+  return fields;
+}
+
+/**
+ * What the component section says about the chips.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.componentFields
+ */
+function componentFields(component: DescriptorComponent, imageSize: number): DetailField[] {
+  const fields: DetailField[] = [];
   // The chips the image was laid out across, end to end. A dump of another
   // length is one chip of two, or a read of the wrong size.
   const sizes = component.chipSizes
@@ -1454,6 +1502,19 @@ function descriptorFields(descriptor: DescriptorInfo, imageSize: number): Detail
 }
 
 /**
+ * A protected range as where it runs and what it refuses.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.gpr0Text
+ */
+function gpr0Text(range: DescriptorProtectedRange): string {
+  const span = `${hex(range.start)} – ${hex(range.end)}`;
+  if (range.readProtected && range.writeProtected) return L("%1$@: reads and writes refused", span);
+  if (range.writeProtected) return L("%1$@: writes refused", span);
+  if (range.readProtected) return L("%1$@: reads refused", span);
+  return L("Off");
+}
+
+/**
  * A clock as the bench says it, or the code when the generation reserves it.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.clockText
@@ -1475,9 +1536,9 @@ function capacityText(bytes: number): string {
 }
 
 /**
- * The four grids: where each region lies, the masks each master carries, what
- * the BIOS master may do to each region, and the flash chips this firmware was
- * built to drive.
+ * The five grids: where each region lies, the masks each master carries, what
+ * the BIOS master may do to each region, the flash chips this firmware was built to
+ * drive, and the PCH strap words.
  *
  * The regions are in the tree as well, as this node's siblings — but the tree
  * shows where a region *is*, and this shows what the descriptor *says*, which is
@@ -1559,6 +1620,48 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
           cell(chip.source === undefined ? "" : SOURCE_NAMES[chip.source]),
         ];
       }),
+    });
+  }
+  const straps = descriptor.straps;
+  if (straps !== undefined) {
+    // Numbers, not fields: the layout is the chipset's and next to none of it is
+    // published (`UEFI_IMAGE_FORMAT.md` §2.6). Each row outlines its four bytes in the
+    // dump, which is where two boards' straps are compared.
+    const rows: DetailCell[][] = [];
+    const targets: DetailTableTarget[] = [];
+    straps.words.forEach((word, index) => {
+      const name = `PCHSTRP${index}`;
+      const address = straps.base + index * 4;
+      let meaning = L("Unknown");
+      if (straps.meDisable !== undefined && straps.meDisable.word === index) {
+        meaning = L(
+          "%1$@ in bit %2$@; the other bits unknown",
+          straps.meDisable.name,
+          `${straps.meDisable.bit}`
+        );
+      } else if (straps.espiClock?.word === index) {
+        meaning = L("eSPI clock in bits 3–5; the other bits unknown");
+      } else if (straps.gpr0?.word === index) {
+        meaning = L("GPR0, the whole word");
+      }
+      rows.push([
+        cell(name),
+        cell(hex(address)),
+        cell(`0x${word.toString(16).toUpperCase().padStart(8, "0")}`),
+        cell(meaning),
+      ]);
+      targets.push({ kind: "range", start: address, end: address + 4, name });
+    });
+    tables.push({
+      title: L("PCH straps"),
+      symbol: "slider.horizontal.3",
+      columns: [L("Strap"), L("Offset"), L("Value"), L("Meaning")],
+      rows,
+      rowTargets: targets,
+      linkColumn: 1,
+      // Seventy words and more, of which the fields above have already said what is
+      // known: folded, it leaves the rest of the detail in view.
+      startsFolded: true,
     });
   }
   return tables;

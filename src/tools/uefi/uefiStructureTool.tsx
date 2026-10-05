@@ -60,14 +60,7 @@ import {
   wireTopSwapRole,
   wireTopSwapTwin,
 } from "@/tools/uefi/uefiTopSwap";
-import {
-  isEmptySpace,
-  listed,
-  nodeName,
-  present,
-  summary,
-  wireLength,
-} from "@/tools/uefi/uefiTreeDisplay";
+import { listed, nodeName, present, summary, wireLength } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
@@ -1789,7 +1782,7 @@ function TreeRow({
       data-alt={alternate}
       // Erased padding, free space and an erased pad file read grey, the whole row,
       // the way an empty ME section does.
-      data-empty={isEmptySpace(node) ? "" : undefined}
+      data-empty={node.isEmptySpace === true ? "" : undefined}
       // The row's background and rail in words, so nothing it says is said by
       // colour alone (`Design/ROW_MARKS.md` §2).
       title={rowMarkTitle(marks)}

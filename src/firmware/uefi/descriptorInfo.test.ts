@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
-import { type DescriptorInfo, readDescriptorInfo } from "@/firmware/uefi/descriptorInfo";
+import { meDisableBit, strapFields } from "@/firmware/uefi/descriptorGeneration";
+import {
+  type DescriptorInfo,
+  isProtectedRangeOn,
+  readDescriptorInfo,
+} from "@/firmware/uefi/descriptorInfo";
 import { JEDEC_COUNT, jedecChip, jedecCount, jedecName } from "@/firmware/uefi/jedecIds";
 
 /**
@@ -318,5 +323,125 @@ describe("the VSCC table", () => {
       sizeKB: 8192,
       source: "linux",
     });
+  });
+});
+
+describe("the PCH straps", () => {
+  // The PCH straps are every word the map counts — `0x73` on this Alder Point layout —
+  // read where the map puts them, and HAP is bit 16 of the first.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheStrapsOfAnAlderPointBoardAndItsHAPBit
+  it("reads the straps of an Alder Point board and its HAP bit", () => {
+    const read = info(Test.descriptor({ regions: [bios], straps: [0x0001_0000, 0x1234_5678] }));
+    const straps = read.straps;
+
+    expect(straps?.base).toBe(0x200);
+    expect(straps?.words).toHaveLength(0x73);
+    expect(straps?.words.slice(0, 3)).toEqual([0x0001_0000, 0x1234_5678, 0xffff_ffff]);
+    expect(straps?.meDisable).toEqual({ name: "HAP", word: 0, bit: 16, isSet: true });
+  });
+
+  // From Ibex Peak to Wildcat Point the bit is AltMeDisable, bit 7 of the eleventh word —
+  // and a first word with bit 16 set says nothing there.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testACougarPointBoardsBitIsAltMeDisable
+  it("takes AltMeDisable as a Cougar Point board's bit", () => {
+    const words = new Array<number>(11).fill(0);
+    words[0] = 0x0001_0000;
+    const clear = info(Test.descriptor({ regions: [bios], version1: true, straps: words })).straps;
+    expect(clear?.words).toHaveLength(0x12);
+    expect(clear?.meDisable).toEqual({ name: "AltMeDisable", word: 10, bit: 7, isSet: false });
+
+    words[10] = 0x80;
+    const set = info(Test.descriptor({ regions: [bios], version1: true, straps: words })).straps;
+    expect(set?.meDisable?.isSet).toBe(true);
+  });
+
+  // Which bit, generation by generation: ifdtool's and me_cleaner's, and none where
+  // neither names one.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheMEDisableBitByGeneration
+  it("names the ME disable bit by generation", () => {
+    expect(meDisableBit("ich9")?.name).toBe("ICH_MeDisable");
+    expect(meDisableBit("ich9")?.bit).toBe(0);
+    expect(meDisableBit("lynxPoint")?.word).toBe(10);
+    expect(meDisableBit("sunrisePoint")?.name).toBe("HAP");
+    expect(meDisableBit("apolloLake")?.name).toBe("HAP");
+    expect(meDisableBit("bayTrail")).toBeUndefined();
+    expect(meDisableBit("emmitsburg")).toBeUndefined();
+  });
+
+  // No strap base, no section — the bytes at offset zero are not straps.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testNoStrapBaseMeansNoStraps
+  it("has none without a strap base", () => {
+    expect(info(Test.descriptor({ regions: [bios] })).straps).toBeUndefined();
+  });
+
+  // A length that runs past the descriptor is cut where the descriptor ends: what
+  // follows is the next region, not straps.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheStrapsStopAtTheDescriptorsEnd
+  it("stops the straps at the descriptor's end", () => {
+    const head = Test.descriptor({ regions: [bios] });
+    const bytes = new Uint8Array(head.length + 0x1000);
+    bytes.set(head, 0);
+    bytes[0x1a] = 0xe0; // FPSBA: 0xE00
+    bytes[0x1b] = 0xff; // 255 words claimed
+    const straps = info(bytes).straps;
+
+    // 0x200 bytes to the end, four a word.
+    expect(straps?.words).toHaveLength(0x80);
+  });
+
+  // The seventy-word layout of Tiger and Alder Point mobile: the eSPI clock in bits 3–5
+  // of word 22, and GPR0 in word 21 — here as `ifdtool -p adl --gpr0-enable` writes it
+  // into `clean_me`: the ME region to the end of its FITC, writes refused.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheESPIClockAndGPR0OfAMobileAlderPointLayout
+  it("reads the eSPI clock and GPR0 of a mobile Alder Point layout", () => {
+    const words = new Array<number>(23).fill(0);
+    words[21] = 0x829b_0001;
+    words[22] = 0x0058_0e20;
+    const straps = info(Test.descriptor({ regions: [bios], straps: words, strapCount: 70 })).straps;
+
+    expect(straps?.espiClock).toEqual({ word: 22, clock: { code: 4, megahertz: [60] } });
+    expect(straps?.gpr0).toEqual({
+      word: 21,
+      start: 0x1000,
+      end: 0x29_bfff,
+      readProtected: false,
+      writeProtected: true,
+    });
+    expect(straps?.gpr0 === undefined ? undefined : isProtectedRangeOn(straps.gpr0)).toBe(true);
+  });
+
+  // A GPRD of zero is no protection, and a clock code ifdtool's table has no entry for is
+  // a code without a clock.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testAZeroGPR0IsOffAndAnUnlistedClockIsUnknown
+  it("takes a zero GPR0 for off and an unlisted clock for unknown", () => {
+    const words = new Array<number>(23).fill(0);
+    words[22] = 6 << 3;
+    const straps = info(Test.descriptor({ regions: [bios], straps: words, strapCount: 70 })).straps;
+
+    expect(straps?.gpr0 === undefined ? undefined : isProtectedRangeOn(straps.gpr0)).toBe(false);
+    expect(straps?.espiClock?.clock).toEqual({ code: 6, megahertz: undefined });
+  });
+
+  // The desktop layout puts other fields in the same words, so nothing is read from them:
+  // Alder Point S's 115 words have no eSPI clock or GPR0.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheDesktopLayoutReadsNeither
+  it("reads neither field on the desktop layout", () => {
+    const words = new Array<number>(23).fill(0);
+    words[21] = 0x2222_2222;
+    const straps = info(Test.descriptor({ regions: [bios], straps: words })).straps;
+
+    expect(straps?.words).toHaveLength(0x73);
+    expect(straps?.espiClock).toBeUndefined();
+    expect(straps?.gpr0).toBeUndefined();
+  });
+
+  // Which layouts the two fields are read on: generation and length both.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/DescriptorInfoTests.swift#DescriptorInfoTests.testTheStrapFieldsAreKeyedByGenerationAndLength
+  it("keys the strap fields by generation and length", () => {
+    expect(strapFields("tigerPoint", 70)?.gpr0Word).toBe(21);
+    expect(strapFields("alderPoint", 70)?.espiClockWord).toBe(22);
+    expect(strapFields("tigerPoint", 101)).toBeUndefined(); // Tiger Point H
+    expect(strapFields("alderPoint", 115)).toBeUndefined(); // Alder Point S
+    expect(strapFields("cannonPoint", 69)).toBeUndefined(); // GPR0 is in the ME region's FITC
   });
 });

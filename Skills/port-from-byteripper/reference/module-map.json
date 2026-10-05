@@ -4258,7 +4258,8 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testARefusalIsASheetAndAudible": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testABZip2VariableOpensItsUnpackedText": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsThePictureInQuickLook": "later — an app flow test; Quick Look on Space is not ported (the owner's decision, 2026-10-04), and the web has no end-to-end test of the click yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsThePictureInQuickLook": "later — an app flow test; Quick Look on Space is not ported (the owner's decision, 2026-10-04), and the web has no end-to-end test of the click yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapTableStartsFolded": "later — an app flow test; the port has no component or end-to-end test for it yet (`startsFolded` is unit-tested in the detail's own test, and the open tables are kept for the page's life in `unfoldedTables`)"
       }
     },
     {

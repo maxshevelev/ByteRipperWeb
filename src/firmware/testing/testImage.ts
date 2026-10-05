@@ -456,6 +456,12 @@ export function descriptor(options: {
     readonly flill: number;
     readonly flill1: number;
   };
+  /**
+   * The first PCH strap words, at `0x200`, in a section of the layout's length or
+   * `strapCount`; without them there is no section.
+   */
+  readonly straps?: readonly number[];
+  readonly strapCount?: number;
 }): Uint8Array {
   const regionBase = options.regionBase ?? 0x04;
   const bytes = new Uint8Array(Descriptor.size).fill(0xff);
@@ -475,13 +481,18 @@ export function descriptor(options: {
       (options.component === undefined ? 0 : (options.component.chips - 1) * 0x100 + componentBase),
     Descriptor.mapOffset
   );
-  // The PCH strap length, then the master base — out of range, so no section,
-  // unless masters are asked for.
+  // The PCH strap length and base — none unless straps are asked for — then the
+  // master base, out of range unless masters are.
+  const strapBase = 0x20;
   put32(
-    (((version1 ? 0x12 : 0x73) << 24) >>> 0) +
+    (((options.strapCount ?? (version1 ? 0x12 : 0x73)) << 24) >>> 0) +
+      (options.straps === undefined ? 0 : strapBase * 0x10000) +
       (masters.length === 0 ? 0xff : (options.masterBase ?? 0x0a)),
     Descriptor.map1Offset
   );
+  for (const [index, word] of (options.straps ?? []).entries()) {
+    put32(word, strapBase * 16 + index * 4);
+  }
   put32(version1 ? 0x0021_0120 : 0x0014_01b0, Descriptor.map2Offset);
   // The MIP table base, which a Cougar Point descriptor has none of.
   bytes[0x0eff] = version1 ? 0x00 : 0xc0;
