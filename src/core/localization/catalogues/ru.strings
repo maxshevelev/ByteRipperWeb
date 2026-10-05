@@ -192,6 +192,10 @@
 "Setup help" = "Справка Setup";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
 "Picture size" = "Размер изображения";
+"Show the details in a large view (Space)" = "Открыть детали в увеличенном виде (Пробел)";
+"Close the large view (Space or Esc)" = "Закрыть увеличенный вид (Пробел или Esc)";
+"Details" = "Детали";
+"details|Expand" = "Развернуть";
 "Show or hide the table" = "Показать или скрыть таблицу";
 "eSPI clock" = "Частота eSPI";
 "%1$@: reads and writes refused" = "%1$@: чтение и запись запрещены";

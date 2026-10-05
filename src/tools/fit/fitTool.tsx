@@ -12,6 +12,7 @@ import {
   parsePaneFirmware,
   readPaneFit,
 } from "@/state/firmwareStore";
+import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import {
   cancelMicrocodeCatalogue,
   downloadMicrocode,
@@ -167,6 +168,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
   const catalogue = useStore(microcodeCatalogueStore);
+  const detailLarge = useStore(largeDetailStore).open;
   const park = restoredParked(context.restored);
   const [report, setReport] = useState<FITReport | undefined>(undefined);
   const [focus, setFocus] = useState<number | undefined>(park?.focus);
@@ -200,9 +202,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    */
   const [listWidth, setListWidth] = useState(0);
   const observerRef = useRef<ResizeObserver | null>(null);
+  /** The table's scroller, which takes the keyboard. */
+  const listElement = useRef<HTMLDivElement | null>(null);
   const listRef = useCallback((element: HTMLDivElement | null) => {
     observerRef.current?.disconnect();
     observerRef.current = null;
+    listElement.current = element;
     if (element === null) return;
     setListWidth(element.clientWidth);
     const observer = new ResizeObserver(() => setListWidth(element.clientWidth));
@@ -588,6 +593,11 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         const next =
           display.rows[at < 0 ? 0 : Math.min(display.rows.length - 1, Math.max(0, at + step))];
         if (next !== undefined) choose(next);
+      } else if (event.key === " ") {
+        // Space on the row in focus opens the details in the large view, and closes it
+        // again.
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (!toggleLargeDetail(at >= 0)) return;
       } else if (event.key === "Enter") {
         const row = display.rows[at];
         if (row !== undefined) run({ kind: "goToOffset", offset: offsetToGoTo(row) });
@@ -689,8 +699,11 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
       <div
         className="tool-split"
+        data-detail-large={detailLarge ? "" : undefined}
         style={{
-          gridTemplateRows: `minmax(0, ${tableShare}fr) 6px minmax(0, ${1 - tableShare}fr)`,
+          gridTemplateRows: detailLarge
+            ? "minmax(0, 1fr) 0 0"
+            : `minmax(0, ${tableShare}fr) 6px minmax(0, ${1 - tableShare}fr)`,
         }}
       >
         {/* The entries and their legend are one pane of the split: the legend
@@ -809,6 +822,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         />
 
         <ToolDetail
+          onFocusTable={() => listElement.current?.focus()}
           subject={focus === undefined || tableFocused ? undefined : String(focus)}
           detail={detail}
           placeholder={L("Select a row to see what it is.")}

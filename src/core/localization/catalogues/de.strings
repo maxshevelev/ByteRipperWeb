@@ -192,6 +192,10 @@
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
+"Show the details in a large view (Space)" = "Details in großer Ansicht zeigen (Leertaste)";
+"Close the large view (Space or Esc)" = "Große Ansicht schließen (Leertaste oder Esc)";
+"Details" = "Details";
+"details|Expand" = "Vergrößern";
 "Show or hide the table" = "Tabelle ein- oder ausblenden";
 "eSPI clock" = "eSPI-Takt";
 "%1$@: reads and writes refused" = "%1$@: Lesen und Schreiben gesperrt";

@@ -834,14 +834,7 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openUnpackedInNewTab": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenUnpacked": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnOverridesVariableIsReadAsRules": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
-        "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.pictureFileExtension": "n/a — the name of the file Quick Look writes, and Quick Look is not ported (the owner's decision, 2026-10-04); the web's preview keeps the mime, not a name",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.acceptsPreviewPanelControl": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.beginPreviewPanelControl": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.endPreviewPanelControl": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.numberOfPreviewItems": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.previewPanel": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.quickLookFile": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.toggleQuickLook": "not ported — Quick Look on Space is macOS's system viewer and has no web equivalent, the owner's decision 2026-10-04 (GAPS.md)"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
       }
     },
     {
@@ -941,7 +934,8 @@
         "Modules/FITTool/Tests/FITToolTests/TestFIT.swift#BinaryWriter*": "n/a — the web fixtures write their bytes through local helpers of their own",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewColumnDidResize": "n/a — AppKit table column resizing",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "n/a — upstream's tree calls the session back when the ranges land; the panel here reads them from the firmware store, which re-renders on its own",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors"
+        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
       }
     },
     {
@@ -980,7 +974,8 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.isEmphasized": "n/a — `isEmphasized(row)`, a function over the row, anchored to the view code it was lifted from",
-        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)"
+        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)",
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
       }
     },
     {
@@ -4258,8 +4253,8 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testARefusalIsASheetAndAudible": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testABZip2VariableOpensItsUnpackedText": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsThePictureInQuickLook": "later — an app flow test; Quick Look on Space is not ported (the owner's decision, 2026-10-04), and the web has no end-to-end test of the click yet",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapTableStartsFolded": "later — an app flow test; the port has no component or end-to-end test for it yet (`startsFolded` is unit-tested in the detail's own test, and the open tables are kept for the page's life in `unfoldedTables`)"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapTableStartsFolded": "later — an app flow test; the port has no component or end-to-end test for it yet (`startsFolded` is unit-tested in the detail's own test, and the open tables are kept for the page's life in `unfoldedTables`)",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsTheDetailInTheLargeView": "later — an app flow test; the port has no component or end-to-end test for it yet (the state is unit-tested in `largeDetailStore.test.ts`)"
       }
     },
     {
@@ -4900,7 +4895,18 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.setExpanded": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.setMarks": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarksLegend.swift#ToolRowMarksLegend.setShowsMarkings": "n/a — the legend's AppKit layout and state; the web's `ToolRowMarksLegend.tsx` is a component",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testACellWearsTheProblemAndTheBadges": "later — a test of the AppKit cell's problem tint and badges; the port draws them in React and tests the row marks' words"
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testACellWearsTheProblemAndTheBadges": "later — a test of the AppKit cell's problem tint and badges; the port draws them in React and tests the row marks' words",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.detail": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.init": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.place": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.viewWillMove": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.flight": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.finishTransitionForTesting": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.quickLookCardForTesting": "n/a — AppKit view mechanics: the card is a component rendered into the page, with no list to move between views and no splitter animation to run on",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.margin": "n/a — the card's margin and its share of the width are the stylesheet's (`.tool-detail-card`)",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.widthShare": "n/a — the card's margin and its share of the width are the stylesheet's (`.tool-detail-card`)",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.expandButtonForTesting": "n/a — a test seam onto the corner button",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift#ToolDetailPaneTests.*": "later — the card, its corner buttons and the pane it folds are components, which the port has no component test for (the state is unit-tested in `largeDetailStore.test.ts`)"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -4935,7 +4941,12 @@
           "src/ui/toolPanel/columnWidths.ts",
           "src/ui/toolPanel/ColumnResizer.tsx",
           "src/app/app.css"
-        ]
+        ],
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift": [
+          "src/state/largeDetailStore.ts",
+          "src/ui/toolPanel/ToolDetail.tsx"
+        ],
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": "src/state/largeDetailStore.test.ts"
       }
     },
     {

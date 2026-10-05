@@ -19,6 +19,7 @@ import {
   huffmanDictionaryStore,
   loadHuffmanDictionaries,
 } from "@/state/huffmanDictionaryStore";
+import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import {
   cancelMEDatabase,
   loadMEDatabase,
@@ -213,6 +214,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
   const database = useStore(meDatabaseStore);
+  const detailLarge = useStore(largeDetailStore).open;
   const huffman = useStore(huffmanDictionaryStore);
   const fileTable = useStore(fileTableStore);
   const park = restoredParked(context.restored);
@@ -543,6 +545,12 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         showRow(row.key);
       };
       switch (event.key) {
+        // Space on the row in focus opens the details in the large view, and closes it
+        // again.
+        case " ":
+          if (event.ctrlKey || event.metaKey || event.altKey) return;
+          if (!toggleLargeDetail(current !== undefined)) return;
+          break;
         case "ArrowDown":
           moveTo(rows[index + 1]);
           break;
@@ -716,8 +724,11 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         ) : (
           <div
             className="tool-split"
+            data-detail-large={detailLarge ? "" : undefined}
             style={{
-              gridTemplateRows: `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)`,
+              gridTemplateRows: detailLarge
+                ? "minmax(0, 1fr) 0 0"
+                : `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)`,
             }}
           >
             {/* The tree and its legend are one pane of the split: the legend
@@ -781,6 +792,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               label={L("Resize the detail")}
             />
             <ToolDetail
+              onFocusTable={() => treeRef.current?.focus()}
               subject={focus}
               detail={detailOf(selected)}
               placeholder={L("Select a row to see what it is.")}

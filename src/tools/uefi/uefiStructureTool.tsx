@@ -21,6 +21,7 @@ import {
   readSpaceBytes,
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
+import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
@@ -342,6 +343,7 @@ export function rowsOf(
 function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const state = useStore(firmwareStore).panes[context.pane];
   const catalogue = useStore(catalogueStore);
+  const detailLarge = useStore(largeDetailStore).open;
   const park = restoredParked(context.restored);
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
   /** Branches slow enough to have earned a "Loading…" row. */
@@ -1213,6 +1215,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       const current = row?.node;
       const currentMe = row?.me;
       switch (event.key) {
+        // Space on the row in focus opens the details in the large view, and closes it
+        // again.
+        // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.toggleQuickLook
+        case " ":
+          if (event.ctrlKey || event.metaKey || event.altKey) return;
+          if (!toggleLargeDetail(focused !== undefined)) return;
+          break;
         case "ArrowDown":
           moveTo(index + 1, 1);
           break;
@@ -1410,7 +1419,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
       <div
         className="tool-split"
-        style={{ gridTemplateRows: `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)` }}
+        data-detail-large={detailLarge ? "" : undefined}
+        style={{
+          gridTemplateRows: detailLarge
+            ? "minmax(0, 1fr) 0 0"
+            : `minmax(0, ${treeShare}fr) 6px minmax(0, ${1 - treeShare}fr)`,
+        }}
       >
         {/* The tree and its legend are one pane of the split: the legend takes
             its room at the pane's bottom edge and the tree gives it up, so it
@@ -1601,6 +1615,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           placeholder={L("Select a node to see what it is.")}
           onSelectNode={chooseByPath}
           onOutlineRange={outlineRange}
+          onFocusTable={() => scrollRef.current?.focus()}
           // The ME sub-tree's rows carry their own term, decided by the
           // curator; every other row's is a function of its kind and subtype.
           helpTerm={

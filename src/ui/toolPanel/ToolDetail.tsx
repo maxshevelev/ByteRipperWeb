@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
+import { closeLargeDetail, largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
+import { useStore } from "@/state/useStore";
 import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
@@ -40,6 +43,7 @@ export function ToolDetail({
   helpTerm,
   onSelectNode,
   onOutlineRange,
+  onFocusTable,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -68,9 +72,252 @@ export function ToolDetail({
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOutlineRange
    */
   readonly onOutlineRange?: ((start: number, end: number, name: string) => void) | undefined;
+  /**
+   * Puts the keyboard on the table the details belong to: Space pressed in the details
+   * opens the large view, and the arrow keys then move the table.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.attach
+   */
+  readonly onFocusTable?: (() => void) | undefined;
 }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const shownSubject = useRef<string | undefined>(undefined);
+  const open = useStore(largeDetailStore).open;
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
+  const hasRows = detail.fields.length > 0;
+  const paneRef = useRef<HTMLDivElement | null>(null);
+  useScrollToTopOnSubject(paneRef, subject, hasRows);
+
+  // A link followed from the card closes it, and goes where it points.
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.closeQuickLook
+  const followNode =
+    onSelectNode === undefined
+      ? undefined
+      : (path: readonly number[]) => {
+          closeLargeDetail();
+          onSelectNode(path);
+        };
+  const followRange =
+    onOutlineRange === undefined
+      ? undefined
+      : (start: number, end: number, name: string) => {
+          closeLargeDetail();
+          onOutlineRange(start, end, name);
+        };
+
+  // The panel going away takes its large view with it.
+  useEffect(() => () => closeLargeDetail(), []);
+
+  const bodyProps = { detail, placeholder, helpTerm, subject };
+  return (
+    // Space in the details opens the large view, and hands the focus to the table, so
+    // the arrow keys move it — a reader who has clicked into the details to select a
+    // value is reading them, and wants them larger just as much.
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.viewDidMoveToWindow
+    // biome-ignore lint/a11y/noStaticElementInteractions: the keys are the large view's, not a control's
+    <div
+      className="tool-detail"
+      ref={paneRef}
+      data-large={open ? "" : undefined}
+      // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShut
+      onKeyDown={(event) => {
+        if (event.key !== " " || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (isTextEntryTarget(event.target)) return;
+        if (toggleLargeDetail(hasRows)) {
+          event.preventDefault();
+          onFocusTable?.();
+        }
+      }}
+    >
+      {hasRows ? <ExpandButton open={open} onClick={() => toggleLargeDetail(hasRows)} /> : null}
+      <DetailBody {...bodyProps} onSelectNode={onSelectNode} onOutlineRange={onOutlineRange} />
+      {open
+        ? createPortal(
+            <LargeDetailCard
+              {...bodyProps}
+              hasRows={hasRows}
+              onSelectNode={followNode}
+              onOutlineRange={followRange}
+              onClose={closeLargeDetail}
+            />,
+            document.body
+          )
+        : null}
+    </div>
+  );
+}
+
+/**
+ * Whether a key was pressed where it types: Space there is a space.
+ */
+function isTextEntryTarget(target: EventTarget): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || target.closest("input, textarea, select") !== null)
+  );
+}
+
+/**
+ * The list scrolls back to the top only when the subject changes. A panel re-renders for
+ * reasons that have nothing to do with the user — a checksum pass, the GUID names
+ * arriving — and resetting on those would throw a reader back to the top of the detail
+ * they were part-way through.
+ */
+function useScrollToTopOnSubject(
+  ref: React.RefObject<HTMLElement | null>,
+  subject: string | undefined,
+  hasRows: boolean
+): void {
+  const shown = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!hasRows) {
+      shown.current = undefined;
+      return;
+    }
+    if (subject === shown.current) return;
+    shown.current = subject;
+    ref.current?.scrollTo({ top: 0 });
+  }, [ref, subject, hasRows]);
+}
+
+/**
+ * The corner button of the details: expand while they are under the table, close in the
+ * card. It sits on the scrolling list's corner, so it stays still while the rows scroll.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.onExpand
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.isExpanded
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.tile
+ */
+function ExpandButton({ open, onClick }: { readonly open: boolean; readonly onClick: () => void }) {
+  // help: panel.detail-quick-look
+  return (
+    <button
+      type="button"
+      className="tool-detail-expand"
+      aria-label={open ? L("Close") : L("Expand", { context: "details" })}
+      title={
+        open
+          ? L("Close the large view (Space or Esc)")
+          : L("Show the details in a large view (Space)")
+      }
+      onClick={onClick}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14">
+        {open ? (
+          <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+        ) : (
+          <path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" />
+        )}
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * The large view: the list in a card on the right of the window, two thirds of its width,
+ * clear of its top, bottom and right edges, leaving the panel's table in view on its left.
+ * Not dimmed around, so the dump and the table stay readable beside it. **Esc**, **Space**,
+ * the close button and a click outside close it; such a click still does what it was for.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane
+ */
+function LargeDetailCard({
+  detail,
+  placeholder,
+  helpTerm,
+  subject,
+  hasRows,
+  onSelectNode,
+  onOutlineRange,
+  onClose,
+}: {
+  readonly detail: NodeDetail;
+  readonly placeholder: string;
+  readonly helpTerm: HelpTermId | undefined;
+  readonly subject: string | undefined;
+  readonly hasRows: boolean;
+  readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
+  readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
+  readonly onClose: () => void;
+}) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useScrollToTopOnSubject(cardRef, subject, hasRows);
+
+  useEffect(() => {
+    // The keys the card answers while it is shown.
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShown
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      } else if (
+        event.key === " " &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !(
+          event.target instanceof Node &&
+          cardRef.current?.contains(event.target) === true &&
+          isTextEntryTarget(event.target)
+        )
+      ) {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    // Anywhere outside the card: closed, and the click carries on to what it was for.
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
+    const onPointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && cardRef.current?.contains(event.target) === true) return;
+      onClose();
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="tool-detail tool-detail-card"
+      ref={cardRef}
+      role="dialog"
+      aria-label={L("Details")}
+    >
+      <ExpandButton open onClick={onClose} />
+      <DetailBody
+        detail={detail}
+        placeholder={placeholder}
+        helpTerm={helpTerm}
+        subject={subject}
+        onSelectNode={onSelectNode}
+        onOutlineRange={onOutlineRange}
+      />
+    </div>
+  );
+}
+
+/**
+ * The list itself: a title, the label/value rows, the tables and the picture — or the
+ * placeholder while no row is in focus. The pane and the card both hold one, so a list
+ * that is open in the card is the very list the pane shows.
+ */
+function DetailBody({
+  detail,
+  placeholder,
+  helpTerm,
+  subject,
+  onSelectNode,
+  onOutlineRange,
+}: {
+  readonly detail: NodeDetail;
+  readonly placeholder: string;
+  readonly helpTerm: HelpTermId | undefined;
+  readonly subject: string | undefined;
+  readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
+  readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
+}) {
   const termButton = useRef<HTMLSpanElement | null>(null);
   const [termShown, setTermShown] = useState(false);
   const hasRows = detail.fields.length > 0;
@@ -80,18 +327,8 @@ export function ToolDetail({
   // biome-ignore lint/correctness/useExhaustiveDependencies: the subject changing is the whole condition
   useLayoutEffect(() => setTermShown(false), [subject, helpTerm]);
 
-  useLayoutEffect(() => {
-    if (!hasRows) {
-      shownSubject.current = undefined;
-      return;
-    }
-    if (subject === shownSubject.current) return;
-    shownSubject.current = subject;
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [subject, hasRows]);
-
   return (
-    <div className="tool-detail" ref={scrollRef}>
+    <>
       {!hasRows ? (
         <p className="tool-detail-placeholder">
           {detail.title.length > 0 ? detail.title : placeholder}
@@ -163,7 +400,7 @@ export function ToolDetail({
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
