@@ -382,7 +382,9 @@ export function parseFile(
         // reference leaves it: one padding row the size of the body would say
         // nothing the file's own row does not.
         const found = scanRawArea(parser, body, emptyByte, depth + 1);
-        children = found.some((one) => one.kind !== "padding") ? found : [];
+        children = found.some((one) => one.kind !== "padding" || one.children.length > 0)
+          ? found
+          : [];
       }
     }
   } else if (hasSections(type) && body.end > body.start) {
@@ -459,18 +461,18 @@ function padFileBody(parser: Parser, body: ImageRange, emptyByte: number): UEFIN
     parser.note({ kind: "nonUEFIDataInPadFile" }, dataStart);
     // A vendor that keeps a Boot Guard manifest or the FIT itself in a pad file
     // gets it named, under the row the reference shows.
-    const pieces = readingFITComponents(
-      parser,
-      parser.padding(data.start, data.end, emptyByte),
-      emptyByte
-    );
+    // The data is one padding row, and what the FIT names in it are that row's
+    // rows — which become the Non-UEFI data's own.
+    const pieces =
+      readingFITComponents(parser, parser.padding(data.start, data.end, emptyByte), emptyByte)[0]
+        ?.children ?? [];
     nodes.push(
       makeNode({
         kind: "padding",
         name: L("Non-UEFI data"),
         header: { start: dataStart, end: dataStart },
         body: data,
-        children: pieces.some((piece) => piece.kind === "fitComponent") ? pieces : [],
+        children: pieces,
       })
     );
   }

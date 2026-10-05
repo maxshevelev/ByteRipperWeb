@@ -429,6 +429,22 @@ describe("empty padding", () => {
     expect(isEmptyPadding(volume())).toBe(false);
   });
 
+  // Erased padding with rows read into it — an Insyde map's region nobody has
+  // written — is listed, or its rows would go with it.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift#EmptyPaddingTests.testErasedPaddingWithRowsIsListed
+  it("lists erased padding that has rows", () => {
+    const region = makeNode({
+      kind: "flashDeviceMapRegion",
+      name: "Unused",
+      header: r(0x1000, 0x1000),
+      body: r(0x1000, 0x2000),
+      isErased: true,
+    });
+    const holding = { ...erased, children: [region] };
+    expect(isEmptyPadding(holding)).toBe(false);
+    expect(listed([holding], false)).toHaveLength(1);
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/EmptyPaddingTests.swift#EmptyPaddingTests.testTheTreeListsEmptyPaddingOnlyWhenAsked
   // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testEmptyPaddingIsListedOnlyWhenAskedFor
   it("is listed only when asked for", () => {

@@ -408,8 +408,11 @@ export function nonUEFIData(
   if (!node.isErased && depth < parser.limits.maxDepth) {
     const found = scanRawArea(parser, range, emptyByte, depth + 1);
     // Nothing but padding means the search found nothing, and a single padding
-    // child that repeats its parent is noise.
-    if (found.some((child) => child.kind !== "padding")) node.children = found;
+    // child that repeats its parent is noise — unless the padding has rows of its
+    // own read into it.
+    if (found.some((child) => child.kind !== "padding" || child.children.length > 0)) {
+      node.children = found;
+    }
   }
   return node;
 }

@@ -1309,8 +1309,9 @@ function ecImageFields(node: UEFINode, image: UEFIImage, reader: ImageReader): D
     fields.push(field(L("Vendor"), "ITE"));
     fields.push(field("ITE identification", found.vendor.identification));
   } else {
-    fields.push(field(L("Vendor"), "Microchip"));
-    fields.push(field("Signature", "PHCM"));
+    // Microchip's format, which says nothing of whose chip it is: the format is
+    // named, the vendor is not.
+    fields.push(field(L("Format"), "PHCM (Microchip MEC)"));
   }
   fields.push(field(L("Written"), sizeText(found.written)));
   if (found.copyOf !== undefined) fields.push(field(L("Copy of"), hex(found.copyOf)));

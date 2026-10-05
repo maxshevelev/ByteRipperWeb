@@ -16,8 +16,8 @@ import { ItemType, Sub } from "@/firmware/uefi/uefiTypes";
  * (`UEFI_IMAGE_FORMAT.md` §9).
  */
 
-/** A Microchip image: the `PHCM` header and `length` bytes of something that is not the erase byte. */
-const microchip = (length: number, fill = 0x5a): Uint8Array => {
+/** An image with the `PHCM` header and `length` bytes of something that is not the erase byte. */
+const phcm = (length: number, fill = 0x5a): Uint8Array => {
   const bytes = new Uint8Array(length).fill(fill);
   bytes.set(encodeUtf8("PHCM"), 0);
   return bytes;
@@ -81,7 +81,7 @@ describe("EC images in a block", () => {
   // with data in it.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testACopyIsAsLongAsItsOriginal
   it("makes a copy as long as its original", () => {
-    const image = microchip(0x1f00);
+    const image = phcm(0x1f00);
     const log = new Uint8Array(0x100).fill(0x01);
     const ec = block(0x8000, [
       [0x0000, image],
@@ -94,7 +94,7 @@ describe("EC images in a block", () => {
     expect(region.name).toBe("EC region");
     expect(rows.map((node) => node.kind)).toEqual(["ecImage", "ecImage", "padding"]);
     expect(ranges(rows)).toEqual([r(0x1000, 0x3000), r(0x3000, 0x5000), r(0x5000, 0x9000)]);
-    expect(rows[0]?.name).toBe("Microchip MEC image");
+    expect(rows[0]?.name).toBe("PHCM image");
     expect(rows[0]?.subtype).toBeUndefined();
     expect(rows[1]?.subtype).toBe(EC_COPY_SUBTYPE);
     expect(rows[2]?.isErased).toBe(false);
@@ -109,8 +109,8 @@ describe("EC images in a block", () => {
   it("takes an image that differs for no copy", () => {
     const { region } = ecRegion(
       block(0x4000, [
-        [0x0000, microchip(0x800)],
-        [0x2000, microchip(0x800, 0x5b)],
+        [0x0000, phcm(0x800)],
+        [0x2000, phcm(0x800, 0x5b)],
       ])
     );
     expect(
@@ -138,8 +138,8 @@ describe("EC images in a block", () => {
   // keeps its length as a row would, and gets no rows.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testASingleImageAtTheStartAddsNoRows
   it("adds no rows for a single image at the start", () => {
-    const { region } = ecRegion(block(0x4000, [[0x0000, microchip(0x1800)]]));
-    expect(region.name).toBe("EC region (Microchip MEC image)");
+    const { region } = ecRegion(block(0x4000, [[0x0000, phcm(0x1800)]]));
+    expect(region.name).toBe("EC region (PHCM image)");
     expect(region.namedImageLength).toBe(0x2000);
     expect(region.children).toEqual([]);
   });
@@ -149,8 +149,8 @@ describe("EC images in a block", () => {
   it("keeps a length only for a block named after one image", () => {
     const { region: several } = ecRegion(
       block(0x4000, [
-        [0x0000, microchip(0x800)],
-        [0x2000, microchip(0x800)],
+        [0x0000, phcm(0x800)],
+        [0x2000, phcm(0x800)],
       ])
     );
     expect(several.namedImageLength).toBeUndefined();
@@ -163,7 +163,7 @@ describe("EC images in a block", () => {
     const { region } = ecRegion(
       block(0x4000, [
         [0x0000, Uint8Array.of(0x12, 0x34)],
-        [0x1000, microchip(0x800)],
+        [0x1000, phcm(0x800)],
       ])
     );
     expect(region.children.map((node) => node.kind)).toEqual(["padding", "ecImage", "padding"]);
@@ -181,7 +181,7 @@ describe("EC images in a block", () => {
   // An image classifies as UEFITool's padding.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testAnImageClassifiesAsPadding
   it("classifies an image as padding", () => {
-    const { region } = ecRegion(block(0x4000, [[0x1000, microchip(0x800)]]));
+    const { region } = ecRegion(block(0x4000, [[0x1000, phcm(0x800)]]));
     const image = region.children.find((node) => node.kind === "ecImage") as UEFINode;
     expect(itemType(image)).toBe(ItemType.padding);
     expect(itemSubtype(image)).toBe(Sub.dataPadding);

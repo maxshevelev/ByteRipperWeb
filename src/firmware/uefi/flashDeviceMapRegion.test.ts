@@ -99,8 +99,11 @@ function image(
 const top = (bytes: Uint8Array): UEFINode[] =>
   (parseUefiImage(sourceOver(bytes)).roots[0] as UEFINode).children;
 const range = (node: UEFINode | undefined) => nodeRange(node as UEFINode);
+/** The regions placed among `nodes`: rows inside the padding that holds them. */
 const regions = (nodes: readonly UEFINode[]) =>
-  nodes.filter((node) => node.kind === "flashDeviceMapRegion");
+  nodes
+    .flatMap((node) => (node.kind === "padding" ? node.children : [node]))
+    .filter((node) => node.kind === "flashDeviceMapRegion");
 const ofType = (nodes: readonly UEFINode[], type: EFIGUID) =>
   regions(nodes).find((node) => node.guid !== undefined && guidEquals(node.guid, type)) as UEFINode;
 
@@ -125,11 +128,16 @@ describe("the regions a flash device map names", () => {
     expect(parsed.diagnostics).toEqual([]);
   });
 
-  // Every other region is a leaf named by its type, and the padding around it
-  // stays what it was: nothing outside the range the map names is touched.
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testARegionIsCutOutOfThePaddingAndNamedByItsType
-  it("cuts a region out of the padding and names it by its type", () => {
-    const nodes = top(image());
+  // Every other region is a leaf named by its type, a row inside the padding that
+  // holds it: the padding keeps its place, range and name, and nothing outside the
+  // range the map names is touched.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.testARegionIsARowOfThePaddingAndNamedByItsType
+  it("makes a region a row of the padding and names it by its type", () => {
+    const outer = top(image())[0] as UEFINode;
+    expect(outer.kind).toBe("padding");
+    expect(nodeRange(outer)).toEqual({ start: 0, end: 0x4000 });
+    expect(outer.name).toBe("Padding");
+    const nodes = outer.children;
     const found = regions(nodes);
 
     expect(found.map((node) => node.name)).toEqual(["Variable Defaults", "Password"]);
@@ -198,7 +206,8 @@ describe("the regions a flash device map names", () => {
   it("leaves the regions as padding with no Volume Top File at the tail", () => {
     const nodes = top(image({ trailing: 0x100 }));
     expect(regions(nodes)).toEqual([]);
-    expect(nodes.some((node) => node.kind === "vssStore")).toBe(false);
+    const every = (node: UEFINode): UEFINode[] => [node, ...node.children.flatMap(every)];
+    expect(nodes.flatMap(every).some((node) => node.kind === "vssStore")).toBe(false);
   });
 
   // A full dump with bytes appended after it: the descriptor says where the BIOS

@@ -8,7 +8,7 @@ import {
   findTopSwapCopy,
   topSwapped,
 } from "@/firmware/uefi/topSwap";
-import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * A structure the FIT points at that a board keeps outside every volume
@@ -422,34 +422,18 @@ export function readingFITComponents(
   emptyByte: number
 ): UEFINode[] {
   if (!nodes.some((node) => node.kind === "padding")) return [...nodes];
-  const result = [...nodes];
+  let result = [...nodes];
   for (const component of fitComponentsOf(parser)) {
-    const index = result.findIndex((node) => {
-      const around = nodeRange(node);
-      return (
-        node.kind === "padding" &&
-        !node.isErased &&
-        around.start <= component.range.start &&
-        component.range.end <= around.end
-      );
+    const found = makeNode({
+      kind: "fitComponent",
+      subtype: FIT_COMPONENT_KINDS[component.kind],
+      name: fitComponentName(component.kind),
+      header: { start: component.range.start, end: component.range.start },
+      body: component.range,
+      // The FIT names it by address: moved, it is not found.
+      isFixed: true,
     });
-    if (index < 0) continue;
-    const around = nodeRange(result[index] as UEFINode);
-    result.splice(
-      index,
-      1,
-      ...parser.padding(around.start, component.range.start, emptyByte),
-      makeNode({
-        kind: "fitComponent",
-        subtype: FIT_COMPONENT_KINDS[component.kind],
-        name: fitComponentName(component.kind),
-        header: { start: component.range.start, end: component.range.start },
-        body: component.range,
-        // The FIT names it by address: moved, it is not found.
-        isFixed: true,
-      }),
-      ...parser.padding(component.range.end, around.end, emptyByte)
-    );
+    result = parser.placingInPadding(found, result, emptyByte, (node) => !node.isErased) ?? result;
   }
   return result;
 }

@@ -18,7 +18,7 @@ import { nodeName } from "@/tools/uefi/uefiTreeDisplay";
 
 const r = (start: number, end: number) => ({ start, end });
 
-/** A 16 KiB EC region: a Microchip image at its start and its copy at `0x2000`. */
+/** A 16 KiB EC region: an image with a `PHCM` header at its start and its copy at `0x2000`. */
 function built(): { image: UEFIImage; reader: ImageReader } {
   const bytes = new Uint8Array(0x4000).fill(0xff);
   const picture = new Uint8Array(0x800).fill(0x5a);
@@ -28,7 +28,7 @@ function built(): { image: UEFIImage; reader: ImageReader } {
   const rows: UEFINode[] = [
     makeNode({
       kind: "ecImage",
-      name: "Microchip MEC image",
+      name: "PHCM image",
       header: r(0, 0),
       body: r(0, 0x1000),
       isFixed: true,
@@ -37,7 +37,7 @@ function built(): { image: UEFIImage; reader: ImageReader } {
     makeNode({
       kind: "ecImage",
       subtype: EC_COPY_SUBTYPE,
-      name: "Microchip MEC image",
+      name: "PHCM image",
       header: r(0x2000, 0x2000),
       body: r(0x2000, 0x3000),
       isFixed: true,
@@ -71,7 +71,7 @@ describe("an EC image row", () => {
           GuidsCatalogue.empty
         )
       );
-    expect(names).toEqual(["Microchip MEC image, 4 KB", "Microchip MEC image, 4 KB (copy)"]);
+    expect(names).toEqual(["PHCM image, 4 KB", "PHCM image, 4 KB (copy)"]);
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/ECImageDisplayTests.swift#ECImageDisplayTests.testTheDetailsSayWhatTheImageIsAndWhatItCopies
@@ -83,8 +83,9 @@ describe("an EC image row", () => {
       return new Map(detail.fields.map((one) => [one.label, one.value] as const));
     };
     expect(fields(0).get("Kind")).toBe("EC firmware image");
-    expect(fields(0).get("Vendor")).toBe("Microchip");
-    expect(fields(0).get("Signature")).toBe("PHCM");
+    expect(fields(0).get("Format")).toBe("PHCM (Microchip MEC)");
+    // The header does not say whose chip it is.
+    expect(fields(0).get("Vendor")).toBeUndefined();
     expect(fields(0).get("Written")).toBe("0x800 (2048)");
     expect(fields(0).has("Copy of")).toBe(false);
     expect(fields(2).get("Copy of")).toBe("0x0");

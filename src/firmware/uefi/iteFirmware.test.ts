@@ -99,34 +99,41 @@ describe("padding that opens on an ITE image", () => {
   });
 
   // An image further into padding — an AMD board's first padding, the PSP's data
-  // before it — is cut out of it, and the bytes either side stay padding.
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testAnImageInsidePaddingIsCutOutOfIt
-  it("is cut out of the padding it sits in", () => {
+  // before it — is a row inside it: the padding keeps its range and name, and the
+  // bytes either side of the image are padding rows.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testAnImageInsidePaddingIsARowOfIt
+  it("is a row of the padding it sits in", () => {
     const bytes = new Uint8Array(0x10000).fill(0xff);
     bytes.fill(0x11, 0, 0x10);
     bytes.set(iteImage({ identification: "ITE8380-EC-V0.00" }), 0x3000);
     bytes.set(volume({ length: 0x1000, lastFile: volumeTopFile() }), 0xf000);
     const nodes = (parseUefiImage(sourceOver(bytes)).roots[0] as UEFINode).children;
+    const outer = nodes[0] as UEFINode;
 
     expect(nodes.map((node) => nodeRange(node))).toEqual([
+      { start: 0, end: 0xf000 },
+      { start: 0xf000, end: 0x10000 },
+    ]);
+    expect(outer.kind).toBe("padding");
+    expect(outer.name).toBe("Padding");
+    expect(isECFirmwarePadding(outer)).toBe(false);
+    expect(outer.children.map((node) => nodeRange(node))).toEqual([
       { start: 0, end: 0x3000 },
       { start: 0x3000, end: 0x4000 },
       { start: 0x4000, end: 0xf000 },
-      { start: 0xf000, end: 0x10000 },
     ]);
-    expect(nodes.slice(0, 3).map((node) => node.name)).toEqual([
+    expect(outer.children.map((node) => node.name)).toEqual([
       "Padding",
       "EC firmware (ITE8380-EC-V0.00)",
       "Empty padding",
     ]);
-    expect(nodes[1]?.kind).toBe("padding");
-    expect(isECFirmwarePadding(nodes[1] as UEFINode)).toBe(true);
+    expect(isECFirmwarePadding(outer.children[1] as UEFINode)).toBe(true);
   });
 
   // A `PHCM` dword in the middle of data is four bytes anything can hold: only an
   // image's start is trusted with it.
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testAMicrochipHeaderInsidePaddingIsNotCutOut
-  it("is not cut out for a Microchip header in the middle", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ITEFirmwareTests.swift#ITEFirmwareTests.testAPHCMHeaderInsidePaddingIsNotCutOut
+  it("is not cut out for a PHCM header in the middle", () => {
     const bytes = new Uint8Array(0x10000).fill(0xff);
     bytes.fill(0x11, 0, 0x10);
     bytes.set([0x50, 0x48, 0x43, 0x4d], 0x3000);

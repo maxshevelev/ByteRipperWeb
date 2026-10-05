@@ -203,10 +203,16 @@ const components = (nodes: readonly UEFINode[]) =>
   nodes.filter((node) => node.kind === "fitComponent");
 
 describe("the structures the FIT names", () => {
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FITComponentTests.swift#FITComponentTests.testWhatTheFITNamesIsCutOutOfThePadding
-  it("cuts what the FIT names out of the padding", () => {
+  // Each structure is a row inside the padding that holds it: the padding keeps its
+  // place, range and name, and the bytes in between are padding rows.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FITComponentTests.swift#FITComponentTests.testWhatTheFITNamesIsARowOfThePadding
+  it("makes what the FIT names a row of the padding", () => {
     const parsed = parse(block());
-    const nodes = (parsed.roots[0] as UEFINode).children;
+    const outer = (parsed.roots[0] as UEFINode).children[0] as UEFINode;
+    expect(outer.kind).toBe("padding");
+    expect(nodeRange(outer)).toEqual({ start: 0, end: 0xf000 });
+    expect(outer.name).toBe("Padding");
+    const nodes = outer.children;
     const found = components(nodes);
 
     expect(found.map((node) => node.name)).toEqual([
@@ -230,6 +236,29 @@ describe("the structures the FIT names", () => {
     expect(nodeRange(nodes[first + 1] as UEFINode)).toEqual({ start: 0x1040, end: 0x2000 });
     expect(nodes[first + 1]?.kind).toBe("padding");
     expect(parsed.diagnostics).toEqual([]);
+  });
+
+  // A raw file's body is a raw area too, and what the FIT names in it are rows of
+  // the padding there — which keeps the file's rows, although the scan found
+  // nothing but that padding.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FITComponentTests.swift#FITComponentTests.testWhatTheFITNamesInARawFileIsKept
+  it("keeps what the FIT names in a raw file", () => {
+    const bytes = block();
+    // A volume over the first 32 KiB whose one raw file's body starts at 0x60 and
+    // holds the same bytes at the same offsets.
+    const inFile = file({ body: bytes.slice(0x60, 0x5000) });
+    const whole = volume({ length: 0x8000, files: [inFile] });
+    expect(whole.slice(0x60, 0x5000)).toEqual(bytes.slice(0x60, 0x5000));
+    bytes.set(whole, 0);
+
+    const parsed = parse(bytes);
+
+    expect(components(parsed.allNodes).map((node) => node.name)).toEqual([
+      "FIT",
+      "Boot Guard Key Manifest",
+      "Boot Guard Boot Policy",
+      "Startup ACM",
+    ]);
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FITComponentTests.swift#FITComponentTests.testAManifestIsAsLongAsItsHeaderSays
@@ -261,7 +290,7 @@ describe("the structures the FIT names", () => {
         ],
       })
     );
-    expect(components((parsed.roots[0] as UEFINode).children).map((node) => node.name)).toEqual([
+    expect(components(parsed.allNodes).map((node) => node.name)).toEqual([
       "FIT",
       "Boot Guard Key Manifest",
     ]);

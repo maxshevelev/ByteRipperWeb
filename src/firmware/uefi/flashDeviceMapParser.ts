@@ -216,8 +216,9 @@ export function parseFlashDeviceMap(
  * every volume with no signature of its own: the EC firmware, the BIOS version
  * table, the SMBIOS update, the passwords, the default variables. The scan reads
  * those bytes as padding, and so does UEFITool. Each such range that lies wholly
- * inside a stretch of padding becomes a region named by its type, and the padding
- * around it stays padding. Nothing is searched for: a region is only where the
+ * inside a stretch of padding becomes a region named by its type, a row inside that
+ * padding: the padding keeps its place, and the bytes between the regions are
+ * padding rows. Nothing is searched for: a region is only where the
  * map puts one, and a range already read as something else — a volume, the NVRAM
  * stores — is left to what read it.
  *
@@ -271,17 +272,8 @@ export function readingMapRegions(
   // placed and the other, no longer inside padding, stays out.
   regions.sort((left, right) => left.range.start - right.range.start);
 
-  const result = [...nodes];
+  let result = [...nodes];
   for (const region of regions) {
-    const index = result.findIndex((node) => {
-      const around = nodeRange(node);
-      return (
-        node.kind === "padding" &&
-        around.start <= region.range.start &&
-        region.range.end <= around.end
-      );
-    });
-    if (index < 0) continue;
     let children: UEFINode[] = [];
     if (guidEquals(region.type, FlashDeviceMap.variableDefaults)) {
       const stores = walkStores(parser, region.range, emptyByte, depth + 1);
@@ -291,25 +283,19 @@ export function readingMapRegions(
         children = stores;
       }
     }
-    const around = nodeRange(result[index] as UEFINode);
-    result.splice(
-      index,
-      1,
-      ...parser.padding(around.start, region.range.start, emptyByte),
-      makeNode({
-        kind: "flashDeviceMapRegion",
-        name: regionTypeName(region.type) ?? nameOfGuid(region.type) ?? "Flash device map region",
-        guid: region.type,
-        header: { start: region.range.start, end: region.range.start },
-        body: region.range,
-        // The map pins it: it is where the map says, or the firmware does not
-        // find it.
-        isFixed: true,
-        isErased: children.length === 0 && parser.reader.isFilled(region.range, emptyByte),
-        children,
-      }),
-      ...parser.padding(region.range.end, around.end, emptyByte)
-    );
+    const found = makeNode({
+      kind: "flashDeviceMapRegion",
+      name: regionTypeName(region.type) ?? nameOfGuid(region.type) ?? "Flash device map region",
+      guid: region.type,
+      header: { start: region.range.start, end: region.range.start },
+      body: region.range,
+      // The map pins it: it is where the map says, or the firmware does not
+      // find it.
+      isFixed: true,
+      isErased: children.length === 0 && parser.reader.isFilled(region.range, emptyByte),
+      children,
+    });
+    result = parser.placingInPadding(found, result, emptyByte) ?? result;
   }
   return result;
 }

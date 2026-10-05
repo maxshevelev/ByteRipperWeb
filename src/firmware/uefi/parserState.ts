@@ -2,7 +2,7 @@ import { WindowedByteSource } from "@/firmware/byteSource";
 import { type ImageRange, ImageReader } from "@/firmware/imageReader";
 import type { DiagnosticKind, UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import type { FITComponent } from "@/firmware/uefi/fitComponents";
-import { makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * The parse in progress: the reader, the limits, and the diagnostics as they
@@ -135,5 +135,55 @@ export class Parser {
         isErased: erased,
       }),
     ];
+  }
+
+  /**
+   * `nodes` with `found` — something read out of padding by what a table elsewhere
+   * says is there: a map's region, a FIT structure — as a row inside the padding
+   * that holds it. The padding is what the structures around it made it, and keeps
+   * its place, its range and its name; what is read out of it are its rows, with
+   * padding rows for the bytes in between. Nothing when no padding `accepts` takes,
+   * nor a padding row inside one, holds the whole of it: it is part of something
+   * already read.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.placingInPadding
+   */
+  placingInPadding(
+    found: UEFINode,
+    nodes: readonly UEFINode[],
+    emptyByte: number,
+    accepts: (node: UEFINode) => boolean = () => true
+  ): UEFINode[] | undefined {
+    const where = nodeRange(found);
+    const holds = (node: UEFINode): boolean => {
+      const around = nodeRange(node);
+      return (
+        node.kind === "padding" &&
+        accepts(node) &&
+        around.start <= where.start &&
+        where.end <= around.end
+      );
+    };
+    const index = nodes.findIndex(holds);
+    if (index < 0) return undefined;
+    const outer = nodes[index] as UEFINode;
+    const outerRange = nodeRange(outer);
+    const rows =
+      outer.children.length === 0
+        ? this.padding(outerRange.start, outerRange.end, emptyByte)
+        : [...outer.children];
+    const row = rows.findIndex((one) => holds(one) && one.children.length === 0);
+    if (row < 0) return undefined;
+    const around = nodeRange(rows[row] as UEFINode);
+    rows.splice(
+      row,
+      1,
+      ...this.padding(around.start, where.start, emptyByte),
+      found,
+      ...this.padding(where.end, around.end, emptyByte)
+    );
+    const result = [...nodes];
+    result[index] = { ...outer, children: rows };
+    return result;
   }
 }
