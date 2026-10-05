@@ -14,13 +14,13 @@ entry with the reason, a test the web has no level for a `later` entry.
 ## Units
 
 - [x] **V1 — small interface: the reveal button's description, headings, the minimap at an empty window** (`9349066`, `b151d16`)
-- [ ] **V2 — EC images and the Insyde map: appended bytes, ITE in padding, region sizing, ASUS parity, padding kept in place** (`65837d5`, `789f1d6`, `e461d44`, `0335e5a`, `9584582`)
+- [x] **V2 — EC images and the Insyde map: appended bytes, ITE in padding, region sizing, padding kept in place** (`65837d5`, `789f1d6`, `e461d44`, `0335e5a`)
 - [ ] **V3 — VSS and NVAR values after the name, the VSS header** (`ebd2293`)
 - [ ] **V4 — empty padding, free space and erased pad files grey in the tree** (`8eef0c3`, `8bd5507`)
 - [ ] **V5 — descriptor straps: words, soft-disable bit, GPR0 and eSPI clock, a folded table, grey Empty rows** (`74516a7`, `72bf1e8`, `b54a13f`)
 - [ ] **V6 — the large view of a row's details on Space** (`8322049`, `54efa22`, `df1eaef`, `7c59fd1`)
 - [ ] **V7 — detail tables and fields as selectable views** (`ba682d7`, `5139501`, `f324a97`)
-- [ ] **V8 — AMD Zlib and microcode, freeform subtype GUID, GIF frames, HP signature blocks** (`ff1b2a0`, `70f0bfe`, `ba5bada`)
+- [ ] **V8 — AMD Zlib and microcode, freeform subtype GUID, GIF frames, HP signature blocks, the ASUS parity fixes** (`ff1b2a0`, `70f0bfe`, `ba5bada`, `9584582`)
 - [ ] **V9 — search of the UEFI tree** (`d2111d1`)
 - [ ] **V10 — recent files on the empty screen, the window's height, a file under its own name** (`5a46968`, `ba9ebdf`, `0767243`)
 - [ ] **V11 — AMI GPNV store** (`1b47662`)
@@ -29,6 +29,7 @@ entry with the reason, a test the web has no level for a `later` entry.
 ## Order and closing
 
 V1 through V12 as written; where a unit turns out to depend on a later one the
-order is changed here and said. When the window is closed `PORT_STATE.json`
+order is changed here and said: `9584582` (the ASUS parity fixes) builds on the
+freeform section of `70f0bfe`, so it moved from V2 to the end of V8. When the window is closed `PORT_STATE.json`
 moves to `166d84c` and the gap list holds only `later` and `unported`
 entries.
