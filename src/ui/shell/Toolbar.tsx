@@ -425,6 +425,9 @@ export function Toolbar({
       // help: menu.view.minimap
       label: minimap.visible ? L("Hide Minimap") : L("Show Minimap"),
       shortcut: "⌘M",
+      // No file open, no map to show: the empty window's panel is hidden and
+      // the item has nothing to switch.
+      disabled: state.panes.a === undefined && state.panes.b === undefined,
       onSelect: () => toggleMinimap(),
     },
     { kind: "separator" },
@@ -488,6 +491,7 @@ export function Toolbar({
   const context: ToolbarContext = {
     activeOpen: active !== undefined,
     comparison: bothOpen,
+    windowOpen: state.panes.a !== undefined || state.panes.b !== undefined,
     navigation,
   };
   // The picker names what the surface in front is running.

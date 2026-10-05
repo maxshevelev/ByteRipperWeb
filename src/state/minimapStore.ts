@@ -294,6 +294,16 @@ function workerFor(pane: PaneId): Worker {
   return worker;
 }
 
+/**
+ * Whether no file is open in either pane.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.apply
+ */
+function isEmptyWorkspace(): boolean {
+  const { panes } = workspaceStore.getSnapshot();
+  return panes.a === undefined && panes.b === undefined;
+}
+
 /** True while any of a surface's maps is still being built. */
 function anyBuilding(surface: SurfaceId): boolean {
   return panesOf(surface).some((pane) => currentJob[pane] !== undefined);
@@ -664,7 +674,17 @@ export function watchForMinimap(): () => void {
       if (surface !== WORKSPACE_SURFACE) act(surface as SurfaceId);
     }
   };
+  // The window emptying — its last file closed — closes the workspace's panel:
+  // a panel left open would have nothing behind its chrome. Not at the start,
+  // which begins empty with the panel already hidden: forcing it there would
+  // undo a show that landed before the first layout.
+  let wasEmpty = isEmptyWorkspace();
   const unsubscribes = [
+    workspaceStore.subscribe(() => {
+      const empty = isEmptyWorkspace();
+      if (empty && !wasEmpty) setMinimapVisible(WORKSPACE_SURFACE, false);
+      wasEmpty = empty;
+    }),
     workspaceStore.subscribe(() => everyMap((surface) => void refreshMinimap(surface))),
     diffStore.subscribe(() => everyMap((surface) => void refreshMasks(surface))),
     searchStore.subscribe(() => {

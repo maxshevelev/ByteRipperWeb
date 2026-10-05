@@ -232,6 +232,12 @@ function documentKey(document: object): number {
   return key;
 }
 
+/** Whether a file is open in either pane: the window is not the empty one. */
+function workspaceHasFile(): boolean {
+  const { panes } = workspaceStore.getSnapshot();
+  return panes.a !== undefined || panes.b !== undefined;
+}
+
 /** Whether typing here edits text of its own, which keeps its own undo. */
 function isTextEntry(element: HTMLElement): boolean {
   return element.isContentEditable || element.closest("input, textarea, select") !== null;
@@ -888,7 +894,8 @@ export function AppShell() {
           return;
         case "m":
           event.preventDefault();
-          toggleMinimap();
+          // The empty window has no map to show or hide.
+          if (workspaceHasFile()) toggleMinimap();
           return;
         case "d": {
           // The pane's own handler has this too, but only while the dump has

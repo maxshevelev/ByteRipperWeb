@@ -13,6 +13,7 @@ import {
 const context = (overrides: Partial<ToolbarContext> = {}): ToolbarContext => ({
   activeOpen: false,
   comparison: false,
+  windowOpen: false,
   navigation: { previousDifference: false, nextDifference: false },
   ...overrides,
 });
@@ -128,9 +129,15 @@ describe("what each item can do", () => {
   });
 
   // @upstream ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheWordSizeButtonIsAlwaysEnabled
-  it("leaves the view settings live on an empty window", () => {
+  it("leaves the word size live on an empty window", () => {
     expect(toolbarItemEnabled("wordSize", context())).toBe(true);
-    expect(toolbarItemEnabled("toggleMinimap", context())).toBe(true);
+  });
+
+  // With no file open there is no map to draw: the toggle is grey until one is.
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testViewMenuCarriesTheMinimapToggle
+  it("greys the minimap toggle out with no file open", () => {
+    expect(toolbarItemEnabled("toggleMinimap", context())).toBe(false);
+    expect(toolbarItemEnabled("toggleMinimap", context({ windowOpen: true }))).toBe(true);
   });
 
   // @upstream ByteRipperTests/ToolbarValidationTests.swift#ToolbarValidationTests.testTheArrowsFollowTheCaretsPositionInTheComparison

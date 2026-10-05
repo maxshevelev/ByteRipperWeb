@@ -9,8 +9,10 @@ import {
   setMinimapVisible,
   setMinimapWidth,
   toggleMinimap,
+  watchForMinimap,
 } from "@/state/minimapStore";
 import {
+  closePane,
   closePart,
   foldParts,
   openEmptyInPane,
@@ -122,5 +124,28 @@ describe("a panel's own map", () => {
     forgetPartMinimap(part);
 
     expect(minimapStore.getSnapshot().surfaces[part]).toBeUndefined();
+  });
+});
+
+describe("the window emptying", () => {
+  /**
+   * With no file there is no map to draw: closing the last file closes the
+   * workspace's panel, and a panel shown before a file is open is left alone.
+   *
+   * @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testViewMenuCarriesTheMinimapToggle
+   */
+  it("closes the workspace's panel when the last file closes", () => {
+    openEmptyInPane("a");
+    setMinimapVisible(WORKSPACE_SURFACE, true);
+    const stop = watchForMinimap();
+    try {
+      expect(map(WORKSPACE_SURFACE).visible).toBe(true);
+
+      closePane("a");
+
+      expect(map(WORKSPACE_SURFACE).visible).toBe(false);
+    } finally {
+      stop();
+    }
   });
 });

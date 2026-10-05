@@ -1375,6 +1375,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             },
           ]}
         />
+        {/* help: panel.uefi.reveal */}
         <button
           type="button"
           className="uefi-reveal"

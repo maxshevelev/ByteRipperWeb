@@ -121,6 +121,8 @@ export interface ToolbarContext {
   readonly activeOpen: boolean;
   /** Both panes are open. */
   readonly comparison: boolean;
+  /** A file is open in either pane: the window is not the empty one. */
+  readonly windowOpen: boolean;
   /** Where difference navigation has somewhere to go from the caret. */
   readonly navigation: { readonly previousDifference: boolean; readonly nextDifference: boolean };
 }
@@ -128,8 +130,9 @@ export interface ToolbarContext {
 /**
  * Whether an item can act. The document commands and Tools need a dump in the
  * active pane; the arrows need a change in their direction; the arrangement
- * needs two panes; the word size and the minimap are view settings, live on an
- * empty window.
+ * needs two panes; the word size is a view setting, live on an empty window, and
+ * the minimap is not — with no file open there is no map to draw, and the toggle
+ * has nothing to switch.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateToolbarItem
  * @upstream ByteRipperApp/App/MainWindowController.swift#ControlToolbarItem
@@ -151,6 +154,8 @@ export function toolbarItemEnabled(
       return context.navigation.nextDifference;
     case "paneLayout":
       return context.comparison;
+    case "toggleMinimap":
+      return context.windowOpen;
     default:
       return true;
   }

@@ -10,6 +10,7 @@
 @covers panel.uefi.superseded-entries
 @covers panel.uefi.filter
 @covers panel.uefi.variable-history
+@covers panel.uefi.reveal
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
@@ -20,6 +21,8 @@ The top level is the layout of the chip itself. On an Intel platform that is the
 The **Type** and **Subtype** columns name each node as the reference parser names it. The **Name** column gives the community name for the node's [[term:guid|GUID]] where one exists, and the GUID itself where none does.
 
 The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer.
+
+**The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree.
 
 ## What the tool checks
 
@@ -39,8 +42,10 @@ A [[term:picture|picture]] the tool recognises — a JPEG, PNG, GIF or BMP, in p
 
 ## Padding
 
-A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked in the filter menu, which the funnel icon in the title row opens, left of the reveal button. The icon is tinted while the tree lists anything it omits by default. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume.
+A dump holds erased space between its structures. The tree omits it unless **Show Empty Padding** is ticked in the filter menu, which the funnel icon in the title row opens, left of **the reveal button**. The icon is tinted while the tree lists anything it omits by default. Padding that holds data is listed in either case, as is a volume's free space, which reports how much room remains in that volume.
 
-A variable store keeps the earlier copies of its variables until the firmware reclaims it; on a board that writes a variable at every boot they are most of its rows. The tree lists one row per variable — its current copy, or for a variable the store no longer holds, the copy it was deleted as — unless **Show Superseded Entries** is ticked in the same menu. The other copies are listed under **Variable history** in the detail of that row; a click on a copy there shows its own detail and its bytes in the dump, and the tree keeps the row of the copy that stands selected. When the caret in the dump is in a copy the tree leaves out, revealing it does the same.
+## Variable copies
+
+[[term:vss|VSS]], [[term:nvar|NVAR]] and [[term:dvar|DVAR]] — the [[term:nvram|NVRAM]] formats whose entries the tree folds to one row per variable — keep the earlier copies of a variable until the firmware reclaims the store; on a board that writes a variable at every boot the copies are most of the rows. The row is the variable's current copy, or for a variable the store no longer holds, the copy it was deleted as, unless **Show Superseded Entries** is ticked in the same menu. The other copies are listed under **Variable history** in the detail of that row; a click on a copy there shows its own detail and its bytes in the dump, and the tree keeps the row of the copy that stands selected. When the caret in the dump is in a copy the tree leaves out, revealing it does the same.
 
 See also: [[topic:tool-fit|FIT Table]], [[term:vss|NVRAM stores]], [[topic:recipe-checksums|Checksums]].
