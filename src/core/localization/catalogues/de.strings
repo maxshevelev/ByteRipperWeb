@@ -111,6 +111,7 @@
 "Add Microcode…" = "Microcode hinzufügen…";
 "Add Pattern" = "Muster hinzufügen";
 "Added to Favorites" = "Zu Favoriten hinzugefügt";
+"Adding a microcode" = "Microcode wird hinzugefügt";
 "Additional files ignored" = "Weitere Dateien übergangen";
 "Address" = "Adresse im Speicher";
 "addresses assumed" = "Adressen angenommen";
@@ -126,10 +127,16 @@
 "Copied at %1$@–%2$@; %3$@" = "Kopie bei %1$@–%2$@; %3$@";
 "Copy of" = "Kopie des Abbilds bei";
 "Copy of %1$@–%2$@; %3$@" = "Kopie des Blocks %1$@–%2$@; %3$@";
+"Could not add the microcode" = "Microcode konnte nicht hinzugefügt werden";
+"Could not remove the microcode" = "Microcode konnte nicht entfernt werden";
+"Could not replace the microcode" = "Microcode konnte nicht ersetzt werden";
 "Declared size" = "Größe laut Kopf";
 "EC firmware image" = "EC-Firmware-Abbild";
 "FIT component" = "FIT-Komponente";
 "Format" = "Format";
+"Microcode added" = "Microcode hinzugefügt";
+"Microcode removed" = "Microcode entfernt";
+"Microcode replaced" = "Microcode ersetzt";
 "Picture" = "Bild";
 "Picture preview" = "Bildvorschau";
 "%1$@ (%2$@ series)" = "%1$@ (Serie %2$@)";
@@ -183,8 +190,11 @@
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
+"Removing a microcode" = "Microcode wird entfernt";
+"Replacing a microcode" = "Microcode wird ersetzt";
 "Top Swap" = "Top Swap";
 "Vendor" = "Hersteller";
+"Working out where it goes…" = "Zielposition wird bestimmt …";
 "Written" = "Beschrieben";
 "at %1$@" = "bei %1$@";
 "Back" = "Zurück";

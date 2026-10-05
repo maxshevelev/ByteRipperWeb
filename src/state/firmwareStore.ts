@@ -390,6 +390,7 @@ function dropAsks(pane: PaneId, failure?: { readonly id: number; readonly proble
           writes: [],
           problem: failure.problem,
           summary: undefined,
+          outcomeKind: undefined,
           landed: undefined,
         }
   );
@@ -819,15 +820,20 @@ export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
  * writes because that is the only way an edit this application makes can be
  * taken back with the same key the user's own typing is. What comes back is
  * the sentence to say — which is the reason it could not be made, or what it
- * came to.
+ * came to, and what kind of change it was, for the title of the sheet that says
+ * so.
+ *
+ * `cancelled` is asked once the plan is in hand and before anything is written:
+ * a plan that was abandoned is dropped, and nothing about it is said.
  */
 export async function editPaneFit(
   pane: PaneId,
-  edit: FitEditRequest["edit"]
-): Promise<{ readonly problem: string | undefined; readonly summary: string | undefined }> {
+  edit: FitEditRequest["edit"],
+  cancelled: () => boolean = () => false
+): Promise<FitEditResult> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") {
-    return { problem: L("That image has not been read yet."), summary: undefined };
+    return { problem: L("That image has not been read yet."), summary: undefined, kind: undefined };
   }
   const planned = await new Promise<FitEditResponse | undefined>((resolve) => {
     // A second edit supersedes the first, which is then told it did not happen:
@@ -836,11 +842,11 @@ export async function editPaneFit(
     fitEditWaiters.set(pane, resolve);
     send(pane, { kind: "fitEdit", id: nextAskJob(pane, "fitEdit"), edit });
   });
-  if (planned === undefined) {
-    return { problem: undefined, summary: undefined };
+  if (planned === undefined || cancelled()) {
+    return { problem: undefined, summary: undefined, kind: undefined };
   }
   if (planned.problem !== undefined) {
-    return { problem: planned.problem, summary: undefined };
+    return { problem: planned.problem, summary: undefined, kind: undefined };
   }
 
   const problem = await applyTransaction(pane, {
@@ -848,8 +854,19 @@ export async function editPaneFit(
     writes: planned.writes,
   });
   return problem === undefined
-    ? { problem: undefined, summary: planned.summary }
-    : { problem, summary: undefined };
+    ? { problem: undefined, summary: planned.summary, kind: planned.outcomeKind }
+    : { problem, summary: undefined, kind: undefined };
+}
+
+/**
+ * What `editPaneFit` came to: the reason nothing was written, or the sentence
+ * and the kind of what was — and nothing at all for a change that was
+ * superseded or abandoned.
+ */
+export interface FitEditResult {
+  readonly problem: string | undefined;
+  readonly summary: string | undefined;
+  readonly kind: "added" | "replaced" | "removed" | undefined;
 }
 
 /**

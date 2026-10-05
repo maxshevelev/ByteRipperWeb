@@ -75,6 +75,33 @@ export interface ToolContext {
    */
   readonly report: (text: string) => void;
   /**
+   * Puts a modal over the window for an operation that changes the file, and
+   * returns the handle to move it along with: the title says what is being
+   * done, `rename` what it is doing now, `finish` closes it.
+   *
+   * For work that has to run to its end with the window left alone — it reads
+   * the file, takes seconds, and writes back into it — so that nothing can be
+   * typed into the dump meanwhile and no second change lands under the first.
+   * `onCancel` is called when the reader presses Cancel; the tool stops its work
+   * and calls `finish`.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.beginBlockingWork
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.beginBlockingWork
+   */
+  readonly beginBlockingWork: (title: string, onCancel: () => void) => ToolWork;
+  /**
+   * Tells the reader how an operation ended, in a modal over the window — the
+   * same place its progress was. A problem is worded as one and wears the red
+   * octagon, what was done the green check. What an operation says about itself
+   * belongs here, not in a line of the panel: the panel is a strip beside the
+   * dump, and a result nobody was waiting at goes unread.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.report
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.report
+   * @upstream-differs named for what it says: `report` is already the line's, above
+   */
+  readonly reportResult: (title: string, message: string, isProblem: boolean) => void;
+  /**
    * Shows a short-lived plate over the window — the one a search result is
    * reported in — about something the panel *did* rather than something it
    * found in the bytes: a copy that went to the clipboard.
@@ -178,4 +205,24 @@ export interface ToolModule {
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.viewController
    */
   readonly View: (props: { readonly context: ToolContext }) => React.ReactNode;
+}
+
+/**
+ * The handle on a modal `ToolContext.beginBlockingWork` put up.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolWork
+ */
+export interface ToolWork {
+  /**
+   * What the operation is doing now, under the title.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolWork.rename
+   */
+  rename(phase: string): void;
+  /**
+   * The operation is over, however it ended: the modal goes.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolWork.finish
+   */
+  finish(): void;
 }

@@ -111,6 +111,7 @@
 "Add Microcode…" = "Добавить микрокод…";
 "Add Pattern" = "Добавить шаблон";
 "Added to Favorites" = "Добавлено в избранное";
+"Adding a microcode" = "Добавление микрокода";
 "Additional files ignored" = "Лишние файлы пропущены";
 "Address" = "Адрес в памяти";
 "addresses assumed" = "адреса предположительные";
@@ -126,10 +127,16 @@
 "Copied at %1$@–%2$@; %3$@" = "Копия расположена по адресу %1$@–%2$@; %3$@";
 "Copy of" = "Копия образа по адресу";
 "Copy of %1$@–%2$@; %3$@" = "Копия блока %1$@–%2$@; %3$@";
+"Could not add the microcode" = "Не удалось добавить микрокод";
+"Could not remove the microcode" = "Не удалось удалить микрокод";
+"Could not replace the microcode" = "Не удалось заменить микрокод";
 "Declared size" = "Размер по заголовку";
 "EC firmware image" = "Образ прошивки EC";
 "FIT component" = "Компонент FIT";
 "Format" = "Формат";
+"Microcode added" = "Микрокод добавлен";
+"Microcode removed" = "Микрокод удалён";
+"Microcode replaced" = "Микрокод заменён";
 "Picture" = "Изображение";
 "Picture preview" = "Предпросмотр изображения";
 "%1$@ (%2$@ series)" = "%1$@ (серия %2$@)";
@@ -183,8 +190,11 @@
 "Setup help" = "Справка Setup";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
 "Picture size" = "Размер изображения";
+"Removing a microcode" = "Удаление микрокода";
+"Replacing a microcode" = "Замена микрокода";
 "Top Swap" = "Top Swap";
 "Vendor" = "Производитель";
+"Working out where it goes…" = "Определение места для записи…";
 "Written" = "Записано";
 "at %1$@" = "по адресу %1$@";
 "Back" = "Назад";

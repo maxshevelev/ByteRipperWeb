@@ -34,6 +34,8 @@ Das Werkzeug liest das Image nicht nur, es schreibt auch hinein. Jeder Vorgang b
 
 Unter welchen Bedingungen diese Befehle abgelehnt werden und was jeder von ihnen schreibt, steht unter [[topic:recipe-microcode|Microcode und die FIT-Tabelle]].
 
+Solange eine Änderung berechnet wird, liegt ein Fenster mit dem Fortschritt und einer Schaltfläche **Abbrechen** über der Anwendung und hält die Datei an; ein Abbruch verwirft den Plan und schreibt nichts. Ist die Änderung beendet, nennt ein zweites Fenster das Ergebnis: was geschehen ist, mit einem grünen Haken, oder warum es nicht geschehen ist, mit einem roten Achteck. Die Statuszeile des Panels äußert sich dazu nicht.
+
 ! Führt das Image eine Top-Swap-Sicherungskopie des Blocks, in dem die Tabelle liegt, wird eine Änderung in beiden Kopien vorgenommen; weichen die Kopien voneinander ab, lehnt das Werkzeug die Änderung ab. Eine Änderung, die einen von [[term:boot-guard|Boot Guard]] geschützten Bereich berührt, wird grundsätzlich abgelehnt.
 
 Siehe auch: [[topic:recipe-microcode|Microcode und die FIT-Tabelle]], [[term:top-swap|Top Swap]].

@@ -137,6 +137,7 @@ const NO_EDIT = {
   name: undefined,
   writes: [],
   summary: undefined,
+  outcomeKind: undefined,
   landed: undefined,
 } as const;
 
@@ -1009,6 +1010,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           })),
           problem: undefined,
           summary: summaryOf(result.outcome),
+          outcomeKind: "range" in result.outcome ? result.outcome.kind : "removed",
           landed:
             "range" in result.outcome
               ? [result.outcome.range.start, result.outcome.range.end]

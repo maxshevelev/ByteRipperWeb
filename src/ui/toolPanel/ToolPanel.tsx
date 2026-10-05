@@ -19,6 +19,7 @@ import {
   setToolPanelWidth,
   toolController,
 } from "@/state/toolController";
+import { beginBlockingWork, reportToolResult } from "@/state/toolWork";
 import { showTransientMessage } from "@/state/transientMessageStore";
 import { useStore } from "@/state/useStore";
 import {
@@ -194,6 +195,13 @@ export function ToolPanel({
     // What the panel just did, in the line of the pane it is about — the same
     // two seconds and the same restore the window's own messages get.
     report: (text) => showTransientMessage(boundPane, text),
+    // A change that holds the window still while it runs, and says how it
+    // ended in a modal of its own — the modal is the window's, as the
+    // plate above is.
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.beginBlockingWork
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.report
+    beginBlockingWork,
+    reportResult: reportToolResult,
     // The window's own plate, through the presenter every other notice goes
     // through, so a tool's confirmation cannot come to look like another app's.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice

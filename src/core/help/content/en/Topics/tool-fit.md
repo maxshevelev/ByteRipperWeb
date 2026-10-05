@@ -35,6 +35,8 @@ The tool writes to the image as well as reading it. Each operation is one undo s
 
 The conditions under which these are refused, and what each of them writes, are set out in [[topic:recipe-microcode|Microcode and the FIT]].
 
+While a change is being worked out, a window with its progress and a **Cancel** stands over the application and holds the file still; cancelling drops the plan and writes nothing. When the change ends, a second window says how: what was done, with a green check, or why it was not, with a red octagon. The panel's own status line says nothing of it.
+
 ! Where an image keeps a Top Swap backup of the block the table is in, a change is made in both copies, and the tool refuses the change where the two copies are not identical. A change that would write inside a [[term:boot-guard|Boot Guard]] protected range is refused outright.
 
 See also: [[topic:recipe-microcode|Microcode and the FIT]], [[term:top-swap|Top Swap]].

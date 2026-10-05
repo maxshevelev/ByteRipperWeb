@@ -24,6 +24,7 @@ import type { ToolSessionState } from "@/state/parkedToolState";
 import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { changeMicrocode } from "@/tools/fit/fitChange";
 import { FIT_COLUMNS, FIT_MIN_WIDTH, fittedColumnWidths } from "@/tools/fit/fitColumns";
 import {
   displayNumber,
@@ -356,19 +357,18 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
   /**
    * Plans the change in the worker, writes it through the document, and says
-   * what came of it. A refusal is a sentence, not a silence.
+   * what came of it in a modal: a refusal is a sentence, not a silence, and
+   * what was done is said where the work was waited for.
    */
   const runEdit = useCallback(
     async (edit: FitEdit) => {
       setBusy(true);
-      const done = await editPaneFit(pane, edit);
+      await changeMicrocode(context, { kind: edit.kind }, (cancelled) =>
+        editPaneFit(pane, edit, cancelled)
+      );
       setBusy(false);
-      // Exactly one of the two is set: the plan's refusal, or what the write
-      // did. Nothing at all when it landed and had nothing to add.
-      if (done.problem !== undefined) say(done.problem, true);
-      else if (done.summary !== undefined) say(done.summary);
     },
-    [pane, say]
+    [pane, context]
   );
 
   /**

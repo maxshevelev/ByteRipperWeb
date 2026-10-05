@@ -860,6 +860,11 @@ export interface FitEditResponse {
   readonly problem: string | undefined;
   /** What happened, for the sentence said afterwards. */
   readonly summary: string | undefined;
+  /**
+   * What the edit came to — a microcode put in, one put in the place of another,
+   * one taken out — for the title of the sheet that tells of it.
+   */
+  readonly outcomeKind: "added" | "replaced" | "removed" | undefined;
   /** Where the component ended up, so the dump can be sent there. */
   readonly landed: readonly [number, number] | undefined;
 }
