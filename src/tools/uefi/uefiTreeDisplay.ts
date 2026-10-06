@@ -49,6 +49,10 @@ export function subtypeText(node: UEFINode): string {
   const subtype = itemSubtype(node);
   if (subtype === undefined) return "";
   switch (node.kind) {
+    // Padding to UEFITool; what the column can say of a record is whether it is the one in
+    // force.
+    case "gpnvRecord":
+      return node.subtype === 1 ? L("Current") : L("Superseded");
     case "file":
       return fileTypeName(subtype);
     case "section":
@@ -153,7 +157,12 @@ export function isEmptySpace(node: UEFINode): boolean {
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.showsValue
  */
 export function showsValue(node: { readonly kind: string }): boolean {
-  return node.kind === "dvarEntry" || node.kind === "vssEntry" || node.kind === "nvarEntry";
+  return (
+    node.kind === "dvarEntry" ||
+    node.kind === "vssEntry" ||
+    node.kind === "nvarEntry" ||
+    node.kind === "gpnvRecord"
+  );
 }
 
 /**
@@ -377,6 +386,9 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
       return value.length > 8 ? L("%1$@ (%2$@ bytes)", name, `${value.length}`) : name;
     return `${name} = ${text}`;
   }
+  // A GPNV record says what it holds: the Windows key, or the text in its data — serial
+  // numbers, the model — as far as a row has room.
+  if (node.kind === "gpnvRecord") return node.valueRow ?? node.name;
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
@@ -482,6 +494,8 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   ecImage: L("EC firmware image"),
   fitComponent: L("FIT component"),
   hpSignatureBlock: L("HP signature block"),
+  gpnvStore: L("GPNV store"),
+  gpnvRecord: L("GPNV record"),
   picture: L("Picture"),
   sound: L("Sound"),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),

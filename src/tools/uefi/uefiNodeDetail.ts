@@ -33,6 +33,7 @@ import {
   flashDeviceMapEntries,
   flashDeviceMapEntryRange,
 } from "@/firmware/uefi/flashDeviceMapParser";
+import { gpnvProductKey, gpnvRowText, gpnvTexts } from "@/firmware/uefi/gpnvStore";
 import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import {
   hpSignatureDate,
@@ -470,7 +471,10 @@ function withVariableHistory(
   reader: ImageReader
 ): NodeDetail {
   if (
-    (node.kind !== "vssEntry" && node.kind !== "nvarEntry" && node.kind !== "dvarEntry") ||
+    (node.kind !== "vssEntry" &&
+      node.kind !== "nvarEntry" &&
+      node.kind !== "dvarEntry" &&
+      node.kind !== "gpnvRecord") ||
     node.id.length === 0
   ) {
     return detail;
@@ -712,6 +716,42 @@ function buildDetailRows(
     ...protection.tables,
   ];
   const cell = (text: string): DetailCell => ({ text, tone: "plain" });
+
+  // A GPNV record's data is fields nobody has published: the text in it is what can be
+  // read, at its offset in the data.
+  if (node.kind === "gpnvRecord") {
+    const body = reader.bytes(node.body);
+    const texts = body === undefined ? [] : gpnvTexts(body);
+    if (texts.length > 0) {
+      tables.push({
+        title: L("Text in the record"),
+        symbol: "text.alignleft",
+        columns: [L("Offset"), L("Text")],
+        rows: texts.map((one) => [cell(`+${hex(one.offset)}`), cell(one.text)]),
+      });
+    }
+  }
+  // A store lists its records in force; a click on one opens it.
+  if (node.kind === "gpnvStore") {
+    const current = node.children.filter(
+      (child) => child.kind === "gpnvRecord" && child.subtype === 1
+    );
+    if (current.length > 0) {
+      tables.push({
+        title: L("Current entries"),
+        symbol: "list.bullet.rectangle",
+        columns: [L("Name"), L("Offset"), L("Contents")],
+        rows: current.map((record) => {
+          const row = gpnvRowText(record.name, reader.bytes(record.body));
+          const contents = row.startsWith(`${record.name} = `)
+            ? row.slice(record.name.length + 3)
+            : "";
+          return [cell(record.name), cell(hex(record.header.start)), cell(contents)];
+        }),
+        rowTargets: current.map((record) => ({ kind: "node", path: record.id })),
+      });
+    }
+  }
 
   // An update for more than one processor lists the others in a table of its
   // own, which reads as the grid it is.
@@ -1358,6 +1398,24 @@ function headerFields(
           )
         );
       }
+      break;
+    }
+
+    // Records are written after one another, the one before marked replaced; how many of each
+    // is what the store says of itself.
+    case "gpnvStore": {
+      const records = node.children.filter((child) => child.kind === "gpnvRecord");
+      const current = records.filter((record) => record.subtype === 1).length;
+      fields.push(field(L("Current entries"), `${current}`));
+      fields.push(field(L("Superseded entries"), `${records.length - current}`));
+      break;
+    }
+
+    case "gpnvRecord": {
+      fields.push(field(L("State"), node.subtype === 1 ? L("Current") : L("Superseded")));
+      const body = reader.bytes(node.body);
+      const key = node.name === "OA30" && body !== undefined ? gpnvProductKey(body) : undefined;
+      if (key !== undefined) fields.push(field(L("Windows product key"), key));
       break;
     }
 

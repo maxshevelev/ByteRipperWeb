@@ -141,6 +141,13 @@ export type UEFINodeKind =
    */
   | "hpSignatureBlock"
   /**
+   * AMI's GPNV store read out of padding (`GPNVRecord`) — ASUS's record of the machine:
+   * serial numbers, model, Windows key — and one record in it. Padding to UEFITool, as an
+   * HP signature block is.
+   */
+  | "gpnvStore"
+  | "gpnvRecord"
+  /**
    * A sound — a WAV file — found where a file's body stops reading as sections
    * (`UEFI_IMAGE_FORMAT.md` §9). Named by its sample rate and channels; padding to
    * UEFITool, as a picture is.

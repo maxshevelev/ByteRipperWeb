@@ -110,7 +110,10 @@ const keyText = (key: Key): string =>
 const sameId = (left: readonly number[], right: readonly number[]): boolean =>
   left.length === right.length && left.every((part, index) => part === right[index]);
 const isVariableEntry = (node: UEFINode): boolean =>
-  node.kind === "vssEntry" || node.kind === "nvarEntry" || node.kind === "dvarEntry";
+  node.kind === "vssEntry" ||
+  node.kind === "nvarEntry" ||
+  node.kind === "dvarEntry" ||
+  node.kind === "gpnvRecord";
 
 /**
  * The history of the variable `entry` is a copy of, in the store whose entries
@@ -233,6 +236,19 @@ export function variableChange(
 
 /** Every entry of the store that can be told whose copy it is. */
 function copiesIn(store: UEFINode, reader: ImageReader): Copy[] {
+  // A GPNV record is one by its name, and says itself whether it is the one in force
+  // (`GPNVRecord`).
+  if (store.kind === "gpnvStore") {
+    return store.children
+      .filter((child) => child.kind === "gpnvRecord")
+      .map((child) => ({
+        entry: child.id,
+        offset: child.header.start,
+        key: { name: child.name, guid: undefined },
+        value: child.body,
+        isCurrent: child.subtype === 1,
+      }));
+  }
   if (store.kind === "dvarStore") {
     return dvarCopies(store, reader).map((copy) => ({
       entry: copy.node.id,

@@ -433,7 +433,9 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/AMDMicrocodeTests.swift": "src/firmware/uefi/amdMicrocode.test.ts",
         "UEFIImage/Sound.swift": "src/firmware/uefi/sound.ts",
         "UEFIImage/HPSignatureBlock.swift": "src/firmware/uefi/hpSignatureBlock.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/HPSignatureBlockTests.swift": "src/firmware/uefi/hpSignatureBlock.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPSignatureBlockTests.swift": "src/firmware/uefi/hpSignatureBlock.test.ts",
+        "UEFIImage/GPNVStore.swift": "src/firmware/uefi/gpnvStore.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/GPNVStoreTests.swift": "src/firmware/uefi/gpnvStore.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -794,7 +796,8 @@
         "Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift": "src/tools/uefi/uefiTreeSearch.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeSearchTests.swift": "src/tools/uefi/uefiTreeSearch.test.ts",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift": "src/tools/uefi/UefiSearchBar.tsx",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift": "src/state/uefiSearchSettings.ts"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift": "src/state/uefiSearchSettings.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",

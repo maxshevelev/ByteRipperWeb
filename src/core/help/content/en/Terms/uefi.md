@@ -174,6 +174,20 @@ Listed by the tool on purpose: it is what tells you whether a module could be ad
 
 @see term:padding
 
+@term gpnv
+@name GPNV store
+@short AMI's store in which ASUS keeps what the factory wrote of the machine: serial numbers, the model, the Windows key — the DMI area of a repair bench.
+
+ASUS laptops on AMI firmware keep the machine's identity in a GPNV store: the serial number of the board and of the machine, the part number, the model, the Windows product key, the drive and the memory modules fitted at the factory. A board whose firmware is replaced from another dump of the same model gets that board's numbers unless this area is carried over, which is why the bench calls it the DMI area. The store is a run of records named by four characters — `MFG0`, `OA30`, `_DMI`, `CNFG` — and a record that changes is written again whole after the last one, the one before it marked as replaced; nothing is erased until the whole store is.
+
+The [[topic:tool-uefi|UEFI tool]] shows the store as a row `GPNV` with a row per record; a record's row gives the text its data holds, an `OA30` record's the product key, and the Subtype column says whether the record is the current one or a superseded copy. On the AMD boards the store fills a volume of its own, `3F8E4F19-8523-407F-8ACB-C562F5A36D35`, 32 KB long; on the Intel boards it lies in the [[term:padding|padding]] after [[term:nvram|NVRAM]]. To carry the area to another dump, copy that whole volume, or that whole stretch of padding, to the same address.
+
+ASUS and AMI have not published the layout; it was read off two ASUS dumps. The details of a record list the text in its data with its offset rather than name the fields, since what each field is has been inferred, not documented. To UEFITool the store is padding, and the Type column says so.
+
+@see term:nvram
+@see term:padding
+
+
 @term sound
 @name Sound
 @short A sound the firmware plays, kept as an ordinary WAV file.

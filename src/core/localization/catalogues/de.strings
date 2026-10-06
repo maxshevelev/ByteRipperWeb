@@ -192,6 +192,11 @@
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
+"GPNV record" = "GPNV-Eintrag";
+"GPNV store" = "GPNV-Speicher";
+"Text" = "Text";
+"Text in the record" = "Text im Eintrag";
+"Windows product key" = "Windows-Produktschlüssel";
 "Recent Files" = "Zuletzt geöffnet";
 "Name in the catalogue" = "Name im Katalog";
 "Name or GUID" = "Name oder GUID";

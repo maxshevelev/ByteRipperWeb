@@ -68,7 +68,8 @@ export type DetailSymbol =
   | "clock.arrow.circlepath"
   | "checkmark.seal"
   | "slider.horizontal.3"
-  | "list.bullet.rectangle";
+  | "list.bullet.rectangle"
+  | "text.alignleft";
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable */
 export interface DetailTable {

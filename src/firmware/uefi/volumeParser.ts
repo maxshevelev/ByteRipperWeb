@@ -3,6 +3,7 @@ import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { declaredFileSize, FFS, parseFile } from "@/firmware/uefi/fileParser";
+import { gpnvStore } from "@/firmware/uefi/gpnvStore";
 import { readHPSignatureBlock } from "@/firmware/uefi/hpSignatureBlock";
 import {
   APPLE_RESERVED_VOLUME,
@@ -442,6 +443,15 @@ export function nonUEFIData(
     range,
     isErased: parser.reader.isFilled(range, emptyByte),
   });
+  // A GPNV store fills a volume of its own after the volume's free space (§9): the store
+  // is what the data is.
+  if (!node.isErased) {
+    const store = gpnvStore(parser, range.start, range.end, emptyByte);
+    if (store !== undefined) {
+      node.children = store;
+      return node;
+    }
+  }
   if (!node.isErased && depth < parser.limits.maxDepth) {
     const found = scanRawArea(parser, range, emptyByte, depth + 1);
     // Nothing but padding means the search found nothing, and a single padding

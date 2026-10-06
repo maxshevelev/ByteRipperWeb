@@ -1,4 +1,4 @@
-@source-sha 9745162d892c484234068c75b99be52b993a4efe79cf3769b0714ada1aad90d8
+@source-sha 5aea3441bf9e8358c54d83138e85b7988d21c568f959f7068a2b9e469f0caa93
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -174,6 +174,20 @@ Eine **komprimierte Sektion** kann ByteRipper entpackt öffnen — das Werkzeug 
 Das Werkzeug führt ihn mit Absicht auf: daran sieht man, ob noch ein Modul in ein Volume passt, und seine Größe ist eine schnelle Probe darauf, dass das Längenfeld des Volumes stimmt.
 
 @see term:padding
+
+@term gpnv
+@name GPNV-Speicher
+@short Ein Speicher von AMI, in dem ASUS die im Werk geschriebenen Angaben zum Gerät ablegt: Seriennummern, Modell, Windows-Schlüssel. In der Werkstatt heißt er DMI-Bereich.
+
+ASUS-Notebooks mit AMI-Firmware legen die Identität des Geräts in einem GPNV-Speicher ab: die Seriennummern der Platine und des Geräts, die Teilenummer, das Modell, den Windows-Produktschlüssel sowie das Laufwerk und die Speichermodule, mit denen das Gerät das Werk verlassen hat. Wird die Firmware einer Platine durch den Dump eines anderen Geräts desselben Modells ersetzt, trägt die Platine dessen Nummern, sofern dieser Bereich nicht übernommen wird; deshalb nennt die Werkstatt ihn DMI-Bereich. Der Speicher besteht aus Einträgen mit vierstelligen Namen — `MFG0`, `OA30`, `_DMI`, `CNFG`. Ein geänderter Eintrag wird vollständig hinter den letzten geschrieben und der vorige als ersetzt markiert; gelöscht wird erst der ganze Speicher.
+
+Das [[topic:tool-uefi|UEFI-Werkzeug]] zeigt den Speicher als Zeile `GPNV` mit einer Zeile je Eintrag. Die Zeile eines Eintrags nennt den Text in seinen Daten, die eines `OA30`-Eintrags den Produktschlüssel, und die Spalte „Subtyp“ gibt an, ob der Eintrag gültig oder eine ersetzte Kopie ist. Auf den AMD-Platinen füllt der Speicher ein eigenes Volume, `3F8E4F19-8523-407F-8ACB-C562F5A36D35`, 32 KB groß; auf den Intel-Platinen liegt er im [[term:padding|Padding]] hinter dem [[term:nvram|NVRAM]]. Um den Bereich in einen anderen Dump zu übernehmen, kopiert man dieses Volume oder diesen Padding-Abschnitt vollständig an dieselbe Adresse.
+
+ASUS und AMI haben den Aufbau nicht veröffentlicht; er wurde aus zwei ASUS-Dumps erschlossen. Die Details eines Eintrags benennen daher keine Felder, sondern führen den Text in seinen Daten mit seinem Offset auf, denn die Bedeutung der Felder ist aus ihren Werten erschlossen, nicht dokumentiert. Für UEFITool ist der Speicher Padding, und die Spalte „Typ“ weist ihn so aus.
+
+@see term:nvram
+@see term:padding
+
 
 @term sound
 @name Audio

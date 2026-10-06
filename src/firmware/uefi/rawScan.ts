@@ -7,6 +7,7 @@ import { readingECFirmwareIn } from "@/firmware/uefi/ecFirmware";
 import { readingFITComponents } from "@/firmware/uefi/fitComponents";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { parseFlashDeviceMap, readingMapRegions } from "@/firmware/uefi/flashDeviceMapParser";
+import { readingGPNVStores } from "@/firmware/uefi/gpnvStore";
 import { readingHPSignatureBlocks } from "@/firmware/uefi/hpSignatureBlock";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
@@ -190,6 +191,7 @@ export function scanRawArea(
   read = readingFITComponents(parser, read, emptyByte);
   read = readingECFirmwareIn(parser, read, emptyByte);
   read = readingHPSignatureBlocks(parser, read, emptyByte);
+  read = readingGPNVStores(parser, read, emptyByte);
   return readingAMDMicrocode(parser, read, emptyByte);
 }
 

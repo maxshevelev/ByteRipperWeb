@@ -91,6 +91,9 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return termId("picture");
     case "hpSignatureBlock":
       return termId("hp-signature-block");
+    case "gpnvStore":
+    case "gpnvRecord":
+      return termId("gpnv");
     case "sound":
       return termId("sound");
     case "fitComponent":

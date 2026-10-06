@@ -24,6 +24,7 @@ import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
+import { gpnvRowText } from "@/firmware/uefi/gpnvStore";
 import { supersededCopies } from "@/firmware/uefi/nvramVariableHistory";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import {
@@ -286,7 +287,10 @@ function hiddenCopiesOf(node: UEFINode): [number, number][] | undefined {
   const first = node.children[0];
   if (
     first === undefined ||
-    (first.kind !== "vssEntry" && first.kind !== "nvarEntry" && first.kind !== "dvarEntry")
+    (first.kind !== "vssEntry" &&
+      first.kind !== "nvarEntry" &&
+      first.kind !== "dvarEntry" &&
+      first.kind !== "gpnvRecord")
   ) {
     return undefined;
   }
@@ -312,6 +316,9 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   ...(node.kind === "dvarEntry" ? { dvarValue: dvarValueOf(node) } : {}),
   ...(node.kind === "vssEntry" || node.kind === "nvarEntry"
     ? { valueRow: valueRowOf(node, store, readerFor(node)) }
+    : {}),
+  ...(node.kind === "gpnvRecord"
+    ? { valueRow: gpnvRowText(node.name, readerFor(node)?.bytes(node.body)) }
     : {}),
   hiddenCopies: hiddenCopiesOf(node),
   isEmptySpace: isEmptySpace(node),

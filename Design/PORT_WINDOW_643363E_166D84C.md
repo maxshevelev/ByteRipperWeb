@@ -27,7 +27,7 @@ entry with the reason, a test the web has no level for a `later` entry.
   - [x] `9584582` — ASUS parity: EC before the PSP directory, a raw section as a raw area, a WAV with an overstated RIFF size, `notWhereNamed`
 - [x] **V9 — search of the UEFI tree** (`d2111d1`)
 - [x] **V10 — recent files on the empty screen, the window's height, a file under its own name** (`5a46968`, `ba9ebdf`, `0767243`)
-- [ ] **V11 — AMI GPNV store** (`1b47662`)
+- [x] **V11 — AMI GPNV store** (`1b47662`)
 - [ ] **V12 — a compressed branch's bytes in the tree menu** (`166d84c`)
 
 ## Order and closing

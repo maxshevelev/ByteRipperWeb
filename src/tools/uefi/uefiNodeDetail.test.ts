@@ -16,6 +16,7 @@ import {
   guidText,
 } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { gpnvRowText } from "@/firmware/uefi/gpnvStore";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { AMI_HASH_FILE, FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { GLOBAL_VARIABLE } from "@/firmware/uefi/nvramValue";
@@ -323,6 +324,97 @@ describe("a section", () => {
       ["Major version", "0167"],
       ["Minor version", "B00"],
       ["Build date", "2017-08-08 00:34"],
+    ]);
+  });
+});
+
+/** @upstream Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift#GPNVDisplayTests */
+describe("a GPNV store", () => {
+  const key = "AAAAA-BBBBB-CCCCC-DDDDD-EEEEE";
+  const ascii8 = (text: string) => Uint8Array.from(text, (character) => character.charCodeAt(0));
+  const record = (name: string, current: boolean, data: Uint8Array) => {
+    const bytes = new Uint8Array(0x10c).fill(0xff);
+    bytes.set([0x47, 0x50, 0x4e, 0x56, 0x0c, 0x01, current ? 1 : 0], 0);
+    bytes.set(ascii8(name), 7);
+    bytes[11] = 0;
+    bytes.set(data, 12);
+    return bytes;
+  };
+  const build = () => {
+    const manufacturing = new Uint8Array(0x60).fill(0xff);
+    manufacturing.set(ascii8("M8NRKD00311031C"), 0);
+    manufacturing.set(ascii8("90NR0551-M04320"), 0x19);
+    manufacturing.set(ascii8("LR17MC00WI"), 0x2a);
+    manufacturing.set(ascii8("G533QS"), 0x35);
+    const msdm = new Uint8Array(0x14 + key.length);
+    new DataView(msdm.buffer).setUint32(0x10, key.length, true);
+    msdm.set(ascii8(key), 0x14);
+    const bytes = new Uint8Array(0x4000).fill(0xff);
+    let at = 0;
+    for (const part of [
+      record("MFG0", false, ascii8("M8NRKD00311031C")),
+      record("OA30", true, msdm),
+      record("MFG0", true, manufacturing),
+    ]) {
+      bytes.set(part, at);
+      at += part.length;
+    }
+    const image = parseUefiImage(sourceOver(bytes));
+    const store = image.allNodes.find((one) => one.kind === "gpnvStore") as UEFINode;
+    return { bytes, image, store };
+  };
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift#GPNVDisplayTests.testARecordsRowSaysWhatItHolds
+  it("says in a record's row what it holds", () => {
+    const { bytes, store } = build();
+    const reader = readerOver(bytes);
+    const rows = store.children.map((child) => gpnvRowText(child.name, reader.bytes(child.body)));
+    expect(rows).toEqual([
+      "MFG0 = M8NRKD00311031C",
+      `OA30 = ${key}`,
+      "MFG0 = M8NRKD00311031C, 90NR0551-M04320, LR17MC00WI, …",
+    ]);
+    expect(store.children.map((child) => subtypeText(child))).toEqual([
+      "Superseded",
+      "Current",
+      "Current",
+    ]);
+    expect(typeText(store)).toBe("Padding");
+    expect(uefiHelpTerm(store.children[0] as UEFINode)).toBe("gpnv");
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift#GPNVDisplayTests.testARecordsDetailsListItsTextAndItsCopies
+  it("lists a record's text and its copies in its details", () => {
+    const { bytes, image, store } = build();
+    const reader = readerOver(bytes);
+    const detail = buildNodeDetail(store.children[2] as UEFINode, image, reader, []);
+    expect(value(detail, "Kind")).toBe("GPNV record");
+    expect(value(detail, "State")).toBe("Current");
+    const text = detail.tables.find((one) => one.title === "Text in the record");
+    expect(text?.rows.map((row) => row[0]?.text)).toEqual(["+0x0", "+0x19", "+0x2A", "+0x35"]);
+    expect(text?.rows.map((row) => row[1]?.text).at(-1)).toBe("G533QS");
+    const history = detail.tables.find((one) => one.title === "Variable history");
+    // The record it replaced, and itself.
+    expect(history?.rows).toHaveLength(2);
+
+    const owner = buildNodeDetail(store.children[1] as UEFINode, image, reader, []);
+    expect(
+      owner.fields.some((one) => one.label === "Windows product key" && one.value === key)
+    ).toBe(true);
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift#GPNVDisplayTests.testTheStoreListsTheRecordsInForce
+  it("lists the records in force in the store's details", () => {
+    const { bytes, image, store } = build();
+    const detail = buildNodeDetail(store, image, readerOver(bytes), []);
+    expect(value(detail, "Current entries")).toBe("2");
+    expect(value(detail, "Superseded entries")).toBe("1");
+    const table = detail.tables.find((one) => one.title === "Current entries");
+    expect(table?.rows.map((row) => row[0]?.text)).toEqual(["OA30", "MFG0"]);
+    expect(table?.rows.map((row) => row[1]?.text)).toEqual(["0x10C", "0x218"]);
+    expect(table?.rowTargets).toEqual([
+      { kind: "node", path: store.children[1]?.id },
+      { kind: "node", path: store.children[2]?.id },
     ]);
   });
 });
