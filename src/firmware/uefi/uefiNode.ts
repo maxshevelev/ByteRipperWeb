@@ -136,6 +136,11 @@ export type UEFINodeKind =
    */
   | "picture"
   /**
+   * The block HP puts in front of what it signs, read out of padding on a 4 KiB
+   * boundary (`UEFI_IMAGE_FORMAT.md` §9). Padding to UEFITool, as a map region is.
+   */
+  | "hpSignatureBlock"
+  /**
    * A sound — a WAV file — found where a file's body stops reading as sections
    * (`UEFI_IMAGE_FORMAT.md` §9). Named by its sample rate and channels; padding to
    * UEFITool, as a picture is.

@@ -187,6 +187,20 @@ To UEFITool a sound row is padding, and the Type column says so.
 @see term:non-uefi-data
 @see term:picture
 
+@term hp-signature-block
+@name HP signature block
+@short A block in which HP records which parts of the image it signed, with the signature and the BIOS version.
+
+HP boards keep such a block on a 4 KiB boundary in [[term:padding|padding]], right before what it signs: one before the main volume and, on the newer boards, a second before the boot block. It names two ranges of the flash by address, carries an RSA signature — RSA-3072 on the newer boards, RSA-2048 on the older — and a short record of the BIOS version, such as `V77`, and its date. The [[topic:tool-uefi|UEFI tool]] shows the block as a row of its own named after that version, and marks the two ranges as protected, as it marks the ranges of [[term:boot-guard|Boot Guard]] and of the vendors' hash tables: an edit inside them breaks what the firmware checks.
+
+HP has not published the layout; it was read off four HP dumps, Intel and AMD, and only part of it is certain. The block before the main volume holds a SHA-384 of its second range: the tool computes it and reports the result under **Signed ranges** in the block's details. What the digest in the other block covers is not known, a block of the older version holds no digest of its ranges, and the signature cannot be verified at all, because HP's public key is not in the block. Those ranges are marked and reported as not checked, which says nothing against the image.
+
+To UEFITool the block is padding, and the Type column says so.
+
+@see term:boot-guard
+@see term:padding
+
+
 
 @term padding
 @name Padding

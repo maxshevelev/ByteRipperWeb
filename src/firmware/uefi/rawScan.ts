@@ -7,6 +7,7 @@ import { readingECFirmwareIn } from "@/firmware/uefi/ecFirmware";
 import { readingFITComponents } from "@/firmware/uefi/fitComponents";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { parseFlashDeviceMap, readingMapRegions } from "@/firmware/uefi/flashDeviceMapParser";
+import { readingHPSignatureBlocks } from "@/firmware/uefi/hpSignatureBlock";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { opensPicture, PICTURE_SIGNATURES, parsePicture } from "@/firmware/uefi/picture";
@@ -174,15 +175,13 @@ export function scanRawArea(
   // whether or not a signature announced itself.
   parser.progressed(range.end);
   nodes.push(...parser.padding(claimed, range.end, emptyByte));
-  return readingAMDMicrocode(
-    parser,
-    readingECFirmwareIn(
-      parser,
-      readingFITComponents(parser, readingMapRegions(parser, nodes, emptyByte, depth), emptyByte),
-      emptyByte
-    ),
-    emptyByte
-  );
+  // What tables elsewhere name, then what announces itself only in padding — each read
+  // into the padding as rows of its own.
+  let read = readingMapRegions(parser, nodes, emptyByte, depth);
+  read = readingFITComponents(parser, read, emptyByte);
+  read = readingECFirmwareIn(parser, read, emptyByte);
+  read = readingHPSignatureBlocks(parser, read, emptyByte);
+  return readingAMDMicrocode(parser, read, emptyByte);
 }
 
 /**

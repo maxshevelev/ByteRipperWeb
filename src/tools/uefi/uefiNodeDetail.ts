@@ -33,6 +33,11 @@ import {
   flashDeviceMapEntries,
   flashDeviceMapEntryRange,
 } from "@/firmware/uefi/flashDeviceMapParser";
+import {
+  hpSignatureDate,
+  hpSignatureName,
+  readHPSignatureBlock,
+} from "@/firmware/uefi/hpSignatureBlock";
 import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
 import { allITEFirmware } from "@/firmware/uefi/iteFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
@@ -690,7 +695,21 @@ function buildDetailRows(
           tables: [protectedByTable(protectedBy)],
         };
   fields.push(...protection.fields);
-  const tables: DetailTable[] = [...valueTables, ...protection.tables];
+  // An HP signature block lists what it signs, and what hashing found.
+  const signed =
+    node.kind === "hpSignatureBlock" && image.protectedRanges !== undefined
+      ? image.protectedRanges.ranges.filter(
+          (one) =>
+            one.kind === "hp" &&
+            one.source.start === node.header.start &&
+            one.source.end === node.body.end
+        )
+      : [];
+  const tables: DetailTable[] = [
+    ...valueTables,
+    ...(signed.length === 0 ? [] : [protectedByTable(signed, L("Signed ranges"))]),
+    ...protection.tables,
+  ];
   const cell = (text: string): DetailCell => ({ text, tone: "plain" });
 
   // An update for more than one processor lists the others in a table of its
@@ -793,9 +812,12 @@ export const protectionCaveat = (): string =>
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.protectedByTable
  */
-function protectedByTable(ranges: readonly ProtectedRange[]): DetailTable {
+function protectedByTable(
+  ranges: readonly ProtectedRange[],
+  title: string = L("Protected by")
+): DetailTable {
   return {
-    title: L("Protected by"),
+    title,
     symbol: "lock.shield",
     columns: [L("Range"), L("Kind"), L("Listed at"), L("Hash")],
     rows: ranges.map((range) => [
@@ -1334,6 +1356,24 @@ function headerFields(
             true
           )
         );
+      }
+      break;
+    }
+
+    // A layout read off HP's dumps, not a published one: the digest is shown, and checked
+    // in the table of signed ranges only where its span is known.
+    case "hpSignatureBlock": {
+      const block = readHPSignatureBlock(node.header.start, reader.count, reader);
+      if (block === undefined) break;
+      fields.push(field("Version", `${block.version}`));
+      fields.push(
+        field(L("Signature"), `${hpSignatureName(block)} (${hex(block.signatureLength)})`)
+      );
+      fields.push(field(L("BIOS version"), block.biosVersion));
+      fields.push(field(L("Date"), hpSignatureDate(block)));
+      if (block.identifier !== undefined) fields.push(field("ID", block.identifier));
+      if (block.digest !== undefined) {
+        fields.push(field(L("Digest"), hexBytes(block.digest).replaceAll(" ", "")));
       }
       break;
     }

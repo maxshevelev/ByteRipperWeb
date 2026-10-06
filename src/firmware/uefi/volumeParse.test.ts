@@ -122,6 +122,30 @@ describe("a volume's header", () => {
     ]);
   });
 
+  // Where the shorter block map ends another volume begins: the header's length is the
+  // one that is wrong, as on the ProDesk 600 G4, and the volume after it is read instead
+  // of being swallowed (§3.1).
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testABlockMapEndingWhereAnotherVolumeStartsIsTheLength
+  it("takes a block map ending where another volume starts as the length", () => {
+    const outer = Test.volume({ length: 0x800, blockMapLength: 0x200 });
+    const parsed = parse(
+      Uint8Array.from([...outer.subarray(0, 0x200), ...Test.volume({ length: 0x600 })])
+    );
+
+    expect(
+      parsed.allNodes
+        .filter((one) => one.kind === "volume")
+        .map((one) => [one.header.start, one.body.end])
+    ).toEqual([
+      [0, 0x200],
+      [0x200, 0x800],
+    ]);
+    // The header still disagrees with its block map.
+    expect(parsed.diagnostics.map((one) => one.detail)).toEqual([
+      { kind: "sizeMismatch", structure: "volumeHeader", stored: 0x800, computed: 0x200 },
+    ]);
+  });
+
   // A volume claiming more bytes than the image has: keep what is there, and
   // say so.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/VolumeParseTests.swift#VolumeParseTests.testAVolumeRunningPastTheEndIsCutAndReported

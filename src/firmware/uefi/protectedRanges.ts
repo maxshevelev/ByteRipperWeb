@@ -3,6 +3,7 @@ import { outermostSection } from "@/firmware/uefi/byteSpace";
 import type { DiagnosticKind, UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidEquals } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
+import { digestCoversSecondRange, readHPSignatureBlock } from "@/firmware/uefi/hpSignatureBlock";
 import {
   AMI_DXE_CORE,
   AMI_HASH_FILE,
@@ -51,7 +52,9 @@ export type ProtectedRangeKind =
   | "amiV1"
   | "amiV2"
   | "amiV3"
-  | "insyde";
+  | "insyde"
+  /** A range an HP signature block names (`HPSignatureBlock`). */
+  | "hp";
 
 /**
  * The one kind the ACM checks before the first instruction of the BIOS; every
@@ -80,6 +83,8 @@ export function protectedRangeKindName(kind: ProtectedRangeKind): string {
       return "AMI vendor hash range (v3)";
     case "insyde":
       return "Insyde flash device map range";
+    case "hp":
+      return "HP signed range";
   }
 }
 
@@ -340,6 +345,7 @@ export function readProtectedRanges(image: UEFIImage, file: ImageReader): Protec
   reading.readBootPolicies();
   reading.readVendorHashFiles();
   reading.readFlashDeviceMaps();
+  reading.readHPSignatureBlocks();
   const ranges = reading.finish();
   const copy = findTopSwapCopyIn(image, file);
   return copy === undefined
@@ -1105,6 +1111,39 @@ class ProtectedRangeReading {
         const address = (low32(base) + low32(offset)) >>> 0;
         this.addSingle("insyde", this.physical(address, low32(size)), hash, entry.header);
       }
+    }
+  }
+
+  // MARK: - HP signature blocks (§5.4)
+
+  /**
+   * Both ranges of every block, the second with its digest where the layout is known to
+   * hold it (`digestCoversSecondRange`); every other range is marked and left unchecked
+   * — a digest whose span is not known is no evidence against the image.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRangeReading.readHPSignatureBlocks
+   */
+  readHPSignatureBlocks(): void {
+    for (const node of this.nodes) {
+      if (node.kind !== "hpSignatureBlock" || node.space.length > 0) continue;
+      const block = readHPSignatureBlock(node.header.start, this.file.count, this.file);
+      if (block === undefined) continue;
+      block.ranges.forEach((signed, index) => {
+        const digests: StoredDigest[] =
+          index === 1 && digestCoversSecondRange(block) && block.digest !== undefined
+            ? [{ algorithm: TCGHash.sha384, bytes: block.digest }]
+            : [];
+        const group: Group = {
+          kind: "hp",
+          members: [],
+          digests,
+          source: { start: block.offset, end: block.offset + block.length },
+          incomplete: false,
+          hashedInFileOrder: false,
+        };
+        this.add(this.physical(signed.address, signed.length), group);
+        if (group.members.length > 0 || group.incomplete) this.groups.push(group);
+      });
     }
   }
 

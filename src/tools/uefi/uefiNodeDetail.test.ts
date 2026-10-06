@@ -375,6 +375,74 @@ describe("a sound", () => {
   });
 });
 
+/** @upstream Modules/UEFITool/Tests/UEFIToolTests/HPSignatureBlockDisplayTests.swift#HPSignatureBlockDisplayTests */
+describe("an HP signature block", () => {
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/HPSignatureBlockDisplayTests.swift#HPSignatureBlockDisplayTests.testTheDetailsSayWhatTheBlockIsAndWhatItSigns
+  it("says what the block is and what it signs", () => {
+    // A version-2 block naming two ranges after it, as the ProDesk 600 G4 keeps one.
+    const block = new Uint8Array(0x30 + 0x200 + 8 + 0x140 + 0x300);
+    const view = new DataView(block.buffer);
+    view.setUint32(4, 2, true);
+    view.setUint32(12, 0x100, true);
+    [0xf000, 0x4000].forEach((length, index) => {
+      view.setUint32(0x10 + index * 0x10, 0xffff_1000, true);
+      view.setUint32(0x14 + index * 0x10, length, true);
+      view.setUint32(0x18 + index * 0x10, 0xffff_ffff, true);
+    });
+    block.fill(0x5a, 0x30, 0x130);
+    block.fill(0xff, 0x130, 0x230);
+    view.setUint32(0x230, 0x140, true);
+    view.setUint32(0x234, 0x13e, true);
+    block.set([0x51, 0x32, 0x32], 0x238 + 8);
+    block.set([0xe7, 0x07, 0, 0, 0x06, 0, 0x0f, 0], 0x238 + 0x18);
+    const bytes = new Uint8Array(0x10000).fill(0xff);
+    bytes.set(block);
+    const node = makeNode({
+      kind: "hpSignatureBlock",
+      name: "HP signature block Q22",
+      header: r(0, 0x30),
+      body: r(0x30, block.length),
+    });
+    const range = (start: number, end: number): ProtectedRange => ({
+      kind: "hp",
+      range: r(start, end),
+      digests: [],
+      source: r(0, block.length),
+      verdict: { kind: "unchecked" },
+    });
+    const image = new UEFIImage({
+      size: 0x10000,
+      roots: [
+        makeNode({
+          kind: "uefiImage",
+          name: "UEFI image",
+          header: r(0, 0),
+          body: r(0, 0x10000),
+          children: [node],
+        }),
+      ],
+      protectedRanges: {
+        ranges: [range(0x1000, 0x10000), range(0x1000, 0x5000)],
+        obbDigests: [],
+        diagnostics: [],
+      },
+    });
+    const target = image.roots[0]?.children[0] as UEFINode;
+    const detail = buildNodeDetail(target, image, readerOver(bytes), []);
+
+    expect(value(detail, "Kind")).toBe("HP signature block");
+    expect(value(detail, "Signature")).toBe("RSA-2048 (0x100)");
+    expect(value(detail, "BIOS version")).toBe("Q22");
+    expect(value(detail, "Date")).toBe("2023-06-15");
+    // A version-2 block keeps none.
+    expect(value(detail, "Digest")).toBeUndefined();
+    const table = detail.tables.find((one) => one.title === "Signed ranges");
+    expect(table?.rows).toHaveLength(2);
+    expect(table?.rows.map((row) => row[3]?.text)).toEqual(["Not checked", "Not checked"]);
+    expect(uefiHelpTerm(target)).toBe("hp-signature-block");
+  });
+});
+
 describe("an AMD microcode", () => {
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift#AMDMicrocodeDisplayTests.testTheDetailsSayWhatThePatchIs
   it("says what the patch is", () => {

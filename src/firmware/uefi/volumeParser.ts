@@ -3,6 +3,7 @@ import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { declaredFileSize, FFS, parseFile } from "@/firmware/uefi/fileParser";
+import { readHPSignatureBlock } from "@/firmware/uefi/hpSignatureBlock";
 import {
   APPLE_RESERVED_VOLUME,
   ffsVersionOfFileSystem,
@@ -175,6 +176,20 @@ export function parseVolume(
   if (header === undefined) return undefined;
 
   let size = header.fvLength;
+  // A header that claims more than its block map does is believed — the reference
+  // believes it — unless the block map's end is where something else plainly starts:
+  // another volume, or the HP signature block that signs one. The HP FS volume of the
+  // ProDesk 600 G4 says `0x110000`, its block map `0x11000`, and at `0x11000` the block
+  // and then the BIOS volume it signs begin (§3.1).
+  if (
+    header.blockMapSize !== undefined &&
+    header.blockMapSize < size &&
+    header.blockMapSize >= header.headerSize &&
+    offset + header.blockMapSize < limit &&
+    startsAnotherStructure(parser, offset + header.blockMapSize, limit)
+  ) {
+    size = header.blockMapSize;
+  }
   if (offset + size > limit) {
     parser.note({ kind: "truncated", structure: "volumeBody" }, offset);
     size = limit - offset;
@@ -289,6 +304,19 @@ export function volumeChildren(
     emptyByte,
     depth: depth + 1,
   });
+}
+
+/**
+ * Whether a structure no volume holds starts at `offset`: a volume header of its own,
+ * or an HP signature block.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/VolumeParser.swift#Parser.startsAnotherStructure
+ */
+function startsAnotherStructure(parser: Parser, offset: number, limit: number): boolean {
+  return (
+    readVolumeHeader(parser, offset) !== undefined ||
+    readHPSignatureBlock(offset, limit, parser.reader) !== undefined
+  );
 }
 
 /**

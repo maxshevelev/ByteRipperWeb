@@ -431,7 +431,9 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/FirmwareTextBlockTests.swift": "src/firmware/uefi/firmwareTextBlock.test.ts",
         "UEFIImage/AMDMicrocode.swift": "src/firmware/uefi/amdMicrocode.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/AMDMicrocodeTests.swift": "src/firmware/uefi/amdMicrocode.test.ts",
-        "UEFIImage/Sound.swift": "src/firmware/uefi/sound.ts"
+        "UEFIImage/Sound.swift": "src/firmware/uefi/sound.ts",
+        "UEFIImage/HPSignatureBlock.swift": "src/firmware/uefi/hpSignatureBlock.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPSignatureBlockTests.swift": "src/firmware/uefi/hpSignatureBlock.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -787,7 +789,8 @@
         "Sources/UEFIToolUI/DetailTableView.swift": "src/ui/toolPanel/ToolDetail.tsx",
         "Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/SoundDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts",
-        "Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift": "src/ui/toolPanel/SoundPlayer.tsx"
+        "Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift": "src/ui/toolPanel/SoundPlayer.tsx",
+        "Modules/UEFITool/Tests/UEFIToolTests/HPSignatureBlockDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
