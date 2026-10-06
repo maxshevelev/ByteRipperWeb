@@ -228,6 +228,55 @@ export function nodeName(node: NamedNode, catalogue: GuidsCatalogue): string {
 }
 
 /**
+ * What a file's name is looked for in: its sections, as far as they have been opened.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.ownName
+ */
+export interface OwnNameNode {
+  readonly kind: string;
+  readonly subtype?: number | undefined;
+  readonly name?: string | undefined;
+  readonly isErased?: boolean | undefined;
+  readonly children?: readonly OwnNameNode[] | undefined;
+}
+
+/**
+ * A Name section: its text is its file's name.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.isNameSection
+ */
+export const isNameSection = (node: {
+  readonly kind: string;
+  readonly subtype?: number | undefined;
+}) => node.kind === "section" && node.subtype === 0x15;
+
+/**
+ * The name a file gives itself in its Name section (`EFI_SECTION_USER_INTERFACE`), looked
+ * for through the sections opened so far; nothing for anything else, and for a file with
+ * none.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.ownName
+ */
+export function ownName(node: {
+  readonly kind: string;
+  readonly children?: readonly OwnNameNode[] | undefined;
+}): string | undefined {
+  if (node.kind !== "file") return undefined;
+  const search = (sections: readonly OwnNameNode[] | undefined): string | undefined => {
+    for (const section of sections ?? []) {
+      if (section.kind !== "section") continue;
+      if (isNameSection(section) && section.name !== undefined && section.name.length > 0) {
+        return section.name;
+      }
+      const nested = search(section.children);
+      if (nested !== undefined) return nested;
+    }
+    return undefined;
+  };
+  return search(node.children);
+}
+
+/**
  * What the name is decided from: the kind, the parser's own name and GUID, and the
  * little the panel knows of the rest.
  */
@@ -236,8 +285,11 @@ export interface NamedNode {
   readonly subtype?: number | undefined;
   readonly name: string;
   readonly guid?: EFIGUID | undefined;
-  /** What a pad file is named after, so a row that has them says so. */
-  readonly children?: readonly { readonly kind: string; readonly isErased?: boolean }[];
+  /**
+   * What a pad file is named after, so a row that has them says so; and the sections a
+   * file names itself by.
+   */
+  readonly children?: readonly OwnNameNode[];
   /**
    * How long the one EC image a block is named after is (`namedImageLength`).
    */
@@ -328,6 +380,11 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
+  // A file that names itself is called what it says: the firmware's own word for this
+  // image beats the catalogue's for the GUID, which a vendor can have given to another
+  // module (the catalogue's name, when it differs, is in the detail).
+  const own = ownName(node);
+  if (own !== undefined) return own;
   // A live VSS variable's value follows its name, as its type reads: `BootOrder =
   // 0003, 2001`, `Lang = "eng"`. So does an NVAR variable's, on the entry that holds it
   // now. The store says where the value is.

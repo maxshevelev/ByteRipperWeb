@@ -43,8 +43,10 @@ import {
   meRegionPath,
   useMeSubtree,
 } from "@/tools/uefi/meSubtree";
+import { scrollToShowStretch } from "@/tools/uefi/treeScroll";
 import { UefiSearchBar } from "@/tools/uefi/UefiSearchBar";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
+import { withCatalogueName } from "@/tools/uefi/uefiNodeDetail";
 import {
   type DecompressedExport,
   decompressedExport,
@@ -372,6 +374,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     reset(forFile: boolean): void;
   }>({ forget: () => undefined, readerChose: () => undefined, reset: () => undefined });
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
+  /** A row to bring into view with what it holds, once its branch is there. */
+  const [showStretchOf, setShowStretchOf] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
   const { widths, resize, reset: resetWidths } = useColumnWidths(UEFI_COLUMNS());
@@ -627,11 +631,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
       if (node.children.length > 0 || !node.isExpandable || isMeRegion(node)) {
         setOpen((current) => new Set([...current, key]));
+        setShowStretchOf(key);
         return;
       }
       // A branch not read yet stays shut while it is read, and opens when it
       // arrives. Only a slow one puts a "Loading…" row up in the meantime.
       wanted.current.add(key);
+      setShowStretchOf(key);
       expandFirmwareNode(context.pane, node.id);
       window.setTimeout(() => {
         if (!wanted.current.has(key)) return;
@@ -831,7 +837,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     isOpen: (key) => openRef.current.has(key),
     landOn: (node, from) => {
       choose(node, from);
-      setScrollTarget(pathKey(node.id));
+      setShowStretchOf(pathKey(node.id));
     },
   });
 
@@ -1171,6 +1177,50 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       onSelect: () => void goToTopSwapCounterpart(node),
     };
   };
+
+  // A row the reader opened, or the search landed on, with what it holds: brought into
+  // view once its branch is there, without taking the row itself off the top — and not
+  // under the column header, which lies over the top of the list.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showBranchIfAsked
+  useEffect(() => {
+    if (showStretchOf === undefined) return;
+    const index = rows.findIndex((row) => row.key === showStretchOf);
+    const element = scrollRef.current;
+    if (index < 0 || element === null) return;
+    // Still being read: wait for the branch to arrive.
+    if (
+      loading.has(showStretchOf) ||
+      (!open.has(showStretchOf) && wanted.current.has(showStretchOf))
+    ) {
+      return;
+    }
+    setShowStretchOf(undefined);
+    const depth = rows[index]?.depth ?? 0;
+    let last = index;
+    while (rows[last + 1] !== undefined && (rows[last + 1]?.depth ?? 0) > depth) last += 1;
+    element.scrollTop = scrollToShowStretch({
+      scrollTop: element.scrollTop,
+      clientHeight: element.clientHeight,
+      headerHeight: HEADER_HEIGHT,
+      rowHeight: ROW_HEIGHT,
+      row: index,
+      last,
+    });
+  }, [rows, showStretchOf, loading, open]);
+
+  // Closing the large details card gives the table back the room the pane takes: the row
+  // selected while it was out is brought back on screen.
+  //
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.keepSelectionInView
+  const wasLarge = useRef(detailLarge);
+  useEffect(() => {
+    if (wasLarge.current && !detailLarge) {
+      const key = selectedRow.current;
+      if (key !== undefined) setScrollTarget(key);
+    }
+    wasLarge.current = detailLarge;
+  }, [detailLarge]);
 
   // Brings a row the panel chose itself into view, once it is in the list.
   useEffect(() => {
@@ -1529,6 +1579,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         <UefiSearchBar
           query={searchState.query}
           status={treeSearch.status}
+          progress={treeSearch.progress}
           showsMeNote={meRegionKey !== undefined}
           focusToken={searchState.focusToken}
           onQuery={setSearchQuery}
@@ -1706,7 +1757,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
         <ToolDetail
           subject={meFocus ?? (shown === undefined ? undefined : pathKey(shown.node))}
-          detail={meShown !== undefined ? meDetail(meShown) : (shown?.detail ?? EMPTY_DETAIL)}
+          detail={
+            meShown !== undefined
+              ? meDetail(meShown)
+              : shown === undefined
+                ? EMPTY_DETAIL
+                : withCatalogueName(
+                    shown.detail,
+                    firmwareNodeAt(roots ?? [], shown.node),
+                    catalogue.catalogue
+                  )
+          }
           placeholder={L("Select a node to see what it is.")}
           onSelectNode={chooseByPath}
           onOutlineRange={outlineRange}

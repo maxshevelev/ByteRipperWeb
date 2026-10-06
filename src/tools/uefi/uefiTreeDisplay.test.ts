@@ -6,6 +6,7 @@ import { FFS_V2, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
+import { withCatalogueName } from "@/tools/uefi/uefiNodeDetail";
 import {
   imageType,
   isEmptyPadding,
@@ -540,5 +541,41 @@ describe("empty padding", () => {
       "Padding",
       "Free space",
     ]);
+  });
+
+  // A file that names itself is called that in the tree and in its detail, even where the
+  // catalogue has another name for its GUID — a vendor can have given the GUID to another
+  // module. The catalogue's name is a field.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeDisplayTests.swift#UEFITreeDisplayTests.testAFilesOwnNameBeatsTheCataloguesAndTheCataloguesIsAField
+  it("calls a file by its own name, and gives the catalogue's as a field", () => {
+    const owner: EFIGUID = guid("90BF2BFB-F998-4CBC-AD72-008D4D047A4B");
+    const file = {
+      kind: "file",
+      subtype: 0x06,
+      name: "PeiPciePhyFwLoadingInit",
+      guid: owner,
+      children: [{ kind: "section", subtype: 0x15, name: "PeiPciePhyFwLoadingInit" }],
+    };
+    const catalogue = new GuidsCatalogue(new Map([[guidKey(owner), "PeiTbtInit"]]));
+
+    expect(nodeName(file, catalogue)).toBe("PeiPciePhyFwLoadingInit");
+    const detail = withCatalogueName(
+      {
+        title: "PeiTbtInit",
+        fields: [{ label: "GUID", value: "x", tone: "standard" }],
+        tables: [],
+      },
+      { kind: "file", guid: guidText(owner), children: file.children },
+      catalogue
+    );
+    expect(detail.title).toBe("PeiPciePhyFwLoadingInit");
+    const labels = detail.fields.map((one) => one.label);
+    const at = labels.indexOf("Name in the catalogue");
+    // Beside the GUID it names.
+    expect(labels[at - 1]).toBe("GUID");
+    expect(detail.fields[at]?.value).toBe("PeiTbtInit");
+
+    // Without a Name section the catalogue names it.
+    expect(nodeName({ ...file, children: [] }, catalogue)).toBe("PeiTbtInit");
   });
 });

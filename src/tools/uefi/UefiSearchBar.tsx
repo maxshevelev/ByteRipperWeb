@@ -28,6 +28,7 @@ export type SearchStatus = "none" | "notFound" | "searching";
 export function UefiSearchBar({
   query,
   status,
+  progress,
   showsMeNote,
   focusToken,
   onQuery,
@@ -36,6 +37,8 @@ export function UefiSearchBar({
 }: {
   readonly query: UEFITreeQuery;
   readonly status: SearchStatus;
+  /** Where in the file the row the search is at lies, from 0 to 1. */
+  readonly progress: number;
   /** Whether the image has an ME region, which the search does not go into. */
   readonly showsMeNote: boolean;
   /** Moves on each time the field is asked to take the keyboard. */
@@ -137,7 +140,7 @@ export function UefiSearchBar({
         </select>
         {status === "searching" ? (
           <>
-            <progress className="uefi-search-progress" />
+            <progress className="uefi-search-progress" value={progress} max={1} />
             <button
               type="button"
               className="uefi-search-stop"

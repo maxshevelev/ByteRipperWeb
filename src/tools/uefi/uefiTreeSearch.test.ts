@@ -192,6 +192,15 @@ describe("what a query matches", () => {
     expect(hasSubtypes(0x43)).toBe(true);
   });
 
+  // A Name section's text is its file's name: the file is the one match, unless sections
+  // are what is asked for.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeSearchTests.swift#UEFITreeSearchTests.testANameSectionIsNotASecondMatchForItsFile
+  it("does not take a Name section for a second match of its file", () => {
+    const section: SearchedNode = { itemType: 0x43, itemSubtype: 0x15, name: "PeiPcie" };
+    expect(matchesQuery({ text: "peipcie" }, section, "PeiPcie")).toBe(false);
+    expect(matchesQuery({ text: "peipcie", type: 0x43 }, section, "PeiPcie")).toBe(true);
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITreeSearchTests.swift#UEFITreeSearchTests.testAQueryThatAsksForNothingIsEmpty
   it("is empty when it asks for nothing", () => {
     expect(queryIsEmpty({ text: "" })).toBe(true);

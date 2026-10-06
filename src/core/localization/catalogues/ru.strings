@@ -192,6 +192,7 @@
 "Setup help" = "Справка Setup";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
 "Picture size" = "Размер изображения";
+"Name in the catalogue" = "Имя в каталоге";
 "Name or GUID" = "Имя или GUID";
 "Search the tree" = "Поиск в дереве";
 "Part of a node's name or of its GUID" = "Часть имени узла или его GUID";

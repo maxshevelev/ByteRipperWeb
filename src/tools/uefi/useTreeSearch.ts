@@ -29,6 +29,28 @@ import {
 } from "@/tools/uefi/uefiTreeSearch";
 import type { WireNode } from "@/workers/protocol";
 
+/**
+ * Where in the file the row at `key` lies, from 0 to 1: its own offset, or — inside a
+ * compressed section, whose bytes are no bytes of the file — the offset of the section it
+ * was unpacked from. Where the search is, since how much is left is not known before the
+ * branches are read.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showSearchProgress
+ */
+export function searchPlace(
+  roots: readonly WireNode[],
+  key: string,
+  size: number
+): number | undefined {
+  if (size <= 0) return undefined;
+  const path = key.length === 0 ? [] : key.split(".").map(Number);
+  for (let depth = path.length; depth >= 1; depth--) {
+    const node = firmwareNodeAt(roots, path.slice(0, depth));
+    if (node !== undefined && node.space.length === 0) return node.header[0] / size;
+  }
+  return undefined;
+}
+
 /** How long a search may hold the main thread before it lets go for a moment. */
 const SEARCH_SLICE_MS = 8;
 /** How long a search runs before its bar shows a progress bar. */
@@ -75,6 +97,8 @@ export function useTreeSearch(host: TreeSearchHost) {
   /** The match the search last stood on: where it goes on from, until the reader selects another row. */
   const cursor = useRef<string | undefined>(undefined);
   const searching = useRef(false);
+  /** Where in the file the row the walk is at lies, from 0 to 1. */
+  const [progress, setProgress] = useState(0);
 
   /** Ends the search in hand, if there is one. */
   const cancel = useCallback(() => {
@@ -216,9 +240,20 @@ export function useTreeSearch(host: TreeSearchHost) {
           : (h.selected ?? h.meRegionKey);
       const walk = new UEFITreeSearch(origin, direction);
       const timer = window.setTimeout(() => {
-        if (token === run.current) setStatus("searching");
+        if (token !== run.current) return;
+        setStatus("searching");
+        place();
       }, SEARCH_STATUS_DELAY_MS);
       let began = performance.now();
+      let looking: string | undefined;
+      const place = () => {
+        const current = firmwareFor(h.pane);
+        const at =
+          looking === undefined || current === undefined
+            ? undefined
+            : searchPlace(current.roots, looking, current.size);
+        if (at !== undefined) setProgress(at);
+      };
       try {
         for (;;) {
           if (token !== run.current) return;
@@ -230,16 +265,20 @@ export function useTreeSearch(host: TreeSearchHost) {
             return;
           }
           if (next.kind === "expand") {
+            looking = next.key;
+            place();
             await expandFirmwareNodeAndWait(h.pane, pathOf(next.key));
             began = performance.now();
             continue;
           }
           const node = firmwareNodeAt(roots, pathOf(next.key));
+          looking = next.key;
           if (node !== undefined && matches(node, roots)) {
             await land(next.key, token, walk.wrapped, direction);
             return;
           }
           if (performance.now() - began > SEARCH_SLICE_MS) {
+            place();
             await new Promise((resolve) => window.setTimeout(resolve, 0));
             began = performance.now();
           }
@@ -254,6 +293,7 @@ export function useTreeSearch(host: TreeSearchHost) {
 
   return {
     status,
+    progress,
     search,
     /** The reader stopped a search that was reading branches. */
     stop: cancel,

@@ -94,6 +94,15 @@ export function matchesQuery(query: UEFITreeQuery, node: SearchedNode, name: str
   }
   const needle = needleOf(query);
   if (needle.length === 0) return true;
+  // A Name section's text is its file's name, and the file is the match — one occurrence,
+  // not two. Asked for by type, it is found.
+  if (
+    node.itemType === ItemType.section &&
+    node.itemSubtype === 0x15 &&
+    query.type !== ItemType.section
+  ) {
+    return false;
+  }
   if (contains(name, needle) || contains(node.name, needle)) return true;
   if (node.guid === undefined) return false;
   if (contains(node.guid, needle)) return true;

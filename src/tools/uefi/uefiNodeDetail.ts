@@ -19,7 +19,7 @@ import {
 } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
 import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
-import { type EFIGUID, guidEquals, guidText } from "@/firmware/uefi/efiGuid";
+import { type EFIGUID, guidEquals, guidFromText, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName, marksHeaderInvalid } from "@/firmware/uefi/fileParser";
 import {
   acmSubtypeName,
@@ -33,6 +33,7 @@ import {
   flashDeviceMapEntries,
   flashDeviceMapEntryRange,
 } from "@/firmware/uefi/flashDeviceMapParser";
+import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import {
   hpSignatureDate,
   hpSignatureName,
@@ -109,7 +110,7 @@ import {
   nvramValueFields,
 } from "@/tools/uefi/nvramValueText";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
-import { dvarMeaning, kindLabel } from "@/tools/uefi/uefiTreeDisplay";
+import { dvarMeaning, kindLabel, type OwnNameNode, ownName } from "@/tools/uefi/uefiTreeDisplay";
 
 /**
  * What the panel says about the selected node, by its type. Ported from
@@ -2075,4 +2076,43 @@ function hex(value: number): string {
 
 function hexBytes(bytes: Uint8Array): string {
   return [...bytes].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+}
+
+/**
+ * A file's detail as the panel shows it: the name the file gives itself in its Name
+ * section is the title, and the catalogue's name for its GUID, where it differs, a field
+ * of its own beside the GUID — a vendor can have given a GUID to another module.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ * @upstream-differs the panel adds it to the worker's detail, since it is the panel that holds
+ * the GUID catalogue
+ */
+export function withCatalogueName(
+  detail: NodeDetail,
+  node:
+    | {
+        readonly kind: string;
+        readonly guid?: string | undefined;
+        readonly children?: readonly OwnNameNode[] | undefined;
+      }
+    | undefined,
+  catalogue: GuidsCatalogue
+): NodeDetail {
+  if (node === undefined || node.kind !== "file") return detail;
+  const own = ownName(node);
+  const title = own ?? detail.title;
+  const guid = node.guid === undefined ? undefined : guidFromText(node.guid);
+  const listed = guid === undefined ? undefined : catalogue.nameOf(guid);
+  if (own === undefined && listed === undefined) return detail;
+  const fields =
+    listed === undefined || listed === title
+      ? detail.fields
+      : insertAfterGuid(detail.fields, field(L("Name in the catalogue"), listed));
+  return { ...detail, title, fields };
+}
+
+function insertAfterGuid(fields: readonly DetailField[], added: DetailField): DetailField[] {
+  const at = fields.findIndex((one) => one.label === "GUID");
+  const place = at < 0 ? fields.length : at + 1;
+  return [...fields.slice(0, place), added, ...fields.slice(place)];
 }
