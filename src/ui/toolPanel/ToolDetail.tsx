@@ -346,6 +346,21 @@ function LargeDetailCard({
         }
         return;
       }
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        event.key.toLowerCase() === "a" &&
+        cardRef.current !== null &&
+        !isTextEntryTarget(event.target as EventTarget) &&
+        document.activeElement !== null &&
+        largeDetailKeyTable()?.contains(document.activeElement) === true
+      ) {
+        // The whole list of the card, though the focus is in the table.
+        window.getSelection()?.selectAllChildren(cardRef.current);
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -374,9 +389,41 @@ function LargeDetailCard({
       if (event.target instanceof Node && cardRef.current?.contains(event.target) === true) return;
       onClose();
     };
+    // The card does not keep the keyboard: a click in it selects text and leaves the
+    // focus with the table, so the arrows and Space go on working there.
+    const onRelease = (event: PointerEvent) => {
+      if (!(event.target instanceof Node) || cardRef.current?.contains(event.target) !== true) {
+        return;
+      }
+      if (isTextEntryTarget(event.target)) return;
+      largeDetailKeyTable()?.focus({ preventScroll: true });
+    };
+    // The selection is in the card and the focus is in the table, so the copy arrives at
+    // the table: it puts the card's text on the clipboard the way the card itself would.
+    const onCopyAnywhere = (event: ClipboardEvent) => {
+      const selection = window.getSelection();
+      const card = cardRef.current;
+      if (
+        card === null ||
+        selection === null ||
+        selection.isCollapsed ||
+        selection.rangeCount === 0 ||
+        !card.contains(selection.anchorNode)
+      ) {
+        return;
+      }
+      const text = detailCopyText(selection.getRangeAt(0).cloneContents());
+      if (text.length === 0) return;
+      event.clipboardData?.setData("text/plain", text);
+      event.preventDefault();
+    };
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("pointerup", onRelease, true);
+    document.addEventListener("copy", onCopyAnywhere, true);
     return () => {
+      document.removeEventListener("pointerup", onRelease, true);
+      document.removeEventListener("copy", onCopyAnywhere, true);
       document.removeEventListener("keydown", onKey, true);
       document.removeEventListener("pointerdown", onPointer, true);
     };
@@ -388,7 +435,6 @@ function LargeDetailCard({
       ref={cardRef}
       role="dialog"
       aria-label={L("Details")}
-      tabIndex={selecting.tabIndex}
       onCopy={selecting.onCopy}
       onKeyDown={(event) => {
         selecting.selectAll(event);
