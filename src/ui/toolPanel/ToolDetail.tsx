@@ -11,12 +11,14 @@ import {
   toggleLargeDetail,
 } from "@/state/largeDetailStore";
 import { useStore } from "@/state/useStore";
+import { workspaceStore } from "@/state/workspaceStore";
 import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { detailCopyText } from "@/ui/toolPanel/detailCopy";
+import { largeDetailFrame } from "@/ui/toolPanel/largeDetailFrame";
 import {
   initialPictureBackground,
   nextPictureBackground,
@@ -306,6 +308,32 @@ function LargeDetailCard({
 }) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const selecting = detailSelectionHandlers();
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolPanelFrame
+  // The card stands beside the tool panel it belongs to, a gap from its edge, rather than
+  // over it, and follows the panel's width when its divider is dragged.
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.restingFrame
+  const [frame, setFrame] = useState<{ left: number; width: number } | undefined>(undefined);
+  useLayoutEffect(() => {
+    const panel =
+      largeDetailKeyTable()?.closest(".tool-panel") ?? document.querySelector(".tool-panel");
+    const place = () => {
+      const edges = panel?.getBoundingClientRect();
+      setFrame(
+        largeDetailFrame(
+          document.documentElement.clientWidth,
+          edges === undefined ? undefined : { left: edges.left, right: edges.right }
+        )
+      );
+    };
+    place();
+    window.addEventListener("resize", place);
+    const observer = panel === null || panel === undefined ? undefined : new ResizeObserver(place);
+    if (panel !== null && panel !== undefined) observer?.observe(panel);
+    return () => {
+      window.removeEventListener("resize", place);
+      observer?.disconnect();
+    };
+  }, []);
   useScrollToTopOnSubject(cardRef, subject, hasRows);
 
   useEffect(() => {
@@ -314,6 +342,8 @@ function LargeDetailCard({
     const onKey = (event: KeyboardEvent) => {
       // What this card sent on to the table itself.
       if (forwarding) return;
+      // Space, Esc and the arrows typed into the search field are the field's.
+      if (event.target instanceof Node && isTextEntryTarget(event.target)) return;
       const table = largeDetailKeyTable();
       if (
         ARROW_KEYS.has(event.key) &&
@@ -385,8 +415,18 @@ function LargeDetailCard({
     };
     // Anywhere outside the card: closed, and the click carries on to what it was for.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
+    // A click anywhere in the tool panel — a row, a node's triangle, a menu, the search,
+    // the legend — leaves it open; one beside both still closes it, and still does what it
+    // was aimed at.
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     const onPointer = (event: PointerEvent) => {
-      if (event.target instanceof Node && cardRef.current?.contains(event.target) === true) return;
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        onClose();
+        return;
+      }
+      if (cardRef.current?.contains(target) === true) return;
+      if (target.closest(".tool-panel, [role=menu]") !== null) return;
       onClose();
     };
     // The card does not keep the keyboard: a click in it selects text and leaves the
@@ -417,11 +457,23 @@ function LargeDetailCard({
       event.clipboardData?.setData("text/plain", text);
       event.preventDefault();
     };
+    // A fragment panel opening or rising is a new thing to look at, and the card would
+    // stand over it.
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#Notification.Name.fragmentPanelRaised
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#Notification.Name
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.raisedObserver
+    let expanded = workspaceStore.getSnapshot().dock.expanded;
+    const unsubscribeDock = workspaceStore.subscribe(() => {
+      const now = workspaceStore.getSnapshot().dock.expanded;
+      if (now !== undefined && now !== expanded) onClose();
+      expanded = now;
+    });
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("pointerup", onRelease, true);
     document.addEventListener("copy", onCopyAnywhere, true);
     return () => {
+      unsubscribeDock();
       document.removeEventListener("pointerup", onRelease, true);
       document.removeEventListener("copy", onCopyAnywhere, true);
       document.removeEventListener("keydown", onKey, true);
@@ -435,6 +487,9 @@ function LargeDetailCard({
       ref={cardRef}
       role="dialog"
       aria-label={L("Details")}
+      style={
+        frame === undefined ? undefined : { left: frame.left, width: frame.width, right: "auto" }
+      }
       onCopy={selecting.onCopy}
       onKeyDown={(event) => {
         selecting.selectAll(event);

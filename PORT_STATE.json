@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "166d84c2da074fca086f0c15ab9929992286b22b",
-  "baselineNote": "Name a compressed branch's bytes as decompressed in the tree menu, save a compressed section's body instead of exporting it, and open a row's content on a double click (2026-10-06)"
+  "baseCommit": "0adcc5c942b99b2b2eec264124e7bd58d3ad5d6b",
+  "baselineNote": "Keep the large view of the details clear of the tool panel, leave it open for work in the panel, and fold it when a fragment panel opens (2026-10-06)"
 }

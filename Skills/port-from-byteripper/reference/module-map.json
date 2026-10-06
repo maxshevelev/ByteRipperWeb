@@ -4283,7 +4283,9 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowBringsItsRowsIntoView": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testClickingARowOpensThatFile": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testRebuildingTheListReplacesTheRows": "later — an app flow test: it drives the real panel, and the web has no component level",
-        "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testTheNotesWithRecentFilesSplitTheRowInHalves": "later — an app flow test: it drives the real panel, and the web has no component level"
+        "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testTheNotesWithRecentFilesSplitTheRowInHalves": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningAFragmentPanelFoldsTheLargeView": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheLargeViewStaysClearOfTheToolPanelAndSurvivesWorkInIt": "later — an app flow test: it drives the real panel, and the web has no component level"
       }
     },
     {
