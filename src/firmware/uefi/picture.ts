@@ -38,6 +38,13 @@ export interface Picture {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.declaredLength
    */
   readonly declaredLength?: number | undefined;
+  /**
+   * How many images a GIF holds — more than one is an animation. Nothing for the other
+   * formats.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.frames
+   */
+  readonly frames?: number | undefined;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.Format */
@@ -309,6 +316,7 @@ function gif(bytes: Uint8Array | undefined): Picture | undefined {
   const width = littleEndian16(bytes, 6);
   const height = littleEndian16(bytes, 8);
   let at = 13 + colourTable(bytes[10] ?? 0);
+  let frames = 0;
 
   /** Steps over sub-blocks up to and past their terminating zero. */
   const subBlocks = (): boolean => {
@@ -330,6 +338,7 @@ function gif(bytes: Uint8Array | undefined): Picture | undefined {
           variant: String.fromCharCode(...bytes.subarray(3, 6)),
           width,
           height,
+          frames,
         };
       case 0x21:
         at += 2;
@@ -339,6 +348,7 @@ function gif(bytes: Uint8Array | undefined): Picture | undefined {
         if (at + 10 >= bytes.length) return undefined;
         at += 10 + colourTable(bytes[at + 9] ?? 0) + 1; // the LZW code size
         if (!subBlocks()) return undefined;
+        frames += 1;
         break;
       default:
         return undefined;

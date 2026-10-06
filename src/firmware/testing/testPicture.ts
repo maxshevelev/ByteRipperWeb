@@ -53,7 +53,12 @@ const be32 = (value: number): number[] => [
  * @upstream Packages/UEFIImage/Tests/UEFIImageTests/PictureTests.swift#PictureTests.png
  */
 export function pngPicture(
-  options: { readonly width?: number; readonly height?: number; readonly end?: boolean } = {}
+  options: {
+    readonly width?: number;
+    readonly height?: number;
+    readonly frames?: number;
+    readonly end?: boolean;
+  } = {}
 ): Uint8Array {
   const chunk = (type: string, data: readonly number[]): number[] => [
     ...be32(data.length),
@@ -80,16 +85,23 @@ export function pngPicture(
  * @upstream Packages/UEFIImage/Tests/UEFIImageTests/PictureTests.swift#PictureTests.gif
  */
 export function gifPicture(
-  options: { readonly width?: number; readonly height?: number; readonly end?: boolean } = {}
+  options: {
+    readonly width?: number;
+    readonly height?: number;
+    readonly frames?: number;
+    readonly end?: boolean;
+  } = {}
 ): Uint8Array {
   const width = options.width ?? 10;
   const height = options.height ?? 4;
   const bytes: number[] = ascii("GIF89a");
   bytes.push(width & 0xff, width >> 8, height & 0xff, height >> 8);
   bytes.push(0x80, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff);
-  bytes.push(0x21, 0xf9, 0x04, 0, 0, 0, 0, 0x00);
-  bytes.push(0x2c, 0, 0, 0, 0, width & 0xff, width >> 8, height & 0xff, height >> 8, 0);
-  bytes.push(0x02, 0x02, 0x44, 0x01, 0x00);
+  for (let frame = 0; frame < (options.frames ?? 1); frame++) {
+    bytes.push(0x21, 0xf9, 0x04, 0, 0x04, 0, 0, 0x00);
+    bytes.push(0x2c, 0, 0, 0, 0, width & 0xff, width >> 8, height & 0xff, height >> 8, 0);
+    bytes.push(0x02, 0x02, 0x44, 0x01, 0x00);
+  }
   if (options.end !== false) bytes.push(0x3b);
   return Uint8Array.from(bytes);
 }

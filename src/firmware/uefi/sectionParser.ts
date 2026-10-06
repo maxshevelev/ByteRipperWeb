@@ -20,6 +20,7 @@ import {
 import { walkStores } from "@/firmware/uefi/nvramParser";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { pictureBody } from "@/firmware/uefi/picture";
+import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { parseSound } from "@/firmware/uefi/sound";
 import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
@@ -66,6 +67,8 @@ export const Section = {
   userInterface: 0x15,
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.firmwareVolumeImage */
   firmwareVolumeImage: 0x17,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.freeformSubtypeGUID */
+  freeformSubtypeGUID: 0x18,
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Section.raw */
   raw: 0x19,
 
@@ -132,7 +135,7 @@ export function sectionTypeHeaderSize(type: number): number {
       return Section.compressionHeaderSize;
     case Section.guidDefined:
       return Section.guidDefinedHeaderSize;
-    case 0x18: // freeform subtype GUID
+    case Section.freeformSubtypeGUID:
       return 16;
     case 0x14: // version: the build number
       return 2;
@@ -403,6 +406,18 @@ function parseSection(
       break;
     }
 
+    case Section.freeformSubtypeGUID: {
+      // The subtype GUID is the header's, as the reference draws it, and says what the
+      // body is: a vendor's data, read as a raw area the way the reference reads it —
+      // ASUS keeps its animated boot logo here, a GIF per screen size (§6.4).
+      const subtype = parser.reader.guid(offset + headerSize);
+      if (subtype !== undefined && offset + headerSize + 16 <= end) {
+        guid = subtype;
+        bodyStart = offset + headerSize + 16;
+      }
+      break;
+    }
+
     default:
       if (!isKnownSectionType(type)) {
         parser.note({ kind: "unknownType", structure: "sectionHeader", code: type }, offset + 3);
@@ -441,6 +456,13 @@ function parseSection(
       // this format starts over one level down.
       const volume = parseVolume(parser, { offset: bodyStart, limit: end, depth: depth + 1 });
       if (volume !== undefined) children = [volume];
+    } else if (type === Section.freeformSubtypeGUID && guid !== undefined) {
+      // A raw area with nothing in it leaves the section a leaf, as a raw file's body
+      // does.
+      const found = scanRawArea(parser, body, emptyByte, depth + 1);
+      children = found.some((one) => one.kind !== "padding" || one.children.length > 0)
+        ? found
+        : [];
     } else if (type === Section.userInterface) {
       const text = ucs2String(parser, body);
       if (text !== undefined) name = text;

@@ -22,7 +22,8 @@ entry with the reason, a test the web has no level for a `later` entry.
 - [x] **V7 — detail tables and fields as selectable views** (`ba682d7`, `5139501`, `f324a97`)
 - [ ] **V8 — AMD Zlib and microcode, freeform subtype GUID, GIF frames, HP signature blocks, the ASUS parity fixes** (`ff1b2a0`, `70f0bfe`, `ba5bada`, `9584582`)
   - [x] `ff1b2a0` — AMD Zlib, AMD microcode, Non-UEFI data, sound row and player
-  - [ ] `70f0bfe`, `ba5bada`, `9584582`
+  - [x] `70f0bfe` — freeform subtype GUID as header, body as a raw area, GIF frames
+  - [ ] `ba5bada`, `9584582`
 - [ ] **V9 — search of the UEFI tree** (`d2111d1`)
 - [ ] **V10 — recent files on the empty screen, the window's height, a file under its own name** (`5a46968`, `ba9ebdf`, `0767243`)
 - [ ] **V11 — AMI GPNV store** (`1b47662`)

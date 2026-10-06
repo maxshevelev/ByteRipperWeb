@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { termId } from "@/core/help/helpIds";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
+import { gifPicture } from "@/firmware/testing/testPicture";
 import { PICTURE_FORMATS } from "@/firmware/uefi/picture";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -186,5 +187,36 @@ describe("a picture row", () => {
       true
     );
     expect(nodeOpen(asZoned(node), false)?.suggestedName).toBe("BMP 3×2.bmp");
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/PictureDisplayTests.swift#PictureDisplayTests.testAnAnimationSaysHowManyFramesItHas
+  it("says how many frames an animation has", () => {
+    const gif = gifPicture({ width: 2, height: 1, frames: 3 });
+    const node = makeNode({
+      kind: "picture",
+      subtype: PICTURE_FORMATS.gif,
+      name: "GIF 2×1",
+      header: r(0, 0),
+      body: r(0, gif.length),
+    });
+    const image = new UEFIImage({ size: gif.length, roots: [node] });
+    const frames = (bytes: Uint8Array, target: UEFINode) =>
+      buildNodeDetail(
+        target,
+        new UEFIImage({ size: bytes.length, roots: [target] }),
+        new ImageReader(sourceOver(bytes)),
+        []
+      ).fields.find((one) => one.label === "Frames")?.value;
+    expect(image.roots).toHaveLength(1);
+    expect(frames(gif, node)).toBe("3");
+    const still = gifPicture({ width: 2, height: 1 });
+    const stillNode = makeNode({
+      kind: "picture",
+      subtype: PICTURE_FORMATS.gif,
+      name: "GIF 2×1",
+      header: r(0, 0),
+      body: r(0, still.length),
+    });
+    expect(frames(still, stillNode)).toBeUndefined();
   });
 });

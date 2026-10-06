@@ -157,4 +157,19 @@ describe("a PNG, a GIF and a BMP", () => {
     expect(nodeRange(holder.children[1] as UEFINode).end).toBe(holder.body.end);
     expect(parsed.diagnostics).toEqual([]);
   });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/PictureTests.swift#PictureTests.testAnAnimatedGIFCountsItsFrames
+  it("counts an animated GIF's frames", () => {
+    const animated = gifPicture({ frames: 34 });
+    const read = (bytes: Uint8Array, limit = bytes.length) =>
+      readPicture(0, limit, new ImageReader(sourceOver(bytes)));
+    expect(read(animated)?.frames).toBe(34);
+    expect(read(animated)?.range).toEqual({ start: 0, end: animated.length });
+    expect(read(Uint8Array.from([...gifPicture(), ...new Uint8Array(0x100)]), 0x100)?.frames).toBe(
+      1
+    );
+    expect(
+      read(Uint8Array.from([...pngPicture(), ...new Uint8Array(0x100)]), 0x100)?.frames
+    ).toBeUndefined();
+  });
 });

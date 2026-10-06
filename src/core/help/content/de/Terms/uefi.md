@@ -1,4 +1,4 @@
-@source-sha 2ea2952bb26a6e64c12717ee4924490101ff808ef00df057064955ed65eec661
+@source-sha ca205255e214e21d913b18a62bf444c6c983d6b21d55115bc782e40df0669fe6
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -209,7 +209,7 @@ Die meisten Bilder einer Firmware bilden den Datenteil einer Raw-[[term:section|
 
 Ein Bild wird an seinen Anfangsbytes erkannt und nur dann übernommen, wenn sich seine Struktur bis zum Ende lesen lässt: bei JPEG die Segmente bis zur Endmarke, bei PNG die Chunks bis `IEND`, bei GIF die Blöcke bis zum Abschlussbyte, bei BMP der Kopf samt der darin angegebenen Größe. Daraus ergibt sich zugleich die Länge, denn keines der vier Formate gibt sie an einer einzigen Stelle an.
 
-Die Details nennen das Format — mit `JFIF` oder `Exif`, der GIF-Version oder der Farbtiefe eines BMP — sowie die Größe in Pixeln und zeigen darunter das Bild selbst. **… sichern unter…** schlägt eine Datei mit der Endung des Formats vor, die jeder Bildbetrachter öffnet.
+Die Details nennen das Format — mit `JFIF` oder `Exif`, der GIF-Version oder der Farbtiefe eines BMP — sowie die Größe in Pixeln und zeigen darunter das Bild selbst. Ein GIF aus mehreren Bildern ist eine Animation: Die Details nennen die Zahl der **Einzelbilder**, und die Vorschau spielt sie ab. **… sichern unter…** schlägt eine Datei mit der Endung des Formats vor, die jeder Bildbetrachter öffnet.
 
 ! Gibt der Kopf eines BMP mehr Bytes an, als seine Section enthält, wird das Bild bis zum Ende der Section gezeigt, und die Details melden die angegebene Größe als Fehler: Die Zeilen jenseits des Endes fehlen im Abbild. Ein solches Logo fand sich in einem Dell-Dump.
 

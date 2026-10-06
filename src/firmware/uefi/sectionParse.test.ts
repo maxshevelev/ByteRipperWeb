@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import * as Test from "@/firmware/testing/testImage";
+import { gifPicture } from "@/firmware/testing/testPicture";
 import type { DiagnosticKind } from "@/firmware/uefi/diagnostic";
 import { severityOf } from "@/firmware/uefi/diagnostic";
-import { type EFIGUID, guid } from "@/firmware/uefi/efiGuid";
+import { type EFIGUID, guid, guidBytes, guidKey } from "@/firmware/uefi/efiGuid";
 import { FFS_V2, FFS_V3 } from "@/firmware/uefi/knownGuids";
 import { DEFAULT_LIMITS, type Limits } from "@/firmware/uefi/parserState";
 import { Section } from "@/firmware/uefi/sectionParser";
@@ -223,6 +224,27 @@ describe("a section that cannot be believed", () => {
     ];
     expect(names(fileOf(sections)?.children ?? [])).toEqual(["PE32 image", "Non-UEFI data"]);
     expect(diagnosticsOf(sections)).toEqual([{ kind: "nonUEFIDataInSections" }]);
+  });
+});
+
+describe("a freeform section", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testAFreeformSectionsBodyIsReadAsARawArea
+  it("reads its body as a raw area", () => {
+    const logo = guid("7BB28B99-61BB-11D5-9A5D-0090273FC14D");
+    const extra = Uint8Array.from(guidBytes(logo));
+    const gif = gifPicture({ frames: 3 });
+    const node = fileOf([Test.section({ type: 0x18, body: gif, extra })]);
+    const section = node?.children[0];
+
+    expect(section?.guid && guidKey(section.guid)).toBe(guidKey(logo));
+    // Four bytes and the subtype GUID.
+    expect(section?.header).toEqual({ start: 0x60, end: 0x74 });
+    expect(names(section?.children ?? [])).toEqual(["GIF 10×4"]);
+    expect(section?.children[0]?.body).toEqual({ start: 0x74, end: 0x74 + gif.length });
+
+    // A body the scan finds nothing in leaves the section a leaf.
+    const plain = fileOf([Test.section({ type: 0x18, body: filled(32, 0x5a), extra })]);
+    expect(plain?.children[0]?.children).toEqual([]);
   });
 });
 

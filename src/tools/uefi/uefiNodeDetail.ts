@@ -1320,6 +1320,10 @@ function headerFields(
         )
       );
       fields.push(field(L("Picture size"), `${picture.width} × ${picture.height}`));
+      // An animation says how long it is; the panel plays it.
+      if (picture.frames !== undefined && picture.frames > 1) {
+        fields.push(field(L("Frames"), `${picture.frames}`));
+      }
       // A BMP whose header asks for more than its section holds: the rows past the
       // end are missing from the image.
       if (picture.declaredLength !== undefined) {
