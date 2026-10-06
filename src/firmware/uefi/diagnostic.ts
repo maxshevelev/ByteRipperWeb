@@ -156,6 +156,17 @@ export type DiagnosticKind =
    */
   | { readonly kind: "nonUEFIDataInPadFile" }
   /**
+   * A file or section body that stops reading as sections part of the way: a size of
+   * zero, too small for its header, or past what is left. The rest is kept as one row
+   * of Non-UEFI data, as UEFITool keeps it.
+   */
+  | { readonly kind: "nonUEFIDataInSections" }
+  /**
+   * A file header in a volume that declares more than the volume has left. The rest of
+   * the volume is kept as one row of Non-UEFI data, as UEFITool keeps it (§5.8).
+   */
+  | { readonly kind: "nonUEFIDataInVolume" }
+  /**
    * A file whose state byte marks its header invalid, however the polarity is
    * read (§5.5). Its checksums are not checked: the firmware does not take the
    * file.
@@ -338,6 +349,10 @@ function kindMessage(detail: DiagnosticKind): string {
       );
     case "nonUEFIDataInPadFile":
       return "padding file holds data that is not UEFI";
+    case "nonUEFIDataInSections":
+      return "sections area holds data that is not UEFI";
+    case "nonUEFIDataInVolume":
+      return "volume holds data that is not UEFI where a file would be";
     case "unknownDvarEntry":
       return "DVAR entry of an unknown state, flags or type; the store is kept as padding from here";
     case "dvarNamespaceMissing":

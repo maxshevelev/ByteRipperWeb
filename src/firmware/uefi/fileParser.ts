@@ -499,6 +499,24 @@ function userInterfaceName(parser: Parser, sections: readonly UEFINode[]): strin
 }
 
 /**
+ * The size the file header at `offset` declares, header included; nothing when the
+ * header is not all there to say it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/FileParser.swift#Parser.declaredFileSize
+ */
+export function declaredFileSize(
+  parser: Parser,
+  offset: number,
+  ffsVersion: number,
+  volumeRevision: number
+): number | undefined {
+  const attributes = parser.reader.uint8(offset + 0x13);
+  const shortSize = parser.reader.uint24(offset + 0x14);
+  if (attributes === undefined || shortSize === undefined) return undefined;
+  return fileSize(parser, { offset, shortSize, attributes, ffsVersion, volumeRevision }).size;
+}
+
+/**
  * The header's own size depends on a bit whose meaning depends on the volume.
  * A missing size means the extended field is off the end of the image.
  */

@@ -89,6 +89,8 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return termId("ec-firmware");
     case "picture":
       return termId("picture");
+    case "sound":
+      return termId("sound");
     case "fitComponent":
       switch (node.subtype === undefined ? undefined : fitComponentKindOf(node.subtype)) {
         case "startupACM":

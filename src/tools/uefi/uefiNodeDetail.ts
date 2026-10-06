@@ -75,6 +75,7 @@ import {
   rangesTouchingNode,
 } from "@/firmware/uefi/protectedRanges";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
+import { readSound, soundDuration, soundEncodingName } from "@/firmware/uefi/sound";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -140,6 +141,11 @@ export function buildNodeDetail(
     image,
     reader
   );
+  // A sound is played as well: its bytes are the whole WAV file.
+  if (node.kind === "sound") {
+    const sound = reader.bytes(node.body);
+    return sound === undefined ? detail : { ...detail, sound };
+  }
   // A picture is shown as well as described. Only one the parser recognised and
   // measured: its bytes are exactly the picture's.
   if (node.kind !== "picture") return detail;
@@ -1323,6 +1329,26 @@ function headerFields(
             L("%1$@ — the section ends earlier", sizeText(picture.declaredLength)),
             true
           )
+        );
+      }
+      break;
+    }
+
+    // Read again, as a picture is.
+    case "sound": {
+      const sound = readSound(node.body.start, node.body.end, reader);
+      if (sound === undefined) break;
+      fields.push(field(L("Format"), `WAV (${soundEncodingName(sound)})`));
+      fields.push(field(L("Sample rate"), L("%1$@ Hz", `${sound.sampleRate}`)));
+      fields.push(field(L("Bits per sample"), `${sound.bitsPerSample}`));
+      fields.push(field(L("Channels"), `${sound.channels}`));
+      const duration = soundDuration(sound);
+      if (duration !== undefined) {
+        // Tenths, with the separator the language writes: the translation, not the
+        // browser's region, decides it.
+        const tenths = Math.round(duration * 10);
+        fields.push(
+          field(L("Duration"), L("%1$@.%2$@ s", `${Math.floor(tenths / 10)}`, `${tenths % 10}`))
         );
       }
       break;

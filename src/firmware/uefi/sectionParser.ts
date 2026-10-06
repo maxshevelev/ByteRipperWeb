@@ -20,6 +20,7 @@ import {
 import { walkStores } from "@/firmware/uefi/nvramParser";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { pictureBody } from "@/firmware/uefi/picture";
+import { parseSound } from "@/firmware/uefi/sound";
 import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
 
@@ -209,23 +210,13 @@ export function walkSections(
       headerSize = Section.extendedHeaderSize;
       size = extended;
     }
-    if (size === 0) {
-      parser.note({ kind: "zeroSize", structure: "sectionHeader" }, offset);
+    // A size of zero, one smaller than the header or one past what is left is not a
+    // section: the rest of the body is data of some other kind, said once, as the
+    // reference says it (§6).
+    const end = offset + size;
+    if (size === 0 || size < headerSize || end > body.end) {
+      nodes.push(nonUEFIDataInSections(parser, offset, body.end, emptyByte));
       break;
-    }
-    if (size < headerSize) {
-      parser.note(
-        { kind: "sizeMismatch", structure: "sectionHeader", stored: size, computed: headerSize },
-        offset
-      );
-      break;
-    }
-
-    let end = offset + size;
-    if (end > body.end) {
-      parser.note({ kind: "truncated", structure: "sectionBody" }, offset);
-      end = body.end;
-      if (end - offset <= headerSize) break;
     }
 
     nodes.push(
@@ -249,6 +240,35 @@ export function walkSections(
     offset = next;
   }
   return nodes;
+}
+
+/**
+ * What is left of a body once it stops reading as sections: one row of Non-UEFI data, as
+ * UEFITool draws it. A sound it opens with — ASUS keeps its POST sound as a Freeform
+ * file's whole body — is a row inside it, beyond the reference, the way the FIT's
+ * structures are inside a pad file's.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Parser.nonUEFIData
+ */
+function nonUEFIDataInSections(
+  parser: Parser,
+  start: number,
+  end: number,
+  emptyByte: number
+): UEFINode {
+  parser.note({ kind: "nonUEFIDataInSections" }, start);
+  let children: UEFINode[] = [];
+  const sound = parseSound(parser, start, end);
+  if (sound !== undefined) {
+    children = [sound, ...parser.padding(sound.body.end, end, emptyByte)];
+  }
+  return makeNode({
+    kind: "padding",
+    name: L("Non-UEFI data"),
+    header: { start, end: start },
+    body: { start, end },
+    children,
+  });
 }
 
 /**

@@ -136,6 +136,12 @@ export type UEFINodeKind =
    */
   | "picture"
   /**
+   * A sound — a WAV file — found where a file's body stops reading as sections
+   * (`UEFI_IMAGE_FORMAT.md` §9). Named by its sample rate and channels; padding to
+   * UEFITool, as a picture is.
+   */
+  | "sound"
+  /**
    * An AMD microcode patch read out of padding (`UEFI_IMAGE_FORMAT.md` §7.2): no
    * signature, a header whose fields all check out. Its own type to UEFITool, as Intel's
    * is.

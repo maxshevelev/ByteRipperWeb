@@ -211,15 +211,18 @@ describe("a section that cannot be believed", () => {
       Test.section({ type: 0x13, body: bytes(8) }),
     ];
 
-    expect(fileOf(sections)?.children).toEqual([]);
-    expect(diagnosticsOf(sections)).toEqual([{ kind: "zeroSize", structure: "sectionHeader" }]);
+    expect(names(fileOf(sections)?.children ?? [])).toEqual(["Non-UEFI data"]);
+    expect(diagnosticsOf(sections)).toEqual([{ kind: "nonUEFIDataInSections" }]);
   });
 
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testASectionRunningPastTheFileIsReported
-  it("reports a section running past the file", () => {
-    expect(
-      diagnosticsOf([Test.section({ type: 0x10, body: bytes(1, 2, 3, 4), size: 0x400 })])
-    ).toEqual([{ kind: "truncated", structure: "sectionBody" }]);
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testASectionRunningPastTheFileLeavesTheRestAsNonUEFIData
+  it("leaves what runs past the file as Non-UEFI data", () => {
+    const sections = [
+      Test.section({ type: 0x10, body: bytes(1, 2, 3, 4) }),
+      Test.section({ type: 0x10, body: bytes(1, 2, 3, 4), size: 0x400 }),
+    ];
+    expect(names(fileOf(sections)?.children ?? [])).toEqual(["PE32 image", "Non-UEFI data"]);
+    expect(diagnosticsOf(sections)).toEqual([{ kind: "nonUEFIDataInSections" }]);
   });
 });
 
@@ -232,8 +235,9 @@ describe("the extended size", () => {
     const sections = [Test.section({ type: 0x10, body: bytes(1, 2, 3, 4), extendedSize: true })];
     const node = fileOf(sections);
 
-    expect(node?.children[0]?.header).toEqual({ start: 0x60, end: 0x64 });
-    expect(diagnosticsOf(sections)).toEqual([{ kind: "truncated", structure: "sectionBody" }]);
+    expect(names(node?.children ?? [])).toEqual(["Non-UEFI data"]);
+    expect(node?.children[0]?.body.start).toBe(0x60);
+    expect(diagnosticsOf(sections)).toEqual([{ kind: "nonUEFIDataInSections" }]);
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testAnExtendedSizeSectionHasALongerHeader

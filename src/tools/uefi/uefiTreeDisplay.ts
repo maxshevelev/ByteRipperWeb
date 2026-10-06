@@ -425,6 +425,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   ecImage: L("EC firmware image"),
   fitComponent: L("FIT component"),
   picture: L("Picture"),
+  sound: L("Sound"),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),
   flashDeviceMapEntry: typeName(ItemType.insydeFlashDeviceMapEntry),
   padding: L("Padding"),

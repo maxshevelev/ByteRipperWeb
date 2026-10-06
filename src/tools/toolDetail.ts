@@ -144,6 +144,13 @@ export interface NodeDetail {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.picture
    */
   readonly picture?: { readonly bytes: Uint8Array; readonly mime: string } | undefined;
+  /**
+   * The bytes of the sound the node is — a whole WAV file — for the panel to play
+   * under the rows; nothing for every node that is not one.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.sound
+   */
+  readonly sound?: Uint8Array | undefined;
 }
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.empty */

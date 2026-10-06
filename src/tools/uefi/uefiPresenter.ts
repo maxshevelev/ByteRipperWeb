@@ -271,14 +271,15 @@ export function nodeOpen(
     range,
     source,
     ...(rebuild === undefined ? {} : { rebuild }),
-    // A picture saves as what it is, so the file opens in a viewer.
+    // A picture or a sound saves as what it is, so the file opens in a viewer or a player.
     suggestedName: `${fileNameOf(node.name, "node")}${suffix}.${extensionOf(node)}`,
     menuTitle: title,
   };
 }
 
-/** A picture's own extension, and `bin` for everything else. */
+/** A picture's or a sound's own extension, and `bin` for everything else. */
 function extensionOf(node: ZonedNode): string {
+  if (node.kind === "sound") return "wav";
   if (node.kind !== "picture" || node.subtype === undefined) return "bin";
   const format = pictureFormatOf(node.subtype);
   return format === undefined ? "bin" : pictureFileExtension(format);

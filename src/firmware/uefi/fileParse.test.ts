@@ -155,14 +155,13 @@ describe("a file that cannot be believed", () => {
     ]);
   });
 
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileRunningPastTheVolumeIsCutAndReported
-  it("cuts a file running past the volume, and reports it", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/FileParseTests.swift#FileParseTests.testAFileRunningPastTheVolumeLeavesTheRestAsNonUEFIData
+  it("leaves a file running past the volume as Non-UEFI data", () => {
     const parsed = parse([Test.file({ body: bytes(1, 2, 3, 4), size: 0x600 })]);
 
     expect(ranges(parsed.roots[0]?.children ?? [])).toEqual([[0x48, 0x400]]);
-    expect(parsed.diagnostics.map((one) => one.detail)).toEqual([
-      { kind: "truncated", structure: "fileBody" },
-    ]);
+    expect(kinds(parsed.roots[0]?.children ?? [])).toEqual(["nonUEFIData"]);
+    expect(parsed.diagnostics.map((one) => one.detail)).toEqual([{ kind: "nonUEFIDataInVolume" }]);
   });
 });
 

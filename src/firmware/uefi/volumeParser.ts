@@ -2,7 +2,7 @@ import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
-import { FFS, parseFile } from "@/firmware/uefi/fileParser";
+import { declaredFileSize, FFS, parseFile } from "@/firmware/uefi/fileParser";
 import {
   APPLE_RESERVED_VOLUME,
   ffsVersionOfFileSystem,
@@ -318,6 +318,15 @@ export function walkVolumeBody(
     }
     if (parser.reader.isFilled({ start: offset, end: offset + FFS.headerSize }, emptyByte)) {
       nodes.push(...freeSpace(parser, offset, body.end, body, emptyByte, depth));
+      break;
+    }
+    // A header that declares more than the volume has left is not a file cut short but
+    // data of some other kind: the rest of the volume, said once, as the reference keeps
+    // it (§5.8).
+    const declared = declaredFileSize(parser, offset, ffsVersion, volumeRevision);
+    if (declared !== undefined && declared > body.end - offset) {
+      parser.note({ kind: "nonUEFIDataInVolume" }, offset);
+      nodes.push(nonUEFIData(parser, { start: offset, end: body.end }, emptyByte, depth));
       break;
     }
     const file = parseFile(parser, {
