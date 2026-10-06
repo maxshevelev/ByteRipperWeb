@@ -4,6 +4,7 @@ import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
 import { ascii, bvdtTable, ITE_BLOCK } from "@/firmware/testing/testInsyde";
 import { checksummedNvarEntry, nvarStore, nvarVolume } from "@/firmware/testing/testNvar";
+import { wav } from "@/firmware/testing/testSound";
 import { repairsForFile } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8 } from "@/firmware/uefi/checksums";
 import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
@@ -327,6 +328,53 @@ describe("a section", () => {
 });
 
 /** @upstream Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift#AMDMicrocodeDisplayTests */
+/** @upstream Modules/UEFITool/Tests/UEFIToolTests/SoundDisplayTests.swift#SoundDisplayTests */
+describe("a sound", () => {
+  const wavBytes = wav(8000, 2, 4000);
+  const build = () => {
+    const bytes = new Uint8Array(0x8000).fill(0xff);
+    bytes.set(wavBytes, 0x100);
+    const sound = makeNode({
+      kind: "sound",
+      name: "WAV, 8000 Hz, stereo",
+      header: r(0x100, 0x100),
+      body: r(0x100, 0x100 + wavBytes.length),
+    });
+    const root = makeNode({
+      kind: "uefiImage",
+      name: "UEFI image",
+      header: r(0, 0),
+      body: r(0, 0x8000),
+      children: [sound],
+    });
+    return { bytes, sound, image: new UEFIImage({ size: 0x8000, roots: [root] }), root };
+  };
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/SoundDisplayTests.swift#SoundDisplayTests.testTheDetailsSayWhatTheSoundIs
+  it("says what the sound is", () => {
+    const { bytes, sound, image } = build();
+    const detail = buildNodeDetail(sound, image, readerOver(bytes), []);
+    expect(value(detail, "Kind")).toBe("Sound");
+    expect(value(detail, "Format")).toBe("WAV (PCM)");
+    expect(value(detail, "Sample rate")).toBe("8000 Hz");
+    expect(value(detail, "Bits per sample")).toBe("16");
+    expect(value(detail, "Channels")).toBe("2");
+    expect(value(detail, "Duration")).toBe("0.5 s");
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/SoundDisplayTests.swift#SoundDisplayTests.testTheSoundIsHandedToThePanel
+  it("is handed to the panel, and only a sound's", () => {
+    const { bytes, sound, image, root } = build();
+    expect(buildNodeDetail(sound, image, readerOver(bytes), []).sound).toEqual(wavBytes);
+    expect(buildNodeDetail(root, image, readerOver(bytes), []).sound).toBeUndefined();
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/SoundDisplayTests.swift#SoundDisplayTests.testItOpensItsEntryAndSavesAsAWAV
+  it("opens its entry", () => {
+    expect(uefiHelpTerm(build().sound)).toBe("sound");
+  });
+});
+
 describe("an AMD microcode", () => {
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift#AMDMicrocodeDisplayTests.testTheDetailsSayWhatThePatchIs
   it("says what the patch is", () => {

@@ -16,6 +16,7 @@ import {
   nextPictureBackground,
   type PictureBackground,
 } from "@/ui/toolPanel/pictureBackground";
+import { SoundPlayer } from "@/ui/toolPanel/SoundPlayer";
 
 /**
  * A panel's detail: a title, a column of label/value rows, and the tables after
@@ -444,6 +445,7 @@ function DetailBody({
           {detail.picture === undefined ? null : (
             <PicturePreview bytes={detail.picture.bytes} mime={detail.picture.mime} />
           )}
+          {detail.sound === undefined ? null : <SoundPlayer bytes={detail.sound} />}
         </div>
       )}
     </>

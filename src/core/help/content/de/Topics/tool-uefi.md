@@ -1,4 +1,4 @@
-@source-sha 99835752a7accfe39196d6f1a7f75684b0a08348cc4233ae3674627cd33e0caa
+@source-sha 6fecc32491662f062e030a3fcc532df9450f7d383378fc527b2fa1fbedfca9fc
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -32,6 +32,11 @@ Rechtsklick auf einen Knoten:
 - **Zur Top-Swap-Kopie** / **Zum Original** bei einem Knoten in einem der beiden Blöcke eines Images mit [[term:top-swap|Top-Swap]]-Kopie — wählt denselben Knoten im anderen Block aus und zeigt seine Bytes im Dump, sodass sich jedem Teil der Kopie der Teil des obersten Blocks zuordnen lässt, den er wiederholt.
 
 Ein vom Werkzeug erkanntes [[term:picture|Bild]] — JPEG, PNG, GIF oder BMP, im Padding oder als Datenteil einer Raw-Section — erscheint als eigene Zeile; wird sie ausgewählt, zeichnet das Werkzeug das Bild unter den Details: höchstens so breit wie die Liste und nie größer als seine eigene Pixelgröße. Die Vorschau entsteht aus den Bytes des Dumps, wie sie vorliegen, und zwar mit dem Bilddecoder des Browsers, nicht mit dem der Firmware; sie zeigt daher den gespeicherten Inhalt, nicht zwingend genau das, was die Platine daraus macht. Kann der Browser ein Format nicht decodieren, bleiben die Details ohne Vorschau. Ein feiner Rahmen zeigt, wo das Bild endet, damit ein weißes oder transparentes Logo nicht im Hintergrund des Panels verschwindet. Ein Klick auf das Bild wechselt den Hintergrund dahinter: der des Panels, ein Schachbrettmuster oder Schwarz (im dunklen Erscheinungsbild Weiß). Ein Bild mit Transparenz erscheint zunächst auf dem Schachbrett, eines ohne auf dem Hintergrund des Panels. In der [[topic:tools-overview|großen Ansicht der Details]], die die **Leertaste** auf der Zeile öffnet, erscheint das Bild größer, bis zu seiner eigenen Größe in Pixeln.
+
+## Audio
+
+Eine vom Werkzeug erkannte [[term:sound|Audiodatei]] — eine WAV-Datei, die dort liegt, wo die Sections einer Datei stünden — erscheint als eigene Zeile; wird sie ausgewählt, erscheint unter den Details ein Player. **Wiedergeben** startet die Wiedergabe und wird währenddessen zu **Pause**; **Stoppen** beendet sie und kehrt an den Anfang der Aufnahme zurück. Der Balken **Wiedergabeposition** wandert mit der Wiedergabe mit, und wer ihn zieht, springt an eine andere Stelle der Aufnahme; daneben stehen die abgespielte Zeit und die Gesamtdauer. Wiedergegeben werden die Bytes des Dumps in dem Zustand, in dem sie bei der Auswahl der Zeile waren, und zwar [[edition:vom Browser||von macOS]], nicht von der Platine. Die Wiedergabe endet, sobald eine andere Zeile ausgewählt oder das Panel geschlossen wird.
+
 
 ## Padding
 

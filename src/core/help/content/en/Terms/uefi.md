@@ -174,6 +174,20 @@ Listed by the tool on purpose: it is what tells you whether a module could be ad
 
 @see term:padding
 
+@term sound
+@name Sound
+@short A sound the firmware plays, kept as an ordinary WAV file.
+
+Some boards play a sound when they start; ASUS boards play one on POST. The firmware keeps it as a WAV file — on the dumps at hand, as the whole body of a Freeform file, where the file's sections would be. To UEFITool those bytes are no sections and are [[term:non-uefi-data|non-UEFI data]]; the [[topic:tool-uefi|UEFI tool]] reads them the same way and shows the sound as a row inside that data, named by its sample rate and channels, for example `WAV, 44100 Hz, stereo`.
+
+A sound is recognised by its RIFF header and taken only when its chunks read through to the format and the data. The details give the encoding, the sample rate, the bits per sample, the channels and the duration, and a player under them plays the sound. **Save … as…** offers a `.wav` file, which any player opens.
+
+To UEFITool a sound row is padding, and the Type column says so.
+
+@see term:non-uefi-data
+@see term:picture
+
+
 @term padding
 @name Padding
 @short Space between structures that nobody wrote to.
@@ -415,6 +429,9 @@ Intel ships microcode updates inside the firmware image. The CPU loads the one m
 
 Each update carries its CPU signature, a revision number and a date in its header, which is how ByteRipper names them.
 
+AMD keeps microcode in the firmware image as well, with no FIT to point at it: on the AMD boards at hand each patch lies in the area whose layout only the PSP's directories describe, which reads as [[term:padding|padding]]. An AMD patch's header has no signature, so the tool recognises it as UEFITool does — by every field holding a value AMD writes: a date, a loader version, AMD's vendor ID or none — and shows it as a row inside the padding, named by its CPUID and revision, for example `AMD microcode A50F00, revision A50000F`. The header does not state the patch's length; it follows from the processor family, and a patch of a family the tool does not know is not recognised.
+
+
 @see term:fit
 @see topic:recipe-microcode
 
@@ -620,4 +637,7 @@ The Boot Guard ranges name the top block. With Top Swap set, the chipset maps th
 Not an error. Vendors put their own data in firmware images all the time, and an EC image or an option ROM inside a BIOS region is a format of its own.
 
 A region that should consist of volumes and reads as non-UEFI data is, however, a corrupted region.
+
+The same name is given to what is left of a file's body once it stops reading as [[term:section|sections]] — a section size of zero, or one larger than what is left — and to what is left of a volume once a file header declares more than the volume holds. UEFITool reads both the same way. A [[term:sound|sound]] kept where a file's sections would be is shown as a row inside such data.
+
 

@@ -5553,3 +5553,19 @@ button.uefi-title {
 .about a {
   color: var(--accent);
 }
+
+.tool-detail-sound {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tool-detail-sound input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-detail-sound-time {
+  font-variant-numeric: tabular-nums;
+}
