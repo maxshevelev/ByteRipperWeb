@@ -51,7 +51,9 @@ export type Structure =
   /** A Phoenix or AMI vendor hash table. */
   | "vendorHashFile"
   /** The Insyde H2O flash device map, and its entries. */
-  | "flashDeviceMap";
+  | "flashDeviceMap"
+  /** The 0x100 bytes AMD puts in front of a Zlib section's stream. */
+  | "amdZlibHeader";
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.Kind */
 export type DiagnosticKind =
@@ -251,6 +253,7 @@ const LABELS: () => Readonly<Record<Structure, string>> = localized(() => ({
   bootPolicy: "Boot Policy Manifest",
   vendorHashFile: "vendor hash table",
   flashDeviceMap: "Insyde flash device map",
+  amdZlibHeader: "AMD Zlib header's compressed",
 }));
 
 const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;

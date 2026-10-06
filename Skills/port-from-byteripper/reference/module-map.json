@@ -4730,7 +4730,8 @@
         "CTianoEncoder/Tiano/EfiTianoCompress.c": "src/firmware/compression/tianoEncoder.ts",
         "CTianoEncoder/CTianoEncoder.c": "src/firmware/compression/tianoEncoder.ts",
         "FirmwareCompression/FirmwareCompression.swift": "src/firmware/compression/firmwareCompression.ts",
-        "FirmwareCompressionTests/CompressionTests.swift": "src/firmware/compression/firmwareCompression.test.ts"
+        "FirmwareCompressionTests/CompressionTests.swift": "src/firmware/compression/firmwareCompression.test.ts",
+        "FirmwareCompression/Zlib.swift": "src/firmware/compression/zlibCodec.ts"
       },
       "unported": {
         "Packages/FirmwareCompression/Sources/FirmwareCompression/FirmwareDecompression.swift#FirmwareDecompression.Decoded.init": "n/a — an object literal; there is nothing to construct",

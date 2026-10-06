@@ -9,6 +9,7 @@ import {
   type TianoDecoded,
   type TianoVariant,
 } from "@/firmware/compression/firmwareDecompression";
+import { zlibDecode } from "@/firmware/compression/zlibCodec";
 import { ImageReader } from "@/firmware/imageReader";
 import { type EFIGUID, guid, guidKey } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_EMPTY_BYTE, DEFAULT_LIMITS, Parser } from "@/firmware/uefi/parserState";
@@ -30,7 +31,9 @@ export type CompressionAlgorithm =
   | "lzma"
   | "lzmaX86"
   /** Tiano or EFI 1.1: one header for both, told apart after decoding. */
-  | "tiano";
+  | "tiano"
+  /** A zlib stream after AMD's 0x100-byte header (`COMPRESSED_SECTIONS.md` §2.2, §3.4). */
+  | "zlibAMD";
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/CompressedSection.swift#CompressedSection.Algorithm.name */
 export function algorithmDisplayName(algorithm: CompressionAlgorithm): string {
@@ -41,8 +44,22 @@ export function algorithmDisplayName(algorithm: CompressionAlgorithm): string {
       return "LZMA with x86 filter";
     case "tiano":
       return "Tiano";
+    case "zlibAMD":
+      return "Zlib (AMD)";
   }
 }
+
+/**
+ * AMD's header in front of a Zlib stream: zeros, but for the stream's length at
+ * `0x14`. It sits inside `DataOffset`, so the stream starts this much after the place
+ * the section says its data does.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/CompressedSection.swift#CompressedSection.amdZlibHeaderSize
+ */
+export const AMD_ZLIB_HEADER_SIZE = 0x100;
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/CompressedSection.swift#CompressedSection.amdZlibCompressedSizeOffset */
+export const AMD_ZLIB_COMPRESSED_SIZE_OFFSET = 0x14;
 
 /**
  * `EFI_GUIDED_SECTION_PROCESSING_REQUIRED`.
@@ -58,12 +75,20 @@ const LZMA_GUIDS: readonly EFIGUID[] = [
 ];
 const LZMA_X86_GUID = guid("D42AE6BD-1352-4BFB-909A-CA72A6EAE889");
 const TIANO_GUID = guid("A31280AD-481E-41B6-95E8-127F4C984779");
+/**
+ * The first of AMD's two Zlib GUIDs, the one the reference decodes. The second,
+ * `991EFAC0-…`, is on no dump at hand, and is named but not read.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/CompressedSection.swift#CompressedSection.amdZlib
+ */
+export const AMD_ZLIB_GUID = guid("CE3233F5-2CD6-4D87-9152-4A238BB6D1C4");
 const GZIP_GUID = guid("1D301FE9-BE79-4353-91C2-D23BC959AE0C");
 
 const DECODED_BY_GUID = new Map<string, CompressionAlgorithm>([
   ...LZMA_GUIDS.map((one) => [guidKey(one), "lzma"] as const),
   [guidKey(LZMA_X86_GUID), "lzmaX86"],
   [guidKey(TIANO_GUID), "tiano"],
+  [guidKey(AMD_ZLIB_GUID), "zlibAMD"],
 ]);
 
 /**
@@ -176,7 +201,11 @@ export function locateCompressedSection(
     ) {
       return undefined;
     }
-    return { body: { start: offset + dataOffset, end }, algorithm };
+    let start = offset + dataOffset;
+    // A section too short for AMD's header has no stream, which decodes to a
+    // truncation rather than to nothing to say.
+    if (algorithm === "zlibAMD") start = Math.min(start + AMD_ZLIB_HEADER_SIZE, end);
+    return { body: { start, end }, algorithm };
   }
 
   return undefined;
@@ -195,7 +224,7 @@ export type DecodeResult =
   | {
       readonly ok: true;
       readonly bytes: Uint8Array;
-      readonly variant: LzmaVariant | TianoVariant;
+      readonly variant: LzmaVariant | TianoVariant | "Zlib";
       /** The LZMA dictionary the stream declares; a Tiano stream has none. */
       readonly dictionarySize?: number | undefined;
     }
@@ -233,6 +262,8 @@ export function decodeCompressedSection(
         const chosen = chooseTiano(decompressTiano(bytes, limit));
         return { ok: true, bytes: chosen.bytes, variant: chosen.variant };
       }
+      case "zlibAMD":
+        return { ok: true, bytes: zlibDecode(bytes, limit), variant: "Zlib" };
     }
   } catch (error) {
     if (error instanceof DecompressionError) return { ok: false, failure: error.failure };

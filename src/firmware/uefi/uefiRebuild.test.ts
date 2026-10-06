@@ -490,6 +490,32 @@ describe("out of a compressed section", () => {
   });
 
   /**
+   * An AMD Zlib section stays one, and the length in AMD's header follows the new
+   * stream: left stale, it is what the reference complains about.
+   *
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/UEFIRebuildTests.swift#UEFIRebuildTests.testAnAMDZlibSectionKeepsItsHeaderTrue
+   */
+  it("keeps an AMD Zlib section's header true", () => {
+    const stream = compress(driver(), { variant: "Zlib" });
+    const amdHeader = new Uint8Array(0x100);
+    new DataView(amdHeader.buffer).setUint32(0x14, stream.length, true);
+    const { file, section } = compressedImage(
+      Test.guidedSectionBytes({
+        guid: guid("CE3233F5-2CD6-4D87-9152-4A238BB6D1C4"),
+        body: Uint8Array.from([...amdHeader, ...stream]),
+        attributes: 0x01,
+      })
+    );
+    const edited = driver("InnerDriver", 600);
+
+    const rebuilt = plan(edited, insideOf(section), file);
+
+    const parsed = parse(rebuilt);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(buffer(section, rebuilt)).toEqual(edited);
+  });
+
+  /**
    * A body that grew compresses to a longer stream: the section, its file and
    * the file after it all make room.
    *

@@ -12,6 +12,7 @@ import {
   decompressLzmaX86,
   decompressTiano,
 } from "@/firmware/compression/firmwareDecompression";
+import { zlibDecode } from "@/firmware/compression/zlibCodec";
 
 /**
  * Compressing again, for putting an edited buffer back into its section: every
@@ -70,6 +71,11 @@ describe("compress", () => {
 
     const efi11 = compress(original, { variant: "EFI 1.1" });
     expect(equal(decompressTiano(efi11, LIMIT).efi11, original)).toBe(true);
+
+    const zlib = compress(original, { variant: "Zlib" });
+    expect(equal(zlibDecode(zlib, LIMIT), original)).toBe(true);
+    // The header AMD's streams carry.
+    expect(Array.from(zlib.subarray(0, 2))).toEqual([0x78, 0xda]);
   });
 
   /**

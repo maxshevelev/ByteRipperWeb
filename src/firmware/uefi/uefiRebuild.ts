@@ -7,6 +7,8 @@ import { type ImageRange, ImageReader } from "@/firmware/imageReader";
 import { type ByteSpace, isFileSpace, sameSpace } from "@/firmware/uefi/byteSpace";
 import { checksum16, crc32, sum8 } from "@/firmware/uefi/checksums";
 import {
+  AMD_ZLIB_COMPRESSED_SIZE_OFFSET,
+  AMD_ZLIB_HEADER_SIZE,
   decodeCompressedSection,
   locateCompressedSection,
 } from "@/firmware/uefi/compressedSection";
@@ -1218,6 +1220,15 @@ class Context {
     if (section.subtype === Section.compression) {
       const common = Bytes.u24(header, 0) === Section.extendedSizeMarker ? 8 : 4;
       Bytes.put32(buffer.length, common, header);
+    }
+    if (located.algorithm === "zlibAMD") {
+      // AMD's header sits at the end of this one and says how long the stream after
+      // it is (`COMPRESSED_SECTIONS.md` §2.2).
+      Bytes.put32(
+        stream.length,
+        header.length - AMD_ZLIB_HEADER_SIZE + AMD_ZLIB_COMPRESSED_SIZE_OFFSET,
+        header
+      );
     }
     this.noteSigned(section);
     return Bytes.sized(concat(header, stream), section.name);

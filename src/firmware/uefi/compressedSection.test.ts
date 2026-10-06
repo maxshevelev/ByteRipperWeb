@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { zlibEncode } from "@/firmware/compression/zlibCodec";
 import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
 import { insideSection } from "@/firmware/uefi/byteSpace";
@@ -322,6 +323,91 @@ describe("what goes wrong", () => {
     expect(diagnostic.offset).toBe(section.header.start);
     expect(diagnostic.inside).toEqual({ space: [section.header.start], offset: 3 });
     expect(diagnosticMessage(diagnostic)).toContain("decompresses to");
+  });
+});
+
+/**
+ * AMD's Zlib section, as the Asus dump keeps its PEI volume: `DataOffset` at the end
+ * of the structure, then 0x100 bytes of AMD's header — zeros but for the stream's
+ * length at `0x14` — then the stream.
+ */
+function amdZlibSection(
+  inner: Uint8Array,
+  options: { statedLength?: number; guid?: ReturnType<typeof guid> } = {}
+): { section: Uint8Array; streamLength: number } {
+  const stream = zlibEncode(inner);
+  const header = new Uint8Array(0x100);
+  new DataView(header.buffer).setUint32(0x14, options.statedLength ?? stream.length, true);
+  const body = new Uint8Array(header.length + stream.length);
+  body.set(header);
+  body.set(stream, header.length);
+  return {
+    section: Test.guidedSectionBytes({
+      guid: options.guid ?? guid("CE3233F5-2CD6-4D87-9152-4A238BB6D1C4"),
+      body,
+      attributes: 0x01,
+    }),
+    streamLength: stream.length,
+  };
+}
+
+describe("AMD's Zlib section", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#CompressedSectionTests.testAnAMDZlibSectionOpensAfterItsHeader
+  it("opens after AMD's header", () => {
+    const image = parsed([amdZlibSection(driver()).section]);
+    const section = sectionIn(image);
+
+    expect(section.name).toBe("Zlib (AMD) section");
+    expect(section.compression).toEqual({ algorithm: "Zlib (AMD)", decodes: true });
+    // AMD's header is the section's, as the reference draws it.
+    expect(section.body.start - section.header.start).toBe(0x18 + 0x100);
+    expect(names(section.children)).toEqual(["InnerDriver", "PE32 image"]);
+    expect(image.diagnostics.map(diagnosticMessage)).toEqual([]);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#CompressedSectionTests.testAnAMDZlibHeaderThatMisstatesItsStreamIsReportedAndReadAllTheSame
+  it("reports a header that misstates its stream, and reads the stream all the same", () => {
+    const { streamLength } = amdZlibSection(driver());
+    const image = parsed([amdZlibSection(driver(), { statedLength: streamLength + 8 }).section]);
+    const section = sectionIn(image);
+
+    expect(section.children.length).toBe(2);
+    expect(image.diagnostics).toEqual([
+      {
+        detail: {
+          kind: "sizeMismatch",
+          structure: "amdZlibHeader",
+          stored: streamLength + 8,
+          computed: streamLength,
+        },
+        offset: section.header.start,
+      },
+    ]);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#CompressedSectionTests.testAnAMDZlibSectionTooShortForItsHeaderSaysItIsTruncated
+  it("says a section too short for its header is truncated", () => {
+    const image = parsed([
+      Test.guidedSectionBytes({
+        guid: guid("CE3233F5-2CD6-4D87-9152-4A238BB6D1C4"),
+        body: new Uint8Array(0x40),
+        attributes: 0x01,
+      }),
+    ]);
+
+    expect(sectionIn(image).children).toEqual([]);
+    expect(image.diagnostics.map((one) => one.detail)).toEqual([
+      { kind: "decompressionFailed", algorithm: "Zlib (AMD)", truncated: true },
+    ]);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#CompressedSectionTests.testTheSecondAMDZlibGUIDIsNamedButNotOpened
+  it("names the second GUID and does not open it", () => {
+    const second = guid("991EFAC0-E260-416B-A4B8-3B153072B804");
+    const section = sectionIn(parsed([amdZlibSection(driver(), { guid: second }).section]));
+
+    expect(section.compression).toEqual({ algorithm: "Zlib (AMD, second)", decodes: false });
+    expect(section.children).toEqual([]);
   });
 });
 

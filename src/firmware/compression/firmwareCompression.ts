@@ -9,6 +9,7 @@ import {
 import { type LzmaEffort, lzmaCompress } from "@/firmware/compression/lzmaEncoder";
 import { tianoCompress } from "@/firmware/compression/tianoEncoder";
 import { x86BranchConvert } from "@/firmware/compression/x86BranchConverter";
+import { zlibDecode, zlibEncode } from "@/firmware/compression/zlibCodec";
 
 /**
  * Encoders for the compressed data a firmware image holds — the other direction
@@ -54,7 +55,7 @@ export class CompressionError extends Error {
 }
 
 /** Every variant an encode can be asked for. */
-export type CompressionVariant = LzmaVariant | TianoVariant;
+export type CompressionVariant = LzmaVariant | TianoVariant | "Zlib";
 
 /**
  * The part of the progress bar the encoding takes; the check is the rest.
@@ -131,6 +132,9 @@ export function compress(
       break;
     case "EFI 1.1":
       stream = tiano(bytes, false);
+      break;
+    case "Zlib":
+      stream = zlibEncode(bytes);
       break;
   }
 
@@ -261,6 +265,8 @@ function decodes(stream: Uint8Array, variant: CompressionVariant, bytes: Uint8Ar
         const decoded = decompressTiano(stream, limit).efi11;
         return decoded !== undefined && same(decoded, bytes);
       }
+      case "Zlib":
+        return same(zlibDecode(stream, limit), bytes);
     }
   } catch {
     return false;

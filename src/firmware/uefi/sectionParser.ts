@@ -2,6 +2,9 @@ import { L, localized } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp } from "@/firmware/uefi/checksums";
 import {
+  AMD_ZLIB_COMPRESSED_SIZE_OFFSET,
+  AMD_ZLIB_GUID,
+  AMD_ZLIB_HEADER_SIZE,
   algorithmOfCompressionType,
   algorithmOfGuid,
   isCompressedGuid,
@@ -351,6 +354,9 @@ function parseSection(
       } else {
         bodyStart = Math.min(offset + headerSize + Section.guidDefinedHeaderSize, end);
       }
+      if (guid !== undefined && guidEquals(guid, AMD_ZLIB_GUID)) {
+        bodyStart = amdZlibBodyStart(parser, offset, bodyStart, end);
+      }
       const known = guid === undefined ? undefined : guidedSection(guid);
       if (known !== undefined) {
         name = `${known.name} section`;
@@ -433,6 +439,29 @@ function parseSection(
     childDepth: depth + 1,
     children,
   });
+}
+
+/**
+ * Where an AMD Zlib section's stream starts: after the vendor's header, which belongs
+ * to the section's header as the reference draws it (§2.2). The header's
+ * `CompressedSize` is meant to account for the rest of the section exactly; when it
+ * does not, that is said and the stream is read all the same, as the reference reads
+ * it. A section too short to hold the header keeps its data where `DataOffset` puts
+ * it, and does not decode.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Parser.amdZlibBodyStart
+ */
+function amdZlibBodyStart(parser: Parser, offset: number, dataStart: number, end: number): number {
+  const streamStart = dataStart + AMD_ZLIB_HEADER_SIZE;
+  const stored = parser.reader.uint32(dataStart + AMD_ZLIB_COMPRESSED_SIZE_OFFSET);
+  if (streamStart > end || stored === undefined) return dataStart;
+  if (stored !== end - streamStart) {
+    parser.note(
+      { kind: "sizeMismatch", structure: "amdZlibHeader", stored, computed: end - streamStart },
+      offset
+    );
+  }
+  return streamStart;
 }
 
 /**
