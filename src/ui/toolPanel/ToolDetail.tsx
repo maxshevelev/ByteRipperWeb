@@ -3,7 +3,13 @@ import { createPortal } from "react-dom";
 import type { HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
-import { closeLargeDetail, largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
+import {
+  closeLargeDetail,
+  keyTableNear,
+  largeDetailKeyTable,
+  largeDetailStore,
+  toggleLargeDetail,
+} from "@/state/largeDetailStore";
 import { useStore } from "@/state/useStore";
 import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
@@ -127,13 +133,18 @@ export function ToolDetail({
         if (selecting.selectAll(event)) return;
         if (event.key !== " " || event.ctrlKey || event.metaKey || event.altKey) return;
         if (isTextEntryTarget(event.target)) return;
-        if (toggleLargeDetail(hasRows)) {
+        if (toggleLargeDetail(hasRows, keyTableNear(paneRef.current))) {
           event.preventDefault();
           onFocusTable?.();
         }
       }}
     >
-      {hasRows ? <ExpandButton open={open} onClick={() => toggleLargeDetail(hasRows)} /> : null}
+      {hasRows ? (
+        <ExpandButton
+          open={open}
+          onClick={() => toggleLargeDetail(hasRows, keyTableNear(paneRef.current))}
+        />
+      ) : null}
       <DetailBody {...bodyProps} onSelectNode={onSelectNode} onOutlineRange={onOutlineRange} />
       {open
         ? createPortal(
@@ -260,6 +271,20 @@ function ExpandButton({ open, onClick }: { readonly open: boolean; readonly onCl
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane
  */
+const ARROW_KEYS: ReadonlySet<string> = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
+/** Whether the card is handing a key on to the table, which it must not take again. */
+let forwarding = false;
+
 function LargeDetailCard({
   detail,
   placeholder,
@@ -287,6 +312,40 @@ function LargeDetailCard({
     // The keys the card answers while it is shown.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShown
     const onKey = (event: KeyboardEvent) => {
+      // What this card sent on to the table itself.
+      if (forwarding) return;
+      const table = largeDetailKeyTable();
+      if (
+        ARROW_KEYS.has(event.key) &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        table !== undefined &&
+        event.target instanceof Node &&
+        !table.contains(event.target) &&
+        !isTextEntryTarget(event.target)
+      ) {
+        // The arrows move the table's selection and fold and unfold its rows, wherever the
+        // focus has gone; the card follows the row they land on.
+        event.preventDefault();
+        event.stopPropagation();
+        table.focus({ preventScroll: true });
+        forwarding = true;
+        try {
+          table.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: event.key,
+              code: event.code,
+              shiftKey: event.shiftKey,
+              bubbles: true,
+              cancelable: true,
+            })
+          );
+        } finally {
+          forwarding = false;
+        }
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -302,7 +361,10 @@ function LargeDetailCard({
           isTextEntryTarget(event.target)
         )
       ) {
+        // Taken here: the table's own Space would toggle the card again, and open the one
+        // this has just shut.
         event.preventDefault();
+        event.stopPropagation();
         onClose();
       }
     };

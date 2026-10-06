@@ -549,7 +549,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         // again.
         case " ":
           if (event.ctrlKey || event.metaKey || event.altKey) return;
-          if (!toggleLargeDetail(current !== undefined)) return;
+          if (!toggleLargeDetail(current !== undefined, event.currentTarget)) return;
           break;
         case "ArrowDown":
           moveTo(rows[index + 1]);
@@ -741,6 +741,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                 role="tree"
                 tabIndex={0}
                 aria-label={L("ME firmware structure")}
+                data-key-table=""
                 onKeyDown={onTreeKey}
                 style={
                   { "--table-columns": columnTemplate(widths, ME_COLUMNS()) } as React.CSSProperties

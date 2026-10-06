@@ -597,7 +597,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         // Space on the row in focus opens the details in the large view, and closes it
         // again.
         if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (!toggleLargeDetail(at >= 0)) return;
+        if (!toggleLargeDetail(at >= 0, event.currentTarget)) return;
       } else if (event.key === "Enter") {
         const row = display.rows[at];
         if (row !== undefined) run({ kind: "goToOffset", offset: offsetToGoTo(row) });
@@ -717,6 +717,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
             role="grid"
             aria-label={L("FIT entries")}
             tabIndex={0}
+            data-key-table=""
             onKeyDown={onKeyDown}
           >
             <table className="fit-table" style={{ minWidth: FIT_MIN_WIDTH }}>

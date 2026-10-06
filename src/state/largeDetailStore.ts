@@ -29,8 +29,9 @@ export const largeDetailStore = createStore<{ readonly open: boolean }>({ open: 
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.showQuickLook
  */
-export function showLargeDetail(hasDetail: boolean): boolean {
+export function showLargeDetail(hasDetail: boolean, keyTable?: HTMLElement | null): boolean {
   if (!hasDetail) return false;
+  if (keyTable !== undefined) keyTarget = keyTable;
   largeDetailStore.update((state) => (state.open ? state : { open: true }));
   return true;
 }
@@ -50,10 +51,34 @@ export function closeLargeDetail(): void {
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.toggleQuickLook
  */
-export function toggleLargeDetail(hasDetail: boolean): boolean {
+export function toggleLargeDetail(hasDetail: boolean, keyTable?: HTMLElement | null): boolean {
   if (largeDetailStore.getSnapshot().open) {
     closeLargeDetail();
     return true;
   }
-  return showLargeDetail(hasDetail);
+  return showLargeDetail(hasDetail, keyTable);
+}
+
+/**
+ * The panel's table, which the arrow keys belong to while the card is shown: the card
+ * is the window's, so a key pressed with the focus in it is handed on to the table that
+ * opened it, and the card follows the row it moves to.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShown
+ */
+let keyTarget: HTMLElement | null | undefined;
+
+export const largeDetailKeyTable = (): HTMLElement | undefined =>
+  keyTarget?.isConnected === true ? keyTarget : undefined;
+
+/**
+ * The table of the panel an element is in: the nearest ancestor that holds one marked
+ * `data-key-table`.
+ */
+export function keyTableNear(element: Element | null): HTMLElement | undefined {
+  for (let at = element; at !== null; at = at.parentElement) {
+    const table = at.querySelector<HTMLElement>("[data-key-table]");
+    if (table !== null) return table;
+  }
+  return undefined;
 }

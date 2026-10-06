@@ -1220,7 +1220,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.toggleQuickLook
         case " ":
           if (event.ctrlKey || event.metaKey || event.altKey) return;
-          if (!toggleLargeDetail(focused !== undefined)) return;
+          if (!toggleLargeDetail(focused !== undefined, event.currentTarget)) return;
           break;
         case "ArrowDown":
           moveTo(index + 1, 1);
@@ -1437,6 +1437,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             tabIndex={0}
             aria-label={L("Firmware structure")}
             onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            data-key-table=""
             onKeyDown={onKeyDown}
             style={
               {
