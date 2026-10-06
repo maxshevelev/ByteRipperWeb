@@ -69,7 +69,9 @@ export function toggleLargeDetail(hasDetail: boolean, keyTable?: HTMLElement | n
 let keyTarget: HTMLElement | null | undefined;
 
 export const largeDetailKeyTable = (): HTMLElement | undefined =>
-  keyTarget?.isConnected === true ? keyTarget : undefined;
+  keyTarget?.isConnected === true
+    ? keyTarget
+    : (document.querySelector<HTMLElement>("[data-key-table]") ?? undefined);
 
 /**
  * The table of the panel an element is in: the nearest ancestor that holds one marked
