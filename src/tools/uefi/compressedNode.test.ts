@@ -13,7 +13,11 @@ import type { NodeDetail } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import {
   type CompressedSectionNode,
-  decompressedExport,
+  contentOf,
+  decompressedBody,
+  nodeOpen,
+  nodeOpenTitle,
+  nodeSaveTitle,
   partName,
   uefiZones,
   type ZonedNode,
@@ -143,33 +147,51 @@ describe("the detail", () => {
 
 describe("what a node has decompressed", () => {
   /**
-   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testAnOpenedSectionExportsItsWholeBufferAndANodeInsideItsOwnBytes
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testACompressedSectionOffersItsWholeBufferAndANodeInsideOffersItsOwnBytes
    */
-  it("is the whole buffer for an opened section, and its own bytes for a node inside", () => {
+  it("is the whole buffer for a compressed section, and a node inside offers its own bytes", () => {
     const image = built();
 
-    const body = decompressedExport(wire(image.section));
+    const body = decompressedBody(wire(image.section));
     expect(body?.space).toEqual([0]);
-    expect(body?.range).toBeUndefined();
-    expect(body?.menuTitle).toBe("Export Decompressed Body…");
+    expect(body?.saveTitle).toBe("Save Decompressed Body as…");
     expect(body?.openTitle).toBe("Open Decompressed Body");
     expect(body?.suggestedName).toBe("LZMA compressed section decompressed.bin");
+    // The section itself keeps its plain name; only what it opens to is marked.
+    expect(nodeOpen(wire(image.section), false, [wire(image.section)])?.suggestedName).toBe(
+      "LZMA compressed section.bin"
+    );
+    expect(nodeOpenTitle(wire(image.section), false)).toBe("Open “LZMA compressed section”");
     // And that space really is the decompressed body.
     const buffer = image.readers.readerFor(body?.space ?? []);
     expect(Array.from(buffer?.bytes(buffer.all) ?? [])).toEqual(Array.from(fileBody()));
 
-    const bytes = decompressedExport(wire(image.inner));
-    expect(bytes?.space).toEqual(image.inner.space);
-    expect(bytes?.range).toEqual([0, fileBody().length]);
-    expect(bytes?.menuTitle).toBe("Export Decompressed Bytes…");
-    expect(bytes?.openTitle).toBe("Open Decompressed Bytes");
-    expect(bytes?.suggestedName).toBe("Inner decompressed.bin");
+    // Nothing else is offered for what is inside: opening or saving it is reading those
+    // bytes, and the titles say they are decompressed.
+    const inner = wire(image.inner);
+    expect(decompressedBody(inner)).toBeUndefined();
+    expect(nodeOpenTitle(inner, false)).toBe("Open Decompressed “Inner”");
+    expect(nodeOpenTitle(inner, true)).toBe("Open Decompressed Body of “Inner”");
+    expect(nodeSaveTitle(inner, false)).toBe("Save Decompressed “Inner” as…");
+    expect(nodeSaveTitle(inner, true)).toBe("Save Decompressed Body of “Inner” as…");
+    const unnamed = { ...inner, name: "" };
+    expect(nodeOpenTitle(unnamed, false)).toBe("Open Decompressed Node");
+    expect(nodeOpenTitle(unnamed, true)).toBe("Open Decompressed Node Body");
+    expect(nodeSaveTitle(unnamed, false)).toBe("Save Decompressed Node as…");
+    expect(nodeSaveTitle(unnamed, true)).toBe("Save Decompressed Node Body as…");
+
+    const asNode = nodeOpen(inner, false, [wire(image.section)]);
+    expect(asNode?.range).toEqual([0, fileBody().length]);
+    expect(asNode?.suggestedName).toBe("Inner decompressed.bin");
     // Named after the dump it came out of, then what it is.
-    expect(bytes === undefined ? undefined : partName(bytes.suggestedName, "bios.rom")).toBe(
+    expect(asNode === undefined ? undefined : partName(asNode.suggestedName, "bios.rom")).toBe(
       "bios_Inner decompressed.bin"
     );
-    expect(bytes === undefined ? undefined : partName(bytes.suggestedName, "")).toBe(
-      "Inner decompressed.bin"
+    expect(nodeOpen(inner, true, [wire(image.section)])?.suggestedName).toBe(
+      "Inner decompressed body.bin"
+    );
+    expect(body === undefined ? undefined : partName(body.suggestedName, "bios.rom")).toBe(
+      "bios_LZMA compressed section decompressed.bin"
     );
   });
 
@@ -185,14 +207,14 @@ describe("what a node has decompressed", () => {
       children: [],
     };
 
-    expect(decompressedExport(plain)).toBeUndefined();
+    expect(decompressedBody(plain)).toBeUndefined();
   });
 
   /**
-   * The row says it is compressed before it is opened, so the export is offered
-   * then — and reading it decodes the body.
+   * The row says it is compressed before it is opened, so the body is offered then — and
+   * reading it decodes it.
    *
-   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testAClosedCompressedSectionExportsItsBodyDecodedOnDemand
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testAClosedCompressedSectionOffersItsBodyDecodedOnDemand
    */
   it("is offered by a section still closed, and by neither kind that cannot open", () => {
     const image = built();
@@ -203,21 +225,48 @@ describe("what a node has decompressed", () => {
       compression: { algorithm: "LZMA", decodes: true },
     };
 
-    const body = decompressedExport(closed);
+    const body = decompressedBody(closed);
     expect(body?.space).toEqual([0]);
-    expect(body?.range).toBeUndefined();
     expect(body?.openTitle).toBe("Open Decompressed Body");
 
     // A section the decoder cannot read has nothing to save.
     expect(
-      decompressedExport({
+      decompressedBody({
         ...closed,
         compression: { algorithm: "Unknown", decodes: false },
         isExpandable: false,
       })
     ).toBeUndefined();
     // And one that was opened and did not decompress offers nothing either.
-    expect(decompressedExport({ ...closed, isExpandable: false })).toBeUndefined();
+    expect(decompressedBody({ ...closed, isExpandable: false })).toBeUndefined();
+  });
+
+  /**
+   * What a double click opens: the decompressed body of a compressed section, otherwise
+   * the node's body, and the node itself where it has no body apart from itself.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testADoubleClickOpensWhatTheNodeHolds
+   */
+  it("is what a double click opens: the decompressed body, else the body, else the node", () => {
+    const image = built();
+    const section = wire(image.section);
+    expect(contentOf({ ...section, id: [0] })).toBe("decompressedBody");
+
+    // A file with a header and a body opens its body.
+    const file = {
+      id: [1],
+      kind: "file",
+      name: "Driver",
+      header: [0, 0x18] as const,
+      body: [0x18, 0x40] as const,
+      tail: [0x40, 0x40] as const,
+      space: [],
+      isExpandable: false,
+      children: [],
+    };
+    expect(contentOf(file)).toBe("body");
+    // Padding has no header: the whole node.
+    expect(contentOf({ ...file, kind: "padding", header: [0x18, 0x18] as const })).toBe("node");
   });
 });
 

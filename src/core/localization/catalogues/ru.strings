@@ -192,6 +192,15 @@
 "Setup help" = "Справка Setup";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
 "Picture size" = "Размер изображения";
+"Open Decompressed Node" = "Открыть распакованный узел";
+"Open Decompressed Node Body" = "Открыть тело распакованного узла";
+"Open Decompressed “%1$@”" = "Открыть «%1$@» (распаковано)";
+"Open Decompressed Body of “%1$@”" = "Открыть тело «%1$@» (распаковано)";
+"Save Decompressed Node as…" = "Сохранить распакованный узел как…";
+"Save Decompressed Node Body as…" = "Сохранить тело распакованного узла как…";
+"Save Decompressed “%1$@” as…" = "Сохранить «%1$@» (распаковано) как…";
+"Save Decompressed Body of “%1$@” as…" = "Сохранить тело «%1$@» (распаковано) как…";
+"Save Decompressed Body as…" = "Сохранить распакованное тело как…";
 "GPNV record" = "Запись GPNV";
 "GPNV store" = "Хранилище GPNV";
 "Text" = "Текст";
@@ -427,10 +436,7 @@
 "Exactly one character" = "Ровно один символ";
 "Excerpt Hex" = "Выдержка (hex)";
 "Excerpt Text" = "Выдержка (текст)";
-"Export Decompressed Body…" = "Выгрузить распакованное тело…";
-"Export Decompressed Bytes…" = "Выгрузить распакованные байты…";
 "Every byte value, decoded" = "Каждое значение байта в расшифровке";
-"Exported %1$@ bytes." = "Выгружено байт: %1$@.";
 "Export…" = "Экспортировать…";
 "Extended signatures" = "Расширенные сигнатуры";
 "Extensions" = "Расширения";
@@ -648,7 +654,6 @@
 "Open as Second File" = "Открыть вторым файлом";
 "Open Body of “%1$@”" = "Открыть тело «%1$@»";
 "Open Decompressed Body" = "Открыть распакованное тело";
-"Open Decompressed Bytes" = "Открыть распакованные байты";
 "Open File" = "Открыть файл";
 "Open in Help" = "Открыть в справке";
 "Open Node" = "Открыть узел";

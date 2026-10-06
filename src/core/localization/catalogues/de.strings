@@ -192,6 +192,15 @@
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
+"Open Decompressed Node" = "Entpackten Knoten öffnen";
+"Open Decompressed Node Body" = "Entpackten Knotenrumpf öffnen";
+"Open Decompressed “%1$@”" = "„%1$@“ (entpackt) öffnen";
+"Open Decompressed Body of “%1$@”" = "Rumpf von „%1$@“ (entpackt) öffnen";
+"Save Decompressed Node as…" = "Entpackten Knoten sichern unter…";
+"Save Decompressed Node Body as…" = "Entpackten Knotenrumpf sichern unter…";
+"Save Decompressed “%1$@” as…" = "„%1$@“ (entpackt) sichern unter…";
+"Save Decompressed Body of “%1$@” as…" = "Rumpf von „%1$@“ (entpackt) sichern unter…";
+"Save Decompressed Body as…" = "Entpackten Rumpf sichern unter…";
 "GPNV record" = "GPNV-Eintrag";
 "GPNV store" = "GPNV-Speicher";
 "Text" = "Text";
@@ -427,10 +436,7 @@
 "Exactly one character" = "Genau ein Zeichen";
 "Excerpt Hex" = "Ausschnitt (Hex)";
 "Excerpt Text" = "Ausschnitt (Text)";
-"Export Decompressed Body…" = "Entpackten Rumpf exportieren…";
-"Export Decompressed Bytes…" = "Entpackte Bytes exportieren…";
 "Every byte value, decoded" = "Jeder Bytewert, dekodiert";
-"Exported %1$@ bytes." = "%1$@ Bytes exportiert.";
 "Export…" = "Exportieren…";
 "Extended signatures" = "Erweiterte Signaturen";
 "Extensions" = "Erweiterungen";
@@ -648,7 +654,6 @@
 "Open as Second File" = "Als zweite Datei öffnen";
 "Open Body of “%1$@”" = "Rumpf von „%1$@“ öffnen";
 "Open Decompressed Body" = "Entpackten Rumpf öffnen";
-"Open Decompressed Bytes" = "Entpackte Bytes öffnen";
 "Open File" = "Datei öffnen";
 "Open in Help" = "In der Hilfe öffnen";
 "Open Node" = "Knoten öffnen";

@@ -48,8 +48,9 @@ import { UefiSearchBar } from "@/tools/uefi/UefiSearchBar";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { withCatalogueName } from "@/tools/uefi/uefiNodeDetail";
 import {
-  type DecompressedExport,
-  decompressedExport,
+  contentOf,
+  type DecompressedBody,
+  decompressedBody,
   fileSourceOf,
   nodeIDOfZone,
   nodeOpen,
@@ -900,8 +901,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.decompressedBytes
    */
   const decompressedBytes = useCallback(
-    async (taken: DecompressedExport): Promise<Uint8Array | undefined> => {
-      const bytes = await readSpaceBytes(context.pane, taken.space, taken.range);
+    async (taken: DecompressedBody): Promise<Uint8Array | undefined> => {
+      const bytes = await readSpaceBytes(context.pane, taken.space, undefined);
       if (bytes === undefined || bytes.length === 0) {
         context.report(L("The section does not decompress."));
         return undefined;
@@ -912,18 +913,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
-   * Export Decompressed Body… / Export Decompressed Bytes…: what the section
-   * holds, written out as a file of its own.
+   * Save Decompressed Body as…: what the section holds, written out as a file of its own.
    *
    * Upstream asks for a save panel and says how much it wrote; a page has no
    * panel to ask with, so the bytes go through the download flow the rest of
    * the application uses (D7) and the sentence is the same one.
    *
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.exportDecompressed
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.saveDecompressed
    * @upstream-differs the browser's download flow in place of the save panel, so there is no cancelling to hear about
    */
-  const exportDecompressed = useCallback(
-    async (taken: DecompressedExport) => {
+  const saveDecompressed = useCallback(
+    async (taken: DecompressedBody) => {
       const bytes = await decompressedBytes(taken);
       if (bytes === undefined) return;
       // `slice()` because a Blob wants bytes over a plain ArrayBuffer, which is
@@ -932,48 +932,35 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         new Blob([bytes.slice()], { type: "application/octet-stream" }),
         taken.suggestedName
       );
-      context.report(L("Exported %1$@ bytes.", bytes.length));
+      context.report(L("Saved %1$@ bytes.", bytes.length));
     },
     [context, decompressedBytes]
   );
 
   /**
-   * Open Decompressed Body / Open Decompressed Bytes: the same bytes the export
-   * saves, opened as a part of their own — its own offsets from zero, its own
+   * Open Decompressed Body: the same bytes the save writes, opened as a part of their own — its own offsets from zero, its own
    * search, its own tree — without saving anything first.
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecompressedInNewTab
    */
   const openDecompressed = useCallback(
-    async (node: WireNode, taken: DecompressedExport) => {
+    async (node: WireNode, taken: DecompressedBody) => {
       const bytes = await decompressedBytes(taken);
       if (bytes === undefined) return;
       // What it links back to: the compressed section in the file that these
       // bytes came out of, which for a node inside a buffer is the section
       // holding it.
-      // What a panel opened on these bytes should read them as: a whole
-      // decompressed body is a run of sections by the FFSv3 rules every buffer
-      // is read with; a node inside one is read as what that node is.
-      const layout =
-        taken.range === undefined
-          ? DECOMPRESSED_BODY_LAYOUT
-          : await askFirmwareLayout(context.pane, { node: node.id });
+      // What a panel opened on these bytes should read them as: a whole decompressed body
+      // is a run of sections by the FFSv3 rules every buffer is read with.
+      const layout = DECOMPRESSED_BODY_LAYOUT;
       context.openPart(
         bytes,
         partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),
         fileSourceOf(node, roots ?? []),
         layout,
-        // What they are, and where they go back to: the whole buffer, or this
-        // node's bytes in it, compressed again on the way (§6).
-        {
-          kind: "decompressed",
-          rebuild: {
-            space: taken.space,
-            ...(taken.range === undefined
-              ? {}
-              : { range: { start: taken.range[0], end: taken.range[1] } }),
-          },
-        }
+        // What they are, and where they go back to: the whole buffer, compressed again on
+        // the way (§6).
+        { kind: "decompressed", rebuild: { space: taken.space } }
       );
     },
     [context, decompressedBytes, roots]
@@ -1014,6 +1001,34 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       );
     },
     [context, roots]
+  );
+
+  /**
+   * What a double click on a node's row does: opens what the node holds as a panel — the
+   * body a compressed section decompresses to, otherwise the node's body, and the whole
+   * node where it has none apart from itself (`contentOf`). The disclosure triangle keeps
+   * folding and unfolding.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeContent
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openContent
+   */
+  // help: panel.uefi.open-content
+  const openContent = useCallback(
+    (node: WireNode) => {
+      switch (contentOf(node)) {
+        case "decompressedBody": {
+          const taken = decompressedBody(node);
+          if (taken !== undefined) void openDecompressed(node, taken);
+          return;
+        }
+        case "body":
+          void openNode(node, true);
+          return;
+        case "node":
+          void openNode(node, false);
+      }
+    },
+    [openDecompressed, openNode]
   );
 
   /**
@@ -1660,13 +1675,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                     searchCtl.current.readerChose();
                     choose(node);
                   }}
+                  onOpenContent={openContent}
                   onToggleMe={toggleMe}
                   onChooseMe={chooseMe}
                   onMenu={(event, node) => {
                     choose(node);
-                    // What this row has decompressed, if anything: a compressed
-                    // section's whole buffer, or one node's bytes inside one.
-                    const taken = decompressedExport(node);
+                    // What this row has decompressed, if anything: a compressed section's whole
+                    // buffer. A node inside one is opened and saved by the items below.
+                    const taken = decompressedBody(node);
                     // Fix Checksum is offered only on a node whose checksum is
                     // wrong — a clean row gets no menu at all. Never inside a
                     // compressed section: the fix would be a write into a
@@ -1691,8 +1707,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                       taken === undefined
                         ? undefined
                         : {
-                            label: taken.menuTitle,
-                            onSelect: () => void exportDecompressed(taken),
+                            label: taken.saveTitle,
+                            onSelect: () => void saveDecompressed(taken),
                           },
                       taken === undefined
                         ? undefined
@@ -1835,6 +1851,7 @@ function TreeRow({
   isOpen,
   isSelected,
   onToggle,
+  onOpenContent,
   onChoose,
   onToggleMe,
   onChooseMe,
@@ -1849,6 +1866,8 @@ function TreeRow({
   readonly isOpen: boolean;
   readonly isSelected: boolean;
   readonly onToggle: (node: WireNode) => void;
+  /** A double click on the row: open what the node holds. */
+  readonly onOpenContent: (node: WireNode) => void;
   readonly onChoose: (node: WireNode) => void;
   readonly onToggleMe: (node: MEANode) => void;
   readonly onChooseMe: (node: MEANode) => void;
@@ -1960,6 +1979,12 @@ function TreeRow({
       {...rowPaintAttrs(marks, showsMarkings)}
       style={style}
       onClick={() => onChoose(node)}
+      onDoubleClick={(event) => {
+        // The triangle folds or unfolds on every click, however quick.
+        if ((event.target as Element).closest(".uefi-twist") !== null) return;
+        if (event.shiftKey || event.metaKey || event.altKey || event.ctrlKey) return;
+        onOpenContent(node);
+      }}
       onContextMenu={(event) => onMenu(event, node)}
     >
       <span className="uefi-name" style={indent}>

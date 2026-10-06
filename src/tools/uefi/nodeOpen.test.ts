@@ -148,7 +148,7 @@ describe("what opening one means", () => {
     const open = nodeOpen(inner, false, [section]);
     expect(open?.space).toEqual([0x40]);
     expect(open?.range).toEqual([0, 0x100]);
-    expect(open?.suggestedName).toBe("Inner.bin");
+    expect(open?.suggestedName).toBe("Inner decompressed.bin");
 
     // Without the tree there is nothing to place the section with.
     expect(nodeOpen(inner, false)).toBeUndefined();

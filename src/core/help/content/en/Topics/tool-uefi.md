@@ -6,6 +6,7 @@
 @covers panel.uefi.fix-checksum
 @covers panel.uefi.top-swap
 @covers panel.uefi.save-node
+@covers panel.uefi.open-content
 @covers panel.uefi.picture-preview
 @covers panel.uefi.sound-player
 @covers panel.uefi.superseded-entries
@@ -54,10 +55,12 @@ The contents of an ME region are not searched: the sub-tree has another structur
 
 Right-click a node:
 
-- **Open** the node, or just its body, as a [[topic:fragments|fragment panel]].
-- **Save … as…** the node, or just its body, to a file: the same bytes **Open** shows, under the same name — the dump's, followed by the node's. The browser stores the file as it stores any download: in its downloads folder, or where it asks.
-- **Open Decompressed Body** / **Export Decompressed Body…** for a compressed section — what those bytes actually expand to. A node inside one offers the same for its own **Bytes**.
+- **Open** the node, or just its body, as a [[topic:fragments|fragment panel]]. For a node inside a compressed section the items say that the bytes are the decompressed ones: **Open Decompressed …** and **Open Decompressed Body of …**.
+- **Save … as…** the node, or just its body, to a file: the same bytes **Open** shows, under the same name — the dump's, followed by the node's. Inside a compressed section: **Save Decompressed … as…**. The browser stores the file as it stores any download: in its downloads folder, or where it asks.
+- **Open Decompressed Body** / **Save Decompressed Body as…** for a compressed section — what those bytes actually expand to.
 - **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
+
+A double click on a row does without the menu: it opens what the node holds as a fragment panel — for a compressed section its decompressed body, for any other node its body, and for a node with no body of its own, such as padding or free space, the node itself. A double click on the disclosure triangle only folds or unfolds the row.
 
 A [[term:picture|picture]] the tool recognises — a JPEG, PNG, GIF or BMP, in padding, in a raw section or in a freeform section — is a row of its own, and selecting it draws the picture under its details: as wide as the list at most and never larger than its own size in pixels. The preview is drawn from the bytes in the dump as they are, by the browser's own image decoder rather than the firmware's, so it shows what is stored, not exactly how the board will draw it. A format the browser cannot decode leaves the details without a preview. A thin frame marks where the picture ends, so a white or transparent logo does not disappear into the panel. A click on the picture changes what is behind it: the panel's own background, a checkerboard, or black (white with the dark appearance). A picture with transparency starts on the checkerboard, one without on the panel's background. In the [[topic:tools-overview|large view of the details]], which **Space** on the row opens, the picture is drawn larger, up to its own size in pixels.
 

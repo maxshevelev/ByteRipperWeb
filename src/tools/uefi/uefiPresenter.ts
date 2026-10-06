@@ -67,80 +67,79 @@ export interface CompressedSectionNode {
 }
 
 /**
- * What a node has that is worth taking out decompressed: which buffer it is
- * in, which bytes of it, and what the two commands offering it are called.
+ * What a compressed section has that is worth taking out decompressed: which buffer it
+ * opens to, and what the two commands offering it are called. All of the buffer: a node
+ * inside it needs no second item, since opening or saving it is reading those bytes
+ * (`nodeOpenTitle`).
  *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody
  */
-export interface DecompressedExport {
-  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.space */
+export interface DecompressedBody {
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.space */
   readonly space: readonly number[];
-  /**
-   * The bytes in that space, or nothing for the whole of it — which is what a
-   * section's own body is.
-   *
-   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.range
-   */
-  readonly range?: readonly [number, number] | undefined;
-  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.suggestedName */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.suggestedName */
   readonly suggestedName: string;
-  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.menuTitle */
-  readonly menuTitle: string;
-  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.openTitle */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.saveTitle */
+  readonly saveTitle: string;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.openTitle */
   readonly openTitle: string;
 }
 
 /**
- * A compressed section exports everything it decompresses to — one that opened,
- * and one still closed that would: the row already says it is compressed, and
- * the buffer is decoded when the export reads it. A node inside one exports its
- * own bytes from that buffer. Nothing else has anything decompressed to save —
- * its bytes are the file's, and the dump already exports those.
+ * A compressed section offers everything it decompresses to — one that opened, and one
+ * still closed that would: the row already says it is compressed, and the buffer is
+ * decoded when it is read. A node inside a decoded buffer needs no second item: opening
+ * or saving it is reading those bytes (`nodeOpenTitle`). Nothing else has anything
+ * decompressed to offer — its bytes are the file's, and the dump already has those.
  *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedExport
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.decompressedBody
  */
-export function decompressedExport(node: CompressedSectionNode): DecompressedExport | undefined {
-  // What came *out* of a section says so in its name. Without it the section
-  // opened as a node and the same section's decompressed body arrive under one
-  // name — `bios_LZMA Section.bin` twice — and the two hold entirely different
-  // bytes. A node with no name is already called `decompressed`, so it says it
-  // once.
+export function decompressedBody(node: CompressedSectionNode): DecompressedBody | undefined {
+  const children = node.children ?? [];
+  const opened = children.some((child) => !sameSpace(child.space, node.space));
+  const closed = node.compression?.decodes === true && node.isExpandable && children.length === 0;
+  if (node.kind !== "section" || !(opened || closed)) return undefined;
+  // What came *out* of a section says so in its name. Without it the section opened as a
+  // node and the same section's decompressed body arrive under one name —
+  // `bios_LZMA Section.bin` twice — and the two hold entirely different bytes. A node with
+  // no name is already called `decompressed`, so it says it once.
   const base = Array.from(node.name.length === 0 ? "decompressed" : node.name)
     .map((character) => ("/:".includes(character) ? "_" : character))
     .join("");
   const marked = node.name.length === 0 ? base : `${base} decompressed`;
-  const children = node.children ?? [];
-  const opened = children.some((child) => !sameSpace(child.space, node.space));
-  const closed = node.compression?.decodes === true && node.isExpandable && children.length === 0;
-  if (node.kind === "section" && (opened || closed)) {
-    return {
-      // The buffer this section opens to: its own space with the section's
-      // header offset on the end.
-      // @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSpace.swift#ByteSpace.inside
-      space: [...node.space, node.header[0]],
-      range: undefined,
-      suggestedName: `${marked}.bin`,
-      menuTitle: L("Export Decompressed Body…"),
-      openTitle: L("Open Decompressed Body"),
-    };
-  }
-  if (node.space.length !== 0) {
-    return {
-      space: node.space,
-      range: [node.header[0], Math.max(node.header[1], node.body[1], node.tail[1])],
-      suggestedName: `${marked}.bin`,
-      menuTitle: L("Export Decompressed Bytes…"),
-      openTitle: L("Open Decompressed Bytes"),
-    };
-  }
-  return undefined;
+  return {
+    // The buffer this section opens to: its own space with the section's header offset on
+    // the end.
+    // @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSpace.swift#ByteSpace.inside
+    space: [...node.space, node.header[0]],
+    suggestedName: `${marked}.bin`,
+    saveTitle: L("Save Decompressed Body as…"),
+    openTitle: L("Open Decompressed Body"),
+  };
+}
+
+/**
+ * What a double click on a node's row opens: the body a compressed section decompresses
+ * to, otherwise the node's body, and the whole node where it has no body apart from
+ * itself (padding, free space, a node with a header and nothing after it). The same
+ * choices the tree's menu offers, taken without asking.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.Content
+ */
+export type NodeContent = "decompressedBody" | "body" | "node";
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.content */
+export function contentOf(node: CompressedSectionNode & ZonedNode): NodeContent {
+  if (decompressedBody(node) !== undefined) return "decompressedBody";
+  if (node.header[1] > node.header[0] && nodeOpenTitle(node, true) !== undefined) return "body";
+  return "node";
 }
 
 /**
  * The part's name: the dump it came out of, then what it is —
  * `bios_LZMA compressed section decompressed.bin`, the way a zone's is named.
  *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedExport.tabName
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.tabName
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.partName
  */
 export function partName(suggestedName: string, fileName: string): string {
@@ -218,7 +217,19 @@ export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefine
   if (body && range[0] === whole[0] && range[1] === whole[1]) return undefined;
   // The name is poured in, never spelled into the key: a key built at run time
   // is a key no translator can find.
-  if (node.name.length === 0) return body ? L("Open Node Body") : L("Open Node");
+  // A node inside a compressed section is read from the buffer the section decoded to, and
+  // its titles say so: there is no second item for "the bytes it decompressed to" — they
+  // are what opening it opens.
+  const decompressed = (node.space ?? []).length !== 0;
+  if (node.name.length === 0) {
+    if (decompressed) return body ? L("Open Decompressed Node Body") : L("Open Decompressed Node");
+    return body ? L("Open Node Body") : L("Open Node");
+  }
+  if (decompressed) {
+    return body
+      ? L("Open Decompressed Body of “%1$@”", node.name)
+      : L("Open Decompressed “%1$@”", node.name);
+  }
   return body ? L("Open Body of “%1$@”", node.name) : L("Open “%1$@”", node.name);
 }
 
@@ -230,7 +241,17 @@ export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefine
  */
 export function nodeSaveTitle(node: ZonedNode, body: boolean): string | undefined {
   if (nodeOpenTitle(node, body) === undefined) return undefined;
-  if (node.name.length === 0) return body ? L("Save Node Body as…") : L("Save Node as…");
+  const decompressed = (node.space ?? []).length !== 0;
+  if (node.name.length === 0) {
+    if (decompressed)
+      return body ? L("Save Decompressed Node Body as…") : L("Save Decompressed Node as…");
+    return body ? L("Save Node Body as…") : L("Save Node as…");
+  }
+  if (decompressed) {
+    return body
+      ? L("Save Decompressed Body of “%1$@” as…", node.name)
+      : L("Save Decompressed “%1$@” as…", node.name);
+  }
   return body ? L("Save Body of “%1$@” as…", node.name) : L("Save “%1$@” as…", node.name);
 }
 
@@ -259,7 +280,9 @@ export function nodeOpen(
   const range: readonly [number, number] = body ? [node.body[0], node.body[1]] : wholeRange(node);
   const source = space.length === 0 ? range : fileSourceOf(node, roots ?? []);
   if (source === undefined) return undefined;
-  const suffix = body ? " body" : "";
+  // Bytes of a decoded buffer say so in the name, so that a node and the node of the same
+  // name in the file do not arrive as one file.
+  const suffix = (space.length === 0 ? "" : " decompressed") + (body ? " body" : "");
   // A whole node of the file is a structure the image can be laid out again
   // around; a body, or a slice of a buffer, is bytes going back where they
   // were, through the section they came out of.
