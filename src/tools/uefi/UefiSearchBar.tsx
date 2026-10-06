@@ -21,6 +21,16 @@ export type SearchStatus = "none" | "notFound" | "searching";
  * changes goes back there; the other pane's bar reads the same and follows.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.init
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.status
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.progress
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.showsMENote
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.onSearch
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.onStop
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.focusField
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.control
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.controlTextDidChange
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.Status
  * @upstream-differs a React component over the stored query, where upstream is an NSView
  * that observes a notification
  */

@@ -245,7 +245,7 @@ describe("what a node has decompressed", () => {
    * What a double click opens: the decompressed body of a compressed section, otherwise
    * the node's body, and the node itself where it has no body apart from itself.
    *
-   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testADoubleClickOpensWhatTheNodeHolds
+   * @web-only the choice a double click makes (`contentOf`) is a pure answer here; upstream tests the click itself in `UEFIToolFlowTests`
    */
   it("is what a double click opens: the decompressed body, else the body, else the node", () => {
     const image = built();

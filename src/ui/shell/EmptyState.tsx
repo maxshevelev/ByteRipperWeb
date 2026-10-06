@@ -217,6 +217,7 @@ function ReleaseNotes() {
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.makeRecentSection
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.setRecentFiles
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.openRecentRow
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.onOpenRecent
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentRowTitle
  * @upstream-differs a row is the file's name alone: the page never sees the folder it came from
  */

@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "643363e932d28b23e60a44e5de2350db988a2dc3",
-  "baselineNote": "Tell the landing screen what's new in the version running, or in a newer one (2026-10-04)"
+  "baseCommit": "166d84c2da074fca086f0c15ab9929992286b22b",
+  "baselineNote": "Name a compressed branch's bytes as decompressed in the tree menu, save a compressed section's body instead of exporting it, and open a row's content on a double click (2026-10-06)"
 }

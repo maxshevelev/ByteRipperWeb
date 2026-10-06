@@ -37,3 +37,5 @@ order is changed here and said: `9584582` (the ASUS parity fixes) builds on the
 freeform section of `70f0bfe`, so it moved from V2 to the end of V8. When the window is closed `PORT_STATE.json`
 moves to `166d84c` and the gap list holds only `later` and `unported`
 entries.
+
+**Closed 2026-10-06.** All twelve units are done; `PORT_STATE.json` is at `166d84c`, and `check_anchors.py --head 166d84c` ends with no broken anchor, no stale exemption and no gap.

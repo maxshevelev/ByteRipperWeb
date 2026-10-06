@@ -83,6 +83,7 @@ export interface TreeSearchHost {
  * and owes a closing.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.search
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSearchWrapped
  * @upstream-differs a hook over the panel's state, where upstream's walk is a part of the view
  * controller that drives the outline
  */

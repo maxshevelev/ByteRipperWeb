@@ -29,35 +29,52 @@ import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
  * @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock
  */
 export interface HPSignatureBlock {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.offset */
   readonly offset: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.version */
   readonly version: number;
   /** Bytes: 0x180 is RSA-3072, 0x100 RSA-2048. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.signatureLength */
   readonly signatureLength: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.ranges */
   readonly ranges: readonly HPSignedRange[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.payloadLength */
   readonly payloadLength: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.biosVersion */
   readonly biosVersion: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.year */
   readonly year: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.month */
   readonly month: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.day */
   readonly day: number;
   /** Version 3's 40-character hex id. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.identifier */
   readonly identifier?: string | undefined;
   /** Version 3's digest, where the layout puts it. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.digest */
   readonly digest?: Uint8Array | undefined;
   /** Header, signature, payload and the three blocks after it. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.length */
   readonly length: number;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.SignedRange */
 export interface HPSignedRange {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.SignedRange.address */
   readonly address: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.SignedRange.length */
   readonly length: number;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.alignment */
 export const HP_SIGNATURE_ALIGNMENT = 0x1000;
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.identifierOffset */
 const IDENTIFIER_OFFSET = 0x368;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.digestOffset */
 const DIGEST_OFFSET = 0x43a;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.digestLength */
 const DIGEST_LENGTH = 48;
 
 const pad = (value: number, digits: number) => String(value).padStart(digits, "0");

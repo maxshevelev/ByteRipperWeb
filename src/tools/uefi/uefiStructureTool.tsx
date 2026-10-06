@@ -920,6 +920,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * the application uses (D7) and the sentence is the same one.
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.saveDecompressed
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onSaveDecompressed
    * @upstream-differs the browser's download flow in place of the save panel, so there is no cancelling to hear about
    */
   const saveDecompressed = useCallback(
@@ -1011,6 +1012,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeContent
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openContent
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenContent
    */
   // help: panel.uefi.open-content
   const openContent = useCallback(

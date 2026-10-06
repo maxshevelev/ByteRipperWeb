@@ -15,6 +15,10 @@ import {
  * the query as it was.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.didChange
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.isOpenKey
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.typeKey
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.subtypeKey
  * @upstream-differs a store the panels subscribe to, where upstream posts a notification;
  * `localStorage` for the panel defaults
  */

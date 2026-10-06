@@ -20,10 +20,14 @@ import { ItemType, typeName } from "@/firmware/uefi/uefiTypes";
  */
 export interface UEFITreeQuery {
   /** Matched anywhere in the name and in the GUID, whatever the case. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeQuery.text */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeQuery.init */
   readonly text: string;
   /** An item type — what the Type column says. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeQuery.type */
   readonly type?: number | undefined;
   /** A file's or a section's type byte — what the Subtype column says. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeQuery.subtype */
   readonly subtype?: number | undefined;
 }
 
@@ -112,7 +116,10 @@ export function matchesQuery(query: UEFITreeQuery, node: SearchedNode, name: str
 
 /** One entry of a pop-up: the code stored, and the word the column uses. */
 export interface SearchChoice {
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearchChoices.Choice */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearchChoices.Choice.code */
   readonly code: number;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearchChoices.Choice.name */
   readonly name: string;
 }
 
@@ -177,15 +184,19 @@ export function searchSubtypes(type: number | undefined): SearchChoice[] {
  */
 export interface UEFITreeSearchSource {
   /** The outline's top level, as listed. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearchSource.topRows */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearchSource.init */
   topRows(): readonly string[];
   /**
    * The rows listed under `key`, or nothing when the branch has not been read and has to
    * be before anything can be said about what is in it. A node the search does not go
    * into — a leaf, the ME region — lists none.
    */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearchSource.listedChildren */
   listedChildren(key: string): readonly string[] | undefined;
 }
 
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch.Direction */
 export type SearchDirection = "forward" | "backward";
 
 /**
@@ -222,9 +233,12 @@ const parentOf = (key: string): string => key.split(".").slice(0, -1).join(".");
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch
  */
 export class UEFITreeSearch {
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch.origin */
   readonly origin: string | undefined;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch.direction */
   readonly direction: SearchDirection;
   /** Whether the walk has gone off one end and come in at the other. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch.wrapped */
   wrapped = false;
   private current: string | undefined;
   private finished = false;
@@ -233,12 +247,14 @@ export class UEFITreeSearch {
    * A walk from `origin` — the row selected, or nothing for none, which starts at the top
    * (or the bottom, going back) and does not come round.
    */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch.init */
   constructor(origin: string | undefined, direction: SearchDirection) {
     this.origin = origin;
     this.direction = direction;
     this.current = origin;
   }
 
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFITreeSearch.advance */
   advance(source: UEFITreeSearchSource): SearchAdvance {
     while (!this.finished) {
       const next =
@@ -333,15 +349,19 @@ export class UEFISearchOpenings {
   private rows: string[] = [];
 
   /** The rows the search opened and has not shut, in the order it opened them. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.opened */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.init */
   get opened(): readonly string[] {
     return this.rows;
   }
 
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.isEmpty */
   get isEmpty(): boolean {
     return this.rows.length === 0;
   }
 
   /** The search opened `key`. */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.record */
   record(key: string): void {
     if (!this.rows.includes(key)) this.rows.push(key);
   }
@@ -350,6 +370,7 @@ export class UEFISearchOpenings {
    * `key` is no longer the search's to shut: the reader opened or shut it themselves, or
    * it is shut already.
    */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.forget */
   forget(key: string): void {
     this.rows = this.rows.filter((one) => one !== key);
   }
@@ -358,6 +379,7 @@ export class UEFISearchOpenings {
    * Everything the search opened becomes the reader's: they left by a click, closed the
    * bar or changed what they look for, and the tree stays as it is.
    */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.release */
   release(): void {
     this.rows = [];
   }
@@ -367,6 +389,7 @@ export class UEFISearchOpenings {
    * opened that are neither the match nor above it. A row above the match is on the way
    * to it and stays open as long as the match is.
    */
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeSearch.swift#UEFISearchOpenings.closings */
   closings(target: string): string[] {
     const onTheWay = (key: string) => target === key || target.startsWith(`${key}.`);
     return this.rows

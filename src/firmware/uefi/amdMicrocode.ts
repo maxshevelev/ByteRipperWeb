@@ -17,27 +17,44 @@ import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
  * @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader
  */
 export interface AMDMicrocodeHeader {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.offset */
   readonly offset: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.year */
   readonly year: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.month */
   readonly month: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.day */
   readonly day: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.updateRevision */
   readonly updateRevision: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.loaderID */
   readonly loaderID: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.dataChecksum */
   readonly dataChecksum: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.northBridgeVendor */
   readonly northBridgeVendor: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.northBridgeDevice */
   readonly northBridgeDevice: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.southBridgeVendor */
   readonly southBridgeVendor: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.southBridgeDevice */
   readonly southBridgeDevice: number;
   /**
    * The two bytes AMD keeps of the CPUID: the extended family and model above, the
    * stepping below (`cpuID` spells them out).
    */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.processorSignature */
   readonly processorSignature: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.northBridgeRevision */
   readonly northBridgeRevision: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.southBridgeRevision */
   readonly southBridgeRevision: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.biosAPIRevision */
   readonly biosAPIRevision: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.loadControl */
   readonly loadControl: number;
   /** The patch's length, header included. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.length */
   readonly length: number;
 }
 

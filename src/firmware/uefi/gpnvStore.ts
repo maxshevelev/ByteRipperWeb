@@ -22,11 +22,15 @@ import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
  * @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord
  */
 export interface GPNVRecord {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord.offset */
   readonly offset: number;
   /** The record's length, header included. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord.length */
   readonly length: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord.name */
   readonly name: string;
   /** The record in force, not one a later record replaced. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord.isCurrent */
   readonly isCurrent: boolean;
 }
 
@@ -41,6 +45,7 @@ export const GPNV_HEADER_SIZE = 0x0c;
  */
 export const GPNV_ALIGNMENT = 0x1000;
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord.signature */
 const SIGNATURE = [0x47, 0x50, 0x4e, 0x56];
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/GPNVStore.swift#GPNVRecord.range */
@@ -149,7 +154,11 @@ export function gpnvTexts(body: Uint8Array): { offset: number; text: string }[] 
   return found;
 }
 
-/** How many of a record's texts its row spells out. */
+/**
+ * How many of a record's texts its row spells out.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.gpnvRowTexts
+ */
 export const GPNV_ROW_TEXTS = 3;
 
 /**

@@ -9,6 +9,12 @@ import { soundClock } from "@/ui/toolPanel/soundClock";
  * the panel is closed.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView.init
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView.isPlaying
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView.playOrPause
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView.position
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView.stop
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView.viewDidMoveToWindow
  * @upstream-differs an `<audio>` element behind the controls, where upstream drives an
  * `AVAudioPlayer`; the controls are the same four, the buttons its `play.fill`, `pause.fill`
  * and `stop.fill` drawn inline

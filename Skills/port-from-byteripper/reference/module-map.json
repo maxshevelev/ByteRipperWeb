@@ -477,7 +477,10 @@
         "Packages/UEFIImage/Sources/UEFIImage/Picture.swift#Picture.isTruncated": "n/a — a computed property, read where it is used as `declaredLength !== undefined`",
         "Packages/UEFIImage/Sources/UEFIImage/TopSwap.swift#TopSwapCopy.init": "n/a — a memberwise initialiser; the port builds the object literal",
         "Packages/UEFIImage/Tests/UEFIImageTests/RootLayoutTests.swift#RootLayoutTests.testALazyTreeReadsItsRootByItsLayout": "n/a — there is no LazyUEFITree here; the worker answers layouts (`layoutOf`), tested in rootLayout.test.ts",
-        "Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.init": "n/a — an object literal; there is nothing to construct"
+        "Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.range": "n/a — the offset and the length say it, and the node is made from them",
+        "Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.range": "n/a — the offset and the length say it, and the node is made from them",
+        "Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.init": "n/a — an object literal; there is nothing to construct"
       }
     },
     {
@@ -815,7 +818,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.start": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.stop": "n/a — the view is a React component: its render and effects are the session's lifecycle",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.contentChanged": "n/a — the view is a React component: its render and effects are the session's lifecycle",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onExportDecompressed": "n/a — the row menu is built where it is opened and calls the command directly; there is no view controller between the two",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenDecompressed": "n/a — the row menu is built where it is opened and calls the command directly; there is no view controller between the two",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenRowsChanged": "n/a — the open rows are the panel's own and travel in its parked session state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.listedChildren": "n/a — AppKit asks an outline for a branch's children one index at a time; the panel's virtual list is given a branch whole (its superseded-copy sets are worked out once, where the node is wired)",
@@ -852,7 +854,8 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenUnpacked": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnOverridesVariableIsReadAsRules": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
-        "Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#*": "n/a — AppKit view mechanics: one view per row, measured and drawn by hand, with its own selection and its own accessibility. The browser lays out, draws and selects the text of a table itself; what is left of it — a link only from its cell, the folded rows built when opened, and the copy with a tab between cells — is in `ToolDetail.tsx` and `detailCopy.ts`"
+        "Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#*": "n/a — AppKit view mechanics: one view per row, measured and drawn by hand, with its own selection and its own accessibility. The browser lays out, draws and selects the text of a table itself; what is left of it — a link only from its cell, the folded rows built when opened, and the copy with a tab between cells — is in `ToolDetail.tsx` and `detailCopy.ts`",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.applyFont": "n/a — the panel's type size is CSS here"
       }
     },
     {
@@ -4273,7 +4276,14 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testABZip2VariableOpensItsUnpackedText": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapTableStartsFolded": "later — an app flow test; the port has no component or end-to-end test for it yet (`startsFolded` is unit-tested in the detail's own test, and the open tables are kept for the page's life in `unfoldedTables`)",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsTheDetailInTheLargeView": "later — an app flow test; the port has no component or end-to-end test for it yet (the state is unit-tested in `largeDetailStore.test.ts`)"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsTheDetailInTheLargeView": "later — an app flow test; the port has no component or end-to-end test for it yet (the state is unit-tested in `largeDetailStore.test.ts`)",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnARowOpensItsBodyAsAPanel": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnTheTriangleOpensNothing": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClosingTheLargeViewKeepsTheSelectedRowInView": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowBringsItsRowsIntoView": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testClickingARowOpensThatFile": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testRebuildingTheListReplacesTheRows": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testTheNotesWithRecentFilesSplitTheRowInHalves": "later — an app flow test: it drives the real panel, and the web has no component level"
       }
     },
     {
@@ -4383,7 +4393,11 @@
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseNotesForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingReleaseNotesForTesting": "n/a — a test seam",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.bookmarkScrollWidthForTesting": "n/a — a test seam",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseNotesWidthForTesting": "n/a — a test seam"
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseNotesWidthForTesting": "n/a — a test seam",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.clickRecentRowForTesting": "n/a — test scaffolding",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingRecentFilesForTesting": "n/a — test scaffolding",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentListWidthForTesting": "n/a — test scaffolding",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentRowsForTesting": "n/a — test scaffolding"
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
@@ -4673,7 +4687,8 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSegmentSourceChange": "n/a — the Reload / Keep prompt a changed source would raise; a page holds its bytes in memory, so no source changes behind its back",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuRevertSegment": "n/a — the AppKit action behind the strip's revert; the web's strip menu is the shared piece menu (`pieceMenu`) that calls `revertPiece`",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.revertSegmentAtOffset": "n/a — the AppKit action behind the offset menu's revert; the web's offset menu builds its own Revert item that calls `revertPiece`",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "n/a — the landing screen's effect ignores an answer that arrives after it has gone (EmptyState.NewerRelease), so there is no task to hold"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "n/a — the landing screen's effect ignores an answer that arrives after it has gone (EmptyState.NewerRelease), so there is no task to hold",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.openableRecentFiles": "n/a — a row whose file is gone is dropped when the page learns it (NotFound), and the list is of handles, not of paths to look up on disk"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",

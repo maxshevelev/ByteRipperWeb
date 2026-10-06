@@ -14,15 +14,22 @@ import { makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
  * @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound
  */
 export interface Sound {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.range */
   readonly range: { readonly start: number; readonly end: number };
   /** The format chunk's `wFormatTag`: `1` is PCM. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.encoding */
   readonly encoding: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.channels */
   readonly channels: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.sampleRate */
   readonly sampleRate: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.bitsPerSample */
   readonly bitsPerSample: number;
   /** The data chunk's length, in bytes. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.dataLength */
   readonly dataLength: number;
   /** Bytes per second, as the format chunk states it. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.byteRate */
   readonly byteRate: number;
 }
 
@@ -78,10 +85,15 @@ export function soundName(sound: Sound): string {
 }
 
 // RIFF's chunk ids, as the scan reads a dword.
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.riff */
 const RIFF = 0x46464952; // "RIFF"
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.wave */
 const WAVE = 0x45564157; // "WAVE"
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.format */
 const FORMAT = 0x20746d66; // "fmt "
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.data */
 const DATA = 0x61746164; // "data"
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.maxChunks */
 const MAX_CHUNKS = 64;
 
 /**
