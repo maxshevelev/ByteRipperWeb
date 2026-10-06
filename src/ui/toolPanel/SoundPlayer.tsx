@@ -10,7 +10,8 @@ import { soundClock } from "@/ui/toolPanel/soundClock";
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/SoundPlayerView.swift#SoundPlayerView
  * @upstream-differs an `<audio>` element behind the controls, where upstream drives an
- * `NSSound`; the controls are the same four
+ * `AVAudioPlayer`; the controls are the same four, the buttons its `play.fill`, `pause.fill`
+ * and `stop.fill` drawn inline
  */
 // help: panel.uefi.sound-player
 export function SoundPlayer({ bytes }: { readonly bytes: Uint8Array }): ReactElement {
@@ -72,11 +73,31 @@ export function SoundPlayer({ bytes }: { readonly bytes: Uint8Array }): ReactEle
 
   return (
     <div className="tool-detail-sound">
-      <button type="button" onClick={toggle}>
-        {playing ? L("Pause") : L("Play")}
+      <button
+        type="button"
+        className="tool-detail-sound-button"
+        title={playing ? L("Pause") : L("Play")}
+        aria-label={playing ? L("Pause") : L("Play")}
+        onClick={toggle}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+          {playing ? (
+            <path d="M4 2.5h2.8v11H4ZM9.2 2.5H12v11H9.2Z" />
+          ) : (
+            <path d="M4.5 2.4v11.2a.5.5 0 0 0 .76.43l9-5.6a.5.5 0 0 0 0-.86l-9-5.6a.5.5 0 0 0-.76.43Z" />
+          )}
+        </svg>
       </button>
-      <button type="button" onClick={stop}>
-        {L("Stop")}
+      <button
+        type="button"
+        className="tool-detail-sound-button"
+        title={L("Stop")}
+        aria-label={L("Stop")}
+        onClick={stop}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+          <rect x="3.5" y="3.5" width="9" height="9" rx="1.2" />
+        </svg>
       </button>
       <input
         type="range"

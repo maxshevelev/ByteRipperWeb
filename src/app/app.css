@@ -5702,6 +5702,24 @@ button.uefi-title {
   margin-top: 10px;
 }
 
+.tool-detail-sound-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tool-detail-sound-button svg {
+  width: 15px;
+  height: 15px;
+}
+
 .tool-detail-sound input[type="range"] {
   flex: 1;
   min-width: 0;
