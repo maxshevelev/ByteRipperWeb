@@ -1,4 +1,4 @@
-@source-sha 50bc22069d64b243e0849e4a79c8cd927b3351c53612ca9ac38ebd90a9f3b5c0
+@source-sha 9745162d892c484234068c75b99be52b993a4efe79cf3769b0714ada1aad90d8
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -202,7 +202,6 @@ Für UEFITool ist der Block Padding, und die Spalte „Typ“ weist ihn so aus.
 @see term:padding
 
 
-
 @term padding
 @name Padding
 @short Raum zwischen Strukturen, in den nie jemand geschrieben hat.
@@ -220,6 +219,9 @@ Erweisen sich diese Daten als Bild — etwa als JPEG-Boot-Logo —, erhält es e
 @short Ein Logo, ein Symbol oder ein Startbildschirm, den die Firmware als gewöhnliche Bilddatei ablegt: JPEG, PNG, GIF oder BMP.
 
 Die meisten Bilder einer Firmware bilden den Datenteil einer Raw-[[term:section|Section]]: das Boot-Logo, der Startbildschirm des Herstellers, die Symbole des Setup-Bildschirms, häufig innerhalb eines komprimierten Volumes. Manche Hersteller legen das Boot-Logo außerhalb aller Volumes im [[term:padding|Padding]] ab. Das [[topic:tool-uefi|UEFI-Werkzeug]] erkennt alle vier Formate an beiden Stellen und zeigt jedes Bild als eigene Zeile, benannt nach Format und Größe in Pixeln, etwa `BMP 300×300` oder `JPEG 800×480`.
+
+Manche Firmware legt mehrere Bilder hintereinander in einer einzigen Raw-Section ab — eine Reihe von Startbildschirmen oder von Symbolen. Ein solcher Datenteil wird wie in UEFITool als Raw-Bereich gelesen, und jedes Bild wird zu einer Zeile der Section.
+
 
 Ein Bild wird an seinen Anfangsbytes erkannt und nur dann übernommen, wenn sich seine Struktur bis zum Ende lesen lässt: bei JPEG die Segmente bis zur Endmarke, bei PNG die Chunks bis `IEND`, bei GIF die Blöcke bis zum Abschlussbyte, bei BMP der Kopf samt der darin angegebenen Größe. Daraus ergibt sich zugleich die Länge, denn keines der vier Formate gibt sie an einer einzigen Stelle an.
 
@@ -290,7 +292,7 @@ Woran man sie üblicherweise erkennt:
 
 Beginnt ein EC-Abbild am Anfang eines Padding-Blocks, der Region **EC Firmware** aus der Map oder der EC-Region des Deskriptors, benennt ByteRipper die Zeile nach diesem Abbild und gibt dessen Größe an: ein ITE-Abbild nach der Kennung hinter seinem Signaturblock, etwa **EC Firmware (ITE8380-EC-V1.43, 256 KB)** oder **EC firmware (ITE8226-EC-V0.00, 172 KB)**, ein Abbild mit dem Header `PHCM`, der weder Chip noch Version nennt, als **PHCM image**; die Details nennen das Format des Headers, den Hersteller nennen sie nicht. Enthält eine Region der [[term:flash-device-map|Flash Device Map]] ein einziges Abbild, ist die Größe die des Map-Eintrags, den gelöschten Rest eingeschlossen: Der Eintrag ist die eigene Angabe der Firmware über ihren Platz. Andernorts, auch in einer Region mit mehreren Abbildern, deren Eintrag die Größe der ganzen Region und nicht eines einzelnen Abbilds nennt, reicht ein Abbild bis zu seinem letzten beschriebenen Byte. Ein Block kann mehrere Abbilder enthalten, jedes an einer 4-KiB-Grenze — die Firmware eines zweiten Controllers oder eine zweite Kopie. Jedes Abbild erhält dann eine eigene Zeile mit seinem Namen und seiner Größe, etwa **ITE8380-EC-V0.00, 192 KB**; der Block selbst nennt keines davon — **EC Firmware**, **EC region** oder **EC firmware** —, und der Raum zwischen den Abbildern bleibt Padding. Ein Abbild, das ein früheres Byte für Byte wiederholt, trägt den Zusatz **(Kopie)**; ob der Controller es als Sicherung verwendet, ist nicht dokumentiert.
 
-Ein ITE-Abbild muss nicht am Anfang eines Padding-Blocks stehen. Auf AMD-Boards beginnt der erste Padding-Block mit den Daten des [[term:psp|PSP]], und die EC-Firmware liegt weiter hinten. Der Block bleibt in den Grenzen, die die umgebenden Strukturen vorgeben, und behält seinen Namen; das Abbild wird zu einer Zeile innerhalb des Blocks, zwischen Padding-Zeilen für die Bytes davor und danach, etwa **EC firmware (ITE8380-EC-V0.00, 108 KB)**. Seine Größe reicht bis zum letzten beschriebenen Byte; nennt die [[term:flash-device-map|Flash Device Map]] die Region, umfasst die Zeile die Region in den Grenzen der Map. Der Header `PHCM` ist zu kurz, um ihn abseits eines Blockanfangs zu erkennen; ein Abbild mit diesem Header wird daher nur am Anfang eines Blocks oder einer Region gefunden.
+Ein ITE-Abbild muss nicht am Anfang eines Padding-Blocks stehen. Auf AMD-Boards enthält der erste Padding-Block sowohl die Daten des [[term:psp|PSP]] als auch die EC-Firmware, und die EC-Firmware kann nach diesen Daten oder vor ihnen liegen. Der Block bleibt in den Grenzen, die die umgebenden Strukturen vorgeben, und behält seinen Namen; das Abbild wird zu einer Zeile innerhalb des Blocks, zwischen Padding-Zeilen für die Bytes davor und danach, etwa **EC firmware (ITE8380-EC-V0.00, 108 KB)**. Seine Größe reicht bis zum letzten beschriebenen Byte, jedoch nicht über das erste PSP-Verzeichnis nach dem Abbild hinaus: Auf Boards, auf denen die EC-Firmware zuerst kommt, gehören die Daten des PSP, der AMD-Microcode eingeschlossen, nicht zum Abbild. Nennt die [[term:flash-device-map|Flash Device Map]] die Region, umfasst die Zeile die Region in den Grenzen der Map. Der Header `PHCM` ist zu kurz, um ihn abseits eines Blockanfangs zu erkennen; ein Abbild mit diesem Header wird daher nur am Anfang eines Blocks oder einer Region gefunden.
 
 Kein bekannter Header gibt die Länge eines Abbilds an. ByteRipper nimmt an, dass ein Abbild bis zu seinem letzten beschriebenen Byte vor dem nächsten reicht und eine Kopie so lang ist wie das Abbild, das sie wiederholt; die Größe im Namen ist diese Länge, auf 4 KB aufgerundet. Die Detailliste einer Abbild-Zeile nennt Hersteller, Kennung, beschriebene Länge und bei einer Kopie die Adresse des Originals.
 

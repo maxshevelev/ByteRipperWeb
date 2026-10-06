@@ -227,6 +227,60 @@ describe("a section that cannot be believed", () => {
   });
 });
 
+describe("a raw section", () => {
+  // A raw section is a raw area, as the reference reads it: the GL703GE keeps a volume
+  // in one, behind 12 erased bytes.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testARawSectionHoldingAVolumeFurtherInReadsIt
+  it("holding a volume further in reads it", () => {
+    const raw = Test.section({
+      type: Section.raw,
+      body: Uint8Array.from([...filled(12, 0xff), ...Test.volume({ length: 0x200 })]),
+    });
+    const image = parseUefiImage(
+      sourceOver(
+        Test.volume({
+          length: 0x1000,
+          files: [Test.sectionedFile({ type: 0x0b, sections: [raw] })],
+        })
+      )
+    );
+    const section = image.allNodes.find(
+      (one) => one.kind === "section" && one.subtype === Section.raw
+    ) as UEFINode;
+
+    expect(kinds(section.children)).toEqual(["padding", "volume"]);
+    expect(section.children[1] && nodeRange(section.children[1])).toEqual({
+      start: section.body.start + 12,
+      end: section.body.end,
+    });
+    expect(image.diagnostics).toEqual([]);
+  });
+
+  // A volume header claiming more than the section has left is data that reads as one,
+  // not a volume cut short: the reference turns it down, and so does the scan of a
+  // section (`1.bin`'s Freeform file holds one).
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testAVolumeHeaderRunningPastARawSectionIsNoVolume
+  it("takes a volume header running past it for no volume", () => {
+    const header = Test.volume({ length: 0x400 }).subarray(0, 0x80);
+    const raw = Test.section({
+      type: Section.raw,
+      body: Uint8Array.from([...filled(0x20, 0x11), ...header]),
+    });
+    const image = parseUefiImage(
+      sourceOver(
+        Test.volume({
+          length: 0x1000,
+          files: [Test.sectionedFile({ type: 0x02, sections: [raw] })],
+        })
+      )
+    );
+
+    // The outer volume alone.
+    expect(image.allNodes.filter((one) => one.kind === "volume")).toHaveLength(1);
+    expect(image.diagnostics).toEqual([]);
+  });
+});
+
 describe("a freeform section", () => {
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testAFreeformSectionsBodyIsReadAsARawArea
   it("reads its body as a raw area", () => {

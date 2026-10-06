@@ -95,9 +95,11 @@ export function readSound(start: number, limit: number, reader: ImageReader): So
   if (reader.uint32(start) !== RIFF || reader.uint32(start + 8) !== WAVE) return undefined;
   const riffSize = reader.uint32(start + 4);
   if (riffSize === undefined || riffSize < 4) return undefined;
-  // A chunk's data is padded to an even length, and so is the file.
-  const end = start + 8 + riffSize + (riffSize & 1);
-  if (end > Math.min(limit, reader.count)) return undefined;
+  // A chunk's data is padded to an even length, and so is the file. A RIFF size claiming
+  // more than is there ends the file where the bytes do: the G733PYV's says four bytes
+  // more than its file holds, its data chunk whole before them.
+  const end = Math.min(start + 8 + riffSize + (riffSize & 1), limit, reader.count);
+  if (end < start + 12) return undefined;
 
   let format:
     | { encoding: number; channels: number; rate: number; byteRate: number; bits: number }

@@ -75,6 +75,16 @@ const PHCM_SIGNATURE = 0x4d43_4850;
 // @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.step
 const STEP = 0x1000;
 
+/**
+ * The signatures a directory of AMD's PSP opens with: the PSP's and the BIOS's, first and
+ * second level (`$PSP`, `$PL2`, `$BHD`, `$BL2`).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ECFirmware.swift#ECImage.amdDirectorySignatures
+ */
+const AMD_DIRECTORY_SIGNATURES: ReadonlySet<number> = new Set([
+  0x5053_5024, 0x324c_5024, 0x4448_4224, 0x324c_4224,
+]);
+
 const sameVendor = (left: ECVendor, right: ECVendor): boolean =>
   left.kind === right.kind &&
   (left.kind !== "ite" || left.identification === (right as typeof left).identification);
@@ -94,13 +104,20 @@ function vendorAt(start: number, limit: number, reader: ImageReader): ECVendor |
  */
 export function allECImages(range: ImageRange, reader: ImageReader, emptyByte = 0xff): ECImage[] {
   const starts: { readonly at: number; readonly vendor: ECVendor }[] = [];
+  const directories: number[] = [];
   for (let at = range.start; at < range.end; at += STEP) {
     const vendor = vendorAt(at, range.end, reader);
-    if (vendor !== undefined) starts.push({ at, vendor });
+    if (vendor !== undefined) {
+      starts.push({ at, vendor });
+    } else {
+      const signature = reader.uint32(at);
+      if (signature !== undefined && AMD_DIRECTORY_SIGNATURES.has(signature)) directories.push(at);
+    }
   }
   const images: ECImage[] = [];
   starts.forEach((found, index) => {
-    const end = starts[index + 1]?.at ?? range.end;
+    const next = starts[index + 1]?.at ?? range.end;
+    const end = Math.min(next, directories.find((one) => one > found.at) ?? next);
     const written = lastWritten({ start: found.at, end }, reader, emptyByte) - found.at;
     const original = copiedFrom(found.vendor, found.at, written, images, reader);
     images.push(

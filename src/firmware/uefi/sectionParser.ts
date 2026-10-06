@@ -246,6 +246,22 @@ export function walkSections(
 }
 
 /**
+ * What a scan of `body` as a raw area finds, or nothing when it finds nothing but
+ * padding: a section body with nothing in it stays a leaf.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/SectionParser.swift#Parser.rawAreaFindings
+ */
+function rawAreaFindings(
+  parser: Parser,
+  body: ImageRange,
+  emptyByte: number,
+  depth: number
+): UEFINode[] | undefined {
+  const found = scanRawArea(parser, body, emptyByte, depth, true);
+  return found.some((one) => one.kind !== "padding" || one.children.length > 0) ? found : undefined;
+}
+
+/**
  * What is left of a body once it stops reading as sections: one row of Non-UEFI data, as
  * UEFITool draws it. A sound it opens with — ASUS keeps its POST sound as a Freeform
  * file's whole body — is a row inside it, beyond the reference, the way the FIT's
@@ -450,6 +466,9 @@ function parseSection(
         // Most of a firmware's pictures — the logo, the setup screen's icons —
         // are a raw section's whole body.
         pictureBody(parser, body, emptyByte) ??
+        // Anything else is a raw area, as the reference reads it: the GL703GE keeps a
+        // volume in one, behind 12 erased bytes. One holding nothing found stays a leaf.
+        rawAreaFindings(parser, body, emptyByte, depth + 1) ??
         [];
     } else if (type === Section.firmwareVolumeImage) {
       // A volume inside a section, and files inside that: the point at which
@@ -459,10 +478,7 @@ function parseSection(
     } else if (type === Section.freeformSubtypeGUID && guid !== undefined) {
       // A raw area with nothing in it leaves the section a leaf, as a raw file's body
       // does.
-      const found = scanRawArea(parser, body, emptyByte, depth + 1);
-      children = found.some((one) => one.kind !== "padding" || one.children.length > 0)
-        ? found
-        : [];
+      children = rawAreaFindings(parser, body, emptyByte, depth + 1) ?? [];
     } else if (type === Section.userInterface) {
       const text = ucs2String(parser, body);
       if (text !== undefined) name = text;

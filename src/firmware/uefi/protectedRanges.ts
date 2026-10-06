@@ -530,12 +530,14 @@ class ProtectedRangeReading {
         continue;
       }
       const version = this.file.uint8(manifest + 8);
-      if (
-        this.file.uint32(manifest) !== BootPolicy.structureIdLow ||
-        this.file.uint32(manifest + 4) !== BootPolicy.structureIdHigh ||
-        version === undefined
-      ) {
+      const idLow = this.file.uint32(manifest);
+      const idHigh = this.file.uint32(manifest + 4);
+      if (idLow === undefined || idHigh === undefined || version === undefined) {
         this.note({ kind: "truncated", structure: "bootPolicy" }, manifest);
+        continue;
+      }
+      if (idLow !== BootPolicy.structureIdLow || idHigh !== BootPolicy.structureIdHigh) {
+        this.note({ kind: "notWhereNamed", structure: "bootPolicy" }, manifest);
         continue;
       }
       if (version < BootPolicy.v2MinVersion) this.bootPolicyV1(manifest);

@@ -85,7 +85,8 @@ export function scanRawArea(
   parser: Parser,
   range: ImageRange,
   emptyByte: number,
-  depth: number
+  depth: number,
+  volumesMustFit = false
 ): UEFINode[] {
   if (!parser.reader.has(range) || range.end - range.start < 4) {
     parser.progressed(range.end);
@@ -154,7 +155,15 @@ export function scanRawArea(
         dword === DVAR.signature ||
         opensPicture(dword)
       ) {
-        const found = elementAtSignature(parser, dword, offset + index, range, emptyByte, depth);
+        const found = elementAtSignature(
+          parser,
+          dword,
+          offset + index,
+          range,
+          emptyByte,
+          depth,
+          volumesMustFit
+        );
         if (found !== undefined) {
           nodes.push(...parser.padding(claimed, nodeRange(found).start, emptyByte));
           nodes.push(found);
@@ -229,12 +238,22 @@ function elementAtSignature(
   offset: number,
   range: ImageRange,
   emptyByte: number,
-  depth: number
+  depth: number,
+  volumesMustFit: boolean
 ): UEFINode | undefined {
   if (dword === FV.signature) {
     if (offset < range.start + FV.signatureOffset) return undefined;
+    const start = offset - FV.signatureOffset;
+    // A volume running past the area is kept, cut and reported — a dump cut short still
+    // has its volumes. `volumesMustFit` turns such a header down instead, as the
+    // reference does everywhere: inside a section, a volume header with nothing behind it
+    // is data that happens to read as one.
+    if (volumesMustFit) {
+      const length = parser.reader.uint64(start + 0x20);
+      if (length !== undefined && length > range.end - start) return undefined;
+    }
     return parseVolume(parser, {
-      offset: offset - FV.signatureOffset,
+      offset: start,
       limit: range.end,
       depth,
     });

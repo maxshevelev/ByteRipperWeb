@@ -43,4 +43,13 @@ describe("a sound", () => {
     noData.set([0x6a, 0x75, 0x6e, 0x6b], 36);
     expect(readSound(0, noData.length, reader(noData))).toBeUndefined();
   });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/SectionParseTests.swift#SectionParseTests.testARIFFSizeClaimingMoreThanItsWholeChunksIsASound
+  it("is a sound when the RIFF size claims more than its whole chunks", () => {
+    const sound = wav();
+    new DataView(sound.buffer).setUint32(4, sound.length - 8 + 4, true);
+
+    const read = readSound(0, sound.length, reader(sound));
+    expect(read?.range).toEqual({ start: 0, end: sound.length });
+  });
 });

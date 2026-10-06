@@ -178,7 +178,14 @@ export type DiagnosticKind =
    */
   | { readonly kind: "unknownDvarEntry" }
   /** A DVAR variable whose namespace id no entry of the store declares. */
-  | { readonly kind: "dvarNamespaceMissing" };
+  | { readonly kind: "dvarNamespaceMissing" }
+  /**
+   * A structure the FIT names by address is not there: a Boot Policy row pointing at
+   * bytes that do not open a manifest, as on a board whose Boot Guard was never
+   * provisioned — the GL703GE's row points at zeroes (`BOOT_GUARD_PROTECTED_RANGES.md`
+   * §4).
+   */
+  | { readonly kind: "notWhereNamed"; readonly structure: Structure };
 
 /**
  * Where a diagnostic raised inside a compressed section really is: an offset in
@@ -355,6 +362,8 @@ function kindMessage(detail: DiagnosticKind): string {
       return "volume holds data that is not UEFI where a file would be";
     case "unknownDvarEntry":
       return "DVAR entry of an unknown state, flags or type; the store is kept as padding from here";
+    case "notWhereNamed":
+      return `the FIT names a ${LABELS()[detail.structure]} where there is none`;
     case "dvarNamespaceMissing":
       return "DVAR variable names a namespace no entry of the store declares";
     case "fileHeaderMarkedInvalid":

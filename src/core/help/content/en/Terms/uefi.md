@@ -201,7 +201,6 @@ To UEFITool the block is padding, and the Type column says so.
 @see term:padding
 
 
-
 @term padding
 @name Padding
 @short Space between structures that nobody wrote to.
@@ -219,6 +218,9 @@ Where the data turns out to be a picture — a JPEG boot logo, for example — i
 @short A logo, an icon or a splash screen the firmware keeps as an ordinary image file: JPEG, PNG, GIF or BMP.
 
 Most of a firmware's pictures are the body of a raw [[term:section|section]]: the boot logo, the vendor's splash, the icons of the setup screen, often inside a compressed volume. Some vendors keep the boot logo outside every volume, in [[term:padding|padding]]. The [[topic:tool-uefi|UEFI tool]] recognises all four formats in both places and shows each picture as a row of its own, named by its format and size in pixels, for example `BMP 300×300` or `JPEG 800×480`.
+
+Some firmware keeps several pictures one after another in a single raw section — a set of splash screens, a set of icons. Such a body is read the way UEFITool reads it, as a raw area, and each picture becomes a row of the section.
+
 
 A picture is recognised by its opening bytes and taken only when its structure reads through to the end: a JPEG's segments to the end marker, a PNG's chunks to `IEND`, a GIF's blocks to the trailer, a BMP's header with the size it declares. That walk is also what gives its length, since none of the four states its length in one place.
 
@@ -289,7 +291,7 @@ What usually gives it away:
 
 Where an EC image begins — at the start of a padding block, of the map's **EC Firmware** region or of the descriptor's EC region — ByteRipper names the row after it and gives the image's size: an ITE image by the identification it carries after its signature block, for example **EC Firmware (ITE8380-EC-V1.43, 256 KB)** or **EC firmware (ITE8226-EC-V0.00, 172 KB)**, and an image with a `PHCM` header, which names neither chip nor version, as **PHCM image**; the details give the header's format, and the vendor is left unnamed. When a region of the [[term:flash-device-map|flash device map]] holds one image, the size is the one the map's entry gives, erased tail included: the entry is the firmware's own statement of the slot. Elsewhere, and in a region holding several images, whose entry gives the size of the whole region and not of any one image, an image runs to its last written byte. A block can hold several images, each on a 4 KiB boundary — the firmware of a second controller, or a second copy. Each then becomes a row of its own, named after its image and its size, for example **ITE8380-EC-V0.00, 192 KB**, while the block itself names none of them — **EC Firmware**, **EC region** or **EC firmware** — and the space between the images remains padding. An image that repeats an earlier one byte for byte is marked **(copy)**; whether the controller uses it as a backup is not documented.
 
-An ITE image does not have to open a padding block. On AMD boards the first padding block begins with the data of the [[term:psp|PSP]], and the EC firmware lies further in. The block stays as the structures around it define it and keeps its name; the image becomes a row inside it, between rows of padding for the bytes before and after it, for example **EC firmware (ITE8380-EC-V0.00, 108 KB)**. Its size runs to its last written byte; where the [[term:flash-device-map|flash device map]] names the region, the row covers the region within the bounds the map gives. A `PHCM` header is too short to be recognised away from the start of a block, so an image with that header is found only where a block or a region begins.
+An ITE image does not have to open a padding block. On AMD boards the first padding block holds both the data of the [[term:psp|PSP]] and the EC firmware, and the EC firmware may lie after that data or before it. The block stays as the structures around it define it and keeps its name; the image becomes a row inside it, between rows of padding for the bytes before and after it, for example **EC firmware (ITE8380-EC-V0.00, 108 KB)**. Its size runs to its last written byte, but no further than the first PSP directory that follows it: on boards where the EC firmware comes first, the PSP's data, AMD microcode included, is not part of the image. Where the [[term:flash-device-map|flash device map]] names the region, the row covers the region within the bounds the map gives. A `PHCM` header is too short to be recognised away from the start of a block, so an image with that header is found only where a block or a region begins.
 
 No known header states how long an image is. ByteRipper takes an image to extend to its last written byte before the next one, and a copy to be as long as the image it repeats; the size in a name is that length, rounded up to 4 KB. The detail list of an image row gives the vendor, the identification, the written length and, for a copy, the address of the original.
 

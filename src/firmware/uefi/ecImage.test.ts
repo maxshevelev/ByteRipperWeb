@@ -134,6 +134,29 @@ describe("EC images in a block", () => {
     ).toEqual(["ITE5507-SB-V0.67", "ITE8380-EC-V0.00"]);
   });
 
+  // An AMD board keeps the PSP's directories after its EC image in the same padding, as
+  // the G733PYV, GA403UU and GV302XV do: the image ends before the first, and what
+  // follows stays padding for the microcode scan to read.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testAnImageEndsBeforeAnAMDDirectory
+  it("ends an image before an AMD directory", () => {
+    const bytes = new Uint8Array(0x10000).fill(0xff);
+    bytes.set([0xaa, 0x55, 0xaa, 0x55], 0);
+    bytes.set(iteImage({ identification: "ITE EC-V14.6", length: 0x1000 }), 0x1000);
+    bytes.set(encodeUtf8("$PSP"), 0x5000);
+    bytes.fill(0x11, 0x5004, 0x5010);
+    bytes.fill(0x22, 0x9000, 0x9100);
+    bytes.set(volume({ length: 0x1000, lastFile: volumeTopFile() }), 0xf000);
+    const padding = parseUefiImage(sourceOver(bytes)).roots[0]?.children[0] as UEFINode;
+
+    expect(padding.name).toBe("Padding");
+    expect(padding.children.map((node) => node.name)).toEqual([
+      "Padding",
+      "EC firmware (ITE EC-V14.6)",
+      "Padding",
+    ]);
+    expect(ranges(padding.children)).toEqual([r(0, 0x1000), r(0x1000, 0x2000), r(0x2000, 0xf000)]);
+  });
+
   // One image at the block's start is the common case: the block is named by it,
   // keeps its length as a row would, and gets no rows.
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ECImageTests.swift#ECImageTests.testASingleImageAtTheStartAddsNoRows

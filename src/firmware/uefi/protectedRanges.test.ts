@@ -15,7 +15,7 @@ import {
 } from "@/firmware/testing/testBootGuard";
 import * as Test from "@/firmware/testing/testImage";
 import { BinaryWriter } from "@/firmware/testing/testImage";
-import { severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
+import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { guidEquals } from "@/firmware/uefi/efiGuid";
 import { DXE_CORE } from "@/firmware/uefi/knownGuids";
 import {
@@ -108,6 +108,24 @@ describe("the Boot Policy", () => {
     expect(placed(ranges)).toEqual([first, second, BootGuardImage.dxeVolume, pmda]);
     expect(verdicts(ranges)).toEqual(["matches", "matches", "matches", "matches"]);
     expect(ranges.diagnostics).toEqual([]);
+  });
+
+  // A Boot Policy row pointing at zeroes, as on a board whose Boot Guard was never
+  // provisioned (the GL703GE): no manifest is there, which is said as that and not as a
+  // manifest cut short (§4.1).
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#ProtectedRangesTests.testAPolicyRowPointingAtNoManifestSaysSo
+  it("says so when a policy row points at no manifest", () => {
+    const image = new BootGuardImage();
+    image.install(new Uint8Array(0x100));
+
+    const ranges = image.ranges;
+    expect(ranges.ranges).toEqual([]);
+    expect(ranges.diagnostics.map((one) => one.detail)).toEqual([
+      { kind: "notWhereNamed", structure: "bootPolicy" },
+    ]);
+    expect(ranges.diagnostics[0] && diagnosticMessage(ranges.diagnostics[0])).toBe(
+      "the FIT names a Boot Policy Manifest where there is none"
+    );
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/ProtectedRangesTests.swift#ProtectedRangesTests.testAV2ManifestStepsOverAnElementItDoesNotKnowAndChecksEveryDigest
