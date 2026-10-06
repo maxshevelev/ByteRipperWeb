@@ -1,4 +1,4 @@
-@source-sha 47e9a82bb9c2748ec080c3e72bdaf562b368ced30a6aa94195a11a0e52083190
+@source-sha 295151f08187f91da4ff8af629d67971964824c92a66994d1cea8fa85aa698c8
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -16,6 +16,18 @@ Die Zeile der **ME-Region** öffnet sich in dieselbe Analyse, die der [[topic:to
 **Die Schaltfläche in Form einer Zielscheibe im rechten Teil der Titelzeile** zeigt im Baum den Knoten unter der Einfügemarke im Dump — den Anfang einer Auswahl, wo es eine gibt. Sie öffnet die Zweige auf dem Weg; ein Zweig, der noch nicht decodiert ist, wird für die Anzeige decodiert, und die Anzeige kann so lange dauern wie das Lesen. Ausgewählt wird der innerste Knoten, dessen Bereich das Byte enthält. Ein Byte der ME-Region wird in einer Zeile ihres Unterbaums gezeigt; die Region wird für die Anzeige geöffnet, wenn sie noch nicht gelesen ist. Der Dump bewegt sich nicht: die Anzeige führt den Baum zum Byte, nicht das Byte zum Baum.
 
 Eine lange Tabelle in den Details — **PCH-Straps** in den Details des [[term:flash-descriptor|Flash Descriptors]] — ist zunächst unter ihrer Überschrift eingeklappt, damit der Rest der Details sichtbar bleibt. Ein Klick auf das Dreieck oder die Überschrift klappt sie auf; sie bleibt danach auch bei anderen Knoten aufgeklappt, bis das Programm beendet wird. In einer Tabelle führt nur ein Link weiter, und nur ein Klick auf den Link selbst. Der Text der Details — die Felder eines Knotens ebenso wie die Tabellen — wird wie jeder Text markiert: durch Ziehen über die Zeilen, ein Wort per Doppelklick, eine Zeile per Dreifachklick, die ganze Feldliste oder die ganze Tabelle mit ⌘A. ⌘C kopiert die Markierung mit einem Tabulator zwischen dem Namen eines Felds und seinem Wert oder zwischen den Zellen und einer Zeile je Zeile, sodass eine Tabellenkalkulation eine Tabelle als Tabelle übernimmt. **Kopieren** im Kontextmenü einer Zeile kopiert die Markierung oder, wenn nichts markiert ist, den Namen, den Wert oder die Zelle unter dem Zeiger. Ein Feldname, der nicht in seine Spalte passt, wird in der nächsten Zeile fortgesetzt.
+
+## Suche im Baum
+
+Die **Lupe** in der Titelzeile, links vom Filter, öffnet über dem Baum eine Suchleiste; [[key:find]] tut dasselbe, solange der Baum oder seine Details die Tastatur haben, und setzt den Cursor in das Textfeld. Ihre erste Zeile enthält den Suchtext und zwei Pfeile, die zweite einen **Typ** und, bei Dateien und Sections, einen **Subtyp**.
+
+Der Text wird ohne Beachtung der Groß- und Kleinschreibung an beliebiger Stelle im Namen eines Knotens und in seiner [[term:guid|GUID]] gesucht. Eine Datei wird über den Namen gefunden, den ihre Zeile zeigt, über ihren eigenen Namen und über ihre GUID, mit oder ohne Bindestriche. Typ und Subtyp sind die der Spalten **Typ** und **Subtyp**. Alles, was gesetzt ist, muss gleichzeitig zutreffen; ein Typ allein findet jeden Knoten dieses Typs.
+
+Die Pfeile — ebenso Return und Umschalt-Return im Textfeld — springen zum nächsten und zum vorherigen Treffer, in der Reihenfolge, in der der Baum seine Zeilen bei vollständig geöffneten Zweigen aufführt. Die Suche setzt beim letzten Treffer fort oder bei der Zeile, die seither ausgewählt wurde, und bleibt auf dieser Zeile nicht erneut stehen; wird der Zweig mit dem Treffer geschlossen, geht die Stelle nicht verloren. Am Ende angekommen, setzt sie am anderen Ende fort und zeigt dasselbe Zeichen wie eine Suche im Dump; trifft nichts zu, steht in der Leiste **Nicht gefunden**. Zeilen, die das Filtermenü ausblendet, sind keine Treffer. Ein noch nicht dekodierter Zweig wird unterwegs im Hintergrund dekodiert. Dauert die Suche spürbar, zeigt die zweite Zeile der Leiste dort, wo sonst **Nicht gefunden** steht, einen Fortschrittsbalken und daneben eine Taste, die die Suche abbricht.
+
+Der Treffer wird so ausgewählt, wie ein Klick darauf ihn auswählt: Details und Dump folgen. Die Suche öffnet die Zweige auf dem Weg zum Treffer und den Treffer selbst eine Ebene tief. Beim Weitergehen zum nächsten Treffer schließt sie wieder, was sie geöffnet hat und der neue Treffer nicht braucht, sodass der Baum in den Zustand vor der Suche zurückkehrt. Zweige, die der Benutzer geöffnet hat, bleiben unberührt. Öffnet oder schließt der Benutzer einen Zweig, während die Suche darauf steht, klickt er eine andere Zeile an, ändert er die Bedingung oder schließt er die Leiste, bleibt alles, wie es ist.
+
+Der Inhalt einer ME-Region wird nicht durchsucht: Der Unterbaum hat einen anderen Aufbau, den Name, GUID und Typ nicht beschreiben. Die Zeile der ME-Region selbst wird gefunden. Die Suchbedingungen sind in beiden Panels dieselben und bleiben beim erneuten Einlesen der Datei, beim Dateiwechsel und beim Neustart des Programms erhalten.
 
 ## Was das Werkzeug prüft
 
@@ -36,7 +48,6 @@ Ein vom Werkzeug erkanntes [[term:picture|Bild]] — JPEG, PNG, GIF oder BMP, im
 ## Audio
 
 Eine vom Werkzeug erkannte [[term:sound|Audiodatei]] — eine WAV-Datei, die dort liegt, wo die Sections einer Datei stünden — erscheint als eigene Zeile; wird sie ausgewählt, erscheint unter den Details ein Player. **Wiedergeben** startet die Wiedergabe und wird währenddessen zu **Pause**; **Stoppen** beendet sie und kehrt an den Anfang der Aufnahme zurück. Der Balken **Wiedergabeposition** wandert mit der Wiedergabe mit, und wer ihn zieht, springt an eine andere Stelle der Aufnahme; daneben stehen die abgespielte Zeit und die Gesamtdauer. Wiedergegeben werden die Bytes des Dumps in dem Zustand, in dem sie bei der Auswahl der Zeile waren, und zwar [[edition:vom Browser||von macOS]], nicht von der Platine. Die Wiedergabe endet, sobald eine andere Zeile ausgewählt oder das Panel geschlossen wird.
-
 
 ## Padding
 

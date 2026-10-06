@@ -23,6 +23,7 @@ import {
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
+import { setSearchOpen, setSearchQuery, uefiSearchStore } from "@/state/uefiSearchSettings";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
@@ -42,6 +43,7 @@ import {
   meRegionPath,
   useMeSubtree,
 } from "@/tools/uefi/meSubtree";
+import { UefiSearchBar } from "@/tools/uefi/UefiSearchBar";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import {
   type DecompressedExport,
@@ -63,6 +65,7 @@ import {
 } from "@/tools/uefi/uefiTopSwap";
 import { listed, nodeName, present, summary, wireLength } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
+import { useTreeSearch } from "@/tools/uefi/useTreeSearch";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import type { MenuEntry } from "@/ui/shell/menuModel";
@@ -359,6 +362,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.meFocus
    */
   const [meFocus, setMeFocus] = useState<string | undefined>(park?.meFocus);
+  const searchState = useStore(uefiSearchStore);
+  const openRef = useRef(open);
+  openRef.current = open;
+  /** The search's own hooks into what the reader does, filled in once the search is made. */
+  const searchCtl = useRef<{
+    forget(key: string): void;
+    readerChose(): void;
+    reset(forFile: boolean): void;
+  }>({ forget: () => undefined, readerChose: () => undefined, reset: () => undefined });
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
@@ -456,6 +468,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     setScrollTop(0);
     if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
     clearZones(context.pane);
+    // What the search opened was in the last file's tree.
+    searchCtl.current.reset(true);
   }, [reloads, context.pane]);
 
   /**
@@ -582,6 +596,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const toggle = useCallback(
     (node: WireNode) => {
       const key = pathKey(node.id);
+      // A row the reader opens or shuts is theirs from now on.
+      searchCtl.current.forget(key);
       if (open.has(key)) {
         wanted.current.delete(key);
         setOpen((current) => new Set([...current].filter((one) => one !== key)));
@@ -756,6 +772,76 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     },
     [context, roots]
   );
+
+  /**
+   * The name a row shows for a node: the one the search matches against too, so a node
+   * is found by the word it is read as.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.name
+   */
+  const shownName = (node: WireNode, from: readonly WireNode[]): string =>
+    nodeName(
+      {
+        kind: node.kind,
+        subtype: node.subtype,
+        name: node.name,
+        guid: node.guid === undefined ? undefined : guidFromText(node.guid),
+        children: node.children,
+        length: wireLength(node),
+        namedImageLength: node.namedImageLength,
+        topSwap: wireTopSwapRole(node, topSwapCopy, from)?.kind,
+        dvarValue:
+          node.dvarValue === undefined
+            ? undefined
+            : {
+                length: node.dvarValue.length,
+                number:
+                  node.dvarValue.number === undefined ? undefined : BigInt(node.dvarValue.number),
+              },
+        valueRow: node.valueRow,
+        dvarSettings: state?.dvarSettings,
+      },
+      catalogue.catalogue
+    );
+
+  /**
+   * The tree's search: the walk over the rows, the branches it reads on the way, and what it
+   * opened and owes a closing.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.search
+   */
+  const meRegionKey = useMemo(() => {
+    const path = meRegionPath(roots ?? []);
+    return path === undefined ? undefined : pathKey(path);
+  }, [roots]);
+  const nameRef = useRef(shownName);
+  nameRef.current = shownName;
+  const treeSearch = useTreeSearch({
+    pane: context.pane,
+    query: searchState.query,
+    showsEmptyPadding,
+    showsSuperseded,
+    nameOf: (node, from) => nameRef.current(node, from),
+    selected:
+      presented.title !== undefined && selected === pathKey(presented.title.id)
+        ? undefined
+        : selected,
+    meRegionKey: meFocus === undefined ? undefined : meRegionKey,
+    setOpen,
+    isOpen: (key) => openRef.current.has(key),
+    landOn: (node, from) => {
+      choose(node, from);
+      setScrollTarget(pathKey(node.id));
+    },
+  });
+
+  searchCtl.current = treeSearch;
+
+  // The bar shut: the search is over, and what it opened is the reader's from here.
+  const { reset: resetSearch } = treeSearch;
+  useEffect(() => {
+    if (!searchState.isOpen) resetSearch(false);
+  }, [searchState.isOpen, resetSearch]);
 
   /**
    * A click on a row of a detail table that names bytes which are not one node — a
@@ -1199,6 +1285,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       const index = rows.findIndex((row) => row.key === focused);
       /** A row of either half is picked by the half it belongs to. */
       const pick = (row: Row) => {
+        searchCtl.current.readerChose();
         if (row.me !== undefined) chooseMe(row.me);
         else if (row.node !== undefined) choose(row.node);
         else return false;
@@ -1341,7 +1428,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const meShown = meFocus === undefined ? undefined : meNodeAt(meRoots, meFocus);
 
   return (
-    <div className="uefi-tool">
+    <div
+      className={`uefi-tool${searchState.isOpen ? " has-search" : ""}`}
+      data-uefi-search-scope=""
+    >
       <div className="uefi-title-row">
         {title === undefined ? (
           <span className="uefi-title">
@@ -1366,11 +1456,29 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             className="uefi-title"
             data-selected={selected === titleKey ? "" : undefined}
             title={L("Show the whole image in the dump")}
-            onClick={() => choose(title)}
+            onClick={() => {
+              searchCtl.current.readerChose();
+              choose(title);
+            }}
           >
             {summary(state.roots, state.protectedRanges?.ranges.length ?? 0)}
           </button>
         )}
+        {/* The search: a magnifier left of the filter, the same quiet icon. */}
+        {/* help: panel.uefi.search */}
+        <button
+          type="button"
+          className={`uefi-search-toggle${searchState.isOpen ? " is-open" : ""}`}
+          onClick={() => setSearchOpen(!searchState.isOpen)}
+          title={L("Look for a node by its name, its GUID or its type")}
+          aria-label={L("Search the tree")}
+          aria-pressed={searchState.isOpen}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="6.8" cy="6.8" r="4.4" />
+            <path d="M10.2 10.2 14 14" />
+          </svg>
+        </button>
         {/* What the tree leaves out — empty padding, the copies later entries
             replaced — as a menu under one icon, tinted while the tree lists anything it
             leaves out by default, so a longer tree than usual says why. */}
@@ -1416,6 +1524,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           </svg>
         </button>
       </div>
+
+      {searchState.isOpen ? (
+        <UefiSearchBar
+          query={searchState.query}
+          status={treeSearch.status}
+          showsMeNote={meRegionKey !== undefined}
+          focusToken={searchState.focusToken}
+          onQuery={setSearchQuery}
+          onSearch={(direction) => void treeSearch.search(direction)}
+          onStop={treeSearch.stop}
+        />
+      ) : null}
 
       <div
         className="tool-split"
@@ -1478,43 +1598,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   key={row.key}
                   row={row}
                   index={first + offset}
-                  named={
-                    row.node === undefined
-                      ? ""
-                      : nodeName(
-                          {
-                            kind: row.node.kind,
-                            subtype: row.node.subtype,
-                            name: row.node.name,
-                            guid:
-                              row.node.guid === undefined ? undefined : guidFromText(row.node.guid),
-                            children: row.node.children,
-                            length: wireLength(row.node),
-                            namedImageLength: row.node.namedImageLength,
-                            topSwap: wireTopSwapRole(row.node, topSwapCopy, roots ?? [])?.kind,
-                            dvarValue:
-                              row.node.dvarValue === undefined
-                                ? undefined
-                                : {
-                                    length: row.node.dvarValue.length,
-                                    number:
-                                      row.node.dvarValue.number === undefined
-                                        ? undefined
-                                        : BigInt(row.node.dvarValue.number),
-                                  },
-                            valueRow: row.node.valueRow,
-                            dvarSettings: state?.dvarSettings,
-                          },
-                          catalogue.catalogue
-                        )
-                  }
+                  named={row.node === undefined ? "" : shownName(row.node, roots ?? [])}
                   marks={row.me?.marks ?? (row.node === undefined ? undefined : marksOf(row.node))}
                   showsMarkings={showsMarkings}
                   showsEmptyPadding={showsEmptyPadding}
                   isOpen={open.has(row.key)}
                   isSelected={(selectedRowKey ?? meFocus) === row.key}
                   onToggle={toggle}
-                  onChoose={choose}
+                  onChoose={(node) => {
+                    searchCtl.current.readerChose();
+                    choose(node);
+                  }}
                   onToggleMe={toggleMe}
                   onChooseMe={chooseMe}
                   onMenu={(event, node) => {

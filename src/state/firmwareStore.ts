@@ -484,6 +484,30 @@ export function expandFirmwareNode(pane: PaneId, path: readonly number[]): void 
 }
 
 /**
+ * Reads a branch and says when it is read: the search goes on from there. Resolves at
+ * once for a branch that is read, one that is gone or an image that is not ready.
+ *
+ * @web-only the search waits for a branch the worker reads, where upstream passes a completion
+ */
+export function expandFirmwareNodeAndWait(pane: PaneId, path: readonly number[]): Promise<void> {
+  const unread = (): boolean => {
+    const current = firmwareFor(pane);
+    if (current === undefined || current.status !== "ready") return false;
+    const node = firmwareNodeAt(current.roots, path);
+    return node !== undefined && node.isExpandable;
+  };
+  if (!unread()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = firmwareStore.subscribe(() => {
+      if (unread()) return;
+      stop();
+      resolve();
+    });
+    expandFirmwareNode(pane, path);
+  });
+}
+
+/**
  * Where the image is mapped, worked out only when something asks.
  *
  * Finding the anchor means walking to the last Volume Top File, and every panel

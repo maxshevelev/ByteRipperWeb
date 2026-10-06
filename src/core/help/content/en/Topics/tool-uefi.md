@@ -10,6 +10,7 @@
 @covers panel.uefi.sound-player
 @covers panel.uefi.superseded-entries
 @covers panel.uefi.filter
+@covers panel.uefi.search
 @covers panel.uefi.variable-history
 @covers panel.uefi.folding-table
 @covers panel.uefi.table-copy
@@ -31,6 +32,18 @@ The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyz
 **The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree.
 
 A long table in the details — **PCH straps** in the details of the [[term:flash-descriptor|flash descriptor]] — is folded under its heading at first, so that the rest of the details remains in view. A click on the triangle or on the heading unfolds it; it then stays unfolded on other nodes until the app is quit. In a table only a link leads anywhere, and only a click on the link itself. The text of the details — the fields of a node as well as the tables — is selected as any text is: by dragging across rows, a word by a double click, a row by a triple click, the whole list of fields or the whole table by ⌘A. ⌘C copies the selection with a tab between a field's name and its value or between cells, and a line per row, so that a spreadsheet receives a table as a table. **Copy** in the context menu of a row copies the selection or, when nothing is selected, the name, value or cell under the pointer. A field name too long for its column continues on the next line.
+
+## Searching the tree
+
+The **magnifier** in the title row, left of the filter, opens a search bar above the tree; [[key:find]] does the same while the tree or its details have the keyboard, and puts the cursor in the text field. Its first line holds the text to look for and two arrows; the second holds a **Type** and, for files and sections, a **Subtype**.
+
+The text is looked for anywhere in a node's name and in its [[term:guid|GUID]], whatever the case. A file is found by the name its row shows, by its own name and by its GUID, with the dashes or without them. Type and subtype are those of the **Type** and **Subtype** columns. Whatever is set must hold at once; a type alone finds every node of that type.
+
+The arrows go to the next and the previous match — as do Return and Shift-Return in the text field — in the order in which the tree lists its rows with everything open. The search goes on from the last match, or from the row selected since, and does not stop on that row again; shutting the branch a match is in does not lose the place. When it reaches the end it goes on from the other end and shows the same sign as a search in the dump does; when nothing matches, the bar says **Not found**. Rows the filter menu leaves out are not matches. A branch not decoded yet is decoded on the way, in the background. A search that takes longer than a moment shows a progress bar in the bar's second line, where **Not found** would appear, with a button beside it that stops the search.
+
+The match is selected as a click on it would select it: the details and the dump follow. The search opens the branches on the way to the match, and the match itself one level down. When it goes on to the next match it shuts again what it opened and the new match does not need, so that the tree returns to the state it had before the search. A branch the reader opened is not touched. A branch the reader opens or shuts while the search stands on it, a click on another row, a changed query or a closed bar leave everything as it is.
+
+The contents of an ME region are not searched: the sub-tree has another structure, which a name, a GUID and a type do not describe. The row of the ME region itself is found. What is asked for is the same in both panels, and it is kept through a re-read of the file, a change of file and a restart of the app.
 
 ## What the tool checks
 

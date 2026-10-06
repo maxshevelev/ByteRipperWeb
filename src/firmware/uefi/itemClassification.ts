@@ -70,6 +70,17 @@ export function itemType(node: UEFINode): number {
 }
 
 /**
+ * The item-type code of a node of this kind, for a caller that holds the kind and not the
+ * node — the panel's copy of the tree.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIItemClassification.swift#UEFINode.uefiItemType
+ * @upstream-differs by kind alone, which is all the classification reads
+ */
+export function itemTypeOfKind(kind: string): number | undefined {
+  return (ITEM_TYPE_OF_KIND as Readonly<Record<string, number | undefined>>)[kind];
+}
+
+/**
  * The subtype code, when the node has one. Nothing where there is nothing to
  * say: free space, and the Intel microcode, which is one kind and no more.
  *

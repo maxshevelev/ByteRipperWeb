@@ -120,7 +120,8 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
  * with the mark in it. A copy wears the sign of the button that made it, drawn
  * from the same shapes the button is, in their own 16-unit box.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.symbolName
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/SearchWrapSigns.swift#SearchWrapSigns.forward
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/SearchWrapSigns.swift#SearchWrapSigns.backward
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.useSelectionForFind
  * @upstream-differs inline SVG in place of named system symbols, so there is no fallback to choose
  */

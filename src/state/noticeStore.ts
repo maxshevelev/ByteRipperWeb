@@ -173,6 +173,7 @@ export function dismissNotice(animated = true): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showWrapNotice
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wrapForwardGlyph
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.wrapBackwardGlyph
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/SearchWrapSigns.swift#SearchWrapSigns.sign
  */
 export function showWrapNotice(direction: "forward" | "backward"): void {
   showNotice(direction === "forward" ? "wrapForward" : "wrapBackward", []);

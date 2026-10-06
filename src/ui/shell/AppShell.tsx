@@ -62,6 +62,7 @@ import {
   zoneSelected,
 } from "@/state/toolController";
 import { forgetTransientMessage, showTransientMessage } from "@/state/transientMessageStore";
+import { keyboardIsInTreePanel, openTreeSearch } from "@/state/uefiSearchSettings";
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
@@ -885,6 +886,13 @@ export function AppShell() {
       switch (chord) {
         case "f":
           event.preventDefault();
+          // With the keyboard in the UEFI tree or its details ⌘F is the tree's search; with
+          // it anywhere else it is the dump's Find.
+          // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findPattern
+          if (keyboardIsInTreePanel(target instanceof Element ? target : null)) {
+            openTreeSearch();
+            return;
+          }
           openSearch();
           focusFindInput();
           return;
@@ -1100,6 +1108,10 @@ export function AppShell() {
    * @upstream-differs ⌘E is folded into ⌘F rather than ported as an action of its own; the toolbar's Find button is not this command, but the switch above
    */
   const openFind = useCallback(() => {
+    if (keyboardIsInTreePanel(document.activeElement)) {
+      openTreeSearch();
+      return;
+    }
     // biome-ignore lint/correctness/useHookAtTopLevel: not a hook — it takes the selection out of the dump, which is what upstream calls the command
     void useSelectionForFind().then(showFindBar);
   }, [showFindBar]);

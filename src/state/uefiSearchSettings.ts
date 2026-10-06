@@ -22,6 +22,8 @@ export interface UEFISearchState {
   readonly query: UEFITreeQuery;
   /** Whether the bar is open: the reader opens it from the tree's header, and it stays so. */
   readonly isOpen: boolean;
+  /** Moves on each time the field is asked to take the keyboard (Edit ▸ Find in the tree). */
+  readonly focusToken: number;
 }
 
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.textKey */
@@ -32,7 +34,7 @@ export const SEARCH_KEY = "byteripper.uefiSearch";
  * shape. A code is a number, and "none" is no number at all.
  */
 export function parseSearchState(stored: string | null): UEFISearchState {
-  const empty: UEFISearchState = { query: EMPTY_QUERY, isOpen: false };
+  const empty: UEFISearchState = { query: EMPTY_QUERY, isOpen: false, focusToken: 0 };
   if (stored === null) return empty;
   try {
     const value = JSON.parse(stored) as {
@@ -51,6 +53,7 @@ export function parseSearchState(stored: string | null): UEFISearchState {
         subtype: hasSubtypes(type) ? code(value.subtype) : undefined,
       },
       isOpen: value.isOpen === true,
+      focusToken: 0,
     };
   } catch {
     return empty;
@@ -61,7 +64,7 @@ function stored(): UEFISearchState {
   try {
     return parseSearchState(localStorage.getItem(SEARCH_KEY));
   } catch {
-    return { query: EMPTY_QUERY, isOpen: false };
+    return { query: EMPTY_QUERY, isOpen: false, focusToken: 0 };
   }
 }
 
@@ -102,3 +105,25 @@ export function setSearchOpen(isOpen: boolean): void {
     return next;
   });
 }
+
+/**
+ * Edit ▸ Find with the keyboard in the tree or its details: the tree's search, not the
+ * dump's. The bar opens and the cursor goes to the field.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findPattern
+ */
+export function openTreeSearch(): void {
+  uefiSearchStore.update((current) => {
+    const next = { ...current, isOpen: true, focusToken: current.focusToken + 1 };
+    remember(next);
+    return next;
+  });
+}
+
+/**
+ * Whether the keyboard is in the tree's panel, where ⌘F is the tree's search.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findPattern
+ */
+export const keyboardIsInTreePanel = (element: Element | null): boolean =>
+  element?.closest("[data-uefi-search-scope]") != null;
