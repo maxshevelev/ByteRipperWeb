@@ -428,7 +428,9 @@
         "FlashVendors.swift": "src/firmware/uefi/flashVendors.ts",
         "BIOSIdentifier.swift": "src/firmware/uefi/biosIdentifier.ts",
         "AppleROMInformation.swift": "src/firmware/uefi/appleRomInformation.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/FirmwareTextBlockTests.swift": "src/firmware/uefi/firmwareTextBlock.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/FirmwareTextBlockTests.swift": "src/firmware/uefi/firmwareTextBlock.test.ts",
+        "UEFIImage/AMDMicrocode.swift": "src/firmware/uefi/amdMicrocode.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/AMDMicrocodeTests.swift": "src/firmware/uefi/amdMicrocode.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -781,7 +783,8 @@
           "src/ui/toolPanel/pictureBackground.ts",
           "src/ui/toolPanel/ToolDetail.tsx"
         ],
-        "Sources/UEFIToolUI/DetailTableView.swift": "src/ui/toolPanel/ToolDetail.tsx"
+        "Sources/UEFIToolUI/DetailTableView.swift": "src/ui/toolPanel/ToolDetail.tsx",
+        "Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",

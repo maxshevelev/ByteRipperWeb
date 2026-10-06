@@ -326,6 +326,30 @@ describe("a section", () => {
   });
 });
 
+/** @upstream Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift#AMDMicrocodeDisplayTests */
+describe("an AMD microcode", () => {
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/AMDMicrocodeDisplayTests.swift#AMDMicrocodeDisplayTests.testTheDetailsSayWhatThePatchIs
+  it("says what the patch is", () => {
+    // A Cezanne patch, as `SPI_EF6018_128Mbit.*` carries it, at 0x1000.
+    const bytes = new Uint8Array(0x4000).fill(0x11);
+    bytes.set([0x23, 0x20, 0x07, 0x07, 0x0f, 0x00, 0x50, 0x0a, 0x05, 0x80, 0, 0], 0x1000);
+    bytes.fill(0, 0x100c, 0x1018);
+    bytes.set([0x00, 0xa5, 0, 0, 0, 0, 0, 0], 0x1018);
+    const image = parseUefiImage(sourceOver(bytes));
+    const patch = image.allNodes.find((one) => one.kind === "amdMicrocode") as UEFINode;
+    const detail = buildNodeDetail(patch, image, readerOver(bytes), []);
+
+    expect(value(detail, "Kind")).toBe("AMD microcode");
+    expect(value(detail, "Date")).toBe("2023-07-07");
+    expect(value(detail, "CPUID")).toBe("00A50F00");
+    expect(value(detail, "Revision")).toBe("0xA50000F");
+    expect(value(detail, "Loader ID")).toBe("0x8005");
+    // A patch tied to no chipset says none.
+    expect(value(detail, "North bridge")).toBeUndefined();
+    expect(uefiHelpTerm(patch)).toBe("microcode");
+  });
+});
+
 describe("a microcode", () => {
   const node = makeNode({
     kind: "microcode",

@@ -1,4 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
+import { readingAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
 import { parseCapsule } from "@/firmware/uefi/capsuleParser";
 import { hasDescriptorSignature, parseIntelImage } from "@/firmware/uefi/descriptorParser";
 import { DVAR, parseDvarStore } from "@/firmware/uefi/dvarParser";
@@ -173,9 +174,13 @@ export function scanRawArea(
   // whether or not a signature announced itself.
   parser.progressed(range.end);
   nodes.push(...parser.padding(claimed, range.end, emptyByte));
-  return readingECFirmwareIn(
+  return readingAMDMicrocode(
     parser,
-    readingFITComponents(parser, readingMapRegions(parser, nodes, emptyByte, depth), emptyByte),
+    readingECFirmwareIn(
+      parser,
+      readingFITComponents(parser, readingMapRegions(parser, nodes, emptyByte, depth), emptyByte),
+      emptyByte
+    ),
     emptyByte
   );
 }

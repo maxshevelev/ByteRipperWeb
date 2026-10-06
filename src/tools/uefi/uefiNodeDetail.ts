@@ -1,5 +1,6 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { amdCpuID, amdMicrocodeDate, readAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
 import { readAppleROMInformation, searchLimit } from "@/firmware/uefi/appleRomInformation";
 import { readBIOSIdentifier } from "@/firmware/uefi/biosIdentifier";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
@@ -975,6 +976,36 @@ function headerFields(
           ).map((one) => field(one.label, one.value, one.isProblem))
         );
       }
+      break;
+    }
+
+    // A header with nothing to check it by: what it says, and the CPUID spelled out
+    // the way AMD's patch files are named.
+    case "amdMicrocode": {
+      const patch = readAMDMicrocode(h, node.body.end, reader);
+      if (patch === undefined) break;
+      fields.push(field("Date", amdMicrocodeDate(patch)));
+      fields.push(
+        field(
+          "CPUID",
+          amdCpuID(patch.processorSignature).toString(16).toUpperCase().padStart(8, "0")
+        )
+      );
+      fields.push(field("Processor signature", hex(patch.processorSignature)));
+      fields.push(field("Revision", hex(patch.updateRevision)));
+      fields.push(field("Loader ID", hex(patch.loaderID)));
+      if (patch.northBridgeVendor !== 0 || patch.northBridgeDevice !== 0) {
+        fields.push(
+          field("North bridge", `${hex(patch.northBridgeVendor)}:${hex(patch.northBridgeDevice)}`)
+        );
+      }
+      if (patch.southBridgeVendor !== 0 || patch.southBridgeDevice !== 0) {
+        fields.push(
+          field("South bridge", `${hex(patch.southBridgeVendor)}:${hex(patch.southBridgeDevice)}`)
+        );
+      }
+      fields.push(field("BIOS API revision", hex(patch.biosAPIRevision)));
+      fields.push(field("Load control", hex(patch.loadControl)));
       break;
     }
 

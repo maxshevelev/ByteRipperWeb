@@ -400,6 +400,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   file: "FFS file",
   section: "Section",
   microcode: "Microcode",
+  amdMicrocode: "AMD microcode",
   // The NVRAM stores and entries read as their item-type word, so the fallback
   // name and the Type column can never drift apart.
   vssStore: typeName(ItemType.vssStore),

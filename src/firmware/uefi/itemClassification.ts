@@ -24,6 +24,7 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   file: ItemType.file,
   section: ItemType.section,
   microcode: ItemType.intelMicrocode,
+  amdMicrocode: ItemType.amdMicrocode,
   vssStore: ItemType.vssStore,
   vss2Store: ItemType.vss2Store,
   ftwStore: ItemType.ftwStore,
@@ -91,6 +92,7 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "section":
       return node.subtype;
     case "microcode":
+    case "amdMicrocode":
       return undefined;
     // A store is one kind and no more: its type byte is the item type, and the
     // entry subtypes live on the children, not on the store.

@@ -136,6 +136,12 @@ export type UEFINodeKind =
    */
   | "picture"
   /**
+   * An AMD microcode patch read out of padding (`UEFI_IMAGE_FORMAT.md` §7.2): no
+   * signature, a header whose fields all check out. Its own type to UEFITool, as Intel's
+   * is.
+   */
+  | "amdMicrocode"
+  /**
    * The x86 Startup AP data EDK2's GenFv writes into the pad file before the
    * Volume Top File: a far jump the application processors start at. It is code
    * at a fixed address, so it does not move.
