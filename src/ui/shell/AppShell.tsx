@@ -2360,7 +2360,7 @@ export function AppShell() {
         }
       >
         {panes.length === 0 ? (
-          <EmptyState onOpen={() => void open()} />
+          <EmptyState onOpen={() => void open()} onOpenRecent={openRecentFile} />
         ) : lone !== undefined ? (
           // One file open: the workspace's own drop zones, and the pane behind
           // them wearing none — the bands a drop lands in belong to the halves,

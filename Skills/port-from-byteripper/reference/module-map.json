@@ -2127,7 +2127,8 @@
         "ByteRipperTests/WordSizeTests.swift": "tests/e2e",
         "ByteRipperTests/ZoneSketchFlowTests.swift": "tests/e2e",
         "ByteRipperTests/ZoomTests.swift": "tests/e2e",
-        "ByteRipperTests/ZoomToFitTests.swift": "tests/e2e"
+        "ByteRipperTests/ZoomToFitTests.swift": "tests/e2e",
+        "ByteRipperTests/EmptyStateRecentFilesTests.swift": "tests/e2e"
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",

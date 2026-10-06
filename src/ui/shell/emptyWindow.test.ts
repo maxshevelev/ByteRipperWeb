@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hexAddress } from "@/core/text/hexText";
-import { bookmarkHeading, bookmarkRows, windowTitle } from "@/ui/shell/emptyWindow";
+import { bookmarkHeading, bookmarkRows, leftSection, windowTitle } from "@/ui/shell/emptyWindow";
 
 /** What an empty window is for — upstream's `EmptyStateBookmarksTests`. */
 
@@ -58,5 +58,24 @@ describe("the workspace's title", () => {
 
   it("names both files of a comparison", () => {
     expect(windowTitle({ a: "good.bin", b: "bad.bin" }, 0)).toBe("good.bin ↔ bad.bin");
+  });
+});
+
+describe("the empty window's left half", () => {
+  // @upstream ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testNoRecentFilesMeansNoSection
+  it("has no section without recent files or marks", () => {
+    expect(leftSection(0, 0)).toBeUndefined();
+  });
+
+  // @upstream ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testRecentFilesAreListedInOrder
+  it("lists the recent files when there are no marks", () => {
+    expect(leftSection(0, 2)).toBe("recents");
+  });
+
+  // @upstream ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testBookmarksTakeThePlaceOfTheRecentFiles
+  // @upstream ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testBookmarksWinWhateverTheOrder
+  it("gives the place to the marks, and back to the recent files when the last mark goes", () => {
+    expect(leftSection(1, 1)).toBe("bookmarks");
+    expect(leftSection(0, 1)).toBe("recents");
   });
 });

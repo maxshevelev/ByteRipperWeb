@@ -14,6 +14,7 @@ const {
   Menu,
   net,
   protocol,
+  screen,
   session,
   shell,
 } = require("electron");
@@ -124,10 +125,22 @@ function fileFor(requestUrl) {
   return file.startsWith(WEB_ROOT) ? file : undefined;
 }
 
+/**
+ * The tallest a window may open: three quarters of its screen's usable height, so a launch
+ * never fills the screen top to bottom.
+ *
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.maxLaunchHeight
+ * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.launchHeight
+ */
+function launchHeight(standard) {
+  const usable = screen.getPrimaryDisplay().workAreaSize.height;
+  return Math.min(standard, Math.floor(usable * 0.75));
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1400,
-    height: 900,
+    height: launchHeight(900),
     title: "ByteRipper",
     backgroundColor: "#ffffff",
     webPreferences: {

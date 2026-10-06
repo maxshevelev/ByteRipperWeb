@@ -5,6 +5,7 @@ import { releaseSummary } from "@/core/updates/releaseNotes";
 import type { Release } from "@/core/updates/releases";
 import { saveNotice } from "@/platform/files/capabilities";
 import { bookmarksStore } from "@/state/bookmarksStore";
+import { recentFilesStore } from "@/state/recentFilesStore";
 import {
   checkForNewerRelease,
   offerUpdate,
@@ -14,7 +15,7 @@ import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { appNameAndVersion } from "@/ui/shell/appVersion";
-import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
+import { bookmarkHeading, bookmarkRows, leftSection } from "@/ui/shell/emptyWindow";
 
 /**
  * What the window says before it has been given anything: a large icon that
@@ -50,8 +51,17 @@ import { bookmarkHeading, bookmarkRows } from "@/ui/shell/emptyWindow";
  * status and nothing at all about where the bytes go; the landing screen is the
  * one place with no file open, which is where both belong
  */
-export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
+export function EmptyState({
+  onOpen,
+  onOpenRecent,
+}: {
+  readonly onOpen: () => void;
+  /** A row of the recent files was clicked: the index into File ▸ Open Recent's list. */
+  readonly onOpenRecent: (index: number) => void;
+}) {
   const { bookmarks } = useStore(bookmarksStore);
+  const recent = useStore(recentFilesStore).rows;
+  const left = leftSection(bookmarks.length, recent.length);
   const { capabilities } = useStore(workspaceStore);
 
   return (
@@ -86,12 +96,11 @@ export function EmptyState({ onOpen }: { readonly onOpen: () => void }) {
           notes stand alone. */}
       <div
         className={
-          bookmarks.length > 0
-            ? "empty-state-bottom empty-state-bottom--split"
-            : "empty-state-bottom"
+          left !== undefined ? "empty-state-bottom empty-state-bottom--split" : "empty-state-bottom"
         }
       >
         <BookmarkSection bookmarks={bookmarks} />
+        {left === "recents" ? <RecentFilesSection rows={recent} onOpen={onOpenRecent} /> : null}
         <ReleaseNotes />
       </div>
     </div>
@@ -195,6 +204,46 @@ function ReleaseNotes() {
       {/* help: shell.empty-state.release-notes */}
       <h2 className="empty-state-release-notes-heading">{heading}</h2>
       <p className="empty-state-release-notes-body">{info.text}</p>
+    </section>
+  );
+}
+
+/**
+ * The recent files, on the bottom row's left: the same list as File ▸ Open Recent, put
+ * where a window with nothing in it is looking — the usual next step is to open what was
+ * open yesterday. One row a file, most recent first, a click opens it in the active pane.
+ * The bookmarks take the place when the window has any.
+ *
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.makeRecentSection
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.setRecentFiles
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.openRecentRow
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentRowTitle
+ * @upstream-differs a row is the file's name alone: the page never sees the folder it came from
+ */
+function RecentFilesSection({
+  rows,
+  onOpen,
+}: {
+  readonly rows: readonly { readonly name: string }[];
+  readonly onOpen: (index: number) => void;
+}) {
+  return (
+    <section className="empty-state-recent" aria-label={L("Recent Files")}>
+      {/* help: shell.empty-state.recent-files */}
+      <h2 className="empty-state-recent-heading">{L("Recent Files")}</h2>
+      <div className="empty-state-recent-list">
+        {rows.map((row, index) => (
+          <button
+            key={row.name}
+            type="button"
+            className="empty-state-recent-row"
+            title={L("Open “%1$@”", row.name)}
+            onClick={() => onOpen(index)}
+          >
+            {row.name}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

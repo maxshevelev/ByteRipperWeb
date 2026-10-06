@@ -305,6 +305,52 @@ textarea,
   margin-top: 0;
 }
 
+/* The recent files, the same half the marks take when there are any. */
+.empty-state-recent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  align-self: start;
+  min-width: 0;
+}
+
+.empty-state-recent-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.empty-state-recent-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.empty-state-recent-row {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.empty-state-recent-row:hover {
+  text-decoration: underline;
+}
+
 /* The marks, one half of the bottom: a different subject from the landing
    screen, so the air above now belongs to the row that holds it. */
 .empty-state-bookmarks {

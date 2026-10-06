@@ -1,4 +1,4 @@
-@source-sha d90d8c7e13b142c87293c9baa3fd8c777d4c70d74f44a046caaa5cdba4bce1d6
+@source-sha 0ac16394777f0833d68e604b7d57e3ea75435798ce97836a595e62d5fa383ee6
 # Wofür ByteRipper da ist
 
 > Ein Hex-Editor für Firmware-Images, aufgebaut um den Vergleich zweier Dumps an gleichen Adressen.
@@ -25,7 +25,7 @@ Das ist Absicht. Ein Flash-Dump hat eine feste Aufteilung, in der eine Adresse e
 
 ## Was der Startbildschirm zeigt
 
-In einem Fenster ohne geöffnete Datei zeigt der Startbildschirm unter der Version den ersten Absatz der Notizen des zuletzt veröffentlichten Releases: des laufenden Builds oder eines neueren Releases, wenn eines veröffentlicht wurde. Hat das Fenster Lesezeichen, stehen sie links und die Release-Notizen rechts. Die vollständigen Notizen stehen auf der Seite des Releases auf github.com.
+In einem Fenster ohne geöffnete Datei zeigt der Startbildschirm unter der Version den ersten Absatz der Notizen des zuletzt veröffentlichten Releases: des laufenden Builds oder eines neueren Releases, wenn eines veröffentlicht wurde. Links neben den Release-Notizen steht die Liste der zuletzt geöffneten Dateien — [[edition:die Dateien, die zuvor geöffnet wurden und auf die dieser Browser noch einen Verweis hält, in den Browsern, die einen solchen halten können||dieselbe wie unter **Ablage ▸ Benutzte Dokumente**]]; ein Klick auf eine Zeile öffnet die Datei. Hat das Fenster Lesezeichen, nehmen sie diesen Platz ein. Die vollständigen Notizen stehen auf der Seite des Releases auf github.com.
 
 ## Zu diesem Handbuch
 

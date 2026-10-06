@@ -4,6 +4,7 @@
 
 @covers shell.empty-state
 @covers shell.empty-state.release-notes
+@covers shell.empty-state.recent-files
 @covers menu.help.book
 @covers toolbar.help
 
@@ -29,7 +30,7 @@ This is a deliberate property. A flash dump has a fixed layout in which an addre
 
 ## What the landing screen shows
 
-On a window with no file open, below the version, the landing screen shows the opening paragraph of the notes of the newest published release: of the build running, or of a newer release when one has been published. When the window has bookmarks, they stand to the left and the release notes to the right. The complete notes are on the release's page on github.com.
+On a window with no file open, below the version, the landing screen shows the opening paragraph of the notes of the newest published release: of the build running, or of a newer release when one has been published. To the left of the release notes stand the recent files — [[edition:the files opened before that this browser still holds a reference to, in the browsers that can keep one||the same list as **File ▸ Open Recent**]]; one click on a row opens the file. When the window has bookmarks, they take that place instead. The complete notes are on the release's page on github.com.
 
 ## Reaching this book
 

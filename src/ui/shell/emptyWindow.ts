@@ -17,6 +17,21 @@ export function bookmarkHeading(count: number): string {
   return count === 1 ? L("1 Bookmark Here:") : L("%1$@ Bookmarks Here:", String(count));
 }
 
+/**
+ * Which of the two lists the bottom row's left half holds: the marks when the window has
+ * any — they are this window's own, the recent files are the app's — the recent files
+ * otherwise, and nothing when there are neither.
+ *
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.refreshLeftSections
+ */
+export function leftSection(
+  bookmarkCount: number,
+  recentCount: number
+): "bookmarks" | "recents" | undefined {
+  if (bookmarkCount > 0) return "bookmarks";
+  return recentCount > 0 ? "recents" : undefined;
+}
+
 export interface BookmarkListRow {
   /** The dump's address shape: bare digits, no `0x`. */
   readonly address: string;
