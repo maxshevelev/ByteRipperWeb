@@ -3211,7 +3211,7 @@ button.uefi-title {
 }
 
 .uefi-row[data-selected] {
-  background: var(--selection);
+  background: var(--selection-strong);
 }
 
 /* A grafted ME row standing for a section that holds nothing: the whole row
@@ -3820,7 +3820,7 @@ button.uefi-title {
 }
 
 .fit-row[data-selected] {
-  background: var(--selection);
+  background: var(--selection-strong);
 }
 
 /* The backup's rows read quieter: they are there to be compared, and nothing on
@@ -4195,7 +4195,7 @@ button.uefi-title {
 }
 
 .me-row[data-selected] {
-  background: var(--selection);
+  background: var(--selection-strong);
 }
 
 .me-tree-head > span,
@@ -4311,6 +4311,18 @@ button.uefi-title {
   background-image: none;
 }
 
+/* The selected row of a tool panel's table is the system's saturated blue with white text,
+   inverted as upstream's tables draw it: a pale wash does not stand out from the tints
+   that mark the protected ranges. Everything in the row takes the text colour — the muted
+   columns, the links, the marks' glyphs, which are drawn in the current colour. */
+:is(.uefi-row, .fit-row, .me-row, .microcode-row)[data-selected] {
+  color: var(--selection-strong-text);
+}
+
+:is(.uefi-row, .fit-row, .me-row, .microcode-row)[data-selected] :is(span, td, a, button, svg) {
+  color: inherit;
+}
+
 /* The rail: three points at the leading edge, drawn over the selection too,
    because where a row's bytes live does not stop being true when the row is
    picked. An inset shadow paints above the backgrounds, so it needs no layer
@@ -4396,7 +4408,7 @@ button.uefi-title {
 }
 
 .microcode-row[data-selected] {
-  background: var(--selection);
+  background: var(--selection-strong);
 }
 
 /* A pre-release is worth telling apart before it goes into a board. */
