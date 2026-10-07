@@ -245,6 +245,7 @@ workspaceStore.subscribe(() => {
  * @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet
  */
 export interface BlockingOperation {
+  /** @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.operation */
   readonly operation: BackgroundOperation;
   /** @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.titleLabel */
   readonly title: string;
@@ -252,6 +253,12 @@ export interface BlockingOperation {
   readonly name: string;
   /** @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.progressBar */
   readonly progress: number;
+  /**
+   * The bar has nothing to measure: it runs rather than fills.
+   *
+   * @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.loadView
+   */
+  readonly isIndeterminate: boolean;
 }
 
 export const blockingOperationStore = createStore<BlockingOperation | undefined>(undefined);
@@ -264,8 +271,12 @@ export const blockingOperationStore = createStore<BlockingOperation | undefined>
  * One at a time, as a sheet is: presenting a second replaces the first.
  *
  * @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.present
+ * @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.init
  */
 export function presentBlocking(title: string, operation: BackgroundOperation): void {
+  // Finished before it was up: nothing left to show.
+  // @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.viewDidLoad
+  if (!operation.isActive) return;
   const patch = (change: Partial<BlockingOperation>) =>
     blockingOperationStore.update((shown) =>
       shown?.operation === operation ? { ...shown, ...change } : shown
@@ -276,6 +287,7 @@ export function presentBlocking(title: string, operation: BackgroundOperation): 
     title,
     name: operation.name,
     progress: operation.progress,
+    isIndeterminate: operation.isIndeterminate,
   }));
   operation.onProgress = (progress) => patch({ progress });
   operation.onRename = (name) => patch({ name });

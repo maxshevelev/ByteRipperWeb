@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BackgroundOperation,
   beginOperation,
+  blockingOperationStore,
   DEFAULT_OPERATION_DEBOUNCE_MS,
   endOperation,
   operationStore,
+  presentBlocking,
   presentOnActivePane,
 } from "@/state/operationStore";
 import { setActivePane } from "@/state/workspaceStore";
@@ -142,5 +144,34 @@ describe("the strip", () => {
 
     expect(shown("a")).toBeUndefined();
     expect(shown("b")).toMatchObject({ operation, revealed: true });
+  });
+});
+
+describe("the window's blocking operation", () => {
+  // @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testCancellingTheUpdateSheetWritesNothing
+  it("follows its operation and goes when it finishes", () => {
+    const operation = new BackgroundOperation("Reading", () => {});
+    presentBlocking("Updating", operation);
+    expect(blockingOperationStore.getSnapshot()?.title).toBe("Updating");
+    operation.rename("Writing");
+    operation.report(0.5);
+    expect(blockingOperationStore.getSnapshot()).toMatchObject({ name: "Writing", progress: 0.5 });
+    operation.finish();
+    expect(blockingOperationStore.getSnapshot()).toBeUndefined();
+  });
+
+  // @upstream ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.viewDidLoad
+  it("shows nothing for an operation that finished before it was up", () => {
+    const operation = new BackgroundOperation("Quick", () => {});
+    operation.finish();
+    presentBlocking("Updating", operation);
+    expect(blockingOperationStore.getSnapshot()).toBeUndefined();
+  });
+
+  it("says when its bar has nothing to measure", () => {
+    const operation = new BackgroundOperation("Adding", () => {}, true);
+    presentBlocking("Adding a microcode", operation);
+    expect(blockingOperationStore.getSnapshot()?.isIndeterminate).toBe(true);
+    operation.finish();
   });
 });

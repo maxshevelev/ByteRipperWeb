@@ -1036,6 +1036,7 @@
 "Open Decompressed Variable" = "Entpackte Variable öffnen";
 "The variable does not decompress." = "Die Variable lässt sich nicht entpacken.";
 "There is nothing decompressed to open here." = "Hier ist nichts Entpacktes zum Öffnen.";
+"Cancelling…" = "Wird abgebrochen…";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

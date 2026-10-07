@@ -4387,9 +4387,7 @@
       "files": {
         "ByteRipperApp/Window/BlockingOperationSheet.swift": ""
       },
-      "unported": {
-        "ByteRipperApp/Window/BlockingOperationSheet.swift#*": "later — an operation that blocks its pane runs under a sheet upstream; the web edition shows it in the pane's own strip (src/ui/pane/OperationStrip.tsx), which has no sheet and no Esc. Update in Parent, the operation that uses it today, is not ported (G4 in Design/GAPS.md)"
-      }
+      "unported": {}
     },
     {
       "swift": "ByteRipperApp/Window/EmptyStateView",
