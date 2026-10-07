@@ -99,6 +99,9 @@ export default defineConfig(({ mode, command }) => {
       // `// @vitest-environment jsdom`, and brings the dependency with it.
       environment: "node",
       include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+      // The stylesheet is read as text by the suite that checks what a bench can select
+      // (`detailSelection.test.tsx`); every other stylesheet stays out of the run.
+      css: { include: [/\/src\/app\/app\.css/] },
       // A timeout is here to catch a test that hangs, not a machine that is
       // busy. Nearly every test in this suite is instantaneous, but a handful
       // do real work — LZMA at its maximum level, the SHA-384 and SHA-512

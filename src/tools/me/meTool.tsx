@@ -969,7 +969,7 @@ function uniqueKeys(texts: readonly string[]): string[] {
 }
 
 /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showSummary */
-function SummaryView({
+export function SummaryView({
   blocks,
   scrollRef,
 }: {
