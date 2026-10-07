@@ -58,6 +58,8 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   amdEFS: ItemType.padding,
   amdDirectory: ItemType.padding,
   amdFirmwareEntry: ItemType.padding,
+  biosGuardUpdate: ItemType.padding,
+  biosGuardEntry: ItemType.padding,
   padding: ItemType.padding,
   freeSpace: ItemType.freeSpace,
   // Data nobody claimed is a run of bytes with a type, not a structure, so it
@@ -151,6 +153,8 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "amdEFS":
     case "amdDirectory":
     case "amdFirmwareEntry":
+    case "biosGuardUpdate":
+    case "biosGuardEntry":
       return paddingSubtype(node);
     case "freeSpace":
     case "nonUEFIData":

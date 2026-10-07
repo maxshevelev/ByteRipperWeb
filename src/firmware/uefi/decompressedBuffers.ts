@@ -1,6 +1,7 @@
 import { sourceOver } from "@/firmware/byteSource";
 import type { DecompressionFailure } from "@/firmware/compression/firmwareDecompression";
 import { type ImageRange, ImageReader } from "@/firmware/imageReader";
+import { biosGuardLayout, biosGuardRegion } from "@/firmware/uefi/biosGuardUpdate";
 import { type ByteSpace, spaceKey } from "@/firmware/uefi/byteSpace";
 import {
   type CompressionAlgorithm,
@@ -105,6 +106,24 @@ export class DecompressedBuffers {
         parent = new ImageReader(sourceOver(held.bytes));
         parentSpace = key;
         outerRange = held.fileRange;
+        continue;
+      }
+      // Not a compressed section but the same kind of space: the BIOS region a BIOS Guard
+      // update's blocks make up, assembled rather than decoded (`BIOSGuardUpdate`).
+      const update = biosGuardLayout(parent, offset);
+      if (update.ok) {
+        const region = biosGuardRegion(update.layout, parent);
+        if (region === undefined) {
+          return {
+            ok: false,
+            problem: { section: offset, space: parentSpace, failure: { kind: "truncated" } },
+          };
+        }
+        const fileRange = outerRange ?? { start: outermost, end: update.layout.end };
+        this.store(spaceKey(key), region, fileRange);
+        parent = new ImageReader(sourceOver(region));
+        parentSpace = key;
+        outerRange = fileRange;
         continue;
       }
       const located = locateCompressedSection(offset, parent);

@@ -174,6 +174,19 @@ Listed by the tool on purpose: it is what tells you whether a module could be ad
 
 @see term:padding
 
+@term bios-guard-update
+@name AMI BIOS Guard update file
+@short A manufacturer's BIOS update for a board with Intel BIOS Guard: the BIOS region in signed blocks, preceded by a table that names its parts.
+
+On a board with Intel BIOS Guard the BIOS region is written by the chipset rather than by the BIOS itself, and only in blocks the manufacturer has signed. AMI's flasher takes the update as a file of such blocks. AMI's own name for the format is PFAT; ASUS ships the file under the model and the BIOS version, for example `X1704VAPF.306`. The file starts with a table that divides the region into named entries — `FV_MAIN_WRAPPER`, `NVRAM`, `OA_TABLE` — and gives for each the flasher's switch (`/P`, `/N`, `/OA`) and the number of blocks it consists of. Each block holds its data, the script the chipset runs to write it, and the manufacturer's signature.
+
+The [[topic:tool-uefi|UEFI tool]] shows such a file as one row, `AMI BIOS Guard update`, over the table and the blocks. Its details give the platform the blocks are for, their number, the size of the region and the table itself. Opened, the row shows the BIOS region formed by the blocks' data placed one after another, entry by entry; each entry opens onto the volumes it holds, as a BIOS region does. The region is assembled from the file and is not stored in it as one piece: **Open Assembled BIOS Region** and **Save Assembled BIOS Region as…** in the row's context menu provide it as a file, and the items of the rows inside it call the bytes decompressed, as for a compressed section. What the manufacturer places after the blocks — on ASUS files a volume holding an [[term:me|ME]] update image — is shown as rows beside the update.
+
+The content of the file is read and not written back: the blocks are signed, and **Update in Parent** refuses a change inside the region. The BIOS region of a dump is compared with such a file by **Compare with PFAT Update File…** in the context menu of the region's row. The layout of the file is not published; it was established from an ASUS update file compared with a dump of the same board. The scripts and the signatures are not verified.
+
+@see term:bios-region
+@see term:volume
+
 @term amd-psp
 @name AMD PSP directories
 @short How the flash of an AMD board is laid out for the Platform Security Processor: the Embedded Firmware Structure, the PSP and BIOS directories, and the firmware they list.
@@ -193,7 +206,6 @@ What is not checked: the signatures on the PSP's firmware — the keys are AMD's
 @see term:microcode
 @see term:padding
 
-
 @term gpnv
 @name GPNV store
 @short AMI's store in which ASUS keeps what the factory wrote of the machine: serial numbers, the model, the Windows key — the DMI area of a repair bench.
@@ -206,7 +218,6 @@ ASUS and AMI have not published the layout; it was read off two ASUS dumps. The 
 
 @see term:nvram
 @see term:padding
-
 
 @term sound
 @name Sound
@@ -234,7 +245,6 @@ To UEFITool the block is padding, and the Type column says so.
 @see term:boot-guard
 @see term:padding
 
-
 @term padding
 @name Padding
 @short Space between structures that nobody wrote to.
@@ -254,7 +264,6 @@ Where the data turns out to be a picture — a JPEG boot logo, for example — i
 Most of a firmware's pictures are the body of a raw [[term:section|section]]: the boot logo, the vendor's splash, the icons of the setup screen, often inside a compressed volume. Some vendors keep the boot logo outside every volume, in [[term:padding|padding]]. The [[topic:tool-uefi|UEFI tool]] recognises all four formats in both places and shows each picture as a row of its own, named by its format and size in pixels, for example `BMP 300×300` or `JPEG 800×480`.
 
 Some firmware keeps several pictures one after another in a single raw section — a set of splash screens, a set of icons. Such a body is read the way UEFITool reads it, as a raw area, and each picture becomes a row of the section.
-
 
 A picture is recognised by its opening bytes and taken only when its structure reads through to the end: a JPEG's segments to the end marker, a PNG's chunks to `IEND`, a GIF's blocks to the trailer, a BMP's header with the size it declares. That walk is also what gives its length, since none of the four states its length in one place.
 
@@ -481,7 +490,6 @@ Each update carries its CPU signature, a revision number and a date in its heade
 
 AMD keeps microcode in the firmware image as well, with no FIT to point at it: on the AMD boards at hand each patch lies in the area whose layout only the PSP's directories describe, which reads as [[term:padding|padding]]. The tool reads those directories ([[term:amd-psp|AMD PSP directories]]): every patch they list is a `MICROCODE_PATCH` row, on Zen 4 and later with a header of 0x100 bytes of its own in front of the patch. An AMD patch's header has no signature, so the tool recognises it as UEFITool does — by every field holding a value AMD writes: a date, a loader version, AMD's vendor ID or none — and shows it as a row inside the padding, named by its CPUID and revision, for example `AMD microcode A50F00, revision A50000F`. The header does not state the patch's length; it follows from the processor family, and a patch of a family the tool does not know is not recognised.
 
-
 @see term:fit
 @see term:amd-psp
 @see topic:recipe-microcode
@@ -690,5 +698,4 @@ Not an error. Vendors put their own data in firmware images all the time, and an
 A region that should consist of volumes and reads as non-UEFI data is, however, a corrupted region.
 
 The same name is given to what is left of a file's body once it stops reading as [[term:section|sections]] — a section size of zero, or one larger than what is left — and to what is left of a volume once a file header declares more than the volume holds. UEFITool reads both the same way. A [[term:sound|sound]] kept where a file's sections would be is shown as a row inside such data.
-
 

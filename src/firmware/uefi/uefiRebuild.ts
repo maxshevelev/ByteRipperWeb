@@ -546,6 +546,11 @@ class Context {
       }
       return newSpace;
     }
+    if (section.kind === "biosGuardUpdate") {
+      throw new Refusal(
+        `“${section.name}” is a BIOS region assembled from signed blocks. It is read here, and not written back: the blocks are the vendor's, and their signatures cannot be made again.`
+      );
+    }
     if (section.kind === "amdFirmwareEntry") {
       throw new Refusal(
         `“${section.name}” is the BIOS image the PSP inflates. It is read here, and not compressed again: what the PSP accepts in its place is not known.`
@@ -581,7 +586,9 @@ class Context {
     return this.image.allNodes.find(
       (node) =>
         sameSpace(node.space, parent) &&
-        (node.kind === "section" || node.kind === "amdFirmwareEntry") &&
+        (node.kind === "section" ||
+          node.kind === "amdFirmwareEntry" ||
+          node.kind === "biosGuardUpdate") &&
         node.header.start === last &&
         node.compression !== undefined
     );

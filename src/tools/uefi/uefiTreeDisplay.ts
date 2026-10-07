@@ -499,6 +499,8 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   amdEFS: L("Embedded Firmware Structure"),
   amdDirectory: L("AMD firmware directory"),
   amdFirmwareEntry: L("AMD firmware entry"),
+  biosGuardUpdate: L("BIOS Guard update"),
+  biosGuardEntry: L("BIOS Guard entry"),
   picture: L("Picture"),
   sound: L("Sound"),
   flashDeviceMapStore: typeName(ItemType.insydeFlashDeviceMapStore),

@@ -992,6 +992,40 @@
 "“%1$@” is no longer open, so there is nothing to put “%2$@” back into." = "«%1$@» больше не открыт, поэтому записывать «%2$@» некуда.";
 "“%1$@” is not hex — use pairs like DE AD BE EF." = "«%1$@» не является шестнадцатеричной записью — используйте пары вида DE AD BE EF.";
 
+"%1$@ (%2$@ blocks)" = "%1$@ (блоков: %2$@)";
+"%1$@ bytes differ" = "Отличается байт: %1$@";
+"%1$@ bytes written in %2$@ parts." = "Записано байт: %1$@, областей: %2$@.";
+"%1$@ of %2$@ parts identical. To write: %3$@ parts, %4$@ bytes. Kept as they are: %5$@." = "Совпадает областей: %1$@ из %2$@. К записи: областей — %3$@, байт — %4$@. Остаются без изменений: %5$@.";
+"%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@–%5$@." = "%1$@: обновление AMI BIOS Guard для %2$@, блоков: %3$@. BIOS-регион этого дампа: %4$@–%5$@.";
+"Block %1$@ of the update file does not read as a block." = "Блок %1$@ файла обновления не читается как блок.";
+"Board data; %1$@ bytes differ" = "Данные платы; отличается байт: %1$@";
+"Board data; empty in the update" = "Данные платы; в обновлении пусто";
+"Compare with PFAT Update File" = "Сравнение с файлом обновления PFAT";
+"Compare with PFAT Update File…" = "Сравнить с файлом обновления PFAT…";
+"Could not compare with the update file" = "Не удалось сравнить с файлом обновления";
+"Could not write from the update file" = "Не удалось записать из файла обновления";
+"Identical" = "Совпадает";
+"Only the BIOS region is compared. An update file carries no descriptor, and an ME image it may carry is an update image, not the region." = "Сравнивается только BIOS-регион. Дескриптора в файле обновления нет, а образ ME, если он там есть, — это образ обновления, а не регион.";
+"The update file carries a BIOS region of %1$@ bytes, and the BIOS region of this dump is %2$@ bytes. It is not an update for this board." = "Файл обновления содержит BIOS-регион размером %1$@ байт, а BIOS-регион этого дампа — %2$@ байт. Это обновление не для этой платы.";
+"The update file ends inside block %1$@." = "Файл обновления обрывается внутри блока %1$@.";
+"The update file lists no blocks." = "В таблице файла обновления нет ни одного блока.";
+"This is not an AMI BIOS Guard update file." = "Это не файл обновления AMI BIOS Guard.";
+"Write from Update File" = "Запись из файла обновления";
+"Write the ticked parts from the update file into the dump, as one undo step" = "Записать отмеченные области из файла обновления в дамп одним шагом отмены";
+"Write this part from the update file" = "Записать эту область из файла обновления";
+"Written from the update file" = "Записано из файла обновления";
+"action|Write" = "Записать";
+"BIOS Guard entry" = "Область BIOS Guard";
+"BIOS Guard update" = "Обновление BIOS Guard";
+"BIOS region" = "BIOS-регион";
+"Blocks" = "Блоки";
+"Offset in the region" = "Адрес в регионе";
+"Open Assembled BIOS Region" = "Открыть собранный BIOS-регион";
+"Platform" = "Платформа";
+"Save Assembled BIOS Region as…" = "Сохранить собранный BIOS-регион как…";
+"Switch" = "Ключ";
+"Update table" = "Таблица обновления";
+
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.
    Переведены здесь (G66); общие строки выше — из каталога macOS слово в слово. */

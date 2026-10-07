@@ -18,13 +18,14 @@
 @covers panel.detail-select
 @covers panel.uefi.variable-value
 @covers panel.uefi.reveal
+@covers panel.uefi.compare-update
 @covers panel.uefi.map-regions
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
 ## The tree
 
-The top level is the layout of the chip itself. On an Intel platform that is the [[term:flash-descriptor|flash descriptor]] and the [[term:region|regions]] it defines — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Inside the BIOS region are [[term:volume|firmware volumes]], within those [[term:ffs-file|FFS files]], and within those [[term:section|sections]]. An AMD board has no descriptor: the top level is its volumes and the padding between them, and in that padding the tree shows the [[term:amd-psp|PSP's directories]] and every piece of firmware they list. A branch is decoded when it is opened rather than in advance.
+The top level is the layout of the chip itself. On an Intel platform that is the [[term:flash-descriptor|flash descriptor]] and the [[term:region|regions]] it defines — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Inside the BIOS region are [[term:volume|firmware volumes]], within those [[term:ffs-file|FFS files]], and within those [[term:section|sections]]. An AMD board has no descriptor: the top level is its volumes and the padding between them, and in that padding the tree shows the [[term:amd-psp|PSP's directories]] and every piece of firmware they list. A branch is decoded when it is opened rather than in advance. A manufacturer's [[term:bios-guard-update|AMI BIOS Guard update file]] has the update at the top, over its table and its signed blocks; opened, it shows the BIOS region the blocks make up, divided into the entries of the table, and each entry its volumes.
 
 The **Type** and **Subtype** columns name each node as the reference parser names it. The **Name** column gives a file the name its own Name section carries. A node without one is named by the community catalogue for its [[term:guid|GUID]] where the catalogue has a name, and by the GUID itself where it has none. The catalogue's name and a file's own name can differ — a vendor can give a GUID the catalogue knows to another module — and the details then show the catalogue's under **Name in the catalogue**.
 
@@ -61,6 +62,26 @@ Right-click a node:
 - **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
 
 A double click on a row does without the menu: it opens what the node holds as a fragment panel — for a compressed section its decompressed body, for any other node its body, and for a node with no body of its own, such as padding or free space, the node itself. A double click on the disclosure triangle only folds or unfolds the row.
+
+## Comparing with an update file
+
+**Compare with PFAT Update File…** in the context menu of the [[term:bios-region|BIOS region]] row compares that region with a manufacturer's update file and, where the two differ, writes the manufacturer's bytes into the dump. The file has to be an AMI BIOS Guard update (AMI's own name for the format is PFAT): on ASUS notebooks, the file named after the model and the BIOS version, such as `X1704VAPF.306`.
+
+Such a file holds the BIOS region as signed blocks, preceded by a table that divides the region into named parts — `FV_MAIN_WRAPPER`, `NVRAM`, `OA_TABLE` and others. The [[edition:dialog||sheet]] lists these parts with their address in the dump, their size and their state:
+
+- **Identical** — the dump holds the part exactly as the update does.
+- **… bytes differ** — the dump holds the part differently: a different BIOS version, a modification, or damage.
+- **Board data** — a part that the flasher's switch (`/N`, `/NB`, `/OA`) or the manufacturer's name (`AsusNVRAM`, `PEGA_GPNV`) identifies as NVRAM, the OA key area or the manufacturer's per-board store. The update holds the factory state of these parts, not this board's: the serial numbers, the UUID and the setup variables of this board are in the dump only; see [[topic:recipe-board-data|Data Unique to a Board]]. **Board data; empty in the update** means the update holds nothing in that part at all.
+
+A part that differs has a box in the **Write** column. When the [[edition:dialog||sheet]] opens, the parts that differ are ticked and board data is not. **Write** writes the ticked parts as one undo step, and only the bytes that differ, so the dump marks as modified exactly what changed. Selecting a row outlines the part in the dump and brings its first difference into view. On a file opened read-only the comparison is shown and **Write** is not available.
+
+The comparison is refused, with the reason, when the file is not such an update, and when the BIOS region the update carries differs in size from the BIOS region of the dump: such a file is not an update for this board.
+
+Only the BIOS region is compared. An update file carries no [[term:flash-descriptor|flash descriptor]], and an [[term:me-region|ME]] image it may carry is an update image whose layout differs from that of the region; neither is written.
+
+! Setup variables written by one BIOS version may not suit another. If the board does not start after its BIOS region was brought to another version with NVRAM kept, writing **NVRAM** from the update restores the factory settings.
+
+The layout of these files is not published. It was established from an ASUS update file compared with a dump of the same board: the blocks are placed one after another from the start of the region, in the order of the file. The signatures in the file are not verified.
 
 A [[term:picture|picture]] the tool recognises — a JPEG, PNG, GIF or BMP, in padding, in a raw section or in a freeform section — is a row of its own, and selecting it draws the picture under its details: as wide as the list at most and never larger than its own size in pixels. The preview is drawn from the bytes in the dump as they are, by the browser's own image decoder rather than the firmware's, so it shows what is stored, not exactly how the board will draw it. A format the browser cannot decode leaves the details without a preview. A thin frame marks where the picture ends, so a white or transparent logo does not disappear into the panel. A click on the picture changes what is behind it: the panel's own background, a checkerboard, or black (white with the dark appearance). A picture with transparency starts on the checkerboard, one without on the panel's background. In the [[topic:tools-overview|large view of the details]], which **Space** on the row opens, the picture is drawn larger, up to its own size in pixels.
 

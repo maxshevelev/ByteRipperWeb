@@ -1,6 +1,7 @@
 import type { ImageRange } from "@/firmware/imageReader";
 import { readingAMDFirmware } from "@/firmware/uefi/amdFirmware";
 import { readingAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
+import { parseBIOSGuardUpdate } from "@/firmware/uefi/biosGuardUpdate";
 import { parseCapsule } from "@/firmware/uefi/capsuleParser";
 import { hasDescriptorSignature, parseIntelImage } from "@/firmware/uefi/descriptorParser";
 import { DVAR, parseDvarStore } from "@/firmware/uefi/dvarParser";
@@ -35,8 +36,24 @@ export function parseTopLevel(parser: Parser, range: ImageRange, depth: number):
   }
 
   let top: UEFINode[];
-  const capsule = parseCapsule(parser, { offset: range.start, limit: range.end, depth });
-  if (capsule !== undefined) {
+  const update = parseBIOSGuardUpdate(parser, { offset: range.start, limit: range.end, depth });
+  const capsule =
+    update === undefined
+      ? parseCapsule(parser, { offset: range.start, limit: range.end, depth })
+      : undefined;
+  if (update !== undefined) {
+    // What a vendor puts after the blocks — on ASUS's files an Aptio capsule with an ME
+    // update in it — is read as any other bytes are.
+    top = [
+      update,
+      ...scanRawArea(
+        parser,
+        { start: nodeRange(update).end, end: range.end },
+        DEFAULT_EMPTY_BYTE,
+        depth
+      ),
+    ];
+  } else if (capsule !== undefined) {
     // A capsule claiming less than the file holds has something after it; the
     // trailing bytes stay as padding beside it.
     top = [capsule, ...parser.padding(nodeRange(capsule).end, range.end, DEFAULT_EMPTY_BYTE)];

@@ -110,8 +110,21 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
   const opened = children.some((child) => !sameSpace(child.space, node.space));
   const closed = node.compression?.decodes === true && node.isExpandable && children.length === 0;
   const holdsBuffer =
-    node.kind === "section" || (node.kind === "amdFirmwareEntry" && node.compression !== undefined);
+    node.kind === "section" ||
+    node.kind === "biosGuardUpdate" ||
+    (node.kind === "amdFirmwareEntry" && node.compression !== undefined);
   if (!holdsBuffer || !(opened || closed)) return undefined;
+  // A BIOS Guard update holds a BIOS region, assembled from its blocks rather than
+  // decompressed, and the items say which.
+  if (node.kind === "biosGuardUpdate") {
+    return {
+      space: [...node.space, node.header[0]],
+      layout: IMAGE_LAYOUT,
+      suggestedName: "BIOS region.bin",
+      saveTitle: L("Save Assembled BIOS Region as…"),
+      openTitle: L("Open Assembled BIOS Region"),
+    };
+  }
   // What came *out* of a section says so in its name. Without it the section opened as a
   // node and the same section's decompressed body arrive under one name —
   // `bios_LZMA Section.bin` twice — and the two hold entirely different bytes. A node with

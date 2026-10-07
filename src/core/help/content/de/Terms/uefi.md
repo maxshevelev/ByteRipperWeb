@@ -175,6 +175,19 @@ Das Werkzeug führt ihn mit Absicht auf: daran sieht man, ob noch ein Modul in e
 
 @see term:padding
 
+@term bios-guard-update
+@name Update-Datei für AMI BIOS Guard
+@short Ein BIOS-Update des Herstellers für eine Platine mit Intel BIOS Guard: die BIOS-Region in signierten Blöcken, davor eine Tabelle, die ihre Bereiche benennt.
+
+Auf einer Platine mit Intel BIOS Guard schreibt nicht das BIOS selbst die BIOS-Region, sondern der Chipsatz, und zwar nur in Blöcken, die der Hersteller signiert hat. Das Flash-Programm von AMI nimmt das Update als Datei aus solchen Blöcken entgegen. AMI selbst nennt das Format PFAT; ASUS liefert die Datei unter Modell und BIOS-Version aus, etwa `X1704VAPF.306`. Am Anfang der Datei steht eine Tabelle, die die Region in benannte Bereiche gliedert — `FV_MAIN_WRAPPER`, `NVRAM`, `OA_TABLE` — und zu jedem den Schalter des Flash-Programms (`/P`, `/N`, `/OA`) und die Zahl der Blöcke angibt, aus denen er besteht. Jeder Block enthält seine Daten, das Skript, mit dem der Chipsatz sie schreibt, und die Signatur des Herstellers.
+
+Das [[topic:tool-uefi|UEFI-Werkzeug]] zeigt eine solche Datei als eine Zeile `AMI BIOS Guard update`, die Tabelle und Blöcke umfasst. Ihre Details nennen die Plattform, für die die Blöcke bestimmt sind, deren Anzahl, die Größe der Region und die Tabelle selbst. Aufgeklappt zeigt die Zeile die BIOS-Region, die sich aus den hintereinandergelegten Daten der Blöcke ergibt, gegliedert nach den Bereichen der Tabelle; jeder Bereich lässt sich wie eine BIOS-Region zu seinen Volumes aufklappen. Die Region wird aus der Datei zusammengesetzt und ist darin nicht am Stück enthalten: **Zusammengesetzte BIOS-Region öffnen** und **Zusammengesetzte BIOS-Region sichern unter…** im Kontextmenü der Zeile liefern sie als Datei, und die Einträge der Zeilen darin nennen die Bytes entpackt, wie bei einer komprimierten Sektion. Was der Hersteller hinter die Blöcke legt — in den Dateien von ASUS ein Volume mit einem [[term:me|ME]]-Update-Image —, erscheint als Zeilen neben dem Update.
+
+Der Inhalt der Datei wird gelesen, aber nicht zurückgeschrieben: Die Blöcke sind signiert, und **In der Quelle aktualisieren** lehnt eine Änderung innerhalb der Region ab. Die BIOS-Region eines Dumps wird mit einer solchen Datei über **Mit PFAT-Update-Datei vergleichen…** im Kontextmenü der Zeile der Region verglichen. Der Aufbau der Datei ist nicht veröffentlicht; er wurde durch den Vergleich einer ASUS-Update-Datei mit einem Dump derselben Platine ermittelt. Skripte und Signaturen werden nicht geprüft.
+
+@see term:bios-region
+@see term:volume
+
 @term amd-psp
 @name AMD-PSP-Verzeichnisse
 @short Wie der Flash-Speicher einer AMD-Platine für den Platform Security Processor aufgeteilt ist: die Embedded Firmware Structure, die PSP- und BIOS-Verzeichnisse und die Firmware, die sie aufführen.
@@ -194,7 +207,6 @@ Nicht geprüft werden die Signaturen der PSP-Firmware — die Schlüssel gehöre
 @see term:microcode
 @see term:padding
 
-
 @term gpnv
 @name GPNV-Speicher
 @short Ein Speicher von AMI, in dem ASUS die im Werk geschriebenen Angaben zum Gerät ablegt: Seriennummern, Modell, Windows-Schlüssel. In der Werkstatt heißt er DMI-Bereich.
@@ -207,7 +219,6 @@ ASUS und AMI haben den Aufbau nicht veröffentlicht; er wurde aus zwei ASUS-Dump
 
 @see term:nvram
 @see term:padding
-
 
 @term sound
 @name Audio
@@ -235,7 +246,6 @@ Für UEFITool ist der Block Padding, und die Spalte „Typ“ weist ihn so aus.
 @see term:boot-guard
 @see term:padding
 
-
 @term padding
 @name Padding
 @short Raum zwischen Strukturen, in den nie jemand geschrieben hat.
@@ -255,7 +265,6 @@ Erweisen sich diese Daten als Bild — etwa als JPEG-Boot-Logo —, erhält es e
 Die meisten Bilder einer Firmware bilden den Datenteil einer Raw-[[term:section|Section]]: das Boot-Logo, der Startbildschirm des Herstellers, die Symbole des Setup-Bildschirms, häufig innerhalb eines komprimierten Volumes. Manche Hersteller legen das Boot-Logo außerhalb aller Volumes im [[term:padding|Padding]] ab. Das [[topic:tool-uefi|UEFI-Werkzeug]] erkennt alle vier Formate an beiden Stellen und zeigt jedes Bild als eigene Zeile, benannt nach Format und Größe in Pixeln, etwa `BMP 300×300` oder `JPEG 800×480`.
 
 Manche Firmware legt mehrere Bilder hintereinander in einer einzigen Raw-Section ab — eine Reihe von Startbildschirmen oder von Symbolen. Ein solcher Datenteil wird wie in UEFITool als Raw-Bereich gelesen, und jedes Bild wird zu einer Zeile der Section.
-
 
 Ein Bild wird an seinen Anfangsbytes erkannt und nur dann übernommen, wenn sich seine Struktur bis zum Ende lesen lässt: bei JPEG die Segmente bis zur Endmarke, bei PNG die Chunks bis `IEND`, bei GIF die Blöcke bis zum Abschlussbyte, bei BMP der Kopf samt der darin angegebenen Größe. Daraus ergibt sich zugleich die Länge, denn keines der vier Formate gibt sie an einer einzigen Stelle an.
 
@@ -482,7 +491,6 @@ Jedes Update trägt in seinem Header die CPU-Signatur, eine Revisionsnummer und 
 
 Auch AMD legt Microcode im Firmware-Image ab, jedoch ohne FIT: Auf den vorliegenden AMD-Platinen liegt jedes Update in dem Bereich, dessen Aufbau nur die Verzeichnisse des PSP beschreiben und der sich als [[term:padding|Padding]] liest. Das Werkzeug liest diese Verzeichnisse ([[term:amd-psp|AMD-PSP-Verzeichnisse]]): Jedes Update, das sie aufführen, ist eine Zeile `MICROCODE_PATCH`, ab Zen 4 mit einem eigenen Header von 0x100 Bytes vor dem Update. Der Header eines AMD-Updates hat keine Signatur; das Werkzeug erkennt ihn daher wie UEFITool daran, dass jedes Feld einen Wert enthält, den AMD schreibt — ein Datum, eine Loader-Version, die Hersteller-ID von AMD oder keine —, und zeigt das Update als Zeile innerhalb des Paddings, benannt nach CPUID und Revision, etwa `AMD microcode A50F00, revision A50000F`. Die Länge des Updates nennt der Header nicht; sie ergibt sich aus der Prozessorfamilie, und ein Update einer Familie, die das Werkzeug nicht kennt, wird nicht erkannt.
 
-
 @see term:fit
 @see term:amd-psp
 @see topic:recipe-microcode
@@ -691,5 +699,4 @@ Kein Fehler. Hersteller legen ständig Eigenes in Firmware-Images, und ein EC-Im
 Eine Region, die aus Volumes bestehen sollte und sich als Nicht-UEFI-Daten liest, ist dagegen eine beschädigte Region.
 
 Denselben Namen trägt der Rest des Datenteils einer Datei, sobald er sich nicht mehr als [[term:section|Sections]] liest — eine Section-Größe von null oder eine größere als der Rest —, und der Rest eines Volumes, sobald ein Datei-Header mehr angibt, als das Volume noch enthält. UEFITool liest beides ebenso. Eine [[term:sound|Audiodatei]], die dort liegt, wo die Sections einer Datei stünden, erscheint als Zeile innerhalb solcher Daten.
-
 

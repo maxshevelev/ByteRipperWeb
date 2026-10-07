@@ -992,6 +992,40 @@
 "“%1$@” is no longer open, so there is nothing to put “%2$@” back into." = "„%1$@“ ist nicht mehr geöffnet, es gibt also nichts, wohin „%2$@“ zurückkönnte.";
 "“%1$@” is not hex — use pairs like DE AD BE EF." = "„%1$@“ ist kein Hex — verwenden Sie Paare wie DE AD BE EF.";
 
+"%1$@ (%2$@ blocks)" = "%1$@ (%2$@ Blöcke)";
+"%1$@ bytes differ" = "%1$@ Bytes abweichend";
+"%1$@ bytes written in %2$@ parts." = "%1$@ Bytes in %2$@ Bereichen geschrieben.";
+"%1$@ of %2$@ parts identical. To write: %3$@ parts, %4$@ bytes. Kept as they are: %5$@." = "%1$@ von %2$@ Bereichen identisch. Zu schreiben: %3$@ Bereiche, %4$@ Bytes. Unverändert bleiben: %5$@.";
+"%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@–%5$@." = "%1$@: Update für AMI BIOS Guard, Plattform %2$@, %3$@ Blöcke. BIOS-Region dieses Dumps: %4$@–%5$@.";
+"Block %1$@ of the update file does not read as a block." = "Block %1$@ der Update-Datei lässt sich nicht als Block lesen.";
+"Board data; %1$@ bytes differ" = "Platinendaten; %1$@ Bytes abweichend";
+"Board data; empty in the update" = "Platinendaten; im Update leer";
+"Compare with PFAT Update File" = "Vergleich mit PFAT-Update-Datei";
+"Compare with PFAT Update File…" = "Mit PFAT-Update-Datei vergleichen…";
+"Could not compare with the update file" = "Vergleich mit der Update-Datei nicht möglich";
+"Could not write from the update file" = "Schreiben aus der Update-Datei nicht möglich";
+"Identical" = "Identisch";
+"Only the BIOS region is compared. An update file carries no descriptor, and an ME image it may carry is an update image, not the region." = "Verglichen wird nur die BIOS-Region. Eine Update-Datei enthält keinen Deskriptor, und ein ME-Image darin ist ein Update-Image, nicht die Region.";
+"The update file carries a BIOS region of %1$@ bytes, and the BIOS region of this dump is %2$@ bytes. It is not an update for this board." = "Die Update-Datei enthält eine BIOS-Region von %1$@ Bytes, die BIOS-Region dieses Dumps umfasst %2$@ Bytes. Es ist kein Update für diese Platine.";
+"The update file ends inside block %1$@." = "Die Update-Datei endet innerhalb von Block %1$@.";
+"The update file lists no blocks." = "Die Tabelle der Update-Datei nennt keinen Block.";
+"This is not an AMI BIOS Guard update file." = "Dies ist keine Update-Datei für AMI BIOS Guard.";
+"Write from Update File" = "Aus Update-Datei schreiben";
+"Write the ticked parts from the update file into the dump, as one undo step" = "Die markierten Bereiche aus der Update-Datei als einen Widerrufsschritt in den Dump schreiben";
+"Write this part from the update file" = "Diesen Bereich aus der Update-Datei schreiben";
+"Written from the update file" = "Aus der Update-Datei geschrieben";
+"action|Write" = "Schreiben";
+"BIOS Guard entry" = "BIOS-Guard-Bereich";
+"BIOS Guard update" = "BIOS-Guard-Update";
+"BIOS region" = "BIOS-Region";
+"Blocks" = "Blöcke";
+"Offset in the region" = "Offset in der Region";
+"Open Assembled BIOS Region" = "Zusammengesetzte BIOS-Region öffnen";
+"Platform" = "Plattform";
+"Save Assembled BIOS Region as…" = "Zusammengesetzte BIOS-Region sichern unter…";
+"Switch" = "Schalter";
+"Update table" = "Update-Tabelle";
+
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der
    Bibliotheksordner im Browser. Hier übersetzt (G66); die gemeinsamen Zeilen

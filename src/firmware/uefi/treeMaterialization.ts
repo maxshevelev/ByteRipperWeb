@@ -1,4 +1,5 @@
 import type { ImageReader } from "@/firmware/imageReader";
+import { biosGuardEntries } from "@/firmware/uefi/biosGuardUpdate";
 import { type ByteSpace, insideSection, isFileSpace } from "@/firmware/uefi/byteSpace";
 import { algorithmDisplayName, locateCompressedSection } from "@/firmware/uefi/compressedSection";
 import type { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
@@ -148,6 +149,7 @@ export function childrenOf(
       );
     }
     case "region":
+    case "biosGuardEntry":
       return located(
         scanRawArea(parser, node.body, DEFAULT_EMPTY_BYTE, node.childDepth),
         parser.diagnostics,
@@ -155,6 +157,7 @@ export function childrenOf(
       );
     case "section":
     case "amdFirmwareEntry":
+    case "biosGuardUpdate":
       return decompressedChildren(node, space.reader, reader, limits, buffers);
     default:
       // Nothing else is ever left collapsed, so this is unreachable in
@@ -204,7 +207,10 @@ function decompressedChildren(
   const buffer = read.reader;
 
   const diagnostics: UEFIDiagnostic[] = [];
-  const declared = locateCompressedSection(section.header.start, parentReader)?.declaredLength;
+  const declared =
+    section.kind === "biosGuardUpdate"
+      ? undefined
+      : locateCompressedSection(section.header.start, parentReader)?.declaredLength;
   if (declared !== undefined && declared !== buffer.count) {
     diagnostics.push(
       locatedIn(
@@ -220,14 +226,24 @@ function decompressedChildren(
   const parser = new Parser(buffer, limits);
   // A section's body is a run of sections; the BIOS image the PSP inflates is a stretch of
   // flash, its volumes and all.
-  const nodes =
-    section.kind === "section"
-      ? walkSections(parser, buffer.all, {
-          ffsVersion: 3,
-          emptyByte: DEFAULT_EMPTY_BYTE,
-          depth: section.childDepth,
-        })
-      : scanRawArea(parser, buffer.all, DEFAULT_EMPTY_BYTE, section.childDepth);
+  // A BIOS Guard update's region is the stretches its table names, each opened on its own —
+  // the table is read from the file, the stretches are in the region.
+  let nodes: UEFINode[];
+  if (section.kind === "section") {
+    nodes = walkSections(parser, buffer.all, {
+      ffsVersion: 3,
+      emptyByte: DEFAULT_EMPTY_BYTE,
+      depth: section.childDepth,
+    });
+  } else if (section.kind === "biosGuardUpdate") {
+    nodes = biosGuardEntries(
+      new Parser(parentReader, limits),
+      section.header.start,
+      section.childDepth
+    );
+  } else {
+    nodes = scanRawArea(parser, buffer.all, DEFAULT_EMPTY_BYTE, section.childDepth);
+  }
   diagnostics.push(...parser.diagnostics.map((one) => locatedIn(one, childSpace)));
   return { nodes: stamping(nodes, childSpace), diagnostics };
 }

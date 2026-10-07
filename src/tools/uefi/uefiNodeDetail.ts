@@ -3,6 +3,7 @@ import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { amdKindName } from "@/firmware/uefi/amdFirmware";
 import { amdCpuID, amdMicrocodeDate, readAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
 import { readAppleROMInformation, searchLimit } from "@/firmware/uefi/appleRomInformation";
+import { biosGuardLayout, regionSize } from "@/firmware/uefi/biosGuardUpdate";
 import { readBIOSIdentifier } from "@/firmware/uefi/biosIdentifier";
 import { outermostSection } from "@/firmware/uefi/byteSpace";
 import { type ChecksumRepair, volumeErasePolarityOf } from "@/firmware/uefi/checksumRepair";
@@ -747,6 +748,25 @@ function buildDetailRows(
       });
     }
   }
+  // A BIOS Guard update's table: what each entry is called, the flasher's switch for it, and
+  // where in the region it lies.
+  if (node.kind === "biosGuardUpdate") {
+    const read = biosGuardLayout(reader, node.header.start);
+    if (read.ok) {
+      tables.push({
+        title: L("Update table"),
+        symbol: "list.bullet.rectangle",
+        columns: [L("Name"), L("Switch"), L("Blocks"), L("Offset in the region"), L("Size")],
+        rows: read.layout.entries.map((entry) => [
+          cell(entry.name),
+          cell(entry.key),
+          cell(`${entry.blockCount}`),
+          cell(hex(entry.range.start)),
+          cell(hex(entry.range.end - entry.range.start)),
+        ]),
+      });
+    }
+  }
   // A store lists its records in force; a click on one opens it.
   if (node.kind === "gpnvStore") {
     const current = node.children.filter(
@@ -1426,6 +1446,22 @@ function headerFields(
     case "amdEFS":
     case "amdDirectory":
     case "amdFirmwareEntry":
+      break;
+
+    // Its header is the table; the platform and the count are what the blocks say of
+    // themselves. The table itself is read in `buildDetailRows`' caller.
+    case "biosGuardUpdate": {
+      const read = biosGuardLayout(reader, node.header.start);
+      if (read.ok) {
+        fields.push(field(L("Platform"), read.layout.platform));
+        fields.push(field(L("Blocks"), `${read.layout.blocks.length}`));
+        fields.push(field(L("BIOS region"), sizeText(regionSize(read.layout))));
+      }
+      break;
+    }
+
+    // A stretch of the assembled region, with no header of its own.
+    case "biosGuardEntry":
       break;
 
     case "gpnvStore": {

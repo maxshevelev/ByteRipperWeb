@@ -98,6 +98,9 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     case "amdDirectory":
     case "amdFirmwareEntry":
       return termId("amd-psp");
+    case "biosGuardUpdate":
+    case "biosGuardEntry":
+      return termId("bios-guard-update");
     case "sound":
       return termId("sound");
     case "fitComponent":
