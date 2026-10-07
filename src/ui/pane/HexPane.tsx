@@ -1941,6 +1941,8 @@ export function HexPane({
            * broken one where it is handled.
            *
            * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateLink
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkSymbolName
+           * @upstream-differs which of the two glyphs is showing is said by `data-state` on the button, which the glyph follows, rather than by the symbol's name kept beside its image
            * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkTapped
            * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
            */

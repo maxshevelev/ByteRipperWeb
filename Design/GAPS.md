@@ -87,9 +87,8 @@ Nothing open: the last row, G62, is in [Closed](#3-closed).
 
 ### 1.7 Accessibility
 
-| ID | Gap | Upstream | Size | Depends on | Priority | Status |
-|---|---|---|---|---|---|---|
-| G23 | **The dump announces** its title, the caret's address and the byte's value (today a fixed label); the minimap more than an `aria-label`. | `HexView.swift`, `MinimapView.swift` | ~5 | — | P2 | open |
+Nothing open: G23, the screen reader's announcements, was dropped (§2.1). Keyboard
+reachability, contrast in both themes and state carried by form as well as colour stay.
 
 ### 1.9 Help and languages (M13)
 
@@ -137,6 +136,7 @@ that nothing else in the workspace does yet.
 | Raw bytes on the pasteboard everywhere | The web clipboard carries text; see the adapted row below. | ANALYSIS.md § Clipboard |
 | Zone Sketch | Upstream's debug-only demonstration module. | module map |
 | The command-line front end | The web edition has no CLI. | module map |
+| What a screen reader is told about the dump and the minimap (G23): the dump's title with the file's name, the caret's offset, the selection and the row's bookmark as a live value, and the map's visible range and its help | The owner's decision (2026-10-07): a workshop tool, read by eye at a bench, where a screen reader is not used. Each keeps a fixed `aria-label`. Keyboard reachability, contrast in both themes and state carried by form as well as colour are not affected. | module map (`HexView.accessibility*`, `MinimapView.accessibility*`) |
 
 ### 2.2 Adapted — supported, differently
 

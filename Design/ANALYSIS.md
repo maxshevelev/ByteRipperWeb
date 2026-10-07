@@ -460,7 +460,8 @@ Each one ends with something a bench could actually use.
 9. **Settings and pattern library.** Preferences, themes, decoding tables,
    favourites with directory-based sync on Chromium and import/export elsewhere.
 10. **Hardening.** Benchmarks against the budget, cross-browser pass, empty and
-    error states, accessibility.
+    error states, accessibility (keyboard, contrast, form as well as colour; what a
+    screen reader is told about the canvas is dropped — `GAPS.md` §2.1).
 
 Rough size, for expectation-setting rather than estimation: ~41k lines of pure
 Swift become perhaps 30k lines of TypeScript, and 35k lines of AppKit become

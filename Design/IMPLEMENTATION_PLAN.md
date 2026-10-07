@@ -381,9 +381,9 @@ file is readable JSON.
    capability differs must say so in the interface.
 3. Error and empty states end to end: offline with no cached database, a stale
    `File` handle, a file that changed on disk, a permission the user declined.
-4. Accessibility: keyboard reachability for every command, the canvas's
-   accessible description of the caret position and document state, contrast in
-   both themes, state carried by form as well as colour.
+4. Accessibility: keyboard reachability for every command, contrast in both
+   themes, state carried by form as well as colour. (What a screen reader is told
+   about the canvas was dropped by the owner, 2026-10-07: `GAPS.md` §2.1.)
 5. Playwright flows for the paths a bench actually walks: open two dumps, find a
    difference, patch it, save; open an image, read its UEFI tree, fix a
    checksum; analyse an ME region offline.
