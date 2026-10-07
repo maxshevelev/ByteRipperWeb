@@ -14,7 +14,7 @@ level for a `later` entry.
 
 ## Units, smallest first
 
-- [ ] **W1 — small repairs** (`6b88064`, `ba5796c`, `7670b04`)
+- [x] **W1 — small repairs** (`6b88064`, `ba5796c`, `7670b04`)
   - `6b88064`: the Add Microcode platform column's header is looked up with a context.
     The web already writes `L("Plat", { context: "column" })` — check, and note it as
     brought across.

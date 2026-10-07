@@ -66,9 +66,17 @@ import {
   wireTopSwapRole,
   wireTopSwapTwin,
 } from "@/tools/uefi/uefiTopSwap";
-import { listed, nodeName, present, summary, wireLength } from "@/tools/uefi/uefiTreeDisplay";
+import {
+  isEmptyPadding,
+  listed,
+  nodeName,
+  present,
+  summary,
+  wireLength,
+} from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
 import { useTreeSearch } from "@/tools/uefi/useTreeSearch";
+import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
 import type { MenuEntry } from "@/ui/shell/menuModel";
@@ -384,6 +392,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMakingRoom
    */
   const [reservedRows, setReservedRows] = useState(0);
+  /**
+   * The reveal reached empty padding the tree hides: the way to it, while the reader is asked
+   * whether to show it.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.askToShowEmptyPadding
+   */
+  const [paddingQuestion, setPaddingQuestion] = useState<
+    { readonly path: readonly number[]; readonly crossedHalves: boolean } | undefined
+  >(undefined);
+  /** Moves on each time the reader or the search chooses a node, so a slower reveal can tell. */
+  const selectionEpoch = useRef(0);
   const openWithRoomRef = useRef<(key: string, immediately: boolean) => void>(() => undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
@@ -720,6 +739,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    */
   const chooseMe = useCallback(
     (node: MEANode) => {
+      selectionEpoch.current += 1;
       setMeFocus(meKey(node.path));
       setSelected(undefined);
       publishZones(context.pane, meaZones(node));
@@ -823,6 +843,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const choose = useCallback(
     (node: WireNode, from: readonly WireNode[] | undefined = roots) => {
       const key = pathKey(node.id);
+      selectionEpoch.current += 1;
       setSelected(key);
       // A UEFI node and an ME row are two halves of one selection: picking a
       // node of the tree drops whatever ME row was in focus.
@@ -1122,6 +1143,26 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     [context, roots]
   );
 
+  /** The node a reveal found, shown: the branches on the way open, its row selected, its detail up. */
+  const showRevealed = useCallback(
+    (path: readonly number[], crossedHalves: boolean) => {
+      setOpen((current) => {
+        const next = new Set(current);
+        for (let length = 1; length < path.length; length++) {
+          next.add(pathKey(path.slice(0, length)));
+        }
+        return next;
+      });
+      const key = pathKey(path);
+      setSelected(key);
+      setMeFocus(undefined);
+      askFirmwareDetail(context.pane, path);
+      setScrollTarget(key);
+      if (crossedHalves) clearZones(context.pane);
+    },
+    [context.pane]
+  );
+
   /**
    * The node under the caret, shown in the tree: every branch on the way
    * opened, its row selected, its detail up. Only the tree moves — the dump is
@@ -1189,21 +1230,24 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
     }
     setFinding(true);
+    const epoch = selectionEpoch.current;
     const path = await findFirmwareNodeAt(context.pane, slot.document.selection.start);
     setFinding(false);
     if (path === undefined) return;
-    setOpen((current) => {
-      const next = new Set(current);
-      for (let length = 1; length < path.length; length++) next.add(pathKey(path.slice(0, length)));
-      return next;
-    });
-    const key = pathKey(path);
-    setSelected(key);
-    setMeFocus(undefined);
-    askFirmwareDetail(context.pane, path);
-    setScrollTarget(key);
-    if (crossedHalves) clearZones(context.pane);
-  }, [context.pane, me, meFocus, meRoots, roots, toggle]);
+    // The branches were read off the main thread, and by the time they landed the reader
+    // or the search may have chosen another node: the reveal does not take it back.
+    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.reveal
+    if (selectionEpoch.current !== epoch) return;
+    // Empty padding is left out of the rows unless asked for, so a caret inside it has no
+    // row to land on. Say so, and offer the rows, rather than answer with nothing.
+    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
+    const found = firmwareNodeAt(firmwareFor(context.pane)?.roots ?? [], path);
+    if (found !== undefined && isEmptyPadding(found) && !showsEmptyPadding) {
+      setPaddingQuestion({ path, crossedHalves });
+      return;
+    }
+    showRevealed(path, crossedHalves);
+  }, [context.pane, me, meFocus, meRoots, roots, toggle, showsEmptyPadding, showRevealed]);
 
   /**
    * Selects the twin of `node` in the other Top Swap block — the same bytes one
@@ -1651,6 +1695,21 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           </svg>
         </button>
       </div>
+
+      <ConfirmDialog
+        open={paddingQuestion !== undefined}
+        title={L("The node under the caret is empty padding")}
+        message={L("Empty padding is hidden in the tree. Show it?")}
+        confirmLabel={L("Show Empty Padding")}
+        onConfirm={() => {
+          const asked = paddingQuestion;
+          setPaddingQuestion(undefined);
+          if (asked === undefined) return;
+          changeShowsEmptyPadding(true);
+          showRevealed(asked.path, asked.crossedHalves);
+        }}
+        onCancel={() => setPaddingQuestion(undefined)}
+      />
 
       {searchState.isOpen ? (
         <UefiSearchBar

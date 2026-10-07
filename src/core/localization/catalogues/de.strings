@@ -192,6 +192,8 @@
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
+"The node under the caret is empty padding" = "Der Knoten unter der Einfügemarke ist leeres Padding";
+"Empty padding is hidden in the tree. Show it?" = "Leeres Padding ist im Baum ausgeblendet. Anzeigen?";
 "Open Decompressed Node" = "Entpackten Knoten öffnen";
 "Open Decompressed Node Body" = "Entpackten Knotenrumpf öffnen";
 "Open Decompressed “%1$@”" = "„%1$@“ (entpackt) öffnen";
