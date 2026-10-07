@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { installCatalogue, L } from "@/core/localization/localization";
-import { assembleWord, type ByteSource, sourceOver } from "@/firmware/byteSource";
+import { sourceOver } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
@@ -19,6 +19,7 @@ import {
   repairsForFile,
   repairsForMicrocode,
   repairsForVolume,
+  volumeAlongPath,
 } from "@/firmware/uefi/checksumRepair";
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
@@ -76,6 +77,7 @@ import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { isEmptySpace, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
+import { BlobByteSource } from "@/workers/blobByteSource";
 import { dvarSettingsFromWire, dvarSettingsToWire } from "@/workers/dvarWire";
 import type {
   FirmwareWorkerRequest,
@@ -98,39 +100,6 @@ import type {
  * never opened until something asks, which is what keeps opening a 16 MB image
  * from reading every file body in it.
  */
-
-/**
- * A `Blob`, read synchronously, which is a thing only a worker can do.
- *
- * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource
- * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.byteCount
- * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.bytes
- * @upstream-differs reads the pane's Blob in the worker, not a live reader over the document
- * @upstream ByteRipperApp/Tools/PaneToolHost.swift#LiveDocumentByteSource
- * @upstream ByteRipperApp/Tools/PaneToolHost.swift#LiveDocumentByteSource.byteCount
- * @upstream ByteRipperApp/Tools/PaneToolHost.swift#LiveDocumentByteSource.bytes
- */
-class BlobByteSource implements ByteSource {
-  private readonly blob: Blob;
-  private readonly reader = new FileReaderSync();
-
-  constructor(blob: Blob) {
-    this.blob = blob;
-  }
-
-  get byteCount(): number {
-    return this.blob.size;
-  }
-
-  bytes(start: number, end: number): Uint8Array {
-    if (end <= start) return new Uint8Array(0);
-    return new Uint8Array(this.reader.readAsArrayBuffer(this.blob.slice(start, end)));
-  }
-
-  word(offset: number, count: number): number {
-    return assembleWord(this.bytes(offset, offset + count), 0, count);
-  }
-}
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -482,27 +451,13 @@ function open(node: UEFINode, into: UEFIDiagnostic[]): void {
  * body sum follows, and its erase polarity, which the file's state byte is read
  * under (`marksHeaderInvalid`).
  *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeRevision
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeErasePolarity
- * @upstream-differs found by the node's path in the tree the worker holds, where upstream
- * looks for the innermost volume whose range holds the node's header
  */
 function volumeOfPath(path: readonly number[]): {
   readonly revision: number;
   readonly polarity: boolean | undefined;
 } {
-  let nodes = roots;
-  let revision = 2;
-  let volume: UEFINode | undefined;
-  for (const index of path) {
-    const next = nodes[index];
-    if (next === undefined) break;
-    if (next.kind === "volume") {
-      volume = next;
-      if (next.subtype !== undefined) revision = next.subtype;
-    }
-    nodes = next.children;
-  }
+  const { volume, revision } = volumeAlongPath(roots, path);
   const volumeReader = volume === undefined ? undefined : readerFor(volume);
   return {
     revision,

@@ -180,3 +180,30 @@ export function volumeErasePolarityOf(
   const volume = enclosingVolume(node, image);
   return volume === undefined ? undefined : volumeErasePolarity(volume, reader);
 }
+
+/**
+ * The innermost volume on the way down to the node at `path`, and the revision a
+ * file there is checked against: the volume's own, read from its subtype, and 2
+ * where there is no volume above the node to say.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.volumeRevision
+ * @upstream-differs found by the node's path in the tree, where upstream looks for the innermost volume whose range holds the node's header; and a volume-less node answers revision 2 rather than nothing, which is the revision its fixed body sum is then checked against
+ */
+export function volumeAlongPath(
+  roots: readonly UEFINode[],
+  path: readonly number[]
+): { readonly volume: UEFINode | undefined; readonly revision: number } {
+  let nodes = roots;
+  let revision = 2;
+  let volume: UEFINode | undefined;
+  for (const index of path) {
+    const next = nodes[index];
+    if (next === undefined) break;
+    if (next.kind === "volume") {
+      volume = next;
+      if (next.subtype !== undefined) revision = next.subtype;
+    }
+    nodes = next.children;
+  }
+  return { volume, revision };
+}

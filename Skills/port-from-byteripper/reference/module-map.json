@@ -223,7 +223,9 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/PatternLibraryTests.swift": "src/core/search/patternLibrary.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift": "src/core/search/searchPatternEntry.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/VersionVectorTests.swift": "src/core/sync/versionVector.test.ts",
-        "SlicedStorage.swift": "src/core/storage/slicedStorage.ts"
+        "SlicedStorage.swift": "src/core/storage/slicedStorage.ts",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift": "src/state/duplicatePane.test.ts",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts"
       },
       "unported": {
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot.*": "n/a — the snapshot is a scratch file read through a ByteSource (EditOverlayStorage.contentSnapshot), so it has no reader type of its own",
@@ -255,17 +257,11 @@
         "Packages/ByteRipperCore/Sources/ByteRipperCore/FileIdentity.swift#*": "n/a — identity by inode and volume; a browser cannot see either (notApplicable DocumentArbitration)",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileIdentityTests.swift#*": "n/a — as FileIdentity",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageConcurrencyTests.swift#*": "n/a — one JavaScript realm reads and writes one thing at a time, and a worker reads its own snapshot",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#*": "later — src/platform/files/fileSink.ts has no tests of its own yet; the patch-in-place and sibling-temporary cases are n/a, since a writable publishes the file whole",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/TestSupport.swift#*": "n/a — XCTest helpers; the web tests build their own fixtures",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testSaveAsWritesNewFileAndUpdatesURL": "n/a — a document has no URL and no read-only original; saving is fileSink's",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testSaveAfterSaveAsPatchesTheNewFileInPlace": "n/a — a document has no URL and no read-only original; saving is fileSink's",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testReadOnlyFileSaveThrowsAndSaveAsWorks": "n/a — a document has no URL and no read-only original; saving is fileSink's",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentTests.swift#BinaryDocumentTests.testInMemoryDocumentWithReadOnlyOverrideCanSave": "n/a — a document has no URL and no read-only original; saving is fileSink's",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testTheJoinedDocumentIsNeverSavedAndDirty": "later — attaching and detaching the file on a join's undo and redo is workspaceStore's (syncJoinAttachment), which has no tests yet",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testUndoingAJoinReattachesToTheOriginalFile": "later — attaching and detaching the file on a join's undo and redo is workspaceStore's (syncJoinAttachment), which has no tests yet",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testRedoingAJoinRedetaches": "later — attaching and detaching the file on a join's undo and redo is workspaceStore's (syncJoinAttachment), which has no tests yet",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentJoinTests.swift#BinaryDocumentJoinTests.testUndoingTwoJoinsReattachesTheOriginalFile": "later — attaching and detaching the file on a join's undo and redo is workspaceStore's (syncJoinAttachment), which has no tests yet",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#*": "later — duplicatePane (workspaceStore) has no tests yet; the clonefile and shared-temporary cases are n/a",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ClipboardCodecTests.swift#ClipboardCodecTests.testRawBytesRoundtrip": "n/a — raw bytes on NSPasteboard; the web clipboard carries text",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testDifferenceAndSameBlocks": "n/a — differenceBlocks and sameBlocks are not ported (see DiffBlock.swift)",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testActorBuildMatchesSyncScan": "n/a — there is no actor; diffStore runs the one asynchronous scan",
@@ -286,7 +282,17 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift#SearchPatternEntryTests.testARecentWritesNoBookkeeping": "n/a — the UserDefaults dictionary forms; the web keeps a library as its file's JSON (patternLibrary.ts), and the find history as FindHistoryEntry (searchStore.ts); reading a library written before ids existed is PatternLibraryTests.testAFileFromAnEarlierBuildReads",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift#SearchPatternEntryTests.testAnOldRowIsReadAndGivenAnId": "n/a — the UserDefaults dictionary forms; the web keeps a library as its file's JSON (patternLibrary.ts), and the find history as FindHistoryEntry (searchStore.ts); reading a library written before ids existed is PatternLibraryTests.testAFileFromAnEarlierBuildReads",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift#SearchPatternEntryTests.testAnUnreadableRowIsNil": "n/a — the UserDefaults dictionary forms; the web keeps a library as its file's JSON (patternLibrary.ts), and the find history as FindHistoryEntry (searchStore.ts); reading a library written before ids existed is PatternLibraryTests.testAFileFromAnEarlierBuildReads",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift#SearchPatternEntryTests.testGarbledBookkeepingDoesNotLoseTheEntry": "n/a — the UserDefaults dictionary forms; the web keeps a library as its file's JSON (patternLibrary.ts), and the find history as FindHistoryEntry (searchStore.ts); reading a library written before ids existed is PatternLibraryTests.testAFileFromAnEarlierBuildReads"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchPatternEntryTests.swift#SearchPatternEntryTests.testGarbledBookkeepingDoesNotLoseTheEntry": "n/a — the UserDefaults dictionary forms; the web keeps a library as its file's JSON (patternLibrary.ts), and the find history as FindHistoryEntry (searchStore.ts); reading a library written before ids existed is PatternLibraryTests.testAFileFromAnEarlierBuildReads",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testRewritingTheSourcesFileFromOutsideDoesNotChangeTheCopy": "n/a — the copy reads a snapshot written once into its own scratch file (`contentSnapshot`), never the source's file or temporaries, so nothing the source's file goes through can reach it",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testSavingTheSourceOverItsOwnFileDoesNotChangeTheCopy": "n/a — the copy reads a snapshot written once into its own scratch file (`contentSnapshot`), never the source's file or temporaries, so nothing the source's file goes through can reach it",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSourceMaterializingDoesNotChangeTheCopy": "n/a — the copy reads a snapshot written once into its own scratch file (`contentSnapshot`), never the source's file or temporaries, so nothing the source's file goes through can reach it",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheCopyOutlivesTheSourceWhenTheySharedTheSourcesTempFile": "n/a — the copy reads a snapshot written once into its own scratch file (`contentSnapshot`), never the source's file or temporaries, so nothing the source's file goes through can reach it",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testSavingTheCopyWritesItsOwnFileAndLeavesTheSourcesAlone": "n/a — the copy has no file to share with the source: it is saved through Save As to a file the reader picks, or a download",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheCopyOfAReadOnlyFileIsWritable": "n/a — a page opens no file read-only",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTakingTheCopyReadsNoBytes": "n/a — the snapshot is written once, which reads the content: there is no clonefile(2) to share the base's blocks (`contentSnapshot`, @upstream-differs)",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotClonesTheFileRatherThanCopyingIt": "n/a — there is no clonefile(2) in a browser",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes"
       }
     },
     {
@@ -437,7 +443,10 @@
         "UEFIImage/GPNVStore.swift": "src/firmware/uefi/gpnvStore.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/GPNVStoreTests.swift": "src/firmware/uefi/gpnvStore.test.ts",
         "UEFIImage/AMDFirmware.swift": "src/firmware/uefi/amdFirmware.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift": "src/firmware/uefi/amdFirmware.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift": "src/firmware/uefi/amdFirmware.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/EFIGUIDTests.swift": "src/firmware/uefi/efiGuid.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/NvramGuidsTests.swift": "src/firmware/uefi/nvramGuids.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift": "src/firmware/uefi/parseProgress.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -455,9 +464,6 @@
         "Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#ChecksumRepair.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testDataAndBytesReadTheSame": "n/a — one source over a Uint8Array stands for both Data and [UInt8]",
         "Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#BinaryWriter*": "n/a — the web fixtures write their bytes through local helpers of their own",
-        "Packages/UEFIImage/Tests/UEFIImageTests/EFIGUIDTests.swift#*": "later — efiGuid.ts has no tests of its own yet",
-        "Packages/UEFIImage/Tests/UEFIImageTests/NvramGuidsTests.swift#*": "later — nvramGuids.ts has no tests of its own yet",
-        "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift#*": "later — ProgressSink has no tests of its own yet",
         "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#*": "later — the expansion half: the web tree is expanded in firmware.worker and firmwareStore, and its laziness has no tests of its own yet. The invalidation half (the two testInvalidate cases, testAReExpandedNodeReadsCurrentBytes, testSizeChangingInvalidateCollapsesFromTheEditPointOnward) is in src/firmware/uefi/treeInvalidation.test.ts",
         "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#*": "later — the invalidation rules are ported (src/firmware/uefi/treeInvalidation.ts); the lazy expansion itself is not: the web builds the tree whole as it is parsed, in firmware.worker and firmwareStore",
         "Packages/UEFIImage/Sources/UEFIImage/DecompressedBuffers.swift#DecompressedBuffers.lock": "n/a — a worker is one thread; there is nothing to take a lock against",
@@ -601,7 +607,10 @@
         "Tests/MEFirmwareTests/FileTableTests.swift": "src/firmware/me/data/fileTable.test.ts",
         "Tests/MEFirmwareTests/ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts",
         "Partition/UnlockToken.swift": "src/firmware/me/partition/unlockToken.ts",
-        "Tests/MEFirmwareTests/UnlockTokenTests.swift": "src/firmware/me/partition/unlockToken.test.ts"
+        "Tests/MEFirmwareTests/UnlockTokenTests.swift": "src/firmware/me/partition/unlockToken.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareTypeClassifierTests.swift": "src/firmware/me/engine/firmwareTypeClassifier.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/SelectionTests.swift": "src/firmware/me/engine/manifestSelection.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift": "src/state/meDatabaseSource.test.ts"
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
@@ -630,10 +639,7 @@
         "Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EngineModelRevision*": "n/a — the web analyzer ships with its panel; there is no separately versioned result model",
         "Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.pageFooterSize": "n/a — the footer is read as its CRC, at PAGE_SIZE - CRC_LENGTH",
         "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareAnalysisTests.swift#FirmwareAnalysisModelTests*": "n/a — the web model is plain objects handed from the worker, never encoded to JSON, and has no revision number",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareTypeClassifierTests.swift#*": "later — firmwareTypeClassifier.ts has no tests of its own yet",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/SelectionTests.swift#*": "later — manifestSelection.ts has no tests of its own yet",
         "Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFSBackup.swift#MFSBackupDecoder.r1HeaderSize": "n/a — a constant upstream declares and neither side reads: an R1 header's length comes from the header itself",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift#*": "later — the database stores have no tests of their own yet: the revalidation rules they follow are `Freshened`'s, which carries all fifteen of its upstream cases in src/platform/net/freshened.test.ts, and the request under them is covered in src/platform/net/cachedSource.test.ts",
         "Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#CodePartition.entryCount": "n/a — modules.length where it is needed",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Params.*": "n/a — the fields of the web fixture's options object",
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManifestTests.swift#ManifestFixture.Format": "n/a — TestManifest.format takes the model's ManifestFormat",
@@ -657,7 +663,9 @@
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.heldFileTable": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.heldFileTable": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
         "Packages/MEFirmware/Sources/MEFirmware/Data/MEADataSource.swift#MEADataSource.heldHuffmanDictionaries": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
-        "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.heldHuffmanDictionaries": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)"
+        "Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.heldHuffmanDictionaries": "n/a — the databases are texts the store holds; what is held is a store's `body`, and a reading is asked with it or without (`readMe`)",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift#StubProtocol.*": "n/a — test scaffolding: `installNetwork` stubs fetch and the Cache API",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift#Ticker*": "n/a — test scaffolding: vitest's fake timers are the clock"
       }
     },
     {
@@ -707,11 +715,11 @@
       "note": "The bridge between the document's bytes and the parser's ByteSource.",
       "unported": {
         "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.reader": "n/a — the Blob is the source",
-        "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.init": "n/a — constructed over the pane's Blob",
-        "Packages/UEFIContentSource/Tests/UEFIContentSourceTests/ToolContentByteSourceTests.swift#*": "later — BlobByteSource has no tests of its own yet"
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.init": "n/a — constructed over the pane's Blob"
       },
       "files": {
-        "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift": "src/workers/firmware.worker.ts"
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift": "src/workers/firmware.worker.ts",
+        "Packages/UEFIContentSource/Tests/UEFIContentSourceTests/ToolContentByteSourceTests.swift": "src/workers/blobByteSource.test.ts"
       }
     },
     {
@@ -804,7 +812,8 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift": "src/state/uefiSearchSettings.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAMDFirmwareDetail.swift": "src/tools/uefi/amdFirmwareDetail.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/AMDFirmwareDisplayTests.swift": "src/tools/uefi/amdFirmwareDisplay.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/AMDFirmwareDisplayTests.swift": "src/tools/uefi/amdFirmwareDisplay.test.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift": "src/firmware/uefi/checksumCheck.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
@@ -832,7 +841,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.endBusy": "n/a — the busy and notice lines are rendered from state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.say": "n/a — the busy and notice lines are rendered from state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.init": "n/a — an object literal",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift#*": "later — the checksum check lives in the worker and the view, and has no tests of its own yet",
         "Modules/UEFITool/Tests/UEFIToolTests/TestUEFI.swift#*": "n/a — the web UEFI tool tests build their images with src/firmware/testing",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.fields": "n/a — a checksum problem is a sentence on the row, not a field set (UEFIChecksumField* above)",
         "Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.badFields": "n/a — as above: the panel reads the problem off the row",
@@ -4895,7 +4903,6 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelFont.swift#*": "n/a — the panel's type sizes are CSS",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#*": "n/a — AppKit table furniture; the half that dresses a row is ported (rowMarksBadges and rowMarkTitle, src/ui/toolPanel/RowMarks.tsx)",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolWrappingLabel.swift#*": "n/a — an NSTextField subclass",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#*": "later — the seam has no web tests of its own yet",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheOldWarningCallStillShowsAnError": "n/a — the deprecated call it covers has no counterpart here",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheVerdictCallDrawsTheCataloguesMark": "later — read back off a dressed AppKit cell; the verdict path itself is rowMarksBadges (RowMarks.test.ts)",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolRowMarksTests.swift#ToolRowMarksTests.testTheLegendStartsShutAndRemembersBeingOpened": "later — no React component tests in this project yet; the remembered-key names are checked (ToolRowMarksLegend.test.ts)",
@@ -4941,7 +4948,12 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.margin": "n/a — the card's margin and its share of the width are the stylesheet's (`.tool-detail-card`)",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.widthShare": "n/a — the card's margin and its share of the width are the stylesheet's (`.tool-detail-card`)",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.expandButtonForTesting": "n/a — a test seam onto the corner button",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift#ToolDetailPaneTests.*": "later — the card, its corner buttons and the pane it folds are components, which the port has no component test for (the state is unit-tested in `largeDetailStore.test.ts`)"
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift#ToolDetailPaneTests.*": "later — the card, its corner buttons and the pane it folds are components, which the port has no component test for (the state is unit-tested in `largeDetailStore.test.ts`)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testStartingASessionPublishesItsMapThroughTheHost": "later — a session is a React component, which the port has no component test for (G24)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testASessionReportsAConfirmationThroughTheHost": "later — a session is a React component, which the port has no component test for (G24)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testAReadOnlyFileRefusesTheWholeTransaction": "n/a — a page opens no file read-only: a file it may not write is saved as a download",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testASnapshotDoesNotMoveWhenTheContentDoes": "n/a — what a parse reads is a Blob, which does not move: a dirty document is materialised into a new one (`currentContent`)",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testTheReaderRefusesAReadPastTheEnd": "n/a — there is no ToolContentReader: the worker reads the pane's Blob (BlobByteSource)"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -4982,7 +4994,8 @@
           "src/ui/toolPanel/ToolDetail.tsx"
         ],
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": "src/state/largeDetailStore.test.ts",
-        "ToolModuleKit/SearchWrapSigns.swift": "src/state/noticeStore.ts"
+        "ToolModuleKit/SearchWrapSigns.swift": "src/state/noticeStore.ts",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift": "src/tools/seam.test.ts"
       }
     },
     {

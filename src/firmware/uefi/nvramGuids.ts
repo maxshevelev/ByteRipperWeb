@@ -205,7 +205,7 @@ export const vss2WorkingBlockSignatureGuid = guid("9E58292B-7C68-497D-A0CE-6500F
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramGuids.swift#NvramGuids.names
  */
-const NVRAM_NAMES = new Map<string, string>([
+export const NVRAM_NAMES: ReadonlyMap<string, string> = new Map<string, string>([
   [guidKey(edkiiWorkingBlockSignatureGuid), "EDKII working block"],
   [guidKey(ffsPhoenixRawSectionEvsaGuid), "FFS PHOENIX raw section EVSA"],
   [guidKey(nvramAdditionalStoreVolumeGuid), "NVRAM additional store volume"],

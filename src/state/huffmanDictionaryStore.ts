@@ -76,9 +76,11 @@ export interface HuffmanDictionarySource {
 }
 
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository */
-function liveDictionaries(): HuffmanDictionarySource {
+export function liveDictionaries(
+  url = HUFFMAN_DAT_URL
+): HuffmanDictionarySource & { settle(): Promise<void> } {
   const held = new Freshened<string>();
-  const remote = remoteSource(HUFFMAN_DAT_URL);
+  const remote = remoteSource(url);
 
   let seeded: Promise<void> | undefined;
   const seed = (): Promise<void> => {
@@ -113,6 +115,9 @@ function liveDictionaries(): HuffmanDictionarySource {
     },
     freshness: () => held.status,
     markStale: () => held.markStale(),
+    // A check running behind an answer, waited for — the seam a test needs.
+    // @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.settle
+    settle: () => held.settle(),
   };
 }
 

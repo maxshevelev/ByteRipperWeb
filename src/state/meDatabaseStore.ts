@@ -100,9 +100,9 @@ export interface MEDatabaseSource {
  *
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.dataSource
  */
-function liveDatabase(): MEDatabaseSource {
+export function liveDatabase(url = MEA_DAT_URL): MEDatabaseSource & { settle(): Promise<void> } {
   const held = new Freshened<string>();
-  const remote = remoteSource(MEA_DAT_URL);
+  const remote = remoteSource(url);
 
   let seeded: Promise<void> | undefined;
   const seed = (): Promise<void> => {
@@ -137,6 +137,9 @@ function liveDatabase(): MEDatabaseSource {
     },
     freshness: () => held.status,
     markStale: () => held.markStale(),
+    // A check running behind an answer, waited for — the seam a test needs.
+    // @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.settle
+    settle: () => held.settle(),
   };
 }
 
