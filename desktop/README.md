@@ -54,5 +54,14 @@ asking for administrator rights, and then starts from files already on disk;
 the `.zip` does the same when unpacked. Only the Electron locales the app is
 translated into (en, ru, de) are shipped.
 
+**The `global-agent` override.** electron-builder reaches Electron's download
+through `@electron/get` 3, which asks for `global-agent` 3, which pulls
+`roarr` and `sprintf-js` — a denial-of-service advisory with no fixed
+`sprintf-js`. `global-agent` 4 has the same `bootstrap()` and no `roarr`, so
+`package.json` overrides it to `^4.1.3`. It is used only when
+`ELECTRON_GET_USE_PROXY` is set. Drop the override once electron-builder moves
+to `@electron/get` 5, which has no `global-agent` at all. Do not take
+`npm audit fix --force`: it "fixes" this by downgrading electron-builder.
+
 Not done yet: code signing (SmartScreen warns on first launch) and a check on
 a real Windows machine.
