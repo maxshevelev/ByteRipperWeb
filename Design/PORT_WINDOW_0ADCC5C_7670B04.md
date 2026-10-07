@@ -33,17 +33,12 @@ level for a `later` entry.
   - Not ported, with the reason: the list's size constraints, the window's title bar and
     edges not counting as a click (a page has no such chrome), the card staying open when
     the window is moved (a page's window is the browser's).
-- [ ] **W3 — following the selection and the keys** (`667d334`, `d4a1c3a`, `e5479e3`,
-  `d1ca441`, `a3ab6d3`, `014edeb`)
-  - What carries over from the AppKit run-loop work: a selection moved by the keys is drawn
-    in the table at once and its detail, zones, minimap and the dump's scroll follow on the
-    next frame, to the latest row (a held arrow key no longer waits on the dump); a click
-    follows at once; a key pressed while a row is opening or a branch is being read waits
-    its turn and is pressed in order; a row the reader opens whose rows would not be in view
-    makes room first (the scroll-then-open of `scrollToShowStretch`), an Option-click and a
-    row already in view open at once; a fold near the end of the tree keeps the list's
-    height until the scroll has moved.
-  - What does not: animations, the table's frame commit, `reloadData`.
+- [x] **W3 — following the selection and the keys: not ported** (`667d334`, `d4a1c3a`,
+  `e5479e3`, `d1ca441`, `a3ab6d3`, `014edeb`). Decided with the owner: upstream is working
+  its AppKit outline towards what the page already does — the table moves at once and what
+  follows the selection (the detail, the zones, the dump) follows it — so there is nothing
+  to bring across. Each commit is an `unported` entry with that reason.
+
 - [ ] **W4 — the launch window** (`60af19f`, `bd20f98`)
   - The desktop window is as tall as the landing screen needs, bounded only by the
     screen's usable height (the three-quarters cap of `ba9ebdf` goes), with the same air
@@ -70,7 +65,6 @@ level for a `later` entry.
 
 ## Order and closing
 
-W1 and W2 first, as they are small and touch the code the later units read; W3 next, as
-it reshapes the tree's selection that W5 and W6 add rows to; W4 is small and may go
-anywhere; W5 before W6, since W6 reads the same padding. Where a unit turns out to depend
+W1 and W2 first, as they are small and touch the code the later units read; W4 is small and
+may go anywhere; W5 before W6, since W6 reads the same padding. Where a unit turns out to depend
 on another the order is changed here and said.
