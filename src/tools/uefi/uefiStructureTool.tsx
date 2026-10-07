@@ -377,6 +377,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined);
   /** A row to bring into view with what it holds, once its branch is there. */
   const [showStretchOf, setShowStretchOf] = useState<string | undefined>(undefined);
+  /**
+   * Rows of room the list keeps below its end while it scrolls to where a row's rows will
+   * be: the row opens when the table stands still, and the room is given back.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMakingRoom
+   */
+  const [reservedRows, setReservedRows] = useState(0);
+  const openWithRoomRef = useRef<(key: string, immediately: boolean) => void>(() => undefined);
   const [finding, setFinding] = useState(false);
   const [treeShare, setTreeShare] = useState(storedTreeShare);
   const { widths, resize, reset: resetWidths } = useColumnWidths(UEFI_COLUMNS());
@@ -535,7 +543,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     }
     if (arrived.length > 0) {
       for (const key of arrived) wanted.current.delete(key);
-      setOpen((current) => new Set([...current, ...arrived]));
+      // A branch that earned a "Loading…" row is open already and grows in place; one
+      // that came at once opens as any row does, making room for its rows first.
+      for (const key of arrived) openWithRoomRef.current(key, false);
       setLoading((current) => new Set([...current].filter((key) => !arrived.includes(key))));
     }
     // A row left open over a branch that is not read any more — the image was
@@ -589,6 +599,57 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }),
     [presented, open, loading, showsEmptyPadding, showsSuperseded, meRoots]
   );
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  /**
+   * Opens a row. One whose rows would not be in view is held shut while the table scrolls,
+   * smoothly, to where they will be, and opens once the table stands still: a scroll made
+   * while the rows slid in would show them over a moving table. An Alt-click, and a row
+   * whose rows are in view already, open at once.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMakingRoom
+   */
+  openWithRoomRef.current = (key: string, immediately: boolean) => {
+    const open = () => {
+      setOpen((current) => new Set([...current, key]));
+      setShowStretchOf(key);
+    };
+    const element = scrollRef.current;
+    const index = rowsRef.current.findIndex((row) => row.key === key);
+    const node = firmwareNodeAt(roots ?? [], pathOf(key));
+    if (immediately || element === null || index < 0 || node === undefined) {
+      open();
+      return;
+    }
+    const count = listed(node.children, showsEmptyPadding).length;
+    const target = scrollToShowStretch({
+      scrollTop: element.scrollTop,
+      clientHeight: element.clientHeight,
+      headerHeight: HEADER_HEIGHT,
+      rowHeight: ROW_HEIGHT,
+      row: index,
+      last: index + count,
+    });
+    if (count === 0 || Math.abs(target - element.scrollTop) < 1) {
+      open();
+      return;
+    }
+    // The list has to be long enough to scroll to where the rows will be.
+    setReservedRows(count);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      element.removeEventListener("scrollend", finish);
+      setReservedRows(0);
+      open();
+    };
+    element.addEventListener("scrollend", finish);
+    // Where no `scrollend` is sent, the animation's own length.
+    window.setTimeout(finish, 350);
+    element.scrollTo({ top: target, behavior: "smooth" });
+  };
+
   const maxDepth = useMemo(
     () => rows.reduce((deepest, row) => Math.max(deepest, row.depth), 0),
     [rows]
@@ -599,7 +660,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewItemDidCollapse
    */
   const toggle = useCallback(
-    (node: WireNode) => {
+    (node: WireNode, immediately = false) => {
       const key = pathKey(node.id);
       // A row the reader opens or shuts is theirs from now on.
       searchCtl.current.forget(key);
@@ -631,8 +692,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         return;
       }
       if (node.children.length > 0 || !node.isExpandable || isMeRegion(node)) {
-        setOpen((current) => new Set([...current, key]));
-        setShowStretchOf(key);
+        openWithRoomRef.current(key, immediately);
         return;
       }
       // A branch not read yet stays shut while it is read, and opens when it
@@ -1659,7 +1719,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             </div>
             <div
               className="uefi-tree-spacer"
-              style={{ height: rows.length * ROW_HEIGHT, minWidth }}
+              style={{ height: (rows.length + reservedRows) * ROW_HEIGHT, minWidth }}
             >
               {rows.slice(first, last).map((row, offset) => (
                 <TreeRow
@@ -1867,7 +1927,7 @@ function TreeRow({
   readonly showsEmptyPadding: boolean;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
-  readonly onToggle: (node: WireNode) => void;
+  readonly onToggle: (node: WireNode, immediately?: boolean) => void;
   /** A double click on the row: open what the node holds. */
   readonly onOpenContent: (node: WireNode) => void;
   readonly onChoose: (node: WireNode) => void;
@@ -1998,7 +2058,7 @@ function TreeRow({
           aria-label={isOpen ? L("Collapse") : L("Expand")}
           onClick={(event) => {
             event.stopPropagation();
-            onToggle(node);
+            onToggle(node, event.altKey);
           }}
         >
           {hasChildren ? <DisclosureChevron open={isOpen} /> : null}

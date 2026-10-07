@@ -39,6 +39,11 @@ level for a `later` entry.
   follows the selection (the detail, the zones, the dump) follows it — so there is nothing
   to bring across. Each commit is an `unported` entry with that reason.
 
+- [x] **W3b — a row makes room before it opens** (from `667d334`, the one piece of W3 the
+  page does not do): a row the reader opens whose rows would not be in view is held shut
+  while the list scrolls, smoothly, to where they will be, and opens when it stands still;
+  an Alt-click on the triangle and a row whose rows are in view open at once.
+
 - [ ] **W4 — the launch window** (`60af19f`, `bd20f98`)
   - The desktop window is as tall as the landing screen needs, bounded only by the
     screen's usable height (the three-quarters cap of `ba9ebdf` goes), with the same air
