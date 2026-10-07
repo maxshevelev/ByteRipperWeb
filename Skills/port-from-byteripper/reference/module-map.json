@@ -859,7 +859,12 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testAnOverridesVariableIsReadAsRules": "later — U5 of the `700823d`…`643363e` window, deferred, the owner's decision 2026-10-04: the web carries no bzip2 decoder — upstream wraps the system libbz2, and a pure-TS decoder in the manner of lzma and tiano or a library wrapper is chosen together with the work (GAPS.md); the `overrides` variable reads as an ordinary variable until then",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
         "Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#*": "n/a — AppKit view mechanics: one view per row, measured and drawn by hand, with its own selection and its own accessibility. The browser lays out, draws and selects the text of a table itself; what is left of it — a link only from its cell, the folded rows built when opened, and the copy with a tab between cells — is in `ToolDetail.tsx` and `detailCopy.ts`",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.applyFont": "n/a — the panel's type size is CSS here"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.applyFont": "n/a — the panel's type size is CSS here",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.emptyPaddingQuestionForTesting": "n/a — a test seam",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.followSelectionNowForTesting": "n/a — a test seam of the AppKit follow-selection ordering",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.emptyPaddingQuestion": "n/a — a test seam: the question is a dialog of the page",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isReportingReadersSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart"
       }
     },
     {
@@ -4200,7 +4205,6 @@
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.cleanup": "n/a — test scaffolding",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testLaunchWidthFitsOnePaneEvenSideBySide": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testLaunchWidthIgnoresPaneArrangement": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
-        "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testLaunchWindowUsesOnePaneWidthAndDefaultHeight": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testEmptyModeKeepsPreferredFrame": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testSingleFileFitsContentWidthAndHeight": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testZoomAccountsForVisibleMinimapPanel": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
@@ -4289,7 +4293,22 @@
         "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testRebuildingTheListReplacesTheRows": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/EmptyStateRecentFilesTests.swift#EmptyStateRecentFilesTests.testTheNotesWithRecentFilesSplitTheRowInHalves": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningAFragmentPanelFoldsTheLargeView": "later — an app flow test: it drives the real panel, and the web has no component level",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheLargeViewStaysClearOfTheToolPanelAndSurvivesWorkInIt": "later — an app flow test: it drives the real panel, and the web has no component level"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheLargeViewStaysClearOfTheToolPanelAndSurvivesWorkInIt": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testLaunchWindowUsesOnePaneWidthAndFitsTheLandingScreen": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testWhatASelectionDrivesFollowsAfterTheTableMoves": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering of table, scroll and dump has no counterpart (only the row making room before it opens was ported)",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testCommandCCopiesTheTextSelectedInTheDetails": "n/a — the app has no Edit menu; the details copy their selection on the page's own copy command",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testMovingOrResizingTheWindowLeavesTheLargeViewOpen": "n/a — the large view is a frame in the page, not a window of its own: nothing a window move or resize can close",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheLargeViewsBackgroundFollowsTheWindow": "n/a — the large view's background is a theme token of the page, not a window background",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingHiddenEmptyPaddingOffersToShowIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests": "n/a — test scaffolding",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testTheBIOSRegionRowOffersTheComparison": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testTheSheetListsThePartsWithTheCodeThatDiffersTicked": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testWriteLandsTheTickedPartsAsOneUndoStep": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testTickingNVRAMWritesItToo": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testCancelWritesNothing": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testAnUpdateForAnotherBoardIsRefusedWithTheReason": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testAnUpdateFileOpensOntoItsEntriesAndTheirVolumes": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#followUEFISelection": "n/a — test scaffolding for the AppKit follow-selection ordering"
       }
     },
     {
@@ -4403,7 +4422,11 @@
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.clickRecentRowForTesting": "n/a — test scaffolding",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.isShowingRecentFilesForTesting": "n/a — test scaffolding",
         "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentListWidthForTesting": "n/a — test scaffolding",
-        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentRowsForTesting": "n/a — test scaffolding"
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.recentRowsForTesting": "n/a — test scaffolding",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.fittingWindowHeight": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.launchMargin": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.onContentHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
+        "ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.visibleContentFrameForTesting": "n/a — a test seam"
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
@@ -4694,7 +4717,9 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentMenuRevertSegment": "n/a — the AppKit action behind the strip's revert; the web's strip menu is the shared piece menu (`pieceMenu`) that calls `revertPiece`",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.revertSegmentAtOffset": "n/a — the AppKit action behind the offset menu's revert; the web's offset menu builds its own Revert item that calls `revertPiece`",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "n/a — the landing screen's effect ignores an answer that arrives after it has gone (EmptyState.NewerRelease), so there is no task to hold",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.openableRecentFiles": "n/a — a row whose file is gone is dropped when the page learns it (NotFound), and the list is of handles, not of paths to look up on disk"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.openableRecentFiles": "n/a — a row whose file is gone is dropped when the page learns it (NotFound), and the list is of handles, not of paths to look up on disk",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.emptyStateFittingWindowHeight": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",

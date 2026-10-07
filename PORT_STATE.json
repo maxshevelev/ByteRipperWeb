@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "0adcc5c942b99b2b2eec264124e7bd58d3ad5d6b",
-  "baselineNote": "Keep the large view of the details clear of the tool panel, leave it open for work in the panel, and fold it when a fragment panel opens (2026-10-06)"
+  "baseCommit": "7670b04b0a52c2b0f629ad05cdc4f5376767c0f1",
+  "baselineNote": "Ask whether to show empty padding when the reveal reaches padding the tree hides (2026-10-07)"
 }

@@ -66,7 +66,7 @@ level for a `later` entry.
     (read as a raw area) with Update in Parent refusing a change inside it; strings (52
     in each language), glossary entry, help. Three steps: the reader, then the rows and
     details, then the checksum and the inflating entry.
-- [ ] **W6 — AMI BIOS Guard (PFAT) update files** (`7b452e2`, `798696f`)
+- [x] **W6 — AMI BIOS Guard (PFAT) update files** (`7b452e2`, `798696f`)
   - `BIOSGuardUpdate` over an `ImageReader`, the comparison of a dump's BIOS region with
     an update file (the region's menu item, a sheet listing each named part with its
     address, identical, differs or board data, Write as one undo step, only the bytes that
@@ -74,6 +74,13 @@ level for a `later` entry.
     the assembled BIOS region opened through a decoded space, Open/Save Assembled BIOS
     Region, Update in Parent refusing, two node kinds (`biosGuardUpdate`,
     `biosGuardEntry`), glossary entry, help. Two steps in upstream's order.
+  - Done in two commits: the update as a tree (`biosGuardUpdate.ts`, both node kinds, the
+    region's space in `DecompressedBuffers`, the entries opened by `TreeMaterialization`,
+    the refusal in `planRebuild`, the details, the help term, strings and help of both
+    steps), then the comparison (`uefiUpdateComparison.ts`, the dialog, the menu item on the
+    BIOS region's row, the write as one undo step). Differs: no busy indicator, no
+    read-only state of a file (the browser has none), and "Undo takes it back." for ⌘Z.
+  - The window is closed: `PORT_STATE.json` stands at `7670b04`.
 
 ## Order and closing
 
