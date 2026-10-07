@@ -42,6 +42,9 @@ class FakeWorker {
 const {
   analyzePaneMe,
   askFirmwarePart,
+  expandFirmwareNode,
+  expandFirmwareNodeAndWait,
+  firmwareStore,
   heldPaneFit,
   noteFirmwareOperations,
   openFirmware,
@@ -204,5 +207,80 @@ describe("the FIT table the pane keeps", () => {
     } finally {
       editingHooks.onContentChange = undefined;
     }
+  });
+});
+
+/**
+ * The lazy tree's driver, as the store holds it: what is waiting on a branch, and
+ * what an edit does to the wait.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests
+ * @upstream-differs the expansion runs in the worker and the waiting in the store: these are the store's half
+ */
+describe("a branch being read", () => {
+  /** A tree whose one root is a container nobody has opened. */
+  function withAClosedRoot(): void {
+    const open = sent("openFirmware").at(-1);
+    openFirmware("a", new Blob([new Uint8Array(0x100)]));
+    const parse = sent("openFirmware").at(-1);
+    if (parse === undefined || parse === open) throw new Error("the parse should have been sent");
+    reply({
+      kind: "firmwareRoots",
+      id: parse.id,
+      size: 0x100,
+      roots: [
+        {
+          id: [0],
+          kind: "volume",
+          name: "Volume",
+          header: [0, 0x48],
+          body: [0x48, 0x100],
+          tail: [0x100, 0x100],
+          isFixed: false,
+          space: [],
+          isErased: false,
+          isExpandable: true,
+          childDepth: 1,
+          children: [],
+        },
+      ],
+      diagnostics: [],
+    });
+    posted = [];
+  }
+
+  // An edit lands while a branch is still being read. Whoever asked for it is
+  // answered rather than left waiting — a search suspended on that branch would
+  // otherwise hang for the life of the session.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testAnEditAnswersWhoeverWasWaitingOnTheWorkItDropped
+  it("answers whoever was waiting on a branch an edit dropped", async () => {
+    withAClosedRoot();
+    let answered = false;
+    const waiting = expandFirmwareNodeAndWait("a", [0]).then(() => {
+      answered = true;
+    });
+    expect(firmwareStore.getSnapshot().panes.a?.expanding.has("0")).toBe(true);
+
+    // The edit's news: the tree comes back with the branch closed again.
+    const ask = sent("firmwareChildren").at(-1);
+    if (ask === undefined) throw new Error("the branch should have been asked for");
+    reply({
+      kind: "firmwareInvalidated",
+      id: ask.id,
+      size: 0x100,
+      roots: firmwareStore.getSnapshot().panes.a?.roots ?? [],
+    });
+    await waiting;
+
+    expect(answered).toBe(true);
+    expect(firmwareStore.getSnapshot().panes.a?.expanding.size).toBe(0);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testASecondExpandWhileOneIsInFlightCoalescesOntoIt
+  it("folds a second ask for a branch into the one already running", () => {
+    withAClosedRoot();
+    expandFirmwareNode("a", [0]);
+    expandFirmwareNode("a", [0]);
+    expect(sent("firmwareChildren")).toHaveLength(1);
   });
 });

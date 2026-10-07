@@ -45,6 +45,8 @@ import {
   type UEFIRootLayout,
 } from "@/firmware/uefi/rootLayout";
 import {
+  lastVolumeTopFile,
+  markFixed,
   runSecondPass,
   type SecondPass,
   secondPassAnchoredOn,
@@ -60,7 +62,12 @@ import {
   stampIds,
 } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import {
+  isNodeCompressed,
+  nodeFileRange,
+  nodeRange,
+  type UEFINode,
+} from "@/firmware/uefi/uefiNode";
 import { planRebuild, targetForFileRange } from "@/firmware/uefi/uefiRebuild";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
@@ -171,7 +178,11 @@ function protectionNote(warnings: readonly string[] | undefined): string {
   return ` ${warnings.join(" ")}`;
 }
 
-/** The image currently open. One per worker, as one worker serves one pane. */
+/**
+ * The image currently open. One per worker, as one worker serves one pane.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.imageReader
+ */
 let reader: ImageReader | undefined;
 /**
  * What the bytes at offset 0 are, as the pane that opened them said: a part
@@ -179,7 +190,11 @@ let reader: ImageReader | undefined;
  * re-read after an edit has to read it the same way.
  */
 let layout: UEFIRootLayout = IMAGE_LAYOUT;
-/** The tree as the worker knows it, so a child request can find its node. */
+/**
+ * The tree as the worker knows it, so a child request can find its node.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.rootNodes
+ */
 let roots: UEFINode[] = [];
 /**
  * What the compressed sections opened so far decompress to, so a branch closed
@@ -190,13 +205,28 @@ let buffers = new DecompressedBuffers();
  * The protected ranges, once something has asked for them: reading them opens
  * every volume's files and hashes megabytes, so it is done once and kept until
  * an edit makes it stale.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.protectedRanges
  */
 let protectedRanges: ProtectedRanges | undefined;
 /**
  * Where the image is mapped, once something has asked: the same reading the
- * ranges need, and an edit makes it stale the same way.
+ * ranges need, and an edit makes it stale the same way. Nothing here is the
+ * mapping not worked out yet; an answer with no `addressDiff` is an image with no
+ * Volume Top File to anchor one.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.addressDiff
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resetVector
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.addressesResolved
  */
 let addresses: SecondPass | undefined;
+/**
+ * Where the Volume Top File the mapping is anchored on starts, once the mapping
+ * is known: its node says it cannot move, wherever the tree reaches it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.fixedAnchor
+ */
+let fixedAnchor: number | undefined;
 /**
  * What Dell's Setup forms say each DVAR variable is, once something has asked: the
  * reading decodes the compressed volumes, so it is done once and kept until an edit
@@ -210,6 +240,8 @@ const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
  * The tree as an image, for the readings that need the whole of it — which
  * volume a node sits in, what a range of the file is. Nothing before an image
  * is open.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.image
  */
 function imageOfTree(): UEFIImage | undefined {
   if (reader === undefined) return undefined;
@@ -312,6 +344,7 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   children: node.children.map((child) => wireNode(child, node)),
 });
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.node */
 function nodeAt(path: readonly number[]): UEFINode | undefined {
   let nodes = roots;
   let found: UEFINode | undefined;
@@ -362,6 +395,7 @@ function addressing(): SecondPass {
     const second = secondPassAnchoredOn(parser, tail);
     if (second.addressDiff !== undefined) {
       addresses = second;
+      markTheAnchor(nodeRange(tail).start);
       return second;
     }
   }
@@ -369,7 +403,22 @@ function addressing(): SecondPass {
   const discarded: UEFIDiagnostic[] = [];
   materializeAll(copy, reader, DEFAULT_LIMITS, buffers, discarded, { opensCompressed: false });
   addresses = runSecondPass(parser, copy);
+  const anchor = addresses.addressDiff === undefined ? undefined : lastVolumeTopFile(copy);
+  if (anchor !== undefined) markTheAnchor(nodeRange(anchor).start);
   return addresses;
+}
+
+/**
+ * The VTF is the anchor for every address in the image, so moving it moves
+ * everything — and its node says so. It is marked wherever the tree already
+ * reaches it, and again each time a branch is opened (\`open\`), because the
+ * mapping is usually known long before the volume holding the VTF is walked.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.markTheAnchor
+ */
+function markTheAnchor(at: number): void {
+  fixedAnchor = at;
+  markFixed(roots, at);
 }
 
 /**
@@ -437,12 +486,19 @@ const wireProtectedRange = (range: ProtectedRange): WireProtectedRange => ({
   isIbb: isIbbKind(range.kind),
 });
 
-/** Opens one collapsed node where it stands, keeping its children for later asks. */
+/**
+ * Opens one collapsed node where it stands, keeping its children for later asks.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.expand
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.children
+ * @upstream-differs synchronous, inside the request that asked: the worker is the background, and the store says which rows are being read
+ */
 function open(node: UEFINode, into: UEFIDiagnostic[]): void {
   if (reader === undefined || !node.isExpandable) return;
   const result = childrenOf(node, reader, DEFAULT_LIMITS, buffers);
   node.children = stampIds(result.nodes, node.id);
   node.isExpandable = false;
+  if (fixedAnchor !== undefined) markFixed(node.children, fixedAnchor);
   into.push(...result.diagnostics);
 }
 
@@ -562,12 +618,14 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
       case "speakLanguage":
         installCatalogue(request.catalogue);
         return;
+      // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.init
       case "openFirmware": {
         reader = new ImageReader(new BlobByteSource(request.content));
         buffers = new DecompressedBuffers();
         protectedRanges = undefined;
         dvarSettings = undefined;
         addresses = undefined;
+        fixedAnchor = undefined;
         const sink = new ProgressSink(reader.count, (fraction) =>
           post({ kind: "firmwareProgress", id: request.id, fraction })
         );
@@ -605,6 +663,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // The forms too: an edit may have landed in the driver.
         dvarSettings = undefined;
         addresses = undefined;
+        fixedAnchor = undefined;
         roots = invalidating(roots, edited, request.sizeDelta);
         // No diagnostics come back with this: what was found in the subtrees
         // just dropped went with them, as it does upstream, and what is left is
@@ -646,6 +705,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.materialize
       case "firmwareNodeAtOffset": {
         // Down through whatever covers the offset, opening each branch on the
         // way: the node under the caret may sit in a volume nobody has read,
@@ -654,13 +714,22 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         let nodes = roots;
         let path: number[] | undefined;
         for (;;) {
+          // A file offset: never a reason to go inside a compressed section,
+          // whose children's ranges are in a space of their own.
           const index = nodes.findIndex((one) => {
-            const range = nodeRange(one);
-            return request.offset >= range.start && request.offset < range.end;
+            const range = nodeFileRange(one);
+            return (
+              range !== undefined && request.offset >= range.start && request.offset < range.end
+            );
           });
           const node = nodes[index];
           if (node === undefined) break;
           path = [...(path ?? []), index];
+          // A byte of the file inside a compressed stream is no one byte of
+          // what it decompresses to, so the chain ends at the section — and a
+          // reveal never pays for decoding it.
+          // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.step
+          if (node.kind === "section" && node.isExpandable) break;
           open(node, diagnostics);
           nodes = node.children;
         }

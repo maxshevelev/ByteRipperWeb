@@ -5,6 +5,7 @@ import { ImageReader } from "@/firmware/imageReader";
 import * as Test from "@/firmware/testing/testImage";
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import type { FlashRegionType } from "@/firmware/uefi/descriptorParser";
+import { guid } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_LIMITS } from "@/firmware/uefi/parserState";
 import { NAME_LZMA, nameBody, streamBytes } from "@/firmware/uefi/testing/compressedFixtures";
 import {
@@ -63,6 +64,10 @@ function built(bytes: Uint8Array): { reader: ImageReader; roots: UEFINode[] } {
   return { reader, roots: stampIds(rootsOf(reader, DEFAULT_LIMITS).nodes, []) };
 }
 
+/** Every node of `nodes`, outermost first. */
+const flatten = (nodes: readonly UEFINode[]): UEFINode[] =>
+  nodes.flatMap((node) => [node, ...flatten(node.children)]);
+
 /** One node's children, read now — what an expansion does after an invalidation. */
 function expandNode(reader: ImageReader, node: UEFINode): UEFINode[] {
   const result = childrenOf(node, reader, DEFAULT_LIMITS, new DecompressedBuffers());
@@ -108,6 +113,7 @@ const bodyOfLastFile = (volume: UEFINode): ImageRange => {
 };
 
 describe("invalidating an overwrite", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testInvalidateWithNoOverlapLeavesAnExpandedVolumeAlone
   it("leaves an expanded volume alone when the edit misses it", () => {
     const { roots, volumes } = opened(twoVolumeImage());
 
@@ -122,6 +128,7 @@ describe("invalidating an overwrite", () => {
     expect(filesOf(refreshed[1] as UEFINode)).toHaveLength(1);
   });
 
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testInvalidateWithOverlapCollapsesOnlyTheAffectedVolume
   it("collapses only the volume the edit landed in", () => {
     const { roots, volumes } = opened(twoVolumeImage());
 
@@ -141,6 +148,7 @@ describe("invalidating an overwrite", () => {
   // The point of invalidating a tree rather than rebuilding it: the node that
   // was dropped is read again from the bytes as they are now, not as they were
   // when the tree was built.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testAReExpandedNodeReadsCurrentBytes
   it("reads the bytes as they are now when a collapsed volume is opened again", () => {
     const bytes = twoVolumeImage();
     const { reader, roots, volumes } = opened(bytes);
@@ -171,9 +179,25 @@ describe("invalidating an overwrite", () => {
 
     expect(collapsed(biosOf(roots))).toBe(true);
   });
+
+  // Bytes typed into a file's size field, inside one file: that file's
+  // neighbours may have moved, so its volume is read again.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testAnEditToAFilesHeaderCollapsesItsVolume
+  it("collapses a volume when one of its files' headers is edited", () => {
+    const { roots, volumes } = opened(twoVolumeImage());
+    const file = filesOf(volumes[0] as UEFINode)[0] as UEFINode;
+
+    collapsingOverlapping(roots, range(file.header.start + 0x14, file.header.start + 0x17));
+
+    const refreshed = volumesOf(biosOf(roots));
+    expect(collapsed(refreshed[0] as UEFINode)).toBe(true);
+    // The other volume is untouched.
+    expect(filesOf(refreshed[1] as UEFINode)).toHaveLength(1);
+  });
 });
 
 describe("invalidating an insert or a delete", () => {
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testSizeChangingInvalidateCollapsesFromTheEditPointOnward
   it("collapses from the edit point onward, and leaves what is before it", () => {
     const { roots, volumes } = opened(twoVolumeImage());
 
@@ -280,5 +304,50 @@ describe("invalidating an opened compressed section", () => {
     expect(section.children).toEqual([]);
     // And it can be opened again.
     expect(section.isExpandable).toBe(true);
+  });
+  // A compressed section put back shorter moves the file after it up, and the
+  // rewrite runs from the section to the end of where that file used to be.
+  // Narrowed into the section, the volume kept the moved file at its old offset
+  // — erased bytes now, read as a file of size 0xFFFFFF with every checksum
+  // wrong. An edit like that is the volume's, and collapses it; one inside the
+  // section's stream alone is still the section's, and leaves the files beside
+  // it where they are.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testAnEditThatMovesTheFilesAfterASectionCollapsesTheirVolume
+  it("collapses the volume for an edit that moves the files after the section", () => {
+    const section = Test.compressionSection(0x02, streamBytes(NAME_LZMA), nameBody().length);
+    const image = Test.volume({
+      length: 0x1000,
+      files: [
+        Test.sectionedFile({ sections: [section] }),
+        Test.file({
+          guid: guid("22222222-3333-4444-5555-666666666666"),
+          body: new Uint8Array(40).fill(0x42),
+        }),
+      ],
+    });
+    const tree = built(image);
+    const volumeOf = (roots: readonly UEFINode[]): UEFINode =>
+      flatten(roots).find((node) => node.kind === "volume") as UEFINode;
+    const volume = volumeOf(tree.roots);
+    if (volume.isExpandable) expandNode(tree.reader, volume);
+    const files = filesOf(volume);
+    expect(files).toHaveLength(2);
+    const compressed = (files[0] as UEFINode).children.find(
+      (node) => node.compression !== undefined
+    ) as UEFINode;
+    expandNode(tree.reader, compressed);
+
+    // Inside the stream: the section is read again, the files stay.
+    const inStream = compressed.body.start + 2;
+    const afterStream = invalidating(tree.roots, range(inStream, inStream + 1), 0);
+    expect(filesOf(volumeOf(afterStream))).toHaveLength(2);
+
+    // From the section's header to the end of the next file: the layout.
+    const afterMove = invalidating(
+      afterStream,
+      range(compressed.header.start, (files[1] as UEFINode).body.end),
+      0
+    );
+    expect(collapsed(volumeOf(afterMove))).toBe(true);
   });
 });

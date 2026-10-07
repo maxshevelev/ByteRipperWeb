@@ -236,7 +236,7 @@ export function addressSpaceTop(parser: Parser): number {
  * the address space. A compressed one is no use — its address is wherever the
  * decompressor put it.
  */
-function lastVolumeTopFile(roots: readonly UEFINode[]): UEFINode | undefined {
+export function lastVolumeTopFile(roots: readonly UEFINode[]): UEFINode | undefined {
   let best: UEFINode | undefined;
   for (const root of roots) {
     for (const node of flattened(root)) {

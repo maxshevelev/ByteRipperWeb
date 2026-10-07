@@ -57,7 +57,11 @@ export interface PaneFirmware {
   readonly addressDiff: number | undefined;
   readonly fraction: number;
   readonly problem: string | undefined;
-  /** The paths currently being expanded, so a row can say it is working. */
+  /**
+   * The paths currently being expanded, so a row can say it is working.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.isExpanding
+   */
   readonly expanding: ReadonlySet<string>;
   /** What the detail panel shows about the node it was last asked about. */
   readonly detail: FirmwareDetailResponse | undefined;
@@ -532,9 +536,15 @@ export function expandFirmwareNodeAndWait(pane: PaneId, path: readonly number[])
     return node !== undefined && node.isExpandable;
   };
   if (!unread()) return Promise.resolve();
+  const key = pathKey(path);
   return new Promise((resolve) => {
     const stop = firmwareStore.subscribe(() => {
-      if (unread()) return;
+      // Still being read: wait. Read, or dropped by an edit that moved the tree
+      // under it — the branch is closed again then, and nobody is reading it —
+      // and the wait is over: a caller left waiting on work an edit threw away
+      // would wait for the life of the session.
+      // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.invalidate
+      if (unread() && firmwareFor(pane)?.expanding.has(key) === true) return;
       stop();
       resolve();
     });

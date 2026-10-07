@@ -446,7 +446,8 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift": "src/firmware/uefi/amdFirmware.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/EFIGUIDTests.swift": "src/firmware/uefi/efiGuid.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/NvramGuidsTests.swift": "src/firmware/uefi/nvramGuids.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift": "src/firmware/uefi/parseProgress.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift": "src/firmware/uefi/parseProgress.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift": "src/workers/firmwareWorker.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -464,10 +465,7 @@
         "Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#ChecksumRepair.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Tests/UEFIImageTests/ImageReaderTests.swift#ImageReaderTests.testDataAndBytesReadTheSame": "n/a — one source over a Uint8Array stands for both Data and [UInt8]",
         "Packages/UEFIImage/Tests/UEFIImageTests/TestImage.swift#BinaryWriter*": "n/a — the web fixtures write their bytes through local helpers of their own",
-        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#*": "later — the expansion half: the web tree is expanded in firmware.worker and firmwareStore, and its laziness has no tests of its own yet. The invalidation half (the two testInvalidate cases, testAReExpandedNodeReadsCurrentBytes, testSizeChangingInvalidateCollapsesFromTheEditPointOnward) is in src/firmware/uefi/treeInvalidation.test.ts",
-        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#*": "later — the invalidation rules are ported (src/firmware/uefi/treeInvalidation.ts); the lazy expansion itself is not: the web builds the tree whole as it is parsed, in firmware.worker and firmwareStore",
         "Packages/UEFIImage/Sources/UEFIImage/DecompressedBuffers.swift#DecompressedBuffers.lock": "n/a — a worker is one thread; there is nothing to take a lock against",
-        "Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#LazyCompressedSectionTests*": "later — the lazy tree's own driver has no test harness here (G24); the cache's drop rules are covered in compressedSection.test.ts",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.InnerLocation.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#SectionCompression.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/ProtectedRanges.swift#ProtectedRange.init": "n/a — an object literal; there is nothing to construct",
@@ -488,7 +486,22 @@
         "Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Chip.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/AMDMicrocode.swift#AMDMicrocodeHeader.range": "n/a — the offset and the length say it, and the node is made from them",
         "Packages/UEFIImage/Sources/UEFIImage/HPSignatureBlock.swift#HPSignatureBlock.range": "n/a — the offset and the length say it, and the node is made from them",
-        "Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.init": "n/a — an object literal; there is nothing to construct"
+        "Packages/UEFIImage/Sources/UEFIImage/Sound.swift#Sound.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testRegionLookupWorksBeforeAnyExpansion": "n/a — the tree has no region lookup: the ME analysis finds its region in the descriptor (`meRegion`), never through the tree",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testRegionLookupIsNilForARegionTheDescriptorDidNotMap": "n/a — the tree has no region lookup: the ME analysis finds its region in the descriptor (`meRegion`), never through the tree",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testAnEditAnswersWhoeverWasWaitingOnTheMapping": "n/a — nothing waits on the mapping: it lands as the store's `addressDiff`, and a reply about a tree an edit replaced is dropped on arrival by its job",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testAReadingAnEditOvertakesStillAnswersItsCaller": "n/a — nothing waits on the ranges: they land as the store's `protectedRanges`, and a reading an edit overtook is dropped on arrival by its job",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.Change": "n/a — the actor's observers and readiness: the worker answers each request as it comes, and the store's subscribers are what hears a change",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.ObserverToken": "n/a — the actor's observers and readiness: the worker answers each request as it comes, and the store's subscribers are what hears a change",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.addObserver": "n/a — the actor's observers and readiness: the worker answers each request as it comes, and the store's subscribers are what hears a change",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.removeObserver": "n/a — the actor's observers and readiness: the worker answers each request as it comes, and the store's subscribers are what hears a change",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.whenReady": "n/a — the actor's observers and readiness: the worker answers each request as it comes, and the store's subscribers are what hears a change",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.isReady": "n/a — the actor's observers and readiness: the worker answers each request as it comes, and the store's subscribers are what hears a change",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.currentDiagnostics": "n/a — the diagnostics travel with each answer (`firmwareRoots`, `firmwareChildren`) and the store keeps the list",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.isExpandable": "n/a — a node's own `isExpandable` answers it, on the wire as in the worker",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.region": "n/a — the tree has no region lookup: the ME analysis finds its region in the descriptor (`meRegion`)",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.source": "n/a — the worker reads the pane's Blob (`BlobByteSource`), handed over with each open and each edit",
+        "Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.spaceReaders": "n/a — the readers of the decompressed spaces are the worker's `buffers` (`DecompressedBuffers.readerFor`)"
       }
     },
     {
