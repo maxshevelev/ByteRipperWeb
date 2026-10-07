@@ -13,7 +13,11 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
-import { FragmentPanel, FragmentPanelHost } from "@/ui/fragments/FragmentPanelView";
+import {
+  FragmentPanel,
+  FragmentPanelHost,
+  foldAwayOnClose,
+} from "@/ui/fragments/FragmentPanelView";
 import { usePartsWithChanges } from "@/ui/fragments/usePartLink";
 import { HelpPanel } from "@/ui/help/HelpPanel";
 
@@ -57,23 +61,33 @@ export function FragmentPanels({
   const unreturned = usePartsWithChanges(state.dock.panels.map((id) => partPane(id)));
 
   // What is up, and what has just been folded away and is still folding into its pill. The
-  // motion is upstream's where upstream has one: a panel brought up from nothing grows out of
-  // its pill, one folded to nothing flies back into it, and one switched to from another just
-  // arrives — and a panel that was *closed* has no pill left to go into, so it goes at once.
+  // motion is upstream's: a panel brought up from nothing grows out of its pill, one folded to
+  // nothing flies back into it, and one switched to from another in the dock just arrives —
+  // the reader asked to look at the other panel, not to watch this one leave. A panel that
+  // is *new* is different: it still grows out of its pill, and the one it replaces finishes
+  // folding first, or the two flights read as one muddle. A panel that was closed folds into
+  // where its pill was, drawn from what was on screen, since its state is already gone
+  // (`foldAwayOnClose`).
   // Derived while rendering rather than in an effect, so that the panel that is folding is
   // never taken away and put back.
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.apply
   // @upstream-differs a transition is applied by rendering: the state says which panel is up and React puts it there
   const upNow = state.dock.expanded;
   const [seenUp, setSeenUp] = useState(upNow);
+  const [seenPanels, setSeenPanels] = useState(state.dock.panels);
   const [folded, setFolded] = useState<typeof upNow>(undefined);
   const [raisedFromNothing, setRaisedFromNothing] = useState(true);
   if (upNow !== seenUp) {
     setSeenUp(upNow);
     const stillThere = seenUp !== undefined && state.dock.panels.includes(seenUp);
-    setFolded(upNow === undefined && stillThere ? seenUp : undefined);
-    setRaisedFromNothing(seenUp === undefined);
+    // New to the dock: opened just now rather than switched to.
+    const isNew = upNow !== undefined && !seenPanels.includes(upNow);
+    setFolded(stillThere && (upNow === undefined || isNew) ? seenUp : undefined);
+    setRaisedFromNothing(seenUp === undefined || isNew);
+    // Closed while it was up: it folds away as it goes.
+    if (seenUp !== undefined && !stillThere) foldAwayOnClose(seenUp);
   }
+  if (state.dock.panels !== seenPanels) setSeenPanels(state.dock.panels);
 
   // Brings the pills in line with what the panels hold: names, the one that is
   // up, and which of them have bytes the parent has not got back.
@@ -95,8 +109,9 @@ export function FragmentPanels({
   }));
   if (items.length === 0) return null;
 
-  const folding = state.dock.expanded === undefined && folded !== undefined;
-  const up = state.dock.expanded ?? folded;
+  // The one leaving stays on stage until it is gone; the one arriving waits for it.
+  const folding = folded !== undefined;
+  const up = folded ?? state.dock.expanded;
   const helpIsUp = up !== undefined && up === state.helpPanel;
   const motion = {
     pill: up,

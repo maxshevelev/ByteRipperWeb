@@ -3,7 +3,7 @@ import { panelHeight } from "@/ui/fragments/fragmentPanelLayout";
 import { DRAG_THRESHOLD } from "@/ui/fragments/pullDown";
 import { beginPull, type PulledFold } from "@/ui/fragments/pullGesture";
 import { PaneHeaderHostContext } from "@/ui/pane/paneHeaderHost";
-import { type Box, playCardMotion } from "@/ui/toolPanel/cardMotion";
+import { type Box, playCardMotion, prefersReducedMotion } from "@/ui/toolPanel/cardMotion";
 
 /**
  * The area a fragment panel sits in over the panes, and the panel itself
@@ -149,6 +149,22 @@ export function FragmentPanel({
     if (element === null || !opensOutOfPill) return;
     void playCardMotion(element, pillBox(pill), true);
   }, [opensOutOfPill, pill]);
+  // Where the pill is, kept as it renders: a closed panel's pill goes in the same commit the
+  // panel does, and the fold has to know where it was.
+  const lastPill = useRef<Box | undefined>(undefined);
+  useLayoutEffect(() => {
+    lastPill.current = pillBox(pill) ?? lastPill.current;
+  });
+  // Closed while it was up: drawn once more, from what is on screen, folding into where its
+  // pill was — it is going whatever the motion does, so the motion is a picture of it.
+  // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.close
+  useLayoutEffect(() => {
+    const element = panel.current;
+    return () => {
+      if (pill === undefined || !closing.delete(pill) || element === null) return;
+      foldAPicture(element, lastPill.current);
+    };
+  }, [pill]);
   // The pull in the hand, if one is: the means to let it go.
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.pulling
   const pulling = useRef<(() => void) | undefined>(undefined);
@@ -319,4 +335,56 @@ function pillBox(pill: number | undefined): Box | undefined {
   const rect = element.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return undefined;
   return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+}
+
+/** The panels closed while they were up, which fold away as they leave the page. */
+const closing = new Set<number>();
+
+/**
+ * Says the panel `pill` stands for was closed while it was up: when it leaves the page it
+ * folds into where its pill was rather than going at once. Said while the dock is drawn
+ * without it, before the panel is taken down.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.close
+ * @upstream-differs upstream keeps the closing panel's view until its flight lands; here the panel's state is gone with it, so what folds is a picture of it
+ */
+export function foldAwayOnClose(pill: number): void {
+  closing.add(pill);
+}
+
+/**
+ * A still copy of `element` — its canvases' pixels with it, which a copy of the markup alone
+ * would leave blank — laid over the page where it stands, folded into `into` and taken away.
+ */
+function foldAPicture(element: HTMLElement, into: Box | undefined): void {
+  if (into === undefined || prefersReducedMotion() || typeof element.animate !== "function") {
+    return;
+  }
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+  const picture = element.cloneNode(true) as HTMLElement;
+  const from = element.querySelectorAll("canvas");
+  const to = picture.querySelectorAll("canvas");
+  from.forEach((canvas, index) => {
+    const copy = to[index];
+    if (copy === undefined) return;
+    copy.width = canvas.width;
+    copy.height = canvas.height;
+    copy.getContext("2d")?.drawImage(canvas, 0, 0);
+  });
+  picture.setAttribute("aria-hidden", "true");
+  picture.inert = true;
+  Object.assign(picture.style, {
+    position: "fixed",
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    margin: "0",
+    transform: "none",
+    pointerEvents: "none",
+    zIndex: "50",
+  });
+  document.body.append(picture);
+  void playCardMotion(picture, into, false).then(() => picture.remove());
 }

@@ -961,8 +961,24 @@ export function AppShell() {
   const raised = state.dock.expanded;
   useEffect(() => {
     const pane = raised === undefined ? workspaceStore.getSnapshot().activePane : partPane(raised);
-    const dump = document.querySelector(`.hex-pane[data-pane="${pane}"] .hex-scroller`);
-    if (dump instanceof HTMLElement) dump.focus();
+    const take = (): boolean => {
+      const dump = document.querySelector(`.hex-pane[data-pane="${pane}"] .hex-scroller`);
+      if (!(dump instanceof HTMLElement)) return false;
+      dump.focus();
+      return true;
+    };
+    if (take()) return;
+    // A new panel arrives once the one it replaces has folded away, so its dump is not on
+    // the page yet: the keyboard goes to it when it is, and not after something else moved.
+    const watch = new MutationObserver(() => {
+      if (take()) watch.disconnect();
+    });
+    watch.observe(document.body, { childList: true, subtree: true });
+    const giveUp = window.setTimeout(() => watch.disconnect(), 1000);
+    return () => {
+      watch.disconnect();
+      window.clearTimeout(giveUp);
+    };
   }, [raised]);
 
   /**
