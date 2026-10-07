@@ -1,8 +1,10 @@
 import type React from "react";
+import { useState } from "react";
 import { L } from "@/core/localization/localization";
 import { closeHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import {
+  foldParts,
   type PaneState,
   type PartId,
   partPane,
@@ -54,6 +56,24 @@ export function FragmentPanels({
   // for — the hook reads them again on every edit anywhere.
   const unreturned = usePartsWithChanges(state.dock.panels.map((id) => partPane(id)));
 
+  // What is up, and what has just been folded away and is still folding into its pill. The
+  // motion is upstream's where upstream has one: a panel brought up from nothing grows out of
+  // its pill, one folded to nothing flies back into it, and one switched to from another just
+  // arrives — and a panel that was *closed* has no pill left to go into, so it goes at once.
+  // Derived while rendering rather than in an effect, so that the panel that is folding is
+  // never taken away and put back.
+  // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.apply
+  const upNow = state.dock.expanded;
+  const [seenUp, setSeenUp] = useState(upNow);
+  const [folded, setFolded] = useState<typeof upNow>(undefined);
+  const [raisedFromNothing, setRaisedFromNothing] = useState(true);
+  if (upNow !== seenUp) {
+    setSeenUp(upNow);
+    const stillThere = seenUp !== undefined && state.dock.panels.includes(seenUp);
+    setFolded(upNow === undefined && stillThere ? seenUp : undefined);
+    setRaisedFromNothing(seenUp === undefined);
+  }
+
   // Brings the pills in line with what the panels hold: names, the one that is
   // up, and which of them have bytes the parent has not got back.
   //
@@ -74,22 +94,37 @@ export function FragmentPanels({
   }));
   if (items.length === 0) return null;
 
-  const up = state.dock.expanded;
+  const folding = state.dock.expanded === undefined && folded !== undefined;
+  const up = state.dock.expanded ?? folded;
   const helpIsUp = up !== undefined && up === state.helpPanel;
+  const motion = {
+    pill: up,
+    opensOutOfPill: raisedFromNothing && !folding,
+    folding,
+    onFolded: () => setFolded(undefined),
+    // The pull carried on: the dock folds — not a toggle, which would raise a panel the
+    // keyboard folded while the hand still held it. Only the panel that is still up.
+    // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.finishPullDown
+    onCollapse: () => {
+      if (up === undefined || workspaceStore.getSnapshot().dock.expanded !== up) return false;
+      foldParts();
+      return true;
+    },
+  };
   const pane: PartId | undefined = up === undefined || helpIsUp ? undefined : partPane(up);
   const part = pane === undefined ? undefined : state.parts[pane];
 
   return (
     <>
       {helpIsUp ? (
-        <FragmentPanelHost>
-          <FragmentPanel>
+        <FragmentPanelHost folding={folding}>
+          <FragmentPanel {...motion}>
             <HelpPanel />
           </FragmentPanel>
         </FragmentPanelHost>
       ) : pane !== undefined && part !== undefined ? (
-        <FragmentPanelHost>
-          <FragmentPanel>{renderPane(pane, part)}</FragmentPanel>
+        <FragmentPanelHost folding={folding}>
+          <FragmentPanel {...motion}>{renderPane(pane, part)}</FragmentPanel>
         </FragmentPanelHost>
       ) : null}
       <FragmentDockStrip

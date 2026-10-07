@@ -1536,8 +1536,6 @@
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.draw": "n/a — AppKit drawing; CSS draws the box",
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.drawCentredText": "n/a — AppKit drawing; the word is centred in its box by the line box",
         "ByteRipperApp/Pane/StatusBarLabels.swift#TypingModeLabel.resetCursorRects": "n/a — AppKit cursor rects; `cursor: pointer` in the stylesheet",
-        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
-        "ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDownwardDragThresholdPassed": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.linkSymbolName": "later — the three states of a part's link to its parent (G4 in Design/GAPS.md)",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.sourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.refreshSourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
@@ -1643,7 +1641,6 @@
         "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.outsideTheFile": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
         "ByteRipperApp/Tools/PaneToolHost.swift#ToolHostError.readOnly": "n/a — a tool reads the pane's file, caret and selection from the stores it subscribes to",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.surface": "n/a — the controller holds one session per surface, keyed by SurfaceId, rather than one controller per surface holding its own",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onHeaderPulledDown": "n/a — the panel's pull-down gesture, which the owner left out (2026-09-19; GAPS §2.1)",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.draggingEnded": "n/a — AppKit ends a drag twice, on exit and on end; a browser fires dragleave for the one and nothing for the other, and the drop handler takes the zone down itself",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneCaption": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneIsRefusing": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
@@ -5019,17 +5016,11 @@
         "src/ui/fragments"
       ],
       "status": "in-progress",
-      "note": "A part of a file — a zone, a decompressed body, a node of the UEFI tree — opened over the file it came out of rather than beside it (upstream's Design/FRAGMENT_PANELS_PLAN.md). The dock is a pure model and ports verbatim; the panel is React composition rather than a view controller, and its one piece of arithmetic — how much of the parent's header stays showing — is fragmentPanelLayout.ts, with upstream's three geometry cases. What the web does not take: tearing a panel off into a tab, there being no tab (D11), and the flight, the pull-down gesture and the draggable pill, which the owner left out (2026-09-19). The route in and the commands that follow what is in front are ported (G49): a zone opens from either zone menu, a compressed section's row opens what it decompresses to, the document commands read `frontPane` while the pane commands are refused, the keyboard moves with the panel, and a part has marks of its own. Still open: the link back to the parent and the two questions closing one asks (G4), a part's own minimap and tool panel (G50), and opening any node of the tree (G51) — see Design/GAPS.md.",
+      "note": "A part of a file — a zone, a decompressed body, a node of the UEFI tree — opened over the file it came out of rather than beside it (upstream's Design/FRAGMENT_PANELS_PLAN.md). The dock is a pure model and ports verbatim; the panel is React composition rather than a view controller, and its one piece of arithmetic — how much of the parent's header stays showing — is fragmentPanelLayout.ts, with upstream's three geometry cases. The flight and the pull-down gesture are ported (G67): a panel grows out of its pill and folds back into it as a clip-path reveal (`cardMotion.ts`), and is pulled down by its header, or the tool's, with upstream's rule for letting go (`pullDown.ts`) and its spring back (`pullGesture.ts`). What the web does not take: tearing a panel off into a tab, there being no tab (D11), and the draggable pill, which the owner left out (2026-09-19). The route in and the commands that follow what is in front are ported (G49): a zone opens from either zone menu, a compressed section's row opens what it decompresses to, the document commands read `frontPane` while the pane commands are refused, the keyboard moves with the panel, and a part has marks of its own. Still open: the link back to the parent and the two questions closing one asks (G4), a part's own minimap and tool panel (G50), and opening any node of the tree (G51) — see Design/GAPS.md.",
       "unported": {
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.beginPullDown": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.pullPanel": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.endPull": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.springBackDuration": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.slideDuration": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.slowMotion": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.slowMotion": "n/a — a debugging multiplier of upstream's panel animations; the motion is a few constants in `cardMotion.ts`",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.release": "n/a — a panel torn off into a tab of its own: one workspace per browser tab (D11) leaves it nowhere to go",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.adopt": "n/a — a panel torn off into a tab of its own: one workspace per browser tab (D11) leaves it nowhere to go",
-        "ByteRipperApp/Fragments/PullDownHandleView.swift#*": "n/a — the handle a panel is pulled down by: the owner left the panel's gestures out (2026-09-19)",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.init": "n/a — there is nothing to build: the dock is a field of the workspace's state and the panel is a component that reads it",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.isEmpty": "n/a — `dock.panels.length` answers it off the state",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.count": "n/a — `dock.panels.length` answers it off the state",
@@ -5041,14 +5032,8 @@
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.tearDown": "n/a — letting go of a panel's views is React unmounting them; the document half is `closePart`",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.invalidateCursors": "n/a — the browser re-asks for the cursor by itself",
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.hideContainerIfClear": "n/a — the host is rendered only while a panel is up, so there is nothing to hide",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.fly": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.move": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.pillRect": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.finishPullDown": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.pulling": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.flying": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
-        "ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown*": "n/a — the pull-down gesture: the owner left the panel's animation and its gestures out (2026-09-19); a pill raises and folds it",
-        "ByteRipperApp/Fragments/FragmentPanelView.swift#PanelLanding*": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19)",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.move": "n/a — AppKit's one helper for setting a view's frame, animated or not: the web moves a panel by its own `transform` and `element.animate` — `playCardMotion` for the flights, `springBack` in `pullGesture.ts` for the spring back",
+        "ByteRipperApp/Fragments/FragmentPanelView.swift#PanelLanding*": "n/a — the landing is a clip-path from the pill's box (`revealFrom`), not a transform worked out between anchor points",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelHost.*": "n/a — AppKit's wall, its hit testing and its layout callback: in a browser the host is the wall by being an element over the panes and is rendered only while a panel is up, and its size comes from a `ResizeObserver`",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.restingFrame": "n/a — the panel's resting place is the host's own box: `panelHeight` gives the height and the host puts it on its bottom edge",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.foldedFrame": "n/a — a folded panel is not rendered at all, so it has nowhere to wait",
@@ -5071,15 +5056,16 @@
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.init": "n/a — the dock is markup: a list of pills along the bottom edge",
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.height": "n/a — the dock's height is `.fragment-dock`'s own rule",
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.draw": "n/a — the dock's background and the rule along its top edge are `.fragment-dock`'s own",
-        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.pillFrame": "n/a — the panel appears and folds without animation, by the owner's decision (2026-09-19); where a pill sits is what a folding panel flew into",
-        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.pillsForTesting": "n/a — a suite that wants the pills reads the DOM"
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.pillsForTesting": "n/a — a suite that wants the pills reads the DOM",
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.flying": "n/a — the panel in flight is `folding` on the panel's own element; no layout pass of the page places it"
       },
       "files": {
         "FragmentDock.swift": "src/state/fragmentDock.ts",
         "ByteRipperTests/FragmentDockTests.swift": "src/state/fragmentDock.test.ts",
         "FragmentPanels.swift": "src/ui/fragments/FragmentPanels.tsx",
         "FragmentPanelView.swift": "src/ui/fragments/FragmentPanelView.tsx",
-        "FragmentDockStrip.swift": "src/ui/fragments/FragmentDockStrip.tsx"
+        "FragmentDockStrip.swift": "src/ui/fragments/FragmentDockStrip.tsx",
+        "PullDownHandleView.swift": "src/ui/fragments/FragmentPanelView.tsx"
       }
     },
     {

@@ -5782,3 +5782,33 @@ button.uefi-title {
 .update-table td[data-tone="caution"] {
   color: var(--semantic-caution);
 }
+
+/* While the card folds back into the details pane it is not the reader's: a click lands on
+   what is under it. */
+.tool-detail-card[data-closing] {
+  pointer-events: none;
+}
+
+/* A panel folding back into its pill is not the reader's: a click lands on what is under it —
+   which takes the host it stands in out of the way too, or the click lands on the host. */
+.fragment-panel-host[data-folding],
+.fragment-panel[data-folding] {
+  pointer-events: none;
+}
+
+/* A panel in the hand: it follows the pointer, and nothing under it is selected or lit by the
+   pointer passing over. The headers it is pulled by do not scroll the page on a touch screen. */
+body[data-pulling-panel] {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body[data-pulling-panel] * {
+  pointer-events: none;
+}
+
+.fragment-panel > .fragment-panel-head,
+.fragment-panel .tool-panel-head {
+  touch-action: none;
+}

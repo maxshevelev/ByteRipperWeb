@@ -16,6 +16,7 @@ import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
+import { type Box, playCardMotion } from "@/ui/toolPanel/cardMotion";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { detailCopyText } from "@/ui/toolPanel/detailCopy";
 import { largeDetailFrame } from "@/ui/toolPanel/largeDetailFrame";
@@ -94,6 +95,37 @@ export function ToolDetail({
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
   const hasRows = detail.fields.length > 0;
   const paneRef = useRef<HTMLDivElement | null>(null);
+  // Where the pane stood while it was shown: the card opens out of it, and folds back into it.
+  // The pane is folded away while the card is up, so it is taken before that, on every render
+  // and when the pane or the window is resized — the watchers put on once, the pane's box being
+  // the same element for as long as the details are shown.
+  const paneBox = useRef<Box | undefined>(undefined);
+  const takePaneBox = () => {
+    const element = paneRef.current;
+    if (element === null || element.offsetParent === null) return;
+    const rect = element.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      paneBox.current = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    }
+  };
+  useLayoutEffect(takePaneBox);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: takePaneBox reads only refs
+  useLayoutEffect(() => {
+    const element = paneRef.current;
+    if (element === null) return;
+    const observer = new ResizeObserver(takePaneBox);
+    observer.observe(element);
+    window.addEventListener("resize", takePaneBox);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", takePaneBox);
+    };
+  }, []);
+  // The card stays up while it folds away.
+  const [folding, setFolding] = useState(false);
+  useEffect(() => {
+    if (open) setFolding(true);
+  }, [open]);
   useScrollToTopOnSubject(paneRef, subject, hasRows);
 
   // A link followed from the card closes it, and goes where it points.
@@ -148,10 +180,13 @@ export function ToolDetail({
         />
       ) : null}
       <DetailBody {...bodyProps} onSelectNode={onSelectNode} onOutlineRange={onOutlineRange} />
-      {open
+      {open || folding
         ? createPortal(
             <LargeDetailCard
               {...bodyProps}
+              closing={!open}
+              source={() => paneBox.current}
+              onGone={() => setFolding(false)}
               hasRows={hasRows}
               onSelectNode={followNode}
               onOutlineRange={followRange}
@@ -296,12 +331,21 @@ function LargeDetailCard({
   onSelectNode,
   onOutlineRange,
   onClose,
+  closing,
+  source,
+  onGone,
 }: {
   readonly detail: NodeDetail;
   readonly placeholder: string;
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
   readonly hasRows: boolean;
+  /** The reader closed it: it is folding back into the pane, and is no longer theirs. */
+  readonly closing: boolean;
+  /** Where the details pane stood, which the card opens out of. */
+  readonly source: () => Box | undefined;
+  /** The fold is over and the card can be taken away. */
+  readonly onGone: () => void;
   readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
   readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
   readonly onClose: () => void;
@@ -336,12 +380,46 @@ function LargeDetailCard({
   }, []);
   useScrollToTopOnSubject(cardRef, subject, hasRows);
 
+  // It opens out of the pane once it has been placed, and folds back into it when closed.
+  const opened = useRef(false);
+  const placed = frame !== undefined;
+  // The caller's functions are new on every render; the motion must not start over with them.
+  const sourceRef = useRef(source);
+  sourceRef.current = source;
+  const goneRef = useRef(onGone);
+  goneRef.current = onGone;
+  useLayoutEffect(() => {
+    const element = cardRef.current;
+    if (closing) {
+      opened.current = false;
+      return;
+    }
+    if (element === null || !placed || opened.current) return;
+    opened.current = true;
+    void playCardMotion(element, sourceRef.current(), true);
+  }, [placed, closing]);
+  useLayoutEffect(() => {
+    const element = cardRef.current;
+    if (!closing || element === null) return;
+    let cancelled = false;
+    void playCardMotion(element, sourceRef.current(), false).then(() => {
+      if (!cancelled) goneRef.current();
+    });
+    return () => {
+      cancelled = true;
+      // Opened again before it was gone: the fold it was held in is let go.
+      for (const animation of element.getAnimations()) animation.cancel();
+    };
+  }, [closing]);
+
   useEffect(() => {
     // The keys the card answers while it is shown.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShown
     const onKey = (event: KeyboardEvent) => {
       // What this card sent on to the table itself.
       if (forwarding) return;
+      // Folding away: nothing it answers is its any more.
+      if (closing) return;
       // Space, Esc and the arrows typed into the search field are the field's.
       if (event.target instanceof Node && isTextEntryTarget(event.target)) return;
       const table = largeDetailKeyTable();
@@ -479,11 +557,12 @@ function LargeDetailCard({
       document.removeEventListener("keydown", onKey, true);
       document.removeEventListener("pointerdown", onPointer, true);
     };
-  }, [onClose]);
+  }, [onClose, closing]);
 
   return (
     <div
       className="tool-detail tool-detail-card"
+      data-closing={closing ? "" : undefined}
       ref={cardRef}
       role="dialog"
       aria-label={L("Details")}

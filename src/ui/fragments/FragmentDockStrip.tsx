@@ -82,7 +82,7 @@ function FragmentPill({
   readonly onClose: () => void;
 }) {
   return (
-    <li className="fragment-pill" data-up={item.isUp ? "" : undefined}>
+    <li className="fragment-pill" data-pill={item.id} data-up={item.isUp ? "" : undefined}>
       <button
         type="button"
         className="fragment-pill-face"
