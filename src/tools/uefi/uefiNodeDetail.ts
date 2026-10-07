@@ -2,6 +2,7 @@ import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { amdKindName } from "@/firmware/uefi/amdFirmware";
 import { amdCpuID, amdMicrocodeDate, readAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
+import { APPLE_OVERRIDES_VARIABLE, readAppleOverrides } from "@/firmware/uefi/appleOverrides";
 import { readAppleROMInformation, searchLimit } from "@/firmware/uefi/appleRomInformation";
 import { biosGuardLayout, regionSize } from "@/firmware/uefi/biosGuardUpdate";
 import { readBIOSIdentifier } from "@/firmware/uefi/biosIdentifier";
@@ -820,6 +821,25 @@ function buildDetailRows(
   // longer than the bound is not read at all.
   const bodyBytes =
     node.body.end - node.body.start <= searchLimit ? reader.bytes(node.body) : undefined;
+
+  // Apple's device overrides are a bzip2 stream of text: the panel reads it, so that a bench
+  // sees what the board is told it has.
+  if (node.kind === "sysFEntry" && node.name === APPLE_OVERRIDES_VARIABLE) {
+    const overrides = readAppleOverrides(reader.bytes(node.body) ?? new Uint8Array());
+    if (overrides !== undefined) {
+      fields.push(field(L("Rules"), `${overrides.rules.length}`));
+      tables.push({
+        title: L("Device overrides"),
+        symbol: "list.bullet.rectangle",
+        columns: [L("Action"), L("Applies to"), L("Device or properties")],
+        rows: overrides.rules.map((rule) => [
+          cell(rule.action),
+          cell(rule.appliesTo === "" ? L("Every device") : rule.appliesTo),
+          cell(rule.detail),
+        ]),
+      });
+    }
+  }
 
   // The BIOS ID string, taken apart where it follows Intel's layout.
   if (bodyBytes !== undefined && isRawSection(node)) {

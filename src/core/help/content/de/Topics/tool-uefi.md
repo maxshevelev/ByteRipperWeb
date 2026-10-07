@@ -1,4 +1,4 @@
-@source-sha 8c66617d04f88d826ae3516eec5383a3e600e4fd4dcb720692b0ab6046a27dc1
+@source-sha 19058bce562a11ccd08f13d8b199afc3114623be688790a87d485ba35ca756c0
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -41,6 +41,7 @@ Rechtsklick auf einen Knoten:
 - Den Knoten **öffnen**, oder nur seinen Rumpf, als [[topic:fragments|Fragment-Bereich]]. Bei einem Knoten in einer komprimierten Sektion nennen die Einträge die Bytes entpackt: **„…“ (entpackt) öffnen** und **Rumpf von „…“ (entpackt) öffnen**.
 - **… sichern unter…** — den Knoten oder nur seinen Rumpf in eine Datei schreiben: dieselben Bytes, die das Öffnen zeigt, unter demselben Namen — dem des Dumps, gefolgt von dem des Knotens. In einer komprimierten Sektion: **„…“ (entpackt) sichern unter…**. Wohin die Datei gelangt, bestimmt der Browser wie bei jedem Download: in den Download-Ordner oder an die Stelle, nach der er fragt.
 - **Entpackten Rumpf öffnen** / **Entpackten Rumpf sichern unter…** bei einer komprimierten Sektion — das, wozu diese Bytes sich tatsächlich entfalten.
+- **Entpackte Variable öffnen** bei der Variable `overrides` des Apple-Systemspeichers — ihre Geräteüberschreibungen liegen als bzip2-Datenstrom vor und werden als Text in einem [[topic:fragments|Fragment-Bereich]] geöffnet. Der Bereich ist eine Kopie: Der Text wird hier nicht wieder komprimiert, eine Änderung der Kopie lässt den Dump daher unberührt.
 - **Zur Top-Swap-Kopie** / **Zum Original** bei einem Knoten in einem der beiden Blöcke eines Images mit [[term:top-swap|Top-Swap]]-Kopie — wählt denselben Knoten im anderen Block aus und zeigt seine Bytes im Dump, sodass sich jedem Teil der Kopie der Teil des obersten Blocks zuordnen lässt, den er wiederholt.
 
 Ein Doppelklick auf eine Zeile ersetzt das Menü: Er öffnet, was der Knoten enthält, als Fragment-Bereich — bei einer komprimierten Sektion ihren entpackten Rumpf, bei jedem anderen Knoten seinen Rumpf und bei einem Knoten ohne eigenen Rumpf, etwa Padding oder freiem Platz, den Knoten selbst. Ein Doppelklick auf das Aufklapp-Dreieck klappt die Zeile nur ein oder aus.

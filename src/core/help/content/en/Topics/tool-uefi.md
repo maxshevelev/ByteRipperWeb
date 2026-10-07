@@ -19,6 +19,7 @@
 @covers panel.uefi.variable-value
 @covers panel.uefi.reveal
 @covers panel.uefi.compare-update
+@covers panel.uefi.open-unpacked
 @covers menu.offset.uefi-show-in-tree
 @covers panel.uefi.map-regions
 
@@ -60,6 +61,7 @@ Right-click a node:
 - **Open** the node, or just its body, as a [[topic:fragments|fragment panel]]. For a node inside a compressed section the items say that the bytes are the decompressed ones: **Open Decompressed …** and **Open Decompressed Body of …**.
 - **Save … as…** the node, or just its body, to a file: the same bytes **Open** shows, under the same name — the dump's, followed by the node's. Inside a compressed section: **Save Decompressed … as…**. The browser stores the file as it stores any download: in its downloads folder, or where it asks.
 - **Open Decompressed Body** / **Save Decompressed Body as…** for a compressed section — what those bytes actually expand to.
+- **Open Decompressed Variable** for the `overrides` variable of an Apple system-flags store — its device overrides, which are kept as a bzip2 stream, unpacked as text into a [[topic:fragments|fragment panel]]. The panel is a copy: nothing here compresses the text again, so editing it does not change the dump.
 - **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
 
 A double click on a row does without the menu: it opens what the node holds as a fragment panel — for a compressed section its decompressed body, for any other node its body, and for a node with no body of its own, such as padding or free space, the node itself. A double click on the disclosure triangle only folds or unfolds the row.

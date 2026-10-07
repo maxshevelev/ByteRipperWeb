@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
+import { unpackedOverrides } from "@/firmware/uefi/appleOverrides";
 import type { BIOSGuardUpdate } from "@/firmware/uefi/biosGuardUpdate";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
@@ -57,6 +58,7 @@ import {
   decompressedBody,
   fileSourceOf,
   isBIOSRegion,
+  isBZip2Variable,
   nodeIDOfZone,
   nodeOpen,
   nodeOpenTitle,
@@ -64,6 +66,7 @@ import {
   partName,
   uefiZones,
   uefiZonesOutlining,
+  unpackedPartName,
 } from "@/tools/uefi/uefiPresenter";
 import {
   counterpartMenuTitle,
@@ -1178,6 +1181,39 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
+   * Open Decompressed Variable: what a bzip2 variable of an Apple system-flags store unpacks to
+   * — the text of its device overrides — as a part of its own, a copy linked to the variable's
+   * bytes: it is read, not written back, because nothing here compresses it again.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openUnpackedInNewTab
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenUnpacked
+   */
+  const openUnpacked = useCallback(
+    async (node: WireNode) => {
+      const source = fileSourceOf(node, roots ?? []);
+      if (!isBZip2Variable(node) || source === undefined) {
+        context.report(L("There is nothing decompressed to open here."));
+        return;
+      }
+      // help: panel.uefi.open-unpacked
+      const raw = await readSpaceBytes(context.pane, node.space, node.body);
+      const text = raw === undefined ? undefined : unpackedOverrides(raw);
+      if (text === undefined || text.length === 0) {
+        context.report(L("The variable does not decompress."));
+        return;
+      }
+      context.openPart(
+        text,
+        unpackedPartName(node, paneState(context.pane)?.name ?? ""),
+        source,
+        undefined,
+        { kind: "copy" }
+      );
+    },
+    [context, roots]
+  );
+
+  /**
    * Open “…” / Open Body of “…”: the node itself, or its body without the
    * header in front of it, read as a file of its own — its own offsets from
    * zero, its own search, its own tree.
@@ -1995,6 +2031,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                                   context.report(L("There was nothing to put back."));
                               });
                             },
+                          },
+                      !isBZip2Variable(node)
+                        ? undefined
+                        : {
+                            label: L("Open Decompressed Variable"),
+                            onSelect: () => void openUnpacked(node),
                           },
                       // The BIOS region is what a vendor's update file carries.
                       !isBIOSRegion(node)

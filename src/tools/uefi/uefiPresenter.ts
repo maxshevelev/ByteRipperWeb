@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import { APPLE_OVERRIDES_VARIABLE } from "@/firmware/uefi/appleOverrides";
 import { pictureFileExtension, pictureFormatOf } from "@/firmware/uefi/picture";
 import {
   DECOMPRESSED_BODY_LAYOUT,
@@ -145,6 +146,27 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
     saveTitle: L("Save Decompressed Body as…"),
     openTitle: L("Open Decompressed Body"),
   };
+}
+
+/**
+ * The variable in an Apple system-flags store whose data is a bzip2 stream
+ * (`AppleOverrides`): it has no section to open, but its data unpacks to text the reader
+ * wants as a file.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.isBZip2Variable
+ */
+export function isBZip2Variable(node: { readonly kind: string; readonly name: string }): boolean {
+  return node.kind === "sysFEntry" && node.name === APPLE_OVERRIDES_VARIABLE;
+}
+
+/**
+ * The name of the part the unpacked text opens as, as a decompressed body's is: the dump it
+ * came out of, then what it is.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.unpackedTabName
+ */
+export function unpackedPartName(node: { readonly name: string }, fileName: string): string {
+  return partName(`${node.name} decompressed.txt`, fileName);
 }
 
 /**
