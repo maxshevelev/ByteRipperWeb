@@ -11,7 +11,6 @@ import {
   type MapMark,
   nearestBookmarkMark,
   segmentStripClick,
-  type ZoneBracketBox,
   zoneBracket,
   zoneBracketClick,
 } from "@/render/minimap/minimapClick";
@@ -39,6 +38,12 @@ import {
   MinimapRenderer,
   type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
+import {
+  minimapTooltip,
+  type NamedBracket,
+  type NamedMark,
+  type StripPiece,
+} from "@/render/minimap/minimapTooltip";
 import { overviewBandFloor } from "@/render/minimap/viewportMarker";
 import { bookmarksIn, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
@@ -699,13 +704,13 @@ function MinimapCanvas({
   const markPoints = (() => {
     if (marks.length === 0 || slot === undefined) return undefined;
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
-    const points: MapMark[] = [];
+    const points: NamedMark[] = [];
     for (const mark of marks) {
       // Past this map's own file there is no row to mark — a comparison's
       // shorter file — and so nothing for a click to snap to either.
       if (mark.row >= slot.document.size) continue;
       const y = yOfOffset({ ...shared, offset: mark.row });
-      if (y >= 0 && y <= size.height) points.push({ offset: mark.row, y });
+      if (y >= 0 && y <= size.height) points.push({ offset: mark.row, y, name: mark.name });
     }
     return points;
   })();
@@ -767,7 +772,7 @@ function MinimapCanvas({
   const zoneBrackets = (() => {
     if (zones.zones.length === 0) return undefined;
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
-    const brackets: (ZoneBracket & ZoneBracketBox)[] = [];
+    const brackets: (ZoneBracket & NamedBracket)[] = [];
     for (const zone of zones.zones) {
       const top = yOfOffset({ ...shared, offset: zone.start });
       const bottom = yOfOffset({ ...shared, offset: zone.end });
@@ -777,6 +782,7 @@ function MinimapCanvas({
       ).length;
       brackets.push({
         id: zone.id,
+        name: zone.name,
         // The range is carried besides the painted box so a click near a
         // bracket's end can name the byte it stands for.
         start: zone.start,
@@ -1048,9 +1054,51 @@ function MinimapCanvas({
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseExited
    * @upstream-differs leaving the canvas clears the hovered piece inline
    */
+  /**
+   * What hovering the map says, as the canvas's own tooltip: a piece or a cut on
+   * the strip, a zone's bracket, a bookmark's mark (§19.4.3–§19.4.5).
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.refreshHoverTooltip
+   * @upstream-differs the canvas's `title`, worked out as the pointer moves, where upstream registers one tooltip rect and answers it from the pointer's position
+   */
+  const [tooltip, setTooltip] = useState("");
+  const tooltipAt = useCallback(
+    (event: { clientX: number; clientY: number }): string => {
+      const canvas = canvasRef.current;
+      if (canvas === null) return "";
+      const box = canvas.getBoundingClientRect();
+      const stripPieces: StripPiece[] = (segmentBands ?? []).flatMap((band, at) => {
+        const piece = pieces[at];
+        return piece === undefined
+          ? []
+          : [
+              {
+                index: piece.index,
+                start: piece.start,
+                end: piece.end,
+                name: piece.name,
+                top: band.top,
+                height: band.height,
+              },
+            ];
+      });
+      return minimapTooltip({
+        layout,
+        cuts,
+        pieces: stripPieces,
+        brackets: zoneBrackets ?? [],
+        marks: markPoints ?? [],
+        x: event.clientX - box.left,
+        y: event.clientY - box.top,
+      });
+    },
+    [layout, cuts, pieces, segmentBands, zoneBrackets, markPoints]
+  );
+
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       setHoveredPiece(pieceUnder(event)?.index);
+      setTooltip(tooltipAt(event));
       const held = grab.current;
       if (held === undefined) return;
       const canvas = event.currentTarget;
@@ -1069,7 +1117,7 @@ function MinimapCanvas({
       });
       if (target !== undefined) scrollLink.scrollToOffset(pane, target, BYTES_PER_ROW);
     },
-    [mode, size.height, sizes, viewport, pane, pieceUnder]
+    [mode, size.height, sizes, viewport, pane, pieceUnder, tooltipAt]
   );
 
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseUp */
@@ -1105,11 +1153,15 @@ function MinimapCanvas({
         ref={canvasRef}
         className="minimap-canvas"
         aria-label={label}
+        title={tooltip.length === 0 ? undefined : tooltip}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onPointerLeave={() => setHoveredPiece(undefined)}
+        onPointerLeave={() => {
+          setHoveredPiece(undefined);
+          setTooltip("");
+        }}
         onWheel={onWheel}
         onContextMenu={(event) => {
           // The strip's own menu, and nothing anywhere else on the map: the map
