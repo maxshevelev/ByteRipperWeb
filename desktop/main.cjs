@@ -126,15 +126,16 @@ function fileFor(requestUrl) {
 }
 
 /**
- * The tallest a window may open: three quarters of its screen's usable height, so a launch
- * never fills the screen top to bottom.
+ * The launch height: the standard 900, or the screen's usable height when that is less. Only
+ * the screen bounds it — the three-quarters cap of an earlier port is gone, as upstream's
+ * (`bd20f98`), since the landing screen is what decides how tall a launch window wants to
+ * be.
  *
  * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.maxLaunchHeight
  * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.launchHeight
  */
 function launchHeight(standard) {
-  const usable = screen.getPrimaryDisplay().workAreaSize.height;
-  return Math.min(standard, Math.floor(usable * 0.75));
+  return Math.min(standard, screen.getPrimaryDisplay().workAreaSize.height);
 }
 
 function createWindow() {

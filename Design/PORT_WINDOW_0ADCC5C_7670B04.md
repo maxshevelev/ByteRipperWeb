@@ -47,11 +47,15 @@ level for a `later` entry.
   while the list scrolls, smoothly, to where they will be, and opens when it stands still;
   an Alt-click on the triangle and a row whose rows are in view open at once.
 
-- [ ] **W4 — the launch window** (`60af19f`, `bd20f98`)
+- [x] **W4 — the launch window** (`60af19f`, `bd20f98`)
   - The desktop window is as tall as the landing screen needs, bounded only by the
     screen's usable height (the three-quarters cap of `ba9ebdf` goes), with the same air
-    above the icon as below the last line. The browser has no window to size; the landing
-    screen's own spacing is checked against it.
+    above the icon as below the last line. The browser has no window to size.
+  - Done: the three-quarters cap is gone, only the screen's usable height bounds the
+    desktop window. Not ported: solving the launch height from the landing screen
+    (`60af19f`) — upstream sizes the icon from the window's height and so has to find the
+    height by passes; here the icon is sized in CSS from the viewport, and the landing
+    screen centres whatever height the window has.
 - [ ] **W5 — the AMD PSP's map** (`1bda2ba`)
   - `AMDFirmware.swift` (the EFS at its fixed offsets, combo directories, `$PSP`/`$PL2`,
     `$BHD`/`$BL2`, slots A and B, every address mode), its rows in the padding or the
