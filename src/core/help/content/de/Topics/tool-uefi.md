@@ -1,4 +1,4 @@
-@source-sha de2c56e9df469b78ddae6478941e9e413ce7d866c71fbb360da43b2e575712a1
+@source-sha 4871d580b95b8d3f8537b6659182ad74e5b4f91ee79423dbf74262d8150990eb
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -55,7 +55,7 @@ Eine solche Datei enthält die BIOS-Region als signierte Blöcke. Ihnen geht ein
 - **… Bytes abweichend** — der Dump enthält den Bereich anders: eine andere BIOS-Version, eine Änderung oder eine Beschädigung.
 - **Platinendaten** — ein Bereich, den der Schalter des Flash-Programms (`/N`, `/NB`, `/OA`) oder der vom Hersteller vergebene Name (`AsusNVRAM`, `PEGA_GPNV`) als NVRAM, als Bereich des OA-Schlüssels oder als Speicher der einzelnen Platine ausweist. Das Update enthält den Werkszustand dieser Bereiche, nicht den dieser Platine: Seriennummern, UUID und Setup-Variablen dieser Platine stehen nur im Dump; siehe [[topic:recipe-board-data|Platinenspezifische Daten]]. **Platinendaten; im Update leer** bedeutet, dass das Update in diesem Bereich überhaupt nichts enthält.
 
-Ein abweichender Bereich hat in der Spalte **Schreiben** ein Kästchen. [[edition:Beim Öffnen des Dialogs||Beim Öffnen des Blatts]] sind die abweichenden Bereiche markiert, Platinendaten jedoch nicht. **Schreiben** schreibt die markierten Bereiche als einen Widerrufsschritt, und zwar nur die abweichenden Bytes; als geändert markiert der Dump deshalb genau das, was sich geändert hat. Die Auswahl einer Zeile umrandet den Bereich im Dump und bringt seine erste Abweichung in den sichtbaren Ausschnitt. Bei einer schreibgeschützt geöffneten Datei wird der Vergleich angezeigt, **Schreiben** steht jedoch nicht zur Verfügung.
+Ein abweichender Bereich hat in der Spalte **Schreiben** ein Kästchen. [[edition:Beim Öffnen des Dialogs||Beim Öffnen des Blatts]] sind die abweichenden Bereiche markiert, Platinendaten jedoch nicht. **Schreiben** schreibt die markierten Bereiche als einen Widerrufsschritt, und zwar nur die abweichenden Bytes; als geändert markiert der Dump deshalb genau das, was sich geändert hat. Die Auswahl einer Zeile umrandet den Bereich im Dump und bringt seine erste Abweichung in den sichtbaren Ausschnitt.
 
 Der Vergleich wird mit Angabe des Grundes abgelehnt, wenn die Datei kein solches Update ist oder wenn die BIOS-Region im Update eine andere Größe hat als die BIOS-Region des Dumps: Eine solche Datei ist kein Update für diese Platine.
 

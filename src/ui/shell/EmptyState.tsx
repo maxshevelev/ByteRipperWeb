@@ -35,7 +35,7 @@ import { bookmarkHeading, bookmarkRows, leftSection } from "@/ui/shell/emptyWind
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.maxIconSize
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.currentIconSize
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.updateIconSize
- * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.visibleBottomInset
+ * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.visibleInsets
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.viewDidMoveToWindow
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.layout
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.setDropHighlighted

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
+import type { BIOSGuardUpdate } from "@/firmware/uefi/biosGuardUpdate";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
-
 import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
 import { downloadBlob } from "@/platform/files/download";
 import {
@@ -23,11 +23,13 @@ import {
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
+import { applyTransaction } from "@/state/toolEdits";
 import { setSearchOpen, setSearchQuery, uefiSearchStore } from "@/state/uefiSearchSettings";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { type MEANode, meaNodeAt, meaZones } from "@/tools/meaTree";
+import { pickToolFile } from "@/tools/pickToolFile";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useParkedToolState } from "@/tools/toolParkedState";
@@ -45,6 +47,7 @@ import {
 } from "@/tools/uefi/meSubtree";
 import { scrollToShowStretch } from "@/tools/uefi/treeScroll";
 import { UefiSearchBar } from "@/tools/uefi/UefiSearchBar";
+import { UefiUpdateDialog } from "@/tools/uefi/UefiUpdateDialog";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { withCatalogueName } from "@/tools/uefi/uefiNodeDetail";
 import {
@@ -52,6 +55,7 @@ import {
   type DecompressedBody,
   decompressedBody,
   fileSourceOf,
+  isBIOSRegion,
   nodeIDOfZone,
   nodeOpen,
   nodeOpenTitle,
@@ -75,6 +79,13 @@ import {
   wireLength,
 } from "@/tools/uefi/uefiTreeDisplay";
 import { UEFI_TREE_MARKS, uefiTreeMarks } from "@/tools/uefi/uefiTreeMarks";
+import {
+  compareFile,
+  type UEFIUpdateComparison,
+  problemMessage as updateProblemMessage,
+  updateTransaction,
+  updateZones,
+} from "@/tools/uefi/uefiUpdateComparison";
 import { useTreeSearch } from "@/tools/uefi/useTreeSearch";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -389,7 +400,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * Rows of room the list keeps below its end while it scrolls to where a row's rows will
    * be: the row opens when the table stands still, and the room is given back.
    *
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMakingRoom
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.opensAfterMakingRoom
    */
   const [reservedRows, setReservedRows] = useState(0);
   /**
@@ -626,7 +637,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * while the rows slid in would show them over a moving table. An Alt-click, and a row
    * whose rows are in view already, open at once.
    *
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openMakingRoom
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.opensAfterMakingRoom
    */
   openWithRoomRef.current = (key: string, immediately: boolean) => {
     const open = () => {
@@ -991,6 +1002,122 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       return bytes;
     },
     [context]
+  );
+
+  /**
+   * The comparison with a vendor's update file, while its dialog is up: what was compared, and
+   * the update the writes are taken from.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.updateSheet
+   */
+  const [comparing, setComparing] = useState<
+    | {
+        readonly comparison: UEFIUpdateComparison;
+        readonly update: BIOSGuardUpdate;
+        readonly fileName: string;
+      }
+    | undefined
+  >(undefined);
+
+  /**
+   * Compare with PFAT Update File…: asks for a vendor's update file, reads the BIOS region of
+   * the dump as it is now — not the parse the panel shows: the user may have typed in it since
+   * — and puts the answer up in a dialog, or says, as a problem, why there is none.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.compareWithUpdate
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onCompareWithUpdate
+   * @upstream-differs no busy indicator: the comparison is a few megabytes read and held against one another, which is not a wait
+   */
+  const compareWithUpdate = useCallback(
+    async (node: WireNode) => {
+      if (!isBIOSRegion(node)) return;
+      const refuse = (message: string) =>
+        context.reportResult(L("Could not compare with the update file"), message, true);
+      // Any file: vendors name these after the BIOS version, not the kind.
+      const file = await pickToolFile();
+      if (file === undefined) return;
+      const start = node.header[0];
+      const end = Math.max(node.header[1], node.body[1], node.tail[1]);
+      const document = paneState(context.pane)?.document;
+      const dump = document === undefined ? undefined : await document.read(start, end - start);
+      if (dump === undefined || dump.length !== end - start) {
+        refuse(L("Could not read the file."));
+        return;
+      }
+      const result = compareFile(file.bytes, dump, start);
+      if (!result.ok) {
+        refuse(updateProblemMessage(result.problem));
+        return;
+      }
+      setComparing({ comparison: result.comparison, update: result.update, fileName: file.name });
+      publishZones(context.pane, updateZones(result.comparison, undefined));
+    },
+    [context]
+  );
+
+  /**
+   * The dump draws the parts as zones while the dialog is up, the selected one in focus and
+   * its first difference brought into view.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showUpdatePart
+   */
+  const showUpdatePart = useCallback(
+    (row: number | undefined) => {
+      if (comparing === undefined) return;
+      publishZones(context.pane, updateZones(comparing.comparison, row));
+      const part = row === undefined ? undefined : comparing.comparison.rows[row];
+      if (part === undefined) return;
+      const shown = part.differences[0] ?? part.range;
+      context.reveal(shown.start, shown.end, false);
+    },
+    [context, comparing]
+  );
+
+  /**
+   * Closes the dialog; the panel's own zone, the node in focus, comes back as it was before it.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.closeUpdateSheet
+   */
+  const closeUpdate = useCallback(() => {
+    setComparing(undefined);
+    const from = roots ?? [];
+    const node = selected === undefined ? undefined : firmwareNodeAt(from, pathOf(selected));
+    publishZones(context.pane, uefiZones(node, from));
+  }, [context.pane, roots, selected]);
+
+  /**
+   * Writes the ticked parts as one undo step, and says how much.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.writeFromUpdate
+   * @upstream-differs the sentence names Undo, not ⌘Z, which a browser keeps for its own page
+   */
+  const writeFromUpdate = useCallback(
+    async (chosen: ReadonlySet<number>) => {
+      const open = comparing;
+      closeUpdate();
+      if (open === undefined) return;
+      const transaction = updateTransaction(open.comparison, chosen, open.update);
+      if (transaction === undefined) return;
+      // The bytes that differed, as the dialog counted them — not the length of the writes,
+      // which take a short gap between two differences along.
+      let bytes = 0;
+      for (const index of chosen) bytes += open.comparison.rows[index]?.differingBytes ?? 0;
+      const problem = await applyTransaction(context.pane, transaction);
+      if (problem === undefined) {
+        context.reportResult(
+          L("Written from the update file"),
+          `${L("%1$@ bytes written in %2$@ parts.", bytes, chosen.size)} ${L("Undo takes it back.")}`,
+          false
+        );
+      } else {
+        context.reportResult(
+          L("Could not write from the update file"),
+          L("Could not write: %1$@", problem),
+          true
+        );
+      }
+    },
+    [comparing, closeUpdate, context]
   );
 
   /**
@@ -1712,6 +1839,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         onCancel={() => setPaddingQuestion(undefined)}
       />
 
+      {comparing === undefined ? null : (
+        <UefiUpdateDialog
+          comparison={comparing.comparison}
+          fileName={comparing.fileName}
+          blockCount={comparing.update.entries.reduce((sum, entry) => sum + entry.blockCount, 0)}
+          onWrite={(chosen) => void writeFromUpdate(chosen)}
+          onCancel={closeUpdate}
+          onSelectRow={showUpdatePart}
+        />
+      )}
+
       {searchState.isOpen ? (
         <UefiSearchBar
           query={searchState.query}
@@ -1825,6 +1963,14 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                                   context.report(L("There was nothing to put back."));
                               });
                             },
+                          },
+                      // The BIOS region is what a vendor's update file carries.
+                      !isBIOSRegion(node)
+                        ? undefined
+                        : {
+                            // help: panel.uefi.compare-update
+                            label: L("Compare with PFAT Update File…"),
+                            onSelect: () => void compareWithUpdate(node),
                           },
                       taken === undefined
                         ? undefined

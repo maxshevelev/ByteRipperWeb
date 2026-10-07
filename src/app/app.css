@@ -5740,3 +5740,45 @@ button.uefi-title {
 .tool-detail-sound-time {
   font-variant-numeric: tabular-nums;
 }
+
+/* ── The comparison with an update file ───────────────────────────────── */
+
+.dialog.update-dialog {
+  width: min(52rem, 94vw);
+  max-width: 94vw;
+}
+
+.update-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.update-scope,
+.update-summary {
+  color: var(--text-muted);
+}
+
+.update-scroll {
+  max-height: 18rem;
+}
+
+.update-table {
+  width: 100%;
+}
+
+.update-table tbody tr[data-selected] {
+  background: var(--selection);
+}
+
+.update-number {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--text-muted);
+}
+
+.update-table td[data-tone="quiet"] {
+  color: var(--text-faint);
+}
+
+.update-table td[data-tone="caution"] {
+  color: var(--semantic-caution);
+}

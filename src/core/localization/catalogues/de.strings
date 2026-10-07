@@ -1025,6 +1025,7 @@
 "Save Assembled BIOS Region as…" = "Zusammengesetzte BIOS-Region sichern unter…";
 "Switch" = "Schalter";
 "Update table" = "Update-Tabelle";
+"Could not write: %1$@" = "Schreiben nicht möglich: %1$@";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

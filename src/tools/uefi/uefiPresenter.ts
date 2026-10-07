@@ -148,6 +148,20 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
 }
 
 /**
+ * The descriptor's BIOS region — what a vendor's update file carries, and so the row it is
+ * compared from (`uefiUpdateComparison`).
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.isBIOSRegion
+ */
+export function isBIOSRegion(node: {
+  readonly kind: string;
+  readonly subtype?: number | undefined;
+  readonly space: readonly number[];
+}): boolean {
+  return node.kind === "region" && node.subtype === 0x01 && node.space.length === 0;
+}
+
+/**
  * What a double click on a node's row opens: the body a compressed section decompresses
  * to, otherwise the node's body, and the whole node where it has no body apart from
  * itself (padding, free space, a node with a header and nothing after it). The same

@@ -73,7 +73,7 @@ Such a file holds the BIOS region as signed blocks, preceded by a table that div
 - **… bytes differ** — the dump holds the part differently: a different BIOS version, a modification, or damage.
 - **Board data** — a part that the flasher's switch (`/N`, `/NB`, `/OA`) or the manufacturer's name (`AsusNVRAM`, `PEGA_GPNV`) identifies as NVRAM, the OA key area or the manufacturer's per-board store. The update holds the factory state of these parts, not this board's: the serial numbers, the UUID and the setup variables of this board are in the dump only; see [[topic:recipe-board-data|Data Unique to a Board]]. **Board data; empty in the update** means the update holds nothing in that part at all.
 
-A part that differs has a box in the **Write** column. When the [[edition:dialog||sheet]] opens, the parts that differ are ticked and board data is not. **Write** writes the ticked parts as one undo step, and only the bytes that differ, so the dump marks as modified exactly what changed. Selecting a row outlines the part in the dump and brings its first difference into view. On a file opened read-only the comparison is shown and **Write** is not available.
+A part that differs has a box in the **Write** column. When the [[edition:dialog||sheet]] opens, the parts that differ are ticked and board data is not. **Write** writes the ticked parts as one undo step, and only the bytes that differ, so the dump marks as modified exactly what changed. Selecting a row outlines the part in the dump and brings its first difference into view.
 
 The comparison is refused, with the reason, when the file is not such an update, and when the BIOS region the update carries differs in size from the BIOS region of the dump: such a file is not an update for this board.
 
