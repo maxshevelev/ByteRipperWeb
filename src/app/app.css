@@ -5813,6 +5813,7 @@ body[data-pulling-panel] * {
 }
 
 .fragment-panel > .fragment-panel-head,
-.fragment-panel .tool-panel-head {
+.fragment-panel .tool-panel-head,
+.fragment-panel .help-bar {
   touch-action: none;
 }
