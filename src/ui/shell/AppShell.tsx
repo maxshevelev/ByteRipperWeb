@@ -17,6 +17,7 @@ import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffSt
 import { editStore } from "@/state/editStore";
 import { restoreFavorites } from "@/state/favoritesStore";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
+import { startHelpAddress } from "@/state/helpAddress";
 import { showHelp } from "@/state/helpStore";
 import {
   forgetPartMinimap,
@@ -380,6 +381,8 @@ export function AppShell() {
   // The tab can be closed in a dozen ways this app never hears about; this is
   // the one hook it does get.
   useEffect(() => watchForUnsavedWork(), []);
+  // The address names the help page that is up, and a link to one opens it (G65).
+  useEffect(() => startHelpAddress(), []);
   // A crash or a killed tab leaves scratch files nothing will ever read again.
   useEffect(() => {
     void sweepOrphanedScratch();

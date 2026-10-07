@@ -84,13 +84,8 @@ reachability, contrast in both themes and state carried by form as well as colou
 
 ### 1.9 Help and languages (M13)
 
-The book and the three languages are in [Closed](#3-closed) — G63, G64 and G66.
-What is left is the one thing the browser could do better than the desktop and
-that nothing else in the workspace does yet.
-
-| ID | Gap | Upstream | Size | Depends on | Priority | Status |
-|---|---|---|---|---|---|---|
-| G65 | **A page with a URL.** `#help/opening-files` would be a link a colleague can be sent — the one thing the web edition can do here that the Mac app cannot. The workspace has no routing at all today, and putting the help's pages under the reader's Back button is a decision about the whole app rather than about the help. | — | ~3 | G63; whether the workspace takes a router at all | P3 | decision |
+Nothing open: the book and the three languages (G63, G64, G66) and a help page's
+own address (G65) are in [Closed](#3-closed).
 
 ### 1.8 Tests, hardening and delivery (M12)
 
@@ -168,6 +163,7 @@ Gaps closed since this file was started, newest first.
 
 | Gap | Closed |
 |---|---|
+| G65 — **A help page has an address.** While a help page is up the URL names it — `#help/opening-files`, `#help/term/pch`, built from the ids the book already links by — and opening such a link starts the app on that page. The address is *replaced* as the reader moves, never pushed, so the browser's Back still leaves the app and the help's own ‹ › stay the way through the pages; it goes when the help is folded or closed, and only the help's own hash is ever touched. A chain button in the help's bar, **Copy Link to This Page**, puts the whole address on the clipboard and says so. Browser only, over http(s): the desktop shell and a page opened from disk have no address a colleague could open. `src/core/help/helpAddress.ts` (the address, tested), `src/state/helpAddress.ts` (following it); the overview page says so in all three languages, as a browser-only passage. Measured in Chromium: a reload on `#help/saving` opens Saving, a term moves the address to `#help/term/pch`, folding clears it, a changed hash raises the help on its page. | 2026-10-07 |
 | G17 — **The minimap's tooltips.** Hovering the map names what is under the pointer, in upstream's order and words: on the segment strip a cut within the snap distance by its offset (`0x800`), else the piece by its label, range, size and name (`S1 — 0x800…0x3FFF, 14 KB · name`); on the zone gutter the zone by its name, range and size, or by its range alone; else a bookmark's mark by its row and name (`00001000: EC table`). `src/render/minimap/minimapTooltip.ts` is upstream's `segmentStripTooltipText`, `zoneBracketTooltipText`, `bookmark(atMarkPoint:)` and `view(_:stringForToolTip:)`, over the same layout and heights the clicks read (G18); the canvas carries the answer as its `title`. Seven upstream hover tests are ported (`minimapTooltip.test.ts`), and all five answers were read off a real map in Chromium. | 2026-10-07 |
 | G46 — **What holds the detail panel's values as selectable is now checked.** Upstream declares it per label (`isSelectable`, five sites in the three tool view controllers) — assignments no anchor can name. Here it is the stylesheet's, and `detailSelection.test.tsx` checks it the way a browser decides it, without a DOM runner: the detail component all three panels share and the ME summary are rendered to markup (`react-dom/server`), and every value — a field, a table's cell, a summary value — is asked what `user-select` the nearest ancestor with a rule in `app.css` gives it, over a body that selects nothing. Dropping `.tool-detail`'s rule, or moving a value out from under it, fails the suite (checked by removing the rule). What is still unchecked is the focus guard's half — it lets a press through where the computed style says `text`, and reading a computed style needs a browser (G24). | 2026-10-07 |
 | G68 — **The two motions the panels did not have.** A panel *closed* while it is up folds into where its pill was, as upstream's does: its state goes with the close, so what folds is a picture of it — the panel copied as it leaves the page, its canvases' pixels with it, laid over the page and folded by the same reveal (`foldAPicture`, `FragmentPanelView.tsx`). And a panel *opened* over another waits for the other to finish folding into its pill before it grows out of its own, where it used to arrive at once beside the fold; a panel switched to from the dock still just arrives, which is upstream's own rule (`FragmentPanelTests.testSwitchingBetweenPanelsDoesNotFly`, `testANewPanelStillFliesOverTheOneItReplaces`). The keyboard follows the arriving panel once its dump is on the page. | 2026-10-07 |

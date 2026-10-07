@@ -1,4 +1,4 @@
-@source-sha 0ac16394777f0833d68e604b7d57e3ea75435798ce97836a595e62d5fa383ee6
+@source-sha 6ad87aba340a474d93511a1f861fe315a72fcf19d269024876ea772b7e5cc4c3
 # Wofür ByteRipper da ist
 
 > Ein Hex-Editor für Firmware-Images, aufgebaut um den Vergleich zweier Dumps an gleichen Adressen.
@@ -30,6 +30,8 @@ In einem Fenster ohne geöffnete Datei zeigt der Startbildschirm unter der Versi
 ## Zu diesem Handbuch
 
 Das **?** in der Symbolleiste öffnet dieselbe kurze Liste wie der Block **Hilfe** in seinem Menü: diese Seite, den ersten Vergleich, die Einschränkungen beim Bearbeiten und die Glossare. **F1** und **[[key:help]]** öffnen das Handbuch von überall im Programm — auch ohne offene Datei und gleich, was die Tastatur hält.
+
+[[edition:Jede Seite dieser Hilfe hat eine eigene Adresse. Solange eine Seite geöffnet ist, nennt die Adressleiste des Browsers sie — bei dieser Seite endet die Adresse auf `#help/overview` —, und die Schaltfläche mit der Kette oben im Bereich, **Link zu dieser Seite kopieren**, legt diese Adresse in die Zwischenablage. Wer den Link öffnet, sieht die Anwendung auf derselben Seite; die Dumps gehören nicht zum Link und werden wie gewohnt geöffnet.||]]
 
 ## Wie es weitergeht
 

@@ -1,6 +1,7 @@
 import { L, localized } from "@/core/localization/localization";
 import { type Notice, type NoticeGlyph, noticeStore } from "@/state/noticeStore";
 import { useStore } from "@/state/useStore";
+import { LinkShapes } from "@/ui/pane/linkGlyphs";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 
 /**
@@ -29,6 +30,7 @@ const GLYPH_LABEL: () => Record<NoticeGlyph, string> = localized(() => ({
   addedToFavorites: L("Added to Favorites"),
   copySummary: L("Summary Copied"),
   copyScreenshot: L("Screenshot Copied"),
+  linkCopied: L("Link Copied"),
   warning: L("Selection too long to search for"),
 }));
 
@@ -127,6 +129,25 @@ function Plate({ notice, leaving }: { readonly notice: Notice; readonly leaving:
  */
 function Glyph({ glyph, size }: { readonly glyph: NoticeGlyph; readonly size: number }) {
   const copy = glyph === "copySummary" || glyph === "copyScreenshot";
+  if (glyph === "linkCopied") {
+    // The chain the part's link wears, on its own 12-unit box.
+    return (
+      <svg
+        className="transient-notice-glyph"
+        width={size}
+        height={size}
+        viewBox="0 0 12 12"
+        aria-hidden="true"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={0.85}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <LinkShapes />
+      </svg>
+    );
+  }
   return (
     <svg
       className="transient-notice-glyph"

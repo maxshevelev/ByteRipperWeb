@@ -37,6 +37,8 @@ export type NoticeGlyph =
   | "copySummary"
   /** And as a picture: the Copy Screenshot button's. */
   | "copyScreenshot"
+  /** A help page's address went to the clipboard: a link's sign (G65). */
+  | "linkCopied"
   /**
    * Something was asked for that cannot be done — a selection too long to be a
    * search pattern, so far (§11). Upstream's `exclamationmark.triangle`, which

@@ -1289,3 +1289,5 @@
 "This file changed on disk since it was opened, so it can no longer be read. Open it again to pick up the new contents." = "Die Datei hat sich seit dem Öffnen auf dem Datenträger geändert und lässt sich nicht mehr lesen. Öffnen Sie sie erneut, um den neuen Inhalt aufzunehmen.";
 "The browser refused access to this file." = "Der Browser hat den Zugriff auf diese Datei verweigert.";
 "This file could not be read." = "Diese Datei ließ sich nicht lesen.";
+"Copy Link to This Page" = "Link zu dieser Seite kopieren";
+"Link Copied" = "Link kopiert";

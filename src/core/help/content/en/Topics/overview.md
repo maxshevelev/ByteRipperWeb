@@ -36,6 +36,8 @@ On a window with no file open, below the version, the landing screen shows the o
 
 The **?** in the toolbar opens the same short list as the **Help** block of the toolbar's menu: this page, the first comparison, the editing constraints and the glossaries. **F1** and **[[key:help]]** open the book from anywhere in the application, with no file open and whatever has the keyboard.
 
+[[edition:Every page of this book has its own address. While a page is open the browser's address bar names it — for this page the address ends in `#help/overview` — and the chain button at the top of the panel, **Copy Link to This Page**, puts that address on the clipboard. A colleague who opens the link sees the application open on the same page; the dumps are not part of the link and are opened as usual.||]]
+
 ## Where to go next
 
 - [[topic:first-comparison|Your First Comparison]] — the comparison of two files, step by step.

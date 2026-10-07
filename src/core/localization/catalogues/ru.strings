@@ -1288,3 +1288,5 @@
 "This file changed on disk since it was opened, so it can no longer be read. Open it again to pick up the new contents." = "Файл на диске изменился с момента открытия, поэтому читать его больше нельзя. Откройте его заново, чтобы подхватить новое содержимое.";
 "The browser refused access to this file." = "Браузер отказал в доступе к этому файлу.";
 "This file could not be read." = "Этот файл не удалось прочитать.";
+"Copy Link to This Page" = "Скопировать ссылку на эту страницу";
+"Link Copied" = "Ссылка скопирована";

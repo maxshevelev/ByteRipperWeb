@@ -31,6 +31,7 @@ import { type HelpKeyResolver, spellHelpKey } from "@/core/help/helpKeys";
 import { helpSpans, spansPlainText } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS, type HelpTermGroup } from "@/core/help/helpTopic";
 import { L } from "@/core/localization/localization";
+import { canShareHelpLink, helpPageAddress } from "@/state/helpAddress";
 import {
   closeHelp,
   goToHelp,
@@ -43,11 +44,13 @@ import {
   setHelpQuery,
   toggleHelpContents,
 } from "@/state/helpStore";
+import { showNotice } from "@/state/noticeStore";
 import { useStore } from "@/state/useStore";
 import { foldParts } from "@/state/workspaceStore";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
 import { helpNameOf, plainHelpName } from "@/ui/help/helpNames";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
+import { LinkShapes } from "@/ui/pane/linkGlyphs";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 
@@ -135,6 +138,29 @@ export function HelpPanel() {
           aria-label={L("Search the help")}
           onChange={(event) => setHelpQuery(event.target.value)}
         />
+        {here !== undefined && canShareHelpLink() ? (
+          <button
+            type="button"
+            className="help-step help-copy-link"
+            onClick={() => void copyHelpLink()}
+            aria-label={L("Copy Link to This Page")}
+            title={L("Copy Link to This Page")}
+          >
+            <svg
+              viewBox="0 0 12 12"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <LinkShapes />
+            </svg>
+          </button>
+        ) : null}
         <button
           type="button"
           className="help-fold"
@@ -412,4 +438,21 @@ function Results({ book, query }: { readonly book: HelpBook; readonly query: str
       ))}
     </ul>
   );
+}
+
+/**
+ * Puts the address of the page that is up on the clipboard — the link a colleague
+ * opens to land on the same page — and says so (G65).
+ *
+ * @web-only a Mac app has no address to give a page
+ */
+async function copyHelpLink(): Promise<void> {
+  const address = helpPageAddress();
+  if (address === undefined) return;
+  try {
+    await navigator.clipboard.writeText(address);
+  } catch {
+    return;
+  }
+  showNotice("linkCopied", [L("Link Copied")]);
 }
