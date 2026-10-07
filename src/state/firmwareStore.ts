@@ -533,7 +533,7 @@ export function expandFirmwareNodeAndWait(pane: PaneId, path: readonly number[])
     const current = firmwareFor(pane);
     if (current === undefined || current.status !== "ready") return false;
     const node = firmwareNodeAt(current.roots, path);
-    return node !== undefined && node.isExpandable;
+    return node?.isExpandable === true;
   };
   if (!unread()) return Promise.resolve();
   const key = pathKey(path);

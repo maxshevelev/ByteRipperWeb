@@ -251,7 +251,6 @@ export function FragmentPanel({
   }, []);
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the pull is a gesture on the panel's headers; the keyboard folds it with its own ⌄ and Esc
     <div
       ref={panel}
       className="fragment-panel"

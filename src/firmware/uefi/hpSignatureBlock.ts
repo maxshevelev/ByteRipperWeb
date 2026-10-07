@@ -192,10 +192,7 @@ export function readHPSignatureBlock(
       start: offset + IDENTIFIER_OFFSET,
       end: offset + IDENTIFIER_OFFSET + 40,
     });
-    if (
-      text !== undefined &&
-      text.every((byte) => (byte >= 0x30 && byte <= 0x39) || (byte >= 0x61 && byte <= 0x66))
-    ) {
+    if (text?.every((byte) => (byte >= 0x30 && byte <= 0x39) || (byte >= 0x61 && byte <= 0x66))) {
       identifier = String.fromCharCode(...text);
     }
     digest = reader.bytes({

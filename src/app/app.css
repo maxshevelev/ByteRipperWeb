@@ -3606,6 +3606,7 @@ button.uefi-title {
   vertical-align: -0.15em;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the large view's done button, never inside a pane's document badge */
 .tool-detail-done path {
   fill: none;
   stroke: currentcolor;
@@ -3830,6 +3831,7 @@ button.uefi-title {
 }
 
 /* The heading in front of the Top Swap backup's copy of the table. */
+/* biome-ignore lint/style/noDescendingSpecificity: a row of the FIT table's body, which is no `.panel-table` and has no head here */
 .fit-backup-heading > th {
   height: 22px;
   padding: 0 6px;
@@ -4395,6 +4397,7 @@ button.uefi-title {
   white-space: nowrap;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: a row of the microcode form, which holds no `.fit-row` */
 .microcode-row > td {
   height: 20px;
   padding: 0 6px;
@@ -5727,6 +5730,7 @@ button.uefi-title {
   cursor: pointer;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: a sound player's button, never a help button */
 .tool-detail-sound-button svg {
   width: 15px;
   height: 15px;
