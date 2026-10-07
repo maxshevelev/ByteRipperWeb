@@ -1,7 +1,7 @@
 import { L } from "@/core/localization/localization";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
-import { remoteSource } from "@/platform/net/cachedSource";
-import { Freshened, type FreshenedStatus } from "@/platform/net/freshened";
+import type { FreshenedStatus } from "@/platform/net/freshened";
+import { freshRemote } from "@/platform/net/freshRemote";
 import {
   type CatalogueSource,
   GUIDS_CSV_URL,
@@ -76,46 +76,12 @@ export const catalogueStore = createStore<CatalogueState>({
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/GuidsSource.swift#LongSoftGuidsRepository
  */
 function liveCatalogue(): CatalogueSource {
-  const held = new Freshened<GuidsCatalogue>();
-  const remote = remoteSource(GUIDS_CSV_URL);
-
-  let seeded: Promise<void> | undefined;
-  const seed = (): Promise<void> => {
-    seeded ??= (async () => {
-      try {
-        const stored = await remote.stored();
-        if (stored === undefined) return;
-        held.adopt(GuidsCatalogue.parse(stored.text), stored.validator, {
-          changedAt: stored.changedAt,
-          checkedAt: stored.checkedAt,
-        });
-      } catch {
-        // A copy that cannot be read is not a reason to refuse this ask: the
-        // request below is still to be made, and it replaces the copy.
-      }
-    })();
-    return seeded;
-  };
-
+  const remote = freshRemote(GUIDS_CSV_URL, (text) => GuidsCatalogue.parse(text));
   return {
-    async load(signal) {
-      await seed();
-      return held.value(async (validator) => {
-        const answer = await remote.check(validator, signal === undefined ? {} : { signal });
-        return answer.kind === "unchanged"
-          ? { kind: "unchanged" }
-          : {
-              kind: "fresh",
-              value: GuidsCatalogue.parse(answer.text),
-              validator: answer.validator,
-            };
-      });
-    },
-    changes(listener) {
-      return held.changes(listener);
-    },
-    freshness: () => held.status,
-    markStale: () => held.markStale(),
+    load: (signal) => remote.value(signal),
+    changes: remote.changes,
+    freshness: remote.freshness,
+    markStale: remote.markStale,
   };
 }
 

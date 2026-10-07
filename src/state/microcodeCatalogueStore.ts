@@ -4,9 +4,8 @@ import {
   RemoteFetchError,
   remoteFailureMessage,
   remoteFailureOf,
-  remoteSource,
 } from "@/platform/net/cachedSource";
-import { Freshened } from "@/platform/net/freshened";
+import { freshRemote } from "@/platform/net/freshRemote";
 import {
   MICROCODE_DOWNLOAD_BASE,
   MICROCODE_TREE_URL,
@@ -92,35 +91,9 @@ export function microcodeCatalogueMessage(state: MicrocodeCatalogueState): strin
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.microcodeSource
  */
 function liveMicrocodes(): MicrocodeSource {
-  const held = new Freshened<readonly MicrocodeCatalogueEntry[]>();
-  const remote = remoteSource(MICROCODE_TREE_URL);
-
-  let seeded: Promise<void> | undefined;
-  const seed = (): Promise<void> =>
-    (seeded ??= (async () => {
-      try {
-        const stored = await remote.stored();
-        if (stored === undefined) return;
-        held.adopt(entriesFromTree(stored.text), stored.validator, {
-          changedAt: stored.changedAt,
-          checkedAt: stored.checkedAt,
-        });
-      } catch {
-        // A copy that cannot be read is not a reason to refuse this ask: the
-        // request below is still to be made, and it replaces the copy.
-      }
-    })());
-
+  const remote = freshRemote(MICROCODE_TREE_URL, entriesFromTree);
   return {
-    async catalogue(signal) {
-      await seed();
-      return held.value(async (validator) => {
-        const answer = await remote.check(validator, signal === undefined ? {} : { signal });
-        return answer.kind === "unchanged"
-          ? { kind: "unchanged" }
-          : { kind: "fresh", value: entriesFromTree(answer.text), validator: answer.validator };
-      });
-    },
+    catalogue: (signal) => remote.value(signal),
     async download(entry, signal) {
       // A microcode file never changes once written, so this asks
       // unconditionally and lets the browser's own HTTP cache help if it can.
@@ -135,11 +108,9 @@ function liveMicrocodes(): MicrocodeSource {
       }
       return new Uint8Array(await response.arrayBuffer());
     },
-    changes(listener) {
-      return held.changes(listener);
-    },
-    freshness: () => held.status,
-    markStale: () => held.markStale(),
+    changes: remote.changes,
+    freshness: remote.freshness,
+    markStale: remote.markStale,
   };
 }
 

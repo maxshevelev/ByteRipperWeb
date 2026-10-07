@@ -3,9 +3,9 @@ import {
   type RemoteFailure,
   remoteFailureMessage,
   remoteFailureOf,
-  remoteSource,
 } from "@/platform/net/cachedSource";
-import { Freshened, type FreshenedStatus } from "@/platform/net/freshened";
+import type { FreshenedStatus } from "@/platform/net/freshened";
+import { freshRemote } from "@/platform/net/freshRemote";
 import { createStore } from "@/state/store";
 
 /**
@@ -101,45 +101,13 @@ export interface MEDatabaseSource {
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.dataSource
  */
 export function liveDatabase(url = MEA_DAT_URL): MEDatabaseSource & { settle(): Promise<void> } {
-  const held = new Freshened<string>();
-  const remote = remoteSource(url);
-
-  let seeded: Promise<void> | undefined;
-  const seed = (): Promise<void> => {
-    seeded ??= (async () => {
-      try {
-        const stored = await remote.stored();
-        if (stored === undefined) return;
-        held.adopt(stored.text, stored.validator, {
-          changedAt: stored.changedAt,
-          checkedAt: stored.checkedAt,
-        });
-      } catch {
-        // A copy that cannot be read is not a reason to refuse this ask: the
-        // request below is still to be made, and it replaces the copy.
-      }
-    })();
-    return seeded;
-  };
-
+  const remote = freshRemote(url, (text) => text);
   return {
-    async load(signal) {
-      await seed();
-      return held.value(async (validator) => {
-        const answer = await remote.check(validator, signal === undefined ? {} : { signal });
-        return answer.kind === "unchanged"
-          ? { kind: "unchanged" }
-          : { kind: "fresh", value: answer.text, validator: answer.validator };
-      });
-    },
-    changes(listener) {
-      return held.changes(listener);
-    },
-    freshness: () => held.status,
-    markStale: () => held.markStale(),
-    // A check running behind an answer, waited for — the seam a test needs.
-    // @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.settle
-    settle: () => held.settle(),
+    load: (signal) => remote.value(signal),
+    changes: remote.changes,
+    freshness: remote.freshness,
+    markStale: remote.markStale,
+    settle: remote.settle,
   };
 }
 

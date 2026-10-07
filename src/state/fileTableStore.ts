@@ -1,7 +1,8 @@
 import { L } from "@/core/localization/localization";
 import { FileTable } from "@/firmware/me/data/fileTable";
-import { type RemoteFailure, remoteFailureOf, remoteSource } from "@/platform/net/cachedSource";
-import { Freshened, type FreshenedStatus } from "@/platform/net/freshened";
+import { type RemoteFailure, remoteFailureOf } from "@/platform/net/cachedSource";
+import type { FreshenedStatus } from "@/platform/net/freshened";
+import { freshRemote } from "@/platform/net/freshRemote";
 import { createStore } from "@/state/store";
 
 /**
@@ -92,47 +93,15 @@ export interface FileTableSource {
 
 /** @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository */
 function liveFileTable(): FileTableSource {
-  const held = new Freshened<FileTableBody>();
-  const remote = remoteSource(FILE_TABLE_DAT_URL);
-
-  let seeded: Promise<void> | undefined;
-  const seed = (): Promise<void> => {
-    seeded ??= (async () => {
-      try {
-        const stored = await remote.stored();
-        if (stored === undefined) return;
-        held.adopt({ text: stored.text, table: FileTable.parse(stored.text) }, stored.validator, {
-          changedAt: stored.changedAt,
-          checkedAt: stored.checkedAt,
-        });
-      } catch {
-        // A copy that cannot be read — or that is no longer a table — is not a
-        // reason to refuse this ask: the request below is still to be made, and
-        // it replaces the copy.
-      }
-    })();
-    return seeded;
-  };
-
+  const remote = freshRemote(
+    FILE_TABLE_DAT_URL,
+    (text): FileTableBody => ({ text, table: FileTable.parse(text) })
+  );
   return {
-    async load(signal) {
-      await seed();
-      return held.value(async (validator) => {
-        const answer = await remote.check(validator, signal === undefined ? {} : { signal });
-        return answer.kind === "unchanged"
-          ? { kind: "unchanged" }
-          : {
-              kind: "fresh",
-              value: { text: answer.text, table: FileTable.parse(answer.text) },
-              validator: answer.validator,
-            };
-      });
-    },
-    changes(listener) {
-      return held.changes(listener);
-    },
-    freshness: () => held.status,
-    markStale: () => held.markStale(),
+    load: (signal) => remote.value(signal),
+    changes: remote.changes,
+    freshness: remote.freshness,
+    markStale: remote.markStale,
   };
 }
 
