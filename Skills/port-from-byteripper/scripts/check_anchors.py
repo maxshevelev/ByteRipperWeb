@@ -10,6 +10,9 @@ and the check is what keeps those claims true as both sides move. It reports:
 
 - broken anchors — the upstream file or declaration they name is gone;
 - stale exemptions — `unported` entries in the module map naming nothing;
+- contradictions — `unported` entries naming what the web code anchors: the
+  declaration is claimed as ported and as left out at once, and one of the two
+  claims is wrong (a pattern counts when everything it matches is anchored);
 - drift — anchored declarations whose lines changed upstream since the
   baseline in PORT_STATE.json, with the web code that has to be re-read;
 - gaps — declarations in an anchored upstream file that nothing anchors and no
@@ -358,6 +361,7 @@ class Report:
     notes: list[Note]
     broken: list[dict] = field(default_factory=list)
     stale: list[dict] = field(default_factory=list)
+    contradicted: list[dict] = field(default_factory=list)
     drift: list[dict] = field(default_factory=list)
     gaps: dict[str, list[str]] = field(default_factory=dict)
     unclaimed: list[str] = field(default_factory=list)
@@ -443,6 +447,31 @@ def check(repo: Path, head: str, all_mapped: bool) -> Report:
         ):
             report.stale.append({"exemption": key, "why": exempt[key]})
 
+    # Contradictions: an exemption for what an anchor claims is ported. A pattern
+    # is one when it matches something and every declaration it matches is
+    # anchored — the rest of a type left out beside its anchored members is not.
+    anchored_at: dict[str, list[str]] = {}
+    for anchor in anchors:
+        anchored_at.setdefault(f"{anchor.path}#{anchor.symbol}", []).append(
+            f"{anchor.file}:{anchor.line}")
+    for key in sorted(exempt):
+        if key in anchored_at:
+            report.contradicted.append({"exemption": key, "why": exempt[key],
+                                        "anchored": anchored_at[key]})
+            continue
+        path, _, pattern = key.partition("#")
+        if not any(ch in pattern for ch in "*?["):
+            continue
+        symbols = symbols_of(path)
+        if symbols is None:
+            continue
+        matched = [s.name for s in symbols if fnmatch.fnmatchcase(s.name, pattern)]
+        if matched and all(f"{path}#{name}" in anchored_at for name in matched):
+            report.contradicted.append({
+                "exemption": key, "why": exempt[key],
+                "anchored": sorted({w for n in matched for w in anchored_at[f"{path}#{n}"]}),
+            })
+
     if all_mapped:
         for path, module in sorted(claimed.items()):
             if path not in by_path:
@@ -472,6 +501,14 @@ def print_markdown(repo: Path, report: Report) -> None:
     section("Stale exemptions",
             "`unported` entries in the module map that match nothing upstream.",
             [f"- `{s['exemption']}` — {s['why']}" for s in report.stale])
+    section("Contradictions",
+            "`unported` entries naming what the web code anchors. Drop the entry "
+            "where the anchor is right — a deliberate difference is an "
+            "`@upstream-differs` at the anchor — or move the anchor where it is not.",
+            [f"- `{c['exemption']}` — {c['why']}\n  anchored at "
+             + ", ".join(f"`{w}`" for w in c["anchored"][:3])
+             + (" …" if len(c["anchored"]) > 3 else "")
+             for c in report.contradicted])
     section("Changed upstream since the baseline",
             "Anchored declarations whose lines moved. Diff each against the baseline "
             "and bring the web code level.",
@@ -495,7 +532,7 @@ def print_markdown(repo: Path, report: Report) -> None:
     section("Mapped but not anchored",
             "Files the module map lists as ported that carry no anchors yet.",
             [f"- `{b['path']}` ({b['module']})" for b in report.backlog])
-    if not (report.broken or report.stale or report.drift or report.gaps):
+    if not (report.broken or report.stale or report.contradicted or report.drift or report.gaps):
         print("Every anchor resolves, and nothing anchored has moved upstream.")
 
 
@@ -523,6 +560,7 @@ def main() -> None:
             "anchors": [a.__dict__ for a in report.anchors],
             "broken": report.broken,
             "staleExemptions": report.stale,
+            "contradictions": report.contradicted,
             "drift": report.drift,
             "gaps": report.gaps,
             "unclaimed": report.unclaimed,
@@ -532,7 +570,7 @@ def main() -> None:
     else:
         print_markdown(repo, report)
 
-    failed = bool(report.broken or report.stale)
+    failed = bool(report.broken or report.stale or report.contradicted)
     if args.strict:
         failed = failed or bool(report.gaps or report.drift)
     if failed:

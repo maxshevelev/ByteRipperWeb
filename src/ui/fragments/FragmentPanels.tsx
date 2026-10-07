@@ -63,6 +63,7 @@ export function FragmentPanels({
   // Derived while rendering rather than in an effect, so that the panel that is folding is
   // never taken away and put back.
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.apply
+  // @upstream-differs a transition is applied by rendering: the state says which panel is up and React puts it there
   const upNow = state.dock.expanded;
   const [seenUp, setSeenUp] = useState(upNow);
   const [folded, setFolded] = useState<typeof upNow>(undefined);

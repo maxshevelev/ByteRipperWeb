@@ -961,6 +961,7 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFragment
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open
  * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.original
+ * @upstream-differs a part's document is built over a Blob of the bytes it opened with, so those bytes are its own saved storage and the link keeps no second copy of them
  */
 export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigin): PartId {
   const opened = openPanel(workspaceStore.getSnapshot().dock);

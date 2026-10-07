@@ -253,6 +253,7 @@ function nextAct(
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undo
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redo
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.SelectionReveal
+ * @upstream-differs not a type: the modes live in the pane's reveal requests
  */
 export const undoHooks: {
   onCaretRestored?: ((pane: PaneId) => void) | undefined;

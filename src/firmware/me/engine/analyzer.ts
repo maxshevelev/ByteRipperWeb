@@ -1538,7 +1538,10 @@ function usableDictionary(identity: IdentityFacts, dictionaries: HuffmanDictiona
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice
  */
 export interface HuffmanSlice {
-  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.module */
+  /**
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Engine/MEFirmwareAnalyzer.swift#MEFirmwareAnalyzer.HuffmanSlice.module
+   * @upstream-differs the slice's fields are locals of huffmanValidationIssues, not a type
+   */
   readonly module: CPDModuleRow;
   /**
    * Region-relative start of the stream.

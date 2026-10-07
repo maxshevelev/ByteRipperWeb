@@ -149,9 +149,14 @@ python3 Skills/port-from-byteripper/scripts/check_anchors.py --strict   # fail o
 ```
 
 It reports broken anchors (the upstream declaration is gone), stale `unported`
-entries, **drift** — anchored declarations whose lines changed upstream since
-the baseline, with the web code to re-read — gaps in claimed files, and every
-deliberate difference. Broken anchors and stale entries fail the run. Drift
+entries, **contradictions** — `unported` entries naming what the web code
+anchors, so one declaration is claimed both ported and left out — **drift** —
+anchored declarations whose lines changed upstream since the baseline, with the
+web code to re-read — gaps in claimed files, and every deliberate difference.
+Broken anchors, stale entries and contradictions fail the run. A contradiction
+is settled at the anchor: when the port is real the entry goes, and what the
+entry said about how the web differs becomes an `@upstream-differs` beside the
+anchor. Drift
 clears when the baseline moves past it, which is why the baseline moves only
 after the drifted code has been re-read.
 

@@ -212,5 +212,6 @@ export function helpHasPage(link: HelpLink): boolean {
  * cannot fall out of step through a call site somebody forgot.
  *
  * @upstream Packages/HelpBook/Sources/HelpBook/Help.swift#Help.shared
+ * @upstream-differs no static behind a lock: the book lives in this store, which awaits it and holds it for the language in force
  */
 languageStore.subscribe(() => reloadHelpBook());

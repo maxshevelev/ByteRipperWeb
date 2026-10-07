@@ -26,9 +26,15 @@ export type HelpTopicId = string & { readonly isHelpTopicId: unique symbol };
  */
 export type HelpTermId = string & { readonly isHelpTermId: unique symbol };
 
-/** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.init */
+/**
+ * @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.init
+ * @upstream-differs the raw-value and label forms are one function here
+ */
 export const topicId = (raw: string): HelpTopicId => raw as HelpTopicId;
-/** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.init */
+/**
+ * @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTermID.init
+ * @upstream-differs the raw-value and label forms are one function here
+ */
 export const termId = (raw: string): HelpTermId => raw as HelpTermId;
 
 /**

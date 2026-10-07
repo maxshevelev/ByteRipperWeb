@@ -114,6 +114,7 @@ export const THEME_KEY = "AppTheme";
  * who uses both editions on one bench finds the same name in both.
  *
  * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.choiceKey
+ * @upstream-differs no defaults key: the choice is a field of this store, which owns its own persistence
  */
 export const LANGUAGE_KEY = "AppLanguage";
 

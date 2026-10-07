@@ -260,6 +260,7 @@ function efsDataPageBases(buffer: Uint8Array): number[] {
  * stops before. The footer's last four are the CRC that covers the rest.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.pageFooterSize
+ * @upstream-differs the footer is read as its CRC, at PAGE_SIZE - CRC_LENGTH
  */
 const FOOTER_SIZE = 0x08;
 /**

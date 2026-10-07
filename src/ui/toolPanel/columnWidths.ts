@@ -70,6 +70,7 @@ export function designWidths(columns: readonly TableColumn[]): Record<string, nu
  * leaves remembering to its caller.
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable.scaleColumnWidths
+ * @upstream-differs a column follows the app's zoom upstream; the web's panels are laid out in px at a fixed 13-pixel text, which the font-size setting does not reach
  */
 export function clampColumnWidth(width: number, column: TableColumn): number {
   if (!Number.isFinite(width)) return column.width;

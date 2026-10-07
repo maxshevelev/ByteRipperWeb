@@ -30,6 +30,7 @@ import { bookmarkHeading, bookmarkRows, leftSection } from "@/ui/shell/emptyWind
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.openButton
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.iconColor
  * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors
+ * @upstream-differs the grey is a CSS custom property (--empty-state-icon in theme.css), not a palette constant
  * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#EmptyStateColors.icon
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.headlineGap
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.maxIconSize
