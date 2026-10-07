@@ -41,7 +41,9 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 // the first time a pane's tree is read and keeps it for the life of the module.
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { noteFirmwareOperations, openFirmware } = await import("@/state/firmwareStore");
+const { closeFirmware, ensurePaneFirmware, noteFirmwareOperations, openFirmware } = await import(
+  "@/state/firmwareStore"
+);
 const { editingHooks, openEmptyInPane, openInPane, revertPane, workspaceStore } = await import(
   "@/state/workspaceStore"
 );
@@ -228,4 +230,39 @@ test("reads the saved bytes again when a revert replaces an edit", async () => {
   const sent = parses();
   expect(sent).toHaveLength(1);
   expect(sent[0]?.content?.size).toBe(0x100);
+});
+
+// A tool switched to on the same file reads the tree the last one left: the tree is the
+// file's, not the panel's, and the image is not read again for a new panel.
+// @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.tree
+test("a tool opening on a pane that holds a tree does not read the image again", async () => {
+  await ensurePaneFirmware("a");
+  await settle();
+
+  expect(parses()).toEqual([]);
+});
+
+test("a tool opening on a pane that holds no tree reads the image", async () => {
+  // None: the session ended with no tool left on the pane, and the tree went with it.
+  closeFirmware("a");
+  posted = [];
+
+  await ensurePaneFirmware("a");
+  await settle();
+
+  const sent = parses();
+  expect(sent).toHaveLength(1);
+  expect(sent[0]?.content?.size).toBe(0x100);
+});
+
+// Two asks before the first has the content in hand — two panels on one file, or an effect
+// run twice — are one parse, not two.
+test("two tools asking at once read the image once", async () => {
+  closeFirmware("a");
+  posted = [];
+
+  await Promise.all([ensurePaneFirmware("a"), ensurePaneFirmware("a")]);
+  await settle();
+
+  expect(parses()).toHaveLength(1);
 });

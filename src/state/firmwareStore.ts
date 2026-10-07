@@ -471,6 +471,41 @@ export async function parsePaneFirmware(pane: PaneId): Promise<void> {
   openFirmware(pane, content, paneState(pane)?.origin?.layout);
 }
 
+/**
+ * The tree a tool reads on opening: the one the pane already holds, or the pane's content
+ * parsed when it holds none.
+ *
+ * A tool asks every time its panel is built, and switching from one tool to another on the
+ * same file is no reason to read the image again — the tree is about the file, not the
+ * panel, and outlives it. It is kept current by the edits delivered to it and read again
+ * when the content is replaced, so a tree held here is the tree of the bytes on screen; one
+ * that is still being read, or failed, is answered as it stands, since the same bytes read
+ * again would come to the same end. What lets it go is a tool session ending with no tool
+ * left on the pane (`closeFirmware`).
+ *
+ * Upstream's answer is synchronous; this one waits for the content before the parse can
+ * begin, so a second ask in that wait — two panels on one file, an effect run twice — is
+ * handed the parse already on its way rather than starting another.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.tree
+ */
+export function ensurePaneFirmware(pane: PaneId): Promise<void> {
+  const held = firmwareFor(pane);
+  if (held !== undefined && held.status !== "idle" && workers[pane] !== undefined) {
+    return Promise.resolve();
+  }
+  const underWay = treesOnTheirWay[pane];
+  if (underWay !== undefined) return underWay;
+  const started = parsePaneFirmware(pane).finally(() => {
+    if (treesOnTheirWay[pane] === started) delete treesOnTheirWay[pane];
+  });
+  treesOnTheirWay[pane] = started;
+  return started;
+}
+
+/** The parse `ensurePaneFirmware` started for a pane, while it waits for the content. */
+const treesOnTheirWay: Partial<Record<PaneId, Promise<void>>> = {};
+
 /** Asks for one node's children, unless they are already on their way. */
 export function expandFirmwareNode(pane: PaneId, path: readonly number[]): void {
   const current = firmwareFor(pane);

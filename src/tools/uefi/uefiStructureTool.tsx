@@ -11,13 +11,13 @@ import {
   askFirmwareDvarSettings,
   askFirmwareLayout,
   askFirmwareProtectedRanges,
+  ensurePaneFirmware,
   expandFirmwareNode,
   findFirmwareNodeAt,
   firmwareFor,
   firmwareNodeAt,
   firmwareStore,
   fixFirmwareChecksum,
-  parsePaneFirmware,
   pathKey,
   readSpaceBytes,
 } from "@/state/firmwareStore";
@@ -452,7 +452,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   // when the panel does: a gutter still marking a tool nobody has open is a
   // promise about bytes nothing is watching.
   useEffect(() => {
-    void parsePaneFirmware(context.pane);
+    void ensurePaneFirmware(context.pane);
     return () => clearZones(context.pane);
   }, [context.pane]);
 

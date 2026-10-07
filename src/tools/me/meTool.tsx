@@ -8,9 +8,9 @@ import { downloadBlob } from "@/platform/files/download";
 import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import {
   checksumPaneMe,
+  ensurePaneFirmware,
   fileNamesPaneMe,
   firmwareStore,
-  parsePaneFirmware,
   readPaneMe,
 } from "@/state/firmwareStore";
 import {
@@ -250,7 +250,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const summaryRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    void parsePaneFirmware(pane);
+    void ensurePaneFirmware(pane);
     // The database is fetched when the panel opens, as upstream does: behind
     // the structure, which is on screen first, with the wait said below. Asked
     // unconditionally rather than only when nothing is held: a database in hand

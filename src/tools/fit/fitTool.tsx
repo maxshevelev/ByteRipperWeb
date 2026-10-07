@@ -8,8 +8,8 @@ import type { ProtectedRangeKind, ProtectedRanges } from "@/firmware/uefi/protec
 import {
   askFirmwareProtectedRanges,
   editPaneFit,
+  ensurePaneFirmware,
   firmwareStore,
-  parsePaneFirmware,
   readPaneFit,
 } from "@/state/firmwareStore";
 import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
@@ -264,7 +264,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   // tree — a row is named by whatever node covers the address it points at —
   // so this has to happen before the reading below, and it is what causes it.
   useEffect(() => {
-    void parsePaneFirmware(context.pane);
+    void ensurePaneFirmware(context.pane);
     // The zones go when the panel does: a gutter still marking a tool nobody
     // has open is a promise about bytes nothing is watching.
     return () => clearZones(context.pane);
