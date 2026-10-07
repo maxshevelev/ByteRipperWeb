@@ -154,6 +154,7 @@ export function childrenOf(
         node.space
       );
     case "section":
+    case "amdFirmwareEntry":
       return decompressedChildren(node, space.reader, reader, limits, buffers);
     default:
       // Nothing else is ever left collapsed, so this is unreachable in
@@ -217,11 +218,16 @@ function decompressedChildren(
   }
 
   const parser = new Parser(buffer, limits);
-  const nodes = walkSections(parser, buffer.all, {
-    ffsVersion: 3,
-    emptyByte: DEFAULT_EMPTY_BYTE,
-    depth: section.childDepth,
-  });
+  // A section's body is a run of sections; the BIOS image the PSP inflates is a stretch of
+  // flash, its volumes and all.
+  const nodes =
+    section.kind === "section"
+      ? walkSections(parser, buffer.all, {
+          ffsVersion: 3,
+          emptyByte: DEFAULT_EMPTY_BYTE,
+          depth: section.childDepth,
+        })
+      : scanRawArea(parser, buffer.all, DEFAULT_EMPTY_BYTE, section.childDepth);
   diagnostics.push(...parser.diagnostics.map((one) => locatedIn(one, childSpace)));
   return { nodes: stamping(nodes, childSpace), diagnostics };
 }

@@ -537,7 +537,20 @@ class Context {
     }
     this.isTarget = false;
     const section = this.compressedSection(space);
-    if (section === undefined) return newSpace;
+    if (section === undefined) {
+      // Nothing but the file itself is written as it comes.
+      if (!isFileSpace(space)) {
+        throw new Refusal(
+          "The compressed section the part came out of is not in the image any more."
+        );
+      }
+      return newSpace;
+    }
+    if (section.kind === "amdFirmwareEntry") {
+      throw new Refusal(
+        `“${section.name}” is the BIOS image the PSP inflates. It is read here, and not compressed again: what the PSP accepts in its place is not known.`
+      );
+    }
     const parentBytes = this.bytesOf(section.space);
     const rebuilt = this.recompressed(section, newSpace, parentBytes);
     return this.put(rebuilt, { space: section.space, range: nodeRange(section) });
@@ -567,7 +580,10 @@ class Context {
     const parent = space.slice(0, -1);
     return this.image.allNodes.find(
       (node) =>
-        sameSpace(node.space, parent) && node.kind === "section" && node.header.start === last
+        sameSpace(node.space, parent) &&
+        (node.kind === "section" || node.kind === "amdFirmwareEntry") &&
+        node.header.start === last &&
+        node.compression !== undefined
     );
   }
 

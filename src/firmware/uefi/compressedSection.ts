@@ -11,6 +11,7 @@ import {
 } from "@/firmware/compression/firmwareDecompression";
 import { zlibDecode } from "@/firmware/compression/zlibCodec";
 import { ImageReader } from "@/firmware/imageReader";
+import { amdCompressedLength } from "@/firmware/uefi/amdFirmware";
 import { type EFIGUID, guid, guidKey } from "@/firmware/uefi/efiGuid";
 import { DEFAULT_EMPTY_BYTE, DEFAULT_LIMITS, Parser } from "@/firmware/uefi/parserState";
 import { Section, walkSections } from "@/firmware/uefi/sectionParser";
@@ -164,6 +165,18 @@ export function locateCompressedSection(
   offset: number,
   reader: ImageReader
 ): LocatedSection | undefined {
+  // No section at all: the PSP's compressed BIOS image, AMD's header and a zlib stream with
+  // nothing around them (`AMDFirmware`). A section's size is never zero.
+  if (reader.uint24(offset) === 0) {
+    const length = amdCompressedLength(offset, reader);
+    if (length !== undefined) {
+      return {
+        body: { start: offset + AMD_ZLIB_HEADER_SIZE, end: offset + length },
+        algorithm: "zlibAMD",
+        declaredLength: undefined,
+      };
+    }
+  }
   const shortSize = reader.uint24(offset);
   const type = reader.uint8(offset + 3);
   if (shortSize === undefined || type === undefined) return undefined;

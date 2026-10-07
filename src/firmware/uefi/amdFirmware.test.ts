@@ -19,7 +19,9 @@ import {
   readAMDFirmware,
 } from "@/firmware/uefi/amdFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
+import { SpaceReaders } from "@/firmware/uefi/spaceReaders";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
+import { planRebuild } from "@/firmware/uefi/uefiRebuild";
 import { ItemType } from "@/firmware/uefi/uefiTypes";
 
 /**
@@ -286,5 +288,45 @@ describe("the PSP's rows", () => {
     const gasket = rows.find((node) => node.name === "SEC_GASKET");
     expect(gasket && [gasket.header.start, gasket.body.end]).toEqual([0x1_f000, 0x2_1000]);
     expect(gasket?.children.map((node) => node.kind)).toEqual(["padding", "amdEFS", "padding"]);
+  });
+});
+
+describe("the compressed BIOS image", () => {
+  /**
+   * The BIOS image the PSP inflates opens to what it inflates to, read as a stretch of flash:
+   * its volume and the files in it.
+   *
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift#AMDFirmwareTests.testTheCompressedBIOSImageOpens
+   */
+  it("opens to what it inflates to", () => {
+    const { bytes, volume } = fixture();
+    const image = parse(bytes);
+    const bios = image.allNodes.find(
+      (node) => node.kind === "amdFirmwareEntry" && node.name === "BIOS"
+    );
+
+    expect(bios?.compression).toEqual({ algorithm: "Zlib (AMD)", decodes: true });
+    expect(bios?.header).toEqual({ start: 0x5_0000, end: 0x5_0100 });
+    const inside = bios?.children[0];
+    expect(inside?.kind).toBe("volume");
+    expect(inside?.space).toEqual([0x5_0000]);
+    expect(inside && [inside.header.start, inside.body.end]).toEqual([0, volume.length]);
+    expect(inside?.children.some((node) => node.kind === "file")).toBe(true);
+
+    const reader = new SpaceReaders(new ImageReader(sourceOver(bytes))).readerFor([0x5_0000]);
+    expect(Array.from(reader?.bytes(reader.all) ?? [])).toEqual(Array.from(volume));
+  });
+
+  /**
+   * Nothing compresses it again the way the PSP reads it, so a change inside is refused, by
+   * name.
+   *
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift#AMDFirmwareTests.testAChangeInsideTheInflatedImageIsRefused
+   */
+  it("refuses a change inside it", () => {
+    const { bytes, volume } = fixture();
+    const result = planRebuild(volume, { space: [0x5_0000] }, bytes);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : result.refusal.message).toContain("the PSP inflates");
   });
 });

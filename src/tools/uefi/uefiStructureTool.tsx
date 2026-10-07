@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
-import { DECOMPRESSED_BODY_LAYOUT } from "@/firmware/uefi/rootLayout";
+
 import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
 import { downloadBlob } from "@/platform/files/download";
 import {
@@ -1032,9 +1032,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // What it links back to: the compressed section in the file that these
       // bytes came out of, which for a node inside a buffer is the section
       // holding it.
-      // What a panel opened on these bytes should read them as: a whole decompressed body
-      // is a run of sections by the FFSv3 rules every buffer is read with.
-      const layout = DECOMPRESSED_BODY_LAYOUT;
+      // What a panel opened on these bytes should read them as: a compressed section's body
+      // is a run of sections by the FFSv3 rules every buffer is read with; the BIOS image the
+      // PSP inflates is a stretch of flash.
+      const layout = taken.layout;
       context.openPart(
         bytes,
         partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),

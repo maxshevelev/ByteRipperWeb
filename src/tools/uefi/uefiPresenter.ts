@@ -1,5 +1,10 @@
 import { L } from "@/core/localization/localization";
 import { pictureFileExtension, pictureFormatOf } from "@/firmware/uefi/picture";
+import {
+  DECOMPRESSED_BODY_LAYOUT,
+  IMAGE_LAYOUT,
+  type UEFIRootLayout,
+} from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { ZoneMap } from "@/tools/zone";
 
@@ -77,6 +82,12 @@ export interface CompressedSectionNode {
 export interface DecompressedBody {
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.space */
   readonly space: readonly number[];
+  /**
+   * What a panel opened on it reads the bytes as.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.layout
+   */
+  readonly layout: UEFIRootLayout;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.suggestedName */
   readonly suggestedName: string;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.saveTitle */
@@ -98,7 +109,9 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
   const children = node.children ?? [];
   const opened = children.some((child) => !sameSpace(child.space, node.space));
   const closed = node.compression?.decodes === true && node.isExpandable && children.length === 0;
-  if (node.kind !== "section" || !(opened || closed)) return undefined;
+  const holdsBuffer =
+    node.kind === "section" || (node.kind === "amdFirmwareEntry" && node.compression !== undefined);
+  if (!holdsBuffer || !(opened || closed)) return undefined;
   // What came *out* of a section says so in its name. Without it the section opened as a
   // node and the same section's decompressed body arrive under one name —
   // `bios_LZMA Section.bin` twice — and the two hold entirely different bytes. A node with
@@ -112,6 +125,9 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
     // the end.
     // @upstream Packages/UEFIImage/Sources/UEFIImage/ByteSpace.swift#ByteSpace.inside
     space: [...node.space, node.header[0]],
+    // What a panel opened on it reads the bytes as: a run of sections out of a compressed
+    // section, a stretch of flash out of the BIOS image the AMD PSP inflates.
+    layout: node.kind === "section" ? DECOMPRESSED_BODY_LAYOUT : IMAGE_LAYOUT,
     suggestedName: `${marked}.bin`,
     saveTitle: L("Save Decompressed Body as…"),
     openTitle: L("Open Decompressed Body"),
