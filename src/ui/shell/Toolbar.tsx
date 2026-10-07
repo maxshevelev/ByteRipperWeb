@@ -818,6 +818,7 @@ export function Toolbar({
             label={L("Toggle Minimap")}
             title={`${L("Show or hide the minimap")} (Cmd/Ctrl+M)`}
             pressed={minimap.visible}
+            disabled={disabled}
             onClick={() => toggleMinimap()}
           >
             <MinimapGlyph />
