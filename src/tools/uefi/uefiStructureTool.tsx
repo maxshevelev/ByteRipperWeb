@@ -1223,6 +1223,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * buffer, which is what `space` says.
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openNodeInPanel
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenNode
    */
   const openNode = useCallback(
     async (node: WireNode, body: boolean) => {

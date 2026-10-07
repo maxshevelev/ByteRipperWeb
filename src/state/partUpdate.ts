@@ -43,6 +43,8 @@ export type UpdateOutcome =
  * @upstream-differs the browser's own confirmation, which carries one message
  * rather than a title and a body
  */
+// @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateConfirm
+// @upstream-differs a test seam upstream (the alert is handed to a closure); here the browser's confirmation is called directly
 function confirmOverwritingChangedSource(origin: DocumentOrigin): boolean {
   return window.confirm(
     `${L("“%1$@” has changed in %2$@", origin.partName, origin.parentName)}. ${L(
@@ -131,6 +133,11 @@ async function rebuildIntoParent(
   const document = parent.document;
   const generation = document.contentGeneration;
 
+  // What upstream's `UpdateHandle` carries — the task and the operation the (×) reaches it
+  // through — is this closure and the flag it sets: one thread, nothing to cancel but the wait.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.UpdateHandle
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.UpdateHandle.task
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.UpdateHandle.operation
   let abandoned = false;
   const operation = new BackgroundOperation(L("Getting ready"), () => {
     abandoned = true;

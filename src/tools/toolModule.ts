@@ -130,6 +130,8 @@ export interface ToolContext {
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.openPart
    * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openFilePart
+   * @upstream-differs one form for both: `part.kind` says whether the bytes are a copy of the file's own or what a section decompresses to
    */
   readonly openPart: (
     bytes: Uint8Array,
