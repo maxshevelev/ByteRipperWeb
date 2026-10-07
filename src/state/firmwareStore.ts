@@ -860,16 +860,78 @@ export async function fixFirmwareChecksum(
  *
  * Nothing when the image has not been parsed yet: the caller asks for the parse
  * first, and a report read against no tree would name nothing.
+ *
+ * Every table read is kept by the pane (`heldPaneFit`), against the content it
+ * was read from: the generation is taken when the read is asked for, so a read
+ * an edit overtook keeps nothing — and a read that lands after its panel has
+ * gone keeps a table that is still true of those bytes.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.keepTable
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.lastReport
+ * @upstream Modules/FITTool/Sources/FITTool/FITTableProviding.swift#FITTableProviding.setCachedFITTable
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.setCachedFITTable
+ * @upstream-differs kept by the store as the read lands, where upstream's session hands each reading to the pane — so the guard is the content's generation, not the session's
  */
 export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
+  const generation = contentGenerationOf(pane);
   return new Promise((resolve) => {
     // A second ask supersedes the first, which is then told no table was read.
     fitWaiters.get(pane)?.(undefined);
-    fitWaiters.set(pane, resolve);
+    fitWaiters.set(pane, (report) => {
+      if (report !== undefined && generation === contentGenerationOf(pane)) {
+        fitTableCache.set(pane, { report, generation });
+      }
+      resolve(report);
+    });
     send(pane, { kind: "fitRead", id: nextAskJob(pane, "fitReport") });
   });
+}
+
+/**
+ * The last table a FIT panel read, with the content it was read from — kept by
+ * the pane, so a panel built again finds it instead of reading it again.
+ *
+ * Dropped by its key, as the ME analysis is: an edit bumps the document's
+ * content generation, which is upstream's "any edit drops it". A new file in the
+ * pane is dropped outright (`forgetFitTable`), since a replaced document counts
+ * from zero again.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable
+ * @upstream Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable.report
+ * @upstream Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable.init
+ * @upstream-differs no `ranges`: the protected ranges are the pane's already (`protectedRanges`), read once and kept until an edit; and the generation the table was read from, where upstream drops it in `invalidate`
+ */
+interface CachedFitTable {
+  readonly report: FITReport;
+  readonly generation: number;
+}
+
+/** The last FIT table of each pane. */
+const fitTableCache = new Map<PaneId, CachedFitTable>();
+
+/**
+ * The table the pane holds of its bytes as they are, or nothing — asked when a
+ * FIT panel opens, so a switch back onto the table costs no reading at all.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.cachedFITTable
+ * @upstream Modules/FITTool/Sources/FITTool/FITTableProviding.swift#FITTableProviding
+ * @upstream Modules/FITTool/Sources/FITTool/FITTableProviding.swift#FITTableProviding.cachedFITTable
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.cachedFITTable
+ */
+export function heldPaneFit(pane: PaneId): FITReport | undefined {
+  const cached = fitTableCache.get(pane);
+  return cached?.generation === contentGenerationOf(pane) ? cached.report : undefined;
+}
+
+/**
+ * Lets go of the pane's FIT table: the file was replaced, or the tree closed.
+ *
+ * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
+ */
+function forgetFitTable(pane: PaneId): void {
+  fitTableCache.delete(pane);
 }
 
 /**
@@ -1035,8 +1097,12 @@ const meAnalysisInFlight = new Map<
   }
 >();
 
-/** What the pane's ME region was last read as, for a caller that only wants a hit. */
-const meGenerationOf = (pane: PaneId): number => paneState(pane)?.document.contentGeneration ?? 0;
+/**
+ * Which content of the pane a reading was made of — what the readings the pane keeps (the ME
+ * analysis, the FIT table) are keyed on, so an edit, which bumps it, is what drops them.
+ */
+const contentGenerationOf = (pane: PaneId): number =>
+  paneState(pane)?.document.contentGeneration ?? 0;
 
 /**
  * The analysis the pane already holds of these bytes against these data files, or
@@ -1052,7 +1118,7 @@ export function heldPaneMe(
   fileTableText: string | undefined
 ): MeAnalyzeResponse | undefined {
   const cached = meAnalysisCache.get(pane);
-  return cached?.generation === meGenerationOf(pane) &&
+  return cached?.generation === contentGenerationOf(pane) &&
     cached.database === databaseText &&
     cached.huffman === huffmanText &&
     cached.fileTable === fileTableText
@@ -1091,7 +1157,7 @@ export function analyzePaneMe(
 ): Promise<MeAnalyzeResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  const generation = meGenerationOf(pane);
+  const generation = contentGenerationOf(pane);
   const cached = heldPaneMe(pane, databaseText, huffmanText, fileTableText);
   if (cached !== undefined) return Promise.resolve(cached);
   const flight = meAnalysisInFlight.get(pane);
@@ -1119,7 +1185,7 @@ export function analyzePaneMe(
     // marker and a later ask put its own in its place.
     if (meAnalysisInFlight.get(pane)?.promise === promise) meAnalysisInFlight.delete(pane);
     // An answer about bytes that have since moved is not this file's answer.
-    if (response !== undefined && meGenerationOf(pane) === generation) {
+    if (response !== undefined && contentGenerationOf(pane) === generation) {
       meAnalysisCache.set(pane, {
         generation,
         database: databaseText,
@@ -1179,7 +1245,7 @@ const meWaiters = new Map<PaneId, (response: MeAnalyzeResponse | undefined) => v
 export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  const generation = meGenerationOf(pane);
+  const generation = contentGenerationOf(pane);
   const cached = meChecksumsCache.get(pane);
   if (cached?.generation === generation) return Promise.resolve(cached.response);
   const flight = meChecksumsInFlight.get(pane);
@@ -1190,7 +1256,7 @@ export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | unde
     send(pane, { kind: "meChecksums", id: nextAskJob(pane, "meChecksums") });
   }).then((response) => {
     if (meChecksumsInFlight.get(pane)?.promise === promise) meChecksumsInFlight.delete(pane);
-    if (response !== undefined && meGenerationOf(pane) === generation) {
+    if (response !== undefined && contentGenerationOf(pane) === generation) {
       meChecksumsCache.set(pane, { generation, response });
     }
     return response;
@@ -1273,7 +1339,7 @@ export function fileNamesPaneMe(
 ): Promise<MeFileNamesResponse | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
-  const generation = meGenerationOf(pane);
+  const generation = contentGenerationOf(pane);
   const ask: MeFileNamesQuestion = {
     mfs: options.mfs,
     efs: options.efs,
@@ -1320,7 +1386,7 @@ export function fileNamesPaneMe(
     // marker and a later ask put its own in its place.
     if (meFileNamesInFlight.get(pane)?.promise === promise) meFileNamesInFlight.delete(pane);
     // An answer about bytes that have since moved is not this file's answer.
-    if (response !== undefined && meGenerationOf(pane) === generation) {
+    if (response !== undefined && contentGenerationOf(pane) === generation) {
       meFileNamesCache.set(pane, {
         generation,
         database: options.databaseText,
@@ -1410,13 +1476,15 @@ export function noteFirmwareContentChange(pane: PaneId, change: ToolContentChang
   // @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.discardParkedState
   if (change.kind === "reloaded") {
     discardParkedStateFor(pane);
-    // And the reading of its ME region, for the same reason and one more: the
-    // cache is keyed by the document's content generation, and a document that
-    // has just been replaced starts counting again from zero — so a key that
-    // still matched would answer about the file that was here before.
+    // And the readings it keeps — of its ME region, of its FIT table — for the
+    // same reason and one more: both are keyed by the document's content
+    // generation, and a document that has just been replaced starts counting
+    // again from zero — so a key that still matched would answer about the file
+    // that was here before.
     //
     // @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.reset
     forgetMeAnalysis(pane);
+    forgetFitTable(pane);
     const state = firmwareFor(pane);
     if (state !== undefined) update(pane, { reloads: state.reloads + 1 });
   }
@@ -1511,6 +1579,7 @@ export function closeFirmware(pane: PaneId): void {
   delete helpers[pane];
   delete workers[pane];
   forgetMeAnalysis(pane);
+  forgetFitTable(pane);
   firmwareStore.update((state) => ({ panes: { ...state.panes, [pane]: undefined } }));
 }
 

@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "49db803e9691d4cd7ab8c95b1f04c9e8c109c238",
-  "baselineNote": "Set 0.9.1, and say in the README what it is (2026-10-07)"
+  "baseCommit": "447612ed24aed83f09942b722f28f284c439c203",
+  "baselineNote": "Keep the FIT table the panel read with the file, and show it at once when the panel comes back (2026-10-07)"
 }

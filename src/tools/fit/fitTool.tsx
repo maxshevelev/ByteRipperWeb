@@ -10,6 +10,7 @@ import {
   editPaneFit,
   ensurePaneFirmware,
   firmwareStore,
+  heldPaneFit,
   readPaneFit,
 } from "@/state/firmwareStore";
 import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
@@ -170,7 +171,16 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const catalogue = useStore(microcodeCatalogueStore);
   const detailLarge = useStore(largeDetailStore).open;
   const park = restoredParked(context.restored);
-  const [report, setReport] = useState<FITReport | undefined>(undefined);
+  /**
+   * The table on screen. The pane kept the one this panel last read, and no edit
+   * has dropped it: it is what a reading would find, so the panel opens on it,
+   * with no "Reading…" in between and no read behind it.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.start
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.tableProvider
+   */
+  const [held] = useState(() => heldPaneFit(pane));
+  const [report, setReport] = useState<FITReport | undefined>(held);
   const [focus, setFocus] = useState<number | undefined>(park?.focus);
   /**
    * The zone the outline is on — the row the user picked, what that row points
@@ -300,8 +310,14 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * effect: the effect that re-reads runs *after* the render that first carries
    * the new tree, and a flag set there would leave that one render painting the
    * table of the bytes before.
+   *
+   * A table the pane kept counts as read against the tree the panel opens on:
+   * it is of these bytes, which is all the pane keeps it for, and its names are
+   * the ones the last reading found — upstream's panel opens on it as it stands.
    */
-  const readAgainst = useRef<readonly WireNode[] | undefined>(undefined);
+  const readAgainst = useRef<readonly WireNode[] | undefined>(
+    held === undefined ? undefined : roots
+  );
   // The file in the pane was replaced — another opened into it, a revert: the table on
   // screen and the row picked in it describe what is gone, so the panel goes back to
   // how it opens until the new reading lands. An edit keeps both; it is the same file,
@@ -321,6 +337,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   }, [reloads, pane]);
   useEffect(() => {
     if (status !== "ready" || roots === undefined) return;
+    // The table in hand was read against this very tree — the one the pane kept.
+    if (readAgainst.current === roots) return;
     let current = true;
     void readPaneFit(pane).then((found) => {
       if (!current) return;

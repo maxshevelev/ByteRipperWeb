@@ -890,6 +890,7 @@
         "Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift": "src/tools/fit/microcodeCatalogue.test.ts",
         "Modules/FITTool/Sources/FITTool/FITEntry.swift": "src/firmware/fit/fitEntry.ts",
         "Modules/FITTool/Sources/FITTool/FITTable.swift": "src/firmware/fit/fitTable.ts",
+        "Modules/FITTool/Sources/FITTool/FITTableProviding.swift": "src/state/firmwareStore.ts",
         "Modules/FITTool/Sources/FITTool/FITProblem.swift": "src/firmware/fit/fitProblem.ts",
         "Modules/FITTool/Sources/FITTool/FITValidator.swift": "src/firmware/fit/fitValidator.ts",
         "Modules/FITTool/Sources/FITTool/FITDetail.swift": "src/tools/fit/fitDetail.ts",
@@ -914,6 +915,7 @@
         "FITToolTests/FITProtectionTests.swift": "src/tools/fit/fitEditor.test.ts"
       },
       "unported": {
+        "Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable.ranges": "n/a — the protected ranges are the pane's already (`protectedRanges` in `firmwareStore.ts`), read once and kept until an edit, so the kept table need not carry them",
         "Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.init": "n/a — an object literal; there is nothing to construct",
         "Modules/FITTool/Sources/FITTool/FITDetail.swift#FITDetailField.init": "n/a — an object literal; there is nothing to construct",
         "Modules/FITTool/Sources/FITTool/FITEditor.swift#FITPlacement*": "n/a — a value upstream declares and neither side uses: nothing asks where a component would go before it is put there",

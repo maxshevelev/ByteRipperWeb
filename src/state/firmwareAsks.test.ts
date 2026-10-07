@@ -14,6 +14,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { FITReport } from "@/firmware/fit/fitTable";
 import type { FirmwareWorkerRequest, JobId } from "@/workers/protocol";
 
 /** Every request the store has sent, in order. */
@@ -38,10 +39,16 @@ class FakeWorker {
 
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { analyzePaneMe, askFirmwarePart, openFirmware, readSpaceBytes } = await import(
-  "@/state/firmwareStore"
-);
-const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
+const {
+  analyzePaneMe,
+  askFirmwarePart,
+  heldPaneFit,
+  noteFirmwareOperations,
+  openFirmware,
+  readPaneFit,
+  readSpaceBytes,
+} = await import("@/state/firmwareStore");
+const { editingHooks, openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 const reply = (response: unknown) => {
   for (const listener of listeners) listener({ data: response });
@@ -130,5 +137,72 @@ describe("an ask whose answer cannot come", () => {
       problem: "nothing here",
     });
     await expect(analysis).resolves.toMatchObject({ problem: "nothing here" });
+  });
+});
+
+/**
+ * The FIT table the pane keeps, so a panel built again finds it rather than
+ * reading it again. The panel's half — opening on the kept table with no
+ * "Reading…" — is upstream's flow test; this is the store's half under it.
+ *
+ * @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testComingBackToThePanelShowsTheTableItKept
+ * @upstream-differs the pane's keeping and dropping, without the panel: the port has no component test runner (G24)
+ */
+describe("the FIT table the pane keeps", () => {
+  /** A report the store keeps by identity; what is in it is the worker's business. */
+  const report = () => ({ rows: [] }) as unknown as FITReport;
+
+  /** Asks for the table and has the worker answer with `found`. */
+  async function readTable(found: FITReport): Promise<void> {
+    const read = readPaneFit("a");
+    const ask = sent("fitRead").at(-1);
+    if (ask === undefined) throw new Error("the read should have been sent");
+    reply({ kind: "fitReport", id: ask.id, report: found });
+    await read;
+  }
+
+  const document = () => {
+    const held = workspaceStore.getSnapshot().panes.a?.document;
+    if (held === undefined) throw new Error("the pane did not open");
+    return held;
+  };
+
+  it("keeps the table it read, for the next panel", async () => {
+    const table = report();
+    await readTable(table);
+    expect(heldPaneFit("a")).toBe(table);
+  });
+
+  it("drops it on an edit", async () => {
+    await readTable(report());
+    await document().overwrite(0x10, new Uint8Array([0xff]));
+    expect(heldPaneFit("a")).toBeUndefined();
+  });
+
+  it("keeps nothing from a read an edit overtook", async () => {
+    const read = readPaneFit("a");
+    const ask = sent("fitRead").at(-1);
+    if (ask === undefined) throw new Error("the read should have been sent");
+    await document().overwrite(0x10, new Uint8Array([0xff]));
+    reply({ kind: "fitReport", id: ask.id, report: report() });
+    await read;
+    expect(heldPaneFit("a")).toBeUndefined();
+  });
+
+  it("drops it when another file is opened into the pane", async () => {
+    await readTable(report());
+    // A replaced document counts from zero again, so the key alone would still match.
+    editingHooks.onContentChange = noteFirmwareOperations;
+    try {
+      openInPane("a", {
+        name: "other.bin",
+        size: 0x100,
+        lastModified: 0,
+        source: new Blob([new Uint8Array(0x100)]),
+      });
+      expect(heldPaneFit("a")).toBeUndefined();
+    } finally {
+      editingHooks.onContentChange = undefined;
+    }
   });
 });
