@@ -1026,6 +1026,7 @@
 "Switch" = "Schalter";
 "Update table" = "Update-Tabelle";
 "Could not write: %1$@" = "Schreiben nicht möglich: %1$@";
+"Show in Tree" = "Im Baum zeigen";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

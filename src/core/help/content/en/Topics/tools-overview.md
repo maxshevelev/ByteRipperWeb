@@ -7,6 +7,7 @@
 @covers panel.node-term
 @covers panel.row-marks-legend
 @covers panel.detail-quick-look
+@covers menu.offset.tool
 
 The **Tools** menu turns on one panel at a time beside the dump. Each panel reads the file held by the pane it is bound to and presents its own view of it:
 
@@ -21,6 +22,7 @@ The **Tools** menu turns on one panel at a time beside the dump. Each panel read
 - **A panel is bound to one pane.** In a comparison the panel's header names the file it is reading, and a menu there moves it to the other pane. Clicking into the other pane does *not* move it: a panel continues to read the file it was opened for.
 - **Decoding runs in the background.** Parsing a 16 MB image does not block the workspace; a progress line reports it and it can be cancelled.
 - **Selecting a node reveals its bytes.** Clicking a row scrolls the dump to the bytes that row stands for and outlines them as a **zone**, which is the link between a name in the panel and an address in the hex view.
+- **The dump offers the panel's commands.** A right-click on a byte of the file the panel is reading lists, under the panel's name, what the panel can do with that byte — for example **UEFI Structure ▸ Show in Tree**. Such a command acts on the byte that was clicked, not on the caret.
 - **Uncertainty is reported.** A field that has not been documented retains its raw value and is labelled unknown rather than being given a confident name. See [[topic:provenance|Where This Knowledge Comes From]].
 - **Row markings** — the rails, badges and warning symbols on the rows — are explained by the **Legend** strip under each panel's table.
 - **The details open in a large view.** **Space** on the selected row or in the details under the table, or the expand button in the top right corner of the details under the table, opens the same details in a large card on the right of the window, up to two thirds of its width, beside the panel and never over it — the panel with its table, search and legend stays in reach on the left; while the card is open, the details under the table are folded away and the table takes the whole height of the panel. In the card the button becomes a close button; **Space**, **Esc** and a click outside the card and the panel close the large view as well; such a click still does what it was for, and a click on a link in the card closes it and follows the link. Work in the panel leaves it open: a click on a row, opening a node, a menu, the search and the legend; the card shows the details of the row selected. Opening a [[topic:fragments|fragment panel]] closes it. **Space**, **Esc** and the arrow keys typed into the search field are the field's. While it is open, the table has the focus, even when Space was pressed in the details, and the arrow keys move the selection in it, and the card shows the details of the row selected.

@@ -23,6 +23,7 @@ import {
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
+import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
 import { setSearchOpen, setSearchQuery, uefiSearchStore } from "@/state/uefiSearchSettings";
 import { useStore } from "@/state/useStore";
@@ -1317,65 +1318,96 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showUEFIFocus
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
+  const revealNode = useCallback(
+    async (caret: number) => {
+      const slot = paneState(context.pane);
+      if (slot === undefined) return;
+      // Captured before the UEFI half unsets it: a reveal that comes from an ME
+      // row is a crossing, and a crossing clears the zone map (G59).
+      const crossedHalves = meFocus !== undefined;
+      // The ME half first, because the walk below has never heard of it.
+      const mePath = mePathCovering(meRoots, caret);
+      if (mePath !== undefined) {
+        const node = meaNodeAt(meRoots, mePath);
+        if (node !== undefined) {
+          setOpen((current) => {
+            const next = new Set(current);
+            for (let length = 1; length < mePath.length; length++) {
+              next.add(meKey(mePath.slice(0, length)));
+            }
+            return next;
+          });
+          setMeFocus(meKey(mePath));
+          setSelected(undefined);
+          setScrollTarget(meKey(mePath));
+          me.rowPicked(node);
+          return;
+        }
+      }
+      // The presented sub-tree placed the byte in no row of its own — or there is
+      // no sub-tree yet, and the rows that could place it do not exist. Only the
+      // second is worth opening a region for: the first has answered.
+      if (meRoots.length === 0) {
+        const regionPath = meRegionPath(roots ?? []);
+        const region =
+          regionPath === undefined ? undefined : firmwareNodeAt(roots ?? [], regionPath);
+        if (region !== undefined && caret >= region.body[0] && caret < region.body[1]) {
+          // The open settles on the row that owns this byte, once there are rows.
+          settleOn.current = caret;
+          toggle(region);
+          setScrollTarget(pathKey(region.id));
+          return;
+        }
+      }
+      setFinding(true);
+      const epoch = selectionEpoch.current;
+      const path = await findFirmwareNodeAt(context.pane, caret);
+      setFinding(false);
+      if (path === undefined) return;
+      // The branches were read off the main thread, and by the time they landed the reader
+      // or the search may have chosen another node: the reveal does not take it back.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.reveal
+      if (selectionEpoch.current !== epoch) return;
+      // Empty padding is left out of the rows unless asked for, so a caret inside it has no
+      // row to land on. Say so, and offer the rows, rather than answer with nothing.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
+      const found = firmwareNodeAt(firmwareFor(context.pane)?.roots ?? [], path);
+      if (found !== undefined && isEmptyPadding(found) && !showsEmptyPadding) {
+        setPaddingQuestion({ path, crossedHalves });
+        return;
+      }
+      showRevealed(path, crossedHalves);
+    },
+    [context.pane, me, meFocus, meRoots, roots, toggle, showsEmptyPadding, showRevealed]
+  );
+
+  /**
+   * The title row's button: the node under the caret — the start of a selection.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
+   */
   const revealAtCaret = useCallback(async () => {
     const slot = paneState(context.pane);
     if (slot === undefined) return;
-    const caret = slot.document.selection.start;
-    // Captured before the UEFI half unsets it: a reveal that comes from an ME
-    // row is a crossing, and a crossing clears the zone map (G59).
-    const crossedHalves = meFocus !== undefined;
-    // The ME half first, because the walk below has never heard of it.
-    const mePath = mePathCovering(meRoots, caret);
-    if (mePath !== undefined) {
-      const node = meaNodeAt(meRoots, mePath);
-      if (node !== undefined) {
-        setOpen((current) => {
-          const next = new Set(current);
-          for (let length = 1; length < mePath.length; length++) {
-            next.add(meKey(mePath.slice(0, length)));
-          }
-          return next;
-        });
-        setMeFocus(meKey(mePath));
-        setSelected(undefined);
-        setScrollTarget(meKey(mePath));
-        me.rowPicked(node);
-        return;
-      }
-    }
-    // The presented sub-tree placed the byte in no row of its own — or there is
-    // no sub-tree yet, and the rows that could place it do not exist. Only the
-    // second is worth opening a region for: the first has answered.
-    if (meRoots.length === 0) {
-      const regionPath = meRegionPath(roots ?? []);
-      const region = regionPath === undefined ? undefined : firmwareNodeAt(roots ?? [], regionPath);
-      if (region !== undefined && caret >= region.body[0] && caret < region.body[1]) {
-        // The open settles on the row that owns this byte, once there are rows.
-        settleOn.current = caret;
-        toggle(region);
-        setScrollTarget(pathKey(region.id));
-        return;
-      }
-    }
-    setFinding(true);
-    const epoch = selectionEpoch.current;
-    const path = await findFirmwareNodeAt(context.pane, slot.document.selection.start);
-    setFinding(false);
-    if (path === undefined) return;
-    // The branches were read off the main thread, and by the time they landed the reader
-    // or the search may have chosen another node: the reveal does not take it back.
-    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.reveal
-    if (selectionEpoch.current !== epoch) return;
-    // Empty padding is left out of the rows unless asked for, so a caret inside it has no
-    // row to land on. Say so, and offer the rows, rather than answer with nothing.
-    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
-    const found = firmwareNodeAt(firmwareFor(context.pane)?.roots ?? [], path);
-    if (found !== undefined && isEmptyPadding(found) && !showsEmptyPadding) {
-      setPaddingQuestion({ path, crossedHalves });
-      return;
-    }
-    showRevealed(path, crossedHalves);
-  }, [context.pane, me, meFocus, meRoots, roots, toggle, showsEmptyPadding, showRevealed]);
+    await revealNode(slot.document.selection.start);
+  }, [context.pane, revealNode]);
+
+  /**
+   * The dump's own way to the same reveal: right-click a byte, **UEFI Structure ▸ Show in
+   * Tree**. It answers for the byte that was clicked rather than for the caret.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.dumpActions
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNode
+   */
+  const isTreeReady = roots !== undefined;
+  const { pane: dumpPane } = context;
+  useEffect(() => {
+    // help: menu.offset.uefi-show-in-tree
+    setDumpActions(dumpPane, (offset) => [
+      { title: L("Show in Tree"), isEnabled: isTreeReady, perform: () => void revealNode(offset) },
+    ]);
+    return () => setDumpActions(dumpPane, undefined);
+  }, [dumpPane, isTreeReady, revealNode]);
 
   /**
    * Selects the twin of `node` in the other Top Swap block — the same bytes one

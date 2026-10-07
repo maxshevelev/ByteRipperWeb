@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "7670b04b0a52c2b0f629ad05cdc4f5376767c0f1",
-  "baselineNote": "Ask whether to show empty padding when the reveal reaches padding the tree hides (2026-10-07)"
+  "baseCommit": "49db803e9691d4cd7ab8c95b1f04c9e8c109c238",
+  "baselineNote": "Set 0.9.1, and say in the README what it is (2026-10-07)"
 }

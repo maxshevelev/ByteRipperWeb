@@ -19,6 +19,7 @@
 @covers panel.uefi.variable-value
 @covers panel.uefi.reveal
 @covers panel.uefi.compare-update
+@covers menu.offset.uefi-show-in-tree
 @covers panel.uefi.map-regions
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
@@ -31,7 +32,7 @@ The **Type** and **Subtype** columns name each node as the reference parser name
 
 The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer.
 
-**The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree.
+**The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree. The same reveal is in the dump's context menu: a right-click on a byte and **UEFI Structure ▸ Show in Tree** show the node holding the byte that was clicked, whatever the caret.
 
 A long table in the details — **PCH straps** in the details of the [[term:flash-descriptor|flash descriptor]] — is folded under its heading at first, so that the rest of the details remains in view. A click on the triangle or on the heading unfolds it; it then stays unfolded on other nodes until the app is quit. In a table only a link leads anywhere, and only a click on the link itself. The text of the details — the fields of a node as well as the tables — is selected as any text is: by dragging across rows, a word by a double click, a row by a triple click, the whole list of fields or the whole table by ⌘A. ⌘C copies the selection with a tab between a field's name and its value or between cells, and a line per row, so that a spreadsheet receives a table as a table. **Copy** in the context menu of a row copies the selection or, when nothing is selected, the name, value or cell under the pointer. A field name too long for its column continues on the next line.
 

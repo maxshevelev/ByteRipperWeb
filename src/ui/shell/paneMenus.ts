@@ -12,6 +12,7 @@ import { askFirmwarePart } from "@/state/firmwareStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentSource } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
+import { dumpActionsAt } from "@/state/toolDumpActions";
 import {
   canRevertToOriginal,
   isSlot,
@@ -304,6 +305,8 @@ export function dumpMenu(
     // offers that range by name. Nothing at all where there are no zones —
     // which is most files, most of the time.
     ...zoneItems(slot, pane, offset, actions),
+    // The tool block: what the open tool-module offers for the right-clicked byte.
+    ...toolItems(pane, offset),
     // The segment block (§21.3): the commands that shape the file's partition,
     // set off from the address-scoped commands above and the bookmark commands
     // below by their own separators.
@@ -311,6 +314,35 @@ export function dumpMenu(
     ...segmentItems(pane, offset, actions),
     { kind: "separator" },
     ...bookmarkItems(pane, offset),
+  ];
+}
+
+/**
+ * The tool block: what the open tool-module offers for the right-clicked byte
+ * (`ToolDumpAction`), one item per command named after the tool-module —
+ * **UEFI Structure ▸ Show in Tree** — so it is clear whose they are. Nothing at all
+ * without a tool-module, in a pane it is not reading, or when it offers nothing here.
+ *
+ * Greyed where the command cannot run. There is no collapsed panel to open first:
+ * the panel is open exactly while a session runs.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addToolMenuItems
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performToolDumpAction
+ * @upstream ByteRipperApp/Window/MainViewController.swift#ToolDumpActionTarget
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.perform
+ * @upstream-differs one item per command named "tool ▸ command", where upstream has the tool's name as an item with a submenu: this menu has none
+ */
+function toolItems(pane: PaneId, offset: number): (MenuEntry | undefined)[] {
+  const offered = dumpActionsAt(pane, offset);
+  if (offered === undefined) return [];
+  return [
+    { kind: "separator" },
+    ...offered.actions.map((action) => ({
+      // help: menu.offset.tool
+      label: `${offered.title} ▸ ${action.title}`,
+      disabled: !action.isEnabled,
+      onSelect: action.perform,
+    })),
   ];
 }
 
