@@ -396,6 +396,11 @@ describe("a GPNV store", () => {
     const history = detail.tables.find((one) => one.title === "Variable history");
     // The record it replaced, and itself.
     expect(history?.rows).toHaveLength(2);
+    // The text is what the reader came for: the history comes after it, at the end.
+    expect(detail.tables.map((one) => one.title).slice(-2)).toEqual([
+      "Text in the record",
+      "Variable history",
+    ]);
 
     const owner = buildNodeDetail(store.children[1] as UEFINode, image, reader, []);
     expect(

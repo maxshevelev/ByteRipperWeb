@@ -24,12 +24,15 @@ level for a `later` entry.
     is not taken back (`revealAtCaret` awaits `findFirmwareNodeAt`).
   - `7670b04`: when the reveal reaches empty padding the tree hides, ask whether to show
     empty padding (a dialog, two strings), and show it on yes.
-- [ ] **W2 — the details card and Edit ▸ Copy** (`45672e5` net of `6ec7b88`, the card's
+- [x] **W2 — the details card and Edit ▸ Copy** (`45672e5` net of `6ec7b88`, the card's
   margins from `60af19f`)
   - The card's right and bottom margin become 12 px (the top and the left stay 30).
   - Edit ▸ Copy copies the text selected in the details when its rows have the focus,
     and is enabled for it (the shell's Edit menu and ⌘C).
   - A GPNV record's variable history comes after its text.
+  - Edit ▸ Copy is not ported either: the page has no Edit menu of its own (the browser's is
+    the browser's, and the Windows shell's native one copies through the focused element),
+    and the card already puts its own text on the clipboard through the `copy` event.
   - Not ported, with the reason: the list's size constraints, the window's title bar and
     edges not counting as a click (a page has no such chrome), the card staying open when
     the window is moved (a page's window is the browser's).

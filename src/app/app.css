@@ -3475,11 +3475,11 @@ button.uefi-title {
 .tool-detail-card {
   position: fixed;
   top: 30px;
-  right: 30px;
-  bottom: 30px;
+  right: 12px;
+  bottom: 12px;
   z-index: 60;
   width: calc((100vw - 30px) * 2 / 3);
-  max-width: calc(100vw - 60px);
+  max-width: calc(100vw - 42px);
   padding: 4px 0 0;
   box-shadow: 0 10px 36px rgb(0 0 0 / 0.32);
   background: var(--surface);

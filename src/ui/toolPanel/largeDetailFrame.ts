@@ -9,6 +9,14 @@
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.minimumWidth
  */
 export const CARD_MARGIN = 30;
+/**
+ * The card's margin to the window's right and bottom edges, tighter — the card has nothing
+ * there to keep apart from but the window's frame — where the top and the left want the
+ * air of the toolbar.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.edgeMargin
+ */
+export const CARD_EDGE_MARGIN = 12;
 export const CARD_GAP = 12;
 export const CARD_MINIMUM_WIDTH = 200;
 const WIDTH_SHARE = 2 / 3;
@@ -24,7 +32,7 @@ export function largeDetailFrame(
   panel: PanelEdges | undefined
 ): { readonly left: number; readonly width: number } {
   let left = CARD_MARGIN;
-  let right = viewportWidth - CARD_MARGIN;
+  let right = viewportWidth - CARD_EDGE_MARGIN;
   let anchoredRight = true;
   if (panel !== undefined) {
     if ((panel.left + panel.right) / 2 <= viewportWidth / 2) {

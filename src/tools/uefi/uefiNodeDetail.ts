@@ -501,7 +501,14 @@ function withVariableHistory(
     }
   }
   if (history === undefined) return { ...detail, fields };
-  return { ...detail, fields, tables: [historyTable(history, node.id, reader), ...detail.tables] };
+  const table = historyTable(history, node.id, reader);
+  // A GPNV record's text is what the reader came for, so the history comes after it, at the
+  // very end of the card.
+  return {
+    ...detail,
+    fields,
+    tables: node.kind === "gpnvRecord" ? [...detail.tables, table] : [table, ...detail.tables],
+  };
 }
 
 /**
