@@ -5,6 +5,7 @@ import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { ProtectedRangeKind, ProtectedRanges } from "@/firmware/uefi/protectedRanges";
+import { writePlainText } from "@/platform/clipboard/richClipboard";
 import {
   askFirmwareProtectedRanges,
   editPaneFit,
@@ -523,10 +524,11 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           return;
         }
         case "copyCPUID":
-          void navigator.clipboard
-            .writeText(command.cpuid)
-            .then(() => say(L("CPUID %1$@ copied.", command.cpuid)))
-            .catch(() => say(L("This browser would not let the clipboard be written."), true));
+          void writePlainText(command.cpuid).then((copied) =>
+            copied
+              ? say(L("CPUID %1$@ copied.", command.cpuid))
+              : say(L("This browser would not let the clipboard be written."), true)
+          );
           return;
         case "fixChecksum": {
           const fix = display.checksumFix;

@@ -31,6 +31,7 @@ import { type HelpKeyResolver, spellHelpKey } from "@/core/help/helpKeys";
 import { helpSpans, spansPlainText } from "@/core/help/helpMarkup";
 import { HELP_TERM_GROUPS, type HelpTermGroup } from "@/core/help/helpTopic";
 import { L } from "@/core/localization/localization";
+import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { canShareHelpLink, helpPageAddress } from "@/state/helpAddress";
 import {
   closeHelp,
@@ -449,10 +450,7 @@ function Results({ book, query }: { readonly book: HelpBook; readonly query: str
 async function copyHelpLink(): Promise<void> {
   const address = helpPageAddress();
   if (address === undefined) return;
-  try {
-    await navigator.clipboard.writeText(address);
-  } catch {
-    return;
-  }
+  // Not `navigator.clipboard` alone: a bench reaching the app over plain HTTP has none.
+  if (!(await writePlainText(address))) return;
   showNotice("linkCopied", [L("Link Copied")]);
 }

@@ -4,6 +4,7 @@ import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
+import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
@@ -724,11 +725,6 @@ async function copySelection(slot: PaneState, actions: PaneMenuActions): Promise
  * the payload out of the item's `representedObject`; the item's own closure carries it here,
  * and it is the same string either way
  */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
+function copyText(text: string): Promise<boolean> {
+  return writePlainText(text);
 }

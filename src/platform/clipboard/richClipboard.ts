@@ -1,5 +1,5 @@
 /**
- * Formatted text and pictures on the clipboard.
+ * Text, formatted text and pictures on the clipboard.
  *
  * Formatted text goes as `text/html` beside `text/plain`, so a copy pastes into
  * a note or a report as the table it is on screen and into a plain field as
@@ -24,7 +24,7 @@ const clipboard = (): ClipboardSurface | undefined =>
 
 /** Puts formatted text on the clipboard, with its plain spelling under it. */
 export async function writeRichText(html: string, plain: string): Promise<boolean> {
-  if (copyThroughEvent(html, plain)) return true;
+  if (copyThroughEvent({ "text/html": html, "text/plain": plain })) return true;
   const surface = clipboard();
   if (surface === undefined) return false;
   try {
@@ -49,6 +49,23 @@ export async function writeRichText(html: string, plain: string): Promise<boolea
   }
 }
 
+/**
+ * Puts plain text on the clipboard: an address, a name, a value. The copy event
+ * first, for the same reason as rich text — over plain HTTP it is the only route.
+ * It must be called within the click, before anything is awaited.
+ */
+export async function writePlainText(text: string): Promise<boolean> {
+  if (copyThroughEvent({ "text/plain": text })) return true;
+  const surface = clipboard();
+  if (surface?.writeText === undefined) return false;
+  try {
+    await surface.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Puts a picture on the clipboard. False where the browser will not take one. */
 export async function writeImage(image: Blob): Promise<boolean> {
   const surface = clipboard();
@@ -65,13 +82,12 @@ export async function writeImage(image: Blob): Promise<boolean> {
  * The copy command, with this page answering its own copy event. The command
  * is the old one, and still the one every browser honours without a permission.
  */
-function copyThroughEvent(html: string, plain: string): boolean {
+function copyThroughEvent(data: Readonly<Record<string, string>>): boolean {
   if (typeof document === "undefined") return false;
   let written = false;
   const onCopy = (event: ClipboardEvent) => {
     if (event.clipboardData === null) return;
-    event.clipboardData.setData("text/html", html);
-    event.clipboardData.setData("text/plain", plain);
+    for (const [type, value] of Object.entries(data)) event.clipboardData.setData(type, value);
     event.preventDefault();
     event.stopImmediatePropagation();
     written = true;
