@@ -99,7 +99,7 @@ that nothing else in the workspace does yet.
 | G24 | **App flow tests.** Upstream's UI flow tests have no counterpart: the project has no component or end-to-end tests. The newest instance is the segment-link app flow — `SegmentLinkCommandTests` (the strip menu's revert, the length question) and `SegmentSourceWriteGuardTests` (a save asked again for a name): their *state* is unit-tested (the command in `segmentCommands.test.ts`, the guard in `segmentSources.test.ts`), but the dialog that drives it — the length question, the save panel re-shown after a refusal — is the platform layer's. | ~1000 upstream tests | A test dependency (Playwright, or a DOM test runner) — needs its reason written down | P2 | decision |
 | G26 | **Cross-browser pass and error states end to end:** Chromium, Firefox, Safari; offline with no cached database, a stale `File`, a file changed on disk, a declined permission — every capability difference announced by the app. | — | — | P1 | open |
 | G28 | **The benchmark table on a low-end machine** as well as a fast one. | — | — | P2 | open |
-| G29 | **Session restore:** a reload offers yesterday's pair back from handles kept in IndexedDB, with one permission click. An open question in both plans. | — | Whether to do it | P2 | decision |
+| G29 | **Session restore:** a reload offers yesterday's pair back from handles kept in IndexedDB, with one permission click. The owner's decision (2026-10-07): upstream builds restoring its state after a relaunch first, and the web ports that — the behaviour and its rules come from upstream, the handles in IndexedDB are the web's own half (Open Recent already keeps them). | — | Upstream's restore after a relaunch | P2 | postponed |
 
 ---
 
