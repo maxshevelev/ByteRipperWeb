@@ -1,4 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
+import { readingAMDFirmware } from "@/firmware/uefi/amdFirmware";
 import { readingAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
 import { parseCapsule } from "@/firmware/uefi/capsuleParser";
 import { hasDescriptorSignature, parseIntelImage } from "@/firmware/uefi/descriptorParser";
@@ -192,7 +193,9 @@ export function scanRawArea(
   read = readingECFirmwareIn(parser, read, emptyByte);
   read = readingHPSignatureBlocks(parser, read, emptyByte);
   read = readingGPNVStores(parser, read, emptyByte);
-  return readingAMDMicrocode(parser, read, emptyByte);
+  read = readingAMDMicrocode(parser, read, emptyByte);
+  // After the microcode: a patch the directories list is already its row, and keeps it.
+  return readingAMDFirmware(parser, read, emptyByte, depth);
 }
 
 /**

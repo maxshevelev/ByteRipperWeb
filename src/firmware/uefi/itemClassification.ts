@@ -55,6 +55,9 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   hpSignatureBlock: ItemType.padding,
   gpnvStore: ItemType.padding,
   gpnvRecord: ItemType.padding,
+  amdEFS: ItemType.padding,
+  amdDirectory: ItemType.padding,
+  amdFirmwareEntry: ItemType.padding,
   padding: ItemType.padding,
   freeSpace: ItemType.freeSpace,
   // Data nobody claimed is a run of bytes with a type, not a structure, so it
@@ -145,6 +148,9 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "hpSignatureBlock":
     case "gpnvStore":
     case "gpnvRecord":
+    case "amdEFS":
+    case "amdDirectory":
+    case "amdFirmwareEntry":
       return paddingSubtype(node);
     case "freeSpace":
     case "nonUEFIData":

@@ -1,5 +1,6 @@
 import { WindowedByteSource } from "@/firmware/byteSource";
 import { type ImageRange, ImageReader } from "@/firmware/imageReader";
+import type { AMDFirmware } from "@/firmware/uefi/amdFirmware";
 import type { DiagnosticKind, UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import type { FITComponent } from "@/firmware/uefi/fitComponents";
 import { makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -93,6 +94,13 @@ export class Parser {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.fitComponentsCache
    */
   fitComponentsCache: readonly FITComponent[] | undefined;
+  /**
+   * What the AMD PSP's directories map (`amdFirmwareOf`), once it has been asked: nothing
+   * inside when there is no EFS.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.amdFirmwareCache
+   */
+  amdFirmwareCache: { readonly found: AMDFirmware | undefined } | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIParser.swift#Parser.init */
   constructor(reader: ImageReader, limits: Limits, progress?: ProgressSink | undefined) {

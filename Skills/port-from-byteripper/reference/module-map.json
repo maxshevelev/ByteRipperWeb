@@ -435,7 +435,9 @@
         "UEFIImage/HPSignatureBlock.swift": "src/firmware/uefi/hpSignatureBlock.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/HPSignatureBlockTests.swift": "src/firmware/uefi/hpSignatureBlock.test.ts",
         "UEFIImage/GPNVStore.swift": "src/firmware/uefi/gpnvStore.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/GPNVStoreTests.swift": "src/firmware/uefi/gpnvStore.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/GPNVStoreTests.swift": "src/firmware/uefi/gpnvStore.test.ts",
+        "UEFIImage/AMDFirmware.swift": "src/firmware/uefi/amdFirmware.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift": "src/firmware/uefi/amdFirmware.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",

@@ -148,6 +148,14 @@ export type UEFINodeKind =
   | "gpnvStore"
   | "gpnvRecord"
   /**
+   * The AMD PSP's map read out of padding (`AMDFirmware`): the Embedded Firmware Structure,
+   * a directory — the subtype is its `DirectoryKind` — and a blob a directory lists, whose
+   * subtype is its type. Padding to UEFITool, as an HP signature block is.
+   */
+  | "amdEFS"
+  | "amdDirectory"
+  | "amdFirmwareEntry"
+  /**
    * A sound — a WAV file — found where a file's body stops reading as sections
    * (`UEFI_IMAGE_FORMAT.md` §9). Named by its sample rate and channels; padding to
    * UEFITool, as a picture is.
