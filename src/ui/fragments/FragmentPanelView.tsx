@@ -144,10 +144,14 @@ export function FragmentPanel({
   // Grows out of the pill when it has been brought up, once; a panel switched to from another
   // arrives where the other was, as upstream's does.
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.fly
+  // Measured on the next frame, before it is painted: this effect runs before the host's, which
+  // is what gives the panel its height, so here the panel is still a line and a reveal worked out
+  // against it would open from the wrong box once the panel had grown.
   useLayoutEffect(() => {
     const element = panel.current;
     if (element === null || !opensOutOfPill) return;
-    void playCardMotion(element, pillBox(pill), true);
+    const frame = requestAnimationFrame(() => void playCardMotion(element, pillBox(pill), true));
+    return () => cancelAnimationFrame(frame);
   }, [opensOutOfPill, pill]);
   // Where the pill is, kept as it renders: a closed panel's pill goes in the same commit the
   // panel does, and the fold has to know where it was.
