@@ -53,7 +53,9 @@ export type Structure =
   /** The Insyde H2O flash device map, and its entries. */
   | "flashDeviceMap"
   /** The 0x100 bytes AMD puts in front of a Zlib section's stream. */
-  | "amdZlibHeader";
+  | "amdZlibHeader"
+  /** An AMD PSP or BIOS directory's Fletcher-32 (`AMDFirmware`). */
+  | "pspDirectory";
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.Kind */
 export type DiagnosticKind =
@@ -272,6 +274,7 @@ const LABELS: () => Readonly<Record<Structure, string>> = localized(() => ({
   vendorHashFile: "vendor hash table",
   flashDeviceMap: "Insyde flash device map",
   amdZlibHeader: "AMD Zlib header's compressed",
+  pspDirectory: L("PSP directory", { context: "checksum" }),
 }));
 
 const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;

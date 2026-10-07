@@ -15,6 +15,7 @@ import { analyzeMeRegion, checksums } from "@/firmware/me/engine/analyzer";
 import { meRegion } from "@/firmware/me/layout/flashDescriptor";
 import {
   type ChecksumRepair,
+  repairsForAMDDirectory,
   repairsForFile,
   repairsForMicrocode,
   repairsForVolume,
@@ -527,6 +528,8 @@ function repairsFor(node: UEFINode, path: readonly number[]): ChecksumRepair[] {
       return repairsForVolume(node, spaceReader);
     case "microcode":
       return repairsForMicrocode(node, spaceReader);
+    case "amdDirectory":
+      return repairsForAMDDirectory(node, spaceReader);
     case "file": {
       const { revision, polarity } = volumeOfPath(path);
       return repairsForFile(node, revision, spaceReader, polarity);
@@ -780,12 +783,14 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               ? repairsForVolume(node, spaceReader)
               : node.kind === "microcode"
                 ? repairsForMicrocode(node, spaceReader)
-                : repairsForFile(
-                    node,
-                    request.volumeRevision,
-                    spaceReader,
-                    volumeOfPath(request.node).polarity
-                  );
+                : node.kind === "amdDirectory"
+                  ? repairsForAMDDirectory(node, spaceReader)
+                  : repairsForFile(
+                      node,
+                      request.volumeRevision,
+                      spaceReader,
+                      volumeOfPath(request.node).polarity
+                    );
         post({
           kind: "firmwareRepair",
           id: request.id,

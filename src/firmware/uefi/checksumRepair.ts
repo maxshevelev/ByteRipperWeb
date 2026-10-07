@@ -1,4 +1,5 @@
 import type { ImageReader } from "@/firmware/imageReader";
+import { DirectoryKind, fletcher32 } from "@/firmware/uefi/amdFirmware";
 import { checksum16, sum8, sum8Of, sum32Of } from "@/firmware/uefi/checksums";
 import { FFS, marksHeaderInvalid, volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import { enclosingVolume } from "@/firmware/uefi/rootLayout";
@@ -132,6 +133,32 @@ export function repairsForMicrocode(microcode: UEFINode, reader: ImageReader): C
   return [
     {
       offset: at + 0x10,
+      bytes: Uint8Array.from([0, 1, 2, 3], (index) => (computed >>> (8 * index)) & 0xff),
+    },
+  ];
+}
+
+/**
+ * What to write after a PSP or BIOS directory changed (`AMDFirmware`): the Fletcher-32 of
+ * everything after the checksum word, in the second word. A slot header carries none of that
+ * kind.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/ChecksumRepair.swift#UEFIChecksums.repairs
+ */
+export function repairsForAMDDirectory(directory: UEFINode, reader: ImageReader): ChecksumRepair[] {
+  const offset = directory.header.start;
+  const end = nodeRange(directory).end;
+  if (directory.kind !== "amdDirectory" || directory.subtype === DirectoryKind.slotHeader)
+    return [];
+  const stored = reader.uint32(offset + 4);
+  if (stored === undefined || offset + 8 >= end) return [];
+  const bytes = reader.bytes({ start: offset + 8, end });
+  if (bytes === undefined) return [];
+  const computed = fletcher32(bytes);
+  if (computed === stored) return [];
+  return [
+    {
+      offset: offset + 4,
       bytes: Uint8Array.from([0, 1, 2, 3], (index) => (computed >>> (8 * index)) & 0xff),
     },
   ];

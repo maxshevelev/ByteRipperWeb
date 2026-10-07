@@ -24,7 +24,7 @@
 
 ## The tree
 
-The top level is the layout of the chip itself. On an Intel platform that is the [[term:flash-descriptor|flash descriptor]] and the [[term:region|regions]] it defines — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Inside the BIOS region are [[term:volume|firmware volumes]], within those [[term:ffs-file|FFS files]], and within those [[term:section|sections]]. A branch is decoded when it is opened rather than in advance.
+The top level is the layout of the chip itself. On an Intel platform that is the [[term:flash-descriptor|flash descriptor]] and the [[term:region|regions]] it defines — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. Inside the BIOS region are [[term:volume|firmware volumes]], within those [[term:ffs-file|FFS files]], and within those [[term:section|sections]]. An AMD board has no descriptor: the top level is its volumes and the padding between them, and in that padding the tree shows the [[term:amd-psp|PSP's directories]] and every piece of firmware they list. A branch is decoded when it is opened rather than in advance.
 
 The **Type** and **Subtype** columns name each node as the reference parser names it. The **Name** column gives a file the name its own Name section carries. A node without one is named by the community catalogue for its [[term:guid|GUID]] where the catalogue has a name, and by the GUID itself where it has none. The catalogue's name and a file's own name can differ — a vendor can give a GUID the catalogue knows to another module — and the details then show the catalogue's under **Name in the catalogue**.
 

@@ -174,6 +174,26 @@ Listed by the tool on purpose: it is what tells you whether a module could be ad
 
 @see term:padding
 
+@term amd-psp
+@name AMD PSP directories
+@short How the flash of an AMD board is laid out for the Platform Security Processor: the Embedded Firmware Structure, the PSP and BIOS directories, and the firmware they list.
+
+On an AMD board the first part of the flash belongs to the Platform Security Processor (PSP), a processor inside the CPU that starts before the x86 cores and loads the memory training, the SMU firmware, the [[term:microcode|microcode]] and the BIOS itself. The PSP finds all of it through the Embedded Firmware Structure (EFS), a small table that starts with the bytes `AA 55 AA 55` at one of a few fixed offsets — on the boards at hand `0x20000` or `0xFA0000` — and through the directories the EFS points at:
+
+- **PSP directories**, `$PSP` and the second level `$PL2`, list the PSP's own firmware: its boot loader, its trusted OS, the SMU firmware, AMD's keys, the ABL memory training.
+- **BIOS directories**, `$BHD` and `$BL2`, list what the PSP prepares for the BIOS: the APCB memory configuration, the PMU firmware for each kind of memory, the microcode patches, and the BIOS image with the address in memory it is copied to.
+- **Combo directories**, `2PSP` and `2BHD`, hold one set of directories per processor family the board takes, each chosen by its PSP ID. Newer boards keep two copies of the second level, slots A and B, each behind an image slot header.
+
+The [[topic:tool-uefi|UEFI tool]] shows the EFS, every directory and every piece of firmware a directory lists as rows of their own, named by AMD's type names as PSPTool and coreboot use them — `PSP_FW_BOOT_LOADER`, `APCB`, `PMU_CODE`, `MICROCODE_PATCH` — with the instance where a type comes in several. The details of a directory list its entries: type, size, location and flags; a click on an entry goes to its row. The details of a piece of firmware say which directories list it. A directory carries a Fletcher-32 checksum, which the tool checks as it checks a volume's; a wrong one is flagged, and **Fix Checksum** writes the right value.
+
+Some boards keep the BIOS image compressed in the PSP's own way: a zlib stream behind a 256-byte header, with no FFS structure around it. Its row opens to the volume it inflates to, as a compressed section does. What is inside can be read and opened as a panel, but not written back with **Update in Parent**: what the PSP accepts in place of the original stream is not known.
+
+What is not checked: the signatures on the PSP's firmware — the keys are AMD's — and what each piece of firmware holds beyond its type and size. AMD documents the type numbers only in part, and a type the tool does not know is shown by its number. Firmware that lies inside an FFS volume or across a volume's edge keeps the volume's rows; its entry in the directory leads there. To UEFITool all of this is padding, and the Type column says so.
+
+@see term:microcode
+@see term:padding
+
+
 @term gpnv
 @name GPNV store
 @short AMI's store in which ASUS keeps what the factory wrote of the machine: serial numbers, the model, the Windows key — the DMI area of a repair bench.
@@ -459,10 +479,11 @@ Intel ships microcode updates inside the firmware image. The CPU loads the one m
 
 Each update carries its CPU signature, a revision number and a date in its header, which is how ByteRipper names them.
 
-AMD keeps microcode in the firmware image as well, with no FIT to point at it: on the AMD boards at hand each patch lies in the area whose layout only the PSP's directories describe, which reads as [[term:padding|padding]]. An AMD patch's header has no signature, so the tool recognises it as UEFITool does — by every field holding a value AMD writes: a date, a loader version, AMD's vendor ID or none — and shows it as a row inside the padding, named by its CPUID and revision, for example `AMD microcode A50F00, revision A50000F`. The header does not state the patch's length; it follows from the processor family, and a patch of a family the tool does not know is not recognised.
+AMD keeps microcode in the firmware image as well, with no FIT to point at it: on the AMD boards at hand each patch lies in the area whose layout only the PSP's directories describe, which reads as [[term:padding|padding]]. The tool reads those directories ([[term:amd-psp|AMD PSP directories]]): every patch they list is a `MICROCODE_PATCH` row, on Zen 4 and later with a header of 0x100 bytes of its own in front of the patch. An AMD patch's header has no signature, so the tool recognises it as UEFITool does — by every field holding a value AMD writes: a date, a loader version, AMD's vendor ID or none — and shows it as a row inside the padding, named by its CPUID and revision, for example `AMD microcode A50F00, revision A50000F`. The header does not state the patch's length; it follows from the processor family, and a patch of a family the tool does not know is not recognised.
 
 
 @see term:fit
+@see term:amd-psp
 @see topic:recipe-microcode
 
 @term fit

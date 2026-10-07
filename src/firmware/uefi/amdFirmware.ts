@@ -85,22 +85,28 @@ const SIGNATURES: Readonly<Record<number, string | undefined>> = {
 };
 
 /** The four bytes it starts with; none for a slot header. */
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.DirectoryKind.signature */
 export const directorySignature = (kind: number): string | undefined => SIGNATURES[kind];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.DirectoryKind.isBIOS */
 export const isBIOSDirectory = (kind: number): boolean =>
   kind === DirectoryKind.bios || kind === DirectoryKind.biosLevel2;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.DirectoryKind.isCombo */
 export const isComboDirectory = (kind: number): boolean =>
   kind === DirectoryKind.pspCombo || kind === DirectoryKind.biosCombo;
 
 /** The header's length: a combo directory has sixteen more bytes. */
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.DirectoryKind.headerSize */
 export function directoryHeaderSize(kind: number): number {
   return isComboDirectory(kind) || kind === DirectoryKind.slotHeader ? 0x20 : 0x10;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.DirectoryKind.entrySize */
 function entrySizeOf(kind: number): number {
   if (isBIOSDirectory(kind)) return 24;
   return kind === DirectoryKind.slotHeader ? 0 : 16;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.DirectoryKind.kind */
 function kindOfSignature(bytes: Uint8Array): DirectoryKindCode | undefined {
   const text = String.fromCharCode(...bytes);
   for (const [code, signature] of Object.entries(SIGNATURES)) {
@@ -132,50 +138,70 @@ export type AddressModeCode = (typeof AddressMode)[keyof typeof AddressMode];
  * @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry
  */
 export interface AMDEntry {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.index */
   readonly index: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.type */
   readonly type: number;
   /** A PSP entry's subprogram; a BIOS entry's region type. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.subtype */
   readonly subtype: number;
   /** The two flag bytes, as they are. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.flags */
   readonly flags: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.size */
   readonly size: number;
   /** The location field, address-mode bits included (64 bits). */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.location */
   readonly location: bigint;
   /** A BIOS entry's destination in memory; nothing for a PSP entry. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.destination */
   readonly destination: bigint | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isBIOS */
   readonly isBIOS: boolean;
   /**
    * Where the blob lies in the file; nothing for an entry with no blob — a value, a size of
    * zero — and for one that points outside the image.
    */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.range */
   readonly range: ImageRange | undefined;
   /** The flash offset the location resolves to, in the image or not. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.resolvedOffset */
   readonly resolvedOffset: number | undefined;
   /**
    * A compressed BIOS image that is there as AMD stores one: the 0x100-byte header and a
    * zlib stream (`amdCompressedLength`).
    */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isStoredCompressed */
   readonly isStoredCompressed: boolean;
 }
 
 /** The soft-fuse chain and its kin keep a value where the location would be, and no size. */
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isValue */
 export const entryIsValue = (entry: AMDEntry): boolean =>
   !entry.isBIOS && entry.size === 0xffff_ffff;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.instance */
 export const entryInstance = (entry: AMDEntry): number =>
   entry.isBIOS ? (entry.flags >> 4) & 0xf : (entry.flags >> 3) & 0xf;
 /** A BIOS entry's subprogram, which sits in its flags. */
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.subprogram */
 export const entrySubprogram = (entry: AMDEntry): number =>
   entry.isBIOS ? (entry.flags >> 8) & 0x7 : entry.subtype;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isCompressed */
 export const entryIsCompressed = (entry: AMDEntry): boolean =>
   entry.isBIOS && (entry.flags & 0x08) !== 0;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isReset */
 export const entryIsReset = (entry: AMDEntry): boolean =>
   entry.isBIOS && (entry.flags & 0x01) !== 0;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isCopy */
 export const entryIsCopy = (entry: AMDEntry): boolean => entry.isBIOS && (entry.flags & 0x02) !== 0;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isReadOnly */
 export const entryIsReadOnly = (entry: AMDEntry): boolean =>
   entry.isBIOS && (entry.flags & 0x04) !== 0;
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.isWritable */
 export const entryIsWritable = (entry: AMDEntry): boolean =>
   entry.isBIOS ? (entry.flags & 0x2000) !== 0 : (entry.flags & 0x04) !== 0;
 /** Whether the entry points at another directory rather than at a blob. */
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.pointsAtDirectory */
 export const entryPointsAtDirectory = (entry: AMDEntry): boolean =>
   entry.isBIOS ? entry.type === 0x70 : [0x40, 0x48, 0x49, 0x4a].includes(entry.type);
 
@@ -186,38 +212,56 @@ export const entryPointsAtDirectory = (entry: AMDEntry): boolean =>
  */
 export interface AMDComboEntry {
   /** 0: the id is a PSP id; 1: a chip family id. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.ComboEntry.selector */
   readonly selector: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.ComboEntry.id */
   readonly id: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.ComboEntry.location */
   readonly location: bigint;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.ComboEntry.resolvedOffset */
   readonly resolvedOffset: number | undefined;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory */
 export interface AMDDirectory {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.kind */
   readonly kind: DirectoryKindCode;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.offset */
   readonly offset: number;
   /** The header and the entries. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.length */
   readonly length: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.entries */
   readonly entries: AMDEntry[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.comboEntries */
   readonly comboEntries: AMDComboEntry[];
   /** The header's fourth word: the directory's size, the SPI block size, a base address and the address mode. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.info */
   readonly info: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.storedChecksum */
   readonly storedChecksum: number | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.computedChecksum */
   readonly computedChecksum: number | undefined;
   /** The PSP id a combo directory or a slot header names it for. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.pspID */
   pspID: number | undefined;
   /** A slot header's slot — `A` or `B` — and its priority. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.slot */
   readonly slot?: string | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.priority */
   readonly priority?: number | undefined;
   /** A slot header's second-level directory. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.slotTarget */
   readonly slotTarget?: number | undefined;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.range */
 export const directoryRange = (directory: AMDDirectory): ImageRange => ({
   start: directory.offset,
   end: directory.offset + directory.length,
 });
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.checksumMatches */
 export const directoryChecksumMatches = (directory: AMDDirectory): boolean =>
   directory.storedChecksum === undefined || directory.storedChecksum === directory.computedChecksum;
 
@@ -225,6 +269,7 @@ export const directoryChecksumMatches = (directory: AMDDirectory): boolean =>
  * How the entries' locations read (`AddressMode`), from `info`: bits 24–25 when bit 31 marks
  * the newer layout, bits 29–30 otherwise.
  */
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Directory.addressMode */
 export function directoryAddressMode(directory: AMDDirectory): AddressModeCode {
   if (isComboDirectory(directory.kind) || directory.kind === DirectoryKind.slotHeader) {
     return AddressMode.physical;
@@ -234,24 +279,32 @@ export function directoryAddressMode(directory: AMDDirectory): AddressModeCode {
   return mode as AddressModeCode;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Pointer */
 /** One word of the EFS that points at a directory. */
 export interface AMDPointer {
   /** Where in the EFS the word is. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Pointer.field */
   readonly field: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Pointer.value */
   readonly value: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Pointer.target */
   readonly target: number;
 }
 
 export interface AMDFirmware {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.efsOffset */
   readonly efsOffset: number;
   /** The EFS's words that lead to a directory, in their order. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.pointers */
   readonly pointers: AMDPointer[];
   /** Every directory the walk reached, in the order it reached them. */
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.directories */
   readonly directories: AMDDirectory[];
   /** The flash the addresses are mapped over: 8, 16 or 32 MiB. */
   readonly romSize: number;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.efsRange */
 export const efsRange = (firmware: AMDFirmware): ImageRange => ({
   start: firmware.efsOffset,
   end: firmware.efsOffset + EFS_LENGTH,
@@ -640,6 +693,7 @@ export function amdTypeName(type: number, inBIOSDirectory: boolean): string {
   return PSP_TYPE_NAMES[type] ?? `Type 0x${type.toString(16).toUpperCase().padStart(2, "0")}`;
 }
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.biosTypeNames */
 /** The types a BIOS directory has of its own. */
 const BIOS_TYPE_NAMES: Readonly<Record<number, string | undefined>> = {
   96: "APCB",
@@ -662,6 +716,7 @@ const BIOS_TYPE_NAMES: Readonly<Record<number, string | undefined>> = {
   124: "OC_SWEET_SPOT_PROFILE",
 };
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.pspTypeNames */
 /** The PSP's types — and a BIOS directory's where it lists one of them. */
 const PSP_TYPE_NAMES: Readonly<Record<number, string | undefined>> = {
   0: "AMD_PUBLIC_KEY",
@@ -811,6 +866,7 @@ const PSP_TYPE_NAMES: Readonly<Record<number, string | undefined>> = {
   176: "MPM_CONTEXT",
 };
 
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.Entry.typeName */
 export const amdEntryTypeName = (entry: AMDEntry): string => amdTypeName(entry.type, entry.isBIOS);
 
 /**
@@ -909,7 +965,29 @@ export function readingAMDFirmware(
   if (firmware === undefined) return [...nodes];
   let result = [...nodes];
   for (const node of amdFirmwareNodes(firmware, depth)) {
-    result = placingInLayout(parser, node, result, false, emptyByte) ?? result;
+    const placed = placingInLayout(parser, node, result, false, emptyByte);
+    if (placed === undefined) continue;
+    result = placed;
+    // A directory whose checksum is wrong is said once, where its row stands.
+    if (node.kind === "amdDirectory") {
+      const directory = firmware.directories.find((one) => one.offset === node.header.start);
+      if (
+        directory !== undefined &&
+        directory.storedChecksum !== undefined &&
+        directory.computedChecksum !== undefined &&
+        !directoryChecksumMatches(directory)
+      ) {
+        parser.note(
+          {
+            kind: "checksumMismatch",
+            structure: "pspDirectory",
+            stored: directory.storedChecksum,
+            computed: directory.computedChecksum,
+          },
+          directory.offset + 4
+        );
+      }
+    }
   }
   return result;
 }

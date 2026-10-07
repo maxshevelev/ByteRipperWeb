@@ -56,7 +56,7 @@ level for a `later` entry.
     (`60af19f`) — upstream sizes the icon from the window's height and so has to find the
     height by passes; here the icon is sized in CSS from the viewport, and the landing
     screen centres whatever height the window has.
-- [ ] **W5 — the AMD PSP's map** (`1bda2ba`)
+- [x] **W5 — the AMD PSP's map** (`1bda2ba`)
   - `AMDFirmware.swift` (the EFS at its fixed offsets, combo directories, `$PSP`/`$PL2`,
     `$BHD`/`$BL2`, slots A and B, every address mode), its rows in the padding or the
     Insyde map region that holds it, a blob taking in the microcode rows inside it, the

@@ -1,5 +1,6 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { amdKindName } from "@/firmware/uefi/amdFirmware";
 import { amdCpuID, amdMicrocodeDate, readAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
 import { readAppleROMInformation, searchLimit } from "@/firmware/uefi/appleRomInformation";
 import { readBIOSIdentifier } from "@/firmware/uefi/biosIdentifier";
@@ -105,6 +106,7 @@ import {
   permission,
   tonedField,
 } from "@/tools/toolDetail";
+import { amdFirmwareDetail } from "@/tools/uefi/amdFirmwareDetail";
 import {
   nvarValueAttributes,
   nvramSignaturesTable,
@@ -724,6 +726,13 @@ function buildDetailRows(
   ];
   const cell = (text: string): DetailCell => ({ text, tone: "plain" });
 
+  // The PSP's map: what the EFS points at, what a directory lists, and which entries list a
+  // blob — each a way to the row it names.
+  if (node.kind === "amdEFS" || node.kind === "amdDirectory" || node.kind === "amdFirmwareEntry") {
+    const amd = amdFirmwareDetail(node, image, reader, repairs);
+    fields.push(...amd.fields);
+    tables.push(...amd.tables);
+  }
   // A GPNV record's data is fields nobody has published: the text in it is what can be
   // read, at its offset in the data.
   if (node.kind === "gpnvRecord") {
@@ -908,7 +917,10 @@ function verdictCell(range: ProtectedRange): DetailCell {
 
 function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
   const fields: DetailField[] = [field(L("Kind"), kindLabel(node.kind))];
-  if (node.subtype !== undefined) fields.push(field(L("Type"), typeText(node)));
+  // A PSP blob's type is said with the directory's name for it, below.
+  if (node.subtype !== undefined && node.kind !== "amdFirmwareEntry") {
+    fields.push(field(L("Type"), typeText(node)));
+  }
   if (node.guid !== undefined) fields.push(field("GUID", guidDetailText(node.guid)));
   // Inside a compressed section the ranges below are offsets into what it
   // decompresses to, and this says which section that is.
@@ -1410,6 +1422,12 @@ function headerFields(
 
     // Records are written after one another, the one before marked replaced; how many of each
     // is what the store says of itself.
+    // Read in `buildDetailRows`, which has the whole map (`amdFirmwareDetail`).
+    case "amdEFS":
+    case "amdDirectory":
+    case "amdFirmwareEntry":
+      break;
+
     case "gpnvStore": {
       const records = node.children.filter((child) => child.kind === "gpnvRecord");
       const current = records.filter((record) => record.subtype === 1).length;
@@ -2027,6 +2045,8 @@ function typeText(node: UEFINode): string {
       const type = FLASH_REGIONS[subtype];
       return type === undefined ? hex(subtype) : `${regionLabel(type)} · ${hex(subtype)}`;
     }
+    case "amdDirectory":
+      return amdKindName(subtype);
     case "intelImage":
     case "uefiImage":
     case "vssEntry":

@@ -1,4 +1,4 @@
-@source-sha 5aea3441bf9e8358c54d83138e85b7988d21c568f959f7068a2b9e469f0caa93
+@source-sha 5b272022a1b29a909fae03bac412e70169fc632195be56a41f67fe364ffd6ca5
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -174,6 +174,26 @@ Eine **komprimierte Sektion** kann ByteRipper entpackt öffnen — das Werkzeug 
 Das Werkzeug führt ihn mit Absicht auf: daran sieht man, ob noch ein Modul in ein Volume passt, und seine Größe ist eine schnelle Probe darauf, dass das Längenfeld des Volumes stimmt.
 
 @see term:padding
+
+@term amd-psp
+@name AMD-PSP-Verzeichnisse
+@short Wie der Flash-Speicher einer AMD-Platine für den Platform Security Processor aufgeteilt ist: die Embedded Firmware Structure, die PSP- und BIOS-Verzeichnisse und die Firmware, die sie aufführen.
+
+Auf einer AMD-Platine gehört der erste Teil des Flash-Speichers dem Platform Security Processor (PSP), einem Prozessor im Inneren der CPU, der vor den x86-Kernen startet und das Speichertraining, die SMU-Firmware, den [[term:microcode|Microcode]] und das BIOS selbst lädt. All das findet der PSP über die Embedded Firmware Structure (EFS), eine kleine Tabelle, die mit den Bytes `AA 55 AA 55` an einer von wenigen festen Adressen beginnt — auf den vorliegenden Platinen `0x20000` oder `0xFA0000` —, und über die Verzeichnisse, auf die die EFS verweist:
+
+- **PSP-Verzeichnisse**, `$PSP` und die zweite Ebene `$PL2`, führen die eigene Firmware des PSP auf: seinen Bootloader, sein Trusted OS, die SMU-Firmware, die Schlüssel von AMD, das ABL-Speichertraining.
+- **BIOS-Verzeichnisse**, `$BHD` und `$BL2`, führen auf, was der PSP für das BIOS vorbereitet: die Speicherkonfiguration APCB, die PMU-Firmware je Speicherart, die Microcode-Patches und das BIOS-Image samt der Speicheradresse, an die es kopiert wird.
+- **Kombi-Verzeichnisse**, `2PSP` und `2BHD`, enthalten je einen Satz Verzeichnisse für jede Prozessorfamilie, die die Platine aufnimmt, ausgewählt nach der PSP-ID. Neuere Platinen halten die zweite Ebene zweifach vor, in den Slots A und B, jeweils hinter einem Image-Slot-Header.
+
+Das [[topic:tool-uefi|UEFI-Werkzeug]] zeigt die EFS, jedes Verzeichnis und jedes Stück Firmware, das ein Verzeichnis aufführt, als eigene Zeile, benannt nach den Typnamen von AMD, wie PSPTool und coreboot sie verwenden — `PSP_FW_BOOT_LOADER`, `APCB`, `PMU_CODE`, `MICROCODE_PATCH` —, mit der Instanz, wo es einen Typ mehrfach gibt. Die Details eines Verzeichnisses führen seine Einträge auf: Typ, Größe, Adresse und Merkmale; ein Klick auf einen Eintrag führt zu seiner Zeile. Die Details eines Firmware-Stücks nennen die Verzeichnisse, die es aufführen. Ein Verzeichnis trägt eine Fletcher-32-Prüfsumme, die das Werkzeug prüft wie die eines Volumes; eine falsche wird markiert, und **Fix Checksum** schreibt den richtigen Wert.
+
+Manche Platinen legen das BIOS-Image in der eigenen Form des PSP komprimiert ab: ein zlib-Datenstrom hinter einem 256 Byte langen Header, ohne FFS-Struktur darum. Seine Zeile lässt sich wie eine komprimierte Sektion aufklappen und zeigt das Volume, zu dem es sich entpackt. Der Inhalt lässt sich lesen und als Bereich öffnen, aber nicht mit **Update in Parent** zurückschreiben: Was der PSP anstelle des ursprünglichen Datenstroms annimmt, ist nicht bekannt.
+
+Nicht geprüft werden die Signaturen der PSP-Firmware — die Schlüssel gehören AMD — und der Inhalt der einzelnen Stücke über Typ und Größe hinaus. AMD dokumentiert die Typnummern nur zum Teil; einen Typ, den das Werkzeug nicht kennt, zeigt es mit seiner Nummer. Firmware, die in einem FFS-Volume oder über dessen Grenze hinweg liegt, behält die Zeilen des Volumes; ihr Eintrag im Verzeichnis führt dorthin. Für UEFITool ist all das Padding, und die Spalte „Typ“ weist es so aus.
+
+@see term:microcode
+@see term:padding
+
 
 @term gpnv
 @name GPNV-Speicher
@@ -460,10 +480,11 @@ Intel legt Microcode-Updates in das Firmware-Image. Der Prozessor lädt sehr fr�
 
 Jedes Update trägt in seinem Header die CPU-Signatur, eine Revisionsnummer und ein Datum; danach benennt ByteRipper sie.
 
-Auch AMD legt Microcode im Firmware-Image ab, jedoch ohne FIT: Auf den vorliegenden AMD-Platinen liegt jedes Update in dem Bereich, dessen Aufbau nur die Verzeichnisse des PSP beschreiben und der sich als [[term:padding|Padding]] liest. Der Header eines AMD-Updates hat keine Signatur; das Werkzeug erkennt ihn daher wie UEFITool daran, dass jedes Feld einen Wert enthält, den AMD schreibt — ein Datum, eine Loader-Version, die Hersteller-ID von AMD oder keine —, und zeigt das Update als Zeile innerhalb des Paddings, benannt nach CPUID und Revision, etwa `AMD microcode A50F00, revision A50000F`. Die Länge des Updates nennt der Header nicht; sie ergibt sich aus der Prozessorfamilie, und ein Update einer Familie, die das Werkzeug nicht kennt, wird nicht erkannt.
+Auch AMD legt Microcode im Firmware-Image ab, jedoch ohne FIT: Auf den vorliegenden AMD-Platinen liegt jedes Update in dem Bereich, dessen Aufbau nur die Verzeichnisse des PSP beschreiben und der sich als [[term:padding|Padding]] liest. Das Werkzeug liest diese Verzeichnisse ([[term:amd-psp|AMD-PSP-Verzeichnisse]]): Jedes Update, das sie aufführen, ist eine Zeile `MICROCODE_PATCH`, ab Zen 4 mit einem eigenen Header von 0x100 Bytes vor dem Update. Der Header eines AMD-Updates hat keine Signatur; das Werkzeug erkennt ihn daher wie UEFITool daran, dass jedes Feld einen Wert enthält, den AMD schreibt — ein Datum, eine Loader-Version, die Hersteller-ID von AMD oder keine —, und zeigt das Update als Zeile innerhalb des Paddings, benannt nach CPUID und Revision, etwa `AMD microcode A50F00, revision A50000F`. Die Länge des Updates nennt der Header nicht; sie ergibt sich aus der Prozessorfamilie, und ein Update einer Familie, die das Werkzeug nicht kennt, wird nicht erkannt.
 
 
 @see term:fit
+@see term:amd-psp
 @see topic:recipe-microcode
 
 @term fit

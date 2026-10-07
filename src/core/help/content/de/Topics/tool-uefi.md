@@ -1,4 +1,4 @@
-@source-sha e681587b4065d54c610b761347be39b2a2c3a5272781920295a4e237782e16a2
+@source-sha de2c56e9df469b78ddae6478941e9e413ce7d866c71fbb360da43b2e575712a1
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -7,7 +7,7 @@
 
 ## Der Baum
 
-Die oberste Ebene ist die Aufteilung des Chips selbst. Auf einer Intel-Plattform sind das der [[term:flash-descriptor|Flash Descriptor]] und die von ihm definierten [[term:region|Regionen]] — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. In der BIOS-Region liegen [[term:volume|Firmware-Volumes]], darin [[term:ffs-file|FFS-Dateien]] und darin [[term:section|Sektionen]]. Ein Zweig wird decodiert, wenn er geöffnet wird, und nicht im Voraus.
+Die oberste Ebene ist die Aufteilung des Chips selbst. Auf einer Intel-Plattform sind das der [[term:flash-descriptor|Flash Descriptor]] und die von ihm definierten [[term:region|Regionen]] — [[term:bios-region|BIOS]], [[term:me-region|ME]], [[term:gbe-region|GbE]], [[term:pdr-region|PDR]], EC. In der BIOS-Region liegen [[term:volume|Firmware-Volumes]], darin [[term:ffs-file|FFS-Dateien]] und darin [[term:section|Sektionen]]. Eine AMD-Platine hat keinen Descriptor: Die oberste Ebene sind ihre Volumes und das Padding dazwischen, und in diesem Padding zeigt der Baum die [[term:amd-psp|Verzeichnisse des PSP]] und jedes Stück Firmware, das sie aufführen. Ein Zweig wird decodiert, wenn er geöffnet wird, und nicht im Voraus.
 
 Die Spalten **Typ** und **Subtyp** benennen jeden Knoten so, wie der Referenz-Parser ihn benennt. Die Spalte **Name** zeigt bei einer Datei den Namen, den ihre eigene Name-Section enthält. Ein Knoten ohne eine solche Section wird nach dem Gemeinschaftskatalog für seine [[term:guid|GUID]] benannt, sofern der Katalog einen Namen kennt, und sonst nach der GUID selbst. Der Name aus dem Katalog und der eigene Name einer Datei können voneinander abweichen — ein Hersteller kann eine dem Katalog bekannte GUID einem anderen Modul geben —; die Details zeigen den Namen aus dem Katalog dann unter **Name im Katalog**.
 

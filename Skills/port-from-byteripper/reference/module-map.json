@@ -802,7 +802,9 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFITreeSearchTests.swift": "src/tools/uefi/uefiTreeSearch.test.ts",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift": "src/tools/uefi/UefiSearchBar.tsx",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift": "src/state/uefiSearchSettings.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAMDFirmwareDetail.swift": "src/tools/uefi/amdFirmwareDetail.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/AMDFirmwareDisplayTests.swift": "src/tools/uefi/amdFirmwareDisplay.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",

@@ -94,6 +94,10 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     case "gpnvStore":
     case "gpnvRecord":
       return termId("gpnv");
+    case "amdEFS":
+    case "amdDirectory":
+    case "amdFirmwareEntry":
+      return termId("amd-psp");
     case "sound":
       return termId("sound");
     case "fitComponent":
