@@ -609,6 +609,8 @@ export function HexPane({
   }, [fontSize, fontFamily]);
 
   /** Hands the renderer where the pane now is. */
+  /** Places the bookmark popover where its row is on screen; set further down. */
+  const placeEditAnchorRef = useRef<() => void>(() => undefined);
   const applyViewport = useCallback(() => {
     const host = scrollRef.current;
     const scroller = scrollerRef.current;
@@ -619,6 +621,9 @@ export function HexPane({
       widthCss: host.clientWidth,
       heightCss: host.clientHeight,
     });
+    // The bookmark popover stands in the pane's box, not in the content, so it is
+    // moved with the view rather than carried by it.
+    placeEditAnchorRef.current();
   }, []);
 
   /** What a change of position owes: the paint, the header, and the other pane. */
@@ -1108,6 +1113,36 @@ export function HexPane({
   const [editAnchor, setEditAnchor] = useState<
     { token: number; top: number; left: number; above: boolean } | undefined
   >(undefined);
+  // Placed in the pane's own box, in the place the row has on screen, and not in
+  // the scroller's content. For a file taller than the browser lays out the
+  // content is scaled, and a row deep in it sits millions of pixels down, where
+  // Chromium draws an element's focus ring and nothing else of it: the popover
+  // came up as a lone outline in Chrome and in the Windows build, and whole in
+  // Safari, whose limit the same dump does not pass. Out of the content it has to
+  // be placed again when the dump scrolls, which `onScroll` and the wheel do.
+  const editingRef = useRef(editingHere);
+  editingRef.current = editingHere;
+  const placeEditAnchor = useCallback(() => {
+    const session = editingRef.current;
+    const layout = layoutRef.current;
+    const host = scrollRef.current;
+    const scroller = scrollerRef.current;
+    if (session === undefined || layout === undefined || host === null || scroller === null) {
+      return;
+    }
+    // Where the row is on screen is the scroller's answer, in content pixels:
+    // the element's `scrollTop` is a scaled thumb position on such a file.
+    const inView = Math.floor(session.row / BYTES_PER_ROW) * layout.rowHeight - scroller.top;
+    const roomBelow = host.clientHeight - (inView + layout.rowHeight);
+    const above = roomBelow < 130 && inView > roomBelow;
+    setEditAnchor({
+      token: session.token,
+      top: host.offsetTop + (above ? inView - 6 : inView + layout.rowHeight + 6),
+      left: host.offsetLeft + layout.leftPadding - host.scrollLeft,
+      above,
+    });
+  }, []);
+  placeEditAnchorRef.current = placeEditAnchor;
   useEffect(() => {
     if (editingHere === undefined) {
       setEditAnchor(undefined);
@@ -1116,25 +1151,13 @@ export function HexPane({
     reveal(editingHere.row);
     // Placed now, and not on the next frame. The frame was there to let the
     // scroll above land first, and the scroll does not need one: the scroller
-    // writes `scrollTop` itself, so the element it writes to already holds the
-    // answer. Waiting cost more than it bought — `requestAnimationFrame` does
-    // not run while a page is not being painted, which a window behind another
-    // window or a tab Chrome has throttled both are, and a popover waiting on a
-    // frame that never comes never appears at all. Reported as exactly that:
-    // sometimes the popover does not show, and a reload fixes it.
-    const layout = layoutRef.current;
-    const host = scrollRef.current;
-    if (layout === undefined || host === null) return;
-    const inView = Math.floor(editingHere.row / BYTES_PER_ROW) * layout.rowHeight - host.scrollTop;
-    const roomBelow = host.clientHeight - (inView + layout.rowHeight);
-    const above = roomBelow < 130 && inView > roomBelow;
-    setEditAnchor({
-      token: editingHere.token,
-      top: (above ? inView - 6 : inView + layout.rowHeight + 6) + host.scrollTop,
-      left: layout.leftPadding,
-      above,
-    });
-  }, [editingHere, reveal]);
+    // moves at once, so it already holds the answer. Waiting cost more than it
+    // bought — `requestAnimationFrame` does not run while a page is not being
+    // painted, which a window behind another window or a tab Chrome has
+    // throttled both are, and a popover waiting on a frame that never comes
+    // never appears at all.
+    placeEditAnchor();
+  }, [editingHere, reveal, placeEditAnchor]);
 
   /**
    * A mark just made is where the eye lands once it is named — on the commit,
@@ -2122,21 +2145,22 @@ export function HexPane({
             {markTip.name}
           </p>
         )}
-        {editingHere !== undefined && editAnchor?.token === editingHere.token ? (
-          <BookmarkEditPopover
-            key={editingHere.token}
-            session={editingHere}
-            top={editAnchor.top}
-            left={editAnchor.left}
-            above={editAnchor.above}
-            onCommitted={onBookmarkCommitted}
-            onKeyboardClose={focusDump}
-          />
-        ) : null}
         {/* Its height is PaneScroller's to set: the content's own when that
             fits, the browser's layout limit when it does not. */}
         <div ref={spacerRef} className="hex-spacer" style={{ width: `${contentWidth}px` }} />
       </div>
+      {/* Over the dump rather than in it: placed where its row is on screen. */}
+      {editingHere !== undefined && editAnchor?.token === editingHere.token ? (
+        <BookmarkEditPopover
+          key={editingHere.token}
+          session={editingHere}
+          top={editAnchor.top}
+          left={editAnchor.left}
+          above={editAnchor.above}
+          onCommitted={onBookmarkCommitted}
+          onKeyboardClose={focusDump}
+        />
+      ) : null}
       {resultsShown === true && onGoToMatch !== undefined ? (
         <SearchResults
           pane={paneId}

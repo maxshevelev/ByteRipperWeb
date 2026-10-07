@@ -29,11 +29,11 @@ import { shortcutKey } from "@/ui/pane/hexKeys";
  * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController
  * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.show
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.presentBookmarkEditPopover
- * @upstream-differs an element inside the pane's scroller, placed under the mark's row, rather than an NSPopover
+ * @upstream-differs an element over the pane's dump, placed under the mark's row where it is on screen, rather than an NSPopover
  */
 export interface BookmarkEditPopoverProps {
   readonly session: BookmarkEditSession;
-  /** Where the mark's row is, in the scroller's content coordinates. */
+  /** Where it stands in the pane's box: under the mark's row as it is on screen. */
   readonly top: number;
   readonly left: number;
   /** Above the row rather than below it, when there is no room underneath. */
@@ -117,9 +117,9 @@ export function BookmarkEditPopover({
   const isNew = session.existingName === undefined;
 
   return (
-    // Everything that happens in the popover stays in it: it sits inside the
-    // dump's scroller, whose own handlers would otherwise take the keys for
-    // typing into bytes and the presses for placing the caret.
+    // Everything that happens in the popover stays in it: the pane's handlers
+    // would otherwise take the keys for typing into bytes and the presses for
+    // placing the caret.
     <form
       ref={formRef}
       className={`bookmark-popover${above ? " is-above" : ""}`}
