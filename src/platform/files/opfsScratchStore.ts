@@ -39,9 +39,20 @@ export class OpfsScratchStore implements ScratchStore {
     this.prefix = prefix;
   }
 
-  /** Whether this browser has an origin-private file system at all. */
+  /**
+   * Whether this page has an origin-private file system at all. Having the call
+   * is not enough: a page with no origin of its own — the single-file build
+   * opened from disk, `file://` — has it, and Chrome refuses it there with a
+   * SecurityError ("certain files are unsafe for access…"): a join, which
+   * snapshots what it joined into it, failed with that message there, and so
+   * would every other use. Answered no, each takes its way without one.
+   */
   static isAvailable(): boolean {
-    return typeof navigator !== "undefined" && navigator.storage?.getDirectory !== undefined;
+    return (
+      typeof navigator !== "undefined" &&
+      navigator.storage?.getDirectory !== undefined &&
+      globalThis.origin !== "null"
+    );
   }
 
   /**

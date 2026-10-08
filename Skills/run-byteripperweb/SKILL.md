@@ -60,6 +60,7 @@ column is about 8px in from the pane's left edge, and a row is one row height
 below the pane's top — read both off a screenshot rather than guessing.
 | `keys <key>...` | `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `Enter`, `Escape`, and any single character — `keys a a` types the byte `AA` into the dump |
 | `text` | the page's visible text |
+| `pick <file> "<js>"` | a second file for a page already open: runs `<js>` as a gesture to open the chooser — Append File…, Compare with… — and hands it `<file>` |
 | `stop` | closes the browser and forgets it |
 
 A tool's name is matched against the Tools menu — `ME`, `FIT`, `UEFI` — and the

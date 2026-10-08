@@ -450,6 +450,24 @@ const COMMANDS = {
     console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2));
   },
 
+  // A second file for a page already open — Append File…, Compare With… — through the same
+  // chooser interception as `open`: the expression is what opens the chooser, run as a gesture.
+  async pick(args) {
+    const [file, ...rest] = positionals(args);
+    const expression = rest.join(" ");
+    if (file === undefined || expression.length === 0) {
+      throw new Error("pick needs a file and what opens the chooser: `pick <file> \"<js>\"`");
+    }
+    const cdp = await attach(readState());
+    await cdp.send("Page.enable");
+    await cdp.send("DOM.enable");
+    const trouble = {};
+    await wireFileChooser(cdp, file.replace(/^~/, homedir()), trouble);
+    await cdp.eval(expression, true);
+    await sleep(2500);
+    console.log(trouble.reason === undefined ? `${file} handed over` : `not handed over: ${trouble.reason}`);
+  },
+
   async drag(args) {
     const [where, dx, dy] = positionals(args);
     const cdp = await attach(readState());
