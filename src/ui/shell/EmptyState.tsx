@@ -10,6 +10,7 @@ import {
   checkForNewerRelease,
   offerUpdate,
   releaseAnnouncementForNotes,
+  updatesOffered,
 } from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
@@ -91,7 +92,8 @@ export function EmptyState({
           it, so it sits closer (upstream's versionGap).
           @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.versionGap */}
       <p className="empty-state-version">{appNameAndVersion()}</p>
-      <NewerRelease />
+      {/* A hosted page is the newest release on its next load: nothing to offer. */}
+      {updatesOffered() ? <NewerRelease /> : null}
       {/* The bottom: the marks and the release's own words. While there are
           marks the two share the row, each its half; while there are none the
           notes stand alone. */}
@@ -123,7 +125,8 @@ export function EmptyState({
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineText
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.openReleasePage
  * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.releaseLineForTesting
- * @upstream-differs the line offers the update rather than linking to the release's page
+ * @upstream-differs the line offers the update rather than linking to the release's page,
+ * and only where there is one to take: the desktop build and a page kept on disk
  */
 function NewerRelease() {
   const [release, setRelease] = useState<Release | undefined>();

@@ -149,6 +149,22 @@ export async function checkForUpdate(): Promise<void> {
   updateStore.update((state) => ({ ...state, ask: { phase: "available", release } }));
 }
 
+/**
+ * Whether this window has an update to be offered at all. The desktop build
+ * installs one, and a page kept on disk is replaced by downloading the next;
+ * a hosted page is replaced by loading it again — the site serves the newest
+ * release — so offering it one would only send the reader to a download they
+ * do not need.
+ *
+ * @web-only upstream is an installed program, which always has an update to offer
+ */
+export function updatesOffered(): boolean {
+  return (
+    desktopBridge() !== undefined ||
+    (typeof location !== "undefined" && location.protocol === "file:")
+  );
+}
+
 /** The landing screen's Update: asks before it downloads and restarts. */
 export function offerUpdate(release: Release): void {
   updateStore.update((state) => ({ ...state, ask: { phase: "available", release } }));
