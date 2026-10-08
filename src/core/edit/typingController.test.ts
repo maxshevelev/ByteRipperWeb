@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
 import { caretAt, selection } from "@/core/document/selectionModel";
-import { SERIES_BREAK_MS, TypingController } from "@/core/edit/typingController";
+import { FAST_UNDO_MS, SERIES_BREAK_MS, TypingController } from "@/core/edit/typingController";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { asArray, readAll, storageOver } from "@/core/testing/support";
 import type { ShiftingEdit } from "@/core/text/shiftWarning";
@@ -1163,5 +1163,73 @@ describe("a click that lands mid-byte", () => {
 
     expect(t.doc.selection).toEqual(selection(5, 9, 16));
     expect(t.typing.nibble).toBe(0);
+  });
+});
+
+/**
+ * Cmd+Z as a person presses it: through the controller, whose clock decides
+ * whether a press is a quick repeat — the first takes one byte, a repeat within
+ * the window the rest of the run.
+ */
+describe("the fast-undo window", () => {
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testFastUndoRemovesTheRestOfTheTypingSeries
+  it("takes back the rest of the typing series on a quick second press", async () => {
+    const t = setUp([0, 0, 0, 0]);
+    await t.hex("41");
+    t.advanceClock(50);
+    await t.hex("42");
+    t.advanceClock(50);
+    await t.hex("43");
+    expect(await t.content()).toEqual([0x41, 0x42, 0x43, 0]);
+
+    // The first press: the last byte of the series.
+    await t.typing.undo();
+    expect(await t.content()).toEqual([0x41, 0x42, 0, 0]);
+    expect(t.doc.selection.start).toBe(2);
+
+    // A quick second press: the rest of the series in one step.
+    t.advanceClock(100);
+    await t.typing.undo();
+    expect(await t.content()).toEqual([0, 0, 0, 0]);
+    expect(t.doc.selection.start).toBe(0);
+    expect(t.doc.canUndo).toBe(false);
+
+    // Redo is symmetric: the batch comes back in one press, the byte in the next.
+    t.advanceClock(100);
+    await t.typing.redo();
+    expect(await t.content()).toEqual([0x41, 0x42, 0, 0]);
+    t.advanceClock(100);
+    await t.typing.redo();
+    expect(await t.content()).toEqual([0x41, 0x42, 0x43, 0]);
+    expect(t.doc.selection.start).toBe(3);
+  });
+
+  // @upstream ByteRipperTests/PaneViewModelTests.swift#PaneViewModelTests.testUndoAfterAPauseRemovesOneByteAgain
+  it("takes one byte again after a pause", async () => {
+    const t = setUp([0, 0, 0, 0]);
+    await t.hex("41");
+    t.advanceClock(50);
+    await t.hex("42");
+    t.advanceClock(50);
+    await t.hex("43");
+
+    await t.typing.undo();
+    expect(await t.content()).toEqual([0x41, 0x42, 0, 0]);
+    t.advanceClock(FAST_UNDO_MS + 500);
+    await t.typing.undo();
+    expect(await t.content()).toEqual([0x41, 0, 0, 0]);
+    expect(t.doc.selection.start).toBe(1);
+  });
+
+  it("does not count an undo before a redo as the one being repeated", async () => {
+    const t = setUp([0, 0, 0, 0]);
+    await t.hex("414243");
+
+    await t.typing.undo();
+    t.advanceClock(100);
+    await t.typing.redo();
+    t.advanceClock(100);
+    await t.typing.undo();
+    expect(await t.content()).toEqual([0x41, 0x42, 0, 0]);
   });
 });

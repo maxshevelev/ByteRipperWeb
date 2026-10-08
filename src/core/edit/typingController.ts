@@ -64,6 +64,15 @@ export type InputRegion = "hex" | "text";
  */
 export const SERIES_BREAK_MS = 700;
 
+/**
+ * A repeat undo within this long of the last one takes back the rest of the
+ * typing series in one step: the first press takes one byte, the quick second
+ * the whole run behind it.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.fastUndoWindow
+ */
+export const FAST_UNDO_MS = 500;
+
 export interface TypingControllerOptions {
   /**
    * For tests; defaults to the wall clock.
@@ -150,6 +159,13 @@ export class TypingController {
   private seriesOpen = false;
   private seriesCounter = 0;
   private lastTypedAt = Number.NEGATIVE_INFINITY;
+  /**
+   * When the last undo ran, for the fast-undo window; nothing until the first,
+   * and nothing again after a redo.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.lastUndoTime
+   */
+  private lastUndoAt: number | undefined;
   private lastRegion: InputRegion | undefined;
   /**
    * Whether this file has been warned about shifting edits already. The
@@ -606,7 +622,14 @@ export class TypingController {
       this.nibbleIndex = 0;
       this.consuming = undefined;
 
-      const applied = await this.doc.undo(batch);
+      // The fast-undo window: a repeat press within FAST_UNDO_MS of the last
+      // asks the history for the rest of the series in one step — whether that
+      // happens is the history's to decide, by what the last undo took.
+      const now = this.now();
+      const fast = batch || (this.lastUndoAt !== undefined && now - this.lastUndoAt < FAST_UNDO_MS);
+      this.lastUndoAt = now;
+
+      const applied = await this.doc.undo(fast);
       if (applied === undefined) return;
       const edit = netDiffEdit(applied);
       if (edit !== undefined) this.options.onEdit?.(edit);
@@ -620,6 +643,8 @@ export class TypingController {
       this.closeSeries();
       this.nibbleIndex = 0;
       this.consuming = undefined;
+      // A redo followed quickly by an undo is not a repeat undo.
+      this.lastUndoAt = undefined;
 
       const applied = await this.doc.redo();
       if (applied === undefined) return;
