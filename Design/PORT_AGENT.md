@@ -68,7 +68,7 @@ Each ends with the checks green and a commit.
   pages (`AgentPage`), endpoint names. Tests ported from `AgentKitTests`,
   including a legacy handshake and a modern discover-list-call, cancellation
   and progress. The protocol document comes across with it.
-- [ ] **A2 — The loop, end to end.** `desktop/` server and preload bridge, the
+- [x] **A2 — The loop, end to end.** `desktop/` server and preload bridge, the
   relay, `AgentService` in the page, Settings ▸ Agent (switches, client
   configurations), the status mark, the Agent window with the log; `documents`,
   `focus`, `read`, `reveal`. Done through the real pipe and the real relay.

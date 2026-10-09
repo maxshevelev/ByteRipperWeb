@@ -217,7 +217,9 @@ describe("reveal", () => {
     const service = new AgentService(undefined);
     open("a", ramp(0x40));
     const shown: unknown[] = [];
-    agentShell.reveal = (pane, start, end, select) => shown.push([pane, start, end, select]);
+    agentShell.reveal = (pane, start, end, select) => {
+      shown.push([pane, start, end, select]);
+    };
     expect(member((await call(service, "reveal", { offset: 8 })).json, "selected")).toBe(false);
     expect(shown).toEqual([["a", 8, 8, false]]);
     expect((await call(service, "reveal", { offset: 0x41 })).isError).toBe(true);

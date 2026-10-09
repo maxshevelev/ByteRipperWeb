@@ -222,12 +222,12 @@ export class AgentHostTools {
         ["offset"]
       ),
       annotations: VIEW,
-      run: async (call) => jsonAnswer(this.reveal(call.arguments)),
+      run: async (call) => jsonAnswer(await this.reveal(call.arguments)),
     });
   }
 
   /** @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.reveal */
-  reveal(args: AgentArguments): Json {
+  async reveal(args: AgentArguments): Promise<Json> {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const offset = args.offset("offset");
     const length = args.optionalOffset("length") ?? 0;
@@ -240,7 +240,7 @@ export class AgentHostTools {
     // The place the reader is leaving goes into the history first, so their Back undoes what the
     // agent did.
     recordJump(pane);
-    agentShell.reveal?.(pane, offset, end, select && end > offset);
+    await agentShell.reveal?.(pane, offset, end, select && end > offset);
     return {
       document: place.id,
       shown: rangeJson(offset, end),

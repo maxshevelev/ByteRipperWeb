@@ -1373,14 +1373,14 @@ export function AppShell() {
   // itself, the tool having recorded the place it left (`Design/PORT_AGENT.md`).
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
   useEffect(() => {
-    agentShell.reveal = (pane, start, end, select) => {
+    agentShell.reveal = async (pane, start, end, select) => {
       if (isSlot(pane)) {
         foldParts();
         setActivePane(pane);
       } else {
         raisePart(pane);
       }
-      if (select) void paneState(pane)?.typing.setSelection(start, end);
+      if (select) await paneState(pane)?.typing.setSelection(start, end);
       revealIn(pane, start, !select);
     };
     return () => {

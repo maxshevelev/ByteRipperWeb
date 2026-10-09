@@ -11,7 +11,10 @@ import type { PaneId } from "@/state/paneId";
 export const agentShell: {
   /**
    * Brings the pane to the front — the part's panel raised, or the stage cleared for a file's
-   * own pane — and shows `[start, end)` in it, selecting it when asked: as a tool's reveal does.
+   * own pane — and shows `[start, end)` in it, selecting it when asked: as a tool's reveal does. Settled when the selection is, so a `focus`
+   * asked right after sees it.
    */
-  reveal?: ((pane: PaneId, start: number, end: number, select: boolean) => void) | undefined;
+  reveal?:
+    | ((pane: PaneId, start: number, end: number, select: boolean) => void | Promise<void>)
+    | undefined;
 } = {};

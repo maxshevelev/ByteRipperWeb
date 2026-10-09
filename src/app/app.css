@@ -6000,17 +6000,17 @@ body[data-pulling-panel] * {
   inset: 0;
 }
 
-.agent-time,
-.agent-duration,
-.agent-size {
+.agent-col-time,
+.agent-col-duration,
+.agent-col-size {
   width: 4.5rem;
 }
 
-.agent-tool {
+.agent-col-tool {
   width: 8rem;
 }
 
-.agent-result {
+.agent-col-result {
   width: 9rem;
 }
 
@@ -6020,7 +6020,7 @@ body[data-pulling-panel] * {
   white-space: nowrap;
 }
 
-.agent-arguments-cell,
+.agent-col-arguments,
 .agent-arguments {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }

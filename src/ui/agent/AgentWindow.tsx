@@ -77,7 +77,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           <thead>
             <tr>
               {AGENT_LOG_COLUMNS.map((column) => (
-                <th key={column} className={`agent-cell agent-${column}`} scope="col">
+                <th key={column} className={`agent-cell agent-col-${column}`} scope="col">
                   {columnTitle(column)}
                 </th>
               ))}
@@ -91,8 +91,8 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
                     key={column}
                     className={
                       column === "result" && isProblem(one)
-                        ? `agent-cell agent-${column} agent-bad`
-                        : `agent-cell agent-${column}`
+                        ? `agent-cell agent-col-${column} agent-bad`
+                        : `agent-cell agent-col-${column}`
                     }
                     title={
                       column === "arguments" || column === "result"
