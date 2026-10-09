@@ -1122,6 +1122,63 @@ export function closePart(pane: PartId): void {
   });
 }
 
+/** The ids background documents are given: negative, so no panel of the dock ever has one. */
+let backgroundCounter = 0;
+
+/**
+ * Opens a file as a pane that no window shows — what an agent asked to read by path, with nothing put
+ * on the person's screen. The same document, the same chunked storage and the same shared parse an
+ * open file has, so a tool's queries answer about it exactly as they would on screen; it is a part
+ * the dock never lists, and nothing about opening a file happens: no placement, no join, no change
+ * of the active pane.
+ *
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.open
+ * @web-only upstream's is a `PaneViewModel` no window holds
+ */
+export function openBackgroundPane(file: OpenedFile): PartId {
+  backgroundCounter += 1;
+  const pane: PartId = `part:${-backgroundCounter}`;
+  const { document, typing } = makeDocument(
+    new EditOverlayStorage(new FileBackedStorage(file.source, new ChunkCache())),
+    pane
+  );
+  workspaceStore.update((state) => ({
+    ...state,
+    parts: {
+      ...state.parts,
+      [pane]: {
+        name: file.name,
+        file,
+        document,
+        typing,
+        saved: savedStorageFor(file),
+        untitled: false,
+        writable: false,
+      },
+    },
+  }));
+  clearSources(pane);
+  resetSegments(pane, document.size);
+  return pane;
+}
+
+/**
+ * Closes a background document: its pane and the document with it.
+ *
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.close
+ * @web-only upstream's closes a `PaneViewModel` no window holds
+ */
+export function closeBackgroundPane(pane: PartId): void {
+  clearSegments(pane);
+  clearSources(pane);
+  workspaceStore.update((state) => {
+    if (state.parts[pane] === undefined) return state;
+    const parts = { ...state.parts };
+    delete parts[pane];
+    return { ...state, parts };
+  });
+}
+
 /**
  * The placeholder a never-saved document points at until it is given a home.
  *

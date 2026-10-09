@@ -1163,6 +1163,7 @@
 "Add this to Claude Desktop's configuration file, %1$@, and restart Claude Desktop." = "Добавьте это в файл настроек Claude Desktop, %1$@, и перезапустите Claude Desktop.";
 "Add this to Cursor's configuration file, %1$@, for every project — or to %2$@ in one project." = "Добавьте это в файл настроек Cursor, %1$@, — для всех проектов, или в %2$@ — для одного проекта.";
 "Agent" = "Агент";
+"Page" = "Страница";
 "Agent Settings…" = "Настройки агента…";
 "Agents connected: %1$@." = "Подключено агентов: %1$@.";
 "An agent's edit goes into the open file as one step of its undo and shows red until the file is saved, like an edit made by hand. Saving stays with you. A file opened read-only is never changed." = "Изменение, сделанное агентом, вносится в открытый файл одним шагом отмены и выделяется красным до сохранения файла, как правка, сделанная вручную. Сохраняет файл только пользователь. Файл, открытый только для чтения, не изменяется.";
@@ -1201,6 +1202,18 @@
 "menu|Window" = "Окно";
 "none" = "нет";
 "Agent: %1$@" = "Агент: %1$@";
+"About" = "Связана с";
+"Clear Marks" = "Удалить все метки";
+"Label" = "Подпись";
+"Mark" = "Метка";
+"Marks" = "Метки";
+"Remove Mark" = "Удалить метку";
+"Clear Findings" = "Удалить все находки";
+"Finding" = "Находка";
+"Findings" = "Находки";
+"What was found" = "Что найдено";
+"Where" = "Где";
+"node %1$@" = "узел %1$@";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.

@@ -1033,13 +1033,7 @@ export async function editPaneFit(
   if (current === undefined || current.status !== "ready") {
     return { problem: L("That image has not been read yet."), summary: undefined, kind: undefined };
   }
-  const planned = await new Promise<FitEditResponse | undefined>((resolve) => {
-    // A second edit supersedes the first, which is then told it did not happen:
-    // the newer one is the one that counts, and its plan is the one applied.
-    fitEditWaiters.get(pane)?.(undefined);
-    fitEditWaiters.set(pane, resolve);
-    send(pane, { kind: "fitEdit", id: nextAskJob(pane, "fitEdit"), edit });
-  });
+  const planned = await planPaneFit(pane, edit);
   if (planned === undefined || cancelled()) {
     return { problem: undefined, summary: undefined, kind: undefined };
   }
@@ -1054,6 +1048,30 @@ export async function editPaneFit(
   return problem === undefined
     ? { problem: undefined, summary: planned.summary, kind: planned.outcomeKind }
     : { problem, summary: undefined, kind: undefined };
+}
+
+/**
+ * The worker's plan of a change to the pane's FIT table, with nothing written: what the edit would
+ * write, or why it cannot be made. `undefined` when a newer plan superseded it.
+ *
+ * What an agent's edit is made of: the module only works the change out, and the agent service
+ * applies it through its one door.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.add
+ * @web-only upstream's module computes the change itself, on the actor that holds the tree
+ */
+export function planPaneFit(
+  pane: PaneId,
+  edit: FitEditRequest["edit"],
+  english = false
+): Promise<FitEditResponse | undefined> {
+  return new Promise<FitEditResponse | undefined>((resolve) => {
+    // A second edit supersedes the first, which is then told it did not happen:
+    // the newer one is the one that counts, and its plan is the one applied.
+    fitEditWaiters.get(pane)?.(undefined);
+    fitEditWaiters.set(pane, resolve);
+    send(pane, { kind: "fitEdit", id: nextAskJob(pane, "fitEdit"), edit, english });
+  });
 }
 
 /**

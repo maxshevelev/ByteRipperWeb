@@ -165,6 +165,8 @@ const FIND_INDICATOR_LINE_WIDTH = 1;
 const ZONE_LINE_WIDTH = 2;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFocusedAlpha */
 const ZONE_ALPHA = 0.9;
+/** An agent's mark is dashed. @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawAgentMarkContours */
+const AGENT_MARK_DASH = [4, 3];
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFillAlpha */
 const ZONE_FILL_ALPHA = 0.1;
 
@@ -212,6 +214,14 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly zoneFocused: string;
   /** Every other zone a tool has published. */
   readonly zoneOther: string;
+  /**
+   * A mark an agent put on the dump: its own hue, drawn dashed, so what the agent is pointing at is
+   * never taken for a tool's map or for a difference.
+   *
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.agent
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.agentMark
+   */
+  readonly agentMark: string;
 }
 
 /**
@@ -328,6 +338,13 @@ export class HexGridRenderer {
    * a neighbour's.
    */
   private zones: readonly DrawnZone[] = [];
+  /**
+   * What an agent has marked: a layer of its own, drawn dashed in the agent's hue under the same
+   * contour a zone has.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkSpans
+   */
+  private agentMarks: readonly DrawnZone[] = [];
   private readonly zoneContourCache = new Map<string, ContourPoint[][]>();
   /** The find indicator's contour, kept for the match and the layout it was traced for. */
   private indicatorContours:
@@ -590,6 +607,21 @@ export class HexGridRenderer {
       this.dirty.invalidate(rows.first, rows.end);
     }
     this.zones = next;
+  }
+
+  /**
+   * The ranges an agent marked. Repaints the rows the old and the new outlines reach.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkSpans
+   */
+  setAgentMarks(marks: readonly { readonly start: number; readonly end: number }[]): void {
+    const next = marks.map((mark) => ({ start: mark.start, end: mark.end, focused: false }));
+    if (sameZones(this.agentMarks, next)) return;
+    for (const mark of [...this.agentMarks, ...next]) {
+      const rows = contourRowSpan(mark.start, mark.end);
+      this.dirty.invalidate(rows.first, rows.end);
+    }
+    this.agentMarks = next;
   }
 
   /**
@@ -881,6 +913,7 @@ export class HexGridRenderer {
     // them it would dull the one thing the window is for, under an opaque
     // segment tint it would vanish.
     this.paintZoneFills(rowStart, y);
+    this.paintAgentMarkFills(rowStart, y);
     // The find indicator over every background and under the bytes, as
     // upstream draws it between its row pass and its glyphs.
     this.paintFindIndicator(rowStart, y);
@@ -1446,18 +1479,22 @@ export class HexGridRenderer {
    */
   private paintOutlines(rowStart: number, y: number): void {
     this.paintZoneOutlines(rowStart, y);
+    this.paintAgentMarkOutlines(rowStart, y);
     this.paintPeerSelection(rowStart, y);
     this.paintContextMenuFrame(rowStart, y);
   }
 
   /** The zones whose outline reaches this row, each with its contour. */
-  private zonesAt(rowStart: number): { zone: DrawnZone; contours: ContourPoint[][] }[] {
+  private zonesAt(
+    rowStart: number,
+    list: readonly DrawnZone[] = this.zones
+  ): { zone: DrawnZone; contours: ContourPoint[][] }[] {
     const config = this.config;
-    if (config === undefined || this.zones.length === 0) return [];
+    if (config === undefined || list.length === 0) return [];
     const size = this.source?.size ?? 0;
     const row = rowStart / BYTES_PER_ROW;
     const found: { zone: DrawnZone; contours: ContourPoint[][] }[] = [];
-    for (const zone of this.zones) {
+    for (const zone of list) {
       const end = Math.min(zone.end, size);
       if (end <= zone.start) continue;
       const rows = contourRowSpan(zone.start, end);
@@ -1481,6 +1518,36 @@ export class HexGridRenderer {
     if (config === undefined) return;
     for (const { zone, contours } of this.zonesAt(rowStart)) {
       if (zone.focused) this.fillContours(y, contours, config.colors.zoneFocused, ZONE_FILL_ALPHA);
+    }
+  }
+
+  /** A wash as light as a focused zone's, under the bytes. @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawAgentMarkFills */
+  private paintAgentMarkFills(rowStart: number, y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    for (const { contours } of this.zonesAt(rowStart, this.agentMarks)) {
+      this.fillContours(y, contours, config.colors.agentMark, ZONE_FILL_ALPHA);
+    }
+  }
+
+  /**
+   * The zone's own outline, dashed and in the agent's hue, so a mark is told from a tool's map at a
+   * glance.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawAgentMarkContours
+   */
+  private paintAgentMarkOutlines(rowStart: number, y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    for (const { contours } of this.zonesAt(rowStart, this.agentMarks)) {
+      this.strokeContours(
+        y,
+        contours,
+        config.colors.agentMark,
+        PEER_CONTOUR_LINE_WIDTH,
+        ZONE_ALPHA,
+        AGENT_MARK_DASH
+      );
     }
   }
 
@@ -1508,7 +1575,8 @@ export class HexGridRenderer {
     contours: readonly (readonly ContourPoint[])[],
     style: string,
     lineWidth: number,
-    alpha: number
+    alpha: number,
+    dash: readonly number[] = []
   ): void {
     if (contours.length === 0) return;
     const context = this.context;
@@ -1517,6 +1585,7 @@ export class HexGridRenderer {
     context.globalAlpha = alpha;
     context.strokeStyle = style;
     context.lineWidth = lineWidth;
+    context.setLineDash([...dash]);
     context.lineJoin = "round";
     this.traceRelative(contours);
     context.stroke();

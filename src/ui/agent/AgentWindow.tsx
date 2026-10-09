@@ -9,8 +9,12 @@ import {
 } from "@/core/agent/agentLogText";
 import { agentStatusText } from "@/core/agent/agentStatus";
 import { L } from "@/core/localization/localization";
+import { agentFindingStore } from "@/state/agent/agentDumpTools";
+import { agentMarkStore } from "@/state/agent/agentMarkStore";
 import { agentService } from "@/state/agent/agentService";
 import { useStore } from "@/state/useStore";
+import { AgentFindingsPage } from "@/ui/agent/AgentFindingsPage";
+import { AgentMarksPage } from "@/ui/agent/AgentMarksPage";
 import { CloseButton } from "@/ui/shell/CloseButton";
 
 /**
@@ -34,6 +38,12 @@ import { CloseButton } from "@/ui/shell/CloseButton";
 export function AgentWindow({ onSettings }: { readonly onSettings: () => void }) {
   const state = useStore(agentService.store);
   const [selected, setSelected] = useState<number | undefined>(undefined);
+  const [page, setPage] = useState<AgentPageName>("log");
+  const [chosenMarks, setChosenMarks] = useState<ReadonlySet<string>>(new Set());
+  // The marks as they are now: listening to the store is what keeps the page and the dump one.
+  useStore(agentMarkStore);
+  const marks = agentService.markTools.all();
+  const findings = useStore(agentFindingStore).findings;
   const [follow, setFollow] = useState(() => {
     try {
       return window.localStorage.getItem(FOLLOW_KEY) !== "false";
@@ -72,7 +82,41 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         </span>
         <CloseButton label={L("Close")} onClick={() => agentService.setWindowOpen(false)} />
       </header>
-      <div className="agent-log" ref={list}>
+      <nav className="agent-pages" aria-label={L("Page")}>
+        {PAGES.map((one) => (
+          <button
+            key={one}
+            type="button"
+            className="agent-page-button"
+            aria-pressed={page === one}
+            onClick={() => setPage(one)}
+          >
+            {pageTitle(one)}
+          </button>
+        ))}
+      </nav>
+      {page === "marks" ? (
+        <AgentMarksPage
+          marks={marks}
+          chosen={chosenMarks}
+          onChoose={(id, extend) =>
+            setChosenMarks((current) => {
+              const next = new Set(extend ? current : []);
+              if (current.has(id) && extend) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
+          onShow={(id) => void agentService.markTools.show(id)}
+        />
+      ) : null}
+      {page === "findings" ? (
+        <AgentFindingsPage
+          findings={findings}
+          onShow={(finding) => void agentService.dumpTools.showFinding(finding)}
+        />
+      ) : null}
+      <div className="agent-log" ref={list} hidden={page !== "log"}>
         <table className="agent-table" aria-label={L("Log")}>
           <thead>
             <tr>
@@ -120,7 +164,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         </table>
       </div>
       {/* help: window.agent.details */}
-      <div className="agent-details" aria-live="polite">
+      <div className="agent-details" aria-live="polite" hidden={page !== "log"}>
         {record === undefined ? (
           <p className="agent-placeholder">{L("Select a request to see all of it.")}</p>
         ) : (
@@ -143,6 +187,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         {/* help: window.agent.follow */}
         <label
           className="agent-follow"
+          hidden={page !== "log"}
           title={L("Scroll the log to each new request as it arrives")}
         >
           <input
@@ -163,20 +208,56 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         <button type="button" onClick={onSettings}>
           {L("Agent Settings…")}
         </button>
-        <button
-          type="button"
-          disabled={state.log.length === 0}
-          onClick={() => {
-            setSelected(undefined);
-            agentService.clearLog();
-          }}
-        >
-          {L("Clear Log")}
-        </button>
+        {page === "marks" ? (
+          <>
+            <button
+              type="button"
+              disabled={!marks.some((one) => chosenMarks.has(one.mark.id))}
+              onClick={() => {
+                agentService.markTools.remove((one) => chosenMarks.has(one.mark.id));
+                setChosenMarks(new Set());
+              }}
+            >
+              {L("Remove Mark")}
+            </button>
+            <button
+              type="button"
+              disabled={marks.length === 0}
+              onClick={() => agentService.markTools.remove(() => true)}
+            >
+              {L("Clear Marks")}
+            </button>
+          </>
+        ) : page === "findings" ? (
+          <button
+            type="button"
+            disabled={findings.length === 0}
+            onClick={() => agentService.dumpTools.clearFindings()}
+          >
+            {L("Clear Findings")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={state.log.length === 0}
+            onClick={() => {
+              setSelected(undefined);
+              agentService.clearLog();
+            }}
+          >
+            {L("Clear Log")}
+          </button>
+        )}
       </footer>
     </aside>
   );
 }
+
+/** The pages of the window. @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.Page */
+type AgentPageName = "log" | "marks" | "findings";
+const PAGES: readonly AgentPageName[] = ["log", "marks", "findings"];
+const pageTitle = (page: AgentPageName): string =>
+  page === "log" ? L("Log") : page === "marks" ? L("Marks") : L("Findings");
 
 /** Where the choice is kept, so the window opens the way it was left. @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.followKey */
 const FOLLOW_KEY = "AgentLogFollowsNewRequests";

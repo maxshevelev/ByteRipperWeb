@@ -10,10 +10,9 @@ import {
 
 const asked: unknown[] = [];
 
+vi.mock("@/state/firmwareReady", () => ({ readyFirmware: async () => undefined }));
+
 vi.mock("@/state/firmwareStore", () => ({
-  ensurePaneFirmware: async () => undefined,
-  firmwareFor: () => ({ status: "ready" }),
-  firmwareStore: { subscribe: () => () => undefined },
   askUefiAgent: async (_pane: string, request: { query: string }) => {
     asked.push(request);
     return request.query === "variable_rows"

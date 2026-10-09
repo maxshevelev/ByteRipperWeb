@@ -837,8 +837,7 @@
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SemanticColors*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#*.Sets": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#RowMarks*": "n/a — the three colours a row mark reserves are CSS custom properties (--row-mark-ibb, --row-mark-firmware, --row-mark-decompressed) in src/ui/theme/theme.css, which the anchor check does not read; src/tools/toolRowMarkStyle.ts says which mark takes which",
-        "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
-        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.agent": "later — the agent service in the Electron build (Design/PORT_AGENT.md)"
+        "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read"
       },
       "files": {
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift": "src/ui/theme/hexColors.ts",
@@ -1217,11 +1216,7 @@
         "ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorShadow": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexTheme.mutedIndicatorInk": "n/a — the decoded-text column draws a placeholder in its byte's own ink, so there is no dimmed placeholder ink to swap for one on the indicator",
         "ByteRipperApp/Hex/HexView.swift#String*": "n/a — padStart",
-        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end",
-        "ByteRipperApp/Hex/HexView.swift#HexTheme.agentMark": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "ByteRipperApp/Hex/HexView.swift#HexView.agentMarkTooltipTag": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkSpans": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkTooltip": "later — the agent service in the Electron build (Design/PORT_AGENT.md)"
+        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end"
       }
     },
     {
@@ -1649,10 +1644,6 @@
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.intrinsicContentSize": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.agentMarks": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkSpans": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkTooltip": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setAgentMarks": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.firstVisibleOffset": "n/a — scrollLink.visibleRange(pane, rowBytes).start",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "later — the agent service in the Electron build (Design/PORT_AGENT.md)"
       }
@@ -5407,7 +5398,13 @@
         "AgentHostTools.swift": "src/state/agent/agentHostTools.ts",
         "AgentService.swift": "src/state/agent/agentService.ts",
         "AgentWindowController.swift": "src/ui/agent/AgentWindow.tsx",
-        "AgentModuleTools.swift": "src/state/agent/agentModuleTools.ts"
+        "AgentModuleTools.swift": "src/state/agent/agentModuleTools.ts",
+        "AgentMark.swift": [
+          "src/core/agent/agentMark.ts",
+          "src/state/agent/agentMarkStore.ts"
+        ],
+        "AgentMarkTools.swift": "src/state/agent/agentMarkTools.ts",
+        "ByteRipperTests/AgentMarkTests.swift": "src/state/agent/agentMarkTools.test.ts"
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
@@ -5449,22 +5446,7 @@
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.tableView": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.tableViewSelectionDidChange": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.findingsList": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showFindings": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.build": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.isEmpty": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.numberOfRows": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.onSelectionChanged": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.onShow": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.rows": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.selectedIDs": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.show": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.shownText": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.table": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.tableView": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.tableViewSelectionDidChange": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.marksList": "later — the Marks page, stage A5 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showMarks": "later — the Marks page, stage A5 of Design/PORT_AGENT.md"
+        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showFindings": "later — the Findings page, stage A6 of Design/PORT_AGENT.md"
       }
     },
     {

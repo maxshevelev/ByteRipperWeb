@@ -1,5 +1,8 @@
+import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import { AgentBackgroundDocuments } from "@/state/agent/agentBackgroundDocuments";
 import {
   isSlot,
   type PaneId,
@@ -24,6 +27,23 @@ import {
 export class AgentDesk {
   private readonly ids = new WeakMap<BinaryDocument, string>();
   private nextId = 1;
+  /**
+   * The files an agent opened by path, with no window. Their ids are the entry's, not the
+   * document's: a file read again after a change on disk is a new document under the same id.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.background
+   */
+  readonly background: AgentBackgroundDocuments;
+
+  constructor(bridge: () => AgentBridge | undefined = () => undefined) {
+    this.background = new AgentBackgroundDocuments(bridge, () => this.mint());
+  }
+
+  private mint(): string {
+    const id = `d${this.nextId}`;
+    this.nextId += 1;
+    return id;
+  }
 
   /**
    * The document's id, minted the first time it is asked for: `d1`, `d2`… Short, because a model
@@ -34,7 +54,7 @@ export class AgentDesk {
   id(document: BinaryDocument): string {
     const held = this.ids.get(document);
     if (held !== undefined) return held;
-    const id = `d${this.nextId++}`;
+    const id = this.mint();
     this.ids.set(document, id);
     return id;
   }
@@ -58,6 +78,11 @@ export class AgentDesk {
       const pane: PartId = `part:${panel}`;
       const held = state.parts[pane];
       if (held !== undefined) result.push(this.place(pane, held.document, held.name, "part"));
+    }
+    for (const entry of this.background.entries) {
+      const held = state.parts[entry.pane];
+      if (held === undefined) continue;
+      result.push(new AgentPlace(entry.id, "background", entry.pane, held.document, held.name));
     }
     return result;
   }
@@ -91,6 +116,27 @@ export class AgentDesk {
     const focused = this.focused();
     if (focused === undefined) throw new AgentToolError(NOTHING_OPEN);
     return focused;
+  }
+
+  /**
+   * The on-screen place holding the file at `path`, if the window has it open: the same name,
+   * size and date, which is what a page can tell of a file it was handed.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.onScreenPlace
+   * @upstream-differs a file the page opens has no path of its own, so the file the shell stat gave is matched by its name, size and date
+   */
+  onScreenPlaceOf(path: string, stat: { size: number; modified: number }): AgentPlace | undefined {
+    return this.places().find((place) => {
+      const held = place.state;
+      return (
+        place.isOnScreen &&
+        held !== undefined &&
+        !held.untitled &&
+        held.file.name === baseName(path) &&
+        held.file.size === stat.size &&
+        Math.abs(held.file.lastModified - stat.modified) < 2
+      );
+    });
   }
 
   /** The place of a pane, if its document is open. */
@@ -137,7 +183,7 @@ export class AgentPlace {
 
   /** @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place.isOnScreen */
   get isOnScreen(): boolean {
-    return this.pane !== undefined;
+    return this.pane !== undefined && this.slot !== "background";
   }
 
   /**
@@ -147,9 +193,9 @@ export class AgentPlace {
    * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place.onScreen
    */
   onScreen(): PaneId {
-    if (this.pane === undefined) {
+    if (this.pane === undefined || this.slot === "background") {
       throw new AgentToolError(
-        `${this.id} is open in the background, not on screen. Call \`show\` to open it in a tab first.`
+        `${this.id} is open in the background, not on screen. Call \`show\` to put it on screen first.`
       );
     }
     return this.pane;
@@ -160,11 +206,7 @@ export class AgentPlace {
    * both have a pane, the second in no dock.
    */
   onScreenOrBackground(): PaneId {
-    if (this.pane === undefined) {
-      throw new AgentToolError(
-        `${this.id} is open in the background, which this build reads through a pane no dock shows; it has none yet.`
-      );
-    }
+    if (this.pane === undefined) throw new AgentToolError(noSuchDocument(this.id));
     return this.pane;
   }
 

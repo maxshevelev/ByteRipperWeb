@@ -1163,6 +1163,7 @@
 "Add this to Claude Desktop's configuration file, %1$@, and restart Claude Desktop." = "Dies in die Konfigurationsdatei von Claude Desktop, %1$@, eintragen und Claude Desktop neu starten.";
 "Add this to Cursor's configuration file, %1$@, for every project — or to %2$@ in one project." = "Dies in die Konfigurationsdatei von Cursor, %1$@, eintragen — für alle Projekte, oder in %2$@ für ein einzelnes Projekt.";
 "Agent" = "Agent";
+"Page" = "Seite";
 "Agent Settings…" = "Agent-Einstellungen…";
 "Agents connected: %1$@." = "Verbundene Agenten: %1$@.";
 "An agent's edit goes into the open file as one step of its undo and shows red until the file is saved, like an edit made by hand. Saving stays with you. A file opened read-only is never changed." = "Eine Änderung des Agenten wird als ein Schritt des Widerrufens in die geöffnete Datei geschrieben und bleibt bis zum Sichern rot markiert, wie eine Änderung von Hand. Das Sichern bleibt dem Benutzer überlassen. Eine schreibgeschützt geöffnete Datei wird nie geändert.";
@@ -1201,6 +1202,18 @@
 "menu|Window" = "Fenster";
 "none" = "keine";
 "Agent: %1$@" = "Agent: %1$@";
+"About" = "Bezieht sich auf";
+"Clear Marks" = "Alle Markierungen entfernen";
+"Label" = "Bezeichnung";
+"Mark" = "Markierung";
+"Marks" = "Markierungen";
+"Remove Mark" = "Markierung entfernen";
+"Clear Findings" = "Alle Befunde entfernen";
+"Finding" = "Befund";
+"Findings" = "Befunde";
+"What was found" = "Was gefunden wurde";
+"Where" = "Wo";
+"node %1$@" = "Knoten %1$@";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

@@ -27,6 +27,7 @@ import type { ToolSessionState } from "@/state/parkedToolState";
 import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { fitAgentEdits, fitAgentQueries } from "@/tools/fit/agent/fitAgentModule";
 import { changeMicrocode } from "@/tools/fit/fitChange";
 import { FIT_COLUMNS, FIT_MIN_WIDTH, fittedColumnWidths } from "@/tools/fit/fitColumns";
 import {
@@ -1015,4 +1016,6 @@ export const fitTool: ToolModule = {
   // help: panel.fit
   helpTopic: TOPIC.toolFIT,
   View: FitToolView,
+  agentQueries: fitAgentQueries,
+  agentEdits: fitAgentEdits,
 };

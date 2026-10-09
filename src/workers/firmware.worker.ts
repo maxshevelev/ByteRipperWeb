@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { AgentArguments } from "@/core/agent/agentArguments";
+import { hexByteText } from "@/core/agent/agentHexBytes";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { installCatalogue, L, withEnglish } from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
@@ -69,12 +70,14 @@ import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import {
   isNodeCompressed,
   nodeFileRange,
+  nodeIdText,
   nodeRange,
   type UEFINode,
 } from "@/firmware/uefi/uefiNode";
 import { planRebuild, targetForFileRange } from "@/firmware/uefi/uefiRebuild";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
+import { editReport } from "@/tools/fit/agent/fitAgentAnswers";
 import {
   addOrReplaceMicrocode,
   type FITEditOutcome,
@@ -89,7 +92,13 @@ import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
 import { uefiNodeData } from "@/tools/uefi/agent/uefiAgentNodeData";
 import { runUefiAgentQuery } from "@/tools/uefi/agent/uefiAgentQueries";
-import type { AgentTree } from "@/tools/uefi/agent/uefiAgentTree";
+import {
+  type AgentTree,
+  nodeAtPath,
+  parseNodeId,
+  reachable,
+  unknownNode,
+} from "@/tools/uefi/agent/uefiAgentTree";
 import { variableRows } from "@/tools/uefi/agent/uefiAgentVariables";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import {
@@ -997,6 +1006,36 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                 return { answer: uefiNodeData(tree, args) };
               case "variable_rows":
                 return { rows: variableRows(tree) };
+              case "uefi_fix_checksum": {
+                // What the panel's Fix Checksum would write, computed by the same code: the
+                // module only works the change out, and the app decides whether it is made.
+                //
+                // @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentEdits.swift#UEFIAgentEdits.fixChecksum
+                const id = parseNodeId(args.string("node"));
+                reachable(tree, id);
+                const target = nodeAtPath(tree, id);
+                if (id.length === 0 || target === undefined) throw unknownNode(id);
+                if (target.space.length > 0) {
+                  throw new AgentToolError(
+                    `${nodeIdText(id)} is inside a compressed section, which the file holds compressed; ` +
+                      "its checksum cannot be written in place."
+                  );
+                }
+                const repairs = repairsFor(target, id);
+                if (repairs.length === 0) {
+                  throw new AgentToolError(
+                    `The checksums of ${nodeIdText(id)} already check out; nothing to write.`
+                  );
+                }
+                return {
+                  answer: {
+                    writes: repairs.map((one) => ({
+                      offset: one.offset,
+                      bytes: hexByteText(one.bytes),
+                    })),
+                  },
+                };
+              }
               default:
                 return { answer: runUefiAgentQuery(request.query, tree, args, context) };
             }
@@ -1163,15 +1202,21 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
       }
 
       case "fitEdit": {
+        const said = <T>(work: () => T): T =>
+          request.english === true ? withEnglish(work) : work();
         if (reader === undefined) {
-          post({ ...NO_EDIT, id: request.id, problem: L("No image is open.") });
+          post({ ...NO_EDIT, id: request.id, problem: said(() => L("No image is open.")) });
           return;
         }
         const diff = addressing().addressDiff;
         const image = new UEFIImage({ size: reader.count, roots, addressDiff: diff });
         const report = readFitTable(reader, image);
         if (report.table === undefined) {
-          post({ ...NO_EDIT, id: request.id, problem: fitEditProblemMessage({ kind: "noTable" }) });
+          post({
+            ...NO_EDIT,
+            id: request.id,
+            problem: said(() => fitEditProblemMessage({ kind: "noTable" })),
+          });
           return;
         }
         // The addresses the rows are rewritten with come from the same mapping
@@ -1204,7 +1249,15 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                   ranges
                 );
         if (!result.ok) {
-          post({ ...NO_EDIT, id: request.id, problem: fitEditProblemMessage(result.problem) });
+          const problem = result.problem;
+          post({
+            ...NO_EDIT,
+            id: request.id,
+            problem: said(() => fitEditProblemMessage(problem)),
+            ...(problem.kind === "alreadyInTheTable" || problem.kind === "servedByAnotherRow"
+              ? { problemEntry: problem.entry }
+              : {}),
+          });
           return;
         }
         post({
@@ -1222,6 +1275,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             "range" in result.outcome
               ? [result.outcome.range.start, result.outcome.range.end]
               : undefined,
+          report: withEnglish(() => editReport(result.outcome)),
         });
         return;
       }

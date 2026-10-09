@@ -4,7 +4,10 @@ import { type AgentCallRecord, AgentServer } from "@/core/agent/agentServer";
 import type { AgentTool } from "@/core/agent/agentTool";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
 import { AgentDesk } from "@/state/agent/agentDesk";
+import { AgentDumpTools } from "@/state/agent/agentDumpTools";
+import { AgentEditTools } from "@/state/agent/agentEditTools";
 import { AgentHostTools } from "@/state/agent/agentHostTools";
+import { AgentMarkTools } from "@/state/agent/agentMarkTools";
 import { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import {
   loadAgentSettings,
@@ -100,8 +103,14 @@ export class AgentService {
    */
   readonly store = createStore<AgentServiceState>(INITIAL);
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.desk */
-  readonly desk = new AgentDesk();
+  readonly desk = new AgentDesk(() => this.bridge);
   readonly hostTools: AgentHostTools;
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.markTools */
+  readonly markTools: AgentMarkTools;
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.dumpTools */
+  readonly dumpTools: AgentDumpTools;
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.editTools */
+  readonly editTools: AgentEditTools;
   readonly moduleTools: AgentModuleTools;
   private bridge: AgentBridge | undefined;
   private readonly connections = new Map<number, AgentConnection>();
@@ -116,7 +125,13 @@ export class AgentService {
   ) {
     this.bridge = bridge;
     this.hostTools = new AgentHostTools(this.desk);
+    this.markTools = new AgentMarkTools(this.desk);
+    this.dumpTools = new AgentDumpTools(this.desk, () => this.bridge);
+    this.dumpTools.toolNamed = (name) => this.allTools().find((tool) => tool.name === name);
+    this.editTools = new AgentEditTools(this.desk);
+    this.editTools.isAllowed = () => this.store.getSnapshot().editsAllowed;
     this.moduleTools = new AgentModuleTools(this.desk, modules);
+    this.moduleTools.edits = this.editTools;
   }
 
   /** Whether there is a shell to serve through; a browser has none, and no agent. */
@@ -130,7 +145,37 @@ export class AgentService {
    * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.allTools
    */
   allTools(): AgentTool[] {
-    return [...this.hostTools.tools(), ...this.moduleTools.tools()];
+    return [
+      ...this.hostTools.tools(),
+      ...this.markTools.tools(),
+      ...this.dumpTools.tools(),
+      ...this.editTools.tools(),
+      ...this.moduleTools.tools(),
+    ].map((tool) => this.refreshing(tool));
+  }
+
+  /**
+   * `tool`, answering about a background file as it is on disk now: one changed since it was read
+   * is read again before the call, and keeps its id.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.place
+   * @upstream-differs upstream reads it again inside the synchronous lookup; the page's read is a wait, so it is done before the tool runs
+   */
+  private refreshing(tool: AgentTool): AgentTool {
+    return {
+      ...tool,
+      run: async (call) => {
+        for (const name of ["document", "against"]) {
+          const id = call.arguments.get(name);
+          if (typeof id !== "string") continue;
+          const place = this.desk.places().find((one) => one.id === id);
+          if (place !== undefined && !place.isOnScreen && place.pane !== undefined) {
+            await this.desk.background.touch(place.pane);
+          }
+        }
+        return tool.run(call);
+      },
+    };
   }
 
   /**

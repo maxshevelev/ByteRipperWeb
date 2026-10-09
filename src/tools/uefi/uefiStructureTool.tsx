@@ -52,6 +52,7 @@ import {
   type UefiAgentSession,
   uefiAgentActions,
   uefiAgentComparisons,
+  uefiAgentEdits,
   uefiAgentQueries,
 } from "@/tools/uefi/agent/uefiAgentModule";
 import {
@@ -2622,6 +2623,7 @@ export const uefiStructureTool: ToolModule = {
   View: UefiStructureView,
   agentQueries: uefiAgentQueries,
   agentComparisons: uefiAgentComparisons,
+  agentEdits: uefiAgentEdits,
   agentActions: uefiAgentActions,
 };
 

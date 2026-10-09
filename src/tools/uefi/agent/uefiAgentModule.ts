@@ -1,16 +1,15 @@
 import type { AgentArguments } from "@/core/agent/agentArguments";
+import { parseHexBytes } from "@/core/agent/agentHexBytes";
 import { AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
-import {
-  askUefiAgent,
-  ensurePaneFirmware,
-  firmwareFor,
-  firmwareStore,
-} from "@/state/firmwareStore";
+import { L } from "@/core/localization/localization";
+import { readyFirmware } from "@/state/firmwareReady";
+import { askUefiAgent } from "@/state/firmwareStore";
 import type { PaneId } from "@/state/paneId";
 import type {
   ToolAgentAction,
   ToolAgentComparison,
+  ToolAgentEdit,
   ToolAgentQuery,
   ToolReadHost,
 } from "@/tools/toolAgent";
@@ -45,39 +44,20 @@ import {
  * tree on the main actor
  */
 
-/** Waits until the pane's image has been read, then gives its pane. */
 async function readyTree(host: ToolReadHost): Promise<PaneId> {
-  const pane = host.pane;
-  await ensurePaneFirmware(pane);
-  await new Promise<void>((resolve) => {
-    const settled = () => {
-      const status = firmwareFor(pane)?.status;
-      return status === "ready" || status === "failed";
-    };
-    if (settled()) {
-      resolve();
-      return;
-    }
-    const stop = firmwareStore.subscribe(() => {
-      if (!settled()) return;
-      stop();
-      resolve();
-    });
-  });
-  const held = firmwareFor(pane);
-  if (held?.status !== "ready") {
-    throw new AgentToolError(
-      held?.problem === undefined
-        ? "This document's firmware structure could not be read."
-        : `This document's firmware structure could not be read: ${held.problem}`
-    );
-  }
-  return pane;
+  await readyFirmware(host.pane);
+  return host.pane;
 }
 
 async function ask(
   host: ToolReadHost,
-  query: "uefi_tree" | "uefi_node" | "uefi_find" | "uefi_at" | "uefi_node_data",
+  query:
+    | "uefi_tree"
+    | "uefi_node"
+    | "uefi_find"
+    | "uefi_at"
+    | "uefi_node_data"
+    | "uefi_fix_checksum",
   args: AgentArguments
 ): Promise<Json> {
   const pane = await readyTree(host);
@@ -201,5 +181,42 @@ export const uefiAgentActions: readonly ToolAgentAction[] = [
     changesView: false,
     run: async (session) =>
       jsonAnswer({ selected: (session as UefiAgentSession).selection() ?? null }),
+  },
+];
+
+/**
+ * The changes the UEFI Structure works out for an agent: a node's checksum put right, by the code
+ * the panel's Fix Checksum runs. The module only computes the writes; the app applies them, if the
+ * person's edit switch allows it.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentEdits.swift#UEFIAgentEdits
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentEdits.swift#UEFIAgentEdits.all
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentEdits.swift#UEFIAgentEdits.fixChecksum
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentEdits
+ */
+export const uefiAgentEdits: readonly ToolAgentEdit[] = [
+  {
+    name: "uefi_fix_checksum",
+    title: "Fix a UEFI checksum",
+    description:
+      "Puts a node's checksums right — a volume's header checksum, a file's header and data " +
+      "checksums, a microcode's — computed by the code the UEFI Structure panel's Fix Checksum runs, " +
+      "and writes them as one undo step. `uefi_node` marks a wrong checksum with `problem`. Refused " +
+      "for a node inside a compressed section (the file holds those bytes compressed), for one whose " +
+      "checksums already check out, and without the person's permission to edit.",
+    properties: { node: { type: "string", description: 'The node\'s id, e.g. "0.2.5".' } },
+    required: ["node"],
+    undoName: () => L("Fix Checksum"),
+    run: async (host, args) => {
+      const answer = await ask(host, "uefi_fix_checksum", args);
+      const writes = (answer as { writes: { offset: number; bytes: string }[] }).writes;
+      return {
+        name: "Fix Checksum",
+        writes: writes.map((one) => ({
+          offset: one.offset,
+          bytes: parseHexBytes(one.bytes, "bytes"),
+        })),
+      };
+    },
   },
 ];

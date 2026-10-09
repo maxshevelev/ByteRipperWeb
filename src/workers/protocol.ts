@@ -526,6 +526,13 @@ export interface FitEditRequest {
     | { readonly kind: "addOrReplace"; readonly component: Uint8Array }
     | { readonly kind: "replaceAt"; readonly index: number; readonly component: Uint8Array }
     | { readonly kind: "remove"; readonly index: number };
+  /**
+   * Answered in English whatever the page speaks: an agent asked, and reads the refusal and the
+   * report.
+   *
+   * @web-only the panel says it in the page's language
+   */
+  readonly english?: boolean | undefined;
 }
 
 /**
@@ -615,7 +622,8 @@ export interface AgentUefiRequest {
     | "uefi_find"
     | "uefi_at"
     | "uefi_node_data"
-    | "variable_rows";
+    | "variable_rows"
+    | "uefi_fix_checksum";
   readonly values: { readonly [key: string]: Json };
   readonly answerBound: number;
   readonly contentVersion: number;
@@ -968,6 +976,15 @@ export interface FitEditResponse {
   readonly outcomeKind: "added" | "replaced" | "removed" | undefined;
   /** Where the component ended up, so the dump can be sent there. */
   readonly landed: readonly [number, number] | undefined;
+  /**
+   * What the change says beside its writes, for an agent: where the component went, what it
+   * replaced, what moved, what the protected ranges said (`editReport`).
+   *
+   * @web-only the panel says it in `summary`
+   */
+  readonly report?: { readonly [key: string]: Json } | undefined;
+  /** For a refusal about a row, the row — which `fit_table` numbers from the header. */
+  readonly problemEntry?: number | undefined;
 }
 
 export interface MeAnalyzeResponse {

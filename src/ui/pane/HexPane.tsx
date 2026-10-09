@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { agentMarkTooltip } from "@/core/agent/agentMark";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
@@ -29,6 +30,7 @@ import {
 } from "@/render/hexGrid/hexGridRenderer";
 import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
+import { agentMarkStore, agentMarksFor } from "@/state/agent/agentMarkStore";
 import {
   type BookmarkEditSession,
   bookmarkEditStore,
@@ -526,9 +528,9 @@ export function HexPane({
    * and there is nowhere in a 16-byte row to print it. So it is a tooltip — but
    * the dump is a canvas, and a canvas has no elements to hang `title` on.
    */
-  const [markTip, setMarkTip] = useState<{ name: string; top: number; left: number } | undefined>(
-    undefined
-  );
+  const [markTip, setMarkTip] = useState<
+    { name: string; top: number; left: number; agent?: boolean } | undefined
+  >(undefined);
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
@@ -1505,6 +1507,17 @@ export function HexPane({
     scheduleDraw();
   }, [zones, scheduleDraw]);
 
+  // What an agent marked here, dashed in its own hue; the note is what the pointer shows over the
+  // bytes (`trackMarkTip`).
+  // @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkSpans
+  const agentMarks = agentMarksFor(paneId, useStore(agentMarkStore));
+  const agentMarksRef = useRef(agentMarks);
+  agentMarksRef.current = agentMarks;
+  useEffect(() => {
+    rendererRef.current?.setAgentMarks(agentMarks);
+    scheduleDraw();
+  }, [agentMarks, scheduleDraw]);
+
   // This pane's marks: the workspace's list, read at this pane's own offsets —
   // a file slot's are the list as it is, a panel's are the part's (§20.7).
   // Memoised on the published list, because a panel's are derived and a fresh
@@ -1639,9 +1652,30 @@ export function HexPane({
       const top = scrollerRef.current?.top ?? 0;
       const x = event.clientX - bounds.left + host.scrollLeft;
       const y = event.clientY - bounds.top + top;
-      // The offset column only: the tip is about the mark, not about the row.
+      // Past the offset column the tip is what an agent said about the byte under the pointer.
+      // @upstream ByteRipperApp/Hex/HexView.swift#HexView.view
       if (x > layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
-        setMarkTip(undefined);
+        const hit = layout.hitTest(x, y, layout.rowCount(doc.size));
+        const column =
+          hit === undefined
+            ? undefined
+            : hit.column.kind === "offset"
+              ? undefined
+              : hit.column.column;
+        const said =
+          hit === undefined || column === undefined
+            ? ""
+            : agentMarkTooltip(agentMarksRef.current, layout.byteOffset(hit.row, column));
+        if (hit === undefined || said === "") {
+          setMarkTip(undefined);
+          return;
+        }
+        setMarkTip({
+          name: said,
+          top: (hit.row + 1) * layout.rowHeight - top + host.scrollTop,
+          left: x,
+          agent: true,
+        });
         return;
       }
       const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
@@ -1664,7 +1698,7 @@ export function HexPane({
         left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
       });
     },
-    [paneId]
+    [paneId, doc]
   );
 
   /** The held pointer's place on screen, which the autoscroll steps read. */
@@ -2168,7 +2202,10 @@ export function HexPane({
       >
         <canvas ref={canvasRef} className="hex-canvas" />
         {markTip === undefined ? null : (
-          <p className="bookmark-tip" style={{ top: markTip.top, left: markTip.left }}>
+          <p
+            className={markTip.agent === true ? "bookmark-tip agent-mark-tip" : "bookmark-tip"}
+            style={{ top: markTip.top, left: markTip.left }}
+          >
             {markTip.name}
           </p>
         )}

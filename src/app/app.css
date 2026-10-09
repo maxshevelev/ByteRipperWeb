@@ -1393,6 +1393,12 @@ textarea,
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
 }
 
+/* What an agent said about the bytes under the pointer: in the agent's hue, as the mark is. */
+.agent-mark-tip {
+  background: var(--zone-agent);
+  color: var(--bookmark-text);
+}
+
 /* The bookmark popover (§20.3): 300 wide, the stack inset 14 and 16, lines 8
    apart — upstream's. Fixed rather than fitted, so it does not jitter from row
    to row. It hangs under the mark with an arrow pointing at it. */
@@ -6073,6 +6079,26 @@ body[data-pulling-panel] * {
   white-space: pre-wrap;
   word-break: break-all;
   user-select: text;
+}
+
+.agent-pages {
+  display: flex;
+  gap: 4px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-page-button[aria-pressed="true"] {
+  background: var(--selection);
+}
+
+.agent-mark-col-id {
+  width: 3rem;
+}
+
+.agent-mark-col-range {
+  width: 9rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .agent-window-foot {
