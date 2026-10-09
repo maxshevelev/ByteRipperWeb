@@ -1689,7 +1689,6 @@
         "ByteRipperApp/Tools/ToolController.swift#ToolController.widthDefaultsKey": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.owner": "n/a — AppKit ownership; the controller is a module-level store",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.panel": "n/a — AppKit ownership; the panel is a React component reading the store",
-        "ByteRipperApp/Tools/ToolController.swift#ToolController.session": "n/a — the session is the mounted tool view; its lifetime is the component's",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.init": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.bodyFloor": "n/a — AppKit layout; CSS lays the header out",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.headerHeight": "n/a — AppKit layout; CSS lays the header out",
@@ -5004,12 +5003,6 @@
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testAReadOnlyFileRefusesTheWholeTransaction": "n/a — a page opens no file read-only: a file it may not write is saved as a download",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testASnapshotDoesNotMoveWhenTheContentDoes": "n/a — what a parse reads is a Blob, which does not move: a dirty document is materialised into a new one (`currentContent`)",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testTheReaderRefusesAReadPastTheEnd": "n/a — there is no ToolContentReader: the worker reads the pane's Blob (BlobByteSource)",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentActions": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentComparisons": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentEdits": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentLocator": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentQueries": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.contentSize": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.contentVersion": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.fileName": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
@@ -5056,7 +5049,8 @@
         ],
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": "src/state/largeDetailStore.test.ts",
         "ToolModuleKit/SearchWrapSigns.swift": "src/state/noticeStore.ts",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift": "src/tools/seam.test.ts"
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift": "src/tools/seam.test.ts",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolAgent.swift": "src/tools/toolAgent.ts"
       }
     },
     {
@@ -5184,7 +5178,6 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.override": "n/a — a task's own language for the agent's answers, which are written in English without L(); the web has no task to speak for",
         "Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift#CatalogueTests.testATaskCanSpeakAnotherLanguageThanTheApp": "n/a — tests Localization.override"
       }
     },
@@ -5406,7 +5399,8 @@
         "AgentDesk.swift": "src/state/agent/agentDesk.ts",
         "AgentHostTools.swift": "src/state/agent/agentHostTools.ts",
         "AgentService.swift": "src/state/agent/agentService.ts",
-        "AgentWindowController.swift": "src/ui/agent/AgentWindow.tsx"
+        "AgentWindowController.swift": "src/ui/agent/AgentWindow.tsx",
+        "AgentModuleTools.swift": "src/state/agent/agentModuleTools.ts"
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",

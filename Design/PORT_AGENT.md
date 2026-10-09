@@ -72,7 +72,7 @@ Each ends with the checks green and a commit.
   relay, `AgentService` in the page, Settings ▸ Agent (switches, client
   configurations), the status mark, the Agent window with the log; `documents`,
   `focus`, `read`, `reveal`. Done through the real pipe and the real relay.
-- [ ] **A3 — The seam.** `ToolAgent` (queries, actions, edits, comparisons,
+- [x] **A3 — The seam.** `ToolAgent` (queries, actions, edits, comparisons,
   locators) on the tool module; the language override; `open_panel`.
 - [ ] **A4 — UEFI.** `uefi_tree`, `uefi_node`, `uefi_find`, `uefi_at`,
   `uefi_node_data`, `uefi_select`, `uefi_selection`, `variables`,

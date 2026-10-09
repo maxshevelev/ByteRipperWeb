@@ -1373,18 +1373,27 @@ export function AppShell() {
   // itself, the tool having recorded the place it left (`Design/PORT_AGENT.md`).
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
   useEffect(() => {
-    agentShell.reveal = async (pane, start, end, select) => {
+    const bringForward = (pane: PaneId) => {
       if (isSlot(pane)) {
         foldParts();
         setActivePane(pane);
       } else {
         raisePart(pane);
       }
+    };
+    agentShell.bringForward = bringForward;
+    // A dialog the person is in the middle of is not driven over.
+    agentShell.busy = () =>
+      document.querySelector("dialog:modal") === null ? undefined : "A dialog is open.";
+    agentShell.reveal = async (pane, start, end, select) => {
+      bringForward(pane);
       if (select) await paneState(pane)?.typing.setSelection(start, end);
       revealIn(pane, start, !select);
     };
     return () => {
       agentShell.reveal = undefined;
+      agentShell.bringForward = undefined;
+      agentShell.busy = undefined;
     };
   }, [revealIn]);
 

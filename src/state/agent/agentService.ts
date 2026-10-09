@@ -5,12 +5,15 @@ import type { AgentTool } from "@/core/agent/agentTool";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
 import { AgentDesk } from "@/state/agent/agentDesk";
 import { AgentHostTools } from "@/state/agent/agentHostTools";
+import { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import {
   loadAgentSettings,
   rememberAgentEditsAllowed,
   rememberAgentEnabled,
 } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
+import { TOOLS } from "@/tools/registry";
+import type { ToolModule } from "@/tools/toolModule";
 import { appVersionText } from "@/ui/shell/appVersion";
 
 /**
@@ -99,6 +102,7 @@ export class AgentService {
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.desk */
   readonly desk = new AgentDesk();
   readonly hostTools: AgentHostTools;
+  readonly moduleTools: AgentModuleTools;
   private bridge: AgentBridge | undefined;
   private readonly connections = new Map<number, AgentConnection>();
   private unsubscribe: (() => void)[] = [];
@@ -106,9 +110,13 @@ export class AgentService {
   private callListeners = new Set<(record: AgentCallRecord) => void>();
 
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.init */
-  constructor(bridge: AgentBridge | undefined = agentBridge()) {
+  constructor(
+    bridge: AgentBridge | undefined = agentBridge(),
+    modules: () => readonly ToolModule[] = () => TOOLS
+  ) {
     this.bridge = bridge;
     this.hostTools = new AgentHostTools(this.desk);
+    this.moduleTools = new AgentModuleTools(this.desk, modules);
   }
 
   /** Whether there is a shell to serve through; a browser has none, and no agent. */
@@ -122,7 +130,7 @@ export class AgentService {
    * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.allTools
    */
   allTools(): AgentTool[] {
-    return [...this.hostTools.tools()];
+    return [...this.hostTools.tools(), ...this.moduleTools.tools()];
   }
 
   /**

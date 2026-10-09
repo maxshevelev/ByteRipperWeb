@@ -4,6 +4,7 @@ import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { NoticeGlyph } from "@/state/noticeStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import type { PaneId } from "@/state/workspaceStore";
+import type { ToolAgentSurface } from "@/tools/toolAgent";
 
 /**
  * What a tool module is.
@@ -163,7 +164,7 @@ export interface ToolContext {
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession
  * @upstream-differs a module object whose View component is the session
  */
-export interface ToolModule {
+export interface ToolModule extends ToolAgentSurface {
   /**
    * Stable, and what a saved layout would name.
    *

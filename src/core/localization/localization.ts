@@ -52,6 +52,29 @@ export function installCatalogue(catalogue: Catalogue): void {
   current = catalogue;
 }
 
+/**
+ * Runs `work` with English in force, whatever the app speaks, and puts the catalogue back.
+ *
+ * For the agent service: a tool answers a model with the same field names the panel shows a person,
+ * and the model reads them in English — the parsers', the specifications' and the upstream tools'
+ * language — while the window beside it goes on speaking Russian. Only for work that does not
+ * wait: a catalogue swapped across an `await` would be in force for whatever ran in between, so an
+ * asynchronous tool wraps the synchronous stretches that build words.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.override
+ * @upstream-differs a scope over synchronous work, where upstream's is a task-local value that
+ * follows an `await`
+ */
+export function withEnglish<T>(work: () => T): T {
+  const held = current;
+  current = ENGLISH_CATALOGUE;
+  try {
+    return work();
+  } finally {
+    current = held;
+  }
+}
+
 /** The language the app is speaking now. */
 export const currentLanguage = (): AppLanguage => current.language;
 

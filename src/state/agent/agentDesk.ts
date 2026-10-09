@@ -155,6 +155,19 @@ export class AgentPlace {
     return this.pane;
   }
 
+  /**
+   * The pane, for a read that does not show anything: a document on screen and a background one
+   * both have a pane, the second in no dock.
+   */
+  onScreenOrBackground(): PaneId {
+    if (this.pane === undefined) {
+      throw new AgentToolError(
+        `${this.id} is open in the background, which this build reads through a pane no dock shows; it has none yet.`
+      );
+    }
+    return this.pane;
+  }
+
   get isPart(): boolean {
     return this.pane !== undefined && !isSlot(this.pane);
   }

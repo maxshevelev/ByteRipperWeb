@@ -17,4 +17,16 @@ export const agentShell: {
   reveal?:
     | ((pane: PaneId, start: number, end: number, select: boolean) => void | Promise<void>)
     | undefined;
+  /**
+   * Brings the pane to the front without moving anything in it: the part's panel raised, or the
+   * stage cleared and the pane made the active one.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.bringForward
+   */
+  bringForward?: ((pane: PaneId) => void) | undefined;
+  /**
+   * What the person is in the middle of, in words, or nothing when the window is free to be
+   * driven: a dialog is up.
+   */
+  busy?: (() => string | undefined) | undefined;
 } = {};
