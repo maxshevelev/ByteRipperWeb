@@ -1044,6 +1044,30 @@
 "part badge|Decompressed" = "Entpackt";
 "part badge|Read-only" = "Nur lesbar";
 "part badge|Structure" = "Struktur";
+"A LENV block is %1$@ bytes, and goes back only at that length." = "Ein LENV-Block ist %1$@ Bytes groß und wird nur in dieser Länge zurückgeschrieben.";
+"A LENV block stored in the clear. Update in Parent recomputes its checksum." = "Ein unkodiert gespeicherter LENV-Block. Beim Aktualisieren in der Quelle wird seine Prüfsumme neu berechnet.";
+"Baseboard platform ID" = "Plattform-ID der Hauptplatine";
+"Baseboard serial number" = "Seriennummer der Hauptplatine";
+"Both LENV blocks are empty: the store has been wiped or was never written. The board's serial number and UUID are not in this image." = "Beide LENV-Blöcke sind leer: Der Speicher wurde gelöscht oder nie beschrieben. Seriennummer und UUID der Platine sind in diesem Image nicht enthalten.";
+"Decoded from the file. Update in Parent encodes it again with the key in its header and recomputes the checksum." = "Aus der Datei dekodiert. Beim Aktualisieren in der Quelle wird der Block mit dem Schlüssel aus seinem Kopf wieder kodiert und die Prüfsumme neu berechnet.";
+"LENV block %1$@ has no signature where it should start." = "LENV-Block %1$@ trägt an seinem Anfang keine Signatur.";
+"LENV block %1$@ is erased: every byte is FF. The firmware reads the other copy." = "LENV-Block %1$@ ist gelöscht: alle Bytes sind FF. Die Firmware liest die andere Kopie.";
+"LENV block %1$@ is stored decoded. Whether the firmware accepts that is not known." = "LENV-Block %1$@ ist dekodiert gespeichert. Ob die Firmware ihn so annimmt, ist nicht bekannt.";
+"LENV block %1$@: the checksum is %2$@, the body adds up to %3$@." = "LENV-Block %1$@: Die gespeicherte Prüfsumme ist %2$@, der Blockinhalt ergibt %3$@.";
+"LENV block %1$@: the entries its header counts do not fit in the block." = "LENV-Block %1$@: Die im Kopf angegebenen Einträge passen nicht in den Block.";
+"Machine type/model" = "Maschinentyp und Modell (MTM)";
+"Motherboard name" = "Bezeichnung der Hauptplatine";
+"Neither LENV block is one the firmware would read." = "Keinen der beiden LENV-Blöcke würde die Firmware lesen.";
+"OA3 key ID" = "OA3-Schlüssel-ID";
+"OS preload suffix" = "Suffix des vorinstallierten Betriebssystems";
+"System UUID" = "System-UUID";
+"The change log's write offset %1$@ does not fall on an entry boundary." = "Der Schreib-Offset %1$@ des Änderungsprotokolls liegt nicht auf einer Eintragsgrenze.";
+"The change log's write offset %1$@ is outside the log." = "Der Schreib-Offset %1$@ des Änderungsprotokolls liegt außerhalb des Protokolls.";
+"The two LENV blocks hold different values for: %1$@. The firmware reads the block in use." = "Die beiden LENV-Blöcke enthalten abweichende Werte für: %1$@. Die Firmware liest den aktiven Block.";
+"Unknown SMBIOS entry %1$@" = "Unbekannter SMBIOS-Eintrag %1$@";
+"Unknown entry %1$@" = "Unbekannter Eintrag %1$@";
+"Windows key" = "Windows-Schlüssel";
+"part badge|Plain" = "Unkodiert";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

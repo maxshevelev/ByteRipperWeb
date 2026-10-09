@@ -159,6 +159,18 @@
     {
       "prefix": "Packages/PartCodec/Package.swift",
       "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Packages/LenovoDMI/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Modules/LenovoDMITool",
+      "why": "Upstream's Lenovo DMI tool-module, added in a925d57 and folded into the UEFI Structure panel within the same window (6a17008). The web ports the end state: the LenovoDMI package and the store's rows in the UEFI tree."
+    },
+    {
+      "prefix": "ByteRipperTests/LenovoDMIToolFlowTests.swift",
+      "why": "The flow tests of the Lenovo DMI tool-module, which upstream removed with it (6a17008); its flows moved to UEFIToolFlowTests."
     }
   ],
   "modules": [
@@ -735,6 +747,29 @@
         "Packages/PartCodec/Tests/PartCodecTests/PartCodecTests.swift": "src/core/parts/partCodec.test.ts"
       },
       "unported": {}
+    },
+    {
+      "swift": "Packages/LenovoDMI",
+      "web": [
+        "src/firmware/lenovoDmi",
+        "src/firmware/testing/testLenovoDMI.ts"
+      ],
+      "status": "ported",
+      "note": "The store Lenovo's InsydeH2O firmware keeps a machine's identity in — the LDBG change log and the two LENV blocks after it — read by signature, decoded with the XOR key, checked by its checksums, with the block the firmware reads named (upstream's LenovoDMI package, after LenovoDMIDecryptor, checked against real dumps). Pure TypeScript: the format and its key, a block and its entries, the log, the area and what reads wrong in it, an entry's value (the Windows key split off its MSDM header only behind the signature and a matching length), the edit that writes both copies, the decoded block, the codec a block opened decoded goes back through, and the keys a driver's code names. Every one of upstream's tests, with TestStore as src/firmware/testing/testLenovoDMI.ts. Swift's throws are unions here (setEntry, LenovoDMIDecodedBlock.encode), and memmem is Uint8Array.indexOf, as the raw-area scan has it.",
+      "files": {
+        "Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIFormat.swift": "src/firmware/lenovoDmi/lenovoDmiFormat.ts",
+        "Packages/LenovoDMI/Sources/LenovoDMI/LENVBlock.swift": "src/firmware/lenovoDmi/lenvBlock.ts",
+        "Packages/LenovoDMI/Sources/LenovoDMI/LDBGLog.swift": "src/firmware/lenovoDmi/ldbgLog.ts",
+        "Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIArea.swift": "src/firmware/lenovoDmi/lenovoDmiArea.ts",
+        "Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIValue.swift": "src/firmware/lenovoDmi/lenovoDmiValue.ts",
+        "Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIKeyReferences.swift": "src/firmware/lenovoDmi/lenovoDmiKeyReferences.ts",
+        "Packages/LenovoDMI/Tests/LenovoDMITests/LenovoDMITests.swift": "src/firmware/lenovoDmi/lenovoDmi.test.ts",
+        "Packages/LenovoDMI/Tests/LenovoDMITests/TestStore.swift": "src/firmware/testing/testLenovoDMI.ts"
+      },
+      "unported": {
+        "Packages/LenovoDMI/Tests/LenovoDMITests/TestStore.swift#TestStore.Entry.*": "n/a — test scaffolding",
+        "Packages/LenovoDMI/Tests/LenovoDMITests/TestStore.swift#TestStore.LogEntry.*": "n/a — test scaffolding"
+      }
     },
     {
       "swift": "Packages/UEFIContentSource",

@@ -1044,6 +1044,30 @@
 "part badge|Decompressed" = "Распакован";
 "part badge|Read-only" = "Только чтение";
 "part badge|Structure" = "Структура";
+"A LENV block is %1$@ bytes, and goes back only at that length." = "Блок LENV занимает %1$@ байт и записывается обратно только с этой длиной.";
+"A LENV block stored in the clear. Update in Parent recomputes its checksum." = "Блок LENV, который хранится без кодирования. При записи в исходный файл пересчитывается его контрольная сумма.";
+"Baseboard platform ID" = "Идентификатор платформы платы";
+"Baseboard serial number" = "Серийный номер платы";
+"Both LENV blocks are empty: the store has been wiped or was never written. The board's serial number and UUID are not in this image." = "Оба блока LENV пусты: хранилище стёрто или не записывалось. Серийного номера и UUID платы в этом образе нет.";
+"Decoded from the file. Update in Parent encodes it again with the key in its header and recomputes the checksum." = "Декодировано из файла. При записи в исходный файл блок снова кодируется ключом из его заголовка, а контрольная сумма пересчитывается.";
+"LENV block %1$@ has no signature where it should start." = "У блока LENV %1$@ нет сигнатуры в начале.";
+"LENV block %1$@ is erased: every byte is FF. The firmware reads the other copy." = "Блок LENV %1$@ стёрт: все его байты равны FF. Прошивка читает другую копию.";
+"LENV block %1$@ is stored decoded. Whether the firmware accepts that is not known." = "Блок LENV %1$@ хранится декодированным. Примет ли его прошивка в таком виде, неизвестно.";
+"LENV block %1$@: the checksum is %2$@, the body adds up to %3$@." = "Блок LENV %1$@: записанная контрольная сумма %2$@, а содержимое блока даёт %3$@.";
+"LENV block %1$@: the entries its header counts do not fit in the block." = "Блок LENV %1$@: записи, заявленные в заголовке, в блок не помещаются.";
+"Machine type/model" = "Тип и модель машины (MTM)";
+"Motherboard name" = "Название материнской платы";
+"Neither LENV block is one the firmware would read." = "Ни один из блоков LENV прошивка читать не станет.";
+"OA3 key ID" = "Идентификатор ключа OA3";
+"OS preload suffix" = "Суффикс предустановленной ОС";
+"System UUID" = "UUID системы";
+"The change log's write offset %1$@ does not fall on an entry boundary." = "Адрес следующей записи журнала %1$@ не совпадает с границей записи.";
+"The change log's write offset %1$@ is outside the log." = "Адрес следующей записи журнала %1$@ лежит за пределами журнала.";
+"The two LENV blocks hold different values for: %1$@. The firmware reads the block in use." = "Значения в двух блоках LENV различаются у записей: %1$@. Прошивка читает действующий блок.";
+"Unknown SMBIOS entry %1$@" = "Неизвестная запись SMBIOS %1$@";
+"Unknown entry %1$@" = "Неизвестная запись %1$@";
+"Windows key" = "Ключ Windows";
+"part badge|Plain" = "Без кодирования";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.
