@@ -476,12 +476,9 @@ not coming.
   re-open yesterday's pair with one permission click. Worth doing, but not
   before milestone 3.
 - **Telemetry.** None. Worth stating in the README so a shop knows.
-- **The agent.** Upstream plans an MCP service inside the app — an agent beside
-  the person at the bench that sees the caret, asks the parsers and marks bytes
-  (`Design/AGENT_PLAN.md` upstream, issue #23, `4120b06`). It is a plan there,
-  not a build. Its contract — tool names, input schemas, the shape of every
-  answer (`AGENT_PROTOCOL.md`) — is written to be edition-neutral, and that is
-  what this edition would port once upstream writes it. The transport is not:
-  a page cannot listen on a socket, so how an agent reaches a page (an
-  extension, the desktop shell's own process, a relay) is a decision for when
-  there is a contract to carry.
+- **The agent.** Upstream's MCP service — an agent beside the person at the
+  bench that sees the caret, asks the parsers and marks bytes — is built, and
+  its contract is `AGENT_PROTOCOL.md`. The Electron build carries it
+  (`Design/PORT_AGENT.md`, decision D16): the shell listens on a named pipe and
+  copies bytes to the page, and everything else runs in the page. A browser
+  page cannot listen on a socket, so the browser edition has none.

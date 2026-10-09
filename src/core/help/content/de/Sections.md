@@ -1,4 +1,4 @@
-@source-sha 80631f077881e5395857ebda16b582a9072d18646ac5bcf8b4f9f10a8ad499f5
+@source-sha 990c7c00fa8d3406c7485177482df3aec73335c25399455c74b6e67d6e4867d1
 @section getting-started
 @name Erste Schritte
 
@@ -11,11 +11,11 @@
 @section firmware
 @name Werkzeugbereiche
 
-@section bench
-@name Anhang
-
 @section agent
 @name Mit einem Agenten arbeiten
+
+@section bench
+@name Anhang
 
 @section settings
 @name Einstellungen

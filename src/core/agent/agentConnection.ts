@@ -61,6 +61,9 @@ export class AgentConnection {
   readonly server: AgentServer;
   private readonly send: (line: Uint8Array) => void;
   private readonly observer: (record: AgentCallRecord) => void;
+  private readonly onFirstMessage: () => void;
+  /** Whether the client has sent anything yet. */
+  private hasSpoken = false;
   private readonly framer: LineFramer;
   /**
    * The version an `initialize` agreed on. Undefined until a legacy client shakes hands; a modern
@@ -79,18 +82,24 @@ export class AgentConnection {
 
   /**
    * `send` is given one message at a time, a complete line with its newline. `observer` hears
-   * about every tool call once it is over.
+   * about every tool call once it is over. `onFirstMessage` is called once, when the first complete
+   * message arrives: until then the other end is a transport, not yet a client — a relay a client
+   * started and then abandoned before its handshake holds a connection open and never says a word.
    *
    * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.init
+   * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.onFirstMessage
+   * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.hasSpoken
    */
   constructor(
     server: AgentServer,
     send: (line: Uint8Array) => void,
-    observer: (record: AgentCallRecord) => void = () => undefined
+    observer: (record: AgentCallRecord) => void = () => undefined,
+    onFirstMessage: () => void = () => undefined
   ) {
     this.server = server;
     this.send = send;
     this.observer = observer;
+    this.onFirstMessage = onFirstMessage;
     this.framer = new LineFramer(server.limits.maxLineBytes);
   }
 
@@ -99,6 +108,10 @@ export class AgentConnection {
     if (this.closed) return;
     for (const line of this.framer.append(chunk)) {
       if (line.kind === "message") {
+        if (!this.hasSpoken) {
+          this.hasSpoken = true;
+          this.onFirstMessage();
+        }
         this.handle(line.bytes);
       } else {
         this.write(

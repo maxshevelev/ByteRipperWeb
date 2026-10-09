@@ -31,7 +31,7 @@ import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
-import { meAgentComparisons, meAgentQueries } from "@/tools/me/agent/meAgentModule";
+import { meAgentComparisons, meAgentLocator, meAgentQueries } from "@/tools/me/agent/meAgentModule";
 import {
   buildSummary,
   isEmphasized,
@@ -1306,4 +1306,5 @@ export const meTool: ToolModule = {
   View: MeToolView,
   agentQueries: meAgentQueries,
   agentComparisons: meAgentComparisons,
+  agentLocator: meAgentLocator,
 };

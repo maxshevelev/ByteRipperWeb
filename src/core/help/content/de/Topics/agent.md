@@ -1,7 +1,7 @@
-@source-sha a515439a0a7153852418900e6e5d81017d452c2044eccea4237e5132c574eb00
+@source-sha e98dd0900e540c7e83846f48b4413b5f65d456edd7117e9ac6316557e1c2f346
 # Mit einem Agenten arbeiten
 
-> ByteRipper lässt sich mit einem Agenten verbinden — Claude Code, Claude Desktop oder einem anderen Programm, das MCP spricht. Der Agent sieht dann die im Programm geöffneten Dateien, liest ihre Bytes und zeigt Stellen darin; das Gespräch mit ihm findet in seinem eigenen Fenster statt.
+> An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
 
 @covers settings.agent
 @covers window.agent
@@ -13,82 +13,86 @@
 
 [[edition:**Diese Seite handelt von der Windows-Anwendung.** Der Agentendienst braucht eine Verbindung, die eine Seite im Browser nicht öffnen kann; die Browser-Ausgabe hat ihn daher nicht, und nichts hier Beschriebene gibt es dort.||]]
 
-Der Agent arbeitet mit denselben Fenstern wie die Person am Arbeitsplatz. Wird er nach „diesem“ Byte gefragt, liest er die Position des Cursors und die Auswahl; verweist er auf eine Stelle im Dump, scrollt er die Ansicht dorthin und wählt sie aus. Beide zeigen so auf dieselben Bytes, statt einander Adressen zu beschreiben.
+Agent und Techniker arbeiten mit denselben Fenstern. Fragen Sie den Agenten nach „diesem“ Byte, ermittelt er es aus der Position des Cursors und der Auswahl. Bezieht er sich seinerseits auf eine Stelle im Dump, scrollt er die Ansicht dorthin und wählt die betreffenden Bytes aus. Beide Seiten sprechen so über dieselben Daten, ohne Adressen in Worten austauschen zu müssen.
 
 ## Den Dienst einschalten
 
-Nach der Installation ist der Dienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit **Agenten die Verbindung mit ByteRipper erlauben**. Solange er eingeschaltet ist, hat die Symbolleiste eine Taste für das Agentenfenster, gezeichnet als drei verbundene Punkte; die Punkte sind gefüllt, während ein Agent verbunden ist.
+Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt.
 
-Die Verbindung ist lokal. ByteRipper öffnet eine benannte Pipe, `\\.\pipe\ByteRipper-agent-<Benutzername>`, die ein Programm desselben Benutzerkontos wie eine Datei öffnet; ein Netzwerkport wird nicht geöffnet. Soll der Name der Pipe ein anderer sein — bei einer zweiten, neben der ersten gestarteten Kopie —, nennt ihn die Umgebungsvariable `BYTERIPPER_AGENT_SOCKET`.
+Die Verbindung ist ausschließlich lokal; ein Netzwerkport wird nicht geöffnet. ByteRipper legt dazu eine benannte Pipe an, `\\.\pipe\ByteRipper-agent-<Benutzername>`, die ein Programm desselben Benutzerkontos wie eine Datei öffnet. Soll der Name der Pipe abweichen — etwa bei einer zweiten, neben der ersten gestarteten Kopie —, legt die Umgebungsvariable `BYTERIPPER_AGENT_SOCKET` einen anderen fest.
 
-Die Bytes, die ein Agent liest, gibt sein Programm allerdings an das Modell weiter, auf dem er beruht. Bei Claude ist das der Dienst von Anthropic. Ein Dump, der die Werkstatt nicht verlassen darf, wird nicht geöffnet, solange ein Agent verbunden ist.
+Zu beachten ist jedoch: Die Bytes, die der Agent liest, übermittelt sein Programm an das Sprachmodell, auf dem der Agent beruht — im Fall von Claude an den Dienst von Anthropic. Öffnen Sie daher keinen Dump, der die Werkstatt nicht verlassen darf, solange ein Agent verbunden ist.
 
-## Ein Programm verbinden
+## Programm des Agenten einrichten
 
-Unter **Einstellungen ▸ Agent** wählt das Menü **Konfiguration für:** das Programm, in dem der Agent läuft. Der Text, den dieses Programm braucht, steht vollständig darunter, mit einer Zeile, wohin er gehört; **Kopieren** legt ihn in die Zwischenablage:
+Unter **Einstellungen ▸ Agent** legt das Menü **Konfiguration für:** fest, in welchem Programm der Agent ausgeführt wird. Darunter erscheint der vollständige Konfigurationstext für dieses Programm zusammen mit dem Hinweis, wo er einzutragen ist; **Kopieren** übernimmt ihn in die Zwischenablage.
 
-- **Claude Code** — ein Befehl für ein Terminal. Einmal ausgeführt, meldet er ByteRipper bei Claude Code für alle Ordner an.
-- **Claude Desktop** — ein JSON-Block für die Konfigurationsdatei von Claude Desktop, `%APPDATA%\Claude\claude_desktop_config.json`. Claude Desktop liest sie beim Start.
-- **Cursor** — derselbe JSON-Block, für `%USERPROFILE%\.cursor\mcp.json` (alle Projekte) oder `.cursor/mcp.json` in einem einzelnen Projekt.
-- **Anderer Client** — die Parameter einzeln: der Name `byteripper`, der Transport `stdio`, der Befehl, sein Argument und die Umgebungsvariable. Genau das fragt ein Client in einem eigenen Formular ab.
+- **Claude Code** — ein Befehl für ein Terminal. Er muss nur einmal ausgeführt werden; danach steht ByteRipper in Claude Code in jedem Ordner zur Verfügung.
+- **Claude Desktop** — ein JSON-Block für die Konfigurationsdatei `%APPDATA%\Claude\claude_desktop_config.json`. Claude Desktop wertet diese Datei beim Start aus.
+- **Cursor** — derselbe JSON-Block, einzutragen in `%USERPROFILE%\.cursor\mcp.json` für alle Projekte oder in `.cursor/mcp.json` für ein einzelnes Projekt.
+- **Anderer Client** — die Verbindungsparameter einzeln: der Name `byteripper`, der Transport `stdio`, der Befehl, sein Argument und die Umgebungsvariable. Diese Variante ist für Clients bestimmt, die die Parameter in einem eigenen Formular abfragen.
 
-Führt eine Konfigurationsdatei bereits andere Server auf, kommt der Eintrag `byteripper` daneben, in dasselbe `mcpServers`.
+Enthält die Konfigurationsdatei bereits andere Server, wird der Eintrag `byteripper` neben ihnen in denselben Abschnitt `mcpServers` eingefügt.
 
-Jede Form nennt die ausführbare Datei von ByteRipper selbst und das Skript `relay.cjs`, das daneben liegt, und setzt die Umgebungsvariable `ELECTRON_RUN_AS_NODE=1`; sie bewirkt, dass die ausführbare Datei das Skript ausführt, statt das Fenster zu öffnen. Wird ByteRipper in einen anderen Ordner verschoben oder in einem anderen neu installiert, ist der Text erneut zu kopieren.
+Jede Variante nennt die ausführbare Datei von ByteRipper selbst und das daneben liegende Skript `relay.cjs` und setzt die Umgebungsvariable `ELECTRON_RUN_AS_NODE=1`; sie bewirkt, dass die ausführbare Datei das Skript ausführt, statt das Fenster zu öffnen. Nach dem Verschieben von ByteRipper in einen anderen Ordner oder nach einer erneuten Installation in einem anderen Ordner ist der Konfigurationstext daher neu zu kopieren.
 
-Läuft ByteRipper nicht, wenn das Programm des Agenten startet, startet das Skript es. Ist der Dienst ausgeschaltet, meldet das Programm des Agenten, dass der Agentendienst von ByteRipper nicht läuft.
+Ist ByteRipper beim Start des Agentenprogramms nicht geöffnet, startet das Skript es selbstständig. Ist der Dienst dagegen ausgeschaltet, meldet das Agentenprogramm, dass der Agentendienst von ByteRipper nicht läuft.
 
 ## Was ein Agent kann
 
 Derzeit kann ein Agent:
 
-- die geöffneten Dateien auflisten, mit Namen, Größe und der Angabe, ob ungesicherte Änderungen vorliegen;
-- die Position des Cursors, die Auswahl und die sichtbaren Zeilen abfragen;
-- Bytes lesen — als Hex-Zeilen, als Text oder als 16-, 32- und 64-Bit-Zahlen —, ungesicherte Änderungen eingeschlossen;
-- eine Stelle zeigen: ihre Ansicht nach vorn holen, dorthin scrollen und sie auswählen;
-- die Struktur eines Firmware-Images so lesen, wie **UEFI-Struktur** sie zeigt — den Baum, die Felder eines Knotens, die Knoten, die eine Adresse enthalten — und darin nach Name, GUID oder Typ suchen. Das geht unabhängig davon, ob der Bereich geöffnet ist;
-- die FIT-Tabelle so lesen, wie **FIT-Tabelle** sie zeigt — ihre Einträge, worauf jeder verweist, welche Regeln der Spezifikation sie verletzt —, und die Intel-ME-Firmware so, wie **ME Analyzer** sie zeigt: die Übersicht und die dekodierte Struktur. Auch das geht bei geschlossenen Bereichen;
-- die NVRAM-Variablen eines Dumps mit ihren Werten auflisten, nach ihrem Typ gelesen, und die Variablen zweier Dumps nach Name und GUID gegenüberstellen: welche nur einer von beiden enthält, welche sich unterscheiden und in welchen Bytes. Dumps verschiedener Boards oder BIOS-Versionen lassen sich ebenso vergleichen wie zwei Dumps eines Boards, und ein ganzer Ordner von Dumps lässt sich auf einmal mit einem davon vergleichen;
-- die Dateien der ME-Dateisysteme (MFS und EFS) zweier Dumps nach ihrer Nummer im Volume und nach Inhalt gegenüberstellen, nicht nach Adresse: welche gleich sind, welche sich unterscheiden und in wie vielen Bytes, welche nur ein Dump enthält. Das Volume verlagert seine Daten, um den Speicherchip gleichmäßig abzunutzen; in zwei Dumps eines Geräts kann dieselbe Datei daher an verschiedenen Adressen liegen. Ein Bytevergleich der Partition zeigt dann verlagerte Daten, dieser Vergleich dagegen, welche Dateien sich geändert haben. Die Integrity-Tabelle am Ende einer geschützten Datei wird getrennt verglichen: Sie ändert sich jedes Mal, wenn die Engine die Datei neu schreibt. Ein Volume, das in einem der Dumps nicht gelesen werden konnte, wird als nicht verglichen genannt, und seine Dateien gelten nicht als fehlend;
-- Bytes markieren, während er sie erklärt: ein gestrichelter Rahmen in eigener Farbe mit einer kurzen Bezeichnung; ruht der Zeiger auf den markierten Bytes, erscheint die Erläuterung des Agenten. Eine Markierung kann andere nennen, auf die sie sich bezieht — einen Zeiger und sein Ziel, eine Prüfsumme und die Bytes, die sie abdeckt;
-- eine Datei über ihren Pfad öffnen, ohne sie anzuzeigen, und allen Dumps eines Ordners auf einmal dieselbe Frage stellen — wie viele Kopien einer Variablen jeder enthält, an welcher Adresse eine Struktur beginnt —, mit den Antworten nach Wert gruppiert. Eine so geöffnete Datei wird nur gelesen; gibt es darin etwas zu zeigen, öffnet der Agent sie in einem eigenen Tab;
-- Befunde festhalten: jeweils ein Satz und die Stelle, auf die er sich bezieht; das Agentenfenster listet sie auf;
-- zwei Dateien Byte für Byte vergleichen, wie es der Vergleich zweier Bereiche tut — an denselben Adressen, ohne verschobene Daten auszurichten. Die Antwort ist entweder eine Liste der abweichenden Abschnitte, jeweils mit dem Teil der Firmware, in dem er liegt (Region, Volume, Variable, ME-Partition oder ME-Datei), oder eine Übersicht über Regionen, Volumes und ME-Partitionen, die auch die unveränderten nennt. Ein ganzer Ordner von Dumps lässt sich auf einmal mit einem davon vergleichen;
-- einen Text oder Bytes in einer Datei finden — als ASCII oder UTF-16, ohne Beachtung der Groß- und Kleinschreibung, mit `??` für ein beliebiges Byte —, auch innerhalb der komprimierten Abschnitte eines Firmware-Abbilds, die die Datei nur komprimiert enthält; zu jedem Treffer wird der Teil der Firmware genannt, in dem er liegt;
-- die Bytes eines Knotens der **UEFI-Struktur** lesen, auch eines Knotens in einem komprimierten Abschnitt, und einen Abschnitt der Datei oder einen Knoten als Teil über der Datei öffnen, wie es **Zone öffnen** tut, damit zwei Blöcke an verschiedenen Adressen von ihrem Anfang an verglichen werden;
-- zwei Dateien als Paar nebeneinander zeigen — oder neben einer Datei, die allein in ihrem Arbeitsbereich ist — und ihre Abweichungen so durchgehen, wie es die Pfeile zum Navigieren zwischen Abweichungen im Fenster tun;
-- einen Werkzeugbereich für ein Dokument öffnen, wie es das Menü **Werkzeuge** tut, und im geöffneten Bereich **UEFI-Struktur** einen Knoten wählen. Der Baum öffnet sich bis zum Knoten, und der Dump scrollt zu seinen Bytes.
+- die geöffneten Dateien mit Name und Größe auflisten und angeben, ob ungesicherte Änderungen vorliegen;
+- die Position des Cursors, die Auswahl und die auf dem Bildschirm sichtbaren Zeilen abfragen;
+- Bytes als Hex-Zeilen, als Text oder als 16-, 32- und 64-Bit-Zahlen lesen, einschließlich ungesicherter Änderungen;
+- eine Stelle anzeigen: ihren Bereich nach vorn holen, die Ansicht dorthin scrollen und die Stelle auswählen;
+- die Struktur eines Firmware-Images in derselben Aufschlüsselung lesen, in der **UEFI-Struktur** sie zeigt — den Baum, die Felder eines Knotens und die Knoten, in die eine bestimmte Adresse fällt — und darin nach Name, GUID oder Typ suchen. Der Bereich muss dafür nicht geöffnet sein;
+- die FIT-Tabelle so lesen, wie **FIT-Tabelle** sie zeigt — ihre Einträge, die Objekte, auf die sie verweisen, und die verletzten Regeln der Spezifikation —, und die Intel-ME-Firmware so, wie **ME Analyzer** sie zeigt: Übersicht und dekodierte Struktur. Auch dafür dürfen die Bereiche geschlossen sein;
+- die NVRAM-Variablen eines Dumps mit ihren Werten auflisten, ausgewertet gemäß ihrem Typ, und die Variablen zweier Dumps nach Name und GUID gegenüberstellen: welche nur ein Dump enthält, welche sich unterscheiden und in welchen Bytes. Verglichen werden können nicht nur zwei Dumps desselben Boards, sondern auch Dumps verschiedener Boards oder BIOS-Versionen; ein ganzer Ordner von Dumps lässt sich in einem Schritt mit einem davon vergleichen;
+- die Dateien der ME-Dateisysteme (MFS und EFS) zweier Dumps nach ihrer Nummer im Volume und nach ihrem Inhalt gegenüberstellen, nicht nach ihrer Adresse: welche Dateien übereinstimmen, welche sich unterscheiden und in wie vielen Bytes, welche nur in einem Dump vorhanden sind. Ein MFS- oder EFS-Volume lagert seine Daten um, um den Speicherchip gleichmäßig abzunutzen; in zwei Dumps desselben Geräts kann eine Datei deshalb an verschiedenen Adressen stehen. Der Bytevergleich der Partition zeigt dann lediglich umgelagerte Daten, der Dateivergleich hingegen, welche Dateien sich tatsächlich geändert haben. Die Integrity-Tabelle am Ende einer geschützten Datei wird gesondert verglichen, da die ME-Engine sie bei jedem erneuten Schreiben der Datei aktualisiert. Ein Volume, das sich in einem der Dumps nicht lesen ließ, wird als nicht verglichen ausgewiesen; seine Dateien gelten nicht als fehlend;
+- Bytes markieren, während er sie erläutert: Er umgibt sie mit einem gestrichelten Rahmen in eigener Farbe und versieht sie mit einer kurzen Bezeichnung; verweilt der Zeiger über den markierten Bytes, erscheint die Erläuterung des Agenten. Eine Markierung kann auf zugehörige Markierungen verweisen — etwa ein Zeiger auf sein Ziel oder eine Prüfsumme auf die Daten, über die sie gebildet wird;
+- eine Datei über ihren Pfad öffnen, ohne sie anzuzeigen, und allen Dumps eines Ordners gleichzeitig dieselbe Frage stellen — etwa, wie viele Kopien einer Variablen jeder Dump enthält oder an welcher Adresse eine Struktur beginnt — und die Antworten nach Wert gruppiert erhalten. Eine solche Datei wird ausschließlich gelesen. Enthält sie etwas, das gezeigt werden sollte, legt der Agent sie in einen freien Bereich des Fensters, niemals über eine dort geöffnete Datei; sind beide Bereiche belegt, meldet er das, und der Techniker schafft Platz;
+- Befunde festhalten: jeweils eine Aussage und die Stelle, auf die sie sich bezieht; das Agentenfenster führt sie auf;
+- zwei Dateien Byte für Byte vergleichen, wie es der Vergleich der beiden Bereiche des Fensters tut: an gleichen Adressen, ohne verschobene Daten auszurichten. Das Ergebnis ist entweder eine Liste der abweichenden Abschnitte mit dem jeweiligen Teil der Firmware (Region, Volume, Variable, ME-Partition oder ME-Datei) oder eine Übersicht über Regionen, Volumes und ME-Partitionen, die auch die unveränderten aufführt. Ein ganzer Ordner von Dumps lässt sich in einem Schritt mit einem davon vergleichen;
+- in einer Datei nach Text oder Bytes suchen — als ASCII oder UTF-16, ohne Unterscheidung von Groß- und Kleinschreibung, mit `??` für ein beliebiges Byte —, auch innerhalb der komprimierten Abschnitte eines Firmware-Images, die in der Datei nur in komprimierter Form vorliegen; zu jedem Treffer wird der Teil der Firmware angegeben, in dem er sich befindet;
+- die Bytes eines Knotens von **UEFI-Struktur** lesen, auch eines Knotens in einem komprimierten Abschnitt, und einen Dateiabschnitt oder einen Knoten als eigenen Teil über der Datei öffnen, wie mit **Zone öffnen**. So lassen sich zwei Blöcke an unterschiedlichen Adressen jeweils ab ihrem ersten Byte vergleichen;
+- zwei Dateien als Paar nebeneinander anzeigen — neben einer Datei, die allein im Fenster liegt, im freien Bereich — und von Abweichung zu Abweichung springen, wie über die entsprechenden Pfeile im Fenster;
+- einen Werkzeugbereich für ein Dokument öffnen, wie über das Menü **Werkzeuge**, und im geöffneten Bereich **UEFI-Struktur** einen Knoten auswählen: Der Baum wird bis zu diesem Knoten aufgeklappt, und der Dump scrollt zu dessen Bytes.
 
-Jede Stelle, die ein Agent zeigt, jeder Bereich, den er öffnet, und jeder Knoten, den er wählt, ist ein Schritt des Verlaufs: **Darstellung ▸ Zurück** (**[[key:back]]**) kehrt dorthin zurück, wo die Ansicht vorher war ([[topic:navigation|Sich bewegen]]).
+Jede vom Agenten angezeigte Stelle, jeder von ihm geöffnete Bereich und jeder von ihm gewählte Knoten wird im Verlauf festgehalten. Mit **Darstellung ▸ Zurück** (**[[key:back]]**) kehren Sie zur vorherigen Ansicht zurück ([[topic:navigation|Sich bewegen]]).
 
-Eine Datei sichern kann ein Agent nicht; ändern kann er sie nur, wenn es erlaubt ist (siehe unten). Adressen in seinen Antworten sind hexadezimal, wie im Dump.
+Sichern kann der Agent keine Datei; ändern darf er sie nur, wenn dies erlaubt ist (siehe unten). Adressen gibt er in seinen Antworten hexadezimal an, wie im Dump.
 
-## Änderungen durch den Agenten erlauben
+## Änderungen durch den Agenten zulassen
 
-**Agenten das Ändern geöffneter Dateien erlauben** in **Einstellungen ▸ Agent** ist nach der Installation ausgeschaltet und unabhängig von dem Schalter, der die Verbindung erlaubt. Solange er ausgeschaltet ist, nennt ein Agent, der etwas ändern soll, stattdessen die Änderung, die er vornehmen würde.
+Die Option **Agenten das Ändern geöffneter Dateien erlauben** unter **Einstellungen ▸ Agent** ist im Auslieferungszustand ausgeschaltet und von der Option für die Verbindung unabhängig. Solange sie ausgeschaltet ist, beschreibt der Agent auf die Bitte um eine Änderung lediglich, welche Änderung er vornehmen würde.
 
-Ist er eingeschaltet, kann ein Agent:
+Ist sie eingeschaltet, kann der Agent:
 
-- Bytes in einer geöffneten Datei überschreiben. Ein Schreibvorgang ersetzt genau so viele Bytes, wie er enthält, und fügt nie Bytes ein oder entfernt sie; er lässt sich an die Bedingung knüpfen, dass an der Adresse bestimmte Bytes stehen;
-- eine Prüfsumme korrigieren — die eines Volumes, einer Datei oder eines Microcodes in **UEFI-Struktur**, die der Tabelle in **FIT-Tabelle** — mit demselben Code wie der Befehl **Prüfsumme korrigieren** der Bereiche;
-- Microcode in der FIT aus demselben Online-Katalog, den **FIT-Tabelle** anbietet, hinzufügen, aktualisieren, ersetzen und entfernen, mit denselben Prüfungen. Ein Update, das unter einer anderen seiner CPUIDs schon in der Tabelle steht, wird abgelehnt. Ein Update, dessen erweiterte Signaturtabelle einen Prozessor bedient, den schon eine Zeile bedient, tritt an die Stelle dieser Zeile. Ein Ersatz, nach dem ein Prozessor zwei Microcodes hätte, wird abgelehnt, und die zu ersetzende Zeile wird genannt. Der Agent gibt außerdem an, für welche Microcodes des Abbilds der Katalog eine neuere Revision hat.
+- Bytes in einer geöffneten Datei überschreiben. Ein Schreibvorgang ersetzt genau so viele Bytes, wie er mitbringt, und fügt niemals Bytes ein oder entfernt welche. Er lässt sich an die Bedingung knüpfen, dass an der Adresse derzeit bestimmte Bytes stehen;
+- Prüfsummen korrigieren — die eines Volumes, einer Datei oder eines Microcodes in **UEFI-Struktur** und die der Tabelle in **FIT-Tabelle**. Die Berechnung erfolgt mit demselben Code wie beim Befehl **Prüfsumme korrigieren** der Bereiche;
+- Microcode in der FIT hinzufügen, aktualisieren, ersetzen und entfernen, und zwar aus demselben Online-Katalog, den **FIT-Tabelle** anbietet, und mit denselben Prüfungen. Ein Update, das unter einer anderen seiner CPUIDs bereits in der Tabelle steht, wird abgelehnt. Ein Update, dessen erweiterte Signaturtabelle einen Prozessor abdeckt, für den bereits eine Zeile zuständig ist, tritt an die Stelle dieser Zeile. Ein Ersatz, nach dem einem Prozessor zwei Microcodes zugeordnet wären, wird abgelehnt, wobei die zu ersetzende Zeile genannt wird. Der Agent kann außerdem ermitteln, für welche Microcodes des Images der Katalog eine neuere Revision bereithält.
 
-Jede Änderung ist ein Schritt des Widerrufens der Datei, benannt mit **Agent:** und der Beschreibung des Agenten; **Bearbeiten ▸ Widerrufen** (**[[key:undo]]**) nimmt sie zurück. Die geänderten Bytes sind bis zum Sichern rot markiert, wie bei einer Änderung von Hand, und der Dump scrollt zu ihnen, als Schritt des Verlaufs. Gesichert wird die Datei nur vom Benutzer. Eine Datei, die der Agent ohne Anzeige über ihren Pfad geöffnet hat, wird nie geändert.
+Jede Änderung des Agenten bildet einen eigenen Schritt im Widerrufen-Verlauf der Datei. Der Schritt trägt die Bezeichnung **Agent:** und die Beschreibung, die der Agent der Änderung gegeben hat; **Bearbeiten ▸ Widerrufen** (**[[key:undo]]**) nimmt ihn zurück. Bis zum Sichern erscheinen die geänderten Bytes rot, wie bei einer Änderung von Hand; der Dump scrollt zu ihnen, und dieser Sprung wird im Verlauf festgehalten. Gesichert wird eine Datei ausschließlich vom Benutzer. Eine Datei, die der Agent über ihren Pfad geöffnet hat, ohne sie anzuzeigen, wird niemals verändert.
 
 ## Das Agentenfenster
 
-**Fenster ▸ Agent** zeigt, ob der Dienst läuft, und enthält drei Listen. Solange der Dienst eingeschaltet ist, hat die Symbolleiste zwischen **?** und dem Umschalter für die Anordnung der Bereiche eine Taste dafür; sie öffnet das Fenster oder schließt es, wenn es schon offen ist.
+**Fenster ▸ Agent** zeigt, ob der Dienst läuft, und enthält drei Listen. Solange der Dienst eingeschaltet ist, befindet sich in der Symbolleiste zwischen **?** und dem Umschalter für die Anordnung der Bereiche eine Taste für dieses Fenster; sie öffnet das Agentenfenster oder schließt es, falls es bereits geöffnet ist.
 
-**Protokoll** listet jede Anfrage des Agenten auf: Uhrzeit, Werkzeug, die Argumente so, wie der Agent sie geschrieben hat, Antwortzeit, Größe der Antwort und Ergebnis. Eine abgelehnte Anfrage erscheint rot, mit dem Grund, der dem Agenten genannt wurde. Lange Argumente werden in der Tabelle gekürzt; die Liste darunter zeigt die ausgewählte Anfrage vollständig: Uhrzeit, Client, Antwortzeit, Größe der Antwort in Bytes, das vollständige Ergebnis und unter **Argumente** das gesamte JSON, das der Agent gesendet hat, ein Element je Zeile. Ihr Text lässt sich auswählen und kopieren. **Neuen Anfragen folgen** unter dem Protokoll scrollt es zu jeder neuen Anfrage; ist es ausgeschaltet, bleibt das Protokoll, wo es gelassen wurde. Die ausgewählte Anfrage bleibt ausgewählt, wenn neue eintreffen. **Protokoll leeren** leert die Liste; nach dem Beenden des Programms wird sie nicht aufbewahrt.
+**Protokoll** verzeichnet jede Anfrage des Agenten mit Uhrzeit, Werkzeug, den Argumenten in der vom Agenten übergebenen Form, Antwortzeit, Größe der Antwort und Ergebnis. Abgelehnte Anfragen sind rot dargestellt, zusammen mit dem Grund, der dem Agenten mitgeteilt wurde.
 
-**Markierungen** listet die Markierungen auf, die der Agent in allen geöffneten Dateien gesetzt hat: Bezeichnung, Datei, Bytes, Erläuterung und die Markierungen, auf die sie sich bezieht. Ein Doppelklick auf eine Zeile holt ihre Datei nach vorn und wählt ihre Bytes aus, als Schritt des Verlaufs. **Markierung entfernen** entfernt die gewählten Zeilen, **Alle Markierungen entfernen** alle. Eine Markierung verschwindet auch, wenn ihre Datei geschlossen wird oder der Agent sie entfernt.
+In der Tabelle werden lange Argumente gekürzt. Die Liste darunter zeigt die ausgewählte Anfrage vollständig: Uhrzeit, Client, Antwortzeit, Größe der Antwort in Bytes, das vollständige Ergebnis und unter **Argumente** das gesamte vom Agenten gesendete JSON, ein Element pro Zeile. Der Text dieser Liste lässt sich auswählen und kopieren.
 
-**Befunde** listet auf, was der Agent gefunden hat und wo: den Satz, die Datei, die Bytes oder den Knoten. Ein Doppelklick öffnet die Datei an dieser Stelle — in dem Bereich, der sie schon zeigt, oder in einem neuen Teil. **Alle Befunde entfernen** leert die Liste.
+Ist **Neuen Anfragen folgen** unter dem Protokoll eingeschaltet, scrollt das Protokoll zu jeder eintreffenden Anfrage; andernfalls behält es seine Position bei. Eine ausgewählte Anfrage bleibt auch beim Eintreffen neuer Anfragen ausgewählt. **Protokoll leeren** entfernt alle Einträge; nach dem Beenden des Programms wird das Protokoll nicht aufbewahrt.
 
-## Dateien außerhalb der geöffneten Fenster
+**Markierungen** führt die Markierungen auf, die der Agent in allen geöffneten Dateien gesetzt hat: Bezeichnung, Datei, Bytes, Erläuterung und zugehörige Markierungen. Ein Doppelklick auf eine Zeile holt die Datei nach vorn und wählt die markierten Bytes aus; dieser Sprung wird im Verlauf festgehalten. **Markierung entfernen** entfernt die ausgewählten Zeilen, **Alle Markierungen entfernen** sämtliche Markierungen. Darüber hinaus verschwindet eine Markierung, wenn ihre Datei geschlossen wird oder der Agent sie selbst entfernt.
 
-Ein Agent liest eine Datei über ihren Pfad mit den Rechten des Benutzerkontos, unter dem ByteRipper läuft; Windows fragt dabei nichts, und eine Datei, die das Konto nicht lesen kann, meldet der Dienst dem Agenten als nicht zu öffnende.
+**Befunde** führt auf, was der Agent gefunden hat und wo: Aussage, Datei, Bytes oder Knoten. Ein Doppelklick öffnet die Datei an dieser Stelle — in dem Bereich, in dem sie bereits geöffnet ist, oder in einem freien Bereich. **Alle Befunde entfernen** leert die Liste.
+
+## Zugriff auf Dateien außerhalb der geöffneten Fenster
+
+Der Agent liest eine Datei über ihren Pfad mit den Rechten des Benutzerkontos, unter dem ByteRipper läuft. Windows fragt dabei nichts; eine Datei, die das Konto nicht lesen kann, meldet der Dienst dem Agenten als nicht zu öffnende.
 
 ## Wenn der Dienst nicht startet
 
-Die Statuszeile unter **Einstellungen ▸ Agent** nennt den Grund. Meist läuft bereits eine zweite Kopie von ByteRipper mit eingeschaltetem Dienst: Agenten bedienen kann immer nur eine Kopie, und die zweite lässt die Verbindung der ersten unangetastet.
+Die Statuszeile unter **Einstellungen ▸ Agent** nennt die Ursache. In den meisten Fällen läuft bereits eine weitere Kopie von ByteRipper mit eingeschaltetem Dienst. Es kann jeweils nur eine Kopie Agenten bedienen; die zweite lässt die Verbindung der ersten unangetastet.

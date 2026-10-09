@@ -11,9 +11,15 @@ import {
   meTreeAnswer,
 } from "@/tools/me/agent/meAgentAnswers";
 import { filesAnswer, ME_FILES_COMPARE, volumeArgument } from "@/tools/me/agent/meAgentFiles";
-import { presentMEA } from "@/tools/meaTree";
+import { areasIn, locateRanges, placeOf } from "@/tools/me/agent/meAgentLocator";
+import { type MEANode, presentMEA } from "@/tools/meaTree";
 import { compareMEFiles, type MEFileReader } from "@/tools/meFileComparison";
-import type { ToolAgentComparison, ToolAgentQuery, ToolReadHost } from "@/tools/toolAgent";
+import type {
+  ToolAgentComparison,
+  ToolAgentLocator,
+  ToolAgentQuery,
+  ToolReadHost,
+} from "@/tools/toolAgent";
 
 /**
  * What the ME Analyzer module says to an agent: the summary, the structure the engine decoded, and
@@ -134,3 +140,51 @@ export const meAgentComparisons: readonly ToolAgentComparison[] = [
     },
   },
 ];
+
+/**
+ * Where ranges of the ME region are in the structure the engine decoded: finer than the UEFI tree
+ * inside the region, so it wins there.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentLocator
+ * @upstream-differs the region is the one the analysis read, which for a bare ME image is the whole file, where upstream asks the descriptor
+ */
+export const meAgentLocator: ToolAgentLocator = {
+  precedence: 1,
+  areas: async (host) => {
+    const roots = await rootsOf(host);
+    return roots === undefined ? [] : areasIn(roots.roots).map(placeOf);
+  },
+  locate: async (host, ranges) => {
+    const none = ranges.map(() => []);
+    const roots = await rootsOf(host);
+    if (roots === undefined) return none;
+    if (!ranges.some((one) => one.start < roots.region.end && roots.region.start < one.end)) {
+      return none;
+    }
+    return locateRanges(roots.roots, roots.region, ranges);
+  },
+};
+
+/** The decoded tree and where the ME region is; nothing for a file the engine could not read. */
+async function rootsOf(
+  host: ToolReadHost
+): Promise<{ roots: MEANode[]; region: { start: number; end: number } } | undefined> {
+  try {
+    const reading = await meAgentReading(host.pane);
+    return {
+      roots: presentMEA(
+        reading.analysis,
+        undefined,
+        reading.names,
+        reading.efsNames,
+        reading.configPaths
+      ),
+      region: {
+        start: reading.regionOffset,
+        end: reading.regionOffset + reading.analysis.sizeBytes,
+      },
+    };
+  } catch {
+    return undefined;
+  }
+}

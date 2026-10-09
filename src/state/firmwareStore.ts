@@ -1608,6 +1608,23 @@ export function noteFirmwareContentChange(pane: PaneId, change: ToolContentChang
 }
 
 /**
+ * Hands over a change that is still waiting out its delay, now, and waits until it has gone through.
+ *
+ * What an agent's question is asked after: its edit and its next question can be a moment apart, and
+ * the tree it asks must be about the bytes it just wrote. The worker answers in the order it was
+ * asked, so a change delivered first is the change the question sees.
+ *
+ * @web-only upstream's tree reads the pane's bytes where they are, so there is no change to wait for
+ */
+export async function settleFirmwareChanges(pane: PaneId): Promise<void> {
+  const held = pendingChanges.get(pane);
+  if (held === undefined) return;
+  if (held.timer !== undefined) clearTimeout(held.timer);
+  pendingChanges.delete(pane);
+  await deliverContentChange(pane, held.change);
+}
+
+/**
  * A transaction's operations, as the change the pane's tree is told.
  *
  * An edit and an undo are the same news — the offsets are no longer what the

@@ -21,7 +21,13 @@ import {
   reachable,
   unknownNode,
 } from "@/tools/uefi/agent/uefiAgentTree";
-import { ownName, subtypeText, summary, typeText } from "@/tools/uefi/uefiTreeDisplay";
+import {
+  type DisplayNode,
+  ownName,
+  subtypeText,
+  summary,
+  typeText,
+} from "@/tools/uefi/uefiTreeDisplay";
 
 /**
  * What the UEFI Structure answers an agent from the bytes alone, with its panel open or not: the
@@ -111,6 +117,23 @@ export const UEFI_TREE = {
   },
 } as const;
 
+/**
+ * The tree as the display rules read it: each node with the words its Type and Subtype columns say.
+ *
+ * @upstream-differs the panel's nodes carry those words over the wire; the worker's are the parser's
+ */
+interface Shown extends DisplayNode<Shown> {}
+
+function displayRoots(nodes: readonly UEFINode[]): Shown[] {
+  return nodes.map((node) => ({
+    kind: node.kind,
+    name: node.name,
+    typeText: typeText(node),
+    subtypeText: subtypeText(node),
+    children: displayRoots(node.children),
+  }));
+}
+
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.tree */
 export function uefiTree(tree: AgentTree, args: AgentArguments, context: UefiAgentContext): Json {
   const id = parseNodeId(args.optionalString("node"));
@@ -122,16 +145,20 @@ export function uefiTree(tree: AgentTree, args: AgentArguments, context: UefiAge
   );
 
   const listed = (node: UEFINode, level: number): Json => {
+    // The levels below first: asking for them opens the container, and the summary says how many
+    // children it has, not that they are unread.
+    const below =
+      level < depth && (node.children.length > 0 || node.isExpandable)
+        ? expanded(tree, node.id).map((child) => listed(child, level + 1))
+        : undefined;
     const entry = nodeSummary(node);
-    if (level < depth && (node.children.length > 0 || node.isExpandable)) {
-      entry.below = expanded(tree, node.id).map((child) => listed(child, level + 1));
-    }
+    if (below !== undefined) entry.below = below;
     return entry;
   };
 
   const answer: { [key: string]: Json } = {};
   if (id.length === 0) {
-    answer.image = summary(tree.roots as never);
+    answer.image = summary(displayRoots(tree.roots));
   } else {
     const node = nodeAtPath(tree, id);
     if (node === undefined) throw unknownNode(id);

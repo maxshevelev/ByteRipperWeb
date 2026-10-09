@@ -6,9 +6,31 @@
 > browser edition has no agent. A change here is a change to an interface an
 > agent may have been told about — say why in the commit.
 
-Draft until stage A10 marks it version 1. The tool list grows by stage; what is
-listed here is what the code answers today, and `docs` upstream is ahead of it
-until the stages land.
+**Version 1.** Every tool listed here is answered by the Electron build; what an
+edition does differently is under "Where this edition differs".
+
+## Where this edition differs
+
+The contract is upstream's, word for word, and the web edition has no tabs: one
+window holds two file panes (A and B) and the parts in its dock. Where upstream's
+text says *tab*, read *pane of the window*. What follows from that:
+
+- `documents` gives `tab: 1` for every document on screen; `slot` is `A`, `B`,
+  `part` or `background`.
+- `open_dump` answers `on_screen: true` when a pane already holds the file — told by
+  its name, size and modification time, since a file a page is handed has no path.
+- `show` and `compare` put a file in a **free pane** (A first), and **never replace
+  a file**: with both panes taken they refuse in a sentence and the person makes
+  room. `compare` of documents that were never saved opens copies in the two panes
+  only when both are free, and says `copies`.
+- `close_dump` refuses a document in a pane: "d1 is open in the window; only the
+  person closes it."
+- A finding on a document with no path leads back by its name, size and date; one
+  recorded with a `path` can be opened again from it.
+- `me_*` tools take the ME region the analysis read — for a bare ME image, the whole
+  file — where upstream asks the descriptor.
+- Paths may be Windows paths (`C:\dumps\a.bin`) or start with `~/`; the shell
+  expands the home folder.
 
 ## Transport
 

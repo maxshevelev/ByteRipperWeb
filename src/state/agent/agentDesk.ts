@@ -4,7 +4,6 @@ import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { AgentBackgroundDocuments } from "@/state/agent/agentBackgroundDocuments";
 import {
-  isSlot,
   type PaneId,
   type PartId,
   paneInFront,
@@ -211,7 +210,7 @@ export class AgentPlace {
   }
 
   get isPart(): boolean {
-    return this.pane !== undefined && !isSlot(this.pane);
+    return this.slot === "part";
   }
 
   /** What the pane's state says of the document now, where it is on screen. */

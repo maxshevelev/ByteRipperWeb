@@ -249,7 +249,9 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/VersionVectorTests.swift": "src/core/sync/versionVector.test.ts",
         "SlicedStorage.swift": "src/core/storage/slicedStorage.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift": "src/state/duplicatePane.test.ts",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts",
+        "MaskedSearch.swift": "src/core/search/maskedSearch.ts",
+        "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts"
       },
       "unported": {
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot.*": "n/a — the snapshot is a scratch file read through a ByteSource (EditOverlayStorage.contentSnapshot), so it has no reader type of its own",
@@ -316,9 +318,7 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTakingTheCopyReadsNoBytes": "n/a — the snapshot is written once, which reads the content: there is no clonefile(2) to share the base's blocks (`contentSnapshot`, @upstream-differs)",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotClonesTheFileRatherThanCopyingIt": "n/a — there is no clonefile(2) in a browser",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#*": "later — a search for several patterns at once, holes in a pattern (`24 ?? 4D`) and overlapping matches, which only the agent's find_bytes uses; no find bar takes them yet; Design/GAPS.md",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MaskedSearchTests.swift#*": "later — the tests of MaskedSearch; Design/GAPS.md"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes"
       }
     },
     {
@@ -917,7 +917,9 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift": "src/tools/uefi/uefiLenovoDMIDetail.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift": "src/tools/uefi/agent/uefiAgentQueries.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift": "src/tools/uefi/agent/uefiAgentNodeData.ts",
-        "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift": "src/tools/uefi/agent/uefiAgentVariables.ts"
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift": "src/tools/uefi/agent/uefiAgentVariables.ts",
+        "UEFIAgentEdits.swift": "src/tools/uefi/agent/uefiAgentModule.ts",
+        "UEFIAgentLocator.swift": "src/tools/uefi/agent/uefiAgentLocator.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.Bytes*": "n/a — a plain record here (`NodeBytes`)",
@@ -975,8 +977,6 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isReportingReadersSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.layout": "n/a — not a field of the web's `NodeOpen`: what a panel opened on the bytes should read them as is asked of the worker when the part opens (`askFirmwareLayout`), since the tree it is asked of lives there",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentEdits": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentLocator": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.clickDMIButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isDMIButtonShownForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
       }
@@ -1035,7 +1035,13 @@
           "src/firmware/fit/fitTopSwap.ts",
           "src/tools/fit/fitEditor.ts"
         ],
-        "FITToolTests/FITProtectionTests.swift": "src/tools/fit/fitEditor.test.ts"
+        "FITToolTests/FITProtectionTests.swift": "src/tools/fit/fitEditor.test.ts",
+        "FITAgentQueries.swift": "src/tools/fit/agent/fitAgentAnswers.ts",
+        "FITAgentMicrocode.swift": "src/tools/fit/agent/fitAgentAnswers.ts",
+        "FITAgentCatalogueTools.swift": "src/tools/fit/agent/fitAgentModule.ts",
+        "ByteRipperTests/AgentFirmwareToolsTests.swift": [
+          "src/tools/fit/agent/fitAgentAnswers.test.ts"
+        ]
       },
       "unported": {
         "Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable.ranges": "n/a — the protected ranges are the pane's already (`protectedRanges` in `firmwareStore.ts`), read once and kept until an edit, so the kept table need not carry them",
@@ -1077,9 +1083,7 @@
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewColumnDidResize": "n/a — AppKit table column resizing",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "n/a — upstream's tree calls the session back when the ranges land; the panel here reads them from the firmware store, which re-renders on its own",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
-        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentEdits": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentQueries": "later — the agent service in the Electron build (Design/PORT_AGENT.md)"
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
       }
     },
     {
@@ -1087,7 +1091,8 @@
       "web": [
         "src/tools/me",
         "src/ui/toolPanel/ToolDetail.tsx",
-        "src/platform/clipboard/richClipboard.ts"
+        "src/platform/clipboard/richClipboard.ts",
+        "src/tools/me/agent"
       ],
       "status": "in-progress",
       "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone and, with the tone, the weight a toned value is drawn in (`isEmphasized`, meaSummary.ts — upstream's rule in the view, stated once here because the panel and the picture taken of it are two renderings of the same rows; the copy is the exception, see ANALYSIS.md), the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Three of the tree's row groups are named from `FileTable.dat` rather than from the analysis, because the flash says nothing about them: an FTBL-mode MFS volume's low-level files (`MFSFileNames`), an EFS volume's files (`EFSFileNames`), and the files of an ID-keyed (0xC) Configuration stream, whether the FITC partition's payload or a newer volume's own 6/7 records (`ConfigRecordPaths`). Each group's own row says which table the names came from and whether either half of it was assumed, and the Configuration records the FITC payload locates also carry the byte range they point at — `payloadOffset` plus the record's own offset. The summary's values are selectable as upstream makes them (`value.isSelectable` on each), and its labels are not, which is also upstream's arrangement: there the name column is a plain label with the flag left off. Nothing checks it (G46). Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
@@ -1096,7 +1101,15 @@
         "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
         "MEAToolUI/MEAToolModule.swift": "src/tools/me/meTool.tsx",
         "MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts"
+        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
+        "MEAAgentQueries.swift": "src/tools/me/agent/meAgentAnswers.ts",
+        "MEAAgentFiles.swift": "src/tools/me/agent/meAgentFiles.ts",
+        "MEAAgentLocator.swift": "src/tools/me/agent/meAgentLocator.ts",
+        "Tests/MEAToolTests/MEAAgentQueriesTests.swift": "src/tools/me/agent/meAgentAnswers.test.ts",
+        "Tests/MEAToolTests/MEAAgentFilesTests.swift": [
+          "src/tools/me/agent/meAgentFiles.test.ts",
+          "src/tools/me/agent/meAgentLocator.test.ts"
+        ]
       },
       "unported": {
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.init": "n/a — an object literal",
@@ -1117,10 +1130,7 @@
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.isEmphasized": "n/a — `isEmphasized(row)`, a function over the row, anchored to the view code it was lifted from",
         "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentComparisons": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentLocator": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentQueries": "later — the agent service in the Electron build (Design/PORT_AGENT.md)"
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
       }
     },
     {
@@ -1149,16 +1159,16 @@
         "EFSFileNamesTests.swift": "src/tools/efsFileNames.test.ts",
         "ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts",
         "MEAPending.swift": "src/tools/mePending.ts",
-        "Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift": "src/tools/meaStateBasisText.ts"
+        "Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift": "src/tools/meaStateBasisText.ts",
+        "MEFileComparison.swift": "src/tools/meFileComparison.ts",
+        "Tests/MEPresentationTests/MEFileComparisonTests.swift": "src/tools/meFileComparison.test.ts"
       },
       "unported": {
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.init": "n/a — an object literal",
         "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testEveryHelpTermANodeNamesIsInTheGlossary": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
         "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheFirmwareAndPartitionTableRowsExplainThemselves": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
-        "Packages/MEPresentation/Sources/MEPresentation/MEAPending.swift#MEAPending.init": "n/a — an object literal",
-        "Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#*": "later — two dumps' MFS and EFS files compared by what they hold, where the volume moved them; the engine keeps each file's extents and digest already, but no panel shows the comparison yet; Design/GAPS.md",
-        "Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#*": "later — the tests of MEFileComparison; Design/GAPS.md"
+        "Packages/MEPresentation/Sources/MEPresentation/MEAPending.swift#MEAPending.init": "n/a — an object literal"
       }
     },
     {
@@ -1645,7 +1655,7 @@
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.firstVisibleOffset": "n/a — scrollLink.visibleRange(pane, rowBytes).start",
-        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "later — the agent service in the Electron build (Design/PORT_AGENT.md)"
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "n/a — what is on screen is the scroll link's (`scrollLink.visibleRange`)"
       }
     },
     {
@@ -4749,7 +4759,6 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openableRecentFiles": "n/a — a row whose file is gone is dropped when the page learns it (NotFound), and the list is of handles, not of paths to look up on disk",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.emptyStateFittingWindowHeight": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.revealDifferenceForAgent": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
       },
       "files": {
@@ -5404,20 +5413,32 @@
           "src/state/agent/agentMarkStore.ts"
         ],
         "AgentMarkTools.swift": "src/state/agent/agentMarkTools.ts",
-        "ByteRipperTests/AgentMarkTests.swift": "src/state/agent/agentMarkTools.test.ts"
+        "ByteRipperTests/AgentMarkTests.swift": "src/state/agent/agentMarkTools.test.ts",
+        "AgentBackgroundDocuments.swift": "src/state/agent/agentBackgroundDocuments.ts",
+        "AgentDumpTools.swift": [
+          "src/state/agent/agentDumpTools.ts",
+          "src/core/agent/agentSurvey.ts"
+        ],
+        "AgentDiffTools.swift": "src/state/agent/agentDiffTools.ts",
+        "AgentFindTools.swift": [
+          "src/state/agent/agentFindTools.ts",
+          "src/core/agent/agentFind.ts",
+          "src/tools/uefi/agent/uefiAgentFind.ts"
+        ],
+        "AgentEditTools.swift": [
+          "src/state/agent/agentEditTools.ts",
+          "src/core/agent/agentHexBytes.ts"
+        ],
+        "ByteRipperTests/AgentDumpToolsTests.swift": "src/state/agent/agentDumpTools.test.ts",
+        "ByteRipperTests/AgentDiffToolsTests.swift": "src/state/agent/agentDiffTools.test.ts",
+        "ByteRipperTests/AgentFindToolsTests.swift": "src/state/agent/agentDiffTools.test.ts",
+        "ByteRipperTests/AgentEditToolsTests.swift": "src/state/agent/agentEditTools.test.ts"
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place.controller": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.keyTab": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
-        "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.background": "later — background documents, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.onScreenPlace": "later — background documents, stage A6 of Design/PORT_AGENT.md",
         "ByteRipperApp/Agent/AgentService.swift#AgentService.socketPath": "n/a — the endpoint is the shell's (desktop/agent-endpoint.cjs)",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.diffTools": "later — stage A9 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.dumpTools": "later — stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.editTools": "later — stage A8 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.findTools": "later — stage A9 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.markTools": "later — stage A5 of Design/PORT_AGENT.md",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentTableStyle": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentTableStyle.apply": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentTableStyle.cell": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
@@ -5432,21 +5453,7 @@
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownDetails": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownText": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.tableView": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.tableViewSelectionDidChange": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.build": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.isEmpty": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.numberOfRows": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.onSelectionChanged": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.onShow": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.rows": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.show": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.shownText": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.table": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.tableView": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.tableViewSelectionDidChange": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.findingsList": "later — the Findings page, stage A6 of Design/PORT_AGENT.md",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showFindings": "later — the Findings page, stage A6 of Design/PORT_AGENT.md"
+        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.tableViewSelectionDidChange": "n/a — AppKit table furniture or a test hook of the Agent window; the web's is a React table"
       }
     },
     {

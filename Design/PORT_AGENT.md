@@ -80,17 +80,18 @@ Each ends with the checks green and a commit.
   the pane's tree (`agentUefi`) and answered there in English; the variables come
   back as rows the page filters and compares. The locator moves to A9, with
   `diff`, the only tool that asks for it.
-- [ ] **A5 — Marks.** The layer on the pane, dashed in the agent's colour in the
-  dump (and the minimap's gutter), the note under the pointer, the window's list.
-- [ ] **A6 — Many dumps.** Background documents, `open_dump`, `close_dump`,
+- [x] **A5 — Marks.** The layer on the pane, dashed in the agent's colour in the
+  dump (upstream draws none in the minimap's gutter, nor does this), the note
+  under the pointer, the window's list.
+- [x] **A6 — Many dumps.** Background documents, `open_dump`, `close_dump`,
   `show`, `survey`, `finding`, `findings`.
-- [ ] **A7 — FIT and ME.** `fit_table`, `microcode_catalogue`, `me_summary`,
+- [x] **A7 — FIT and ME.** `fit_table`, `microcode_catalogue`, `me_summary`,
   `me_tree`, `me_files_compare` with `MEFileComparison`; the ME locator.
-- [ ] **A8 — Edits.** `write`, the edit switch, `uefi_fix_checksum`,
+- [x] **A8 — Edits.** `write`, the edit switch, `uefi_fix_checksum`,
   `fit_fix_checksum`, `fit_add_microcode`, `fit_replace_microcode`,
   `fit_remove_microcode`.
-- [ ] **A9 — Byte comparison and search.** `diff`, `compare`, `reveal_diff`,
+- [x] **A9 — Byte comparison and search.** `diff`, `compare`, `reveal_diff`,
   `find_bytes` (`MaskedSearch`), `open_part`.
-- [ ] **A10 — Help and release.** The help page in en, de and ru with its
+- [x] **A10 — Help and release.** The help page in en, de and ru with its
   anchors, the strings, the README, packaging (`relay.cjs` outside the asar),
   GAPS and the module map; a run of the packaged build.

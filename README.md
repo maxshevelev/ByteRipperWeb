@@ -45,6 +45,14 @@ checksums, the **FIT Table** with microcode added, replaced and removed in
 place, and the **ME Analyzer**'s reading of the Intel ME/CSME region. Settings
 cover the font, the theme, the grouping and the text decoding table.
 
+The **Windows build** also carries the macOS app's **agent service**: Claude
+Code, Claude Desktop or any program that speaks MCP can be connected through a
+named pipe, read the open files and the firmware's structure, compare dumps,
+mark and search bytes and show the person places in them — and, when the person
+allows it, patch a file, one undo step at a time. It is off until it is
+switched on in Settings ▸ Agent; nothing of it exists in the browser edition
+(`Design/PORT_AGENT.md`, `Design/AGENT_PROTOCOL.md`).
+
 The **pattern library** travels between machines. In Chromium it can live in a
 folder you choose — iCloud Drive, OneDrive, Dropbox — where each browser and
 each Mac running ByteRipper writes its own file and reads the others'. Changes

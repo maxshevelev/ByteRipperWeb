@@ -4,8 +4,10 @@ import { type AgentCallRecord, AgentServer } from "@/core/agent/agentServer";
 import type { AgentTool } from "@/core/agent/agentTool";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
 import { AgentDesk } from "@/state/agent/agentDesk";
+import { AgentDiffTools } from "@/state/agent/agentDiffTools";
 import { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { AgentEditTools } from "@/state/agent/agentEditTools";
+import { AgentFindTools } from "@/state/agent/agentFindTools";
 import { AgentHostTools } from "@/state/agent/agentHostTools";
 import { AgentMarkTools } from "@/state/agent/agentMarkTools";
 import { AgentModuleTools } from "@/state/agent/agentModuleTools";
@@ -94,7 +96,20 @@ export const AGENT_INSTRUCTIONS =
   "back the same way. Ranges are half-open: `end` is the first byte after the range. A list comes in " +
   "pages: `limit` is a ceiling, a page also stops before the answer passes the size bound and says " +
   '`truncated: "size"`, and `next`, passed back as `after`, goes on until it is null. Use `reveal` ' +
-  "to point at what you are talking about; the person's Back undoes it.";
+  "to point at what you are talking about; the person's Back undoes it. `open_dump` reads a file by " +
+  "path without putting it on screen, `survey` asks one tool's question of a whole folder of dumps, and " +
+  "`finding` records each thing found for the person to check with a click. `find_bytes` searches the " +
+  "bytes for a text or a pattern — inside a compressed section with `node` — `uefi_node_data` reads a " +
+  "node's bytes, and `open_part` opens a stretch as a part of its own. `diff` lists where two " +
+  "documents differ byte by byte and in which part of the firmware; `compare` shows the two side by " +
+  "side and `reveal_diff` walks the person through the differences. `mark` labels bytes for the " +
+  "person while you explain them, and `related_to` says how two marks hang together. Nothing here " +
+  "saves a file; `write`, the `_fix_checksum` tools and the microcode tools — `microcode_catalogue` " +
+  "lists what github.com/platomav/CPUMicrocodes offers, `fit_add_microcode`, `fit_replace_microcode` and " +
+  "`fit_remove_microcode` change the FIT — change an open file, one undo step each, and only if the " +
+  "person allows edits. " +
+  "The `uefi_` tools read a firmware image's structure and work whether or not its panel is open; " +
+  "`uefi_select` and `uefi_selection` act on the open UEFI Structure panel, which `open_panel` opens.";
 
 export class AgentService {
   /**
@@ -111,9 +126,22 @@ export class AgentService {
   readonly dumpTools: AgentDumpTools;
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.editTools */
   readonly editTools: AgentEditTools;
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.diffTools */
+  readonly diffTools: AgentDiffTools;
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.findTools */
+  readonly findTools: AgentFindTools;
   readonly moduleTools: AgentModuleTools;
   private bridge: AgentBridge | undefined;
   private readonly connections = new Map<number, AgentConnection>();
+  /**
+   * The connections whose client has sent a message. A socket alone is not an agent: Claude
+   * Desktop, starting its servers, launches the relay, abandons it a second later for a fresh one,
+   * and leaves the first running with its pipes open. That relay connects and never speaks, and
+   * counting it showed two agents where there was one.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.clients
+   */
+  private readonly clients = new Set<number>();
   private unsubscribe: (() => void)[] = [];
   private builtServer: AgentServer | undefined;
   private callListeners = new Set<(record: AgentCallRecord) => void>();
@@ -132,6 +160,8 @@ export class AgentService {
     this.editTools.isAllowed = () => this.store.getSnapshot().editsAllowed;
     this.moduleTools = new AgentModuleTools(this.desk, modules);
     this.moduleTools.edits = this.editTools;
+    this.diffTools = new AgentDiffTools(this.desk, this.moduleTools, modules);
+    this.findTools = new AgentFindTools(this.desk, this.diffTools, this.moduleTools);
   }
 
   /** Whether there is a shell to serve through; a browser has none, and no agent. */
@@ -149,6 +179,8 @@ export class AgentService {
       ...this.hostTools.tools(),
       ...this.markTools.tools(),
       ...this.dumpTools.tools(),
+      ...this.diffTools.tools(),
+      ...this.findTools.tools(),
       ...this.editTools.tools(),
       ...this.moduleTools.tools(),
     ].map((tool) => this.refreshing(tool));
@@ -262,6 +294,7 @@ export class AgentService {
     this.unsubscribe = [];
     for (const connection of this.connections.values()) connection.close();
     this.connections.clear();
+    this.clients.clear();
     void this.bridge?.setEnabled(false);
     this.store.update((state) => ({
       ...state,
@@ -282,15 +315,22 @@ export class AgentService {
     }
     this.connections.set(
       id,
-      this.connect((line) => bridge.send(id, line))
+      this.connect(
+        (line) => bridge.send(id, line),
+        () => {
+          if (!this.connections.has(id)) return;
+          this.clients.add(id);
+          this.store.update((state) => ({ ...state, connections: this.clients.size }));
+        }
+      )
     );
-    this.store.update((state) => ({ ...state, connections: this.connections.size }));
   }
 
   private release(id: number): void {
     this.connections.get(id)?.close();
     if (!this.connections.delete(id)) return;
-    this.store.update((state) => ({ ...state, connections: this.connections.size }));
+    this.clients.delete(id);
+    this.store.update((state) => ({ ...state, connections: this.clients.size }));
   }
 
   /**
@@ -299,8 +339,8 @@ export class AgentService {
    *
    * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.connect
    */
-  connect(send: (line: Uint8Array) => void): AgentConnection {
-    return new AgentConnection(this.server, send, (record) => this.record(record));
+  connect(send: (line: Uint8Array) => void, onFirstMessage?: () => void): AgentConnection {
+    return new AgentConnection(this.server, send, (record) => this.record(record), onFirstMessage);
   }
 
   /** Hears every call once it is over; returns the way to stop. */

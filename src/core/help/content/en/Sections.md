@@ -10,11 +10,11 @@
 @section firmware
 @name Tool Panels
 
-@section bench
-@name Appendix
-
 @section agent
 @name Working with an Agent
+
+@section bench
+@name Appendix
 
 @section settings
 @name Settings

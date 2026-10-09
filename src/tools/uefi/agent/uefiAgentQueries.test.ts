@@ -3,6 +3,7 @@ import { AgentArguments } from "@/core/agent/agentArguments";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { type Json, member } from "@/core/agent/json";
 import * as Test from "@/firmware/testing/testImage";
+import { nvramVolume, vssStore } from "@/firmware/testing/testNvram";
 import { guid } from "@/firmware/uefi/efiGuid";
 import {
   runUefiAgentQuery,
@@ -47,6 +48,15 @@ describe("uefi_tree", () => {
     expect(member(answer, "total")).toBe(children.length);
     expect(member(answer, "next")).toBeNull();
     expect(typeof member(children[0], "type")).toBe("string");
+  });
+
+  it("summarises an image whose top is a bare volume, with nothing wrapping it", () => {
+    // Found in the real worker: the summary reads the words of the Type column, which the
+    // parser's nodes do not carry themselves.
+    const tree = agentTreeOver(
+      nvramVolume({ stores: [vssStore({ variables: [], freeSpace: 0x40 })] })
+    );
+    expect(typeof member(uefiTree(tree, args(), context), "image")).toBe("string");
   });
 
   it("opens a container when asked for it, and goes down with depth", () => {

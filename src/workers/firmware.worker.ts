@@ -90,6 +90,8 @@ import { MFSFileNames } from "@/tools/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
+import { type FindInNodeParams, findInNode } from "@/tools/uefi/agent/uefiAgentFind";
+import { areasIn, locateIn, place, placesJson } from "@/tools/uefi/agent/uefiAgentLocator";
 import { uefiNodeData } from "@/tools/uefi/agent/uefiAgentNodeData";
 import { runUefiAgentQuery } from "@/tools/uefi/agent/uefiAgentQueries";
 import {
@@ -997,6 +999,22 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           image: () =>
             new UEFIImage({ size: here.count, roots, addressDiff: addressing().addressDiff }),
         };
+        // The one question that is asked of bytes, not of the tree alone: the search reads in chunks.
+        if (request.query === "uefi_find_bytes") {
+          void findInNode(tree, request.values as unknown as FindInNodeParams).then(
+            (answer) => post({ kind: "agentUefi", id: request.id, answer }),
+            (error: unknown) =>
+              post({
+                kind: "agentUefi",
+                id: request.id,
+                error:
+                  error instanceof AgentToolError
+                    ? error.message
+                    : `The tool failed: ${String(error)}`,
+              })
+          );
+          return;
+        }
         try {
           const outcome = withEnglish(() => {
             const args = new AgentArguments(request.values, request.answerBound);
@@ -1006,6 +1024,21 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                 return { answer: uefiNodeData(tree, args) };
               case "variable_rows":
                 return { rows: variableRows(tree) };
+              // Where the parts of the image are, and where ranges of the file fall in them: what
+              // the byte comparison places its runs by.
+              //
+              // @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentLocator.swift#UEFIAgentLocator.locator
+              case "uefi_areas":
+                return { answer: placesJson(areasIn(tree).map(place)) };
+              case "uefi_locate": {
+                const wanted = (args.get("ranges") ?? []) as readonly (readonly number[])[];
+                const areas = new Set(areasIn(tree).map((one) => nodeIdText(one.id)));
+                return {
+                  answer: wanted.map((one) =>
+                    placesJson(locateIn({ start: one[0] ?? 0, end: one[1] ?? 0 }, tree, areas))
+                  ),
+                };
+              }
               case "uefi_fix_checksum": {
                 // What the panel's Fix Checksum would write, computed by the same code: the
                 // module only works the change out, and the app decides whether it is made.
@@ -1036,6 +1069,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                   },
                 };
               }
+              case "uefi_find_bytes":
+                return { answer: null };
               default:
                 return { answer: runUefiAgentQuery(request.query, tree, args, context) };
             }

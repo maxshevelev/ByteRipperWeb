@@ -47,6 +47,19 @@ How it works:
   Ctrl+N and Ctrl+W are the browser's, so the web menu lists only the other
   three.
 
+**The agent service** (`../Design/PORT_AGENT.md`). `agent.cjs` listens on a
+named pipe (`\\.\pipe\ByteRipper-agent-<user>`; a Unix socket elsewhere,
+`agent-endpoint.cjs` says where) while the page says the service is on, and
+copies bytes between each connection and the page through the preload bridge
+(`byteripperDesktop.agent`); it knows no message — MCP, the tools and every
+answer are the page's. `relay.cjs` is what an agent's client launches: the
+app's own executable run as Node (`ELECTRON_RUN_AS_NODE=1`), which connects
+stdin and stdout to the pipe and starts the app if nothing is listening. Both
+files are unpacked from the asar (`asarUnpack`), since a client runs the relay
+by a path on disk. Files by path (`open_dump`, `survey`) are read here, only
+while the service is on and only for the app's own page. `npm test` runs the
+transport and the relay.
+
 **Start-up time.** The portable `.exe` unpacks the whole application into a
 temporary folder on every launch, and the antivirus scans it each time, so it
 is the slowest way to start. The setup installs once, per user and without

@@ -1,4 +1,4 @@
-import type { AgentArguments } from "@/core/agent/agentArguments";
+import { AgentArguments } from "@/core/agent/agentArguments";
 import { parseHexBytes } from "@/core/agent/agentHexBytes";
 import { AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
@@ -10,9 +10,12 @@ import type {
   ToolAgentAction,
   ToolAgentComparison,
   ToolAgentEdit,
+  ToolAgentLocator,
+  ToolAgentPlace,
   ToolAgentQuery,
   ToolReadHost,
 } from "@/tools/toolAgent";
+import type { WirePlace } from "@/tools/uefi/agent/uefiAgentLocator";
 import { UEFI_NODE_DATA } from "@/tools/uefi/agent/uefiAgentNodeData";
 import {
   UEFI_AT,
@@ -57,7 +60,9 @@ async function ask(
     | "uefi_find"
     | "uefi_at"
     | "uefi_node_data"
-    | "uefi_fix_checksum",
+    | "uefi_fix_checksum"
+    | "uefi_areas"
+    | "uefi_locate",
   args: AgentArguments
 ): Promise<Json> {
   const pane = await readyTree(host);
@@ -220,3 +225,45 @@ export const uefiAgentEdits: readonly ToolAgentEdit[] = [
     },
   },
 ];
+
+/**
+ * Where ranges of the file are in the UEFI structure (`uefiAgentLocator`), asked of the worker that
+ * holds the tree. Nothing is known of a document whose image could not be read.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentLocator
+ */
+export const uefiAgentLocator: ToolAgentLocator = {
+  precedence: 0,
+  areas: async (host) => {
+    try {
+      return placesOf(await ask(host, "uefi_areas", new AgentArguments({})));
+    } catch {
+      return [];
+    }
+  },
+  locate: async (host, ranges) => {
+    try {
+      const answer = await ask(
+        host,
+        "uefi_locate",
+        new AgentArguments({ ranges: ranges.map((one) => [one.start, one.end]) })
+      );
+      return (answer as Json[]).map(placesOf);
+    } catch {
+      return ranges.map(() => []);
+    }
+  },
+};
+
+/** The places a worker answered, as the seam's. */
+export function placesOf(json: Json): ToolAgentPlace[] {
+  return (json as unknown as WirePlace[]).map((one) => ({
+    kind: one.kind,
+    id: one.id,
+    name: one.name,
+    range:
+      one.start === undefined || one.end === undefined
+        ? undefined
+        : { start: one.start, end: one.end },
+  }));
+}

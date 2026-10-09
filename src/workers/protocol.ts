@@ -623,7 +623,10 @@ export interface AgentUefiRequest {
     | "uefi_at"
     | "uefi_node_data"
     | "variable_rows"
-    | "uefi_fix_checksum";
+    | "uefi_fix_checksum"
+    | "uefi_areas"
+    | "uefi_locate"
+    | "uefi_find_bytes";
   readonly values: { readonly [key: string]: Json };
   readonly answerBound: number;
   readonly contentVersion: number;

@@ -44,18 +44,18 @@ At present an agent can:
 - list the open files, with their names, sizes and whether they have unsaved edits;
 - read the position of the caret, the selection and the rows on screen;
 - read bytes — as hex rows, as text, or as 16-, 32- and 64-bit numbers — including unsaved edits;
-- show a place: bring its tab forward, scroll to it and select it;
+- show a place: bring its pane forward, scroll to it and select it;
 - read the structure of a firmware image as **UEFI Structure** shows it — the tree, the fields of a node, the nodes holding an address — and search it by name, GUID or type. This works whether or not the panel is open;
 - read the FIT table as **FIT Table** shows it — its rows, what each points at, the rules it breaks — and the Intel ME firmware as **ME Analyzer** shows it: the summary and the decoded structure. This too works with the panels closed;
 - list the NVRAM variables of a dump with their values, read as their types, and set the variables of two dumps side by side by name and GUID: which only one of them has, which differ and in which bytes. Two dumps of different boards or BIOS versions compare as well as two of one board, and a folder of dumps can be compared with one of them at once;
 - set the files of the ME file systems (MFS and EFS) of two dumps side by side by their number in the volume and by content, not by address: which are the same, which differ and in how many bytes, which only one dump has. The volume moves its data to spread the wear on the chip, so in two dumps of one machine the same file can lie at different addresses; a byte comparison of the partition then shows moved data, while this comparison shows which files changed. The Integrity table at the end of a protected file is compared separately: it changes every time the engine writes the file again. A volume one of the dumps cannot be read in is named as not compared, and its files are not counted as missing;
 - mark bytes while explaining them: a dashed outline in a colour of its own, with a short label; resting the pointer on the marked bytes shows the agent's note. A mark can name others it is about — a pointer and its target, a checksum and what it covers;
-- open a file by its path without putting it on screen, and ask the same question of every dump in a folder at once — how many copies of a variable each holds, which address a structure starts at — getting the answers grouped by value. A file opened this way is only read; the agent puts it in a tab of its own when there is something in it to show;
+- open a file by its path without putting it on screen, and ask the same question of every dump in a folder at once — how many copies of a variable each holds, which address a structure starts at — getting the answers grouped by value. A file opened this way is only read; when there is something in it to show, the agent puts it in a free pane of the window — never over a file that is open there; with both panes taken it says so, and the person makes room;
 - record findings: each a sentence and the place it is about, listed in the Agent window;
 - compare two files byte by byte, as the comparison of two panes does — at the same addresses, without aligning shifted data. The answer is either a list of the stretches that differ, each with the part of the firmware it lies in (a region, a volume, a variable, an ME partition or file), or a summary over the regions, volumes and ME partitions that names the unchanged ones too. A folder of dumps can be compared with one of them at once;
 - find a text or bytes in a file — as ASCII or UTF-16, in any case, with `??` for a byte that may be anything — including inside the compressed sections of a firmware image, which the file holds only compressed; each match with the part of the firmware it lies in;
 - read the bytes of a node of **UEFI Structure**, a node inside a compressed section included, and open a stretch of a file or a node as a part over the file, as **Open Zone** does, so two blocks at different addresses are compared from their beginnings;
-- show two files side by side as a pair — or beside a file that is alone in its workspace — and step through their differences as the difference arrows of the window do;
+- show two files side by side as a pair — beside a file that is alone in the window, in the free pane — and step through their differences as the difference arrows of the window do;
 - open a tool panel on a document, as the **Tools** menu does, and choose a node in the open **UEFI Structure** panel. The tree opens down to the node and the dump scrolls to its bytes.
 
 Each place an agent shows, each panel it opens and each node it chooses is a step of the navigation history: **View ▸ Back** (**[[key:back]]**) returns to the place the view was at before ([[topic:navigation|Moving Around]]).
@@ -82,7 +82,7 @@ Each change is one step of the file's undo, named **Agent:** and what the agent 
 
 **Marks** lists the marks the agent has left in every open file: the label, the file, the bytes, the note, and the marks it is about. A double-click on a row brings its file forward and selects its bytes, as a step of the navigation history. **Remove Mark** removes the selected rows, **Clear Marks** removes them all. A mark also goes when its file is closed or when the agent removes it.
 
-**Findings** lists what the agent found and where: the sentence, the file, the bytes or the node. A double-click opens the file at that place — in the pane that already has it, or in a new part. **Clear Findings** empties the list.
+**Findings** lists what the agent found and where: the sentence, the file, the bytes or the node. A double-click opens the file at that place — in the pane that already has it, or in a free pane. **Clear Findings** empties the list.
 
 ## Files outside the open windows
 

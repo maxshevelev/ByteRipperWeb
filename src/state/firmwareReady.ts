@@ -1,5 +1,10 @@
 import { AgentToolError } from "@/core/agent/agentTool";
-import { ensurePaneFirmware, firmwareFor, firmwareStore } from "@/state/firmwareStore";
+import {
+  ensurePaneFirmware,
+  firmwareFor,
+  firmwareStore,
+  settleFirmwareChanges,
+} from "@/state/firmwareStore";
 import type { PaneId } from "@/state/paneId";
 
 /**
@@ -15,6 +20,8 @@ import type { PaneId } from "@/state/paneId";
  */
 export async function readyFirmware(pane: PaneId): Promise<void> {
   await ensurePaneFirmware(pane);
+  // What the agent wrote a moment ago is in the tree it is about to ask.
+  await settleFirmwareChanges(pane);
   await new Promise<void>((resolve) => {
     const settled = () => {
       const status = firmwareFor(pane)?.status;

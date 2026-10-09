@@ -25,6 +25,8 @@ import { fileTableWanted, MFSFileNames, meFileNamesAsk } from "@/tools/mfsFileNa
  */
 export interface MeAgentReading {
   readonly analysis: FirmwareAnalysis;
+  /** Where in the image the ME region begins. */
+  readonly regionOffset: number;
   /** What `FileTable.dat` names, `none` where the dump needs no table or it could not be had. */
   readonly names: MFSFileNames;
   readonly efsNames: EFSFileNames;
@@ -97,5 +99,5 @@ export async function meAgentReading(pane: PaneId): Promise<MeAgentReading> {
       configPaths = found?.config ?? ConfigRecordPaths.none;
     }
   }
-  return { analysis, names, efsNames, configPaths };
+  return { analysis, regionOffset: reading.response.regionOffset, names, efsNames, configPaths };
 }
