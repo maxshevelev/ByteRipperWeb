@@ -1,6 +1,6 @@
 import type { HelpTopicId } from "@/core/help/helpIds";
+import type { PartCodec } from "@/core/parts/partCodec";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
-import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { NoticeGlyph } from "@/state/noticeStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import type { PaneId } from "@/state/workspaceStore";
@@ -116,48 +116,34 @@ export interface ToolContext {
    */
   readonly showNotice: (glyph: NoticeGlyph, lines: readonly string[]) => void;
   /**
-   * Bytes the panel has made sense of, opened as a part of their own — a panel
-   * over the file they came out of, with a pill in the dock
-   * (`Design/GAPS.md` G48, G49).
+   * A part of this pane's file, opened as a panel over it, linked to `source`
+   * (`Design/GAPS.md` G48, G49; upstream's `Design/FRAGMENT_PANELS_PLAN.md`).
    *
-   * The tool decides what the bytes are and what they are called; where they
-   * open is the application's, and there is only one answer to that.
-   *
-   * `source` is where those bytes are in the pane's own file: the link back,
-   * which is what Update in Parent puts them through. A part opened without one
-   * has no way home and says so.
+   * `codec` is the whole of what the part is: what the panel shows is what it
+   * decodes from `source`, and what Update in Parent writes back is what it
+   * encodes from the panel. A copy, a body decompressed, a block decoded —
+   * each is a codec, and the application opens and puts back all of them the
+   * same way. Where the part opens is the application's, and there is only one
+   * answer to that.
    *
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.openPart
    * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
-   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openFilePart
-   * @upstream-differs one form for both: `part.kind` says whether the bytes are a copy of the file's own or what a section decompresses to
+   * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartOpening.swift#UEFIPartOpening
+   * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartOpening.swift#UEFIPartOpening.openPart
+   * @upstream-differs one form for both: the layout a UEFI panel opened on the
+   * part reads it as is an optional last argument rather than a second protocol
    */
   readonly openPart: (
-    bytes: Uint8Array,
     name: string,
-    source?: readonly [number, number],
+    source: readonly [number, number],
+    codec: PartCodec,
     /**
      * What a panel opened on the part should read its bytes as, where the tool
      * knows: a decompressed body is a run of sections, not an image to scan.
      *
      * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout
      */
-    layout?: UEFIRootLayout,
-    /**
-     * How the bytes stand to the source, and where they go back to: the
-     * source's own bytes go back as they are, what it decompresses to goes back
-     * compressed again, and a part the image can be laid out again around goes
-     * through the rebuild planner at whatever length it has come to
-     * (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
-     *
-     * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#UEFITreeProviding.openPart
-     * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#UEFITreeProviding.openFilePart
-     */
-    part?: {
-      readonly kind: "copy" | "decompressed";
-      readonly rebuild?: RebuildTarget | undefined;
-    }
+    layout?: UEFIRootLayout
   ) => void;
 }
 

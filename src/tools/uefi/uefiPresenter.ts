@@ -98,6 +98,49 @@ export interface DecompressedBody {
 }
 
 /**
+ * What the buffer `space` was compressed with — `LZMA`, `Tiano`, `Zlib` — read
+ * off the node it is the body of: the innermost one, which is what the panel's
+ * bytes came straight out of. `BIOS Guard` for a region a BIOS Guard update
+ * assembles. Nothing for the file.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.compressionName
+ * @upstream-differs over the rows the panel holds rather than the parsed image:
+ * the node a buffer came out of is an ancestor of every row inside it, so it is
+ * among them
+ */
+export function compressionName(
+  space: readonly number[],
+  roots: readonly CompressionHolder[]
+): string | undefined {
+  const last = space[space.length - 1];
+  if (last === undefined) return undefined;
+  const parent = space.slice(0, -1);
+  const find = (nodes: readonly CompressionHolder[]): CompressionHolder | undefined => {
+    for (const node of nodes) {
+      if (sameSpace(node.space, parent) && node.header[0] === last) return node;
+      const inside = find(node.children ?? []);
+      if (inside !== undefined) return inside;
+    }
+    return undefined;
+  };
+  const holder = find(roots);
+  if (holder === undefined) return undefined;
+  // A BIOS Guard update's region is assembled from its blocks, not
+  // decompressed, and its badge says what it is.
+  if (holder.kind === "biosGuardUpdate") return "BIOS Guard";
+  return holder.compression?.algorithm;
+}
+
+/** The fields `compressionName` reads off a row of the tree. */
+export interface CompressionHolder {
+  readonly kind: string;
+  readonly header: readonly [number, number];
+  readonly space: readonly number[];
+  readonly compression?: { readonly algorithm: string } | undefined;
+  readonly children?: readonly CompressionHolder[] | undefined;
+}
+
+/**
  * A compressed section offers everything it decompresses to — one that opened, and one
  * still closed that would: the row already says it is compressed, and the buffer is
  * decoded when it is read. A node inside a decoded buffer needs no second item: opening

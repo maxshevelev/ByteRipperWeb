@@ -65,7 +65,8 @@ async function plan(request: FirmwareRebuildRequest): Promise<unknown> {
         ? {}
         : { range: { start: request.target.range[0], end: request.target.range[1] } }),
     },
-    file
+    file,
+    { readsProtectedRanges: true }
   );
   if (!result.ok) {
     return {
@@ -75,8 +76,6 @@ async function plan(request: FirmwareRebuildRequest): Promise<unknown> {
       refusal: result.refusal.message,
     };
   }
-  const rebuilt = file;
-  rebuilt.set(result.plan.bytes, result.plan.offset);
   const { start, end } = result.plan.source;
   return {
     kind: "firmwareRebuild",
@@ -86,7 +85,6 @@ async function plan(request: FirmwareRebuildRequest): Promise<unknown> {
       bytes: result.plan.bytes,
       warnings: result.plan.warnings,
       source: [start, end],
-      sourceBytes: rebuilt.slice(start, end),
     },
     refusal: undefined,
   };
@@ -94,13 +92,14 @@ async function plan(request: FirmwareRebuildRequest): Promise<unknown> {
 
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { openLinkedPart } = await import("@/state/openLinkedPart");
+const { openGivenPart } = await import("@/state/testing/givenParts");
+const { UEFIPartCodec } = await import("@/state/uefiPartCodec");
 const { updateInParent } = await import("@/state/partUpdate");
 const { EMPTY_DOCK } = await import("@/state/fragmentDock");
 const { closePart, openEmptyInPane, paneState, workspaceStore } = await import(
   "@/state/workspaceStore"
 );
-type PartId = Awaited<ReturnType<typeof openLinkedPart>>;
+type PartId = Awaited<ReturnType<typeof openGivenPart>>;
 
 beforeEach(() => {
   posted = [];
@@ -147,13 +146,13 @@ async function partOfTheFile(): Promise<{
   const slot = paneState("a");
   if (slot === undefined) throw new Error("pane A should be open");
   await slot.document.insert(0, bytes);
-  const part = await openLinkedPart({
+  const part = await openGivenPart({
     parent: "a",
     bytes: await slot.document.read(file.start, file.end - file.start),
     name: "bios_MyDriver.bin",
     source: [file.start, file.end],
     partName: "MyDriver",
-    rebuildTarget: { space: [], range: file },
+    back: new UEFIPartCodec({ pane: "a", target: { space: [], range: file } }),
   });
   return { part, file, bytes };
 }
@@ -250,14 +249,13 @@ describe("a part the image is laid out again around", () => {
     const slot = paneState("a");
     if (slot === undefined) throw new Error("pane A should be open");
     await slot.document.insert(0, new Uint8Array(0x100).fill(0xff));
-    const part = await openLinkedPart({
+    const part = await openGivenPart({
       parent: "a",
       bytes: new Uint8Array(0x60),
       name: "bios_body.bin",
       source: [0x20, 0x80],
       partName: "body",
-      kind: "decompressed",
-      rebuildTarget: { space: [0x20] },
+      back: new UEFIPartCodec({ pane: "a", target: { space: [0x20] } }),
     });
     await paneState(part)?.document.overwrite(0, Uint8Array.from([0x01]));
 

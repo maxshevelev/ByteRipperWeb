@@ -435,7 +435,6 @@
 "Could not open file." = "Die Datei konnte nicht geöffnet werden.";
 "Could not reach github.com: %1$@" = "github.com nicht erreichbar: %1$@";
 "Could not read the file." = "Die Datei ließ sich nicht lesen.";
-"Could not read the zone." = "Die Zone konnte nicht gelesen werden.";
 "Could not save “%1$@”." = "„%1$@“ konnte nicht gesichert werden.";
 "Could not update “%1$@”." = "„%1$@“ konnte nicht aktualisiert werden.";
 "CPUID" = "CPUID";
@@ -1037,6 +1036,14 @@
 "The variable does not decompress." = "Die Variable lässt sich nicht entpacken.";
 "There is nothing decompressed to open here." = "Hier ist nichts Entpacktes zum Öffnen.";
 "Cancelling…" = "Wird abgebrochen…";
+"A compressed section on the way to the part no longer decompresses." = "Eine komprimierte Sektion auf dem Weg zu diesem Teil lässt sich nicht mehr entpacken.";
+"A structure of the image. Update in Parent lays the image out again around it, so its length may change." = "Eine Struktur des Images. Beim Aktualisieren in der Quelle wird das Image um sie herum neu angeordnet; ihre Länge kann sich daher ändern.";
+"Decompressed from the file. Update in Parent compresses it again the way the section was compressed." = "Aus der Datei entpackt. Beim Aktualisieren in der Quelle wird es so wieder gepackt, wie die Sektion gepackt war.";
+"These bytes were worked out of the file and cannot be put back into it." = "Diese Bytes wurden aus der Datei umgeformt und lassen sich nicht zurückschreiben.";
+"This is the text the variable unpacks to, and nothing here packs it again." = "Dies ist der Text, zu dem sich die Variable entpackt; das Programm kann ihn nicht wieder packen.";
+"part badge|Decompressed" = "Entpackt";
+"part badge|Read-only" = "Nur lesbar";
+"part badge|Structure" = "Struktur";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der
@@ -1208,7 +1215,6 @@
 "The microcode went in at %1$@." = "Der Microcode steht jetzt bei %1$@.";
 "The part could not be read" = "Der Teil ließ sich nicht lesen";
 "The server answered %1$@." = "Der Server antwortete %1$@.";
-"These bytes were decompressed from “%1$@” in %2$@, and where they belong in it was not recorded when the part was opened." = "Diese Bytes wurden aus „%1$@“ in %2$@ entpackt, und wohin sie dort gehören, wurde beim Öffnen des Teils nicht festgehalten.";
 "This browser cannot make a copy: it has no private storage to put one in." = "Dieser Browser kann keine Kopie anlegen: er hat keinen privaten Speicher, in den sie käme.";
 "This browser did not give the header a 2D context." = "Der Browser hat der Kopfzeile keinen 2D-Kontext gegeben.";
 "This browser did not give the minimap a 2D context." = "Der Browser hat der Minimap keinen 2D-Kontext gegeben.";

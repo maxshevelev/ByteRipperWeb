@@ -1,6 +1,13 @@
 import { L } from "@/core/localization/localization";
-import type { DocumentOrigin, OriginUpdate } from "@/state/documentOrigin";
-import { askFirmwareRebuild } from "@/state/firmwareStore";
+import {
+  type PartCodec,
+  type PartParent,
+  type PartReader,
+  PartRefusal,
+  type PartUpdate,
+} from "@/core/parts/partCodec";
+import type { DocumentOrigin } from "@/state/documentOrigin";
+import { documentPartReader } from "@/state/documentPartReader";
 import { BackgroundOperation, presentBlocking } from "@/state/operationStore";
 import { applyTransaction } from "@/state/toolEdits";
 import {
@@ -16,9 +23,11 @@ import {
  * step in the parent (`Design/UEFI/UPDATE_IN_PARENT.md` §3).
  *
  * Everything that can be wrong with it is decided before a byte moves — the
- * parent may have closed, the source may have changed under it, the part may
- * have grown — and the link says which (`DocumentOrigin.planUpdate`). What is
- * left here is the asking and the writing.
+ * parent may have closed, the source may have changed under it — and the link
+ * says which (`DocumentOrigin.planUpdate`). What goes back is the codec's
+ * (`PartCodec.encode`): the same bytes, the bytes encoded again, a body
+ * compressed again and the image laid out around it. What is left here is the
+ * asking and the writing.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.writeUpdate
@@ -56,7 +65,19 @@ function confirmOverwritingChangedSource(origin: DocumentOrigin): boolean {
 /**
  * Puts `pane`'s bytes back into the document they came out of.
  *
+ * A quick codec — a copy, an XOR — is written on the spot; a slow one works in
+ * the parent's worker behind a modal that says what is being done and how far
+ * it has got, with a Cancel that abandons the result: the work cannot be
+ * stopped halfway, but nothing is written until it is done, so abandoning costs
+ * nothing. It is modal for upstream's own reason — the update is worked out
+ * over the parent's bytes as they were when it was asked for, and a change
+ * landing under it would only be thrown away with it.
+ *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginUpdateOperation
+ * @upstream-differs one window: upstream's sheet hangs on the parent's window
+ * and brings that window to the front first, where this modal is the one
+ * window's own
  */
 export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
   const slot = paneState(pane);
@@ -69,63 +90,42 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     reportAlert(plan.title, plan.message, "problem");
     return { kind: "refused" };
   }
+  const parent = paneState(origin.parent);
+  if (parent === undefined) return { kind: "refused" };
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
   const stepName = L("Update from %1$@", slot.name);
-  if (plan.kind === "rebuild") return rebuildIntoParent(origin, plan, stepName);
+  const content = documentPartReader(parent.document);
+  const partParent: PartParent = {
+    content,
+    source: origin.sourceRange,
+    name: origin.parentName,
+    partName: origin.partName,
+  };
 
-  // The link takes the new bytes as the truth *before* the write, so the change
-  // the write announces already finds it intact with nothing left to put back —
-  // and is put back as it was if the write does not land.
-  const snapshot = origin.adopt(plan.bytes, plan.bytes, [
-    plan.offset,
-    plan.offset + plan.bytes.length,
-  ]);
-  const problem = await applyTransaction(origin.parent, {
-    name: stepName,
-    writes: [{ offset: plan.offset, bytes: plan.bytes }],
-  });
-  if (problem !== undefined) {
-    origin.restore(snapshot);
-    reportAlert(L("Could not update “%1$@”.", origin.parentName), problem, "problem");
-    return { kind: "refused" };
+  if (plan.codec.isImmediate) {
+    let update: PartUpdate;
+    try {
+      update = await plan.codec.encode(plan.bytes, partParent);
+    } catch (error) {
+      presentRefusal(error, origin);
+      return { kind: "refused" };
+    }
+    return finishUpdate(update, origin, content, plan.bytes, stepName);
   }
-  // It says last where it can be taken back: in the parent, not in the part.
-  reportAlert(L("Updated “%1$@”", origin.parentName), undoLine(origin), "success");
-  return { kind: "updated", parent: origin.parent };
+  return encodeBehindModal(plan.codec, plan.bytes, origin, partParent, stepName);
 }
 
 /**
- * What an update says last: where it can be taken back. The update is one undo
- * step in the parent, not in the part it was made in.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undoLine
- * @upstream-differs Undo rather than ⌘Z: the key is the platform's
- */
-function undoLine(origin: DocumentOrigin): string {
-  return L("Undo in “%1$@” takes it back.", origin.parentName);
-}
-
-/**
- * A part the image's structure is laid out again around — a decompressed body,
- * a zone that is a volume, a file or a section — goes through the rebuild
- * planner, in the parent's own worker (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
- *
- * A modal says what is being done and how far it has got, with a Cancel that
- * abandons the result: the plan cannot be stopped halfway, but nothing is
- * written until it is done, so abandoning costs nothing. It is modal for
- * upstream's own reason — the plan is worked out over the parent's bytes as
- * they were when it was asked for, and a change landing under it would only be
- * thrown away with it.
+ * The slow half: the codec's work behind a modal, and what it worked out
+ * written only if the parent is still what it was when the work began.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginUpdateOperation
- * @upstream-differs one window: upstream's sheet hangs on the parent's window
- * and brings that window to the front first, where this modal is the one
- * window's own
  */
-async function rebuildIntoParent(
+async function encodeBehindModal(
+  codec: PartCodec,
+  bytes: Uint8Array,
   origin: DocumentOrigin,
-  plan: Extract<OriginUpdate, { kind: "rebuild" }>,
+  partParent: PartParent,
   stepName: string
 ): Promise<UpdateOutcome> {
   const parent = paneState(origin.parent);
@@ -144,25 +144,25 @@ async function rebuildIntoParent(
     operation.finish();
   });
   presentBlocking(L("Updating “%1$@” from “%2$@”", origin.parentName, origin.partName), operation);
-  const answer = await askFirmwareRebuild(
-    origin.parent,
-    plan.bytes,
-    plan.target,
-    (phase, fraction) => {
-      operation.rename(phase);
-      operation.report(fraction);
-    }
-  );
+  let result: { readonly update: PartUpdate } | { readonly error: unknown };
+  try {
+    result = {
+      update: await codec.encode(bytes, {
+        ...partParent,
+        progress: (phase, fraction) => {
+          if (phase !== undefined) operation.rename(phase);
+          if (fraction !== undefined) operation.report(fraction);
+        },
+      }),
+    };
+  } catch (error) {
+    result = { error };
+  }
   operation.finish();
+  // Abandoned from the modal: nothing was written, and nothing is said.
   if (abandoned) return { kind: "cancelled" };
-
-  const built = answer?.plan;
-  if (built === undefined) {
-    reportAlert(
-      L("“%1$@” cannot be put back", origin.partName),
-      answer?.refusal ?? L("Nothing was changed in %1$@.", origin.parentName),
-      "problem"
-    );
+  if ("error" in result) {
+    presentRefusal(result.error, origin);
     return { kind: "refused" };
   }
   // Worked out over the bytes as they were when asked.
@@ -175,12 +175,56 @@ async function rebuildIntoParent(
     );
     return { kind: "refused" };
   }
+  return finishUpdate(result.update, origin, partParent.content, bytes, stepName);
+}
 
-  const snapshot = origin.adopt(plan.bytes, built.sourceBytes, [built.source[0], built.source[1]]);
-  if (built.bytes.length > 0) {
+/**
+ * Writes an update the codec worked out and says so — with what the codec had
+ * to say about it, and how to take it back.
+ *
+ * The link takes the new bytes as the truth *before* the write, so the change
+ * the write announces already finds it intact with nothing left to put back —
+ * and is put back as it was if the write does not land.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.finishUpdate
+ * @upstream-differs showing where the update landed is the caller's
+ * (`putBack` in the shell), which holds the panels
+ */
+async function finishUpdate(
+  update: PartUpdate,
+  origin: DocumentOrigin,
+  content: PartReader,
+  partBytes: Uint8Array,
+  stepName: string
+): Promise<UpdateOutcome> {
+  // What the source will be once the run is written: the parent as it is, with
+  // the run laid over it. The file never changes length.
+  let source: Uint8Array;
+  try {
+    source = await content.read(update.source[0], update.source[1] - update.source[0]);
+  } catch {
+    reportAlert(
+      L("Could not update “%1$@”.", origin.parentName),
+      L("Those bytes could not be read."),
+      "problem"
+    );
+    return { kind: "refused" };
+  }
+  const runEnd = update.offset + update.bytes.length;
+  const from = Math.max(update.offset, update.source[0]);
+  const to = Math.min(runEnd, update.source[1]);
+  if (from < to) {
+    source.set(
+      update.bytes.subarray(from - update.offset, to - update.offset),
+      from - update.source[0]
+    );
+  }
+
+  const snapshot = origin.adopt(partBytes, source, update.source);
+  if (update.bytes.length > 0) {
     const problem = await applyTransaction(origin.parent, {
       name: stepName,
-      writes: [{ offset: built.offset, bytes: built.bytes }],
+      writes: [{ offset: update.offset, bytes: update.bytes }],
     });
     if (problem !== undefined) {
       origin.restore(snapshot);
@@ -188,14 +232,41 @@ async function rebuildIntoParent(
       return { kind: "refused" };
     }
   }
+  // It says last where it can be taken back: in the parent, not in the part.
   reportAlert(
     L("Updated “%1$@”", origin.parentName),
-    built.warnings.length === 0
-      ? `${L("Nothing was written inside a Boot Guard or vendor protected range.")}\n\n${undoLine(origin)}`
-      : `${built.warnings.join("\n\n")}\n\n${undoLine(origin)}`,
+    [...update.notes, undoLine(origin)].join("\n\n"),
     "success"
   );
   return { kind: "updated", parent: origin.parent };
+}
+
+/**
+ * Why a part did not go back, in the codec's words.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentRefusal
+ */
+function presentRefusal(error: unknown, origin: DocumentOrigin): void {
+  if (error instanceof PartRefusal) {
+    reportAlert(error.title, error.message, "problem");
+    return;
+  }
+  reportAlert(
+    L("“%1$@” cannot be put back", origin.partName),
+    error instanceof Error ? error.message : String(error),
+    "problem"
+  );
+}
+
+/**
+ * What an update says last: where it can be taken back. The update is one undo
+ * step in the parent, not in the part it was made in.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undoLine
+ * @upstream-differs Undo rather than ⌘Z: the key is the platform's
+ */
+function undoLine(origin: DocumentOrigin): string {
+  return L("Undo in “%1$@” takes it back.", origin.parentName);
 }
 
 /**

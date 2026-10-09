@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { PartBadge } from "@/core/parts/partCodec";
 import type { OriginState } from "@/state/documentOrigin";
 import { updateInParentItem } from "@/state/partUpdate";
 import { useSettledEdits } from "@/state/useSettledEdits";
@@ -26,6 +27,13 @@ export interface PartLink {
   readonly state: OriginState;
   /** What the Update in Parent item is called, and whether it can act. */
   readonly update: { readonly title: string; readonly enabled: boolean };
+  /**
+   * What the part's codec says its bytes are; nothing for a copy, which has
+   * nothing to say.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateCodecBadge
+   */
+  readonly badge: PartBadge | undefined;
 }
 
 export function usePartLink(pane: PaneId): PartLink | undefined {
@@ -52,6 +60,7 @@ export function usePartLink(pane: PaneId): PartLink | undefined {
         explanation: origin.explanationFor(state),
         state,
         update,
+        badge: origin.codec.badge,
       });
     })();
     return () => {

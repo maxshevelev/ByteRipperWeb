@@ -206,20 +206,12 @@ export function ToolPanel({
     // through, so a tool's confirmation cannot come to look like another app's.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice
     showNotice,
-    // Bytes the panel hands over, opened as a part over the file they came out
-    // of, with the link back to where they are in it. The panel says what they
-    // are; where they open, and what the link is worth, is not its business.
+    // A part of the bound file, through the window's one way of opening parts.
+    // The panel says what the bytes are, through its codec; where they open,
+    // and what the link is worth, is not its business.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
-    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
-    openPart: (bytes, name, source, layout, part) => {
-      void openLinkedPart({
-        parent: boundPane,
-        bytes,
-        name,
-        source,
-        layout,
-        ...(part === undefined ? {} : { kind: part.kind, rebuildTarget: part.rebuild }),
-      });
+    openPart: (name, source, codec, layout) => {
+      void openLinkedPart({ parent: boundPane, name, source, codec, layout });
     },
   };
 

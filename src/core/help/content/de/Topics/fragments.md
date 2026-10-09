@@ -1,4 +1,4 @@
-@source-sha 015cb99a2801a558960bc86e39a90b5cb6cf84aea8d0cb93e5f7dc9d960bc45d
+@source-sha 563f8ef24c73f978afa4da05f290a451d2438536c706eb97a03b9994a0c76e7c
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -35,6 +35,16 @@ Vor dem Schreiben werden die folgenden Bedingungen geprüft, und das Programm ne
 ## Entpackte Fragmente
 
 Eine komprimierte UEFI-Sektion lässt sich **entpackt** öffnen. Angezeigt werden dann nicht die in der Datei gehaltenen Bytes, sondern das, wozu sie sich entfalten. Nach dem Bearbeiten und Zurückschreiben wird die Sektion neu komprimiert und das Image um die entstandene Größe herum neu gelegt. Das Ergebnis gleicht dem Original des Herstellers auch dann nicht Byte für Byte, wenn nichts geändert wurde, da ein anderer Kompressor aus derselben Eingabe eine andere Ausgabe erzeugt.
+## Was das Abzeichen in der Kopfzeile besagt
+
+Ein Fragment enthält nicht immer die Bytes der Datei so, wie sie dort liegen. Eine entpackte Sektion enthält das, wozu sich die Sektion entfaltet. Ein solches Fragment trägt neben seinem Namen ein Abzeichen, das angibt, wie seine Bytes zur Datei stehen; unter dem Mauszeiger erscheint die vollständige Erläuterung.
+
+- **LZMA**, **Tiano**, **EFI 1.1** und die übrigen Kompressionsverfahren: Die Bytes wurden entpackt, und **In der Quelle aktualisieren** packt sie mit demselben Verfahren wieder.
+- **Struktur**: ein Volume, eine Datei oder eine Sektion des Images. Beim Aktualisieren wird das Image um diesen Teil herum neu angeordnet, seine Länge kann sich also ändern.
+- **Nur lesbar**: Die Bytes wurden durch eine Umformung gewonnen, die das Programm nicht umkehren kann; sie lassen sich nicht zurückschreiben.
+
+Ein Fragment ohne Abzeichen ist eine einfache Kopie: Seine Bytes sind die der Datei und werden unverändert zurückgeschrieben.
+
 ## Ein Fragment als UEFI-Teilbaum
 
 Ein Fragment, das aus einem Knoten des Baums [[topic:tool-uefi|UEFI-Struktur]] geöffnet wurde, enthält die Bytes dieses Knotens; auf dem Fragment geöffnet, zerlegt UEFI-Struktur sie daher als eigenes Image: Was der Baum im Bereich zeigt, ist der Teilbaum unter jenem Knoten, mit den eigenen Adressen des Bereichs ab null.

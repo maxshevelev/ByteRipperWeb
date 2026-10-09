@@ -205,6 +205,7 @@ function PartDump({
               // does: the same answer the menu item is enabled by.
               updateOffered: link.update.enabled,
               onUpdate: onUpdateInParent,
+              badge: link.badge,
             }
       }
       onHeaderMenu={(event) =>

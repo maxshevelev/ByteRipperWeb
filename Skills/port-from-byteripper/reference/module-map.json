@@ -155,6 +155,10 @@
     {
       "prefix": "ByteRipperApp/ByteRipper.entitlements",
       "why": "The macOS app's entitlements; upstream left the App Sandbox in 4a196f2 and the file is gone. A browser's sandbox is the page's own."
+    },
+    {
+      "prefix": "Packages/PartCodec/Package.swift",
+      "why": "SwiftPM manifest."
     }
   ],
   "modules": [
@@ -720,19 +724,38 @@
       }
     },
     {
+      "swift": "Packages/PartCodec",
+      "web": [
+        "src/core/parts"
+      ],
+      "status": "ported",
+      "note": "What a part's bytes are to the file they came out of, both ways (UPDATE_IN_PARENT.md §4.2): PartReader, PartParent, PartUpdate, PartRefusal, PartBadge, the PartCodec protocol as an interface, and the two codecs every part can use — CopyPartCodec and ReadOnlyPartCodec — with PartCodecTests. Pure, in src/core. The one divergence is the browser's: every read of a document is a promise here, so decode and encode are too, and decodesImmediately is said rather than acted on — the panel opens when the decode settles, whichever kind it is.",
+      "files": {
+        "Packages/PartCodec/Sources/PartCodec/PartCodec.swift": "src/core/parts/partCodec.ts",
+        "Packages/PartCodec/Tests/PartCodecTests/PartCodecTests.swift": "src/core/parts/partCodec.test.ts"
+      },
+      "unported": {}
+    },
+    {
       "swift": "Packages/UEFIContentSource",
       "web": [
-        "src/firmware/contentSource.ts"
+        "src/state/uefiPartCodec.ts",
+        "src/workers/firmware.worker.ts",
+        "src/tools/toolModule.ts"
       ],
-      "status": "planned",
-      "note": "The bridge between the document's bytes and the parser's ByteSource.",
+      "status": "ported",
+      "note": "The bridge between the document's bytes and the parser. ToolContentByteSource is the worker's own reading of the pane's Blob. UEFIPartCodec — a node of the file, or a buffer along its chain, going back through the rebuild planner — is src/state/uefiPartCodec.ts rather than domain code, because the buffers and the planner are the parent pane's firmware worker's: the codec carries the pane where upstream carries the tree's readers. UEFIPartOpening is the optional layout argument of ToolContext.openPart.",
       "unported": {
         "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.reader": "n/a — the Blob is the source",
-        "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.init": "n/a — constructed over the pane's Blob"
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift#ToolContentByteSource.init": "n/a — constructed over the pane's Blob",
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#ReadersOnce*": "n/a — the buffers a tree decompressed are the worker's; the codec holds none to let go of",
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#PartReaderByteSource*": "n/a — the worker reads the parent's Blob itself (BlobByteSource)"
       },
       "files": {
         "Packages/UEFIContentSource/Sources/UEFIContentSource/ToolContentByteSource.swift": "src/workers/firmware.worker.ts",
-        "Packages/UEFIContentSource/Tests/UEFIContentSourceTests/ToolContentByteSourceTests.swift": "src/workers/blobByteSource.test.ts"
+        "Packages/UEFIContentSource/Tests/UEFIContentSourceTests/ToolContentByteSourceTests.swift": "src/workers/blobByteSource.test.ts",
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift": "src/state/uefiPartCodec.ts",
+        "Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartOpening.swift": "src/tools/toolModule.ts"
       }
     },
     {
@@ -1367,7 +1390,8 @@
           "src/ui/pane/PaneStatusLine.tsx",
           "src/core/text/statusLine.ts",
           "src/ui/pane/HexPane.tsx"
-        ]
+        ],
+        "ByteRipperApp/Pane/PartBadgeView.swift": "src/ui/pane/HexPane.tsx"
       },
       "unported": {
         "ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDoubleClick": "n/a — AppKit layout; CSS lays the panes out",
@@ -1519,7 +1543,13 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.refreshSourceWatchers": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onSegmentSourceChanged": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentSources": "n/a — the web keeps one registry per pane at module level (`segmentSources`), not as a `PaneViewModel` member",
-        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isHeaderHoisted": "n/a — whether the pane has handed its bar over is whether `PaneHeaderHostContext` is provided"
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isHeaderHoisted": "n/a — whether the pane has handed its bar over is whether `PaneHeaderHostContext` is provided",
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.label": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.inset": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.init": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.intrinsicContentSize": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour"
       }
     },
     {
@@ -1792,7 +1822,8 @@
           "src/state/workspaceStore.ts"
         ],
         "ByteRipperApp/Documents/PaneName.swift": "",
-        "ByteRipperApp/Documents/SandboxBookmarkStore.swift": ""
+        "ByteRipperApp/Documents/SandboxBookmarkStore.swift": "",
+        "ByteRipperApp/Documents/DocumentPartReader.swift": "src/state/documentPartReader.ts"
       },
       "unported": {
         "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.messageText": "n/a — each dialog lays out its own form inside Dialog",
@@ -2093,7 +2124,8 @@
         "ByteRipperTests/ZoneSketchFlowTests.swift": "tests/e2e",
         "ByteRipperTests/ZoomTests.swift": "tests/e2e",
         "ByteRipperTests/ZoomToFitTests.swift": "tests/e2e",
-        "ByteRipperTests/EmptyStateRecentFilesTests.swift": "tests/e2e"
+        "ByteRipperTests/EmptyStateRecentFilesTests.swift": "tests/e2e",
+        "ByteRipperTests/PartCodecTestSupport.swift": "src/core/testing/partCodecs.ts"
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",
@@ -4207,7 +4239,10 @@
         "ByteRipperTests/UEFIUpdateFlowTests.swift#UEFIUpdateFlowTests.testAnUpdateFileOpensOntoItsEntriesAndTheirVolumes": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#followUEFISelection": "n/a — test scaffolding for the AppKit follow-selection ordering",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testABZip2VariableOpensItsUnpackedText": "later — an app flow test; the port has no component or end-to-end test for it yet (the unpacking, the details and the part's name are unit-tested)",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "n/a — test scaffolding of the flow test above"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "n/a — test scaffolding of the flow test above",
+        "ByteRipperTests/PartCodecTestSupport.swift#GivenBytesCodec.*": "n/a — test scaffolding",
+        "ByteRipperTests/PartCodecTestSupport.swift#ElsewhereCodec.*": "n/a — test scaffolding",
+        "ByteRipperTests/PartCodecTestSupport.swift#DocumentOrigin*": "n/a — test scaffolding: a web test hands DocumentOrigin.of the codec itself"
       }
     },
     {

@@ -112,6 +112,8 @@
      opposite case: an empty window is waiting rather than reporting, so its
      picture and headline are deliberately fainter (EmptyStateColors.icon). */
   --notice-icon: rgb(0 0 0 / 0.53);
+  /* A part codec's capsule in a pane header: upstream's quaternary label fill. */
+  --part-badge-fill: rgb(0 0 0 / 0.1);
   --empty-state-icon: rgb(0 0 0 / 0.259);
 
   --segment-0: #d6f0d6;
@@ -187,6 +189,7 @@
     /* The two icon greys, lighter here as every other ink is (see the light
        block for what they mean). */
     --notice-icon: rgb(255 255 255 / 0.55);
+    --part-badge-fill: rgb(255 255 255 / 0.1);
     --empty-state-icon: rgb(255 255 255 / 0.247);
     --segment-0: #29402b;
     --segment-1: #4a2b36;
@@ -264,6 +267,7 @@
   /* The two icon greys, lighter here as every other ink is (see the light
      block for what they mean). */
   --notice-icon: rgb(255 255 255 / 0.55);
+  --part-badge-fill: rgb(255 255 255 / 0.1);
   --empty-state-icon: rgb(255 255 255 / 0.247);
   --segment-0: #29402b;
   --segment-1: #4a2b36;

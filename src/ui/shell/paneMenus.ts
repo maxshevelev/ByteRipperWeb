@@ -1,5 +1,6 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { L } from "@/core/localization/localization";
+import { CopyPartCodec } from "@/core/parts/partCodec";
 import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
@@ -14,13 +15,13 @@ import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentSource } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
 import { dumpActionsAt } from "@/state/toolDumpActions";
+import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import {
   canRevertToOriginal,
   isSlot,
   type PaneId,
   type PaneState,
   paneIn,
-  reportAlert,
   type SlotId,
   swapPanes,
   type WorkspaceState,
@@ -585,33 +586,27 @@ function selectionItems(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
  */
 export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
-  void slot.document
-    .read(zone.start, zone.end - zone.start)
-    .then(async (bytes) => {
-      // What the bytes *are*, where the parent's tree covers them — a zone that
-      // is a volume or a file is read as one rather than scanned — and, when it
-      // is a structure like that, where they go back to: a zone that is a
-      // volume, a file or a section goes back through the rebuild planner, at
-      // whatever length it has come to (§6).
-      const part = await askFirmwarePart(pane, { range: [zone.start, zone.end] });
-      return openLinkedPart({
-        parent: pane,
-        bytes,
-        name: zoneFileName(slot.name, zone.name, zone.start, zone.end),
-        source: [zone.start, zone.end],
-        // The zone's own name is what it is called in the parent, which is
-        // better than anything read back off the file name.
-        partName: zone.name,
-        layout: part.layout,
-        rebuildTarget: part.rebuild,
-      });
-    })
-    .catch((error: unknown) =>
-      reportAlert(
-        L("Could not read the zone."),
-        error instanceof Error ? error.message : L("Those bytes could not be read.")
-      )
-    );
+  void (async () => {
+    // What the bytes *are*, where the parent's tree covers them — a zone that is
+    // a volume or a file is read as one rather than scanned — and, when it is a
+    // structure like that, where they go back to: a zone that is a volume, a
+    // file or a section goes back through the rebuild planner, at whatever
+    // length it has come to (§6); any other, as it is.
+    const part = await askFirmwarePart(pane, { range: [zone.start, zone.end] });
+    await openLinkedPart({
+      parent: pane,
+      name: zoneFileName(slot.name, zone.name, zone.start, zone.end),
+      source: [zone.start, zone.end],
+      // The zone's own name is what it is called in the parent, which is
+      // better than anything read back off the file name.
+      partName: zone.name,
+      layout: part.layout,
+      codec:
+        part.rebuild === undefined
+          ? new CopyPartCodec()
+          : new UEFIPartCodec({ pane, target: part.rebuild }),
+    });
+  })();
 }
 
 function saveRangeAs(

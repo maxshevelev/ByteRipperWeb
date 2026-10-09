@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
+import { CopyPartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
 import { unpackedOverrides } from "@/firmware/uefi/appleOverrides";
 import type { BIOSGuardUpdate } from "@/firmware/uefi/biosGuardUpdate";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
@@ -26,6 +27,7 @@ import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
+import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import { setSearchOpen, setSearchQuery, uefiSearchStore } from "@/state/uefiSearchSettings";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
@@ -53,6 +55,7 @@ import { UefiUpdateDialog } from "@/tools/uefi/UefiUpdateDialog";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { withCatalogueName } from "@/tools/uefi/uefiNodeDetail";
 import {
+  compressionName,
   contentOf,
   type DecompressedBody,
   decompressedBody,
@@ -1157,27 +1160,32 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecompressedInNewTab
    */
   const openDecompressed = useCallback(
-    async (node: WireNode, taken: DecompressedBody) => {
-      const bytes = await decompressedBytes(taken);
-      if (bytes === undefined) return;
+    (node: WireNode, taken: DecompressedBody) => {
       // What it links back to: the compressed section in the file that these
       // bytes came out of, which for a node inside a buffer is the section
       // holding it.
+      const source = fileSourceOf(node, roots ?? []);
+      if (source === undefined) {
+        context.report(L("There is nothing decompressed to open here."));
+        return;
+      }
       // What a panel opened on these bytes should read them as: a compressed section's body
       // is a run of sections by the FFSv3 rules every buffer is read with; the BIOS image the
-      // PSP inflates is a stretch of flash.
-      const layout = taken.layout;
+      // PSP inflates is a stretch of flash. Where they go back to: the whole buffer, a run of
+      // sections (§6). The codec decompresses them for the panel and compresses them again
+      // on the way back.
       context.openPart(
-        bytes,
         partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),
-        fileSourceOf(node, roots ?? []),
-        layout,
-        // What they are, and where they go back to: the whole buffer, compressed again on
-        // the way (§6).
-        { kind: "decompressed", rebuild: { space: taken.space } }
+        source,
+        new UEFIPartCodec({
+          pane: context.pane,
+          target: { space: taken.space },
+          compression: compressionName(taken.space, roots ?? []),
+        }),
+        taken.layout
       );
     },
-    [context, decompressedBytes, roots]
+    [context, roots]
   );
 
   /**
@@ -1203,11 +1211,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         return;
       }
       context.openPart(
-        text,
         unpackedPartName(node, paneState(context.pane)?.name ?? ""),
         source,
-        undefined,
-        { kind: "copy" }
+        new ReadOnlyPartCodec(
+          text,
+          L("This cannot be put back"),
+          L("This is the text the variable unpacks to, and nothing here packs it again.")
+        )
       );
     },
     [context, roots]
@@ -1232,20 +1242,25 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         context.report(L("There is nothing to open here."));
         return;
       }
-      const bytes = await readSpaceBytes(context.pane, open.space, open.range);
-      if (bytes === undefined || bytes.length === 0) {
-        context.report(L("Those bytes could not be read."));
-        return;
-      }
+      // The file's own bytes go back as they are, or through the planner when
+      // the node is a structure it lays out again; bytes of a buffer a
+      // compressed section opened to go back through that section (§6).
+      const codec =
+        open.space.length === 0 && open.rebuild === undefined
+          ? new CopyPartCodec()
+          : new UEFIPartCodec({
+              pane: context.pane,
+              target: open.rebuild ?? {
+                space: open.space,
+                range: { start: open.range[0], end: open.range[1] },
+              },
+              compression: compressionName(open.space, roots ?? []),
+            });
       context.openPart(
-        bytes,
         partName(open.suggestedName, paneState(context.pane)?.name ?? ""),
         open.source,
-        await askFirmwareLayout(context.pane, { node: node.id, body }),
-        // The file's own bytes, which go back as they are — through the
-        // planner where the node is a structure the image can be laid out
-        // again around (§6).
-        { kind: "copy", rebuild: open.rebuild }
+        codec,
+        await askFirmwareLayout(context.pane, { node: node.id, body })
       );
     },
     [context, roots]

@@ -16,6 +16,7 @@ import { type EFIGUID, guid, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FFS } from "@/firmware/uefi/fileParser";
 import { ffsVersionOfFileSystem, VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { DEFAULT_LIMITS, type Limits } from "@/firmware/uefi/parserState";
+import { rebuildRanges } from "@/firmware/uefi/protectedRanges";
 import { Section } from "@/firmware/uefi/sectionParser";
 import { SpaceReaders } from "@/firmware/uefi/spaceReaders";
 import { parseUefiImage, type UEFIImage } from "@/firmware/uefi/uefiImage";
@@ -191,6 +192,11 @@ export function planRebuild(
      */
     readonly protected?: readonly RebuildProtectedRange[] | undefined;
     /**
+     * With no `protected` given, read them in the parse this plan makes anyway,
+     * so a caller with no tree of its own does not parse the image twice.
+     */
+    readonly readsProtectedRanges?: boolean;
+    /**
      * A part inside compressed sections is compressed again at the normal
      * level; when the rebuild then does not fit, it is done again at the
      * maximum level before it is refused. Off, the normal level is all there is
@@ -208,12 +214,20 @@ export function planRebuild(
   const fallback = options.maximumCompressionFallback ?? true;
   const report = new Reporter(options.onProgress);
   report.phase("Reading the structure of the image");
-  // The ranges are the caller's to give (`protected`), not this parse's.
+  // The ranges are the caller's to give (`protected`), or — asked for with
+  // `readsProtectedRanges` — this parse's own, so a caller with no tree of its
+  // own does not parse the image twice.
+  const reads = options.protected === undefined && options.readsProtectedRanges === true;
   const image = parseUefiImage(sourceOver(file), {
     limits,
-    readsProtectedRanges: false,
+    readsProtectedRanges: reads,
     onProgress: (fraction) => report.fraction(Reporter.reading * fraction),
   });
+  const ranges =
+    options.protected ??
+    (reads && image.protectedRanges !== undefined
+      ? rebuildRanges(image.protectedRanges)
+      : undefined);
   const compressions = target.space.length;
   let context = new Context(file, image, limits, report, compressions, "normal");
   try {
@@ -250,8 +264,8 @@ export function planRebuild(
     try {
       const changes = changedRuns(rebuilt, file);
       const warnings = [...context.warnings];
-      if (options.protected !== undefined) {
-        warnings.push(...protectionWarnings(changes, options.protected));
+      if (ranges !== undefined) {
+        warnings.push(...protectionWarnings(changes, ranges));
       } else {
         warnings.push(RANGES_NOT_CHECKED);
       }

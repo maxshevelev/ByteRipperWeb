@@ -1,8 +1,7 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { L } from "@/core/localization/localization";
-import { hexAddress } from "@/core/text/hexText";
+import { CopyPartCodec, type PartCodec } from "@/core/parts/partCodec";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
-import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
 /**
@@ -26,36 +25,20 @@ import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 export type OriginState = "intact" | "parentClosed" | "sourceChanged";
 
 /**
- * How the part's bytes stand to the source: the source's own bytes, copied out
- * — a zone, a node, a part a tool-module took — which go back as they are; or
- * what the source decompresses to, which would have to go back compressed
- * again.
- *
- * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.Kind
- */
-export type OriginKind = "copy" | "decompressed";
-
-/**
  * What putting the part back would do, or why it cannot — decided before a byte
  * is written.
  *
  * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.Update
  */
 export type OriginUpdate =
-  | {
-      readonly kind: "overwrite";
-      readonly offset: number;
-      readonly bytes: Uint8Array;
-      /** The source has changed there since, so the overwrite has to be asked for. */
-      readonly confirm: boolean;
-    }
   /**
-   * `bytes` through the rebuild planner (§6) — a decompressed body, or a zone
-   * that is a structure of the image, of whatever length.
+   * `bytes` — the part's content — through the codec (§3); `confirm` when the
+   * source has changed in the parent since, and overwriting it has to be asked
+   * for.
    */
   | {
-      readonly kind: "rebuild";
-      readonly target: RebuildTarget;
+      readonly kind: "encode";
+      readonly codec: PartCodec;
       readonly bytes: Uint8Array;
       readonly confirm: boolean;
     }
@@ -173,17 +156,14 @@ export class DocumentOrigin {
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.partName
    */
   readonly partName: string;
-  /** @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.kind */
-  readonly kind: OriginKind;
   /**
-   * Where the bytes go back to through the rebuild planner, when the part is
-   * something the image's structure can be laid out again around
-   * (`Design/UEFI/UPDATE_IN_PARENT.md` §6). Nothing for bytes that go back as
-   * they are, at their own length.
+   * What the part's bytes are to the source's, both ways: a copy, a body
+   * decompressed, a block decoded. The whole of what Update in Parent does is
+   * its `encode`.
    *
-   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.rebuildTarget
+   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.codec
    */
-  readonly rebuildTarget: RebuildTarget | undefined;
+  readonly codec: PartCodec;
   /**
    * What the bytes are, for a tool-module opened on the part: a decompressed
    * body is a run of sections, not an image to scan.
@@ -232,8 +212,7 @@ export class DocumentOrigin {
     parentName: string,
     source: readonly [number, number],
     partName: string,
-    kind: OriginKind,
-    rebuildTarget: RebuildTarget | undefined,
+    codec: PartCodec,
     layout: UEFIRootLayout,
     sourceBytes: Blob | undefined,
     content: Blob
@@ -243,8 +222,7 @@ export class DocumentOrigin {
     this.lastParentName = parentName;
     this.source = source;
     this.partName = partName;
-    this.kind = kind;
-    this.rebuildTarget = rebuildTarget;
+    this.codec = codec;
     this.layout = layout;
     this.sourceBytes = sourceBytes;
     this.content = content;
@@ -264,9 +242,8 @@ export class DocumentOrigin {
     readonly parent: PaneId;
     readonly source: readonly [number, number];
     readonly partName: string;
-    readonly kind?: OriginKind;
-    /** Where the bytes go back to through the rebuild planner, when they do. */
-    readonly rebuildTarget?: RebuildTarget | undefined;
+    /** What the bytes are to the source; a copy when nothing says otherwise. */
+    readonly codec?: PartCodec | undefined;
     /** What a panel opened on the part should read its bytes as. */
     readonly layout?: UEFIRootLayout;
     readonly content: Uint8Array;
@@ -280,8 +257,7 @@ export class DocumentOrigin {
       slot.name,
       options.source,
       options.partName,
-      options.kind ?? "copy",
-      options.rebuildTarget,
+      options.codec ?? new CopyPartCodec(),
       options.layout ?? IMAGE_LAYOUT,
       held === undefined ? undefined : snapshotOf(held),
       snapshotOf(options.content)
@@ -368,8 +344,8 @@ export class DocumentOrigin {
   }
 
   /**
-   * What Update in Parent would do with the part's bytes, or a refusal that
-   * says why.
+   * What Update in Parent would do with the part's bytes (§3, §4): hand them to
+   * the codec, or a refusal that says why there is nothing to hand them to.
    *
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.planUpdate
    */
@@ -397,42 +373,7 @@ export class DocumentOrigin {
         message: L("Nothing was changed in %1$@.", this.parentName),
       };
     }
-    // A part the image's structure can be laid out again around goes through
-    // the planner, whatever length it has come back at (§6).
-    if (this.rebuildTarget !== undefined) {
-      return {
-        kind: "rebuild",
-        target: this.rebuildTarget,
-        bytes,
-        confirm: state === "sourceChanged",
-      };
-    }
-    if (this.kind !== "copy") {
-      return {
-        kind: "refused",
-        title: L("This cannot be put back"),
-        message: L(
-          "These bytes were decompressed from “%1$@” in %2$@, and where they belong in it was not recorded when the part was opened.",
-          this.partName,
-          this.parentName
-        ),
-      };
-    }
-    const length = this.source[1] - this.source[0];
-    if (bytes.length !== length) {
-      return {
-        kind: "refused",
-        title: L("The length changed"),
-        message: L(
-          "“%1$@” is %2$@ bytes in %3$@, and this part is %4$@. A part goes back only at its own length: the bytes after it in the file are not this part's to move.",
-          this.partName,
-          hexAddress(length),
-          this.parentName,
-          hexAddress(bytes.length)
-        ),
-      };
-    }
-    return { kind: "overwrite", offset: this.source[0], bytes, confirm: state === "sourceChanged" };
+    return { kind: "encode", codec: this.codec, bytes, confirm: state === "sourceChanged" };
   }
 
   /**

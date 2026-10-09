@@ -435,7 +435,6 @@
 "Could not open file." = "Не удалось открыть файл.";
 "Could not reach github.com: %1$@" = "Не удалось связаться с github.com: %1$@";
 "Could not read the file." = "Не удалось прочитать файл.";
-"Could not read the zone." = "Не удалось прочитать зону.";
 "Could not save “%1$@”." = "Не удалось сохранить «%1$@».";
 "Could not update “%1$@”." = "Не удалось обновить «%1$@».";
 "CPUID" = "CPUID";
@@ -1037,6 +1036,14 @@
 "The variable does not decompress." = "Переменная не распаковывается.";
 "There is nothing decompressed to open here." = "Здесь нечего открывать — ничего не распаковано.";
 "Cancelling…" = "Отмена…";
+"A compressed section on the way to the part no longer decompresses." = "Одна из сжатых секций на пути к этой части больше не распаковывается.";
+"A structure of the image. Update in Parent lays the image out again around it, so its length may change." = "Структура образа. При записи в исходный файл образ перестраивается вокруг неё, поэтому её длина может измениться.";
+"Decompressed from the file. Update in Parent compresses it again the way the section was compressed." = "Распаковано из файла. При записи в исходный файл данные снова сжимаются так же, как была сжата секция.";
+"These bytes were worked out of the file and cannot be put back into it." = "Эти байты получены из файла преобразованием и записать их обратно нельзя.";
+"This is the text the variable unpacks to, and nothing here packs it again." = "Это текст, в который распаковывается переменная; обратно упаковать его программа не умеет.";
+"part badge|Decompressed" = "Распакован";
+"part badge|Read-only" = "Только чтение";
+"part badge|Structure" = "Структура";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.
@@ -1207,7 +1214,6 @@
 "The microcode went in at %1$@." = "Микрокод записан по %1$@.";
 "The part could not be read" = "Фрагмент не удалось прочитать";
 "The server answered %1$@." = "Сервер ответил %1$@.";
-"These bytes were decompressed from “%1$@” in %2$@, and where they belong in it was not recorded when the part was opened." = "Эти байты распакованы из «%1$@» в %2$@, и при открытии фрагмента не было записано, куда именно они там относятся.";
 "This browser cannot make a copy: it has no private storage to put one in." = "Этот браузер не может сделать копию: у него нет личного хранилища, куда её положить.";
 "This browser did not give the header a 2D context." = "Браузер не дал заголовку 2D-контекст.";
 "This browser did not give the minimap a 2D context." = "Браузер не дал миникарте 2D-контекст.";

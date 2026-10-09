@@ -445,13 +445,6 @@ export interface FirmwareRebuildResponse {
         readonly warnings: readonly string[];
         /** Where the part is held in the file once the plan is written. */
         readonly source: readonly [number, number];
-        /**
-         * Those bytes, as the rebuilt file holds them — what the link takes as
-         * the source's own from now on. Sent from here because the rebuilt
-         * image is the worker's, and the run written back is only the part of
-         * it that changed.
-         */
-        readonly sourceBytes: Uint8Array;
       }
     | undefined;
   /** The refusal's sentence, when there is no plan. */

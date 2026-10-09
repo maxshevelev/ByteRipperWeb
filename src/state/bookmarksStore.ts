@@ -82,9 +82,11 @@ const NO_MARKS: readonly Bookmark[] = [];
  * within it, which is what makes a part opened out of a part come out right
  * without this having to know how deep it is.
  *
- * Nothing — no marks at all — for a decompressed body, and for anything opened
- * out of one: its bytes are not the file's bytes, so the file's offsets do not
- * reach them and a mark in either place would mean nothing in the other.
+ * Nothing — no marks at all — for a part whose codec does not keep the source's
+ * offsets (a decompressed body, a text unpacked from a variable), and for
+ * anything opened out of one: its bytes are not the file's bytes, so the file's
+ * offsets do not reach them and a mark in either place would mean nothing in
+ * the other.
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.bookmarkSpace
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.bookmarkStore
@@ -95,7 +97,7 @@ export function marksFor(pane: PaneId): BookmarkSpace | undefined {
   // Not a part of anything: it reads the workspace's list as the dump does, at
   // the dump's own offsets.
   if (origin === undefined) return new BookmarkSpace(bookmarks);
-  if (origin.kind !== "copy") return undefined;
+  if (!origin.codec.keepsOffsets) return undefined;
   const parent = marksFor(origin.parent);
   if (parent === undefined) return undefined;
   return new BookmarkSpace(parent.store, parent.origin + origin.sourceRange[0]);

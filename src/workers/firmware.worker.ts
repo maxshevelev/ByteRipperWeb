@@ -35,7 +35,6 @@ import {
   type ProtectedRanges,
   protectedRangeKindName,
   readProtectedRanges,
-  rebuildRanges,
 } from "@/firmware/uefi/protectedRanges";
 import {
   IMAGE_LAYOUT,
@@ -894,16 +893,15 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
-      // Putting an edited part back: the planner, over the parent's whole file,
-      // with the protected ranges this worker's own tree reads
+      // Putting an edited part back: the planner, over the parent's whole file
+      // as it is now, reading the protected ranges in the parse it makes anyway
       // (`Design/UEFI/UPDATE_IN_PARENT.md` §6, §6.4).
       //
       // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
-      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.protectedRanges
+      // @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.encode
       case "firmwareRebuild": {
         const file = new BlobByteSource(request.content);
         const bytes = file.bytes(0, file.byteCount);
-        const ranges = reader === undefined ? undefined : rebuildRanges(readRanges());
         const result = planRebuild(
           request.bytes,
           {
@@ -912,7 +910,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           },
           bytes,
           {
-            ...(ranges === undefined ? {} : { protected: ranges }),
+            readsProtectedRanges: true,
             onProgress: (progress) =>
               post({
                 kind: "firmwareRebuildProgress",
@@ -931,11 +929,6 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           });
           return;
         }
-        // The source as the rebuilt file holds it: the plan is written over the
-        // file here so the link's new fingerprint is read off the same bytes
-        // the parent will have.
-        const rebuilt = bytes;
-        rebuilt.set(result.plan.bytes, result.plan.offset);
         const { start, end } = result.plan.source;
         post({
           kind: "firmwareRebuild",
@@ -945,7 +938,6 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             bytes: result.plan.bytes,
             warnings: result.plan.warnings,
             source: [start, end],
-            sourceBytes: rebuilt.slice(start, end),
           },
           refusal: undefined,
         });

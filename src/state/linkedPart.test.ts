@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { openLinkedPart, partNameOf } from "@/state/openLinkedPart";
+import { partNameOf } from "@/state/openLinkedPart";
 import {
   partsLinkedTo,
   strandingCloseButton,
@@ -8,6 +8,7 @@ import {
   updateInParent,
   updateInParentItem,
 } from "@/state/partUpdate";
+import { openGivenPart } from "@/state/testing/givenParts";
 import {
   closePart,
   openEmptyInPane,
@@ -50,7 +51,7 @@ async function fileInA(length = 0x40): Promise<void> {
 async function partOfA(start: number, end: number, name = "bios_zone.bin"): Promise<PartId> {
   const slot = paneState("a");
   if (slot === undefined) throw new Error("pane A should be open");
-  return openLinkedPart({
+  return openGivenPart({
     parent: "a",
     bytes: await slot.document.read(start, end - start),
     name,

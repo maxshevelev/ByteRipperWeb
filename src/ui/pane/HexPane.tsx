@@ -175,6 +175,14 @@ export interface HexPaneProps {
         readonly updateOffered: boolean;
         /** @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onUpdateInParent */
         readonly onUpdate: () => void;
+        /**
+         * What the part's codec says its bytes are, beside the name — so a
+         * panel of plain text does not read as the file's own bytes. Nothing
+         * for a copy.
+         *
+         * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.codecBadge
+         */
+        readonly badge?: { readonly text: string; readonly explanation: string } | undefined;
       }
     | undefined;
   /** The comparison, when there are two files. */
@@ -1950,6 +1958,21 @@ export function HexPane({
         ) : (
           <span className="pane-name" title={name}>
             {name}
+          </span>
+        )}
+        {/* help: pane.header.codec-badge */}
+        {link?.badge === undefined ? null : (
+          /*
+           * The codec's word in a capsule, its sentence under the pointer.
+           *
+           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateCodecBadge
+           * @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView
+           * @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.text
+           * @upstream-differs a styled span the theme's tokens colour, where
+           * upstream draws its capsule so the fill follows the appearance
+           */
+          <span className="pane-codec-badge" title={link.badge.explanation}>
+            {link.badge.text}
           </span>
         )}
         {link === undefined ? null : (

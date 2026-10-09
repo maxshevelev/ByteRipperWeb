@@ -1,30 +1,38 @@
+import { L } from "@/core/localization/localization";
+import { CopyPartCodec, type PartCodec, PartRefusal } from "@/core/parts/partCodec";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
-import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
-import { DocumentOrigin, type OriginKind } from "@/state/documentOrigin";
-import { openPart, type PaneId, type PartId, paneState } from "@/state/workspaceStore";
+import { DocumentOrigin } from "@/state/documentOrigin";
+import { documentPartReader } from "@/state/documentPartReader";
+import { openPart, type PaneId, type PartId, paneState, reportAlert } from "@/state/workspaceStore";
 
 /**
- * Opening a part with the link back to where its bytes came from — the one
- * route every command that opens a part takes (`Design/GAPS.md` G4, G49).
+ * Opens a part of `parent`'s file as a panel over it — the one way a part opens,
+ * whoever asks: a zone, a node of a tool's tree, a body a tool decompressed
+ * (`Design/GAPS.md` G4, G49; upstream's `Design/FRAGMENT_PANELS_PLAN.md`).
  *
- * The link is made here rather than by each caller because making it reads the
- * source out of the parent: one place does that, and a part opened without it
- * is a part nothing can put back.
+ * `codec` is the whole of what the part is: the panel shows what it decodes
+ * from `source`, and Update in Parent writes back what it encodes. The link is
+ * made here rather than by each caller because making it reads the source out
+ * of the parent: one place does that, and a part opened without it is a part
+ * nothing can put back. The window's bookmarks reach the panel only when the
+ * codec keeps the source's offsets (`marksFor`).
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPartForTool
+ * Resolves to the part, or to nothing when the bytes could not be decoded —
+ * which has then been said.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPart
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFragment
+ * @upstream-differs every decode is awaited: a quick one settles at once, and a
+ * body to decompress comes back from the worker, so the two need no separate
+ * paths
  */
 export async function openLinkedPart(options: {
   /** The pane the bytes came out of — a file slot, or another part. */
   readonly parent: PaneId;
-  readonly bytes: Uint8Array;
   /** What the panel and its pill are called. */
   readonly name: string;
-  /**
-   * Where the bytes are in the parent. A part opened without one — nothing
-   * offers that today — is a document like any other, with no way home.
-   */
-  readonly source?: readonly [number, number] | undefined;
+  /** Where the bytes are in the parent: what the link points at. Half-open. */
+  readonly source: readonly [number, number];
   /**
    * What the part is called in the parent, for the link's own sentence. The
    * part's name without the parent's stem in front of it, when the caller has
@@ -36,31 +44,38 @@ export async function openLinkedPart(options: {
    * tree is what knows (`askFirmwareLayout`).
    */
   readonly layout?: UEFIRootLayout | undefined;
-  /**
-   * How the bytes stand to the source: its own, copied out, or what it
-   * decompresses to — which goes back compressed again.
-   */
-  readonly kind?: OriginKind | undefined;
-  /**
-   * Where the bytes go back to through the rebuild planner, when the part is
-   * something the image can be laid out again around
-   * (`Design/UEFI/UPDATE_IN_PARENT.md` §6).
-   */
-  readonly rebuildTarget?: RebuildTarget | undefined;
-}): Promise<PartId> {
-  const { parent, bytes, name, source } = options;
-  const origin =
-    source === undefined
-      ? undefined
-      : await DocumentOrigin.of({
-          parent,
-          source,
-          partName: options.partName ?? partNameOf(name, paneState(parent)?.name ?? ""),
-          ...(options.layout === undefined ? {} : { layout: options.layout }),
-          ...(options.kind === undefined ? {} : { kind: options.kind }),
-          ...(options.rebuildTarget === undefined ? {} : { rebuildTarget: options.rebuildTarget }),
-          content: bytes,
-        });
+  /** What the part is, both ways; a copy of the source when nothing says otherwise. */
+  readonly codec?: PartCodec | undefined;
+}): Promise<PartId | undefined> {
+  const { parent, name, source } = options;
+  const slot = paneState(parent);
+  if (slot === undefined) return undefined;
+  const codec = options.codec ?? new CopyPartCodec();
+  const partName = options.partName ?? partNameOf(name, slot.name);
+  let bytes: Uint8Array;
+  try {
+    bytes = await codec.decode({
+      content: documentPartReader(slot.document),
+      source,
+      name: slot.name,
+      partName,
+    });
+  } catch (error) {
+    reportAlert(
+      error instanceof PartRefusal ? error.title : L("Those bytes could not be read."),
+      error instanceof Error ? error.message : String(error),
+      "problem"
+    );
+    return undefined;
+  }
+  const origin = await DocumentOrigin.of({
+    parent,
+    source,
+    partName,
+    codec,
+    ...(options.layout === undefined ? {} : { layout: options.layout }),
+    content: bytes,
+  });
   return openPart(bytes, name, origin);
 }
 

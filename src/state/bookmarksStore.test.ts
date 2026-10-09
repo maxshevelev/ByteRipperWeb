@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+import { ElsewhereCodec } from "@/core/testing/partCodecs";
 import {
   addBookmark,
   BOOKMARK_DRAG_HYSTERESIS,
@@ -14,7 +15,7 @@ import {
   removeBookmark,
 } from "@/state/bookmarksStore";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { openLinkedPart } from "@/state/openLinkedPart";
+import { openGivenPart } from "@/state/testing/givenParts";
 import {
   closePart,
   openEmptyInPane,
@@ -207,13 +208,13 @@ describe("a panel's view of the list", () => {
   async function partOfA(start: number, end: number, kind?: "decompressed"): Promise<PartId> {
     const slot = paneState("a");
     if (slot === undefined) throw new Error("pane A should be open");
-    return openLinkedPart({
+    return openGivenPart({
       parent: "a",
       bytes: await slot.document.read(start, end - start),
       name: "zone.bin",
       source: [start, end],
       partName: "zone",
-      ...(kind === undefined ? {} : { kind }),
+      ...(kind === undefined ? {} : { back: new ElsewhereCodec() }),
     });
   }
 
@@ -271,7 +272,7 @@ describe("a panel's view of the list", () => {
     const outer = await partOfA(0x1000, 0x1100);
     const outerSlot = paneState(outer);
     if (outerSlot === undefined) throw new Error("the part should be open");
-    const inner = await openLinkedPart({
+    const inner = await openGivenPart({
       parent: outer,
       bytes: await outerSlot.document.read(0x40, 0x20),
       name: "inner.bin",
@@ -322,7 +323,7 @@ describe("a panel's view of the list", () => {
     const body = await partOfA(0x1000, 0x1100, "decompressed");
     const bodySlot = paneState(body);
     if (bodySlot === undefined) throw new Error("the part should be open");
-    const inner = await openLinkedPart({
+    const inner = await openGivenPart({
       parent: body,
       bytes: await bodySlot.document.read(0, 0x20),
       name: "inner.bin",
