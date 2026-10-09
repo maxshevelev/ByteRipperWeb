@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "447612ed24aed83f09942b722f28f284c439c203",
-  "baselineNote": "Keep the FIT table the panel read with the file, and show it at once when the panel comes back (2026-10-07)"
+  "baseCommit": "ad38e0b3b8b2b94fcb43a7e0d778a29843cac7a3",
+  "baselineNote": "Badge a LENV block's row with a lock when it is stored encoded and an open lock when it lies decoded in a part (2026-10-09)"
 }
