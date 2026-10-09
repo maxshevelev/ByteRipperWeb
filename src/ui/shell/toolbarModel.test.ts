@@ -15,6 +15,7 @@ const context = (overrides: Partial<ToolbarContext> = {}): ToolbarContext => ({
   comparison: false,
   windowOpen: false,
   navigation: { previousDifference: false, nextDifference: false },
+  history: { back: false, forward: false },
   ...overrides,
 });
 
@@ -24,6 +25,8 @@ describe("the toolbar's items", () => {
   it("are two groups split by the flexible space", () => {
     expect(TOOLBAR_DEFAULT_ITEMS).toEqual([
       "tools",
+      "space",
+      "historyNavigation",
       "space",
       "goTo",
       "find",
@@ -41,6 +44,8 @@ describe("the toolbar's items", () => {
     ]);
     expect(toolbarItems(false, false)).toEqual([
       "tools",
+      "space",
+      "historyNavigation",
       "space",
       "goTo",
       "find",
@@ -100,6 +105,22 @@ describe("the toolbar's items", () => {
     const items = toolbarItems(true, true);
     expect(items).not.toContain("diffNavigation");
     expect(items.indexOf("filesIdentical")).toBe(TOOLBAR_DEFAULT_ITEMS.indexOf("diffNavigation"));
+  });
+});
+
+describe("Back and Forward in the toolbar", () => {
+  // @upstream ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.testTheMenuItemsAndTheToolbarFollowTheHistory
+  it("sit between the Tools pull-down and Go To, set apart by spaces", () => {
+    const items = toolbarItems(false, false);
+    expect(items.slice(0, 5)).toEqual(["tools", "space", "historyNavigation", "space", "goTo"]);
+  });
+
+  it("follow whether there is anywhere to go", () => {
+    expect(toolbarItemEnabled("navigateBack", context())).toBe(false);
+    expect(toolbarItemEnabled("navigateForward", context())).toBe(false);
+    const there = context({ history: { back: true, forward: false } });
+    expect(toolbarItemEnabled("navigateBack", there)).toBe(true);
+    expect(toolbarItemEnabled("navigateForward", there)).toBe(false);
   });
 });
 

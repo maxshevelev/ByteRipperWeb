@@ -1144,6 +1144,8 @@
 "log operation|Unprotect" = "Снятие защиты";
 "Show DMI Area" = "Показать зону DMI";
 "Show in the tree where the image keeps the board's serial number, UUID and model" = "Показать в дереве, где образ хранит серийный номер, UUID и модель платы";
+"Go back to where the last jump left" = "Вернуться туда, откуда ушёл последний переход";
+"Go forward to where Back left" = "Пройти вперёд, туда, откуда ушла команда «Назад»";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.

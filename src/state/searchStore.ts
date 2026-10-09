@@ -14,6 +14,7 @@ import {
 import { forBytes, forText, type SelectionFindPattern } from "@/core/search/selectionFindPattern";
 import { type Attempt, attemptEncoding, attemptsFor } from "@/core/search/smartSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
+import { recordJump } from "@/state/navigationStore";
 import { dismissNotice, showNotice, showWrapNotice } from "@/state/noticeStore";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import { createStore } from "@/state/store";
@@ -374,9 +375,13 @@ function foundPatch(
   wrapped: boolean,
   foundEncoding: SearchEncoding | undefined
 ): Partial<PaneResults> {
-  return currentGoal === "list"
-    ? { status: "found", current: undefined, wrapped: false, foundEncoding }
-    : { status: "found", current: match, wrapped, foundEncoding };
+  if (currentGoal === "list") {
+    return { status: "found", current: undefined, wrapped: false, foundEncoding };
+  }
+  // A find that goes to its match is a jump: the place it leaves is a way back (§10.6).
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.show
+  recordJump(currentPane);
+  return { status: "found", current: match, wrapped, foundEncoding };
 }
 
 function ensureWorker(): Worker {
@@ -957,6 +962,8 @@ export function stepSearch(direction: "forward" | "backward"): void {
   const step = matches.step(direction, from);
   if (step === undefined) return;
 
+  // A step of the find is a jump: the place it leaves is a way back (§10.6).
+  recordJump(pane);
   updateResults(pane, { status: "found", current: step.range, wrapped: step.wrapped });
   if (step.wrapped) showWrapNotice(direction);
 }
@@ -1238,6 +1245,10 @@ export function selectMatch(pane: PaneId, offset: number): void {
   if (index === undefined) return;
   const range = matches.rangeAt(index);
   if (range === undefined) return;
+  // A row picked in the results is the user pointing at one occurrence among many: the place
+  // it leaves is a way back (§10.6).
+  // @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onWillJump
+  recordJump(pane);
   updateResults(pane, { status: "found", current: range, wrapped: false });
 }
 

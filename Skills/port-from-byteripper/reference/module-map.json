@@ -741,6 +741,20 @@
       }
     },
     {
+      "swift": "ByteRipperApp/Navigation",
+      "web": [
+        "src/core/navigation",
+        "src/state/navigationStore.ts"
+      ],
+      "status": "in-progress",
+      "note": "Back and Forward through the places the tab's jumps left (REQUIREMENTS §10.6). NavigationHistory is the generic stack pair, fifty places, with its model tests, in src/core. NavigationPlace and the walk — recordJump, navigationPlace, isReachable, go, the view leaving the caret as a step — are src/state/navigationStore.ts over the workspace's panes, the part dock and the scroll link (which knows the first byte on screen and scrolls a row to the top). The jumps record where upstream's do: Go To, a difference or same block, a search step, find or results row, a minimap click, Select Block, a zone or a segment picked from a menu. A tool's steps are the next unit.",
+      "files": {
+        "ByteRipperApp/Navigation/NavigationHistory.swift": "src/core/navigation/navigationHistory.ts",
+        "ByteRipperApp/Navigation/NavigationPlace.swift": "src/state/navigationStore.ts"
+      },
+      "unported": {}
+    },
+    {
       "swift": "Packages/PartCodec",
       "web": [
         "src/core/parts"
@@ -1971,7 +1985,8 @@
         "ByteRipperApp/App/AppTheme.swift": "",
         "ByteRipperApp/App/MainWindowController.swift": "",
         "ByteRipperApp/App/AppMain.swift": "",
-        "ByteRipperApp/App/OpenRecentMenuController.swift": "src/ui/shell/desktopMenu.ts"
+        "ByteRipperApp/App/OpenRecentMenuController.swift": "src/ui/shell/desktopMenu.ts",
+        "ByteRipperApp/App/MainMenu.swift": null
       },
       "unported": {
         "ByteRipperApp/App/AboutCredits.swift#AboutCredits.Project.name": "ported — a field of the Project interface in src/ui/shell/AboutDialog.tsx",
@@ -2167,7 +2182,11 @@
         "ByteRipperTests/ZoomTests.swift": "tests/e2e",
         "ByteRipperTests/ZoomToFitTests.swift": "tests/e2e",
         "ByteRipperTests/EmptyStateRecentFilesTests.swift": "tests/e2e",
-        "ByteRipperTests/PartCodecTestSupport.swift": "src/core/testing/partCodecs.ts"
+        "ByteRipperTests/PartCodecTestSupport.swift": "src/core/testing/partCodecs.ts",
+        "ByteRipperTests/NavigationHistoryTests.swift": [
+          "src/core/navigation/navigationHistory.test.ts",
+          "src/state/navigationStore.test.ts"
+        ]
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",
@@ -4284,7 +4303,17 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.sysfOverridesImage": "n/a — test scaffolding of the flow test above",
         "ByteRipperTests/PartCodecTestSupport.swift#GivenBytesCodec.*": "n/a — test scaffolding",
         "ByteRipperTests/PartCodecTestSupport.swift#ElsewhereCodec.*": "n/a — test scaffolding",
-        "ByteRipperTests/PartCodecTestSupport.swift#DocumentOrigin*": "n/a — test scaffolding: a web test hands DocumentOrigin.of the codec itself"
+        "ByteRipperTests/PartCodecTestSupport.swift#DocumentOrigin*": "n/a — test scaffolding: a web test hands DocumentOrigin.of the codec itself",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.urls": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.controller": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.window": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.tearDown": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.settle": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.makeWindow": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.openSingle": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.top": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.hexView": "n/a — test scaffolding",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryModelTests.everywhere": "n/a — test scaffolding"
       }
     },
     {

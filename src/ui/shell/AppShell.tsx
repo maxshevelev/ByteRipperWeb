@@ -25,6 +25,12 @@ import {
   toggleMinimap,
   watchForMinimap,
 } from "@/state/minimapStore";
+import {
+  navigateBack,
+  navigateForward,
+  noteCaretIfOnScreen,
+  recordJump,
+} from "@/state/navigationStore";
 import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlacement";
 import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
@@ -878,6 +884,19 @@ export function AppShell() {
         return;
       }
 
+      // Back and Forward (§10.6): ⌘[ and ⌘], which a browser also means for its own history —
+      // the page answers first, and only while it has a window with a file. Taken wherever the
+      // keyboard is, since the dump has no handler for them.
+      // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeViewMenu
+      // @upstream-differs a window-level key handler, ⌘→Ctrl on Windows, rather than a menu key equivalent
+      const history = shortcutKey(event);
+      if (history === "[" || history === "]") {
+        event.preventDefault();
+        if (history === "[") navigateBack();
+        else navigateForward();
+        return;
+      }
+
       // The dump has its own handler for every shortcut below, and this one
       // runs first because it captures at the window. Acting on both is acting
       // twice — which for a toggle is doing nothing at all, measured: Cmd+M
@@ -1160,6 +1179,9 @@ export function AppShell() {
     // offset is the same row of both files. A part has no pane beside it, and
     // the dump behind the panel is not what was asked about.
     const target = paneInFront();
+    // The place the jump leaves is a way back (§10.6).
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.recordJump
+    recordJump(target);
     if (isSlot(target)) {
       setReveal({
         a: { offset, token: ++revealToken.current },
@@ -1452,6 +1474,9 @@ export function AppShell() {
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.revealOffsetIfOffScreen
    */
   useEffect(() => {
+    // The view going to a zone is a place left when it takes the caret off screen, as any scroll
+    // does (`followCaretVisibility`): a row picked to look at the dump is one the reader may
+    // want to come back from (§10.6).
     zoneHooks.onZoneFocused = (pane: PaneId, offset: number) => {
       setReveal({
         [pane]: {
@@ -1881,6 +1906,7 @@ export function AppShell() {
       // the byte past it. Landing past the block would let the next Previous
       // press find the same block again and go nowhere.
       const offset = direction > 0 ? target.start : Math.max(target.start, target.end - 1);
+      recordJump(state.activePane);
       setReveal({
         a: { offset, token: ++revealToken.current },
         b: { offset, token: revealToken.current },
@@ -1919,7 +1945,12 @@ export function AppShell() {
     (pane: PaneId) => {
       const held = selectionReporters.current.get(pane);
       if (held !== undefined) return held;
-      const made = (selection: { start: number; end: number }) => noteSelection(pane, selection);
+      const made = (selection: { start: number; end: number }) => {
+        noteSelection(pane, selection);
+        // A caret that has moved onto the screen is watched from here on: the view leaving it
+        // is a step of the navigation history (§10.6).
+        noteCaretIfOnScreen(pane);
+      };
       selectionReporters.current.set(pane, made);
       return made;
     },
@@ -1950,6 +1981,7 @@ export function AppShell() {
       onSelectZone: (pane, zone) => {
         const slot = paneState(pane);
         if (slot === undefined) return;
+        recordJump(pane);
         void slot.typing.setSelection(zone.start, zone.end);
         // The zone is selected, then shown: scroll alone, so the reveal's caret
         // move does not collapse the selection just made.
@@ -2148,6 +2180,10 @@ export function AppShell() {
         <ToolPanel
           surface={pane}
           onReveal={(target, start, end, select) => {
+            // Not a step of the navigation history by itself: a tool reveals on every row its
+            // tree's arrow keys pass, and the tool says which of its moves are the reader's
+            // choices (`ToolHost.noteNavigationStep`, §10.6).
+            // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
             if (!select || start >= end) {
               // Going there without selecting: the caret moves to the start and the
               // dump shows it, the selection the user may have untouched.
@@ -2343,12 +2379,14 @@ export function AppShell() {
       {toolId !== undefined && panes.length > 0 ? (
         <ToolPanel
           onReveal={(pane, start, end) => {
+            // Not a step of the navigation history by itself (§10.6).
+            // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
             const slot = paneState(pane);
             if (slot !== undefined) {
               void slot.typing.setSelection(start, end);
             }
             // A tool bound to one of the workspace's panes makes it the active
-            // one; a part in the dock is active by being in front (G49).
+            // one; a part in the dump is active by being in front (G49).
             if (isSlot(pane)) setActivePane(pane);
             // The range is selected, then shown: scroll alone, so the reveal's
             // caret move does not collapse the selection just made.
@@ -2443,6 +2481,7 @@ export function AppShell() {
         presetStart={selectBlock?.start}
         onSelect={(start, end) => {
           const pane = selectBlock?.pane ?? front;
+          recordJump(pane);
           void paneIn(state, pane)?.typing.setSelection(start, end);
           // The block is shown by scrolling to its start, not by moving the
           // caret there — a caret move would collapse the selection just made.

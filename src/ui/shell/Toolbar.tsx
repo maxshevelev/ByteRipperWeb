@@ -7,6 +7,13 @@ import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { frontMap, minimapStore, toggleMinimap } from "@/state/minimapStore";
+import {
+  canNavigateBack,
+  canNavigateForward,
+  navigateBack,
+  navigateForward,
+  navigationStore,
+} from "@/state/navigationStore";
 import type { OpenPanePlacement } from "@/state/openPlacement";
 import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
@@ -46,6 +53,8 @@ import { revertItem } from "@/ui/shell/paneMenus";
 import { SectionMenu } from "@/ui/shell/SectionMenu";
 import {
   BackwardGlyph,
+  ChevronLeftGlyph,
+  ChevronRightGlyph,
   FindGlyph,
   ForwardGlyph,
   GoToGlyph,
@@ -154,6 +163,9 @@ export function Toolbar({
   const recent = useStore(recentFilesStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
+  // The history changes on every jump, and what draws Back and Forward follows it.
+  useStore(navigationStore);
+  const history = { back: canNavigateBack(), forward: canNavigateForward() };
   // The Add/Remove wording follows the caret's row, so the item says what it
   // will do rather than what it might.
   useStore(bookmarksStore);
@@ -431,6 +443,23 @@ export function Toolbar({
       onSelect: () => toggleMinimap(),
     },
     { kind: "separator" },
+    // Back and Forward walk the places the tab's jumps left (§10.6), on the keys a browser and
+    // Finder use for them.
+    {
+      // help: menu.view.back
+      label: L("Back"),
+      shortcut: "⌘[",
+      disabled: !history.back,
+      onSelect: navigateBack,
+    },
+    {
+      // help: menu.view.forward
+      label: L("Forward"),
+      shortcut: "⌘]",
+      disabled: !history.forward,
+      onSelect: navigateForward,
+    },
+    { kind: "separator" },
     {
       // help: menu.view.next-difference
       label: L("Next Difference"),
@@ -493,6 +522,7 @@ export function Toolbar({
     comparison: bothOpen,
     windowOpen: state.panes.a !== undefined || state.panes.b !== undefined,
     navigation,
+    history,
   };
   // The picker names what the surface in front is running.
   const activeTool = TOOLS.find((tool) => tool.id === frontSession(tools).activeIdentifier);
@@ -736,6 +766,32 @@ export function Toolbar({
             >
               <ChevronShapes />
             </svg>
+          </span>
+        );
+      // Back and Forward through the tab's navigation history (§10.6): the chevrons Finder has
+      // for the same two commands, joined in one block.
+      // help: toolbar.history
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeHistoryNavigationGroup
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.historyNavigationGroup
+      case "historyNavigation":
+        return (
+          <span key={key} className="toolbar-group">
+            <IconButton
+              label={L("Back")}
+              title={L("Go back to where the last jump left")}
+              disabled={!toolbarItemEnabled("navigateBack", context)}
+              onClick={navigateBack}
+            >
+              <ChevronLeftGlyph />
+            </IconButton>
+            <IconButton
+              label={L("Forward")}
+              title={L("Go forward to where Back left")}
+              disabled={!toolbarItemEnabled("navigateForward", context)}
+              onClick={navigateForward}
+            >
+              <ChevronRightGlyph />
+            </IconButton>
           </span>
         );
       case "diffNavigation":

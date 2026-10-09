@@ -84,6 +84,38 @@ export function SegmentsGlyph() {
   );
 }
 
+/** `chevron.left`: Back through the navigation history. */
+export function ChevronLeftGlyph() {
+  return (
+    <Glyph>
+      <path
+        d="M10 3 5 8l5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Glyph>
+  );
+}
+
+/** `chevron.right`: Forward through it. */
+export function ChevronRightGlyph() {
+  return (
+    <Glyph>
+      <path
+        d="M6 3l5 5-5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Glyph>
+  );
+}
+
 /** `backward`. */
 export function BackwardGlyph() {
   return (

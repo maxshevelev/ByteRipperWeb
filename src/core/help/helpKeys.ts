@@ -33,6 +33,8 @@ export type HelpCommand =
   | "minimap"
   | "bookmark"
   | "editBookmark"
+  | "back"
+  | "forward"
   | "nextDifference"
   | "previousDifference"
   | "nextSameBlock"
@@ -85,6 +87,8 @@ export const HELP_KEY_SPELLINGS: Readonly<Record<HelpCommand, KeySpelling>> = {
   minimap: { apple: "⌘M", other: "Ctrl+M" },
   bookmark: { apple: "⌘D", other: "Ctrl+D" },
   editBookmark: { apple: "⇧⌘D", other: "Ctrl+Shift+D" },
+  back: { apple: "⌘[", other: "Ctrl+[" },
+  forward: { apple: "⌘]", other: "Ctrl+]" },
   nextDifference: { apple: "⌥⌘→", other: "Ctrl+Alt+→" },
   previousDifference: { apple: "⌥⌘←", other: "Ctrl+Alt+←" },
   nextSameBlock: { apple: "⇧⌥⌘→", other: "Ctrl+Alt+Shift+→" },

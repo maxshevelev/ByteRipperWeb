@@ -1,5 +1,6 @@
 import { L } from "@/core/localization/localization";
 import { mergeTitle, type Segment, segmentLabel } from "@/core/segments/segmentation";
+import { recordJump } from "@/state/navigationStore";
 import { segmentSource } from "@/state/segmentSources";
 import { type PaneId, paneState } from "@/state/workspaceStore";
 import {
@@ -78,5 +79,6 @@ export function pieceMenu(options: {
 export function selectPiece(pane: PaneId, piece: Segment): void {
   const slot = paneState(pane);
   if (slot === undefined) return;
+  recordJump(pane);
   void slot.typing.setSelection(piece.start, piece.end);
 }

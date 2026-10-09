@@ -67,6 +67,6 @@ describe("helpKeys", () => {
     // The table is the closed set the book may name; a page that invents a new
     // one reads as its id, and the coverage of the book catches that.
     const commands = new Set(Object.keys(HELP_KEY_SPELLINGS) as HelpCommand[]);
-    expect(commands.size).toBe(26);
+    expect(commands.size).toBe(28);
   });
 });

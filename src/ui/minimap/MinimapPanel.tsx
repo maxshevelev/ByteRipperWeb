@@ -58,6 +58,7 @@ import {
   setMinimapRows,
   setMinimapWidth,
 } from "@/state/minimapStore";
+import { recordJump } from "@/state/navigationStore";
 import { baselineFor } from "@/state/segmentSources";
 import { segmentsStore } from "@/state/segmentsStore";
 import { zoneSelected } from "@/state/toolController";
@@ -936,6 +937,9 @@ function MinimapCanvas({
         fileSize: slot?.document.size ?? 0,
       });
       if (onStrip !== undefined) {
+        // A click on the map takes the view elsewhere: the place it leaves goes into the history (§10.6).
+        // @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.selectOffset
+        recordJump(pane);
         scrollLink.scrollToOffset(pane, onStrip, BYTES_PER_ROW, { centre: true });
         return;
       }
@@ -955,6 +959,9 @@ function MinimapCanvas({
         fileSize: slot?.document.size ?? 0,
       });
       if (onBracket !== undefined) {
+        // A click on the map takes the view elsewhere: the place it leaves goes into the history (§10.6).
+        // @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.selectOffset
+        recordJump(pane);
         scrollLink.scrollToOffset(pane, onBracket.offset, BYTES_PER_ROW, { centre: true });
         return;
       }
@@ -972,6 +979,9 @@ function MinimapCanvas({
       // still turn into a scroll.
       const offset = nearestBookmarkMark(layout, markPoints ?? [], x, y) ?? offsetFromEvent(event);
       if (offset !== undefined) {
+        // A click on the map takes the view elsewhere: the place it leaves goes into the history (§10.6).
+        // @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.selectOffset
+        recordJump(pane);
         scrollLink.scrollToOffset(pane, offset, BYTES_PER_ROW, { centre: true });
       }
       const height = band?.height ?? MIN_BAND_HEIGHT;
@@ -1182,6 +1192,7 @@ function MinimapCanvas({
                 onSelect: () => {
                   const slot = paneState(pane);
                   if (slot === undefined) return;
+                  recordJump(pane);
                   void slot.typing.setSelection(zone.start, zone.end);
                   scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW, { centre: true });
                   // The bytes are the host's half; telling the tool that

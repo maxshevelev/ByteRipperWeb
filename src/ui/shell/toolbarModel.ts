@@ -16,12 +16,16 @@ import type { PaneLayout } from "@/state/workspaceStore";
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.diffNavigation
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.previousDifference
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.nextDifference
+ * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.historyNavigation
+ * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.navigateBack
+ * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.navigateForward
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.filesIdentical
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.paneLayout
  * @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.toggleMinimap
  */
 export type ToolbarItemId =
   | "tools"
+  | "historyNavigation"
   | "goTo"
   | "find"
   | "segments"
@@ -47,6 +51,10 @@ export type ToolbarItemId =
  */
 export const TOOLBAR_DEFAULT_ITEMS: readonly ToolbarItemId[] = [
   "tools",
+  "space",
+  // Back and Forward come next, on their own between two spaces: they move through where the
+  // user has been, not through the dump (§10.6).
+  "historyNavigation",
   "space",
   "goTo",
   "find",
@@ -125,6 +133,8 @@ export interface ToolbarContext {
   readonly windowOpen: boolean;
   /** Where difference navigation has somewhere to go from the caret. */
   readonly navigation: { readonly previousDifference: boolean; readonly nextDifference: boolean };
+  /** Whether Back and Forward have somewhere to go (§10.6). */
+  readonly history: { readonly back: boolean; readonly forward: boolean };
 }
 
 /**
@@ -139,7 +149,7 @@ export interface ToolbarContext {
  * @upstream ByteRipperApp/App/MainWindowController.swift#ControlToolbarItem.validate
  */
 export function toolbarItemEnabled(
-  id: ToolbarItemId | "previousDifference" | "nextDifference",
+  id: ToolbarItemId | "previousDifference" | "nextDifference" | "navigateBack" | "navigateForward",
   context: ToolbarContext
 ): boolean {
   switch (id) {
@@ -148,6 +158,10 @@ export function toolbarItemEnabled(
     case "find":
     case "segments":
       return context.activeOpen;
+    case "navigateBack":
+      return context.history.back;
+    case "navigateForward":
+      return context.history.forward;
     case "previousDifference":
       return context.navigation.previousDifference;
     case "nextDifference":
