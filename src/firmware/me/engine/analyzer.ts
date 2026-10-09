@@ -26,7 +26,10 @@ import { metAttributes } from "@/firmware/me/engine/huffmanNeed";
 import { selectOperationalManifest } from "@/firmware/me/engine/manifestSelection";
 import { fitConfiguration, oemCustomized } from "@/firmware/me/engine/oemDetector";
 import {
+  METADATA_SIZE as EFS_METADATA_SIZE,
   efsDataArea,
+  efsDataAreaPages,
+  efsExtents,
   efsFiles,
   fitcConfigPayload,
   parseEfs,
@@ -35,6 +38,7 @@ import {
 import {
   configRecordSize,
   configurations,
+  decideMfsState,
   decodeConfigIDRecords,
   decodeConfigRecords,
   ftblFileIntegrity,
@@ -44,7 +48,6 @@ import {
   type MFSRawConfigIDRecord,
   type MFSRawConfigRecord,
   type MFSVolumeInfo,
-  mfsState,
   parseMfs,
   reservedIntegrity,
   vfsStartsAtZero,
@@ -97,7 +100,7 @@ import type {
   ManifestSummary,
   MMEModuleDirectory,
 } from "@/firmware/me/models/firmwareAnalysis";
-import type { FPTRegionRow } from "@/firmware/me/models/firmwareFacts";
+import type { FPTRegionRow, MFSStateEFS } from "@/firmware/me/models/firmwareFacts";
 import type { GSCInfo, RBEPMMetadata } from "@/firmware/me/models/independentFacts";
 import {
   cpdChecksumValid,
@@ -199,9 +202,12 @@ function ftblFiles(
   if (table === undefined || table.isEmpty || info.files.length === 0) return volume;
   const resolution = table.resolve(info.ftblPlatform, info.ftblDictionary);
   const protectedIndices = new Set<number>();
-  for (const file of info.files) {
-    const record = table.recordForFileIndex(file.index, resolution.platform, resolution.dictionary);
-    if (record?.integrity === true) protectedIndices.add(file.index);
+  for (const [index, record] of table.recordsForFileIndices(
+    info.files.map((file) => file.index),
+    resolution.platform,
+    resolution.dictionary
+  )) {
+    if (record.integrity) protectedIndices.add(index);
   }
   const splits = ftblFileIntegrity({
     files: info.files,
@@ -212,13 +218,23 @@ function ftblFiles(
     platform: info.ftblPlatform,
   });
   const byIndex = new Map(splits.map((one) => [one.fileIndex, one]));
+  const contents = new Map<number, Uint8Array>();
+  for (const file of info.files)
+    if (!contents.has(file.index)) contents.set(file.index, file.content);
   return {
     ...volume,
     files: volume.files.map((file) => {
       const split = byIndex.get(file.index);
-      return split === undefined
-        ? file
-        : { ...file, contentSize: split.contentSize, integrity: split.integrity };
+      if (split === undefined) return file;
+      const content = contents.get(file.index);
+      return {
+        ...file,
+        contentSize: split.contentSize,
+        integrity: split.integrity,
+        ...(content === undefined
+          ? {}
+          : { contentDigest: hex(sha256(content.subarray(0, split.contentSize))) }),
+      };
     }),
   };
 }
@@ -262,15 +278,22 @@ function efsWithFiles(
   );
   if (entries === undefined || entries.length === 0) return volume;
   const integrityFileIDs = new Set<number>();
-  for (const entry of entries) {
-    const record = table.recordForFileIndex(
-      entry.fileID,
-      resolution.platform,
-      resolution.dictionary
-    );
-    if (record?.integrity === true) integrityFileIDs.add(entry.fileID);
+  for (const [index, record] of table.recordsForFileIndices(
+    entries.map((entry) => entry.fileID),
+    resolution.platform,
+    resolution.dictionary
+  )) {
+    if (record.integrity) integrityFileIDs.add(index);
   }
   const area = efsDataArea(bytes, region.offset - baseOffset, region.size, volume.dataPageOrder);
+  // Where each file is in the image: its stored bytes, after the 4-byte
+  // metadata, through the pages the area was read from.
+  const pages = efsDataAreaPages(
+    bytes,
+    region.offset - baseOffset,
+    region.size,
+    volume.dataPageOrder
+  ).map((page) => ({ start: page.start + baseOffset, end: page.end + baseOffset }));
   return {
     ...volume,
     files: efsFiles({
@@ -281,6 +304,10 @@ function efsWithFiles(
       major: identity.major,
       minor: identity.minor,
       platform: resolution.platform,
+    }).map((file) => {
+      const start = file.dataOffset + EFS_METADATA_SIZE;
+      const extents = efsExtents({ start, end: start + file.storedSize }, pages);
+      return extents === undefined ? file : { ...file, extents };
     }),
   };
 }
@@ -627,6 +654,7 @@ function analyze(
       // Read in phase 9, which this path — no manifest — never reaches.
       unlockTokenFlags: undefined,
       mfsState: undefined,
+      mfsStateBasis: undefined,
       gscInfo,
       oromImages: undefined,
       rbePmMetadata: undefined,
@@ -1031,17 +1059,35 @@ function analyze(
   // The four things that raise the File System State to Configured: the Flash
   // Image Tool's own configuration module, and the three configuration
   // partitions.
-  const configurationPresent =
-    fitConfiguration(codePartition, bytes, baseOffset) ||
-    (fpt?.partitions.some((part) => ["FITC", "CDMD", "MFSB"].includes(part.name) && !part.empty) ??
-      false);
-  const fileSystemState = mfsState({
+  const configurationFound = [
+    ...(fitConfiguration(codePartition, bytes, baseOffset) ? ["fitc.cfg"] : []),
+    ...(fpt?.partitions
+      .filter((part) => ["FITC", "CDMD", "MFSB"].includes(part.name) && !part.empty)
+      .map((part) => part.name) ?? []),
+  ];
+  // What step 2 of row 17 had to go on, said apart from the state: a volume that
+  // could not be read leaves the state where the other steps put it, and the
+  // reader should know that.
+  const efsEvidence = ((): MFSStateEFS => {
+    if (efsVolumeForWalk !== undefined) {
+      const files = efsVolumeForWalk.files;
+      if (files === undefined || files.length === 0) return { kind: "filesNotNamed" };
+      return (files.at(-1)?.storedSize ?? 0) > 0
+        ? { kind: "holdsFiles" }
+        : { kind: "noFileContent" };
+    }
+    const partition = regions.find((one) => one.name === "EFS" && one.size > 0);
+    return partition === undefined
+      ? { kind: "noPartition" }
+      : { kind: "unreadable", offset: partition.offset };
+  })();
+  const fileSystemState = decideMfsState({
     usesFTBL: mfsInfo?.usesFTBL ?? false,
     presentFileIndices: (mfsInfo?.files ?? [])
       .filter((one) => one.content.length > 0)
       .map((one) => one.index),
-    efsHoldsFiles: (efsVolumeForWalk?.files?.at(-1)?.storedSize ?? 0) > 0,
-    hasConfiguration: configurationPresent,
+    efs: efsEvidence,
+    configuration: configurationFound,
   });
 
   // The independent firmware stitched into this image, each analysed by this
@@ -1140,7 +1186,8 @@ function analyze(
     efsVolume: efsVolumeForWalk,
     oemConfiguration: oemConfiguration,
     unlockTokenFlags: unlockTokenFlagRows.length === 0 ? undefined : unlockTokenFlagRows,
-    mfsState: fileSystemState,
+    mfsState: fileSystemState.state,
+    mfsStateBasis: fileSystemState.basis,
     gscInfo,
     oromImages,
     rbePmMetadata,
@@ -1311,7 +1358,19 @@ function decodeFileSystems(
         usesFTBL: info.usesFTBL,
         presentFileCount: present.length,
         fileBytes: present.reduce((sum, one) => sum + one.content.length, 0),
-        files: present.map((one) => ({ index: one.index, size: one.content.length })),
+        // Where each file is, moved from the volume's buffer to the image; the
+        // digest is of the whole chain until the Integrity split says where the
+        // content ends.
+        files: present.map((one) => ({
+          index: one.index,
+          size: one.content.length,
+          extents: (one.extents ?? []).map((range) => ({
+            start: range.start + mfsRegion.offset,
+            end: range.end + mfsRegion.offset,
+          })),
+          contentDigest: hex(sha256(one.content)),
+          chainIntact: one.intact ?? true,
+        })),
         // The Configuration streams are filled in phase 9: which record struct
         // they carry is `get_cfg_rec_size`, and that needs the identity this
         // phase does not have yet.

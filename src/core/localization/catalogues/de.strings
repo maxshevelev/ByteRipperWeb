@@ -1150,6 +1150,14 @@
 "Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms" = "Zeile #%1$@ enthält bereits einen Microcode für CPUID %2$@ auf denselben Plattformen";
 "Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms. To update it, replace that row. Nothing was changed." = "Zeile #%1$@ enthält bereits einen Microcode für CPUID %2$@ auf denselben Plattformen. Um ihn zu aktualisieren, ersetzen Sie den Microcode in dieser Zeile. Es wurde nichts geändert.";
 "This microcode is already in the table, in row #%1$@. Nothing was changed." = "Dieser Microcode steht bereits in der Tabelle, in Zeile #%1$@. Es wurde nichts geändert.";
+"%1$@, because the EFS volume holds file content: the engine has run and written its files." = "%1$@: Das EFS-Volume enthält Dateiinhalte, die Engine ist also gelaufen und hat ihre Dateien geschrieben.";
+"%1$@, from the configuration found (%2$@), not from files the engine wrote." = "%1$@: nach der gefundenen Konfiguration (%2$@), nicht nach Dateien, die die Engine geschrieben hat.";
+"%1$@, from the reserved MFS files present." = "%1$@: nach den vorhandenen reservierten MFS-Dateien.";
+"%1$@: no reserved MFS file, no EFS content and no configuration partition." = "%1$@: weder reservierte MFS-Dateien noch EFS-Inhalte noch eine Konfigurationspartition.";
+"State basis" = "Grundlage des Zustands";
+"The EFS partition at %1$@ could not be read, so whether it holds files — which would make the state Initialized — is unknown. Check its system page before relying on this state." = "Die EFS-Partition bei %1$@ ließ sich nicht lesen; ob sie Dateien enthält, ist daher unbekannt. Enthielte sie welche, wäre der Zustand Initialized. Vor einer Entscheidung auf Grundlage dieses Zustands ist ihre Systemseite zu prüfen.";
+"The EFS volume's files cannot be told without the firmware database's file table, so whether it holds files — which would make the state Initialized — is unknown." = "Ohne die Dateitabelle der Firmware-Datenbank lassen sich die Dateien des EFS-Volumes nicht bestimmen; ob es Dateien enthält, ist daher unbekannt. Enthielte es welche, wäre der Zustand Initialized.";
+"This volume does not name its reserved files by index, so only the EFS and the configuration decide." = "Dieses Volume bezeichnet seine reservierten Dateien nicht über Indizes; den Zustand bestimmen daher nur EFS und Konfiguration.";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

@@ -135,16 +135,12 @@ export class EFSFileNames {
     const hasTable = table.hasEFST(resolution.platform, resolution.dictionary);
     const entries = table.efsEntries(resolution.platform, resolution.dictionary, revision) ?? [];
     const names = new Map<number, FileTableEFSEntry>();
-    const records = new Map<number, FileTableEntry>();
-    for (const entry of entries) {
-      names.set(entry.fileID, entry);
-      const record = table.recordForFileIndex(
-        entry.fileID,
-        resolution.platform,
-        resolution.dictionary
-      );
-      if (record !== undefined) records.set(entry.fileID, record);
-    }
+    for (const entry of entries) names.set(entry.fileID, entry);
+    const records = table.recordsForFileIndices(
+      names.keys(),
+      resolution.platform,
+      resolution.dictionary
+    );
     return new EFSFileNames({ names, records, resolution, revision, hasTable });
   }
 

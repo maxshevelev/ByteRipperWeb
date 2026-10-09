@@ -62,6 +62,20 @@ describe("FileTable records", () => {
     expect(entry?.unknown).toBe(448);
   });
 
+  // Many indices at once answer what each asked alone answers — the first record
+  // of a file claimed twice included — and an index the table does not name is
+  // left out.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FileTableTests.swift#FileTableTests.testManyIndicesAtOnceAreEachIndexAlone
+  it("answers many indices at once as each alone", () => {
+    const indices = [6, 63, 256, 99_999];
+    const batch = table().recordsForFileIndices(indices, 4, 0x0a);
+    for (const index of indices) {
+      expect(batch.get(index)).toEqual(table().recordForFileIndex(index, 4, 0x0a));
+    }
+    expect(batch.has(99_999)).toBe(false);
+    expect(batch.get(256)?.path).toBe("/home/ish_srv/bios2ish");
+  });
+
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FileTableTests.swift#FileTableTests.testTheIntegrityFlagIsPerRecord
   it("reads the integrity flag per record", () => {
     const entry = table().recordForFileIndex(6, 4, 0x0a);

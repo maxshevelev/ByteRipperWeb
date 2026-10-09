@@ -1,4 +1,6 @@
+import type { ImageRange } from "@/firmware/imageReader";
 import { crc32, crc32FromZero } from "@/firmware/me/crypto/checksum";
+import { hex, sha256 } from "@/firmware/me/crypto/digest";
 import type { FileTableEFSEntry } from "@/firmware/me/data/fileTable";
 import { integrityTable, secHeaderSize } from "@/firmware/me/fileSystem/mfs";
 import type {
@@ -238,6 +240,70 @@ export function efsDataArea(
 }
 
 /**
+ * Where the data area's bytes are: for each Data page in System-index order, the
+ * stretch of `bytes` its contribution to the area comes from — the same pages, in
+ * the same order, `efsDataArea` reads. Empty where `efsDataArea` is.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.dataAreaPages
+ */
+export function efsDataAreaPages(
+  bytes: Uint8Array,
+  offset: number,
+  size: number,
+  order: readonly number[]
+): ImageRange[] {
+  if (offset < 0 || size < PAGE_SIZE || offset + size > bytes.length) return [];
+  const buffer = bytes.subarray(offset, offset + size);
+  const bases = efsDataPageBases(buffer);
+  const permutation =
+    order.length === bases.length &&
+    order.every((value) => value >= 0 && value < bases.length) &&
+    new Set(order).size === order.length;
+  if (!permutation) return [];
+  return order.map((value) => {
+    const base = offset + (bases[value] ?? 0);
+    return { start: base + PAGE_HEADER_SIZE, end: base + PAGE_SIZE - FOOTER_SIZE };
+  });
+}
+
+/**
+ * `span` of the data area as stretches of the image, in the data area's order:
+ * cut where a page's contribution ends, and joined where the next one happens to
+ * follow it in the image. `pages` are `efsDataAreaPages`, already moved to image
+ * addresses; undefined when the span runs past them.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.extents
+ */
+export function efsExtents(
+  span: ImageRange,
+  pages: readonly ImageRange[]
+): ImageRange[] | undefined {
+  const result: ImageRange[] = [];
+  let areaStart = 0;
+  for (const page of pages) {
+    const length = page.end - page.start;
+    const areaEnd = areaStart + length;
+    const lower = Math.max(span.start, areaStart);
+    const upper = Math.min(span.end, areaEnd);
+    if (lower < upper) {
+      const piece = {
+        start: page.start + lower - areaStart,
+        end: page.start + upper - areaStart,
+      };
+      const last = result.at(-1);
+      if (last !== undefined && last.end === piece.start) {
+        result[result.length - 1] = { start: last.start, end: piece.end };
+      } else {
+        result.push(piece);
+      }
+    }
+    areaStart = areaEnd;
+  }
+  const total = result.reduce((sum, one) => sum + (one.end - one.start), 0);
+  return total === span.end - span.start ? result : undefined;
+}
+
+/**
  * The physical bases of the volume's Data pages, in page order — the same
  * classification `parseEfs` makes: a Data page carries a Dictionary of
  * 0x0000/0xFFFF and a written Unknown0.
@@ -268,7 +334,7 @@ const FOOTER_SIZE = 0x08;
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/EFS.swift#EFSParser.metadataSize
  */
-const METADATA_SIZE = 0x04;
+export const METADATA_SIZE = 0x04;
 
 /**
  * The volume's files: one per EFS table entry that the data area actually
@@ -344,6 +410,7 @@ export function efsFiles(options: {
       metadataUnknown: unknown,
       contentSize,
       integrity,
+      contentDigest: hex(sha256(content.subarray(0, contentSize))),
     });
   }
   return result;

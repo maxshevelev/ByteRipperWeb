@@ -14,6 +14,7 @@ import type {
   FWUpdateSupport,
   MEVersion,
   MFSState,
+  MFSStateBasis,
   ReleaseType,
 } from "@/firmware/me/models/firmwareFacts";
 import type { GSCInfo, GSCOROMImage, RBEPMMetadata } from "@/firmware/me/models/independentFacts";
@@ -542,6 +543,13 @@ export interface FirmwareAnalysis {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.mfsState
    */
   readonly mfsState: MFSState | undefined;
+  /**
+   * What `mfsState` was decided from. Not upstream's; undefined where
+   * `mfsState` is.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.mfsStateBasis
+   */
+  readonly mfsStateBasis: MFSStateBasis | undefined;
   /**
    * A GSC image's INFO partition.
    *

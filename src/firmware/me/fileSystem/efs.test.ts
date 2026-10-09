@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { crc32 } from "@/firmware/me/crypto/checksum";
+import { hex, sha256 } from "@/firmware/me/crypto/digest";
 import type { FileTableEFSEntry } from "@/firmware/me/data/fileTable";
 import {
   efsDataArea,
+  efsDataAreaPages,
+  efsExtents,
   efsFiles,
   fitcConfigPayload,
   parseEfs,
@@ -335,6 +338,60 @@ describe("the EFS data area", () => {
     expect(area[pageData]).toBe(0x00);
   });
 
+  // Where the data area comes from: each Data page's body in index order, and a
+  // span of the area as stretches of the image — cut at a page's end, and read
+  // back as the area's own bytes.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testASpanOfTheDataAreaIsFoundInThePagesItCameFrom
+  it("finds a span of the area in the pages it came from", () => {
+    const region = makeVolume();
+    const order = [1, 0];
+    const area = efsDataArea(region, 0, region.length, order);
+    const pages = efsDataAreaPages(region, 0, region.length, order);
+    const body = PAGE_SIZE - PAGE_HEADER_SIZE - 0x08;
+    expect(pages).toEqual([
+      { start: 2 * PAGE_SIZE + PAGE_HEADER_SIZE, end: 3 * PAGE_SIZE - 8 },
+      { start: PAGE_SIZE + PAGE_HEADER_SIZE, end: 2 * PAGE_SIZE - 8 },
+    ]);
+
+    const span = { start: body - 0x10, end: body + 0x20 };
+    const extents = efsExtents(span, pages) ?? [];
+    // Cut where the first page's body ends.
+    expect(extents.map((one) => one.end - one.start)).toEqual([0x10, 0x20]);
+    const read = Uint8Array.from(
+      extents.flatMap((one) => [...region.subarray(one.start, one.end)])
+    );
+    expect(read).toEqual(area.subarray(span.start, span.end));
+
+    const first = pages[0]?.start ?? 0;
+    expect(efsExtents({ start: 0x20, end: 0x30 }, pages)).toEqual([
+      { start: first + 0x20, end: first + 0x30 },
+    ]);
+    // A span past the area has no place.
+    expect(efsExtents({ start: 2 * body - 4, end: 2 * body + 4 }, pages)).toBeUndefined();
+  });
+
+  // Pages that follow each other in the image as in the area still have a footer
+  // and a header between them, so the extents are joined only where the bytes
+  // really touch.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testExtentsJoinOnlyWhereTheyTouch
+  it("joins extents only where they touch", () => {
+    expect(
+      efsExtents({ start: 0, end: 8 }, [
+        { start: 0x100, end: 0x104 },
+        { start: 0x104, end: 0x110 },
+      ])
+    ).toEqual([{ start: 0x100, end: 0x108 }]);
+    expect(
+      efsExtents({ start: 0, end: 8 }, [
+        { start: 0x100, end: 0x104 },
+        { start: 0x200, end: 0x210 },
+      ])
+    ).toEqual([
+      { start: 0x100, end: 0x104 },
+      { start: 0x200, end: 0x204 },
+    ]);
+  });
+
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testTheDataAreaIsEmptyWhenTheIndexOrderIsNotAPermutation
   it("is empty when the index order is not a permutation", () => {
     const region = makeVolume();
@@ -362,6 +419,7 @@ describe("the EFS file walk", () => {
     expect(files[0]?.contentSize).toBe(0x20);
     expect(files[0]?.metadataUnknown).toBe(0xab12);
     expect(files[0]?.integrity).toBeUndefined();
+    expect(files[0]?.contentDigest).toBe(hex(sha256(area.subarray(0x14, 0x34))));
   });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/EFSTests.swift#EFSTests.testAFlaggedFileIsSplitFromTheTableItEndsWith
@@ -391,6 +449,8 @@ describe("the EFS file walk", () => {
     expect(files[0]?.integrity?.size).toBe(0x28);
     expect(files[0]?.integrity?.arCounter).toBe(9);
     expect(files[0]?.integrity?.hmacHex.slice(0, 4)).toBe("A1A1");
+    // The digest is of the content, the table left off.
+    expect(files[0]?.contentDigest).toBe(hex(sha256(new Uint8Array(0x40).fill(0x33))));
     expect(files[1]?.contentSize).toBe(0x10);
     expect(files[1]?.integrity).toBeUndefined();
   });

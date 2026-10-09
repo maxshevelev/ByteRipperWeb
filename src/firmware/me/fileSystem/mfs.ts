@@ -1,3 +1,4 @@
+import type { ImageRange } from "@/firmware/imageReader";
 import { crc16_14 } from "@/firmware/me/crypto/checksum";
 import type {
   MFSHomeDirectory,
@@ -5,7 +6,13 @@ import type {
   MFSIntegrityTable,
   MFSReservedFileIntegrity,
 } from "@/firmware/me/models/fileSystemFacts";
-import type { MFSState } from "@/firmware/me/models/firmwareFacts";
+import type {
+  MFSState,
+  MFSStateBasis,
+  MFSStateEFS,
+  MFSStateReservedFiles,
+  MFSStateStep,
+} from "@/firmware/me/models/firmwareFacts";
 
 /**
  * The CSE MFS file system — upstream `mfs_anl`: the page inventory, the System
@@ -61,6 +68,23 @@ export interface MFSLowLevelFile {
   readonly index: number;
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSLowLevelFile.content */
   readonly content: Uint8Array;
+  /**
+   * Where those bytes are, as offsets into the buffer `parseMfs` read, in the
+   * chain's order: one per chunk, the 0x40 payload bytes (fewer for the last)
+   * without the CRC that follows each. Laid one after another they are
+   * `content`. Not merged: two chunks are never adjacent, their CRC is always
+   * between.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSLowLevelFile.extents
+   */
+  readonly extents?: readonly ImageRange[] | undefined;
+  /**
+   * False where the chain ended early or ran in a circle, so `content` is what
+   * the walk got, not the whole file.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSLowLevelFile.intact
+   */
+  readonly intact?: boolean | undefined;
 }
 
 /**
@@ -212,6 +236,8 @@ export function parseMfs(
   );
   const systemIndexSizeTotal = systemChunkCount * SYSTEM_INDEX_SIZE + SYSTEM_INDEX_SIZE;
   const chunks = new Map<number, Uint8Array>();
+  // Where each chunk's payload is in `buffer` — what a file's extents are made of.
+  const chunkOffsets = new Map<number, number>();
   for (const { page } of systemPages) {
     const base = page * MFS_PAGE_SIZE;
     let running = 0;
@@ -227,6 +253,7 @@ export function parseMfs(
       const at = base + chunkStart + slot * CHUNK_ALL_SIZE;
       if (at + CHUNK_RAW_SIZE > base + MFS_PAGE_SIZE) break;
       chunks.set(index, buffer.subarray(at, at + CHUNK_RAW_SIZE));
+      chunkOffsets.set(index, at);
     }
   }
 
@@ -243,6 +270,7 @@ export function parseMfs(
       const at = base + chunkStart + slot * CHUNK_ALL_SIZE;
       if (at + CHUNK_RAW_SIZE > base + MFS_PAGE_SIZE) break;
       chunks.set(firstChunk + slot, buffer.subarray(at, at + CHUNK_RAW_SIZE));
+      chunkOffsets.set(firstChunk + slot, at);
     }
   }
 
@@ -314,33 +342,40 @@ export function parseMfs(
       let value = fatValue(record);
       if (value === 0x0000 || value === 0xfffe || value === 0xffff) continue;
       const body: Uint8Array[] = [];
+      const extents: ImageRange[] = [];
+      let fileIntact = true;
       let steps = 0;
       for (;;) {
         // A chain can never visit more distinct chunks than exist: a cyclic FAT
         // would spin on upstream, and this must not.
         steps++;
         if (steps > reachableChunks + 1 || value < info.fileRecordCount) {
-          intact = false;
+          fileIntact = false;
           break;
         }
         const dataSlot = value - info.fileRecordCount;
         if (dataSlot < 0 || dataSlot >= reachableChunks) {
-          intact = false;
+          fileIntact = false;
           break;
         }
-        const chunk = chunks.get(effectiveSystemChunkCount + dataSlot);
+        const chunkIndex = effectiveSystemChunkCount + dataSlot;
+        const chunk = chunks.get(chunkIndex);
         if (chunk === undefined) {
-          intact = false;
+          fileIntact = false;
           break;
         }
+        const at = chunkOffsets.get(chunkIndex) ?? 0;
         value = fatValue(value);
         if (value >= 1 && value <= CHUNK_RAW_SIZE) {
           body.push(chunk.subarray(0, value));
+          extents.push({ start: at, end: at + value });
           break;
         }
         body.push(chunk);
+        extents.push({ start: at, end: at + chunk.length });
       }
-      info.files.push({ index: record, content: concat(body) });
+      if (!fileIntact) intact = false;
+      info.files.push({ index: record, content: concat(body), extents, intact: fileIntact });
     }
     info.fileChainsIntact = intact;
   }
@@ -569,20 +604,67 @@ export function mfsState(options: {
   readonly efsHoldsFiles: boolean;
   readonly hasConfiguration: boolean;
 }): MFSState {
+  return decideMfsState({
+    usesFTBL: options.usesFTBL,
+    presentFileIndices: options.presentFileIndices,
+    efs: options.efsHoldsFiles ? { kind: "holdsFiles" } : { kind: "noPartition" },
+    configuration: options.hasConfiguration ? ["configuration"] : [],
+  }).state;
+}
+
+/**
+ * The state, with what each step found and which one decided it. The state is
+ * upstream's exactly: `efs` raises it only when it is `holdsFiles`, and any
+ * configuration at all is step 3's evidence.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder.decide
+ */
+export function decideMfsState(options: {
+  readonly usesFTBL: boolean;
+  readonly presentFileIndices: readonly number[];
+  readonly efs: MFSStateEFS;
+  readonly configuration: readonly string[];
+}): { readonly state: MFSState; readonly basis: MFSStateBasis } {
   let state: MFSState = "unconfigured";
-  if (!options.usesFTBL) {
-    if (options.presentFileIndices.some((index) => [0, 1, 2, 3, 4, 5, 8].includes(index))) {
+  let step: MFSStateStep = "nothing";
+  let reserved: MFSStateReservedFiles;
+  if (options.usesFTBL) {
+    reserved = { kind: "notRead" };
+  } else {
+    const initializing = options.presentFileIndices
+      .filter((index) => [0, 1, 2, 3, 4, 5, 8].includes(index))
+      .sort((left, right) => left - right);
+    const configuring = options.presentFileIndices
+      .filter((index) => index === 7 || index === 9)
+      .sort((left, right) => left - right);
+    if (initializing.length > 0) {
       state = "initialized";
-    } else if (options.presentFileIndices.some((index) => index === 7 || index === 9)) {
+      step = "reservedFiles";
+      reserved = { kind: "initializing", indices: initializing };
+    } else if (configuring.length > 0) {
       state = "configured";
+      step = "reservedFiles";
+      reserved = { kind: "configuring", indices: configuring };
+    } else {
+      reserved = { kind: "none" };
     }
   }
-  if (state !== "initialized" && options.efsHoldsFiles) {
+  if (state !== "initialized" && options.efs.kind === "holdsFiles") {
     state = "initialized";
-  } else if (state === "unconfigured" && options.hasConfiguration) {
+    step = "efs";
+  } else if (state === "unconfigured" && options.configuration.length > 0) {
     state = "configured";
+    step = "configuration";
   }
-  return state;
+  return {
+    state,
+    basis: {
+      reservedFiles: reserved,
+      efs: options.efs,
+      configuration: options.configuration,
+      decidedBy: step,
+    },
+  };
 }
 
 // MARK: - The legacy home tree and integrity tables

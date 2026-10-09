@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
+import type { MFSStateEFS } from "@/firmware/me/models/firmwareFacts";
 import {
   analysisWith,
   bootFixture,
@@ -194,6 +195,37 @@ describe("the identity", () => {
   });
 });
 
+describe("the state's basis", () => {
+  // The state's basis follows it on the Firmware row: drawn as a caution when
+  // the EFS step could not be taken, plain when it could.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheStateIsFollowedByWhatItRestsOn
+  it("follows the state, a caution when a step could not be taken", () => {
+    const basis = (efs: MFSStateEFS) =>
+      presentMEA(
+        analysisWith({
+          mfsState: "configured",
+          mfsStateBasis: {
+            reservedFiles: { kind: "notRead" },
+            efs,
+            configuration: ["FITC"],
+            decidedBy: "configuration",
+          },
+        }),
+        undefined
+      )[0];
+
+    const unread = basis({ kind: "unreadable", offset: 0x267000 });
+    expect(tone("State basis", unread)).toBe("caution");
+    expect(field("State basis", unread)).toContain(
+      "The EFS partition at 0x267000 could not be read"
+    );
+    const labels = unread?.fields.map((one) => one.label) ?? [];
+    expect(labels.indexOf("State basis")).toBe(labels.indexOf("File System State") + 1);
+
+    expect(tone("State basis", basis({ kind: "noFileContent" }))).toBeUndefined();
+  });
+});
+
 describe("the layout", () => {
   // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testRegionRowSubtitleRangeAndDetail
   it("gives a region its range, second line and detail", () => {
@@ -357,6 +389,28 @@ describe("the MFS volume", () => {
     expect(field("Index", f0)).toBe("0");
     expect(f0?.range).toBeUndefined();
     expect(find("File 2", files?.children)).toBeUndefined();
+  });
+
+  // A present file has no one range: its chunks are wherever the chain put them,
+  // so the row carries them as its extents, and a file from an analysis made
+  // before the model kept them carries none.
+  // @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.addresses
+  it("carries a file's extents where the file has them", () => {
+    const volume = mfsVolumeFixture();
+    const extents = [
+      { start: 0x7_2000, end: 0x7_2040 },
+      { start: 0x7_1000, end: 0x7_1005 },
+    ];
+    const withExtents = presentMEA(
+      analysisWith({ mfsVolume: { ...volume, files: [{ index: 0, size: 0x45, extents }] } }),
+      undefined
+    )[1];
+    const placed = find("File 0", find("Files", withExtents?.children)?.children);
+    expect(placed?.extents).toEqual(extents);
+    expect(placed?.range).toBeUndefined();
+
+    const without = presentMEA(analysisWith({ mfsVolume: volume }), undefined)[1];
+    expect(find("File 0", find("Files", without?.children)?.children)?.extents).toBeUndefined();
   });
 });
 

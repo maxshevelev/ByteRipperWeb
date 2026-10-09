@@ -1,3 +1,5 @@
+import type { ImageRange } from "@/firmware/imageReader";
+
 /**
  * What the CSE file systems report: the MFS volume and its backup area, the EFS
  * volume and the FITC OEM configuration beside it.
@@ -44,6 +46,33 @@ export interface MFSFile {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.integrity
    */
   readonly integrity?: MFSIntegrityTable | undefined;
+  /**
+   * Where the file is stored: the stretches of the analysed image its chain's
+   * chunks hold, in the chain's order, so that their bytes one after another are
+   * the file, Integrity table included. One per chunk — a chunk's 0x40 bytes are
+   * followed by its CRC, so no two are adjacent — and in no address order: the
+   * volume moves its pages to spread the wear, and one machine's two dumps keep
+   * the same file in different places. Not upstream's: MEAnalyzer prints no
+   * address for a file.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.extents
+   */
+  readonly extents?: readonly ImageRange[] | undefined;
+  /**
+   * SHA-256 of the file's content — the first `contentSize` bytes where a table
+   * was split off, all of them otherwise — uppercase hex. What two dumps' files
+   * are compared by; not upstream's.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.contentDigest
+   */
+  readonly contentDigest?: string | undefined;
+  /**
+   * False where the file's FAT chain ended early or ran in a circle: then `size`,
+   * `extents` and `contentDigest` describe what the walk got, not the whole file.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSFile.chainIntact
+   */
+  readonly chainIntact?: boolean | undefined;
 }
 
 /**
@@ -518,6 +547,24 @@ export interface EFSFile {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.integrity
    */
   readonly integrity: MFSIntegrityTable | undefined;
+  /**
+   * Where the file is stored: the stretches of the analysed image holding its
+   * `storedSize` bytes — after its 4-byte metadata, Integrity table included — in
+   * the file's order, so that their bytes one after another are the file. More
+   * than one where the file runs over the end of a Data page, whose footer and
+   * the next page's header are not the file's, or where the next logical page is
+   * elsewhere in the volume. Not upstream's.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.extents
+   */
+  readonly extents?: readonly ImageRange[] | undefined;
+  /**
+   * SHA-256 of the first `contentSize` stored bytes — the content without the
+   * Integrity table — uppercase hex. Not upstream's.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#EFSFile.contentDigest
+   */
+  readonly contentDigest?: string | undefined;
 }
 
 /**

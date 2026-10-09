@@ -8,11 +8,12 @@ import type {
   MFSPCHInit,
 } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
-import { versionText } from "@/firmware/me/models/firmwareFacts";
+import { mfsStateBasisIsIncomplete, versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
 import { UNLOCK_TOKEN_FLAGS_SIZE } from "@/firmware/me/partition/unlockToken";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
+import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
 import {
   countText,
   dateText,
@@ -99,6 +100,15 @@ export interface MEANode {
    * @upstream-differs a node has bytes when its range is defined
    */
   readonly range: { readonly start: number; readonly end: number } | undefined;
+  /**
+   * Where a row whose bytes are scattered is stored — an MFS or EFS file, its
+   * stretches in the file's own order (`MFSFile.extents`). Absent for every other
+   * row, and for a file from an analysis made before the model kept them. Not
+   * zoned: a zone is one range.
+   *
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.extents
+   */
+  readonly extents?: readonly { readonly start: number; readonly end: number }[] | undefined;
   /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.fields */
   readonly fields: readonly MEAField[];
   /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.children */
@@ -155,6 +165,7 @@ interface Draft {
   readonly title: string;
   readonly subtitle?: string;
   readonly range?: { readonly start: number; readonly end: number } | undefined;
+  readonly extents?: readonly { readonly start: number; readonly end: number }[] | undefined;
   readonly fields?: readonly MEAField[];
   readonly children?: readonly Draft[];
   readonly isEmptySection?: boolean;
@@ -230,6 +241,7 @@ function finish(draft: Draft, path: readonly number[]): MEANode {
     title: draft.title,
     subtitle: draft.subtitle ?? "",
     range: draft.range,
+    extents: draft.extents,
     fields: draft.fields ?? [],
     children: (draft.children ?? []).map((child, index) => finish(child, [...path, index])),
     isEmptySection: draft.isEmptySection ?? false,
@@ -328,6 +340,17 @@ function firmware(a: FirmwareAnalysis, pending: MEAPending): Draft {
     fields.rows.push(
       field("File System State", titleText(a.mfsState), fileSystemState(a.mfsState))
     );
+    // What the state rests on, and — a caution — when a step that could have
+    // raised it could not be taken.
+    if (a.mfsStateBasis !== undefined) {
+      fields.rows.push(
+        field(
+          L("State basis"),
+          fileSystemStateBasisText(a.mfsState, a.mfsStateBasis),
+          mfsStateBasisIsIncomplete(a.mfsStateBasis) ? "caution" : "standard"
+        )
+      );
+    }
   }
   // A non-IFWI image's $FPT header FIT; an IFWI's sits on each boot BPDT.
   if (a.fptHeaderFIT !== undefined) {
@@ -748,7 +771,9 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
   return {
     title: record?.path ?? `File ${file.index}`,
     subtitle: mfsFileSubtitle(file, record !== undefined),
-    // A present file's position is the FAT chain walk, which is not exposed.
+    // A present file has no one range: its chunks are wherever the FAT chain put
+    // them, so it carries them as its extents instead.
+    extents: file.extents,
     fields: fields.rows,
     children,
     isEmptySection: file.size === 0,
@@ -989,6 +1014,7 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
       name === undefined
         ? sizeText(file.contentSize)
         : `#${file.fileID} · ${sizeText(file.contentSize)}`,
+    extents: file.extents,
     fields: fields.rows,
     children,
     isEmptySection: file.contentSize === 0,

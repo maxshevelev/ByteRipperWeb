@@ -3,6 +3,7 @@ import { crc16_14 } from "@/firmware/me/crypto/checksum";
 import {
   configRecordSize,
   configurations,
+  decideMfsState,
   decodeConfigIDRecords,
   decodeConfigRecords,
   ftblFileIntegrity,
@@ -16,6 +17,7 @@ import {
   secHeaderSize,
   vfsStartsAtZero,
 } from "@/firmware/me/fileSystem/mfs";
+import { mfsStateBasisIsIncomplete } from "@/firmware/me/models/firmwareFacts";
 
 /**
  * The MFS volume decode. Ported from upstream's `MFSTests` and
@@ -967,5 +969,178 @@ describe("the File System State", () => {
   it("lets the EFS raise take precedence over the configuration one", () => {
     expect(state([7], false, true, true)).toBe("initialized");
     expect(state([8], false, false, true)).toBe("initialized");
+  });
+});
+
+describe("the File System State's basis", () => {
+  // What each step found, and which decided: an EFS partition that could not be
+  // read leaves a CSME 15 image Configured from its configuration, and the basis
+  // says the EFS step was not taken.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testTheBasisSaysAnUnreadableEFSLeftTheStateToTheConfiguration
+  it("says an unreadable EFS left the state to the configuration", () => {
+    const left = decideMfsState({
+      usesFTBL: true,
+      presentFileIndices: [],
+      efs: { kind: "unreadable", offset: 0x267000 },
+      configuration: ["FITC"],
+    });
+    expect(left.state).toBe("configured");
+    expect(left.basis.decidedBy).toBe("configuration");
+    expect(left.basis.reservedFiles).toEqual({ kind: "notRead" });
+    expect(mfsStateBasisIsIncomplete(left.basis)).toBe(true);
+
+    const read = decideMfsState({
+      usesFTBL: true,
+      presentFileIndices: [],
+      efs: { kind: "holdsFiles" },
+      configuration: ["FITC"],
+    });
+    expect(read.state).toBe("initialized");
+    expect(read.basis.decidedBy).toBe("efs");
+    expect(mfsStateBasisIsIncomplete(read.basis)).toBe(false);
+
+    // An EFS read and found empty is a fact, not a gap.
+    const empty = decideMfsState({
+      usesFTBL: true,
+      presentFileIndices: [],
+      efs: { kind: "noFileContent" },
+      configuration: ["FITC"],
+    });
+    expect(empty.state).toBe("configured");
+    expect(mfsStateBasisIsIncomplete(empty.basis)).toBe(false);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testTheBasisNamesTheReservedFilesThatDecided
+  it("names the reserved files that decided", () => {
+    const decided = decideMfsState({
+      usesFTBL: false,
+      presentFileIndices: [9, 2, 7],
+      efs: { kind: "unreadable", offset: 0x1000 },
+      configuration: [],
+    });
+    expect(decided.state).toBe("initialized");
+    expect(decided.basis.reservedFiles).toEqual({ kind: "initializing", indices: [2] });
+    expect(decided.basis.decidedBy).toBe("reservedFiles");
+    // Already Initialized: no EFS could raise it.
+    expect(mfsStateBasisIsIncomplete(decided.basis)).toBe(false);
+  });
+
+  it("keeps the old two-flag answer", () => {
+    expect(
+      mfsState({
+        usesFTBL: false,
+        presentFileIndices: [7],
+        efsHoldsFiles: false,
+        hasConfiguration: false,
+      })
+    ).toBe("configured");
+  });
+});
+
+const le16 = (value: number) => [value & 0xff, (value >>> 8) & 0xff];
+const le32 = (value: number) => [0, 8, 16, 24].map((shift) => (value >>> shift) & 0xff);
+
+/**
+ * A volume whose System area is four chunks, so that its file records can
+ * outnumber 0x40 and a FAT value can point to a Data chunk rather than read as an
+ * end-of-file count. The Data page's first chunk is 4; FAT data slot `f` is
+ * Data-page slot `f − fileRecords`.
+ *
+ * @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.makeChainVolume
+ */
+function makeChainVolume(options: {
+  readonly fileRecords: number;
+  readonly fat: ReadonlyMap<number, number>;
+  readonly dataSlotContents: readonly Uint8Array[];
+}): Uint8Array {
+  const systemChunks = 4;
+  const area = new Uint8Array(systemChunks * 0x40);
+  area.set(le32(0x724f_6201), 0);
+  area[4] = 0x0a;
+  area[5] = 0x01;
+  area.set(le32(0x1200), 8);
+  area.set(le16(options.fileRecords), 12);
+  for (let record = 0; record < options.fileRecords; record++) {
+    area.set(le16(0xffff), 0x0e + record * 2);
+  }
+  for (const [slot, value] of options.fat) area.set(le16(value), 0x0e + slot * 2);
+
+  const system = filled(0xff, 0x2000);
+  system.set(le32(0xaa55_7887), 0);
+  system.set(le32(1), 4);
+  system.set(le16(0), 14);
+  let running = 0;
+  for (let index = 0; index < systemChunks; index++) {
+    system.set(le16((crc16_14(running) ^ index) & 0xffff), 0x12 + index * 2);
+    running = index;
+  }
+  for (let slot = systemChunks; slot <= SYS_CHUNK_COUNT; slot++) {
+    system.set(le16(0xc000), 0x12 + slot * 2);
+  }
+  const chunkStart = 0x12 + SYS_CHUNK_COUNT * 2 + 2;
+  for (let index = 0; index < systemChunks; index++) {
+    system.set(area.subarray(index * 0x40, (index + 1) * 0x40), chunkStart + index * 0x42);
+  }
+  const data = filled(0xff, 0x2000);
+  data.set(le32(0xaa55_7887), 0);
+  data.set(le32(2), 4);
+  data.set(le16(systemChunks), 14);
+  for (const [slot, content] of options.dataSlotContents.entries()) {
+    data[0x12 + slot] = 0x00;
+    data.set(content, 0x12 + DATA_CHUNK_COUNT + slot * 0x42);
+  }
+  return concat(system, data);
+}
+
+describe("a file's place in the volume", () => {
+  // A file's extents are where its chunks are, in the chain's order and not in
+  // address order, each without the CRC that follows it; laid one after another
+  // they read back the file.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testAFilesExtentsAreItsChunksInChainOrder
+  it("is its chunks in chain order, each without its CRC", () => {
+    // Record 0 → slot 0x52 (the third Data chunk) → slot 0x50 (the first), which
+    // ends the file after 5 bytes.
+    const chunks = [0, 1, 2].map((n) => Uint8Array.from({ length: 0x40 }, (_, i) => n * 0x40 + i));
+    const region = makeChainVolume({
+      fileRecords: 0x50,
+      fat: new Map([
+        [0, 0x52],
+        [0x52, 0x50],
+        [0x50, 5],
+      ]),
+      dataSlotContents: chunks,
+    });
+    const info = parseMfs(region, 0, region.length);
+    const file = info?.files[0];
+
+    expect(file?.intact).toBe(true);
+    expect(file?.content).toEqual(
+      concat(chunks[2] ?? new Uint8Array(), (chunks[0] ?? new Uint8Array()).subarray(0, 5))
+    );
+    const extents = file?.extents ?? [];
+    expect(extents.map((one) => one.end - one.start)).toEqual([0x40, 5]);
+    // Backwards through the page, two chunks and their CRCs apart.
+    expect((extents[0]?.start ?? 0) - (extents[1]?.start ?? 0)).toBe(2 * 0x42);
+    const read = concat(...extents.map((one) => region.subarray(one.start, one.end)));
+    expect(read).toEqual(file?.content);
+  });
+
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testUsedButCorruptChainIsNonFatalAndFlagged
+  it("is flagged where the chain is corrupt, and has no extents", () => {
+    // Record 0's FAT value points at a Data chunk the volume does not carry: the
+    // walk stops with what it has and says so of the file as of the volume.
+    const region = makeChainVolume({
+      fileRecords: 20,
+      fat: new Map([[0, 60]]),
+      dataSlotContents: [],
+    });
+    const info = parseMfs(region, 0, region.length);
+
+    expect(info?.usedFileCount).toBe(1);
+    expect(info?.fileChainsIntact).toBe(false);
+    expect(info?.files.length).toBe(1);
+    expect(info?.files[0]?.content.length).toBe(0);
+    expect(info?.files[0]?.intact).toBe(false);
+    expect(info?.files[0]?.extents).toEqual([]);
   });
 });

@@ -340,6 +340,29 @@ export class FileTable {
   }
 
   /**
+   * `recordForFileIndex` for many indices at once: each index's record, the one
+   * with the lowest file ID where several name it. A volume names hundreds of
+   * files, and an index the table does not name is left out.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/FileTable.swift#FileTable.records
+   * @upstream-differs the per-table index `recordForFileIndex` already reads, filtered to the indices asked for
+   */
+  recordsForFileIndices(
+    indices: Iterable<number>,
+    platform: number,
+    dictionary: number
+  ): Map<number, FileTableEntry> {
+    const found = new Map<number, FileTableEntry>();
+    const byVfs = this.ftblByVfs(platform, dictionary);
+    if (byVfs === undefined) return found;
+    for (const index of indices) {
+      const record = byVfs.get(index);
+      if (record !== undefined) found.set(index, record);
+    }
+    return found;
+  }
+
+  /**
    * The `FTBL` record stored **under `fileID` as its key** — the lookup a
    * Configuration record needs, which is not the same lookup a file index
    * needs: an MFS/EFS file is found by the `vfsID` *inside* a record

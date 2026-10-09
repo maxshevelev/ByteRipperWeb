@@ -64,6 +64,7 @@ export function analysisWith(overrides: Partial<FirmwareAnalysis> = {}): Firmwar
     efsVolume: undefined,
     oemConfiguration: undefined,
     mfsState: undefined,
+    mfsStateBasis: undefined,
     gscInfo: undefined,
     oromImages: undefined,
     rbePmMetadata: undefined,

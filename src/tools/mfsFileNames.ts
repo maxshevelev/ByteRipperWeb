@@ -80,11 +80,11 @@ export class MFSFileNames {
     if (table.isEmpty) return MFSFileNames.none;
     const resolution = table.resolve(volume.ftblPlatform, volume.ftblDictionary);
     if (resolution.missing) return new MFSFileNames(new Map(), resolution);
-    const found = new Map<number, FileTableEntry>();
-    for (const index of new Set(volume.files.map((one) => one.index))) {
-      const record = table.recordForFileIndex(index, resolution.platform, resolution.dictionary);
-      if (record !== undefined) found.set(index, record);
-    }
+    const found = table.recordsForFileIndices(
+      new Set(volume.files.map((one) => one.index)),
+      resolution.platform,
+      resolution.dictionary
+    );
     return new MFSFileNames(found, resolution);
   }
 

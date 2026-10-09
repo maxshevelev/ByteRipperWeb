@@ -1150,6 +1150,14 @@
 "Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms" = "Строка #%1$@ уже содержит микрокод для CPUID %2$@ на тех же платформах";
 "Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms. To update it, replace that row. Nothing was changed." = "Строка #%1$@ уже содержит микрокод для CPUID %2$@ на тех же платформах. Чтобы обновить его, замените микрокод в этой строке. Ничего не изменено.";
 "This microcode is already in the table, in row #%1$@. Nothing was changed." = "Этот микрокод уже есть в таблице, в строке #%1$@. Ничего не изменено.";
+"%1$@, because the EFS volume holds file content: the engine has run and written its files." = "%1$@: том EFS содержит данные файлов, то есть движок уже запускался и записал свои файлы.";
+"%1$@, from the configuration found (%2$@), not from files the engine wrote." = "%1$@: по найденной конфигурации (%2$@), а не по файлам, записанным движком.";
+"%1$@, from the reserved MFS files present." = "%1$@: по присутствующим зарезервированным файлам MFS.";
+"%1$@: no reserved MFS file, no EFS content and no configuration partition." = "%1$@: нет ни зарезервированных файлов MFS, ни данных в EFS, ни раздела конфигурации.";
+"State basis" = "Основание состояния";
+"The EFS partition at %1$@ could not be read, so whether it holds files — which would make the state Initialized — is unknown. Check its system page before relying on this state." = "Раздел EFS по адресу %1$@ прочитать не удалось, поэтому неизвестно, есть ли в нём файлы; если есть, состояние было бы Initialized. Прежде чем полагаться на это состояние, проверьте системную страницу EFS.";
+"The EFS volume's files cannot be told without the firmware database's file table, so whether it holds files — which would make the state Initialized — is unknown." = "Без таблицы файлов из базы прошивок файлы тома EFS определить нельзя, поэтому неизвестно, есть ли в нём файлы; если есть, состояние было бы Initialized.";
+"This volume does not name its reserved files by index, so only the EFS and the configuration decide." = "Этот том не обозначает зарезервированные файлы номерами, поэтому состояние определяют только EFS и конфигурация.";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.

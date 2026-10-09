@@ -164,6 +164,89 @@ export function powerDownMitigationText(value: PowerDownMitigation): string {
 export type MFSState = "unconfigured" | "initialized" | "configured" | "error";
 
 /**
+ * What the File System State was decided from: each of the three steps'
+ * evidence, and the step that decided it. Not upstream's — MEAnalyzer prints the
+ * state alone — so a reader can tell a state the flash shows from one that only
+ * a step that could not be taken left standing: a Configured that would have
+ * been Initialized had the EFS volume been readable.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.init
+ */
+export interface MFSStateBasis {
+  /** Step 1: the reserved low-level files. */
+  readonly reservedFiles: MFSStateReservedFiles;
+  /** Step 2: whether an EFS volume holds file content. */
+  readonly efs: MFSStateEFS;
+  /**
+   * Step 3: the configuration found — `fitc.cfg`, `FITC`, `CDMD`, `MFSB`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.configuration
+   */
+  readonly configuration: readonly string[];
+  /** Which step set the state. */
+  readonly decidedBy: MFSStateStep;
+}
+
+/**
+ * Step 1's evidence. `notRead`: the volume names its files through its tables
+ * (CSME 15/16), so nothing is claimed from indices. `none`: none of the reserved
+ * indices is present. `initializing`: present indices among 0–5 and 8, which
+ * mean Initialized. `configuring`: present indices among 7 and 9, which mean
+ * Configured.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.ReservedFiles
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.reservedFiles
+ */
+export type MFSStateReservedFiles =
+  | { readonly kind: "notRead" }
+  | { readonly kind: "none" }
+  | { readonly kind: "initializing"; readonly indices: readonly number[] }
+  | { readonly kind: "configuring"; readonly indices: readonly number[] };
+
+/**
+ * Step 2's evidence. `holdsFiles`: the last EFS file has bytes. `noFileContent`:
+ * the volume was read and its last file has none. `filesNotNamed`: the volume
+ * was read, but which of its bytes are files only the firmware database's file
+ * table says, and it was not there. `unreadable`: the partition table lists an
+ * EFS partition at this file offset, but no EFS volume could be read from it.
+ * `noPartition`: no EFS partition.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.EFS
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.efs
+ */
+export type MFSStateEFS =
+  | { readonly kind: "holdsFiles" }
+  | { readonly kind: "noFileContent" }
+  | { readonly kind: "filesNotNamed" }
+  | { readonly kind: "unreadable"; readonly offset: number }
+  | { readonly kind: "noPartition" };
+
+/**
+ * Which step set the state.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.Step
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.decidedBy
+ */
+export type MFSStateStep = "reservedFiles" | "efs" | "configuration" | "nothing";
+
+/**
+ * Whether a step that could have raised the state was not taken: the EFS volume
+ * is there and could not be read, or could not be named.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#MFSStateBasis.isIncomplete
+ */
+export function mfsStateBasisIsIncomplete(basis: MFSStateBasis): boolean {
+  switch (basis.efs.kind) {
+    case "unreadable":
+    case "filesNotNamed":
+      return basis.decidedBy !== "efs" && basis.decidedBy !== "reservedFiles";
+    default:
+      return false;
+  }
+}
+
+/**
  * One row of the Flash Partition Table, as the analysis reports it.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FPTRegion

@@ -2,6 +2,8 @@
 
 > What the two tabs of the ME Analyzer panel report, and how the individual rows of the summary are to be read.
 
+@covers panel.me.state-basis
+
 **Tools ▸ ME Analyzer** analyses the [[term:me-region|ME region]] of the image in its pane and reports the result on two tabs, **Summary** and **Full Info**. The tool itself is described in [[topic:tool-me|ME Analyzer]]; this page covers the content of the report.
 
 The row labels of the summary are in English in every language of the interface. They are the labels of the `MEA.py` script of the ME Analyzer project, from which this analysis is derived, and they are left unchanged so that a report can be compared with that project's output. See [[topic:provenance|Where This Knowledge Comes From]].
@@ -45,6 +47,8 @@ Two qualifications apply to the criteria:
 
 - On CSME 15 and 16 the volume names its files through its own tables rather than by index, so the parser claims nothing from the file indices there. Such a volume is decided by the two remaining rules only.
 - A fourth value, **Error**, exists in the upstream project for the case of the analysis failing outright. The decoders used here do not raise it.
+
+On the **Full Info** tab, the **Firmware** row lists **State basis** after the state: which of the three criteria decided it and what the others found. The value of the state is the upstream project's; the basis is this tool's own. It is drawn as a warning when a criterion that could have raised the state could not be checked — most often an EFS partition listed in the partition table whose volume could not be read, for instance because its system page has been erased. **Configured** then means only that the configuration was found: whether the EFS holds files written by the engine, which would make the state **Initialized**, is unknown, and the EFS partition is to be examined before the state is relied upon.
 
 ## Moving a region to another board
 
