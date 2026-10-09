@@ -17,7 +17,7 @@ Each pane shows its file as a standard hex dump:
 - **Everything is addressed from zero.** Offset `0x1000` is the 4097th byte of the file and, on a straight SPI read, the byte at address `0x1000` of the chip.
 - **`0xFF` is the erased value.** Erased flash memory reads as `FF`; an area consisting of `FF` is an area that has not been written to. An area consisting of `00` has been written to with zeros, which is a different state.
 - **Word size.** **View ▸ Word Size** groups the bytes in twos, fours or eights. Useful when reading a table of 32-bit values; it changes only how the bytes are spaced, never their order or their address.
-- **Size.** The font, its size and the row height are in [[topic:settings|Settings ▸ Appearance]]. There is no zoom of the app's own: [[key:zoomIn]] and [[key:zoomOut]] are [[edition:the browser's page zoom||the window's page zoom]], which enlarges the whole workspace and is the right tool for a bench squinting at a laptop screen.
+- **Size.** The font, its size and the row height are in [[topic:settings|Settings ▸ View]]. There is no zoom of the app's own: [[key:zoomIn]] and [[key:zoomOut]] are [[edition:the browser's page zoom||the window's page zoom]], which enlarges the whole workspace and is the right tool for a bench squinting at a laptop screen.
 
 ## The status bar
 

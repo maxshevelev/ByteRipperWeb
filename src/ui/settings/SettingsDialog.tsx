@@ -38,7 +38,6 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
-import { HelpButton } from "@/ui/help/HelpButton";
 import { FavoritesTab } from "@/ui/settings/FavoritesTab";
 import { monospacedFontFamilies } from "@/ui/settings/fontFamilies";
 import {
@@ -49,14 +48,7 @@ import {
   snapRowHeightScale,
 } from "@/ui/settings/settingsText";
 
-export type SettingsTab =
-  | "appearance"
-  | "layout"
-  | "comparison"
-  | "editing"
-  | "textDecoding"
-  | "favorites"
-  | "language";
+export type SettingsTab = "view" | "comparison" | "editing" | "textDecoding" | "favorites";
 
 /**
  * The tabs, in upstream's toolbar order. File Types sets which application
@@ -72,13 +64,11 @@ export type SettingsTab =
  * where it was made.
  */
 const tabs = (): readonly { readonly id: SettingsTab; readonly label: string }[] => [
-  { id: "appearance", label: L("Appearance") },
-  { id: "layout", label: L("Layout") },
+  { id: "view", label: L("View", { context: "settings" }) },
   { id: "comparison", label: L("Comparison") },
   { id: "editing", label: L("Editing") },
   { id: "textDecoding", label: L("Text Decoding") },
   { id: "favorites", label: L("Search Patterns") },
-  { id: "language", label: L("Language") },
 ];
 
 export interface SettingsDialogProps {
@@ -99,13 +89,14 @@ export interface SettingsDialogProps {
  * "done".
  *
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.appearanceController
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.layoutController
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewController
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewItemID
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewTabTapped
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButton
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.installHelpButton
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonController
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.editingController
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingController
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.appearanceItemID
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.layoutItemID
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonItemID
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.editingItemID
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingItemID
@@ -116,8 +107,6 @@ export interface SettingsDialogProps {
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbar
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.fitWindowToContent
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.selectTab
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.appearanceTabTapped
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.layoutTabTapped
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonTabTapped
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.editingTabTapped
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingTabTapped
@@ -128,7 +117,7 @@ export interface SettingsDialogProps {
  * @upstream-differs a <dialog> with a tab strip: Escape closes it natively, and it sizes to the tab it shows
  */
 export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialogProps) {
-  const [tab, setTab] = useState<SettingsTab>("appearance");
+  const [tab, setTab] = useState<SettingsTab>("view");
 
   useEffect(() => {
     if (open && requested !== undefined) setTab(requested);
@@ -141,6 +130,7 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
       onClose={onClose}
       className="settings-dialog"
       closeButton
+      helpLink={topicLink(TOPIC.settings)}
     >
       <div className="settings-tabs" role="tablist" aria-label={L("Settings")}>
         {tabs().map((one) => (
@@ -160,16 +150,37 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
           fonts, which is nothing to do at every page load. */}
       {open ? (
         <div className="settings-pane" role="tabpanel">
-          {tab === "appearance" ? <AppearanceTab /> : null}
-          {tab === "layout" ? <LayoutTab /> : null}
+          {tab === "view" ? <ViewTab /> : null}
           {tab === "comparison" ? <ComparisonTab /> : null}
           {tab === "editing" ? <EditingTab /> : null}
           {tab === "textDecoding" ? <TextDecodingTab /> : null}
           {tab === "favorites" ? <FavoritesTab /> : null}
-          {tab === "language" ? <LanguageTab /> : null}
         </div>
       ) : null}
     </Dialog>
+  );
+}
+
+/**
+ * The View tab: Appearance, Layout and Language, one above the other with a
+ * rule between. They are about how the app looks rather than what it does, so
+ * they share a page; each section keeps its own state and its own heading.
+ *
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.loadView
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.separator
+ * @upstream-differs three React sections in one pane
+ */
+// help: settings.view
+function ViewTab() {
+  return (
+    <>
+      <AppearanceTab />
+      <hr className="settings-rule" />
+      <LayoutTab />
+      <hr className="settings-rule" />
+      <LanguageTab />
+    </>
   );
 }
 
@@ -459,14 +470,7 @@ function EditingTab() {
 
   return (
     <section>
-      {/* The only settings tab with a `?`, and upstream's reason holds: this is
-          the one switch with consequences on a bench, turning off the dialogs
-          that stand between a flash dump and a length-changing edit.
-          @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.standard */}
-      <h3 className="settings-heading">
-        {L("Editing")}
-        <HelpButton link={topicLink(TOPIC.editing)} shape="inline" />
-      </h3>
+      <h3 className="settings-heading">{L("Editing")}</h3>
       <label className="settings-check">
         <input
           type="checkbox"

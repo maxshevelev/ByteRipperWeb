@@ -1250,6 +1250,18 @@ textarea,
   margin-top: 0.75rem;
 }
 
+/* The `?` and the cross at the title row's trailing end, level with each other. */
+.dialog-head-end {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.dialog-head-end .close-button {
+  margin-top: 0;
+}
+
 .dialog-body {
   display: flex;
   flex-direction: column;
@@ -4540,6 +4552,13 @@ button.uefi-title {
 
 .settings-pane {
   padding: 18px;
+}
+
+/* The rule between the View tab's sections, inset to the pane's own margins. */
+.settings-rule {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 
 .settings-heading {

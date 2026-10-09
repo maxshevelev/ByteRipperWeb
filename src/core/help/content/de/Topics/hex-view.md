@@ -1,4 +1,4 @@
-@source-sha e7967c42672fcf1dad338c88a6a8a4e070f211786414460db0461007304b90ec
+@source-sha b753c9147ed0d6f93f76a0ec3556fc8b45d6a20f352d0411e6dc29cfc91874a2
 # Die Hex-Ansicht lesen
 
 > Sechzehn Bytes je Zeile, der Offset links, der Text rechts.

@@ -118,7 +118,7 @@
 "All 256 byte values decoded with the current table. Row headers are the byte value in hex." = "Alle 256 Byte-Werte, decodiert mit der aktuellen Tabelle. Die Zeilenköpfe sind der Byte-Wert in Hex.";
 "Already a favourite, as “%1$@”." = "Bereits als Favorit vorhanden, unter „%1$@“.";
 "Analyzing the ME firmware…" = "ME-Firmware wird analysiert…";
-"Appearance" = "Darstellung";
+"Appearance" = "Erscheinungsbild";
 "Apple ROM information" = "Apple-ROM-Informationen";
 "Append at End" = "Am Ende anhängen";
 "Append File…" = "Datei anhängen…";
@@ -166,6 +166,7 @@
 "variable|Deleted" = "Gelöscht";
 "variable|Copy" = "Kopie";
 "variable|Address" = "Adresse";
+"settings|View" = "Darstellung";
 "State" = "Status";
 "Change" = "Änderung";
 "No change" = "Keine Änderung";

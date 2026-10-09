@@ -166,6 +166,7 @@
 "variable|Deleted" = "Удалена";
 "variable|Copy" = "Копия";
 "variable|Address" = "Адрес";
+"settings|View" = "Вид";
 "State" = "Состояние";
 "Change" = "Изменение";
 "No change" = "Без изменений";

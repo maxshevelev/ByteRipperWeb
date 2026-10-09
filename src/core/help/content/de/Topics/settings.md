@@ -1,17 +1,18 @@
-@source-sha 14dc2c8c2ce4a1bb77e7c75473bb67249227c4c1df1686d95fcb37155536d6d6
+@source-sha 325380b0e65be99585f83c42dbd35b5089e40435d3d04ada153672c2cc18bd72
 # Einstellungen
 
 > **Ablage ▸ Einstellungen…** [[edition:im Menü der Symbolleiste||im Menü]] — das, was sich das Programm merkt.
 
 [[edition:Ein ⌘, gibt es hier nicht: im Browser gehört dieser Griff den Einstellungen des Browsers, also liegen die des Programms in seinem Menü.||Die macOS-Ausgabe öffnet ihre Einstellungen mit ⌘,; diese hat dafür keine Taste, und die Einstellungen öffnen sich aus **Ablage ▸ Einstellungen…**.]]
 
-- **Erscheinungsbild** — die dicktengleiche Schrift, ihre Größe und die Zeilenhöhe der Hex-Ansicht, und ob das Programm der hellen oder dunklen Einstellung [[edition:des Browsers||des Systems]] folgt oder auf einer bleibt. Ein Vergrößern und Verkleinern gibt es nicht: [[edition:der Seitenzoom des Browsers ist der Zoom||der Zoom ist **Darstellung ▸ Vergrößern**, **Verkleinern** und **Tatsächliche Größe**]] ([[topic:navigation|Bewegen]]).
-- **Anordnung** — wie die Bereiche stehen.
+- **Darstellung** — das Aussehen des Programms und die Sprache seiner Oberfläche: drei Abschnitte auf einer Seite.
+- **Darstellung ▸ Erscheinungsbild** — die dicktengleiche Schrift, ihre Größe und die Zeilenhöhe der Hex-Ansicht, und ob das Programm der hellen oder dunklen Einstellung [[edition:des Browsers||des Systems]] folgt oder auf einer bleibt. Ein Vergrößern und Verkleinern gibt es nicht: [[edition:der Seitenzoom des Browsers ist der Zoom||der Zoom ist **Darstellung ▸ Vergrößern**, **Verkleinern** und **Tatsächliche Größe**]] ([[topic:navigation|Bewegen]]).
+- **Darstellung ▸ Aufteilung** — wie die Bereiche stehen.
+- **Darstellung ▸ Sprache** — English, Русский oder Deutsch, oder was [[edition:der Browser||das System]] liest. Die Umstellung gilt sofort: nichts wird neu geladen, denn [[edition:eine neu geladene Seite||ein neu geladenes Fenster]] würde nach jedem offenen Dump erneut fragen. Firmware-Begriffe bleiben in jeder Sprache englisch, weil Datenblätter und Werkzeuge sie so nennen.
 - **Vergleich** — wie Unterschiede gezeigt und gezählt werden.
 - **Bearbeiten** — die Rückfragen vor Änderungen, welche die Länge der Datei verändern ([[topic:editing|Bytes bearbeiten]]). Sie sind voreingestellt, und es ist dieselbe Einstellung wie das Kästchen „Nicht mehr fragen“ in den Dialogen selbst.
 - **Textdecodierung** — die Codierung, mit der die Textspalte gelesen wird.
 - **Suchmuster** — die benannten Suchmuster und der Ordner, über den sich die Bibliothek zwischen mehreren Installationen abgleichen lässt ([[topic:search|Bytes und Text finden]]).
-- **Sprache** — English, Русский oder Deutsch, oder was [[edition:der Browser||das System]] liest. Die Umstellung gilt sofort: nichts wird neu geladen, denn [[edition:eine neu geladene Seite||ein neu geladenes Fenster]] würde nach jedem offenen Dump erneut fragen. Firmware-Begriffe bleiben in jeder Sprache englisch, weil Datenblätter und Werkzeuge sie so nennen.
 
 ## Wo die Einstellungen liegen
 

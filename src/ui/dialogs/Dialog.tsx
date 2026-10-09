@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import type { HelpLink } from "@/core/help/helpIds";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { CloseButton } from "@/ui/shell/CloseButton";
 
 /**
@@ -32,6 +34,14 @@ export interface DialogProps {
    */
   readonly closeButton?: boolean | undefined;
   /**
+   * A `?` at the trailing end of the title row, beside the cross, leading to
+   * the page about the whole dialog. Settings has one for every tab rather than
+   * one on some of them, which reads as though only those have help.
+   *
+   * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButton
+   */
+  readonly helpLink?: HelpLink | undefined;
+  /**
    * Asked before Escape closes the dialog; `false` keeps it open. For a form
    * with something inside it that Escape has to close first.
    *
@@ -51,6 +61,7 @@ export function Dialog({
   children,
   className,
   closeButton,
+  helpLink,
   onCancelRequest,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement | null>(null);
@@ -107,7 +118,10 @@ export function Dialog({
       {closeButton === true ? (
         <div className="dialog-head">
           <h2 className="dialog-title">{title}</h2>
-          <CloseButton label={`Close ${title}`} onClick={onClose} />
+          <span className="dialog-head-end">
+            {helpLink === undefined ? null : <HelpButton link={helpLink} shape="inline" />}
+            <CloseButton label={`Close ${title}`} onClick={onClose} />
+          </span>
         </div>
       ) : (
         <h2 className="dialog-title">{title}</h2>

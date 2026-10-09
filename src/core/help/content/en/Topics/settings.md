@@ -2,6 +2,7 @@
 
 > **File ▸ Settings…** [[edition:in the toolbar's menu||in the menu]] — the choices the app remembers.
 
+@covers settings.view
 @covers settings.appearance
 @covers settings.layout
 @covers settings.comparison
@@ -14,13 +15,14 @@
 
 [[edition:There is no ⌘, here: in a browser that chord is the browser's own settings, so the app's live in its menu.||The macOS application opens its settings on ⌘,; this one has no key for it, and the settings open from **File ▸ Settings…**.]]
 
-- **Appearance** — the monospaced font, its size and the row height for the hex view, and whether the app follows [[edition:the browser's||the system's]] light or dark setting or is forced one way. There is no Zoom In and Zoom Out as a setting: [[edition:the browser's page zoom is the zoom||the zoom is **View ▸ Zoom In**, **Zoom Out** and **Actual Size**]] ([[topic:navigation|Moving around]]).
-- **Layout** — how the panes are arranged.
+- **View** — how the program looks and the language of its interface, as three sections on one page.
+- **View ▸ Appearance** — the monospaced font, its size and the row height for the hex view, and whether the app follows [[edition:the browser's||the system's]] light or dark setting or is forced one way. There is no Zoom In and Zoom Out as a setting: [[edition:the browser's page zoom is the zoom||the zoom is **View ▸ Zoom In**, **Zoom Out** and **Actual Size**]] ([[topic:navigation|Moving around]]).
+- **View ▸ Layout** — how the panes are arranged.
+- **View ▸ Language** — English, Русский or Deutsch, or whatever [[edition:the browser||the system]] reads. The change takes effect at once: nothing is reloaded, because a reloaded [[edition:page||window]] would have to ask for every open dump again. Firmware terms remain in English in every language, those being the names datasheets and tools give them.
 - **Comparison** — how differences are shown and counted.
 - **Editing** — the confirmations raised before edits that change the length of the file ([[topic:editing|Editing Bytes]]). They are enabled by default, and this is the same setting as the "do not ask again" box in the dialogs themselves.
 - **Text Decoding** — the encoding the text column decodes with.
 - **Search Patterns** — the named search patterns, and the folder through which the library can be synchronised between installations ([[topic:search|Finding Bytes and Text]]).
-- **Language** — English, Русский or Deutsch, or whatever [[edition:the browser||the system]] reads. The change takes effect at once: nothing is reloaded, because a reloaded [[edition:page||window]] would have to ask for every open dump again. Firmware terms remain in English in every language, those being the names datasheets and tools give them.
 
 ## Where the settings are kept
 
