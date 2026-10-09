@@ -921,6 +921,16 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift": "src/tools/uefi/agent/uefiAgentVariables.ts"
       },
       "unported": {
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.Bytes*": "n/a — a plain record here (`NodeBytes`)",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.all": "n/a — the module's list is `uefiAgentQueries`",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.isCompressedSection": "n/a — a check on the node's own fields, inline",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.all": "n/a — the module's list is `uefiAgentQueries`",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.hex": "n/a — `hexText`",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.merged": "n/a — the tree is the worker's and is one parse, so there is nothing to merge",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.readyTree": "n/a — `readyTree` of `uefiAgentModule.ts`, which waits on the store",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift#UEFIAgentVariables.Variable*": "n/a — a plain record here (`VariableRow`)",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift#UEFIAgentVariables.comparisons": "n/a — the module's list is `uefiAgentComparisons`",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift#UEFIAgentVariables.queries": "n/a — the module's list is `uefiAgentQueries`",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFINodeDetail.init": "n/a — an object literal",
         "Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.PresentedImage.init": "n/a — an object literal",

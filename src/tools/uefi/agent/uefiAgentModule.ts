@@ -168,7 +168,11 @@ export interface UefiAgentSession {
   selection(): Json | undefined;
 }
 
-/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentActions */
+/**
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentActions
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.selectAction
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.selectionAction
+ */
 export const uefiAgentActions: readonly ToolAgentAction[] = [
   {
     name: "uefi_select",
