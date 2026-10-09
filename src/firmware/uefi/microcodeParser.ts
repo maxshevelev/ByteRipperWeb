@@ -572,6 +572,33 @@ export function microcodeProcessorPlatforms(
 }
 
 /**
+ * The processors this update and another both serve on a platform they share:
+ * each signature both name, where the platform IDs each gives it meet. A mask of
+ * zero serves every platform. Two updates with anything here are both for the
+ * same processor on the same board.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeHeader.sharedProcessors
+ */
+export function microcodeSharedProcessors(
+  header: MicrocodeHeader,
+  other: MicrocodeHeader
+): number[] {
+  const masks = (of: MicrocodeHeader): Map<number, number> => {
+    const result = new Map<number, number>();
+    for (const pair of microcodeProcessorPlatforms(of)) {
+      const mask = pair.platformIDs === 0 ? 0xffff_ffff : pair.platformIDs;
+      result.set(pair.signature, ((result.get(pair.signature) ?? 0) | mask) >>> 0);
+    }
+    return result;
+  };
+  const mine = masks(header);
+  const theirs = masks(other);
+  return microcodeProcessorSignatures(header).filter(
+    (signature) => ((mine.get(signature) ?? 0) & (theirs.get(signature) ?? 0)) !== 0
+  );
+}
+
+/**
  * One microcode image. Nothing when the header does not check out, which leaves
  * no diagnostic — `0x00000001` appears everywhere.
  *

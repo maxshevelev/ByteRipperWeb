@@ -10,6 +10,7 @@ import {
   microcodeProcessorPlatforms,
   microcodeProcessorSignatures,
   microcodeProcessorText,
+  microcodeSharedProcessors,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
@@ -128,6 +129,19 @@ describe("a microcode header's reading", () => {
     expect(
       header === undefined ? [] : microcodeProcessorPlatforms(header).map((one) => one.platformIDs)
     ).toEqual([0x01, 0x02, 0x08]);
+
+    // Shared only where the CPUID and a platform both meet; zero is every platform.
+    const plain = (signature: number, platforms: number) => {
+      const other = Test.microcode({ signature });
+      for (let index = 0; index < 4; index++)
+        other[0x18 + index] = (platforms >>> (8 * index)) & 0xff;
+      return readMicrocodeHeader(0, readerOver(other));
+    };
+    const shared = (other: ReturnType<typeof plain>) =>
+      header === undefined || other === undefined ? [] : microcodeSharedProcessors(header, other);
+    expect(shared(plain(0x0009_06ea, 0x02))).toEqual([0x0009_06ea]);
+    expect(shared(plain(0x0009_06ea, 0x01))).toEqual([]);
+    expect(shared(plain(0x000a_0671, 0))).toEqual([0x000a_0671]);
     expect(value(header, "Extended checksum")?.endsWith("(Valid)")).toBe(true);
     // The count and the room agree.
     expect(value(header, "Extended table")).toBeUndefined();

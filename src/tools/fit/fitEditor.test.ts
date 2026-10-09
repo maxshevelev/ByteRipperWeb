@@ -600,6 +600,72 @@ describe("replacing a specific row", () => {
     expect(now?.kind === "microcode" ? now.header.processorSignature : undefined).toBe(0x0009_06ea);
   });
 
+  /** Two rows: the first an update for B06A2 and B06A3, the second for 906EA. */
+  const twoRows = (platformIDs = 1) => {
+    const first = fitMicrocode({
+      signature: 0x000b_06a2,
+      revision: 0x7c,
+      platformIDs,
+      extended: [
+        { signature: 0x000b_06a2, platformIDs },
+        { signature: 0x000b_06a3, platformIDs },
+      ],
+    });
+    const padded = new Uint8Array(0x100).fill(0xff);
+    padded.set(first);
+    const bytes = image({
+      rows: [
+        { type: FIT.microcodeType, target: MICROCODE },
+        { type: FIT.microcodeType, target: 0x2100 },
+      ],
+      contents: new Map([
+        [MICROCODE, padded],
+        [0x2100, fitMicrocode({ signature: 0x0009_06ea, totalSize: 0x100 })],
+      ]),
+    });
+    return { bytes, first };
+  };
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAddingAMicrocodeTheTableAlreadyHoldsIsRefused
+  it("refuses adding a microcode the table already holds, naming the row", () => {
+    const { bytes, first } = twoRows();
+    const problem = problemOf(add(first, bytes));
+
+    expect(problem).toEqual({ kind: "alreadyInTheTable", entry: 1 });
+    expect(fitEditProblemMessage(problem)).toContain("row #2");
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testReplacingARowWithAnotherRowsMicrocodeIsRefused
+  it("refuses replacing a row with another row's microcode", () => {
+    const { bytes, first } = twoRows();
+
+    expect(problemOf(replaceAt(first, 2, bytes))).toEqual({ kind: "alreadyInTheTable", entry: 1 });
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAReplacementForAProcessorAnotherRowServesIsRefused
+  it("refuses a replacement for a processor another row serves, naming that row", () => {
+    const { bytes } = twoRows();
+    const forB06A3 = fitMicrocode({ signature: 0x000b_06a3, revision: 0x80, totalSize: 0x100 });
+    const problem = problemOf(replaceAt(forB06A3, 2, bytes));
+
+    expect(problem).toEqual({ kind: "servedByAnotherRow", entry: 1, cpuids: [0x000b_06a3] });
+    expect(fitEditProblemMessage(problem)).toContain("Row #2");
+    expect(fitEditProblemMessage(problem)).toContain("B06A3");
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAReplacementForTheSameCpuidOnOtherPlatformsIsMade
+  it("makes a replacement for the same CPUID on platforms the other row does not serve", () => {
+    const { bytes } = twoRows(0x02);
+    const otherBoard = fitMicrocode({
+      signature: 0x000b_06a3,
+      revision: 0x80,
+      totalSize: 0x100,
+      platformIDs: 0x20,
+    });
+
+    expect(outcomeOf(replaceAt(otherBoard, 2, bytes)).kind).toBe("replaced");
+  });
+
   // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testReplacingAnIndexThatIsNotAMicrocodeIsRefused
   it("refuses an index that is not a microcode row", () => {
     const bytes = image();

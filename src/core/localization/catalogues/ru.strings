@@ -1146,6 +1146,9 @@
 "Show in the tree where the image keeps the board's serial number, UUID and model" = "Показать в дереве, где образ хранит серийный номер, UUID и модель платы";
 "Go back to where the last jump left" = "Вернуться туда, откуда ушёл последний переход";
 "Go forward to where Back left" = "Пройти вперёд, туда, откуда ушла команда «Назад»";
+"Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms" = "Строка #%1$@ уже содержит микрокод для CPUID %2$@ на тех же платформах";
+"Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms. To update it, replace that row. Nothing was changed." = "Строка #%1$@ уже содержит микрокод для CPUID %2$@ на тех же платформах. Чтобы обновить его, замените микрокод в этой строке. Ничего не изменено.";
+"This microcode is already in the table, in row #%1$@. Nothing was changed." = "Этот микрокод уже есть в таблице, в строке #%1$@. Ничего не изменено.";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.

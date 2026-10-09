@@ -1146,6 +1146,9 @@
 "Show in the tree where the image keeps the board's serial number, UUID and model" = "Im Baum zeigen, wo das Abbild Seriennummer, UUID und Modell der Platine hält";
 "Go back to where the last jump left" = "Zurück zu der Stelle, die der letzte Sprung verlassen hat";
 "Go forward to where Back left" = "Vorwärts zu der Stelle, die „Zurück“ verlassen hat";
+"Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms" = "Zeile #%1$@ enthält bereits einen Microcode für CPUID %2$@ auf denselben Plattformen";
+"Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms. To update it, replace that row. Nothing was changed." = "Zeile #%1$@ enthält bereits einen Microcode für CPUID %2$@ auf denselben Plattformen. Um ihn zu aktualisieren, ersetzen Sie den Microcode in dieser Zeile. Es wurde nichts geändert.";
+"This microcode is already in the table, in row #%1$@. Nothing was changed." = "Dieser Microcode steht bereits in der Tabelle, in Zeile #%1$@. Es wurde nichts geändert.";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

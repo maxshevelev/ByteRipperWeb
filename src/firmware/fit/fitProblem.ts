@@ -1,5 +1,6 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
+import { microcodeCpuid } from "@/firmware/uefi/microcodeParser";
 
 /**
  * Something wrong with the table, or with the image around it.
@@ -58,7 +59,19 @@ export type FITProblemKind =
    * The backup holds the same FIT, but other bytes of the block differ — which
    * is what refuses a microcode change until the copies agree.
    */
-  | { readonly kind: "topSwapBlockDiffers"; readonly backup: ImageRange };
+  | { readonly kind: "topSwapBlockDiffers"; readonly backup: ImageRange }
+  /**
+   * This row's microcode serves a processor, on a platform, that an earlier
+   * row's already serves: the table names two microcodes for one processor.
+   * Carries the earlier row and the CPUIDs they share.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITProblem.swift#FITProblem.Kind.sameProcessorsAsRow
+   */
+  | {
+      readonly kind: "sameProcessorsAsRow";
+      readonly entry: number;
+      readonly cpuids: readonly number[];
+    };
 
 /** @upstream Modules/FITTool/Sources/FITTool/FITProblem.swift#FITProblem */
 export interface FITProblem {
@@ -93,6 +106,7 @@ export function fitSeverity(detail: FITProblemKind): FITSeverity {
     case "topSwapTableDiffers":
     case "topSwapEntryDiffers":
     case "topSwapBlockDiffers":
+    case "sameProcessorsAsRow":
       return "warning";
     default:
       return "error";
@@ -161,6 +175,12 @@ function ownMessage(detail: FITProblemKind): string {
       return L(
         "The Top Swap backup at %1$@ holds the same FIT, but other bytes of the block differ, so microcode changes are refused until the copies agree",
         hex(detail.backup.start)
+      );
+    case "sameProcessorsAsRow":
+      return L(
+        "Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms",
+        detail.entry + 1,
+        detail.cpuids.map(microcodeCpuid).join(", ")
       );
   }
 }

@@ -1,6 +1,7 @@
 import { FIT, isHeaderEntry } from "@/firmware/fit/fitEntry";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { checksumIsCorrect, type FITRow, type FITTable } from "@/firmware/fit/fitTable";
+import { type MicrocodeHeader, microcodeSharedProcessors } from "@/firmware/uefi/microcodeParser";
 
 /**
  * The invariants of the specification, each one checked and each one named.
@@ -71,6 +72,26 @@ export function problemsIn(table: FITTable): FITProblem[] {
     }
 
     problems.push(...addressProblems(row));
+  }
+
+  // Two rows for one processor: an update for several processors names them in
+  // its extended table, so the overlap is not in the CPUID the rows show first.
+  // Said once per row, against the first earlier row.
+  const microcodes: { readonly index: number; readonly header: MicrocodeHeader }[] = [];
+  for (const row of table.rows) {
+    if (row.target.kind !== "microcode") continue;
+    const header = row.target.header;
+    for (const earlier of microcodes) {
+      const cpuids = microcodeSharedProcessors(header, earlier.header);
+      if (cpuids.length === 0) continue;
+      problems.push({
+        detail: { kind: "sameProcessorsAsRow", entry: earlier.index, cpuids },
+        entryIndex: row.entry.index,
+        offset: row.entry.offset,
+      });
+      break;
+    }
+    microcodes.push({ index: row.entry.index, header });
   }
 
   // At least one microcode entry.

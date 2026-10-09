@@ -16,8 +16,10 @@ import { alignUp, sum8, sum32Of } from "@/firmware/uefi/checksums";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import {
   type MicrocodeHeader,
+  microcodeCpuid,
   microcodeProcessorSignatures,
   microcodeRange,
+  microcodeSharedProcessors,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
 import {
@@ -106,7 +108,27 @@ export type FITEditProblem =
    *
    * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.topSwapWriteCrossesTheBlocks
    */
-  | { readonly kind: "topSwapWriteCrossesTheBlocks"; readonly at: number };
+  | { readonly kind: "topSwapWriteCrossesTheBlocks"; readonly at: number }
+  /**
+   * The very same microcode, byte for byte, is already in the table — the
+   * catalogue files one update under each processor it serves, so picking it
+   * again under another CPUID is the usual way here. Carries the row.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.alreadyInTheTable
+   */
+  | { readonly kind: "alreadyInTheTable"; readonly entry: number }
+  /**
+   * The replacement serves a processor, on a platform, that another row's
+   * microcode already serves. Carries that row and the CPUIDs in question: the
+   * one to replace is that row.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.servedByAnotherRow
+   */
+  | {
+      readonly kind: "servedByAnotherRow";
+      readonly entry: number;
+      readonly cpuids: readonly number[];
+    };
 
 /** @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditProblem.message */
 export function fitEditProblemMessage(problem: FITEditProblem): string {
@@ -154,6 +176,17 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
       return L(
         "The change writes at 0x%1$@ across a Top Swap block boundary, where it cannot be made in both copies. Nothing was changed.",
         problem.at.toString(16).toUpperCase()
+      );
+    case "alreadyInTheTable":
+      return L(
+        "This microcode is already in the table, in row #%1$@. Nothing was changed.",
+        problem.entry + 1
+      );
+    case "servedByAnotherRow":
+      return L(
+        "Row #%1$@ already holds a microcode for CPUID %2$@ on the same platforms. To update it, replace that row. Nothing was changed.",
+        problem.entry + 1,
+        problem.cpuids.map(microcodeCpuid).join(", ")
       );
   }
 }
@@ -304,6 +337,8 @@ function addOrReplaceMicrocodeInTheTopBlock(
   // Exactly what the header claims, so a file with something after it does not
   // drag the extra bytes into the image.
   const bytes = component.subarray(0, read.header.totalSize);
+  const same = rowHolding(bytes, table, reader);
+  if (same !== undefined) return refuse({ kind: "alreadyInTheTable", entry: same });
 
   const row = rowNaming(read.header, table);
   if (row === undefined) {
@@ -338,6 +373,18 @@ function replaceMicrocodeInTheTopBlock(
   const row = table.rows[index];
   if (index <= 0 || row === undefined || row.target.kind !== "microcode") {
     return refuse({ kind: "noSuchEntry" });
+  }
+  const same = rowHolding(bytes, table, reader);
+  if (same !== undefined) return refuse({ kind: "alreadyInTheTable", entry: same });
+  // The row is the target, but not a way round the rest of the table: a
+  // replacement that serves what another row already serves would leave two
+  // microcodes for one processor, and the row to update is that one.
+  for (const other of table.rows) {
+    if (other.entry.index === index || other.target.kind !== "microcode") continue;
+    const shared = microcodeSharedProcessors(read.header, other.target.header);
+    if (shared.length > 0) {
+      return refuse({ kind: "servedByAnotherRow", entry: other.entry.index, cpuids: shared });
+    }
   }
   return replacing(
     { index, component: row.target.header },
@@ -451,6 +498,20 @@ function removeMicrocodeFromTheTopBlock(
 interface NamedRow {
   readonly index: number;
   readonly component: MicrocodeHeader;
+}
+
+/**
+ * The microcode row whose component is these very bytes.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.rowHolding
+ */
+function rowHolding(bytes: Uint8Array, table: FITTable, reader: ImageReader): number | undefined {
+  for (const row of table.rows) {
+    if (row.target.kind !== "microcode" || row.target.header.totalSize !== bytes.length) continue;
+    const found = reader.bytes(microcodeRange(row.target.header));
+    if (found?.every((byte, at) => byte === bytes[at])) return row.entry.index;
+  }
+  return undefined;
 }
 
 /**

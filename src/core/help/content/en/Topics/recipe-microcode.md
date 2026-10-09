@@ -12,7 +12,7 @@ The processor loads a [[term:microcode|microcode update]] before it executes any
 - **Points at** is not read from the entry. The tool follows the address and reports what is actually at it: a microcode update with a valid header, a manifest, an erased area, or nothing recognisable. An entry that points at an erased area is an entry whose component is absent from the image.
 - A microcode entry is additionally named from the online catalogue by its processor signature (CPUID), revision and date. The catalogue is described in [[topic:databases|The Online Catalogues]]; without network access the tool reports the identifiers and omits the names.
 
-The list below the table holds the problems found against the rules of the specification: the header entry, the entry count, the table checksum, the ordering of entries by type, the alignment of addresses, the reserved byte, and the agreement between the table and its Top Swap backup where the image keeps one. Double-clicking a problem moves the dump to the bytes it concerns.
+The list below the table holds the problems found against the rules of the specification: the header entry, the entry count, the table checksum, the ordering of entries by type, the alignment of addresses, the reserved byte, and the agreement between the table and its Top Swap backup where the image keeps one. Beyond the rules, the list warns where two microcode entries serve the same processor on the same platforms — usually an older revision left beside a newer one; the processor signatures listed in an extended signature table count as well. Double-clicking a problem moves the dump to the bytes it concerns.
 
 ## Reading the microcode entries
 
@@ -43,7 +43,7 @@ What the command then does:
 
 The context menu of a microcode row holds **Replace Microcode**, **Remove Microcode**, **Copy CPUID** and **Go to Offset**; the header row holds **Fix Checksum**.
 
-- **Replace Microcode** exchanges the component the row names for another of any signature. The row remains; components behind it move if the new component is of a different size, and the entries naming them are corrected.
+- **Replace Microcode** exchanges the component the row names for another of any signature. The row remains; components behind it move if the new component is of a different size, and the entries naming them are corrected. A replacement that serves a processor another row already serves on the same platforms is refused: the row to update is that one.
 - **Remove Microcode** takes the entry out of the table, moves the components behind it up into the freed space and erases the bytes at the end of the run. A table must retain at least one microcode entry.
 
 Adding, replacing and removing are supported for microcode entries only. Entries of other types — an ACM, a Boot Guard manifest, a policy record — the tool reports and checks, but does not change.
@@ -54,6 +54,8 @@ Adding, replacing and removing are supported for microcode entries only. Entries
 The tool refuses rather than writing a change it cannot make correctly, and states which rule it is refusing on:
 
 - the file offered is not a microcode image, or its checksum does not agree;
+- the microcode offered is already in the table, byte for byte; the tool names the row that holds it. The catalogue files one update under each processor it serves, so the same file is offered under several CPUIDs;
+- a replacement would serve a processor that another row's microcode already serves on the same platforms; the tool names that row, which is the one to replace;
 - the table holds no microcode entry to place a new one after, so where the image keeps its microcode cannot be established;
 - the table has no empty slot and the bytes after it are not free, so it cannot grow; the tool reports what occupies them;
 - the run would have to grow further than there is room for; the tool reports how much more it needs and what it would have to grow through;

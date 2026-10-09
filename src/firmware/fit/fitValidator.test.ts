@@ -147,6 +147,55 @@ describe("the reserved byte", () => {
   });
 });
 
+describe("two rows for one processor", () => {
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testTwoRowsForOneProcessorAreAWarning
+  it("are a warning on the later row, naming the earlier one", () => {
+    const found = (secondPlatforms: number) =>
+      readFitTable(
+        new ImageReader(
+          sourceOver(
+            Test.fitImage({
+              rows: [goodRow, { type: FIT.microcodeType, target: 0x2100 }],
+              contents: new Map([
+                [
+                  MICROCODE_AT,
+                  Test.fitMicrocode({
+                    signature: 0x0009_0672,
+                    platformIDs: 0x07,
+                    extended: [
+                      { signature: 0x0009_0672, platformIDs: 0x07 },
+                      { signature: 0x000b_06f2, platformIDs: 0x07 },
+                    ],
+                  }),
+                ],
+                [
+                  0x2100,
+                  Test.fitMicrocode({
+                    signature: 0x000b_06f2,
+                    totalSize: 0x100,
+                    platformIDs: secondPlatforms,
+                  }),
+                ],
+              ]),
+            })
+          )
+        )
+      ).problems;
+    const shared = found(0x03);
+
+    expect(shared.map((one) => one.detail)).toEqual([
+      { kind: "sameProcessorsAsRow", entry: 1, cpuids: [0x000b_06f2] },
+    ]);
+    expect(shared[0]?.entryIndex).toBe(2);
+    expect(shared[0] === undefined ? undefined : fitSeverity(shared[0].detail)).toBe("warning");
+    expect(shared[0] === undefined ? undefined : fitProblemMessage(shared[0])).toBe(
+      "Row #2 already holds a microcode for CPUID B06F2 on the same platforms"
+    );
+    // Platforms that do not meet are two boards' microcodes.
+    expect(found(0x40)).toEqual([]);
+  });
+});
+
 describe("every problem", () => {
   // @upstream Modules/FITTool/Tests/FITToolTests/FITValidatorTests.swift#FITValidatorTests.testEveryProblemPointsSomewhere
   it("points somewhere, and says something", () => {
