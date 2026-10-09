@@ -1,5 +1,4 @@
 import { L } from "@/core/localization/localization";
-import type { FITRow } from "@/firmware/fit/fitTable";
 import {
   catalogueCounts,
   filterCatalogue,
@@ -20,7 +19,7 @@ import {
  * Why the form is open: to add a microcode, or to replace one row's.
  *
  * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.isReplacing
- * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.targetCpuid
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.targetCpuids
  * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.targetCpuidText
  * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.cpuidsInTheImage
  * @upstream-differs the form's mode as one value, add or replace, rather than four properties
@@ -39,9 +38,13 @@ export type MicrocodeFormMode =
       readonly kind: "replace";
       /** The row being replaced. */
       readonly index: number;
-      /** The row's CPUID, where it names one. */
-      readonly targetCpuid: number | undefined;
-      /** The same, as the row writes it. */
+      /**
+       * The row's CPUIDs, where it names them — the header's own and those its
+       * extended table adds: the narrowing, and the "Update" the button says
+       * when the pick is for one of the same processors.
+       */
+      readonly targetCpuids: ReadonlySet<number>;
+      /** The same, as the row writes them — `B06A2 + B06A3, B06A8`. */
       readonly targetCpuidText: string | undefined;
     };
 
@@ -50,7 +53,7 @@ export function formTitle(mode: MicrocodeFormMode): string {
   return mode.kind === "replace" ? L("Replace Intel Microcode") : L("Add Intel Microcode");
 }
 
-/** The checkbox's words: the image's CPUIDs, or in replace mode the row's one. */
+/** The checkbox's words: the image's CPUIDs, or in replace mode the row's. */
 export function narrowingTitle(mode: MicrocodeFormMode): string {
   return mode.kind === "replace" && mode.targetCpuidText !== undefined
     ? `Only CPUID ${mode.targetCpuidText}`
@@ -59,13 +62,15 @@ export function narrowingTitle(mode: MicrocodeFormMode): string {
 
 /** The CPUIDs the checkbox narrows to. */
 export function narrowingCpuids(mode: MicrocodeFormMode): ReadonlySet<number> {
-  if (mode.kind === "add") return mode.cpuidsInTheImage;
-  return mode.targetCpuid === undefined ? new Set() : new Set([mode.targetCpuid]);
+  // In replace mode the narrowing is to the CPUIDs the row names — "replace it
+  // with a newer one" — not to everything the image has. An update with an
+  // extended table names several, and the catalogue files it under each.
+  return mode.kind === "add" ? mode.cpuidsInTheImage : mode.targetCpuids;
 }
 
 /**
  * Whether the search field goes away: in replace mode, narrowed to the row's
- * one CPUID, there is nothing left to search.
+ * CPUIDs, there is nothing left to search.
  */
 export function searchIsHidden(mode: MicrocodeFormMode, narrowed: boolean): boolean {
   return mode.kind === "replace" && narrowed;
@@ -110,7 +115,7 @@ export function actionTitle(
   selected: MicrocodeCatalogueEntry | undefined
 ): string {
   if (mode.kind === "replace") {
-    return selected !== undefined && selected.cpuid === mode.targetCpuid
+    return selected?.cpuid !== undefined && mode.targetCpuids.has(selected.cpuid)
       ? L("Update")
       : L("Replace");
   }
@@ -126,13 +131,13 @@ export const releaseText = (entry: MicrocodeCatalogueEntry): string =>
 export const sizeText = (entry: MicrocodeCatalogueEntry): string =>
   `0x${entry.size.toString(16).toUpperCase()}`;
 
-/** The CPUIDs a table's microcode rows name. */
-export function cpuidsOf(rows: readonly { readonly model: FITRow }[]): Set<number> {
-  const cpuids = new Set<number>();
-  for (const row of rows) {
-    if (row.model.target.kind === "microcode") {
-      cpuids.add(row.model.target.header.processorSignature);
-    }
-  }
-  return cpuids;
+/**
+ * The CPUIDs a table's microcode rows name: every processor a microcode serves,
+ * the ones its extended table adds included — the catalogue files the same
+ * update under each of them.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.show
+ */
+export function cpuidsOf(rows: readonly { readonly cpuids: readonly number[] }[]): Set<number> {
+  return new Set(rows.flatMap((row) => row.cpuids));
 }

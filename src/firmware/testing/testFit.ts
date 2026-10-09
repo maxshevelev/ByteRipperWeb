@@ -125,7 +125,9 @@ export function fitImage(options: {
 }
 
 /**
- * An Intel microcode image, its dword checksum correct.
+ * An Intel microcode image, its dword checksum correct. With `extended`
+ * signatures it carries an extended signature table right behind its data, and
+ * its total size is what the table leaves it.
  *
  * @upstream Modules/FITTool/Tests/FITToolTests/TestFIT.swift#TestFIT.microcode
  */
@@ -135,9 +137,17 @@ export function fitMicrocode(
     readonly revision?: number;
     readonly totalSize?: number;
     readonly platformIDs?: number;
+    readonly extended?: readonly { readonly signature: number; readonly platformIDs: number }[];
   } = {}
 ): Uint8Array {
-  const totalSize = options.totalSize ?? 0x100;
+  const extended = options.extended ?? [];
+  const table: number[] = [];
+  if (extended.length > 0) {
+    table.push(extended.length, 0, 0, 0, 0);
+    for (const entry of extended) table.push(entry.signature, entry.platformIDs, 0);
+    table[1] = (0x1_0000_0000 - table.reduce((sum, dword) => (sum + dword) >>> 0, 0)) >>> 0;
+  }
+  const totalSize = table.length === 0 ? (options.totalSize ?? 0x100) : 0x70 + 4 * table.length;
   const writer = new BinaryWriter()
     .u32(1) // HeaderType
     .u32(options.revision ?? 0xf0)
@@ -155,7 +165,12 @@ export function fitMicrocode(
 
   const bytes = new Uint8Array(totalSize);
   bytes.set(writer.bytes);
-  bytes.fill(0x5a, writer.count);
+  bytes.fill(0x5a, writer.count, totalSize - 4 * table.length);
+  for (const [index, dword] of table.entries()) {
+    for (let byte = 0; byte < 4; byte++) {
+      bytes[totalSize - 4 * table.length + 4 * index + byte] = (dword >>> (8 * byte)) & 0xff;
+    }
+  }
 
   const sum = sum32Of({ start: 0, end: bytes.length }, new ImageReader(sourceOver(bytes))) ?? 0;
   const stored = (0x1_0000_0000 - sum) >>> 0;

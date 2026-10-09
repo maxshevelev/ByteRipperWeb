@@ -40,6 +40,7 @@ function display(
     readonly signature?: number;
     readonly revision?: number;
     readonly platformIDs?: number;
+    readonly extended?: readonly { readonly signature: number; readonly platformIDs: number }[];
   } = {}
 ): FITDisplay {
   const bytes = fitImage({
@@ -56,6 +57,7 @@ function display(
           revision: options.revision ?? 0xf0,
           totalSize: 0x180,
           platformIDs: options.platformIDs ?? 1,
+          ...(options.extended === undefined ? {} : { extended: options.extended }),
         }),
       ],
     ]),
@@ -135,6 +137,30 @@ describe("the rows", () => {
     expect(row?.sizeText).toBe("0x180");
     expect(row?.targetRange).toEqual({ start: MICROCODE, end: MICROCODE + 0x180 });
     expect(row?.hasProblem).toBe(false);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowNamesTheCpuidsItsExtendedTableAdds
+  it("names every CPUID a microcode's extended table adds", () => {
+    // The table repeats the header's signature, as Intel's do, and it is not
+    // named twice.
+    const shown = display([microcodeRow], {
+      signature: 0x000b_06a2,
+      extended: [
+        { signature: 0x000b_06a2, platformIDs: 0xe0 },
+        { signature: 0x000b_06a3, platformIDs: 0xe0 },
+        { signature: 0x000b_06a8, platformIDs: 0xe0 },
+      ],
+    });
+    const row = shown.rows[1];
+
+    // Copy CPUID copies the header's own.
+    expect(row?.cpuidText).toBe("B06A2");
+    expect(row?.cpuids).toEqual([0x000b_06a2, 0x000b_06a3, 0x000b_06a8]);
+    expect(row?.targetText).toBe("CPUID B06A2 + B06A3, B06A8 · r.F0 · 2019-07-15 · 0x2000");
+    expect(shown.zones.zones.find((zone) => zone.id === "fit.target.1")?.name).toBe(
+      "CPUID B06A2 + B06A3, B06A8"
+    );
+    expect(display([microcodeRow]).rows[1]?.cpuids).toEqual([0x0008_06ea]);
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowThatLeadsSomewhereElseStillSaysWhereAndHowLong
@@ -422,6 +448,25 @@ describe('"latest" against the catalogue', () => {
     expect(rows[1]?.latestState).toEqual({ kind: "latest" });
     // The header row is not a microcode and has no verdict.
     expect(rows[0]?.latestState).toEqual({ kind: "notRated" });
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testANewerRevisionForAnExtendedCpuidOutdatesTheRow
+  it("outdates a row by a newer revision for a CPUID its extended table adds", () => {
+    // The catalogue files an update for several processors under each of them.
+    const rows = rated(
+      {
+        signature: 0x000b_06a2,
+        revision: 0x7c,
+        platformIDs: 0xe0,
+        extended: [
+          { signature: 0x000b_06a2, platformIDs: 0xe0 },
+          { signature: 0x000b_06a3, platformIDs: 0xc0 },
+        ],
+      },
+      [catalogueEntry(0x000b_06a3, 0xc0, 0xf0)]
+    );
+
+    expect(rows[1]?.latestState).toEqual({ kind: "outdated", newestRevision: 0xf0 });
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowBehindTheCatalogueIsOutdatedAndNamesTheNewerRevision

@@ -42,7 +42,7 @@ const add: MicrocodeFormMode = { kind: "add", cpuidsInTheImage: new Set([0x906ea
 const replace: MicrocodeFormMode = {
   kind: "replace",
   index: 3,
-  targetCpuid: 0x906eb,
+  targetCpuids: new Set([0x906eb]),
   targetCpuidText: "906EB",
 };
 

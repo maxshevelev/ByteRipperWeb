@@ -31,7 +31,7 @@ The window holds three stories and some housekeeping:
 
 ## Units
 
-- [ ] **W1 — FIT: every processor a microcode serves, the extended signature table's included** (`8d27131`)
+- [x] **W1 — FIT: every processor a microcode serves, the extended signature table's included** (`8d27131`)
 - [ ] **W2 — housekeeping: the sandbox, the hex view fixes, the agent plan, the map** (`4a196f2`, `bbdb1d2`, `83e23da`, `4120b06`)
 - [ ] **W3 — the part codec** (`80738a3` without the Lenovo block)
 - [ ] **W4 — the LenovoDMI package** (`a925d57`, `09c9052`, `2a94978`, `dba5460`, `784fd0a`, `1dd195a`, `bf32c9b` — the package and its codec)

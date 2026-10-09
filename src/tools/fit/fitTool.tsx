@@ -48,6 +48,7 @@ import {
   zoneToFocus,
 } from "@/tools/fit/fitDisplay";
 import { FIT_ROW_MARKS, fitRowMarks, verdict } from "@/tools/fit/fitRowMarks";
+import { cpuidsText } from "@/tools/fit/fitText";
 import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeForm";
 import { entryFileName, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 import { cpuidsOf, type MicrocodeFormMode } from "@/tools/fit/microcodeFormModel";
@@ -421,13 +422,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const openReplace = useCallback(
     (index: number) => {
       const row = display.rows.find((one) => one.index === index && !one.isBackup);
-      const target = row?.model.target;
       setFormStatus(undefined);
       setForm({
         kind: "replace",
         index,
-        targetCpuid: target?.kind === "microcode" ? target.header.processorSignature : undefined,
-        targetCpuidText: row?.cpuidText,
+        targetCpuids: new Set(row?.cpuids ?? []),
+        targetCpuidText:
+          row === undefined || row.cpuids.length === 0 ? undefined : cpuidsText(row.cpuids),
       });
       loadMicrocodeCatalogue();
     },

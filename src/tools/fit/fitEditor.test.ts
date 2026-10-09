@@ -550,6 +550,28 @@ describe("replacing", () => {
     expect(outcome.range.start).toBe(0x2100);
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAnUpdateForACpuidTheExtendedTableListsReplacesTheRow
+  it("replaces the row whose update serves a CPUID the new one's extended table lists", () => {
+    // One filed under another of them — a header naming B06A3 where the row's
+    // names B06A2 — is the same update for the same board, and replaces the row
+    // rather than adding a second.
+    const extended = [
+      { signature: 0x000b_06a2, platformIDs: 1 },
+      { signature: 0x000b_06a3, platformIDs: 1 },
+    ];
+    const bytes = image({
+      contents: new Map([
+        [MICROCODE, fitMicrocode({ signature: 0x000b_06a2, revision: 0x7c, extended })],
+      ]),
+    });
+    const newer = fitMicrocode({ signature: 0x000b_06a3, revision: 0xf0, extended });
+
+    const outcome = outcomeOf(add(newer, bytes));
+
+    expect(outcome.kind).toBe("replaced");
+    expect(outcome.entryIndex).toBe(1);
+  });
+
   // @upstream Modules/FITTool/Tests/FITToolTests/FITEditorTests.swift#FITEditorTests.testAFileThatIsNotMicrocodeIsRefusedBeforeAnythingIsPlanned
   it("refuses a file that is not microcode before anything is planned", () => {
     expect(problemOf(add(new Uint8Array(0x100).fill(0x5a), image()))).toEqual({

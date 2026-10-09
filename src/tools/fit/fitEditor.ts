@@ -16,6 +16,7 @@ import { alignUp, sum8, sum32Of } from "@/firmware/uefi/checksums";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import {
   type MicrocodeHeader,
+  microcodeProcessorSignatures,
   microcodeRange,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
@@ -665,12 +666,36 @@ function mirroredIntoTopSwap<T extends { readonly topSwapBackup?: ImageRange | u
   };
 }
 
+/**
+ * The row whose component is for this processor.
+ *
+ * One CPUID can have several rows, one per platform mask, and they are not
+ * interchangeable: a microcode for platform 02 does not belong in the row that
+ * names platform 22's. So an exact mask wins, an overlapping one is next, and
+ * only if neither is there does the first row for the CPUID answer.
+ *
+ * An update with an extended signature table serves more processors than its
+ * header names, so where no row's header names this CPUID, a row whose update
+ * serves any processor the new one serves is the one it replaces — the same
+ * update for the same board, filed under another of its CPUIDs.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEditor.swift#FITEditor.rowNaming
+ */
 function rowNaming(header: MicrocodeHeader, table: FITTable): NamedRow | undefined {
-  const candidates: NamedRow[] = [];
-  for (const row of table.rows) {
-    if (row.target.kind !== "microcode") continue;
-    if (row.target.header.processorSignature !== header.processorSignature) continue;
-    candidates.push({ index: row.entry.index, component: row.target.header });
+  const rows = (serves: (found: MicrocodeHeader) => boolean): NamedRow[] => {
+    const found: NamedRow[] = [];
+    for (const row of table.rows) {
+      if (row.target.kind !== "microcode" || !serves(row.target.header)) continue;
+      found.push({ index: row.entry.index, component: row.target.header });
+    }
+    return found;
+  };
+  const served = new Set(microcodeProcessorSignatures(header));
+  let candidates = rows((found) => found.processorSignature === header.processorSignature);
+  if (candidates.length === 0) {
+    candidates = rows((found) =>
+      microcodeProcessorSignatures(found).some((signature) => served.has(signature))
+    );
   }
   return (
     candidates.find((one) => one.component.platformIDs === header.platformIDs) ??

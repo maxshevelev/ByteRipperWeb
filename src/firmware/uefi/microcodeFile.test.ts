@@ -7,6 +7,8 @@ import {
   type MicrocodeHeader,
   microcodeFields,
   microcodePlatformsText,
+  microcodeProcessorPlatforms,
+  microcodeProcessorSignatures,
   microcodeProcessorText,
   readMicrocodeHeader,
 } from "@/firmware/uefi/microcodeParser";
@@ -120,6 +122,12 @@ describe("a microcode header's reading", () => {
     expect(extended?.checksumIsCorrect).toBe(true);
     expect(header?.checksumIsCorrect).toBe(true);
     expect(value(header, "Extended signatures")).toBe("906EA, A0671");
+    expect(header === undefined ? [] : microcodeProcessorSignatures(header)).toEqual([
+      0x0008_06ea, 0x0009_06ea, 0x000a_0671,
+    ]);
+    expect(
+      header === undefined ? [] : microcodeProcessorPlatforms(header).map((one) => one.platformIDs)
+    ).toEqual([0x01, 0x02, 0x08]);
     expect(value(header, "Extended checksum")?.endsWith("(Valid)")).toBe(true);
     // The count and the room agree.
     expect(value(header, "Extended table")).toBeUndefined();
@@ -129,5 +137,10 @@ describe("a microcode header's reading", () => {
     // Only what the image has room for.
     expect(broken?.signatures).toHaveLength(2);
     expect(broken?.checksumIsCorrect).toBe(false);
+    const unbalanced = readMicrocodeHeader(0, readerOver(bytes));
+    // A table that does not hold together names no processor.
+    expect(unbalanced === undefined ? [] : microcodeProcessorSignatures(unbalanced)).toEqual([
+      0x0008_06ea,
+    ]);
   });
 });

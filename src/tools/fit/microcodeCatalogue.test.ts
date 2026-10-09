@@ -288,6 +288,26 @@ describe("whether it is the latest", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testAnExtendedSignatureIsRatedOnItsOwnPlatforms
+  it("rates each processor of an extended table on its own platforms", () => {
+    // The 906EB entry serves platform 1, which the fixture's `plat22` r.F0
+    // covers, so the update is behind it — though its header names 906EA,
+    // which the catalogue does not list at all.
+    const bytes = fitMicrocode({
+      signature: 0x906ea,
+      revision: 0x7c,
+      platformIDs: 0x80,
+      extended: [
+        { signature: 0x906ea, platformIDs: 0x80 },
+        { signature: 0x906eb, platformIDs: 0x02 },
+      ],
+    });
+    const installed = readMicrocodeHeader(0, new ImageReader(sourceOver(bytes)));
+    if (installed === undefined) throw new Error("the fixture is not a microcode");
+
+    expect(latestOf(installed, entries())).toEqual({ kind: "outdated", newestRevision: 0xf0 });
+  });
+
   // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testACpuidTheCatalogueDoesNotListIsNotRated
   it("does not rate a CPUID the catalogue does not list", () => {
     // The collection cannot speak to a processor it does not name.

@@ -516,6 +516,62 @@ export function microcodeDate(header: MicrocodeHeader): string {
 }
 
 /**
+ * Whether the table the count declares fits the image and its checksum counts —
+ * the difference between a table and the bytes after the data.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeExtendedTable.isConsistent
+ */
+export function microcodeExtendedTableIsConsistent(table: MicrocodeExtendedTable): boolean {
+  return table.declaredSize <= table.availableSize && table.checksumIsCorrect;
+}
+
+/**
+ * The extended table's signatures, where the table holds together. Bytes behind
+ * the data are read as a table whatever they are, and padding makes a count of
+ * thousands; only one that fits the image and sums to zero names processors the
+ * update is for.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeHeader.trustedExtendedSignatures
+ */
+function trustedExtendedSignatures(header: MicrocodeHeader): readonly MicrocodeExtendedSignature[] {
+  const table = header.extendedTable;
+  return table !== undefined && microcodeExtendedTableIsConsistent(table) ? table.signatures : [];
+}
+
+/**
+ * Every processor the update is for: the header's own signature first, then
+ * each one the extended table adds. Intel's tables list the header's signature
+ * again as their first entry, and it is not named twice.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeHeader.processorSignatures
+ */
+export function microcodeProcessorSignatures(header: MicrocodeHeader): number[] {
+  const signatures = [header.processorSignature];
+  for (const entry of trustedExtendedSignatures(header)) {
+    if (!signatures.includes(entry.processorSignature)) signatures.push(entry.processorSignature);
+  }
+  return signatures;
+}
+
+/**
+ * Each processor with the platforms the update serves it on: the header's pair,
+ * then the extended table's, each with its own platform IDs.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeHeader.processorPlatforms
+ */
+export function microcodeProcessorPlatforms(
+  header: MicrocodeHeader
+): { readonly signature: number; readonly platformIDs: number }[] {
+  return [
+    { signature: header.processorSignature, platformIDs: header.platformIDs },
+    ...trustedExtendedSignatures(header).map((entry) => ({
+      signature: entry.processorSignature,
+      platformIDs: entry.platformIDs,
+    })),
+  ];
+}
+
+/**
  * One microcode image. Nothing when the header does not check out, which leaves
  * no diagnostic — `0x00000001` appears everywhere.
  *

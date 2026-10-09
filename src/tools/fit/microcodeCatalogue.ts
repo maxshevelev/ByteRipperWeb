@@ -1,4 +1,4 @@
-import type { MicrocodeHeader } from "@/firmware/uefi/microcodeParser";
+import { type MicrocodeHeader, microcodeProcessorPlatforms } from "@/firmware/uefi/microcodeParser";
 
 /**
  * The list of what can be added, read from the repository's file names.
@@ -325,28 +325,34 @@ export function catalogueCounts(
  * collection is behind the board, and a behind catalogue cannot confirm what it
  * does not know.
  *
+ * An update with an extended signature table serves several processors, each on
+ * its own platforms, and the catalogue files the same update once under each of
+ * them. Every pair counts: a newer revision listed for any processor the update
+ * serves is a newer revision of this update.
+ *
  * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.latest
  */
 export function latestOf(
   header: MicrocodeHeader,
   entries: readonly MicrocodeCatalogueEntry[]
 ): MicrocodeLatest {
-  // Which platform bits the board can be. An installed update that serves every
-  // platform narrows nothing, so the board is any of the eight a three-bit id
-  // can name.
-  const candidates = header.platformIDs === 0 ? 0xff : header.platformIDs;
-
   let newestCertain: number | undefined;
   let newestPossible: number | undefined;
-  for (const entry of entries) {
-    if (entry.cpuid !== header.processorSignature) continue;
-    const revision = entryRevision(entry);
-    if (revision === undefined) continue;
-    const mask = entry.platformID ?? 0;
-    if (mask === 0 || (candidates & ~mask) === 0) {
-      newestCertain = Math.max(newestCertain ?? revision, revision);
-    } else if ((candidates & mask) !== 0) {
-      newestPossible = Math.max(newestPossible ?? revision, revision);
+  for (const { signature, platformIDs } of microcodeProcessorPlatforms(header)) {
+    // Which platform bits the board can be. An installed update that serves
+    // every platform narrows nothing, so the board is any of the eight a
+    // three-bit id can name.
+    const candidates = platformIDs === 0 ? 0xff : platformIDs;
+    for (const entry of entries) {
+      if (entry.cpuid !== signature) continue;
+      const revision = entryRevision(entry);
+      if (revision === undefined) continue;
+      const mask = entry.platformID ?? 0;
+      if (mask === 0 || (candidates & ~mask) === 0) {
+        newestCertain = Math.max(newestCertain ?? revision, revision);
+      } else if ((candidates & mask) !== 0) {
+        newestPossible = Math.max(newestPossible ?? revision, revision);
+      }
     }
   }
 

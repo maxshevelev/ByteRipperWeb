@@ -23,14 +23,18 @@ import {
   topSwapSize,
 } from "@/firmware/fit/fitTopSwap";
 import type { ImageRange } from "@/firmware/imageReader";
-import { microcodeDate, microcodeRange } from "@/firmware/uefi/microcodeParser";
+import {
+  microcodeDate,
+  microcodeProcessorSignatures,
+  microcodeRange,
+} from "@/firmware/uefi/microcodeParser";
 import {
   type ProtectedRanges,
   type Protection,
   protectionOfRange,
 } from "@/firmware/uefi/protectedRanges";
 import { buildDetail, EMPTY_DETAIL, type FITRowDetail } from "@/tools/fit/fitDetail";
-import { cpuidText, fitHex as hex } from "@/tools/fit/fitText";
+import { cpuidsText, cpuidText, fitHex as hex } from "@/tools/fit/fitText";
 import {
   latestOf,
   type MicrocodeCatalogueEntry,
@@ -133,6 +137,14 @@ export interface FITDisplayRow {
    * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.cpuidText
    */
   readonly cpuidText: string | undefined;
+  /**
+   * Every processor the microcode is for, the header's own first and then those
+   * its extended signature table adds. Empty for a row that does not lead to
+   * microcode.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.cpuids
+   */
+  readonly cpuids: readonly number[];
   /**
    * Something is wrong with this row, and the panel says so by colour as well
    * as in the list below.
@@ -609,6 +621,8 @@ function displayRows(
         row.target.kind === "microcode"
           ? cpuidText(row.target.header.processorSignature)
           : undefined,
+      cpuids:
+        row.target.kind === "microcode" ? microcodeProcessorSignatures(row.target.header) : [],
       hasProblem: problemRows.has(row.entry.index),
       zoneId: rowZoneId(isBackup ? backupKey(row.entry.index) : row.entry.index),
       rowRange: { start: row.entry.offset, end: row.entry.offset + FIT_ENTRY_SIZE },
@@ -766,10 +780,12 @@ function targetTextOf(row: FITRow): string {
       return L("outside this image");
     case "microcode": {
       // The CPUID is what a bench hunts for, so it leads; the offset and the
-      // size have their own columns, and the date closes the line.
+      // size have their own columns, and the date closes the line. An update
+      // for several processors names them all: the ones its extended table
+      // adds are as much its own as the header's.
       const header = target.header;
       const parts = [
-        L("CPUID %1$@", cpuidText(header.processorSignature)),
+        L("CPUID %1$@", cpuidsText(microcodeProcessorSignatures(header))),
         L("r.%1$@", header.updateRevision.toString(16).toUpperCase()),
         microcodeDate(header),
       ];
@@ -861,8 +877,8 @@ function zonesOf(
       id: targetZoneId(rowKey(row)),
       name: (() => {
         const named =
-          row.cpuidText !== undefined
-            ? L("CPUID %1$@", row.cpuidText)
+          row.cpuids.length > 0
+            ? L("CPUID %1$@", cpuidsText(row.cpuids))
             : row.targetText.length === 0
               ? L("#%1$@", displayNumber(row))
               : row.targetText;

@@ -18,6 +18,21 @@ export function cpuidText(signature: number): string {
   return microcodeCpuid(signature);
 }
 
+/**
+ * Several CPUIDs as one: the header's own, then after a `+` the ones its
+ * extended table adds — `B06A2 + B06A3, B06A8`. The update is filed under the
+ * first, and it serves every one of them.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.cpuidsText
+ */
+export function cpuidsText(signatures: readonly number[]): string {
+  const [first, ...more] = signatures;
+  if (first === undefined) return "";
+  return more.length === 0
+    ? cpuidText(first)
+    : `${cpuidText(first)} + ${more.map(cpuidText).join(", ")}`;
+}
+
 /** A hex value, padded to a field's width where the field has one. */
 export function fitHex(value: number, digits = 0): string {
   return `0x${value.toString(16).toUpperCase().padStart(digits, "0")}`;
