@@ -15,6 +15,9 @@ declare const __APP_VERSION__: string;
  */
 export const appNameAndVersion = (): string => `ByteRipper ${__APP_VERSION__}`;
 
+/** The version alone, as a server says it of itself. */
+export const appVersionText = (): string => __APP_VERSION__;
+
 /**
  * The version this build is, for comparison — `undefined` for a build made
  * without one, which is what keeps a caller from comparing a release against

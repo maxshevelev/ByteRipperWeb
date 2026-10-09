@@ -11,6 +11,8 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
+import { agentService } from "@/state/agent/agentService";
+import { agentShell } from "@/state/agent/agentShell";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
@@ -110,6 +112,7 @@ import {
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
 import { TOOLS } from "@/tools/registry";
+import { AgentWindow } from "@/ui/agent/AgentWindow";
 import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
@@ -697,6 +700,7 @@ export function AppShell() {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const agentWindowOpen = useStore(agentService.store).windowOpen;
   /** The tab Settings was asked to open on, when the opener named one. */
   const [settingsTab, setSettingsTab] = useState<SettingsTab | undefined>(undefined);
   /** The pane whose header name is a field right now (§23). */
@@ -1364,6 +1368,32 @@ export function AppShell() {
    *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
    */
+  // What an agent's `reveal` does: the same as a tool's reveal — the pane in front, the range
+  // selected and shown, the caret alone when nothing is selected — and not a step of the history by
+  // itself, the tool having recorded the place it left (`Design/PORT_AGENT.md`).
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
+  useEffect(() => {
+    agentShell.reveal = (pane, start, end, select) => {
+      if (isSlot(pane)) {
+        foldParts();
+        setActivePane(pane);
+      } else {
+        raisePart(pane);
+      }
+      if (select) void paneState(pane)?.typing.setSelection(start, end);
+      revealIn(pane, start, !select);
+    };
+    return () => {
+      agentShell.reveal = undefined;
+    };
+  }, [revealIn]);
+
+  // The agent service reads its switches and opens its endpoint if it was on, where there is a shell
+  // to serve through.
+  useEffect(() => {
+    if (agentService.isAvailable) void agentService.start();
+  }, []);
+
   const showOrigin = useCallback(
     async (pane: PartId) => {
       const origin = paneState(pane)?.origin;
@@ -2491,6 +2521,17 @@ export function AppShell() {
         onClose={() => setSelectBlock(undefined)}
       />
       <TransientNotice />
+      {agentWindowOpen ? (
+        <AgentWindow
+          // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings
+          // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showAgent
+          // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.agent
+          onSettings={() => {
+            setSettingsTab("agent");
+            setSettingsOpen(true);
+          }}
+        />
+      ) : null}
       <SettingsDialog
         open={settingsOpen}
         tab={settingsTab}

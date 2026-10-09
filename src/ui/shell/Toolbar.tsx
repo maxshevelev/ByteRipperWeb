@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
+import { agentStatusText } from "@/core/agent/agentStatus";
 import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { showAbout } from "@/state/aboutStore";
+import { agentService } from "@/state/agent/agentService";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
@@ -52,6 +54,7 @@ import { compactEntries, type MenuEntry, sectionsOf } from "@/ui/shell/menuModel
 import { revertItem } from "@/ui/shell/paneMenus";
 import { SectionMenu } from "@/ui/shell/SectionMenu";
 import {
+  AgentGlyph,
   BackwardGlyph,
   ChevronLeftGlyph,
   ChevronRightGlyph,
@@ -187,6 +190,9 @@ export function Toolbar({
   const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
 
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
+  // The Agent button and its mark: there while the service is switched on, filled while an agent is
+  // connected (`Design/PORT_AGENT.md`).
+  const agent = useStore(agentService.store);
   /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState
    * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState.previousDifference
@@ -613,6 +619,20 @@ export function Toolbar({
         ...entries.slice(viewEnd, at),
         { kind: "heading", label: L("Tools"), opensMenu: true },
         ...toolEntries,
+        // Window ▸ Agent: the service's state and the log of what agents have asked. Where
+        // upstream's menu bar has it, before Help, and only where there is a service to show.
+        // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.build
+        ...(agentService.isAvailable
+          ? ([
+              { kind: "heading", label: L("Window", { context: "menu" }), opensMenu: true },
+              // help: menu.window.agent
+              {
+                label: L("Agent"),
+                checked: agent.windowOpen,
+                onSelect: () => agentService.setWindowOpen(!agent.windowOpen),
+              },
+            ] satisfies MenuEntry[])
+          : []),
         ...entries.slice(at),
         // After the Help pages, where a Windows application keeps it.
         // @web-only the desktop build replaces itself; a page is replaced by loading it again
@@ -625,7 +645,7 @@ export function Toolbar({
 
   const keyed: { readonly id: ToolbarItemId; readonly key: string }[] = [];
   const seen = new Map<ToolbarItemId, number>();
-  for (const id of toolbarItems(bothOpen, identical.current)) {
+  for (const id of toolbarItems(bothOpen, identical.current, agent.running)) {
     const count = seen.get(id) ?? 0;
     seen.set(id, count + 1);
     keyed.push({ id, key: `${id}${count}` });
@@ -854,6 +874,27 @@ export function Toolbar({
             entries={helpMenuEntries()}
             pullDown
           />
+        );
+      // The Agent window as a button, while the agent service is switched on.
+      // help: toolbar.agent
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.agentWindowItem
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeAgentWindowItem
+      case "agentWindow":
+        return (
+          <IconButton
+            key={key}
+            label={L("Agent")}
+            title={`${L("Show the Agent window")} — ${agentStatusText({
+              available: true,
+              failure: agent.failure,
+              running: agent.running,
+              connections: agent.connections,
+            })}`}
+            pressed={agent.windowOpen}
+            onClick={() => agentService.setWindowOpen(!agent.windowOpen)}
+          >
+            <AgentGlyph connected={agent.connections > 0} />
+          </IconButton>
         );
       case "paneLayout":
         return (

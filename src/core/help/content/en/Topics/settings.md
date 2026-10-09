@@ -23,6 +23,7 @@
 - **Editing** — the confirmations raised before edits that change the length of the file ([[topic:editing|Editing Bytes]]). They are enabled by default, and this is the same setting as the "do not ask again" box in the dialogs themselves.
 - **Text Decoding** — the encoding the text column decodes with.
 - **Search Patterns** — the named search patterns, and the folder through which the library can be synchronised between installations ([[topic:search|Finding Bytes and Text]]).
+- [[edition:||**Agent** — whether agents may connect to ByteRipper, and the text a client program is set up with ([[topic:agent|Working with an Agent]]). Only in the Windows application.]]
 
 ## Where the settings are kept
 

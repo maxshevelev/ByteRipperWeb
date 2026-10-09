@@ -8,7 +8,8 @@
     "web": "npm --prefix .. run build && node copy-web.mjs",
     "start": "npm run web && electron .",
     "open": "electron .",
-    "dist:win": "npm run web && electron-builder --win --x64 --config electron-builder.config.cjs"
+    "dist:win": "npm run web && electron-builder --win --x64 --config electron-builder.config.cjs",
+    "test": "node --test test/"
   },
   "devDependencies": {
     "electron": "^44.5.0",
@@ -28,6 +29,9 @@
       "preload.cjs",
       "update.cjs",
       "release-key.cjs",
+      "agent.cjs",
+      "agent-endpoint.cjs",
+      "relay.cjs",
       "web/**/*"
     ],
     "win": {
@@ -57,6 +61,10 @@
     ],
     "portable": {
       "artifactName": "ByteRipper-${version}-portable.exe"
-    }
+    },
+    "asarUnpack": [
+      "relay.cjs",
+      "agent-endpoint.cjs"
+    ]
   }
 }

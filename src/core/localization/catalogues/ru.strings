@@ -1158,6 +1158,48 @@
 "The EFS partition at %1$@ could not be read, so whether it holds files — which would make the state Initialized — is unknown. Check its system page before relying on this state." = "Раздел EFS по адресу %1$@ прочитать не удалось, поэтому неизвестно, есть ли в нём файлы; если есть, состояние было бы Initialized. Прежде чем полагаться на это состояние, проверьте системную страницу EFS.";
 "The EFS volume's files cannot be told without the firmware database's file table, so whether it holds files — which would make the state Initialized — is unknown." = "Без таблицы файлов из базы прошивок файлы тома EFS определить нельзя, поэтому неизвестно, есть ли в нём файлы; если есть, состояние было бы Initialized.";
 "This volume does not name its reserved files by index, so only the EFS and the configuration decide." = "Этот том не обозначает зарезервированные файлы номерами, поэтому состояние определяют только EFS и конфигурация.";
+"%1$@ ms" = "%1$@ мс";
+"%1$@ s" = "%1$@ с";
+"Add this to Claude Desktop's configuration file, %1$@, and restart Claude Desktop." = "Добавьте это в файл настроек Claude Desktop, %1$@, и перезапустите Claude Desktop.";
+"Add this to Cursor's configuration file, %1$@, for every project — or to %2$@ in one project." = "Добавьте это в файл настроек Cursor, %1$@, — для всех проектов, или в %2$@ — для одного проекта.";
+"Agent" = "Агент";
+"Agent Settings…" = "Настройки агента…";
+"Agents connected: %1$@." = "Подключено агентов: %1$@.";
+"An agent's edit goes into the open file as one step of its undo and shows red until the file is saved, like an edit made by hand. Saving stays with you. A file opened read-only is never changed." = "Изменение, сделанное агентом, вносится в открытый файл одним шагом отмены и выделяется красным до сохранения файла, как правка, сделанная вручную. Сохраняет файл только пользователь. Файл, открытый только для чтения, не изменяется.";
+"Answer" = "Ответ";
+"Answered" = "Отвечено";
+"Arguments" = "Аргументы";
+"Cancelled" = "Отменено";
+"Clear Log" = "Очистить журнал";
+"Client" = "Клиент";
+"Command" = "Команда";
+"Configuration for:" = "Настройка для:";
+"Configuration text" = "Текст настройки";
+"Copied." = "Скопировано.";
+"Copy the text above to the clipboard" = "Скопировать текст выше в буфер обмена";
+"Could not start: %1$@" = "Не удалось запустить: %1$@";
+"Enter these parameters in the client's MCP server settings." = "Введите эти параметры в настройках MCP-серверов клиента.";
+"Environment" = "Переменные окружения";
+"Follow New Requests" = "Следить за новыми запросами";
+"Let agents connect to ByteRipper" = "Разрешить агентам подключаться к ByteRipper";
+"Let agents edit open files" = "Разрешить агентам изменять открытые файлы";
+"Log" = "Журнал";
+"One agent connected." = "Подключён один агент.";
+"Other Client" = "Другой клиент";
+"Result" = "Результат";
+"Scroll the log to each new request as it arrives" = "Прокручивать журнал к каждому новому запросу";
+"Select a request to see all of it." = "Выберите запрос, чтобы увидеть его целиком.";
+"Show the Agent window" = "Показать окно агента";
+"Switched off." = "Выключена.";
+"The agent service is not available in this copy of the app." = "В этой копии программы служба агента недоступна.";
+"The program the agent runs in, whose configuration is shown below" = "Программа, в которой работает агент; её настройка показана ниже";
+"Too long, not sent" = "Слишком длинный, не отправлен";
+"Took" = "Длительность";
+"Tool" = "Инструмент";
+"Transport" = "Транспорт";
+"Waiting for an agent." = "Ожидание агента.";
+"menu|Window" = "Окно";
+"none" = "нет";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.
@@ -1410,3 +1452,5 @@
 "This file could not be read." = "Этот файл не удалось прочитать.";
 "Copy Link to This Page" = "Скопировать ссылку на эту страницу";
 "Link Copied" = "Ссылка скопирована";
+"An agent — Claude Code, Claude Desktop or another MCP client on this computer — can then list the files open here, read their bytes and show places in them. It cannot save a file. The connection is local, but what the agent reads, its program passes to the model behind it." = "Тогда агент — Claude Code, Claude Desktop или другой клиент MCP на этом компьютере — сможет получить список открытых здесь файлов, читать их байты и показывать в них нужные места. Сохранить файл он не может. Соединение локальное, но прочитанное агентом его программа передаёт модели, на которой он работает.";
+"Run this command once in a terminal. It adds ByteRipper to Claude Code for every folder." = "Выполните эту команду один раз в терминале. Она добавляет ByteRipper в Claude Code для всех папок.";

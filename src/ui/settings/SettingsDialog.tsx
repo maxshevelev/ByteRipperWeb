@@ -10,6 +10,7 @@ import { L } from "@/core/localization/localization";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
+import { agentService } from "@/state/agent/agentService";
 import {
   APP_THEMES,
   FONT_SIZE_RANGE,
@@ -38,6 +39,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { AgentTab } from "@/ui/settings/AgentTab";
 import { FavoritesTab } from "@/ui/settings/FavoritesTab";
 import { monospacedFontFamilies } from "@/ui/settings/fontFamilies";
 import {
@@ -48,7 +50,13 @@ import {
   snapRowHeightScale,
 } from "@/ui/settings/settingsText";
 
-export type SettingsTab = "view" | "comparison" | "editing" | "textDecoding" | "favorites";
+export type SettingsTab =
+  | "view"
+  | "comparison"
+  | "editing"
+  | "textDecoding"
+  | "favorites"
+  | "agent";
 
 /**
  * The tabs, in upstream's toolbar order. File Types sets which application
@@ -69,6 +77,8 @@ const tabs = (): readonly { readonly id: SettingsTab; readonly label: string }[]
   { id: "editing", label: L("Editing") },
   { id: "textDecoding", label: L("Text Decoding") },
   { id: "favorites", label: L("Search Patterns") },
+  // Only where the shell can serve one: the desktop build (Design/PORT_AGENT.md).
+  ...(agentService.isAvailable ? [{ id: "agent" as const, label: L("Agent") }] : []),
 ];
 
 export interface SettingsDialogProps {
@@ -155,6 +165,7 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
           {tab === "editing" ? <EditingTab /> : null}
           {tab === "textDecoding" ? <TextDecodingTab /> : null}
           {tab === "favorites" ? <FavoritesTab /> : null}
+          {tab === "agent" ? <AgentTab /> : null}
         </div>
       ) : null}
     </Dialog>

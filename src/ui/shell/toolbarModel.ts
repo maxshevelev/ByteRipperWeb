@@ -33,6 +33,7 @@ export type ToolbarItemId =
   | "diffNavigation"
   | "filesIdentical"
   | "help"
+  | "agentWindow"
   | "paneLayout"
   | "toggleMinimap"
   | "space"
@@ -80,8 +81,18 @@ export const TOOLBAR_DEFAULT_ITEMS: readonly ToolbarItemId[] = [
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncDiffNavigationToolbarItem
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.applyDiffNavigationToolbarItem
  */
-export function toolbarItems(comparison: boolean, identical: boolean): ToolbarItemId[] {
+export function toolbarItems(
+  comparison: boolean,
+  identical: boolean,
+  agent = false
+): ToolbarItemId[] {
   return TOOLBAR_DEFAULT_ITEMS.flatMap((id): ToolbarItemId[] => {
+    // The Agent button sits between the help book and the pane arrangement, each with a space of
+    // its own on either side, while the agent service is switched on: a door to a window about a
+    // service that is not there would open onto "Switched off." and nothing else.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncAgentToolbarItem
+    // @upstream ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.agentWindow
+    if (id === "help") return agent ? ["help", "space", "agentWindow"] : ["help"];
     if (id !== "diffNavigation") return [id];
     if (!comparison) return [];
     return [identical ? "filesIdentical" : "diffNavigation"];
@@ -158,6 +169,8 @@ export function toolbarItemEnabled(
     case "find":
     case "segments":
       return context.activeOpen;
+    case "agentWindow":
+      return true;
     case "navigateBack":
       return context.history.back;
     case "navigateForward":

@@ -517,6 +517,44 @@ export function resetTextDecoding(): void {
   settingsStore.update((state) => ({ ...state, textDecoding: DEFAULT_TEXT_DECODING }));
 }
 
+// MARK: - The agent service
+
+/**
+ * Where the service's switch is kept: whether the endpoint an agent's client reaches the app on
+ * is open. Off after an install.
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.enabledKey
+ */
+export const AGENT_ENABLED_KEY = "AgentServiceEnabled";
+/**
+ * Where the edit switch is kept: whether an agent may change an open file. Off after an install,
+ * and independent of the service's switch.
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.editsKey
+ */
+export const AGENT_EDITS_KEY = "AgentEditsAllowed";
+
+/** What the service's two switches were left at; both off for a visit that remembers nothing. */
+export async function loadAgentSettings(): Promise<{
+  readonly enabled: boolean;
+  readonly editsAllowed: boolean;
+}> {
+  const store = values();
+  const [enabled, editsAllowed] = await Promise.all([
+    store.get<boolean>(AGENT_ENABLED_KEY).catch(() => undefined),
+    store.get<boolean>(AGENT_EDITS_KEY).catch(() => undefined),
+  ]);
+  return { enabled: enabled === true, editsAllowed: editsAllowed === true };
+}
+
+export function rememberAgentEnabled(enabled: boolean): void {
+  remember(AGENT_ENABLED_KEY, enabled);
+}
+
+export function rememberAgentEditsAllowed(allowed: boolean): void {
+  remember(AGENT_EDITS_KEY, allowed);
+}
+
 // MARK: - What the workspace holds
 
 /** @upstream ByteRipperApp/Hex/WordSize.swift#WordSize.set */

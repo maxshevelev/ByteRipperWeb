@@ -13,6 +13,9 @@
 @section bench
 @name Appendix
 
+@section agent
+@name Working with an Agent
+
 @section settings
 @name Settings
 

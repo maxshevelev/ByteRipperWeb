@@ -96,6 +96,8 @@ export const TOPIC = {
   toolFIT: topicId("tool-fit"),
   /** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.lenovoDMI */
   lenovoDMI: topicId("lenovo-dmi"),
+  /** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.agent */
+  agent: topicId("agent"),
   databases: topicId("databases"),
   provenance: topicId("provenance"),
 

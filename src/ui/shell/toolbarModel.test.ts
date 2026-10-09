@@ -189,3 +189,20 @@ describe("what each item can do", () => {
     });
   });
 });
+
+describe("the Agent button", () => {
+  // Between the help book and the pane arrangement, while the agent service is switched on.
+  // @upstream ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheAgentButtonFollowsTheServiceSwitch
+  it("is there only while the service is on, after the help", () => {
+    expect(toolbarItems(false, false)).not.toContain("agentWindow");
+    const items = toolbarItems(false, false, true);
+    const at = items.indexOf("agentWindow");
+    expect(items.slice(at - 2, at + 3)).toEqual([
+      "help",
+      "space",
+      "agentWindow",
+      "space",
+      "paneLayout",
+    ]);
+  });
+});

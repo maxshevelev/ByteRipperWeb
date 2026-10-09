@@ -186,3 +186,30 @@ export function HelpGlyph() {
     </svg>
   );
 }
+
+/**
+ * `point.3.connected.trianglepath.dotted`, and its filled form while an agent is connected: three
+ * points joined by a dotted triangle.
+ */
+export function AgentGlyph({ connected }: { readonly connected: boolean }) {
+  return (
+    <Glyph>
+      <path d="M8 3 L13 12 H3 Z" {...stroke} strokeDasharray="1.6 2.2" strokeWidth={1.2} />
+      {[
+        [8, 3],
+        [13, 12],
+        [3, 12],
+      ].map(([x, y]) => (
+        <circle
+          key={`${x},${y}`}
+          cx={x}
+          cy={y}
+          r={2}
+          fill={connected ? "currentColor" : "var(--knockout)"}
+          stroke="currentColor"
+          strokeWidth={1.3}
+        />
+      ))}
+    </Glyph>
+  );
+}

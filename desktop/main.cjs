@@ -21,6 +21,7 @@ const {
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const agent = require("./agent.cjs");
 const updates = require("./update.cjs");
 
 const SCHEME = "app";
@@ -283,6 +284,7 @@ app.whenReady().then(() => {
   });
 
   updates.register(ipcMain, BrowserWindow, fromApp);
+  agent.register(ipcMain, fromApp, app);
 
   createWindow();
 });

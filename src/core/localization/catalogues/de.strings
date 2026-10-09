@@ -1158,6 +1158,48 @@
 "The EFS partition at %1$@ could not be read, so whether it holds files — which would make the state Initialized — is unknown. Check its system page before relying on this state." = "Die EFS-Partition bei %1$@ ließ sich nicht lesen; ob sie Dateien enthält, ist daher unbekannt. Enthielte sie welche, wäre der Zustand Initialized. Vor einer Entscheidung auf Grundlage dieses Zustands ist ihre Systemseite zu prüfen.";
 "The EFS volume's files cannot be told without the firmware database's file table, so whether it holds files — which would make the state Initialized — is unknown." = "Ohne die Dateitabelle der Firmware-Datenbank lassen sich die Dateien des EFS-Volumes nicht bestimmen; ob es Dateien enthält, ist daher unbekannt. Enthielte es welche, wäre der Zustand Initialized.";
 "This volume does not name its reserved files by index, so only the EFS and the configuration decide." = "Dieses Volume bezeichnet seine reservierten Dateien nicht über Indizes; den Zustand bestimmen daher nur EFS und Konfiguration.";
+"%1$@ ms" = "%1$@ ms";
+"%1$@ s" = "%1$@ s";
+"Add this to Claude Desktop's configuration file, %1$@, and restart Claude Desktop." = "Dies in die Konfigurationsdatei von Claude Desktop, %1$@, eintragen und Claude Desktop neu starten.";
+"Add this to Cursor's configuration file, %1$@, for every project — or to %2$@ in one project." = "Dies in die Konfigurationsdatei von Cursor, %1$@, eintragen — für alle Projekte, oder in %2$@ für ein einzelnes Projekt.";
+"Agent" = "Agent";
+"Agent Settings…" = "Agent-Einstellungen…";
+"Agents connected: %1$@." = "Verbundene Agenten: %1$@.";
+"An agent's edit goes into the open file as one step of its undo and shows red until the file is saved, like an edit made by hand. Saving stays with you. A file opened read-only is never changed." = "Eine Änderung des Agenten wird als ein Schritt des Widerrufens in die geöffnete Datei geschrieben und bleibt bis zum Sichern rot markiert, wie eine Änderung von Hand. Das Sichern bleibt dem Benutzer überlassen. Eine schreibgeschützt geöffnete Datei wird nie geändert.";
+"Answer" = "Antwort";
+"Answered" = "Beantwortet";
+"Arguments" = "Argumente";
+"Cancelled" = "Abgebrochen";
+"Clear Log" = "Protokoll leeren";
+"Client" = "Client";
+"Command" = "Befehl";
+"Configuration for:" = "Konfiguration für:";
+"Configuration text" = "Konfigurationstext";
+"Copied." = "Kopiert.";
+"Copy the text above to the clipboard" = "Den Text oben in die Zwischenablage kopieren";
+"Could not start: %1$@" = "Start nicht möglich: %1$@";
+"Enter these parameters in the client's MCP server settings." = "Diese Parameter in den MCP-Servereinstellungen des Clients eintragen.";
+"Environment" = "Umgebung";
+"Follow New Requests" = "Neuen Anfragen folgen";
+"Let agents connect to ByteRipper" = "Agenten die Verbindung mit ByteRipper erlauben";
+"Let agents edit open files" = "Agenten das Ändern geöffneter Dateien erlauben";
+"Log" = "Protokoll";
+"One agent connected." = "Ein Agent verbunden.";
+"Other Client" = "Anderer Client";
+"Result" = "Ergebnis";
+"Scroll the log to each new request as it arrives" = "Das Protokoll zu jeder neuen Anfrage scrollen";
+"Select a request to see all of it." = "Eine Anfrage auswählen, um sie vollständig zu sehen.";
+"Show the Agent window" = "Das Agentenfenster zeigen";
+"Switched off." = "Ausgeschaltet.";
+"The agent service is not available in this copy of the app." = "In dieser Kopie des Programms ist der Agentendienst nicht verfügbar.";
+"The program the agent runs in, whose configuration is shown below" = "Das Programm, in dem der Agent läuft; seine Konfiguration steht darunter";
+"Too long, not sent" = "Zu lang, nicht gesendet";
+"Took" = "Dauer";
+"Tool" = "Werkzeug";
+"Transport" = "Transport";
+"Waiting for an agent." = "Wartet auf einen Agenten.";
+"menu|Window" = "Fenster";
+"none" = "keine";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der
@@ -1411,3 +1453,5 @@
 "This file could not be read." = "Diese Datei ließ sich nicht lesen.";
 "Copy Link to This Page" = "Link zu dieser Seite kopieren";
 "Link Copied" = "Link kopiert";
+"An agent — Claude Code, Claude Desktop or another MCP client on this computer — can then list the files open here, read their bytes and show places in them. It cannot save a file. The connection is local, but what the agent reads, its program passes to the model behind it." = "Ein Agent — Claude Code, Claude Desktop oder ein anderer MCP-Client auf diesem Rechner — kann dann die hier geöffneten Dateien auflisten, ihre Bytes lesen und Stellen darin zeigen. Eine Datei sichern kann er nicht. Die Verbindung ist lokal, doch was der Agent liest, gibt sein Programm an das Modell weiter, auf dem er beruht.";
+"Run this command once in a terminal. It adds ByteRipper to Claude Code for every folder." = "Diesen Befehl einmal in einem Terminal ausführen. Er fügt ByteRipper für alle Ordner zu Claude Code hinzu.";

@@ -74,6 +74,7 @@ export const HELP_SECTIONS: readonly HelpSectionShape[] = [
       TOPIC.recipeChecksums,
     ],
   },
+  { id: "agent", topics: [TOPIC.agent] },
   { id: "settings", topics: [TOPIC.settings] },
 ];
 

@@ -1,4 +1,4 @@
-@source-sha 325380b0e65be99585f83c42dbd35b5089e40435d3d04ada153672c2cc18bd72
+@source-sha e6a0bfd12c47f7c4a1fff1b4712764f90f89fa6802e6bbe5652eecc972d28fe3
 # Einstellungen
 
 > **Ablage ▸ Einstellungen…** [[edition:im Menü der Symbolleiste||im Menü]] — das, was sich das Programm merkt.
@@ -13,6 +13,7 @@
 - **Bearbeiten** — die Rückfragen vor Änderungen, welche die Länge der Datei verändern ([[topic:editing|Bytes bearbeiten]]). Sie sind voreingestellt, und es ist dieselbe Einstellung wie das Kästchen „Nicht mehr fragen“ in den Dialogen selbst.
 - **Textdecodierung** — die Codierung, mit der die Textspalte gelesen wird.
 - **Suchmuster** — die benannten Suchmuster und der Ordner, über den sich die Bibliothek zwischen mehreren Installationen abgleichen lässt ([[topic:search|Bytes und Text finden]]).
+- [[edition:||**Agent** — ob sich Agenten mit ByteRipper verbinden dürfen, und der Text, mit dem ein Client-Programm eingerichtet wird ([[topic:agent|Mit einem Agenten arbeiten]]). Nur in der Windows-Anwendung.]]
 
 ## Wo die Einstellungen liegen
 

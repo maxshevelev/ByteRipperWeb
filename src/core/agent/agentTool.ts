@@ -6,7 +6,7 @@ import { type Json, jsonText } from "@/core/agent/json";
  * it takes, and the code that answers.
  *
  * The name, the description and the schema are read by a model, not by the person at the
- * bench. They stay in English and do not go through `L()` (`Design/LOCALIZATION.md`): what a
+ * bench. They stay in English and do not go through the localization lookup (`Design/LOCALIZATION.md`): what a
  * tool is called is an interface, and an interface that changed with the language of the
  * machine it ran on would be two interfaces.
  *
