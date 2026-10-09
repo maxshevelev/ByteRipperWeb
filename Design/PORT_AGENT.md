@@ -63,7 +63,7 @@ which now says "browser only".
 
 Each ends with the checks green and a commit.
 
-- [ ] **A1 — AgentKit.** `src/core/agent/`: JSON values and framing, MCP in
+- [x] **A1 — AgentKit.** `src/core/agent/`: JSON values and framing, MCP in
   both eras, the tool registry, arguments (hex or integer offsets), bounds,
   pages (`AgentPage`), endpoint names. Tests ported from `AgentKitTests`,
   including a legacy handshake and a modern discover-list-call, cancellation

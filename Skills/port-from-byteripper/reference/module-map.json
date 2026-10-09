@@ -181,10 +181,6 @@
       "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
     },
     {
-      "prefix": "Packages/AgentKit",
-      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
-    },
-    {
       "prefix": "ByteRipperApp/Settings/AgentSettings",
       "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
     },
@@ -221,8 +217,8 @@
       "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
     },
     {
-      "prefix": "Design/AGENT_",
-      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+      "prefix": "Design/AGENT_PLAN.md",
+      "why": "Upstream's design of the agent service; ours is Design/PORT_AGENT.md, which says what differs."
     }
   ],
   "modules": [
@@ -5416,6 +5412,39 @@
         "Skills/help-editions/scripts/help_editions.py": "Skills/help-editions/scripts/help_editions.py"
       },
       "unported": {}
+    },
+    {
+      "swift": "Packages/AgentKit",
+      "web": [
+        "src/core/agent"
+      ],
+      "status": "in-progress",
+      "note": "The Model Context Protocol in both eras (D16, Design/PORT_AGENT.md): JSON values and framing, the connection that serves a client's lines, tools and their arguments, the answer bound and pages. Pure TypeScript under src/core, so a test drives a whole conversation as lines; the transport is the Electron shell's (desktop/), not a class here. A tool's cancellation is a CancelSignal of its own, since AbortSignal is a DOM global.",
+      "files": {
+        "Sources/AgentKit/JSONValue.swift": "src/core/agent/json.ts",
+        "Sources/AgentKit/LineFramer.swift": "src/core/agent/lineFramer.ts",
+        "Sources/AgentKit/MCPProtocol.swift": "src/core/agent/mcpProtocol.ts",
+        "Sources/AgentKit/AgentTool.swift": "src/core/agent/agentTool.ts",
+        "Sources/AgentKit/AgentArguments.swift": "src/core/agent/agentArguments.ts",
+        "Sources/AgentKit/AgentBytes.swift": "src/core/agent/agentBytes.ts",
+        "Sources/AgentKit/AgentConnection.swift": "src/core/agent/agentConnection.ts",
+        "Sources/AgentKit/AgentServer.swift": "src/core/agent/agentServer.ts",
+        "Sources/AgentKit/AgentPage.swift": "src/core/agent/agentPage.ts",
+        "Sources/AgentKit/AgentEndpoint.swift": "src/core/agent/agentEndpoint.ts",
+        "Tests/AgentKitTests/JSONValueTests.swift": "src/core/agent/json.test.ts",
+        "Tests/AgentKitTests/LineFramerTests.swift": "src/core/agent/lineFramer.test.ts",
+        "Tests/AgentKitTests/AgentArgumentsTests.swift": "src/core/agent/agentArguments.test.ts",
+        "Tests/AgentKitTests/AgentPageTests.swift": "src/core/agent/agentPage.test.ts",
+        "Tests/AgentKitTests/AgentConnectionTests.swift": "src/core/agent/agentConnection.test.ts",
+        "Tests/AgentKitTests/RecordedClientTests.swift": "src/core/agent/recordedClient.test.ts"
+      },
+      "unported": {
+        "Packages/AgentKit/Sources/AgentKit/UnixSocket.swift#*": "n/a — the socket is the shell's: Node's net module, a named pipe on Windows (desktop/main.cjs)",
+        "Packages/AgentKit/Tests/AgentKitTests/UnixSocketTests.swift#*": "n/a — tests UnixSocket",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.socketPath": "n/a — the path is the shell's (desktop/agent-endpoint.cjs): a named pipe on Windows",
+        "Packages/AgentKit/Sources/AgentKit/AgentBytes.swift#AgentBytes.shown": "@web-only name",
+        "Packages/AgentKit/Package.swift#*": "n/a — SwiftPM manifest"
+      }
     }
   ]
 }
