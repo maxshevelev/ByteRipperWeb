@@ -53,6 +53,8 @@ export function subtypeText(node: UEFINode): string {
     // force.
     case "gpnvRecord":
       return node.subtype === 1 ? L("Current") : L("Superseded");
+    case "lenvBlock":
+      return node.subtype === 1 ? L("In use", { context: "LENV block" }) : L("Not in use");
     case "file":
       return fileTypeName(subtype);
     case "section":
@@ -161,7 +163,10 @@ export function showsValue(node: { readonly kind: string }): boolean {
     node.kind === "dvarEntry" ||
     node.kind === "vssEntry" ||
     node.kind === "nvarEntry" ||
-    node.kind === "gpnvRecord"
+    node.kind === "gpnvRecord" ||
+    node.kind === "lenvBlock" ||
+    node.kind === "lenvEntry" ||
+    node.kind === "ldbgEntry"
   );
 }
 
@@ -389,6 +394,14 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   // A GPNV record says what it holds: the Windows key, or the text in its data — serial
   // numbers, the model — as far as a row has room.
   if (node.kind === "gpnvRecord") return node.valueRow ?? node.name;
+  // Lenovo's DMI store says what it holds, decoded: a block its generation, an entry its
+  // value, a write of the log what it did.
+  if (
+    (node.kind === "lenvBlock" || node.kind === "lenvEntry" || node.kind === "ldbgEntry") &&
+    node.valueRow !== undefined
+  ) {
+    return node.valueRow;
+  }
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : node.name;
   }
@@ -496,6 +509,11 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   hpSignatureBlock: L("HP signature block"),
   gpnvStore: L("GPNV store"),
   gpnvRecord: L("GPNV record"),
+  lenovoDMIStore: L("Lenovo DMI store"),
+  ldbgLog: L("LDBG change log"),
+  ldbgEntry: L("LDBG entry"),
+  lenvBlock: L("LENV block"),
+  lenvEntry: L("LENV entry"),
   amdEFS: L("Embedded Firmware Structure"),
   amdDirectory: L("AMD firmware directory"),
   amdFirmwareEntry: L("AMD firmware entry"),

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
-import { BinaryWriter, descriptor, volume, volumeTopFile } from "@/firmware/testing/testImage";
+import {
+  type FlashDeviceMapTestEntry,
+  flashDeviceMapBytes,
+} from "@/firmware/testing/testFlashDeviceMap";
+import { descriptor, volume, volumeTopFile } from "@/firmware/testing/testImage";
 import { iteImage } from "@/firmware/testing/testInsyde";
 import { vssStore, vssVariable } from "@/firmware/testing/testNvram";
-import { sum8 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidEquals } from "@/firmware/uefi/efiGuid";
 import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { flashDeviceMapAddressDiff } from "@/firmware/uefi/flashDeviceMapParser";
@@ -26,36 +29,14 @@ const BASE = 0x1_0000_0000 - SIZE;
 const PASSWORD = guid("C0027E32-8EE5-4D17-9B28-BA50166C4CB4");
 const UNNAMED = guid("0BADF00D-0000-4000-8000-000000000001");
 
-interface Entry {
-  readonly type: EFIGUID;
-  readonly offset: number;
-  readonly size: number;
-}
+type Entry = FlashDeviceMapTestEntry;
 
-/** A flash device map whose entries carry the region types given. */
-function map(entries: readonly Entry[]): Uint8Array {
-  const body = new BinaryWriter();
-  for (const entry of entries) {
-    body.guid(entry.type);
-    body.fill(16, 0); // RegionId
-    body.u64(entry.offset);
-    body.u64(entry.size);
-    body.u32(FlashDeviceMap.modifiable);
-    body.fill(32, 0); // Hash
-  }
-  const header = new BinaryWriter()
-    .u32(FlashDeviceMap.signature)
-    .u32(FlashDeviceMap.headerSize + body.count)
-    .u32(FlashDeviceMap.headerSize)
-    .u32(FlashDeviceMap.entrySize)
-    .u8(FlashDeviceMap.entryFormat)
-    .u8(3) // Revision
-    .u8(0) // ExtensionCount
-    .u8(0) // Checksum, filled in below
-    .u64(BASE).bytes;
-  header[FlashDeviceMap.checksumOffset] = (0x100 - sum8(header)) & 0xff;
-  return Uint8Array.from([...header, ...body.bytes]);
-}
+/**
+ * A flash device map whose entries carry the region types given.
+ *
+ * @upstream Packages/UEFIImage/Tests/UEFIImageTests/FlashDeviceMapRegionTests.swift#FlashDeviceMapRegionTests.map
+ */
+const map = (entries: readonly Entry[]): Uint8Array => flashDeviceMapBytes(entries, BASE);
 
 const firstStore = vssStore({
   variables: [vssVariable({ name: "Setup" }), vssVariable({ name: "PchSetup" })],

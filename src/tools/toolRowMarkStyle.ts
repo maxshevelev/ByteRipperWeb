@@ -44,6 +44,8 @@ export const ROW_MARK_SYMBOL: Readonly<Record<ToolRowMark, string | undefined>> 
   compressedUndecoded: "zipper.page",
   holdsChecks: "lock.shield",
   partlyProtected: "shield.lefthalf.filled",
+  encoded: "lock",
+  decoded: "lock.open",
 };
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarkStyle.swift#ToolRowMark.symbol */
@@ -67,6 +69,8 @@ export const ROW_MARK_TINT: Readonly<Record<ToolRowMark, RowMarkTint>> = {
   compressedUndecoded: "secondary",
   holdsChecks: "secondary",
   partlyProtected: "secondary",
+  encoded: "secondary",
+  decoded: "secondary",
 };
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarkStyle.swift#ToolRowMark.tint */

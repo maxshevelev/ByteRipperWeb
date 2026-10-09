@@ -3320,7 +3320,9 @@ button.uefi-title {
    here opens, and the two badges. Grey, and none of them a problem. */
 .tool-row-mark[data-mark="compressedUndecoded"],
 .tool-row-mark[data-mark="holdsChecks"],
-.tool-row-mark[data-mark="partlyProtected"] {
+.tool-row-mark[data-mark="partlyProtected"],
+.tool-row-mark[data-mark="encoded"],
+.tool-row-mark[data-mark="decoded"] {
   color: var(--text-muted);
 }
 

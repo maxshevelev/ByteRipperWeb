@@ -80,7 +80,14 @@ import {
 } from "@/tools/fit/fitEditor";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
+import type { RowRole } from "@/tools/toolRowMarks";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
+import {
+  decodableBlockOf,
+  encodingRole,
+  lenovoDMIRowText,
+  readsLenovoDMI,
+} from "@/tools/uefi/uefiLenovoDMIDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import { isEmptySpace, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 import { BlobByteSource } from "@/workers/blobByteSource";
@@ -310,6 +317,35 @@ function hiddenCopiesOf(node: UEFINode): [number, number][] | undefined {
 }
 
 /**
+ * What a row of Lenovo's DMI store says decoded — a block its generation, an entry its
+ * value, a write of the log what it did — and the badge a LENV block wears for how it is
+ * stored. Read here, where the bytes are: the entries are XORed in the file.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.lenovoDMIRow
+ * @upstream-differs the panel holds no bytes, so the worker reads the text
+ */
+function lenovoWireFields(
+  node: UEFINode,
+  parent: UEFINode | undefined
+): {
+  valueRow?: string;
+  encodingRole?: RowRole;
+  decodableBlock?: { readonly range: readonly [number, number]; readonly name: string };
+} {
+  if (!readsLenovoDMI(node.kind)) return {};
+  const reader = readerFor(node);
+  if (reader === undefined) return {};
+  const text = lenovoDMIRowText(node, parent, reader);
+  const role = encodingRole(node, reader);
+  const decodable = decodableBlockOf(node, parent, reader);
+  return {
+    ...(text === undefined ? {} : { valueRow: text }),
+    ...(role === undefined ? {} : { encodingRole: role }),
+    ...(decodable === undefined ? {} : { decodableBlock: decodable }),
+  };
+}
+
+/**
  * A node as it crosses the wire: the ranges flattened to pairs and the GUID to
  * its text, because what the panel does with either is show it.
  */
@@ -321,6 +357,7 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   ...(node.kind === "gpnvRecord"
     ? { valueRow: gpnvRowText(node.name, readerFor(node)?.bytes(node.body)) }
     : {}),
+  ...lenovoWireFields(node, store),
   hiddenCopies: hiddenCopiesOf(node),
   isEmptySpace: isEmptySpace(node),
   id: node.id,

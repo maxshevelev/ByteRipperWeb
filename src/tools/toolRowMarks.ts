@@ -64,7 +64,14 @@ export type RowRole =
    *
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMarks.Role.partlyProtected
    */
-  | { readonly kind: "partlyProtected" };
+  | { readonly kind: "partlyProtected" }
+  /**
+   * Holds bytes stored encoded — `decoded` when they lie in the clear here
+   * instead, as in a part opened decoded. The words say how.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMarks.Role.encoded
+   */
+  | { readonly kind: "encoded"; readonly words: string; readonly decoded: boolean };
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMarks */
 export interface ToolRowMarks {
@@ -170,7 +177,11 @@ export type ToolRowMark =
   | "compressed"
   | "compressedUndecoded"
   | "holdsChecks"
-  | "partlyProtected";
+  | "partlyProtected"
+  /** Badge: stored encoded — its bytes are not what it holds. */
+  | "encoded"
+  /** Badge: encoded where it is stored, and in the clear here. */
+  | "decoded";
 
 /**
  * The channels of `ROW_MARKS.md` §1, in the order a legend lists them.
@@ -202,6 +213,8 @@ export const ROW_MARK_CHANNEL: Readonly<Record<ToolRowMark, RowMarkChannel>> = {
   compressedUndecoded: "role",
   holdsChecks: "role",
   partlyProtected: "role",
+  encoded: "role",
+  decoded: "role",
 };
 
 /**
@@ -225,6 +238,8 @@ export const ALL_ROW_MARKS: readonly ToolRowMark[] = [
   "compressedUndecoded",
   "holdsChecks",
   "partlyProtected",
+  "encoded",
+  "decoded",
 ];
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMark.channel */
@@ -251,6 +266,8 @@ export const ROW_MARK_MEANING: () => Readonly<Record<ToolRowMark, string>> = loc
   compressedUndecoded: L("Holds compressed data that does not open here"),
   holdsChecks: L("Holds what other structures are checked against"),
   partlyProtected: L("Partly inside protected ranges"),
+  encoded: L("Stored encoded: its bytes are not what it holds"),
+  decoded: L("Encoded where it is stored, and in the clear here"),
 }));
 
 /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolRowMarks.swift#ToolRowMark.meaning */
@@ -269,6 +286,8 @@ export const roleMark = (role: RowRole): ToolRowMark => {
       return "holdsChecks";
     case "partlyProtected":
       return "partlyProtected";
+    case "encoded":
+      return role.decoded ? "decoded" : "encoded";
   }
 };
 
@@ -287,6 +306,8 @@ export const roleTooltip = (role: RowRole): string => {
       return role.words;
     case "partlyProtected":
       return ROW_MARK_MEANING().partlyProtected;
+    case "encoded":
+      return role.words;
   }
 };
 

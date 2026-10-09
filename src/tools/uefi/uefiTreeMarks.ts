@@ -41,6 +41,8 @@ export const UEFI_TREE_MARKS = {
     "compressedUndecoded",
     "holdsChecks",
     "partlyProtected",
+    "encoded",
+    "decoded",
   ] as readonly ToolRowMark[],
 } as const;
 
@@ -102,6 +104,9 @@ export function uefiTreeMarks(options: {
 
   const holds = holdsChecks(node);
   if (holds !== undefined) roles.push({ kind: "holdsChecks", words: holds });
+
+  // How a Lenovo LENV block is stored, read off its bytes in the worker.
+  if (node.encodingRole !== undefined) roles.push(node.encodingRole);
 
   let protection: RowProtection | undefined;
   if (options.protectedRanges !== undefined) {

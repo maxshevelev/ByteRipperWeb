@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
 import { CopyPartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
+import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
+import { LENVBlock } from "@/firmware/lenovoDmi/lenvBlock";
 import { unpackedOverrides } from "@/firmware/uefi/appleOverrides";
 import type { BIOSGuardUpdate } from "@/firmware/uefi/biosGuardUpdate";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
+import { IMAGE_LAYOUT } from "@/firmware/uefi/rootLayout";
 import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
 import { downloadBlob } from "@/platform/files/download";
 import {
@@ -1267,6 +1270,34 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
+   * Open Decoded Block: a LENV block, or the block an entry is in, as a part with its entries
+   * in plain text, put back encoded with the block's checksum recomputed. The block's bytes
+   * are encoded, so what it holds is the block decoded.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecodedBlock
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenDecodedBlock
+   */
+  // help: panel.uefi.open-decoded-block
+  const openDecodedBlock = useCallback(
+    async (node: WireNode) => {
+      const found = node.decodableBlock;
+      const stored =
+        found === undefined ? undefined : await readSpaceBytes(context.pane, [], found.range);
+      if (found === undefined || stored === undefined) {
+        context.report(L("There is no LENV block to decode here."));
+        return;
+      }
+      context.openPart(
+        L("%1$@ (decoded)", found.name),
+        [found.range[0], found.range[1]],
+        new LenovoDMIBlockCodec(new LENVBlock(found.range[0], stored)),
+        IMAGE_LAYOUT
+      );
+    },
+    [context]
+  );
+
+  /**
    * What a double click on a node's row does: opens what the node holds as a panel — the
    * body a compressed section decompresses to, otherwise the node's body, and the whole
    * node where it has none apart from itself (`contentOf`). The disclosure triangle keeps
@@ -1279,6 +1310,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   // help: panel.uefi.open-content
   const openContent = useCallback(
     (node: WireNode) => {
+      // A LENV block's bytes are encoded: what it holds is the block decoded, from the
+      // block's row and from any of its entries'.
+      if (node.decodableBlock !== undefined) {
+        void openDecodedBlock(node);
+        return;
+      }
       switch (contentOf(node)) {
         case "decompressedBody": {
           const taken = decompressedBody(node);
@@ -1292,7 +1329,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           void openNode(node, false);
       }
     },
-    [openDecompressed, openNode]
+    [openDecodedBlock, openDecompressed, openNode]
   );
 
   /**
@@ -2047,6 +2084,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                                   context.report(L("There was nothing to put back."));
                               });
                             },
+                          },
+                      node.decodableBlock === undefined
+                        ? undefined
+                        : {
+                            label: L("Open Decoded Block"),
+                            onSelect: () => void openDecodedBlock(node),
                           },
                       !isBZip2Variable(node)
                         ? undefined

@@ -94,6 +94,14 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
     case "gpnvStore":
     case "gpnvRecord":
       return termId("gpnv");
+    case "lenovoDMIStore":
+      return termId("dmi");
+    case "lenvBlock":
+    case "lenvEntry":
+      return termId("lenv");
+    case "ldbgLog":
+    case "ldbgEntry":
+      return termId("ldbg");
     case "amdEFS":
     case "amdDirectory":
     case "amdFirmwareEntry":

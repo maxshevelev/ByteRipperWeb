@@ -467,7 +467,12 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/EFIGUIDTests.swift": "src/firmware/uefi/efiGuid.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/NvramGuidsTests.swift": "src/firmware/uefi/nvramGuids.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/ParseProgressTests.swift": "src/firmware/uefi/parseProgress.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift": "src/workers/firmwareWorker.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift": "src/workers/firmwareWorker.test.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift": "src/firmware/uefi/dmiStore.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIStore.swift": "src/firmware/uefi/lenovoDmiStore.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIFirmwareReaders.swift": "src/firmware/uefi/lenovoDmiFirmwareReaders.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift": "src/firmware/uefi/lenovoDmiStore.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/TestFlashDeviceMap.swift": "src/firmware/testing/testFlashDeviceMap.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -880,7 +885,9 @@
         "Modules/UEFITool/Tests/UEFIToolTests/GPNVDisplayTests.swift": "src/tools/uefi/uefiNodeDetail.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAMDFirmwareDetail.swift": "src/tools/uefi/amdFirmwareDetail.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/AMDFirmwareDisplayTests.swift": "src/tools/uefi/amdFirmwareDisplay.test.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift": "src/firmware/uefi/checksumCheck.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift": "src/firmware/uefi/checksumCheck.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFILenovoDMIDetail.swift": "src/tools/uefi/uefiLenovoDMIDetail.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift": "src/tools/uefi/uefiLenovoDMIDetail.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",

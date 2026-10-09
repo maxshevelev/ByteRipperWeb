@@ -11,6 +11,7 @@ import { FlashDeviceMap } from "@/firmware/uefi/flashDeviceMapFormat";
 import { parseFlashDeviceMap, readingMapRegions } from "@/firmware/uefi/flashDeviceMapParser";
 import { readingGPNVStores } from "@/firmware/uefi/gpnvStore";
 import { readingHPSignatureBlocks } from "@/firmware/uefi/hpSignatureBlock";
+import { readingLenovoDMIStores } from "@/firmware/uefi/lenovoDmiStore";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { opensPicture, PICTURE_SIGNATURES, parsePicture } from "@/firmware/uefi/picture";
@@ -206,6 +207,9 @@ export function scanRawArea(
   // What tables elsewhere name, then what announces itself only in padding — each read
   // into the padding as rows of its own.
   let read = readingMapRegions(parser, nodes, emptyByte, depth);
+  // Before anything else reads padding: the map's three regions become the one
+  // store they are.
+  read = readingLenovoDMIStores(parser, read, emptyByte);
   read = readingFITComponents(parser, read, emptyByte);
   read = readingECFirmwareIn(parser, read, emptyByte);
   read = readingHPSignatureBlocks(parser, read, emptyByte);

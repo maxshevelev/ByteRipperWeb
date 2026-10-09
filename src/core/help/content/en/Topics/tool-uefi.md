@@ -64,7 +64,7 @@ Right-click a node:
 - **Open Decompressed Variable** for the `overrides` variable of an Apple system-flags store — its device overrides, which are kept as a bzip2 stream, unpacked as text into a [[topic:fragments|fragment panel]]. The panel is a copy: nothing here compresses the text again, so editing it does not change the dump.
 - **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
 
-A double click on a row does without the menu: it opens what the node holds as a fragment panel — for a compressed section its decompressed body, for any other node its body, and for a node with no body of its own, such as padding or free space, the node itself. A double click on the disclosure triangle only folds or unfolds the row.
+A double click on a row does without the menu: it opens what the node holds as a fragment panel — for a compressed section its decompressed body, for any other node its body, and for a node with no body of its own, such as padding or free space, the node itself. On a [[term:lenv|LENV]] block or one of its entries it opens the block decoded, as **Open Decoded Block** does ([[topic:lenovo-dmi|Lenovo DMI]]). A double click on the disclosure triangle only folds or unfolds the row.
 
 ## Comparing with an update file
 

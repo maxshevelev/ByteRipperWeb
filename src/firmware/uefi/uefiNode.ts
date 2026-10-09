@@ -148,6 +148,18 @@ export type UEFINodeKind =
   | "gpnvStore"
   | "gpnvRecord"
   /**
+   * Lenovo's store of the machine's identity (`LenovoDMIStore`): the `LDBG` change
+   * log and its entries, and the two `LENV` blocks — the subtype 1 on the one the
+   * firmware reads, 0 on the other — and their entries. Read in place of the map
+   * regions that declare them, or out of padding. Padding to UEFITool, as a GPNV
+   * store is.
+   */
+  | "lenovoDMIStore"
+  | "ldbgLog"
+  | "ldbgEntry"
+  | "lenvBlock"
+  | "lenvEntry"
+  /**
    * The AMD PSP's map read out of padding (`AMDFirmware`): the Embedded Firmware Structure,
    * a directory — the subtype is its `DirectoryKind` — and a blob a directory lists, whose
    * subtype is its type. Padding to UEFITool, as an HP signature block is.

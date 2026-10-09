@@ -292,6 +292,8 @@ describe("the legend", () => {
       "compressedUndecoded",
       "holdsChecks",
       "partlyProtected",
+      "encoded",
+      "decoded",
     ]);
     for (const mark of UEFI_TREE_MARKS.legendMarks) {
       expect(["background", "problem", "role", "rail"]).toContain(rowMarkChannel(mark));

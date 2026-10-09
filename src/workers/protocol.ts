@@ -28,6 +28,7 @@ import type { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import type { EFSFileNames } from "@/tools/efsFileNames";
 import type { MFSFileNames } from "@/tools/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
+import type { RowRole } from "@/tools/toolRowMarks";
 
 /** A job number. Monotonic per worker client; never reused. */
 export type JobId = number;
@@ -650,6 +651,21 @@ export interface WireNode {
    * store's format that says where it lies
    */
   readonly valueRow?: string | undefined;
+  /**
+   * For a LENV block of Lenovo's DMI store: the badge it wears for how it is stored.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the block
+   */
+  readonly encodingRole?: RowRole | undefined;
+  /**
+   * For a LENV block, or an entry in one, that can be opened decoded: the block's range in
+   * the file and its row's name.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker decides (`decodableBlock`)
+   */
+  readonly decodableBlock?:
+    | { readonly range: readonly [number, number]; readonly name: string }
+    | undefined;
   /**
    * Whether the row stands for room rather than content, which the tree draws grey
    * (`isEmptySpace`).

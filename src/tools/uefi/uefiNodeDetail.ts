@@ -47,6 +47,7 @@ import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
 import { allITEFirmware } from "@/firmware/uefi/iteFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
+import type { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import {
   microcodeCpuid,
   microcodeFields,
@@ -114,6 +115,7 @@ import {
   nvramSignaturesTable,
   nvramValueFields,
 } from "@/tools/uefi/nvramValueText";
+import { lenovoDMIDetail, readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { dvarMeaning, kindLabel, type OwnNameNode, ownName } from "@/tools/uefi/uefiTreeDisplay";
 
@@ -139,11 +141,23 @@ export function buildNodeDetail(
   node: UEFINode,
   image: UEFIImage,
   reader: ImageReader,
-  repairs: readonly ChecksumRepair[] = []
+  repairs: readonly ChecksumRepair[] = [],
+  lenovoDMIReaders?: LenovoDMIFirmwareReaders | undefined
 ): NodeDetail {
   const detail = withMapRegions(
     withListedRanges(
-      withVariableHistory(buildDetailRows(node, image, reader, repairs), node, image, reader),
+      withVariableHistory(
+        withLenovoDMI(
+          buildDetailRows(node, image, reader, repairs),
+          node,
+          image,
+          reader,
+          lenovoDMIReaders
+        ),
+        node,
+        image,
+        reader
+      ),
       node,
       image,
       reader
@@ -164,6 +178,28 @@ export function buildNodeDetail(
   const format = node.subtype === undefined ? undefined : pictureFormatOf(node.subtype);
   if (bytes === undefined || format === undefined) return detail;
   return { ...detail, picture: { bytes, mime: pictureMimeType(format) } };
+}
+
+/**
+ * Lenovo's DMI store, read as a whole: the store's row sums it up, and each part says
+ * what it is.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withLenovoDMI(
+  detail: NodeDetail,
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader,
+  readers: LenovoDMIFirmwareReaders | undefined
+): NodeDetail {
+  if (!readsLenovoDMI(node.kind)) return detail;
+  const lenovo = lenovoDMIDetail(node, image, reader, readers);
+  return {
+    ...detail,
+    fields: [...detail.fields, ...lenovo.fields],
+    tables: [...detail.tables, ...lenovo.tables],
+  };
 }
 
 /**
@@ -1468,6 +1504,15 @@ function headerFields(
     case "amdFirmwareEntry":
       break;
 
+    // Lenovo's DMI store: its fields are read from the store as a whole, in the format's
+    // own terms, not from one row's bytes (`withLenovoDMI`).
+    case "lenovoDMIStore":
+    case "ldbgLog":
+    case "ldbgEntry":
+    case "lenvBlock":
+    case "lenvEntry":
+      break;
+
     // Its header is the table; the platform and the count are what the blocks say of
     // themselves. The table itself is read in `buildDetailRows`' caller.
     case "biosGuardUpdate": {
@@ -2097,6 +2142,8 @@ function typeText(node: UEFINode): string {
       return sectionTypeName(subtype);
     case "volume":
       return `Revision ${subtype}`;
+    case "lenvBlock":
+      return subtype === 1 ? L("In use", { context: "LENV block" }) : L("Not in use");
     case "region": {
       const type = FLASH_REGIONS[subtype];
       return type === undefined ? hex(subtype) : `${regionLabel(type)} · ${hex(subtype)}`;

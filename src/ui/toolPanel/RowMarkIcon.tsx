@@ -233,6 +233,36 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
         </>
       );
 
+    // `lock`: a shackle over a body, the keyhole punched through it.
+    case "encoded":
+      return (
+        <>
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            d="M5 7.2V5a3 3 0 0 1 6 0v2.2"
+          />
+          <path fill="currentColor" d="M3.4 7.2h9.2v7.3H3.4z" />
+          <path d="M8 9.1a1 1 0 0 0-.5 1.9v1.4h1V11A1 1 0 0 0 8 9.1" style={KNOCKOUT_FILL} />
+        </>
+      );
+
+    // `lock.open`: the same body, the shackle swung clear of it.
+    case "decoded":
+      return (
+        <>
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            d="M8.6 7.2V4.6a2.9 2.9 0 0 1 5.8 0v1.2"
+          />
+          <path fill="currentColor" d="M1.6 7.2h9.2v7.3H1.6z" />
+          <path d="M6.2 9.1a1 1 0 0 0-.5 1.9v1.4h1V11a1 1 0 0 0-.5-1.9" style={KNOCKOUT_FILL} />
+        </>
+      );
+
     default:
       return null;
   }

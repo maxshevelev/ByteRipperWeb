@@ -94,6 +94,7 @@ export const TOPIC = {
   toolUEFI: topicId("tool-uefi"),
   toolME: topicId("tool-me"),
   toolFIT: topicId("tool-fit"),
+  lenovoDMI: topicId("lenovo-dmi"),
   databases: topicId("databases"),
   provenance: topicId("provenance"),
 

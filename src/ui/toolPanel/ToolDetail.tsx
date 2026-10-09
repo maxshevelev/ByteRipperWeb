@@ -973,6 +973,8 @@ function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {
     "list.bullet.rectangle":
       "M2.5 2.5h11v11h-11ZM5 5.8h.8M5 8h.8M5 10.2h.8M7.6 5.8h3.6M7.6 8h3.6M7.6 10.2h3.6",
     "text.alignleft": "M2.5 3.5h11M2.5 6.2h7M2.5 8.9h11M2.5 11.6h7",
+    "person.text.rectangle":
+      "M2.5 3h11v10h-11ZM5.6 6.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM4 11c.3-1 1-1.6 1.6-1.6S6.9 10 7.2 11M9 6.4h2.8M9 8.4h2.8M9 10.4h2",
     cpu: "M4.5 4.5h7v7h-7ZM6.5 2v2.5M9.5 2v2.5M6.5 11.5V14M9.5 11.5V14M2 6.5h2.5M2 9.5h2.5M11.5 6.5H14M11.5 9.5H14",
   };
   return (

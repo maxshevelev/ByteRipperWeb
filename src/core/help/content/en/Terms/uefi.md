@@ -459,10 +459,41 @@ A board's own identity is held there: the system and baseboard serial numbers, t
 
 Lost fields are not always lost for good. Some vendors — HP and Acer among them — ship service utilities that write the identity again, taking the serial number and the rest off the sticker on the case or on the board. Where no such utility exists, carrying the fields over from the old dump is what is left.
 
-Where the fields sit inside the image is not standardised. Each vendor puts them where it likes and the layout moves between generations, which is why moving them across is a comparison job rather than something a tool can do for you.
+Where the fields sit inside the image is not standardised. Each vendor puts them where it likes and the layout moves between generations, so carrying them over is in general a job of comparing two images.
+
+Lenovo InsydeH2O firmware is the exception the app reads: it keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]).
+
+**Tools ▸ UEFI Structure** shows that store as one row of the tree, **Lenovo DMI**, wherever in the image it lies: in place of the three regions the Insyde flash device map declares as "Unknown", or inside padding where there is no map. Its detail names the block the firmware reads and lists that block's entries decoded, the serial number and the UUID among them; a click on an entry opens its row. Under the row are the change log and both blocks, each entry with its value beside its name.
 
 @see term:serial-data
+@see term:lenv
 @see topic:recipe-board-data
+
+@term lenv
+@name LENV block
+@short One of the two copies of Lenovo's identity store: the serial number, UUID, machine type and model and the Windows key, encoded.
+
+Lenovo InsydeH2O firmware keeps a machine's [[term:dmi|DMI]] data in two blocks of 4 KiB with the signature `LENV`. Each begins with a 16-byte header that is not encoded: the signature, the **generation**, the number of entries, an access flag, an **XOR key** and a **checksum**. Every byte after the header is XORed with the key, so the serial number cannot be found in the dump by searching for it.
+
+The entries follow the header back to back. Each is filed under a namespace of 14 bytes and a type of 2 bytes, and carries a size, flags and the value. The SMBIOS fields share one namespace.
+
+The checksum is the sum of the bytes after the header as stored, that is encoded, kept to 16 bits. The firmware reads the block with the higher generation and ignores a block with generation 0. Both blocks with generation 0 and nothing written after the header mean the store has been wiped.
+
+A value cannot change its length in place: the firmware builds the SMBIOS tables from these entries partly at fixed offsets.
+
+@see term:ldbg
+@see topic:lenovo-dmi
+
+@term ldbg
+@name LDBG change log
+@short Lenovo's record of every write to the LENV identity store: when, what, and how many bytes.
+
+The 8 KiB area with the signature `LDBG` precedes the two [[term:lenv|LENV]] blocks. Its header holds the **write offset**, where the firmware appends the next record; the records themselves are XORed with the same key as the blocks.
+
+A record is 32 bytes: a date and time taken from the real-time clock, the operation (set, protect or unprotect), the entry it concerns and the number of bytes written. The log holds no values. It shows when the serial number or the Windows key was last written, which tells a factory entry from a later one. A write offset of `FFFFFFFF` means the log has been erased.
+
+@see term:lenv
+@see topic:lenovo-dmi
 
 @term slic
 @name SLIC / MSDM

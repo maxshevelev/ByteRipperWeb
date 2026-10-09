@@ -55,6 +55,11 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   hpSignatureBlock: ItemType.padding,
   gpnvStore: ItemType.padding,
   gpnvRecord: ItemType.padding,
+  lenovoDMIStore: ItemType.padding,
+  ldbgLog: ItemType.padding,
+  ldbgEntry: ItemType.padding,
+  lenvBlock: ItemType.padding,
+  lenvEntry: ItemType.padding,
   amdEFS: ItemType.padding,
   amdDirectory: ItemType.padding,
   amdFirmwareEntry: ItemType.padding,
@@ -150,6 +155,11 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "hpSignatureBlock":
     case "gpnvStore":
     case "gpnvRecord":
+    case "lenovoDMIStore":
+    case "ldbgLog":
+    case "ldbgEntry":
+    case "lenvBlock":
+    case "lenvEntry":
     case "amdEFS":
     case "amdDirectory":
     case "amdFirmwareEntry":
