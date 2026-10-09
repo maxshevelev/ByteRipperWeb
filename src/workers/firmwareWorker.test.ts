@@ -1,10 +1,13 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { LenovoDMIFormat, smbiosKey } from "@/firmware/lenovoDmi/lenovoDmiFormat";
 import { BootGuardImage, bootPolicyV1 } from "@/firmware/testing/testBootGuard";
 import * as Test from "@/firmware/testing/testImage";
+import { MTM, SERIAL, STANDARD_LOG, testBlock, testLog } from "@/firmware/testing/testLenovoDMI";
 import type { FlashRegionType } from "@/firmware/uefi/descriptorParser";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
+import { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import { NAME_LZMA, nameBody, streamBytes } from "@/firmware/uefi/testing/compressedFixtures";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import type { UEFINode } from "@/firmware/uefi/uefiNode";
@@ -435,5 +438,70 @@ describe("a lazy compressed section", () => {
     const children = expand(last?.id ?? []);
     expect(children.map((node) => node.name)).toEqual(["InnerDriver"]);
     expect(children[0]?.space).toEqual([0x60]);
+  });
+});
+
+/**
+ * Lenovo's DMI store, as the worker finds it for the panel's button and the details: the
+ * stores wherever they lie, and which drivers name an entry's key.
+ */
+describe("the board's identity stores", () => {
+  const STORE = Uint8Array.from([
+    ...testLog(STANDARD_LOG.slice(2), 0x77),
+    ...testBlock({ generation: 3, key: 0x77, entries: [SERIAL, MTM] }),
+    ...testBlock({ generation: 4, key: 0x77, entries: [SERIAL] }),
+  ]);
+  /** A 64 KiB image: the store at `0x8000`, and a driver in a volume at `0x1000`. */
+  function image(withDriver: boolean): Uint8Array {
+    const bytes = new Uint8Array(0x10000).fill(0xff);
+    bytes.set(STORE, 0x8000);
+    if (withDriver) {
+      const code = Uint8Array.from([
+        ...new Array<number>(0x20).fill(0),
+        ...LenovoDMIFormat.smbiosNamespace,
+        0x00,
+        0x04,
+      ]);
+      const driver = Test.sectionedFile({
+        sections: [Test.section({ type: 0x10, body: code }), Test.nameSection("L05SmbiosOverride")],
+      });
+      bytes.set(Test.volume({ length: 0x1000, files: [driver] }), 0x1000);
+    }
+    return bytes;
+  }
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift#LenovoDMIStoreTests.testTheTreeFindsTheStoreWhereverItLies
+  it("finds the store wherever it lies", () => {
+    open(image(false));
+    expect(ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores).toEqual([
+      { kind: "lenovoDMIStore", range: [0x8000, 0xc000] },
+    ]);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift#LenovoDMIStoreTests.testAnImageWithoutAStoreHasNone
+  it("finds none in an image without a store", () => {
+    const bytes = image(false);
+    bytes.fill(0xff, 0x8000, 0xc000);
+    open(bytes);
+    expect(ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores).toEqual([]);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift#LenovoDMIStoreTests.testTheTreeNamesTheDriversThatReadAnEntry
+  it("names the drivers that read an entry, by their files", () => {
+    open(image(true));
+    const found = ask({ kind: "firmwareLenovoReaders", id: ++job }, "firmwareLenovoReaders");
+    expect(found.found).toBe(true);
+    const readers = new LenovoDMIFirmwareReaders(new Map(found.readers));
+    expect(readers.driversOf(smbiosKey(0x0400))).toEqual(["L05SmbiosOverride"]);
+    expect(readers.driversOf(smbiosKey(0x0200))).toEqual([]);
+  });
+
+  it("has no readers to name where the image has no Lenovo store", () => {
+    const bytes = image(true);
+    bytes.fill(0xff, 0x8000, 0xc000);
+    open(bytes);
+    expect(ask({ kind: "firmwareLenovoReaders", id: ++job }, "firmwareLenovoReaders").found).toBe(
+      false
+    );
   });
 });

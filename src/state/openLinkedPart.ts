@@ -3,6 +3,8 @@ import { CopyPartCodec, type PartCodec, PartRefusal } from "@/core/parts/partCod
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
+import { wishTopLevelRowsOpen } from "@/state/opensTopLevelRows";
+import { activate } from "@/state/toolController";
 import { openPart, type PaneId, type PartId, paneState, reportAlert } from "@/state/workspaceStore";
 
 /**
@@ -46,6 +48,13 @@ export async function openLinkedPart(options: {
   readonly layout?: UEFIRootLayout | undefined;
   /** What the part is, both ways; a copy of the source when nothing says otherwise. */
   readonly codec?: PartCodec | undefined;
+  /**
+   * A tool to switch on in the part's panel — UEFI Structure for a node taken out of its tree,
+   * with the tree's first level open.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPart
+   */
+  readonly tool?: string | undefined;
 }): Promise<PartId | undefined> {
   const { parent, name, source } = options;
   const slot = paneState(parent);
@@ -76,7 +85,12 @@ export async function openLinkedPart(options: {
     ...(options.layout === undefined ? {} : { layout: options.layout }),
     content: bytes,
   });
-  return openPart(bytes, name, origin);
+  const part = openPart(bytes, name, origin);
+  if (options.tool !== undefined) {
+    wishTopLevelRowsOpen(part);
+    activate(options.tool, part);
+  }
+  return part;
 }
 
 /**

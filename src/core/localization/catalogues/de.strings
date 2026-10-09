@@ -1142,6 +1142,8 @@
 "log operation|Remove" = "Entfernen";
 "log operation|Set" = "Schreiben";
 "log operation|Unprotect" = "Schutz aufheben";
+"Show DMI Area" = "DMI-Bereich zeigen";
+"Show in the tree where the image keeps the board's serial number, UUID and model" = "Im Baum zeigen, wo das Abbild Seriennummer, UUID und Modell der Platine hält";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der

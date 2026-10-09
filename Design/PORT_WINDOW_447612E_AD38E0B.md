@@ -36,7 +36,7 @@ The window holds three stories and some housekeeping:
 - [x] **W3 — the part codec** (`80738a3` without the Lenovo block)
 - [x] **W4 — the LenovoDMI package** (`a925d57`, `09c9052`, `2a94978`, `dba5460`, `784fd0a`, `1dd195a`, `bf32c9b` — the package and its codec)
 - [x] **W5 — Lenovo's DMI store in the UEFI tree** (`fb7ca87`, `19493ff`, `6a17008`, `ad38e0b`)
-- [ ] **W6 — Show DMI Area, and a part out of the tree opens with UEFI Structure on** (`f133d60`, `cf82cd9`)
+- [x] **W6 — Show DMI Area, and a part out of the tree opens with UEFI Structure on** (`f133d60`, `cf82cd9`)
 - [ ] **W7 — the navigation history: places, Back and Forward, the jumps that record** (`c7bcc16`, `242d914`)
 - [ ] **W8 — a tool's steps in the history** (`060e480`, `3f20e2e`, `43f5e26`, `3439fc0`)
 

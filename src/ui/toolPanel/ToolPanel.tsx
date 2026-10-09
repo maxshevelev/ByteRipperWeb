@@ -210,8 +210,18 @@ export function ToolPanel({
     // The panel says what the bytes are, through its codec; where they open,
     // and what the link is worth, is not its business.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
+    // A part a tool opened with the layout its panel reads it as — a node of the UEFI tree —
+    // opens with that tool on, as upstream's `UEFIPartOpening` does.
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
     openPart: (name, source, codec, layout) => {
-      void openLinkedPart({ parent: boundPane, name, source, codec, layout });
+      void openLinkedPart({
+        parent: boundPane,
+        name,
+        source,
+        codec,
+        layout,
+        tool: layout === undefined ? undefined : tool?.id,
+      });
     },
   };
 

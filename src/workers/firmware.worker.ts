@@ -24,9 +24,11 @@ import {
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
+import { allDMIStores, type DMIStore } from "@/firmware/uefi/dmiStore";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import { gpnvRowText } from "@/firmware/uefi/gpnvStore";
+import { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import { supersededCopies } from "@/firmware/uefi/nvramVariableHistory";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
 import {
@@ -51,6 +53,7 @@ import {
   secondPassAnchoredOn,
   volumeTopFileInTail,
 } from "@/firmware/uefi/secondPass";
+import { SpaceReaders } from "@/firmware/uefi/spaceReaders";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import { invalidating } from "@/firmware/uefi/treeInvalidation";
 import {
@@ -239,6 +242,9 @@ let fixedAnchor: number | undefined;
  * makes it stale.
  */
 let dvarSettings: DellSetupCatalogue | undefined;
+/** The stores of the board's identity, once read; and which drivers name Lenovo's entries. */
+let dmiStores: DMIStore[] | undefined;
+let lenovoReaders: LenovoDMIFirmwareReaders | undefined;
 
 const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
 
@@ -509,6 +515,42 @@ function readDvarSettings(): DellSetupCatalogue {
   return dvarSettings;
 }
 
+/**
+ * The stores of the board's identity in the image, over a copy of the tree with every
+ * container in the file opened and no compressed section: neither store is ever inside one.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.dmiStores
+ */
+function readDMIStores(): DMIStore[] {
+  if (dmiStores !== undefined) return dmiStores;
+  if (reader === undefined) return [];
+  const copy = structuredClone(roots) as UEFINode[];
+  materializeAll(copy, reader, DEFAULT_LIMITS, buffers, [], { opensCompressed: false });
+  dmiStores = allDMIStores(copy);
+  return dmiStores;
+}
+
+/**
+ * Which drivers ask for which entries of the Lenovo stores, over a copy of the tree opened
+ * all the way down: the drivers that read the store sit in compressed sections. Seconds on an
+ * image with compressed volumes. Nothing when the image has no Lenovo store — a block on its
+ * own has no drivers around it, and "no driver names it" would be a claim about firmware
+ * that is not there.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.lenovoDMIReaders
+ */
+function readLenovoReaders(): LenovoDMIFirmwareReaders | undefined {
+  if (reader === undefined) return undefined;
+  const copy = structuredClone(roots) as UEFINode[];
+  const discarded: UEFIDiagnostic[] = [];
+  materializeAll(copy, reader, DEFAULT_LIMITS, buffers, discarded, { opensCompressed: false });
+  const namespaces = LenovoDMIFirmwareReaders.namespaces(copy, reader);
+  if (namespaces.length === 0) return undefined;
+  materializeAll(copy, reader, DEFAULT_LIMITS, buffers, discarded);
+  const spaces = new SpaceReaders(reader, { limits: DEFAULT_LIMITS, buffers });
+  return LenovoDMIFirmwareReaders.find(copy, spaces, namespaces);
+}
+
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.show */
 const wireProtectedRange = (range: ProtectedRange): WireProtectedRange => ({
   kind: range.kind,
@@ -660,6 +702,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         buffers = new DecompressedBuffers();
         protectedRanges = undefined;
         dvarSettings = undefined;
+        dmiStores = undefined;
+        lenovoReaders = undefined;
         addresses = undefined;
         fixedAnchor = undefined;
         const sink = new ProgressSink(reader.count, (fraction) =>
@@ -698,6 +742,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         protectedRanges = undefined;
         // The forms too: an edit may have landed in the driver.
         dvarSettings = undefined;
+        dmiStores = undefined;
+        lenovoReaders = undefined;
         addresses = undefined;
         fixedAnchor = undefined;
         roots = invalidating(roots, edited, request.sizeDelta);
@@ -794,7 +840,32 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         if (request.dvarSettings !== undefined) {
           dvarSettings = dvarSettingsFromWire(request.dvarSettings);
         }
+        if (request.lenovoDMIReaders !== undefined) {
+          lenovoReaders = new LenovoDMIFirmwareReaders(new Map(request.lenovoDMIReaders));
+        }
         return;
+
+      case "firmwareDmiStores":
+        post({
+          kind: "firmwareDmiStores",
+          id: request.id,
+          stores: readDMIStores().map((store) => ({
+            kind: store.kind,
+            range: [store.range.start, store.range.end] as const,
+          })),
+        });
+        return;
+
+      case "firmwareLenovoReaders": {
+        const found = readLenovoReaders();
+        post({
+          kind: "firmwareLenovoReaders",
+          id: request.id,
+          found: found !== undefined,
+          readers: found === undefined ? [] : [...found.drivers],
+        });
+        return;
+      }
 
       case "firmwareDvarSettings":
         post({
@@ -890,7 +961,8 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             node,
             image,
             readerFor(node) ?? new ImageReader(sourceOver(new Uint8Array(0))),
-            repairsFor(node, request.node)
+            repairsFor(node, request.node),
+            lenovoReaders
           ),
         });
         return;

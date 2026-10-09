@@ -1142,6 +1142,8 @@
 "log operation|Remove" = "Удаление";
 "log operation|Set" = "Запись";
 "log operation|Unprotect" = "Снятие защиты";
+"Show DMI Area" = "Показать зону DMI";
+"Show in the tree where the image keeps the board's serial number, UUID and model" = "Показать в дереве, где образ хранит серийный номер, UUID и модель платы";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.

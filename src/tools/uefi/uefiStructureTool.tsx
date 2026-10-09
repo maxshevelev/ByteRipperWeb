@@ -12,6 +12,7 @@ import type { TopSwapCopy } from "@/firmware/uefi/topSwap";
 import { downloadBlob } from "@/platform/files/download";
 import {
   askFirmwareDetail,
+  askFirmwareDmiStores,
   askFirmwareDvarSettings,
   askFirmwareLayout,
   askFirmwareProtectedRanges,
@@ -27,6 +28,7 @@ import {
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
+import { takeOpensTopLevelRows } from "@/state/opensTopLevelRows";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
@@ -81,6 +83,7 @@ import {
   wireTopSwapTwin,
 } from "@/tools/uefi/uefiTopSwap";
 import {
+  dmiStoreTitle,
   isEmptyPadding,
   listed,
   nodeName,
@@ -503,6 +506,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const roots = state?.roots;
   const status = state?.status;
 
+  // A part taken out of another file's tree opens with its first level open: that is what
+  // the reader opened it to see. Once, and only where nothing was open already.
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.bind
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openTopLevelRows
+  useEffect(() => {
+    if (status !== "ready" || roots === undefined) return;
+    if (!takeOpensTopLevelRows(context.pane)) return;
+    setOpen((current) =>
+      current.size > 0 ? current : new Set(roots.map((root) => pathKey(root.id)))
+    );
+  }, [status, roots, context.pane]);
+
   // The file in the pane was replaced: the node in focus, the rows open and the scroll
   // belonged to the tree of the file that was there, and the zones outline bytes of it.
   // Left standing they pointed into a tree that no longer has those rows — a list
@@ -562,6 +577,22 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     if (status === "ready" && hasDvarStore) askFirmwareDvarSettings(context.pane);
   }, [status, hasDvarStore, context.pane]);
+  // Where the image keeps the board's identity: the button appears when it is found, and
+  // an edit that may have made or unmade a store drops the list.
+  // @upstream-differs upstream asks when the tree is shown; the worker is asked once here
+  const dmiStores = state?.dmiStores ?? [];
+  const dmiSearched = state?.dmiStores !== undefined;
+  useEffect(() => {
+    if (status === "ready" && !dmiSearched) askFirmwareDmiStores(context.pane);
+  }, [status, dmiSearched, context.pane]);
+  // The detail on screen is asked again when the drivers that read Lenovo's entries have
+  // been found: it says which, which it could not before.
+  const lenovoReaders = state?.lenovoDMIReaders;
+  useEffect(() => {
+    const key = selectedRow.current;
+    if (lenovoReaders === undefined || key === undefined) return;
+    askFirmwareDetail(context.pane, key.split(".").map(Number));
+  }, [lenovoReaders, context.pane]);
   // The detail on screen is asked again when the forms land: it says what Setup says
   // about the variable, which it could not before.
   const settings = state?.dvarSettings;
@@ -1382,6 +1413,39 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
+   * The DMI button: goes to the store of the board's identity at `index` of the tree's
+   * list — opens the branches on the way, selects its row and brings its bytes on screen
+   * in the dump. Unlike the reveal, a move of the dump, since nothing in the dump asked.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showDMIStore
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onShowDMIStore
+   */
+  const showDMIStore = useCallback(
+    async (index: number) => {
+      const store = dmiStores[index];
+      if (store === undefined) return;
+      const path = await findFirmwareNodeAt(context.pane, store.range.start);
+      if (path === undefined) return;
+      const nodes = firmwareFor(context.pane)?.roots ?? [];
+      // The innermost node at the store's first byte is its log; the store is above it.
+      const at = [...path];
+      let found: WireNode | undefined;
+      while (at.length > 0) {
+        const candidate = firmwareNodeAt(nodes, at);
+        if (candidate?.kind === store.kind && candidate.header[0] === store.range.start) {
+          found = candidate;
+          break;
+        }
+        at.pop();
+      }
+      if (found === undefined) return;
+      showRevealed(at, false);
+      choose(found, nodes);
+    },
+    [context.pane, dmiStores, showRevealed, choose]
+  );
+
+  /**
    * The node under the caret, shown in the tree: every branch on the way
    * opened, its row selected, its detail up. Only the tree moves — the dump is
    * where the reader is standing, so nothing is published that would scroll it
@@ -1883,6 +1947,42 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           >
             {summary(state.roots, state.protectedRanges?.ranges.length ?? 0)}
           </button>
+        )}
+        {/* Goes to where the image keeps the board's identity, and is here only when the image
+            has one: a button that can only say "none here" would be on every dump of every
+            other board. One store is gone to at once; between several the reader picks from a
+            menu, each by what it is and where. */}
+        {/* help: panel.uefi.dmi-area */}
+        {/* @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.dmiButton */}
+        {/* @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showDMIStores */}
+        {/* @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.dmiClicked */}
+        {/* @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.dmiStoreChosen */}
+        {dmiStores.length === 0 ? null : dmiStores.length === 1 ? (
+          <button
+            type="button"
+            className="uefi-dmi"
+            onClick={() => void showDMIStore(0)}
+            title={L(
+              "Show in the tree where the image keeps the board's serial number, UUID and model"
+            )}
+            aria-label={L("Show DMI Area")}
+          >
+            <DmiGlyph />
+          </button>
+        ) : (
+          <MenuButton
+            label={<DmiGlyph />}
+            title={L(
+              "Show in the tree where the image keeps the board's serial number, UUID and model"
+            )}
+            ariaLabel={L("Show DMI Area")}
+            hangsFromRight
+            className="uefi-dmi"
+            entries={dmiStores.map((store, index) => ({
+              label: dmiStoreTitle(store),
+              onSelect: () => void showDMIStore(index),
+            }))}
+          />
         )}
         {/* The search: a magnifier left of the filter, the same quiet icon. */}
         {/* help: panel.uefi.search */}
@@ -2434,3 +2534,12 @@ export const uefiStructureTool: ToolModule = {
   helpTopic: TOPIC.toolUEFI,
   View: UefiStructureView,
 };
+
+/** `person.text.rectangle`: the card that says whose machine this is. */
+function DmiGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="uefi-dmi-glyph">
+      <path d="M2.5 3h11v10h-11ZM5.6 6.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM4 11c.3-1 1-1.6 1.6-1.6S6.9 10 7.2 11M9 6.4h2.8M9 8.4h2.8M9 10.4h2" />
+    </svg>
+  );
+}

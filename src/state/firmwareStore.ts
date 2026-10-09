@@ -3,6 +3,7 @@ import { currentCatalogue, L } from "@/core/localization/localization";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
+import type { DMIStore } from "@/firmware/uefi/dmiStore";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
@@ -79,6 +80,21 @@ export interface PaneFirmware {
    */
   readonly dvarSettings: DellSetupCatalogue | undefined;
   /**
+   * Where the image keeps the board's identity, once the worker has searched for it: the
+   * stores the tree reads as a row of their own, in file order. Nothing means not searched
+   * yet, which an image with none is not: it reads as an empty list.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.dmiStores
+   */
+  readonly dmiStores: readonly DMIStore[] | undefined;
+  /**
+   * Which drivers ask for which entries of Lenovo's DMI store, by key id, once searched.
+   * Nothing until then, and for good on an image with no Lenovo store.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.lenovoDMIReaders
+   */
+  readonly lenovoDMIReaders: ReadonlyMap<string, readonly string[]> | undefined;
+  /**
    * How many times the pane's content has been replaced outright — another file
    * opened into it, a revert. What a panel kept about the tree it read (the node in
    * focus, the rows open, where it was scrolled) described a file that is no longer
@@ -105,6 +121,8 @@ const empty: PaneFirmware = {
   detail: undefined,
   protectedRanges: undefined,
   dvarSettings: undefined,
+  dmiStores: undefined,
+  lenovoDMIReaders: undefined,
   reloads: 0,
 };
 
@@ -215,8 +233,10 @@ function ensureWorker(pane: PaneId): PaneWorker {
           detail: undefined,
           fraction: 1,
           problem: undefined,
-          // The forms may have been in the bytes the edit touched.
+          // The forms may have been in the bytes the edit touched, and so may a store.
           dvarSettings: undefined,
+          dmiStores: undefined,
+          lenovoDMIReaders: undefined,
         });
         return;
       case "firmwareChildren": {
@@ -442,6 +462,8 @@ export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayou
     detail: undefined,
     problem: undefined,
     dvarSettings: undefined,
+    dmiStores: undefined,
+    lenovoDMIReaders: undefined,
   });
   held.worker.postMessage({ kind: "openFirmware", id: held.job, content, layout });
 }
@@ -627,7 +649,11 @@ const helperAsked = new Set<string>();
 
 async function askHelper(
   pane: PaneId,
-  kind: "firmwareProtectedRanges" | "firmwareDvarSettings"
+  kind:
+    | "firmwareProtectedRanges"
+    | "firmwareDvarSettings"
+    | "firmwareDmiStores"
+    | "firmwareLenovoReaders"
 ): Promise<void> {
   const held = workers[pane];
   if (held === undefined) return;
@@ -671,6 +697,25 @@ function helperAnswered(pane: PaneId, helper: Helper, response: FirmwareWorkerRe
       diagnostics: [...(firmwareFor(pane)?.diagnostics ?? []), ...response.diagnostics],
     });
     held.worker.postMessage({ kind: "firmwareInstall", id: held.job, protectedRanges: raw });
+  } else if (response.kind === "firmwareDmiStores") {
+    const stores = response.stores.map((store) => ({
+      kind: store.kind as DMIStore["kind"],
+      range: { start: store.range[0], end: store.range[1] },
+    }));
+    update(pane, { dmiStores: stores });
+    // Lenovo's store names its entries by key; which drivers read each is a search of every
+    // driver, decompressed — behind the store, which is worth reading before that is done.
+    if (stores.some((store) => store.kind === "lenovoDMIStore")) {
+      void askHelper(pane, "firmwareLenovoReaders");
+    }
+  } else if (response.kind === "firmwareLenovoReaders") {
+    if (!response.found) return;
+    update(pane, { lenovoDMIReaders: new Map(response.readers) });
+    held.worker.postMessage({
+      kind: "firmwareInstall",
+      id: held.job,
+      lenovoDMIReaders: response.readers,
+    });
   } else if (response.kind === "firmwareDvarSettings") {
     update(pane, { dvarSettings: dvarSettingsFromWire(response.settings) });
     held.worker.postMessage({
@@ -693,6 +738,20 @@ export function askFirmwareDvarSettings(pane: PaneId): void {
   if (current === undefined || current.status !== "ready") return;
   if (current.dvarSettings !== undefined) return;
   void askHelper(pane, "firmwareDvarSettings");
+}
+
+/**
+ * Finds the stores of the board's identity once (`DMIStore`), off the main thread: the
+ * panel's button appears when they land. It opens every container in the file and no
+ * compressed section.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveDMIStores
+ */
+export function askFirmwareDmiStores(pane: PaneId): void {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return;
+  if (current.dmiStores !== undefined) return;
+  void askHelper(pane, "firmwareDmiStores");
 }
 
 /**

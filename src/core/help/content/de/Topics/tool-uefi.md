@@ -1,4 +1,4 @@
-@source-sha 288c860145919ebe77f533ca2680b05901f866bfbef1092b3706f87c304e4e23
+@source-sha 0340817ab20030689fe4824eb32beed0f24d913cc268266b0dac162fd4897abb
 # UEFI-Struktur
 
 > Die Karte eines Firmware-Images: welche Region, welches Volume, welche Datei und wo.
@@ -14,6 +14,8 @@ Die Spalten **Typ** und **Subtyp** benennen jeden Knoten so, wie der Referenz-Pa
 Die Zeile der **ME-Region** öffnet sich in dieselbe Analyse, die der [[topic:tool-me|ME Analyzer]] liefert — so lässt sich ein Image in einem Baum von vorn bis hinten lesen. Sie öffnet sich, sobald die Region gelesen ist; Werte, die auf eine Datenbank warten, zeigen dort wie im ME Analyzer **Wird geladen…**.
 
 **Die Schaltfläche in Form einer Zielscheibe im rechten Teil der Titelzeile** zeigt im Baum den Knoten unter der Einfügemarke im Dump — den Anfang einer Auswahl, wo es eine gibt. Sie öffnet die Zweige auf dem Weg; ein Zweig, der noch nicht decodiert ist, wird für die Anzeige decodiert, und die Anzeige kann so lange dauern wie das Lesen. Ausgewählt wird der innerste Knoten, dessen Bereich das Byte enthält. Ein Byte der ME-Region wird in einer Zeile ihres Unterbaums gezeigt; die Region wird für die Anzeige geöffnet, wenn sie noch nicht gelesen ist. Der Dump bewegt sich nicht: die Anzeige führt den Baum zum Byte, nicht das Byte zum Baum. Dieselbe Anzeige bietet das Kontextmenü des Dumps: Ein Rechtsklick auf ein Byte und **UEFI-Struktur ▸ Im Baum zeigen** zeigen den Knoten, der das angeklickte Byte enthält, unabhängig von der Einfügemarke.
+
+**DMI-Bereich zeigen** — die Schaltfläche mit der Karte links von der Lupe — führt dorthin, wo das Abbild die [[term:dmi|DMI]]-Daten der Platine hält: die Seriennummern, die UUID, das Modell, den Windows-Schlüssel. Sie steht nur bei einem Abbild in der Titelzeile, dessen Speicher der Baum lesen kann — Lenovos [[term:lenv|LENV]]-Speicher oder der [[term:gpnv|GPNV-Speicher]] von ASUS —, und erscheint kurz nach dem Baum, sobald das Abbild danach durchsucht ist. Ein Klick öffnet die Zweige auf dem Weg, wählt den Knoten des Speichers aus und führt den Dump zu dessen Bytes; die Details des Knotens fassen den Speicher zusammen. Enthält das Abbild mehrere Speicher, öffnet die Schaltfläche ein Menü mit ihnen, jeder mit Art und Adresse.
 
 Eine lange Tabelle in den Details — **PCH-Straps** in den Details des [[term:flash-descriptor|Flash Descriptors]] — ist zunächst unter ihrer Überschrift eingeklappt, damit der Rest der Details sichtbar bleibt. Ein Klick auf das Dreieck oder die Überschrift klappt sie auf; sie bleibt danach auch bei anderen Knoten aufgeklappt, bis das Programm beendet wird. In einer Tabelle führt nur ein Link weiter, und nur ein Klick auf den Link selbst. Der Text der Details — die Felder eines Knotens ebenso wie die Tabellen — wird wie jeder Text markiert: durch Ziehen über die Zeilen, ein Wort per Doppelklick, eine Zeile per Dreifachklick, die ganze Feldliste oder die ganze Tabelle mit ⌘A. ⌘C kopiert die Markierung mit einem Tabulator zwischen dem Namen eines Felds und seinem Wert oder zwischen den Zellen und einer Zeile je Zeile, sodass eine Tabellenkalkulation eine Tabelle als Tabelle übernimmt. **Kopieren** im Kontextmenü einer Zeile kopiert die Markierung oder, wenn nichts markiert ist, den Namen, den Wert oder die Zelle unter dem Zeiger. Ein Feldname, der nicht in seine Spalte passt, wird in der nächsten Zeile fortgesetzt.
 
@@ -45,6 +47,8 @@ Rechtsklick auf einen Knoten:
 - **Zur Top-Swap-Kopie** / **Zum Original** bei einem Knoten in einem der beiden Blöcke eines Images mit [[term:top-swap|Top-Swap]]-Kopie — wählt denselben Knoten im anderen Block aus und zeigt seine Bytes im Dump, sodass sich jedem Teil der Kopie der Teil des obersten Blocks zuordnen lässt, den er wiederholt.
 
 Ein Doppelklick auf eine Zeile ersetzt das Menü: Er öffnet, was der Knoten enthält, als Fragment-Bereich — bei einer komprimierten Sektion ihren entpackten Rumpf, bei jedem anderen Knoten seinen Rumpf und bei einem Knoten ohne eigenen Rumpf, etwa Padding oder freiem Platz, den Knoten selbst. Auf einem [[term:lenv|LENV]]-Block oder einem seiner Einträge öffnet er den Block dekodiert, wie **Dekodierten Block öffnen** ([[topic:lenovo-dmi|Lenovo DMI]]). Ein Doppelklick auf das Aufklapp-Dreieck klappt die Zeile nur ein oder aus.
+
+Ein Bereich, der aus dem Baum geöffnet wird – über das Menü oder per Doppelklick –, öffnet sich mit eingeschalteter **UEFI-Struktur** und aufgeklappter erster Ebene des Baums, sodass der Teil sich wie der Knoten liest, aus dem er stammt.
 
 ## Vergleich mit einer Update-Datei
 

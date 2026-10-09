@@ -326,6 +326,30 @@ export interface FirmwareInstallRequest {
   readonly id: JobId;
   readonly protectedRanges?: ProtectedRanges | undefined;
   readonly dvarSettings?: readonly WireDvarSetting[] | undefined;
+  /** Which drivers name each entry of Lenovo's DMI store, by key id. */
+  readonly lenovoDMIReaders?: readonly (readonly [string, readonly string[]])[] | undefined;
+}
+
+/**
+ * Where the image keeps the board's identity: the stores the tree reads as a row of their
+ * own, in file order.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveDMIStores
+ */
+export interface FirmwareDmiStoresRequest {
+  readonly kind: "firmwareDmiStores";
+  readonly id: JobId;
+}
+
+/**
+ * Which drivers ask for which entries of Lenovo's DMI store, searched in every driver of
+ * the image, compressed sections included.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.resolveLenovoDMIReaders
+ */
+export interface FirmwareLenovoReadersRequest {
+  readonly kind: "firmwareLenovoReaders";
+  readonly id: JobId;
 }
 
 export interface FirmwareDvarSettingsRequest {
@@ -583,6 +607,8 @@ export type FirmwareWorkerRequest =
   | FirmwareProtectedRangesRequest
   | FirmwareDvarSettingsRequest
   | FirmwareInstallRequest
+  | FirmwareDmiStoresRequest
+  | FirmwareLenovoReadersRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareChildrenRequest
   | FirmwareInvalidateRequest
@@ -794,6 +820,23 @@ export interface WireDvarSetting {
   readonly options: readonly { readonly value: string; readonly text: string }[];
 }
 
+export interface FirmwareDmiStoresResponse {
+  readonly kind: "firmwareDmiStores";
+  readonly id: JobId;
+  readonly stores: readonly {
+    readonly kind: string;
+    readonly range: readonly [number, number];
+  }[];
+}
+
+/** `readers` is empty on an image with no Lenovo store, which `found` says. */
+export interface FirmwareLenovoReadersResponse {
+  readonly kind: "firmwareLenovoReaders";
+  readonly id: JobId;
+  readonly found: boolean;
+  readonly readers: readonly (readonly [string, readonly string[]])[];
+}
+
 export interface FirmwareDvarSettingsResponse {
   readonly kind: "firmwareDvarSettings";
   readonly id: JobId;
@@ -947,6 +990,8 @@ export type FirmwareWorkerResponse =
   | FirmwareSpaceBytesResponse
   | FirmwareProtectedRangesResponse
   | FirmwareDvarSettingsResponse
+  | FirmwareDmiStoresResponse
+  | FirmwareLenovoReadersResponse
   | FirmwareNodeAtOffsetResponse
   | FirmwareRepairResponse
   | FirmwareRebuildProgress

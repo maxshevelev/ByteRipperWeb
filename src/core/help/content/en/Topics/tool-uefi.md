@@ -22,6 +22,7 @@
 @covers panel.uefi.open-unpacked
 @covers menu.offset.uefi-show-in-tree
 @covers panel.uefi.map-regions
+@covers panel.uefi.dmi-area
 
 **Tools ▸ UEFI Structure** reads the open dump as an Intel/UEFI flash image and shows it as a tree. The title line above the tree says what the image as a whole is.
 
@@ -34,6 +35,8 @@ The **Type** and **Subtype** columns name each node as the reference parser name
 The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer.
 
 **The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree. The same reveal is in the dump's context menu: a right-click on a byte and **UEFI Structure ▸ Show in Tree** show the node holding the byte that was clicked, whatever the caret.
+
+**Show DMI Area** — the button with the card, left of the magnifying glass — goes to where the image keeps the board's [[term:dmi|DMI]] data: the serial numbers, the UUID, the model, the Windows key. It is in the title row only on an image whose store the tree reads — Lenovo's [[term:lenv|LENV]] store or ASUS's [[term:gpnv|GPNV store]] — and appears a moment after the tree, once the image has been searched for one. A click opens the branches on the way, selects the store's row and moves the dump to its bytes; the row's details sum the store up. On an image with more than one store the button opens a menu of them, each by kind and address.
 
 A long table in the details — **PCH straps** in the details of the [[term:flash-descriptor|flash descriptor]] — is folded under its heading at first, so that the rest of the details remains in view. A click on the triangle or on the heading unfolds it; it then stays unfolded on other nodes until the app is quit. In a table only a link leads anywhere, and only a click on the link itself. The text of the details — the fields of a node as well as the tables — is selected as any text is: by dragging across rows, a word by a double click, a row by a triple click, the whole list of fields or the whole table by ⌘A. ⌘C copies the selection with a tab between a field's name and its value or between cells, and a line per row, so that a spreadsheet receives a table as a table. **Copy** in the context menu of a row copies the selection or, when nothing is selected, the name, value or cell under the pointer. A field name too long for its column continues on the next line.
 
@@ -65,6 +68,8 @@ Right-click a node:
 - **Go to Top Swap Copy** / **Go to Original** for a node in either block of an image with a [[term:top-swap|Top Swap]] copy — selects the same node in the other block and shows its bytes in the dump, so that each part of the copy can be matched with the part of the top block it duplicates.
 
 A double click on a row does without the menu: it opens what the node holds as a fragment panel — for a compressed section its decompressed body, for any other node its body, and for a node with no body of its own, such as padding or free space, the node itself. On a [[term:lenv|LENV]] block or one of its entries it opens the block decoded, as **Open Decoded Block** does ([[topic:lenovo-dmi|Lenovo DMI]]). A double click on the disclosure triangle only folds or unfolds the row.
+
+A panel opened from the tree, by the menu or by a double click, opens with **UEFI Structure** on and the first level of its tree open, so the part reads as the node it was taken from.
 
 ## Comparing with an update file
 

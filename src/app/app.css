@@ -2988,8 +2988,24 @@ button.uefi-title {
   cursor: pointer;
 }
 
-.uefi-reveal:hover {
+.uefi-reveal:hover,
+.uefi-dmi:hover {
   color: var(--text);
+}
+
+/* Show DMI Area: left of the search, the same quiet icon, and in the row only when the
+   image keeps the board's identity somewhere the tree reads. */
+.uefi-dmi {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
 }
 
 /* The title row's filter: a funnel with a menu, tinted while the tree lists anything
@@ -3113,6 +3129,7 @@ button.uefi-title {
 }
 
 .uefi-reveal svg,
+.uefi-dmi-glyph,
 .uefi-search-toggle svg,
 .tool-detail-glyph {
   width: 13px;

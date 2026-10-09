@@ -5,6 +5,7 @@ import {
   settingName,
   settingOption,
 } from "@/firmware/uefi/dellSetupForms";
+import type { DMIStore } from "@/firmware/uefi/dmiStore";
 import { EC_COPY_SUBTYPE } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName } from "@/firmware/uefi/fileParser";
@@ -531,4 +532,18 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
 /** The word for a node's kind. */
 export function kindLabel(kind: string): string {
   return KIND_LABELS()[kind as UEFINodeKind] ?? kind;
+}
+
+/**
+ * A store of the board's identity as the panel's DMI menu lists it: what it is and where —
+ * "Lenovo DMI store at 0x00630000".
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dmiStoreTitle
+ */
+export function dmiStoreTitle(store: DMIStore): string {
+  return L(
+    "%1$@ at %2$@",
+    kindLabel(store.kind),
+    `0x${store.range.start.toString(16).toUpperCase().padStart(8, "0")}`
+  );
 }

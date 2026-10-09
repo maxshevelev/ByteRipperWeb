@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { partNameOf } from "@/state/openLinkedPart";
+import { openLinkedPart, partNameOf } from "@/state/openLinkedPart";
+import { takeOpensTopLevelRows } from "@/state/opensTopLevelRows";
 import {
   partsLinkedTo,
   strandingCloseButton,
@@ -9,6 +10,7 @@ import {
   updateInParentItem,
 } from "@/state/partUpdate";
 import { openGivenPart } from "@/state/testing/givenParts";
+import { sessionOn, toolController } from "@/state/toolController";
 import {
   closePart,
   openEmptyInPane,
@@ -306,5 +308,40 @@ describe("what closing a parent would strand", () => {
     expect(strandingSentence(3)).toContain("3 panels were opened out of it");
     expect(strandingCloseButton(1)).toBe("Close and Break Link");
     expect(strandingCloseButton(2)).toBe("Close and Break Links");
+  });
+});
+
+describe("a part opened with a tool on", () => {
+  /**
+   * A node taken out of a UEFI tree opens with UEFI Structure on in its panel and the tree's
+   * first level open.
+   *
+   * @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testANodeOpenedAsAPanelOpensWithItsTreeShown
+   * @upstream-differs at the state: the tool is on the part's surface and the wish to open its
+   * first level is there to be taken once; the rows opening is the panel's own
+   */
+  it("switches the tool on in the part's panel and wishes its top level open", async () => {
+    await fileInA();
+    const part = await openLinkedPart({
+      parent: "a",
+      name: "bios_node.bin",
+      source: [0x10, 0x20],
+      tool: "dev.maxik.tool.uefi-structure",
+    });
+    if (part === undefined) throw new Error("the part did not open");
+
+    expect(sessionOn(toolController.getSnapshot(), part).activeIdentifier).toBe(
+      "dev.maxik.tool.uefi-structure"
+    );
+    expect(takeOpensTopLevelRows(part)).toBe(true);
+    expect(takeOpensTopLevelRows(part)).toBe(false);
+  });
+
+  it("switches nothing on for a part opened with no tool", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+
+    expect(sessionOn(toolController.getSnapshot(), part).activeIdentifier).toBeUndefined();
+    expect(takeOpensTopLevelRows(part)).toBe(false);
   });
 });
