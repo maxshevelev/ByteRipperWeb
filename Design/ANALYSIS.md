@@ -171,7 +171,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Save in place | Chromium only | `FileSystemWritableFileStream`. Firefox and Safari download a copy, and the button says *Download* there rather than *Save*. |
 | Save As | Same | Picker in Chromium, download elsewhere. |
 | External change detection with a reload offer | Adapted | Detected on access (`NotReadableError`) and by a `lastModified` check, not by a filesystem watcher. |
-| Security-scoped bookmarks across launches | Adapted | Handles kept in IndexedDB; the browser re-asks for permission on the next visit, which is one click rather than nothing. |
+| Files and the library folder reached again across launches | Adapted | Handles kept in IndexedDB; the browser re-asks for permission on the next visit, which is one click rather than nothing. Upstream kept security-scoped bookmarks until it left the App Sandbox (`4a196f2`) and keeps plain paths now; a page is never told a path. |
 | Register as the handler for `.bin` / `.rom` | Dropped for now | The File Handling API needs an installed PWA. Available to us the day we decide to become one. |
 | Document icons in the file manager | Dropped | |
 | Settings: font, size, row density, theme, grouping distance, decoding table | Same | Persisted in IndexedDB. |
@@ -476,3 +476,12 @@ not coming.
   re-open yesterday's pair with one permission click. Worth doing, but not
   before milestone 3.
 - **Telemetry.** None. Worth stating in the README so a shop knows.
+- **The agent.** Upstream plans an MCP service inside the app — an agent beside
+  the person at the bench that sees the caret, asks the parsers and marks bytes
+  (`Design/AGENT_PLAN.md` upstream, issue #23, `4120b06`). It is a plan there,
+  not a build. Its contract — tool names, input schemas, the shape of every
+  answer (`AGENT_PROTOCOL.md`) — is written to be edition-neutral, and that is
+  what this edition would port once upstream writes it. The transport is not:
+  a page cannot listen on a socket, so how an agent reaches a page (an
+  extension, the desktop shell's own process, a relay) is a decision for when
+  there is a contract to carry.

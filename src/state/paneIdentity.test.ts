@@ -195,4 +195,20 @@ describe("closing the first pane while the second holds a file", () => {
     // sends the next file to the second panel.
     expect(slotForNewFile()).toBe("b");
   });
+
+  // @upstream ByteRipperTests/CloseFileTests.swift#CloseFileTests.testThePaneLeftAfterClosingTheActiveOneDrawsItsCaret
+  // @upstream-differs at the store: a pane draws its caret when it is the active one, and which one that is follows from the workspace rather than from a flag left on a reused view
+  it("makes the pane left after the active one closed the active one", () => {
+    openEmptyInPane("a", "closed.bin");
+    openEmptyInPane("b", "keeper.bin");
+    workspaceStore.update((state) => ({ ...state, activePane: "a" }));
+
+    panesSwapped();
+    swapPanes();
+    closePane("b");
+
+    const state = workspaceStore.getSnapshot();
+    expect(state.panes.a?.name).toBe("keeper.bin");
+    expect(state.activePane).toBe("a");
+  });
 });

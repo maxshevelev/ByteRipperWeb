@@ -122,6 +122,10 @@ export interface HexPaneProps {
   /**
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isActive
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.setActive
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.setSole
+   * @upstream-differs no single-file mode of its own: the pane left alone is the
+   * workspace's active one (`closePane`), and nothing is left behind on a view
+   * reused from the comparison, since the view is not reused
    */
   readonly isActive: boolean;
   /**

@@ -76,7 +76,9 @@ const DEVICE_KEY = "Device";
 /**
  * The folder the library is published to, kept as its handle.
  *
- * @upstream ByteRipperApp/Search/SyncFolder.swift#SyncFolder.folderBookmarkKey
+ * @upstream ByteRipperApp/Search/SyncFolder.swift#SyncFolder.folderPathKey
+ * @upstream-differs the handle, where upstream keeps a plain path: a page is
+ * told a folder's name, never where it is
  */
 const FOLDER_KEY = "Folder";
 /** Other tabs of the app, on the same profile, are the same device. */
