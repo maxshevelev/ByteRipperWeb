@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
+import { noteToolStep } from "@/state/navigationStore";
 import { showNotice } from "@/state/noticeStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { beginFileDrag, draggedPaneId, endDrag, paneDragStore } from "@/state/paneDragStore";
@@ -206,6 +207,8 @@ export function ToolPanel({
     // through, so a tool's confirmation cannot come to look like another app's.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.showNotice
     showNotice,
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.noteNavigationStep
+    noteNavigationStep: () => noteToolStep(boundPane),
     // A part of the bound file, through the window's one way of opening parts.
     // The panel says what the bytes are, through its codec; where they open,
     // and what the link is worth, is not its business.

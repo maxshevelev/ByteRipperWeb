@@ -55,6 +55,7 @@ import { cpuidsOf, type MicrocodeFormMode } from "@/tools/fit/microcodeFormModel
 import { pickMicrocode } from "@/tools/fit/pickMicrocode";
 import { field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useToolNavigation } from "@/tools/toolNavigation";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
@@ -297,6 +298,28 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    */
   useParkedToolState(pane, () => ({ focus, focusZone }));
 
+  /**
+   * What the window's navigation history keeps of the panel: the row in focus and the zone the
+   * outline is on — the row itself, or what it points at. Back chooses the row again with that
+   * zone, without taking the dump anywhere, and gives the table the keyboard.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITNavigationMark
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.navigationMark
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.showNavigationMark
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.focusChoice
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.focusEntries
+   */
+  useToolNavigation(pane, "dev.maxik.tool.fit", {
+    mark: () =>
+      focus === undefined && focusZone === undefined ? undefined : { focus, zone: focusZone },
+    show: (mark) => {
+      const held = mark as { focus?: number | undefined; zone?: string | undefined };
+      setFocus(held.focus);
+      setFocusZone(held.zone);
+    },
+    focus: () => listElement.current?.focus(),
+  });
+
   // Read the table whenever the tree changes. It changes twice for the ordinary
   // reason — the parse lands, then a branch somebody opened arrives — and a
   // row's name follows it.
@@ -513,6 +536,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         case "goToOffset": {
           const row = display.rows.find((one) => offsetToGoTo(one) === command.offset);
           const range = row?.targetRange;
+          // The reader's own move, from a row to what it points at: a step of the history.
+          // @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.goToOffset
+          context.noteNavigationStep();
           context.reveal(command.offset, range?.end ?? command.offset + 16, false);
           if (row !== undefined) {
             // Nothing is *selected*: an active outline says "this is what you
@@ -584,6 +610,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const chooseTable = useCallback(() => {
     const table = display.zones.zones.find((zone) => zone.id === TABLE_ZONE_ID);
     if (table === undefined) return;
+    context.noteNavigationStep();
     setFocus(undefined);
     setFocusZone(TABLE_ZONE_ID);
     context.reveal(table.start, table.end, false);
@@ -784,7 +811,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                       // keeps the version, which is its own tooltip.
                       title={rowMarkTitle(marksOf(row))}
                       {...rowPaintAttrs(marksOf(row), showsMarkings)}
-                      onClick={() => choose(row)}
+                      onClick={() => {
+                        // A click is the reader's choice, and a step for the history; the arrow
+                        // keys walking the rows are not (`onWillChoose`).
+                        // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onWillChoose
+                        context.noteNavigationStep();
+                        choose(row);
+                      }}
                       onDoubleClick={() => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
                       onContextMenu={(event) => {
                         choose(row);
@@ -863,6 +896,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
               data-severity={fitSeverity(problem.detail)}
               onDoubleClick={() => {
                 if (problem.offset === undefined) return;
+                // @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.goToProblem
+                context.noteNavigationStep();
                 context.reveal(problem.offset, problem.offset + 1);
               }}
             >

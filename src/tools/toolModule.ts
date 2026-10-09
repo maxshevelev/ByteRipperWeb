@@ -116,6 +116,17 @@ export interface ToolContext {
    */
   readonly showNotice: (glyph: NoticeGlyph, lines: readonly string[]) => void;
   /**
+   * The reader is about to choose something else in the panel on purpose — a click on a row, a
+   * search match, a Go To from a row — and the place it leaves is a step of the navigation
+   * history (§10.6), taken before the choice changes. A tool says which of its moves are the
+   * reader's choices: the arrow keys walking its rows are not, which is why the window does not
+   * record a tool's reveal by itself.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.noteNavigationStep
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.noteNavigationStep
+   */
+  readonly noteNavigationStep: () => void;
+  /**
    * A part of this pane's file, opened as a panel over it, linked to `source`
    * (`Design/GAPS.md` G48, G49; upstream's `Design/FRAGMENT_PANELS_PLAN.md`).
    *

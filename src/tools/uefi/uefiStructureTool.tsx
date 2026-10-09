@@ -41,6 +41,7 @@ import { type MEANode, meaNodeAt, meaZones } from "@/tools/meaTree";
 import { pickToolFile } from "@/tools/pickToolFile";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useToolNavigation } from "@/tools/toolNavigation";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
@@ -970,6 +971,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     setOpen,
     isOpen: (key) => openRef.current.has(key),
     landOn: (node, from) => {
+      // A search match is the reader's choice: a step for the history.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onWillChoose
+      context.noteNavigationStep();
       choose(node, from);
       setShowStretchOf(pathKey(node.id));
     },
@@ -1395,6 +1399,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   /** The node a reveal found, shown: the branches on the way open, its row selected, its detail up. */
   const showRevealed = useCallback(
     (path: readonly number[], crossedHalves: boolean) => {
+      // The reveal of the node under the caret is the reader's choice: a step for the history.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
+      context.noteNavigationStep();
       setOpen((current) => {
         const next = new Set(current);
         for (let length = 1; length < path.length; length++) {
@@ -1409,7 +1416,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       setScrollTarget(key);
       if (crossedHalves) clearZones(context.pane);
     },
-    [context.pane]
+    [context]
   );
 
   /**
@@ -1444,6 +1451,38 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     },
     [context.pane, dmiStores, showRevealed, choose]
   );
+
+  /**
+   * What the window's navigation history keeps of the panel: the row in focus — a node of the
+   * tree, or a row of the ME sub-tree. Back chooses it again and draws its zones, the way a
+   * click would, without taking the dump anywhere, and gives the tree the keyboard.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFINavigationMark
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.navigationMark
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showNavigationMark
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.focusChoice
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.focusTree
+   */
+  useToolNavigation(context.pane, "dev.maxik.tool.uefi-structure", {
+    mark: () =>
+      meFocus !== undefined
+        ? { me: meFocus }
+        : selected !== undefined
+          ? { node: selected }
+          : undefined,
+    show: (mark) => {
+      const held = mark as { me?: string; node?: string };
+      if (held.me !== undefined) {
+        const meNode = meaNodeAt(meRoots, pathOf(held.me));
+        if (meNode !== undefined) chooseMe(meNode);
+        return;
+      }
+      if (held.node === undefined) return;
+      const found = firmwareNodeAt(roots ?? [], pathOf(held.node));
+      if (found !== undefined) choose(found);
+    },
+    focus: () => scrollRef.current?.focus(),
+  });
 
   /**
    * The node under the caret, shown in the tree: every branch on the way
@@ -1483,6 +1522,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       if (mePath !== undefined) {
         const node = meaNodeAt(meRoots, mePath);
         if (node !== undefined) {
+          context.noteNavigationStep();
           setOpen((current) => {
             const next = new Set(current);
             for (let length = 1; length < mePath.length; length++) {
@@ -1531,7 +1571,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
       showRevealed(path, crossedHalves);
     },
-    [context.pane, me, meFocus, meRoots, roots, toggle, showsEmptyPadding, showRevealed]
+    [context, me, meFocus, meRoots, roots, toggle, showsEmptyPadding, showRevealed]
   );
 
   /**
@@ -1942,6 +1982,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             title={L("Show the whole image in the dump")}
             onClick={() => {
               searchCtl.current.readerChose();
+              context.noteNavigationStep();
               choose(title);
             }}
           >
@@ -2154,12 +2195,20 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   onToggle={toggle}
                   onChoose={(node) => {
                     searchCtl.current.readerChose();
+                    // A click is the reader's choice, and a step for the history; the arrow keys
+                    // walking the rows are not (`onWillChoose`).
+                    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onWillChoose
+                    context.noteNavigationStep();
                     choose(node);
                   }}
                   onOpenContent={openContent}
                   onToggleMe={toggleMe}
-                  onChooseMe={chooseMe}
+                  onChooseMe={(node) => {
+                    context.noteNavigationStep();
+                    chooseMe(node);
+                  }}
                   onMenu={(event, node) => {
+                    context.noteNavigationStep();
                     choose(node);
                     // What this row has decompressed, if anything: a compressed section's whole
                     // buffer. A node inside one is opened and saved by the items below.

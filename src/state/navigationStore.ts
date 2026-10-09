@@ -4,6 +4,12 @@ import { selection as makeSelection } from "@/core/document/selectionModel";
 import { NavigationHistory } from "@/core/navigation/navigationHistory";
 import { createStore } from "@/state/store";
 import {
+  focusToolChoice,
+  showToolChoice,
+  type ToolChoice,
+  toolChoiceOf,
+} from "@/state/toolNavigation";
+import {
   foldParts,
   isSlot,
   type PaneId,
@@ -60,16 +66,39 @@ export interface NavigationPlace {
   readonly spots: readonly NavigationSpot[];
   /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.top */
   readonly top: number;
+  /**
+   * What the tool reading the pane had chosen — a row, a node — so Back chooses it again, zones
+   * and all.
+   *
+   * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.tool
+   * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.ToolChoice
+   */
+  readonly tool?: ToolChoice | undefined;
+  /**
+   * A step of the tool's table: the place was come to, or left, by a click on a row. Going back
+   * to it gives the keyboard to that table rather than to the dump. Not part of what makes two
+   * places the same: how a place was reached does not make another place of it.
+   *
+   * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.isToolStep
+   */
+  readonly isToolStep?: boolean | undefined;
 }
+
+/** Two choices of a tool are the same when they name one tool and one mark. */
+const sameChoice = (left: ToolChoice | undefined, right: ToolChoice | undefined): boolean =>
+  left === undefined || right === undefined
+    ? left === right
+    : left.module === right.module && JSON.stringify(left.mark) === JSON.stringify(right.mark);
 
 /**
  * Whether two places are the same one: the same panes, in the same documents, selecting the
  * same bytes, from the same first row.
  *
- * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.==
+ * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace
  */
 export const samePlace = (left: NavigationPlace, right: NavigationPlace): boolean =>
   left.top === right.top &&
+  sameChoice(left.tool, right.tool) &&
   left.spots.length === right.spots.length &&
   left.spots.every((spot, index) => {
     const other = right.spots[index];
@@ -93,6 +122,19 @@ export const navigationHistory = new NavigationHistory<NavigationPlace>(samePlac
  */
 let walking = false;
 export const isWalkingHistory = (): boolean => walking;
+
+/**
+ * The place the reader stands on was come to by a click on a row of a tool's table. The next
+ * place recorded is marked as a step of that table too.
+ *
+ * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.arrivedByToolStep
+ */
+let arrivedByToolStep = false;
+
+/** @web-only the window never starts over in a tab; the tests do, with the history emptied. */
+export const forgetToolArrival = (): void => {
+  arrivedByToolStep = false;
+};
 
 /**
  * Ticks whenever the history or the place the reader stands on changes, for what draws Back
@@ -123,7 +165,7 @@ export function navigationPlaceOf(pane: PaneId): NavigationPlace {
   });
   const top =
     scrollLink.visibleRange(pane, BYTES_PER_ROW)?.start ?? paneState(pane)?.document.caret ?? 0;
-  return { spots, top };
+  return { spots, top, tool: toolChoiceOf(pane) };
 }
 
 /**
@@ -156,15 +198,32 @@ export function forgetCaretOnScreen(pane: PaneId): void {
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.recordJump
  */
-export function recordJump(pane: PaneId, options: { readonly top?: number } = {}): void {
+export function recordJump(
+  pane: PaneId,
+  options: { readonly top?: number; readonly byTool?: boolean } = {}
+): void {
   if (paneState(pane) === undefined || walking) return;
+  const byTool = options.byTool === true;
   const place = navigationPlaceOf(pane);
-  navigationHistory.record(
-    options.top === undefined ? place : { spots: place.spots, top: options.top }
-  );
+  navigationHistory.record({
+    ...place,
+    ...(options.top === undefined ? {} : { top: options.top }),
+    isToolStep: byTool || arrivedByToolStep,
+  });
+  arrivedByToolStep = byTool;
   forgetCaretOnScreen(pane);
   changed();
 }
+
+/**
+ * A tool is about to choose a row on the reader's behalf — a click on a row, a search match, a
+ * Go To from a row: the place it leaves is a step of the tool's table, taken before the choice
+ * changes (`ToolHost.noteNavigationStep`).
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.noteNavigationStep
+ * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.noteNavigationStep
+ */
+export const noteToolStep = (pane: PaneId): void => recordJump(pane, { byTool: true });
 
 /**
  * The pane the commands mean: the one in front, a panel's or the workspace's active one.
@@ -195,13 +254,19 @@ export function canNavigateForward(): boolean {
   );
 }
 
+/** Where the reader stands, with how it was come to. */
+const currentPlace = (): NavigationPlace => ({
+  ...navigationPlaceOf(frontPaneId()),
+  isToolStep: arrivedByToolStep,
+});
+
 /**
  * View ▸ Back: the place the last jump left.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.navigateBack
  */
 export function navigateBack(): void {
-  const place = navigationHistory.goBack(navigationPlaceOf(frontPaneId()), isReachable);
+  const place = navigationHistory.goBack(currentPlace(), isReachable);
   if (place !== undefined) go(place);
 }
 
@@ -211,7 +276,7 @@ export function navigateBack(): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.navigateForward
  */
 export function navigateForward(): void {
-  const place = navigationHistory.goForward(navigationPlaceOf(frontPaneId()), isReachable);
+  const place = navigationHistory.goForward(currentPlace(), isReachable);
   if (place !== undefined) go(place);
 }
 
@@ -234,13 +299,20 @@ function go(place: NavigationPlace): void {
     } else {
       raisePart(first);
     }
+    // The tool's choice first: choosing it publishes its zones, and the host may scroll to them —
+    // which the place's own view then replaces. A place whose tool is no longer the one open on
+    // the pane gives back the dump alone.
+    const choiceShown = showToolChoice(first, place.tool);
     for (const spot of place.spots) {
       const document = paneState(spot.pane)?.document;
       document?.setSelection(makeSelection(spot.start, spot.end, document.size));
     }
     scrollLink.scrollToOffset(first, place.top, BYTES_PER_ROW);
-    // The keyboard goes to the dump, so the arrow keys go on from the caret.
-    focusDump(first);
+    // The keyboard goes to the tool's table for a step made in it, so the arrow keys go on from
+    // the row it chose; to the dump otherwise.
+    arrivedByToolStep = place.isToolStep === true;
+    if (choiceShown && place.isToolStep === true) focusToolChoice(first);
+    else focusDump(first);
     // The caret is where the place has it; whether the view shows it is seen from here on.
     noteCaretIfOnScreen(first);
   } finally {

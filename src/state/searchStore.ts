@@ -378,8 +378,7 @@ function foundPatch(
   if (currentGoal === "list") {
     return { status: "found", current: undefined, wrapped: false, foundEncoding };
   }
-  // A find that goes to its match is a jump: the place it leaves is a way back (§10.6).
-  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.show
+  // A find that goes to its match is a jump: the place it leaves is a way back (§10.6), as in MainViewController.show.
   recordJump(currentPane);
   return { status: "found", current: match, wrapped, foundEncoding };
 }

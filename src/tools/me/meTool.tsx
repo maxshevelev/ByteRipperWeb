@@ -52,6 +52,7 @@ import { type MeReading, pendingOf } from "@/tools/meReads";
 import { fileTableWanted, MFSFileNames, meFileNamesAsk } from "@/tools/mfsFileNames";
 import { EMPTY_DETAIL, type NodeDetail, tonedField } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
+import { useToolNavigation } from "@/tools/toolNavigation";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolValueTone } from "@/tools/toolValueTone";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
@@ -534,6 +535,24 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   );
   useZoneSelection(pane, zonePicked);
 
+  /**
+   * What the window's navigation history keeps of the panel: the row in focus, by its path.
+   * Back chooses it again and draws its zone, without taking the dump anywhere, and gives the
+   * tree the keyboard.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.navigationMark
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.showNavigationMark
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.focusChoice
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.focusTree
+   */
+  useToolNavigation(pane, "dev.maxik.tool.me-analyzer", {
+    mark: () => focus,
+    show: (mark) => {
+      if (typeof mark === "string") zonePicked(mark);
+    },
+    focus: () => treeRef.current?.focus(),
+  });
+
   /** The keyboard, for the tree as a whole: a row is not a tab stop of its own. */
   const onTreeKey = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -772,7 +791,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                     isOpen={open.has(row.key)}
                     isSelected={focus === row.key}
                     showsMarkings={showsMarkings}
-                    onChoose={choose}
+                    onChoose={(node) => {
+                      // A click is the reader's choice, and a step for the history; the arrow
+                      // keys walking the rows are not (`onWillChoose`).
+                      // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onWillChoose
+                      context.noteNavigationStep();
+                      choose(node);
+                    }}
                     onToggle={toggle}
                   />
                 ))}

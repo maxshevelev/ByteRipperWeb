@@ -6,11 +6,14 @@ import {
   canNavigateForward,
   followCaretVisibility,
   forgetCaretOnScreen,
+  forgetToolArrival,
   navigateBack,
   navigateForward,
   navigationHistory,
+  noteToolStep,
   recordJump,
 } from "@/state/navigationStore";
+import { registerToolNavigation, resetToolNavigation, toolChoiceOf } from "@/state/toolNavigation";
 import {
   openEmptyInPane,
   openInPane,
@@ -74,6 +77,7 @@ async function fileIn(pane: "a" | "b", size: number, name = "dump.bin") {
 
 beforeEach(() => {
   navigationHistory.removeAll();
+  forgetToolArrival();
 });
 
 afterEach(() => {
@@ -88,6 +92,7 @@ afterEach(() => {
   scrollLink.forget("b");
   forgetCaretOnScreen("a");
   forgetCaretOnScreen("b");
+  resetToolNavigation();
 });
 
 /** A jump the way Go To makes one: the place it leaves is recorded, then the caret moves. */
@@ -214,5 +219,100 @@ describe("Back and Forward", () => {
     navigateBack();
     expect(first.document.caret).toBe(0);
     expect(second.document.caret).toBe(0);
+  });
+});
+
+describe("a tool's choice in the history", () => {
+  /** A tool panel as the window sees it: a row in focus, and what was done with it. */
+  function tool(module: string) {
+    const state = { row: undefined as string | undefined, focused: 0 };
+    const shown: unknown[] = [];
+    const handle = {
+      mark: () => state.row,
+      show: (mark: unknown) => {
+        shown.push(mark);
+        state.row = mark as string;
+      },
+      focus: () => {
+        state.focused += 1;
+      },
+    };
+    return { state, shown, handle, module };
+  }
+
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testBackWalksTheRowsClickedInTheTree
+  it("chooses the row clicked again, and gives its table the keyboard", async () => {
+    const { document } = await fileIn("a", 0x10000);
+    const panel = tool("fit");
+    leave.push(registerToolNavigation("a", panel.module, panel.handle));
+
+    // A click on a row: the place it leaves is a step of the table, taken before the choice.
+    panel.state.row = "one";
+    noteToolStep("a");
+    panel.state.row = "two";
+    document.setSelection({ start: 0x20, end: 0x20, fileSize: 0x10000 });
+
+    navigateBack();
+    expect(panel.shown).toEqual(["one"]);
+    expect(panel.state.focused).toBe(1);
+    expect(document.caret).toBe(0);
+
+    navigateForward();
+    expect(panel.shown).toEqual(["one", "two"]);
+    expect(panel.state.focused).toBe(2);
+  });
+
+  it("gives the keyboard to the dump for a jump that was not a click on a row", async () => {
+    const { document } = await fileIn("a", 0x10000);
+    const panel = tool("fit");
+    leave.push(registerToolNavigation("a", panel.module, panel.handle));
+    panel.state.row = "one";
+
+    goTo(document, "a", 0x4000);
+    navigateBack();
+
+    // The row is chosen again, but the arrow keys belong to the dump.
+    expect(panel.shown).toEqual(["one"]);
+    expect(panel.state.focused).toBe(0);
+  });
+
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testBackChoosesTheRowClickedBeforeTheToolWasClosed
+  it("keeps the choice of a tool that was closed, and chooses it again once it is open", async () => {
+    const { document } = await fileIn("a", 0x10000);
+    const first = tool("fit");
+    const ends = registerToolNavigation("a", first.module, first.handle);
+    first.state.row = "clicked";
+    noteToolStep("a");
+    first.state.row = "later";
+    // Closed: the session ends and the last choice stays with the pane.
+    ends();
+    expect(toolChoiceOf("a")).toEqual({ module: "fit", mark: "later" });
+    document.setSelection({ start: 0x40, end: 0x40, fileSize: 0x10000 });
+
+    navigateBack();
+    // The dump alone was given back; the choice the place carried waits for the tool.
+    expect(document.caret).toBe(0);
+    expect(toolChoiceOf("a")).toEqual({ module: "fit", mark: "clicked" });
+
+    const again = tool("fit");
+    leave.push(registerToolNavigation("a", again.module, again.handle));
+    again.state.row = undefined;
+    navigateForward();
+    expect(again.shown).toEqual(["later"]);
+  });
+
+  it("gives back the dump alone for a place whose tool is not the one open", async () => {
+    await fileIn("a", 0x10000);
+    const fit = tool("fit");
+    const ends = registerToolNavigation("a", fit.module, fit.handle);
+    fit.state.row = "one";
+    noteToolStep("a");
+    ends();
+
+    const other = tool("me");
+    leave.push(registerToolNavigation("a", other.module, other.handle));
+    navigateBack();
+
+    expect(other.shown).toEqual([]);
   });
 });

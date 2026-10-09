@@ -744,10 +744,12 @@
       "swift": "ByteRipperApp/Navigation",
       "web": [
         "src/core/navigation",
-        "src/state/navigationStore.ts"
+        "src/state/navigationStore.ts",
+        "src/state/toolNavigation.ts",
+        "src/tools/toolNavigation.ts"
       ],
-      "status": "in-progress",
-      "note": "Back and Forward through the places the tab's jumps left (REQUIREMENTS §10.6). NavigationHistory is the generic stack pair, fifty places, with its model tests, in src/core. NavigationPlace and the walk — recordJump, navigationPlace, isReachable, go, the view leaving the caret as a step — are src/state/navigationStore.ts over the workspace's panes, the part dock and the scroll link (which knows the first byte on screen and scrolls a row to the top). The jumps record where upstream's do: Go To, a difference or same block, a search step, find or results row, a minimap click, Select Block, a zone or a segment picked from a menu. A tool's steps are the next unit.",
+      "status": "ported",
+      "note": "Back and Forward through the places the tab's jumps left (REQUIREMENTS §10.6). NavigationHistory is the generic stack pair, fifty places, with its model tests, in src/core. NavigationPlace and the walk — recordJump, navigationPlace, isReachable, go, the view leaving the caret as a step — are src/state/navigationStore.ts over the workspace's panes, the part dock and the scroll link (which knows the first byte on screen and scrolls a row to the top). The jumps record where upstream's do: Go To, a difference or same block, a search step, find or results row, a minimap click, Select Block, a zone or a segment picked from a menu. A tool's steps are src/state/toolNavigation.ts (the choice each open tool offers — mark, show, focus — and the one a closed tool leaves behind) with the hook src/tools/toolNavigation.ts; the FIT, ME and UEFI panels call noteNavigationStep where upstream's click, search match and Go To from a row do.",
       "files": {
         "ByteRipperApp/Navigation/NavigationHistory.swift": "src/core/navigation/navigationHistory.ts",
         "ByteRipperApp/Navigation/NavigationPlace.swift": "src/state/navigationStore.ts"
