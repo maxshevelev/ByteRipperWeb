@@ -304,6 +304,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * zone, without taking the dump anywhere, and gives the table the keyboard.
    *
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITNavigationMark
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITNavigationMark.focus
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITNavigationMark.zone
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.navigationMark
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.showNavigationMark
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.focusChoice

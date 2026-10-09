@@ -939,6 +939,7 @@ function MinimapCanvas({
       if (onStrip !== undefined) {
         // A click on the map takes the view elsewhere: the place it leaves goes into the history (§10.6).
         // @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.selectOffset
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapWillJump
         recordJump(pane);
         scrollLink.scrollToOffset(pane, onStrip, BYTES_PER_ROW, { centre: true });
         return;

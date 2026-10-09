@@ -27,7 +27,9 @@ export interface ToolNavigationHandle {
 
 /** A tool's choice: which tool, and what it had chosen. */
 export interface ToolChoice {
+  /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.ToolChoice.module */
   readonly module: string;
+  /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.ToolChoice.mark */
   readonly mark: unknown;
 }
 
@@ -41,6 +43,9 @@ const open = new Map<PaneId, { readonly module: string; readonly handle: ToolNav
  *
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.ClosedChoice
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.closedChoice
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.ClosedChoice.pane
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.ClosedChoice.module
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.ClosedChoice.mark
  */
 let closed: (ToolChoice & { readonly pane: PaneId }) | undefined;
 

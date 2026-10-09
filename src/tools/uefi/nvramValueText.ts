@@ -271,7 +271,7 @@ function loadOptionBits(attributes: number): string {
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/NvramValueText.swift#NvramValueText.hexBytes
  */
-function hexBytes(bytes: Uint8Array): string {
+export function hexBytes(bytes: Uint8Array): string {
   const shown = [...bytes.subarray(0, DETAIL_BYTE_LIMIT)]
     .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
     .join(" ");

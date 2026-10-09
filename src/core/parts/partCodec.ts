@@ -136,6 +136,11 @@ export class PartRefusal extends Error {
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal.title */
   readonly title: string;
 
+  /**
+   * `Error.message`, which carries the words the reader is shown.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal.message
+   */
   constructor(title: string, message: string) {
     super(message);
     this.name = "PartRefusal";

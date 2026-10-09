@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "ad38e0b3b8b2b94fcb43a7e0d778a29843cac7a3",
-  "baselineNote": "Badge a LENV block's row with a lock when it is stored encoded and an open lock when it lies decoded in a part (2026-10-09)"
+  "baseCommit": "6c73dc67248284065857d7142b207bfbbf975b7a",
+  "baselineNote": "Merge origin/main: the Lenovo DMI store, parts through a codec, the View settings tab (2026-10-09)"
 }

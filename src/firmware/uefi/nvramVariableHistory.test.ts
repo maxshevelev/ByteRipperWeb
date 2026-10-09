@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
+import { DRIVER_GUID } from "@/firmware/testing/testImage";
 import {
   nvarDataEntry,
   nvarEntry,
@@ -16,6 +17,7 @@ import {
   variableChange,
   variableHistoryOf,
   variableOf,
+  variablesIn,
 } from "@/firmware/uefi/nvramVariableHistory";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import type { UEFINode } from "@/firmware/uefi/uefiNode";
@@ -130,6 +132,51 @@ describe("a variable's copies", () => {
       [0x65, 0x6e],
       [0x64, 0x65],
     ]);
+  });
+
+  // A store's variables, one each, in the order the copies standing for them were
+  // written: the current copy, or the last of a deleted one.
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift#NvramVariableHistoryTests.testAStoresVariablesAreTheCopiesStandingForThem
+  it("lists a store's variables as the copies standing for them", () => {
+    const { store, reader } = vss([
+      vssVariable({ name: "BootOrder", data: bytes(1, 0), state: MARKED }),
+      vssVariable({ name: "Gone", state: MARKED }),
+      vssVariable({ name: "Lang", data: bytes(0x65) }),
+      vssVariable({ name: "BootOrder", data: bytes(2, 0) }),
+    ]);
+    const e = variableEntries(store).map((node) => node.id);
+    const variables = variablesIn(store, reader);
+
+    expect(variables.map((one) => one.name)).toEqual(["Gone", "Lang", "BootOrder"]);
+    expect(variables.map((one) => one.entry)).toEqual([e[1], e[2], e[3]]);
+    expect(variables.map((one) => one.state)).toEqual(["deleted", "current", "current"]);
+    expect(variables.map((one) => one.copies)).toEqual([1, 1, 2]);
+    expect([...(reader.bytes(variables[2]?.value ?? { start: 0, end: 0 }) ?? [])]).toEqual([2, 0]);
+    expect(variables[1]?.guid).toEqual(DRIVER_GUID);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift#NvramVariableHistoryTests.testAnNVARChainIsOneVariable
+  it("lists an NVAR chain as one variable", () => {
+    const head = nvarEntry({
+      next: nvarEntry({ data: bytes(1) }).length,
+      name: "Setup",
+      data: bytes(1),
+    });
+    const { store, reader } = nvar([head, nvarDataEntry({ data: bytes(3) })]);
+    const variables = variablesIn(store, reader);
+
+    expect(variables.map((one) => one.name)).toEqual(["Setup"]);
+    expect([...(reader.bytes(variables[0]?.value ?? { start: 0, end: 0 }) ?? [])]).toEqual([3]);
+    expect(variables[0]?.copies).toBe(2);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/NvramVariableHistoryTests.swift#NvramVariableHistoryTests.testANodeThatIsNoStoreHasNoVariables
+  it("lists nothing for a node that is no store", () => {
+    const image = nvramVolume({ stores: [] });
+    const root = parseUefiImage(sourceOver(image)).roots[0];
+    expect(
+      root === undefined ? ["no root"] : variablesIn(root, new ImageReader(sourceOver(image)))
+    ).toEqual([]);
   });
 
   // What a tree can leave out: each replaced copy, standing behind the current

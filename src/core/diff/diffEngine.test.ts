@@ -8,6 +8,7 @@ import {
   diffBytes,
   netDiffEdit,
   scanDiff,
+  scanDiffRange,
 } from "@/core/diff/diffEngine";
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -664,5 +665,50 @@ describe("querying a window", () => {
       const scanned = built.blocks.filter((block) => block.start < end && block.end > start);
       expect(windowed, `round ${round}`).toEqual(scanned);
     }
+  });
+});
+
+describe("a part of the file", () => {
+  // A range is compared as the whole scan compares it, across chunk boundaries,
+  // and a run that starts before the range is cut at its start.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testBlocksInARangeAreTheScansOwn
+  it("is compared as the scan compares it", async () => {
+    const left = new Uint8Array(64);
+    const right = new Uint8Array(64);
+    right[3] = 1;
+    right[15] = 1;
+    right[16] = 1; // across a chunk boundary at 16
+    right[40] = 9;
+    const blocks = await scanDiffRange(
+      storage(left),
+      storage(right),
+      { start: 4, end: 41 },
+      { chunkSize: 16 }
+    );
+    expect(
+      blocks.filter((one) => one.kind === "different").map((one) => [one.start, one.end])
+    ).toEqual([
+      [15, 17],
+      [40, 41],
+    ]);
+    expect(blocks[0]?.start).toBe(4);
+    expect(blocks.at(-1)?.end).toBe(41);
+    left[0] = 7;
+    expect(
+      (await scanDiffRange(storage(left), storage(right), { start: 0, end: 1 })).map(
+        (one) => one.kind
+      )
+    ).toEqual(["different"]);
+  });
+
+  // Only the bytes both hold: the longer file's tail is no difference.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/DiffEngineTests.swift#DiffEngineTests.testTheLongerFilesTailIsLeftOut
+  it("leaves out the longer file's tail", async () => {
+    const blocks = await scanDiffRange(storage([1, 2, 3]), storage([1, 2, 3, 4, 5]), {
+      start: 0,
+      end: 5,
+    });
+    expect(blocks.map((one) => [one.kind, one.start, one.end])).toEqual([["same", 0, 3]]);
+    expect(await scanDiffRange(storage([1]), storage([1, 2]), { start: 1, end: 2 })).toEqual([]);
   });
 });

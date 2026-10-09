@@ -205,6 +205,74 @@ export function supersededCopies(
 }
 
 /**
+ * One variable of a store, as a reader of the image takes it: the copy that stands
+ * for it — the current one, or the copy a deleted variable was deleted as — and how
+ * many copies the store keeps.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable
+ */
+export interface NvramStoreVariable {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable.name */
+  readonly name: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable.guid */
+  readonly guid: EFIGUID | undefined;
+  /**
+   * The copy that stands for the variable.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable.entry
+   */
+  readonly entry: readonly number[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable.value */
+  readonly value: ImageRange;
+  /**
+   * `current`, or `deleted` for a variable the store no longer holds.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable.state
+   */
+  readonly state: "current" | "deleted";
+  /**
+   * Every copy, the standing one included.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.Variable.copies
+   */
+  readonly copies: number;
+}
+
+/**
+ * The store's variables in the order their standing copies were written. Empty for
+ * a node that is not a store of VSS, NVAR, DVAR or GPNV entries.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.variables
+ */
+export function variablesIn(store: UEFINode, reader: ImageReader): NvramStoreVariable[] {
+  if (!store.children.some(isVariableEntry)) return [];
+  const all = copiesIn(store, reader);
+  const byVariable = new Map<string, Copy[]>();
+  for (const copy of all) {
+    const key = keyText(copy.key);
+    const list = byVariable.get(key);
+    if (list === undefined) byVariable.set(key, [copy]);
+    else list.push(copy);
+  }
+  const variables: NvramStoreVariable[] = [];
+  for (const copy of all) {
+    const versions = byVariable.get(keyText(copy.key));
+    if (versions === undefined) continue;
+    const standing = versions.findLast((one) => one.isCurrent) ?? versions[versions.length - 1];
+    if (standing === undefined || !sameId(standing.entry, copy.entry)) continue;
+    variables.push({
+      name: copy.key.name,
+      guid: copy.key.guid,
+      entry: copy.entry,
+      value: copy.value,
+      state: copy.isCurrent ? "current" : "deleted",
+      copies: versions.length,
+    });
+  }
+  return variables;
+}
+
+/**
  * `to` against `from`: their sizes, and the runs of bytes that differ.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/NvramVariableHistory.swift#NvramVariableHistory.change

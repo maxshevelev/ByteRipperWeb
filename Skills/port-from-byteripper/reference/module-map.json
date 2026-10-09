@@ -171,6 +171,58 @@
     {
       "prefix": "ByteRipperTests/LenovoDMIToolFlowTests.swift",
       "why": "The flow tests of the Lenovo DMI tool-module, which upstream removed with it (6a17008); its flows moved to UEFIToolFlowTests."
+    },
+    {
+      "prefix": "ByteRipperApp/Agent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "ByteRipperRelay",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Packages/AgentKit",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "ByteRipperApp/Settings/AgentSettings",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Modules/FITTool/Sources/FITTool/FITAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Modules/FITTool/Sources/FITToolUI/FITAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Modules/MEATool/Sources/MEATool/MEAAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Modules/UEFITool/Sources/UEFITool/UEFIAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Modules/UEFITool/Tests/UEFIToolTests/UEFIAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Modules/MEATool/Tests/MEAToolTests/MEAAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolAgent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "ByteRipperTests/Agent",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
+    },
+    {
+      "prefix": "Design/AGENT_",
+      "why": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
     }
   ],
   "modules": [
@@ -312,7 +364,9 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTakingTheCopyReadsNoBytes": "n/a — the snapshot is written once, which reads the content: there is no clonefile(2) to share the base's blocks (`contentSnapshot`, @upstream-differs)",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotClonesTheFileRatherThanCopyingIt": "n/a — there is no clonefile(2) in a browser",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#*": "later — a search for several patterns at once, holes in a pattern (`24 ?? 4D`) and overlapping matches, which only the agent's find_bytes uses; no find bar takes them yet; Design/GAPS.md",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MaskedSearchTests.swift#*": "later — the tests of MaskedSearch; Design/GAPS.md"
       }
     },
     {
@@ -754,7 +808,11 @@
         "ByteRipperApp/Navigation/NavigationHistory.swift": "src/core/navigation/navigationHistory.ts",
         "ByteRipperApp/Navigation/NavigationPlace.swift": "src/state/navigationStore.ts"
       },
-      "unported": {}
+      "unported": {
+        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.documentID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
+        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.paneID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
+        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.init": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal"
+      }
     },
     {
       "swift": "Packages/PartCodec",
@@ -827,7 +885,8 @@
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#SemanticColors*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#*.Sets": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#RowMarks*": "n/a — the three colours a row mark reserves are CSS custom properties (--row-mark-ibb, --row-mark-firmware, --row-mark-decompressed) in src/ui/theme/theme.css, which the anchor check does not read; src/tools/toolRowMarkStyle.ts says which mark takes which",
-        "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read"
+        "Packages/AppPalette/Tests/AppPaletteTests/SemanticColorsTests.swift#*": "n/a — the palette is CSS custom properties in src/ui/theme/theme.css, which the anchor check does not read",
+        "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.agent": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       },
       "files": {
         "Packages/AppPalette/Sources/AppPalette/SemanticColors.swift": "src/ui/theme/hexColors.ts",
@@ -950,7 +1009,18 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.emptyPaddingQuestion": "n/a — a test seam: the question is a dialog of the page",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isReportingReadersSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
-        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.layout": "n/a — not a field of the web's `NodeOpen`: what a panel opened on the bytes should read them as is asked of the worker when the part opens (`askFirmwareLayout`), since the tree it is asked of lives there"
+        "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.layout": "n/a — not a field of the web's `NodeOpen`: what a panel opened on the bytes should read them as is asked of the worker when the part opens (`askFirmwareLayout`), since the tree it is asked of lives there",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentActions": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentComparisons": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentEdits": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentLocator": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentQueries": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.selectAction": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.selectionAction": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.agentSelect": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.agentSelection": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.clickDMIButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isDMIButtonShownForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
       }
     },
     {
@@ -1049,7 +1119,9 @@
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewColumnDidResize": "n/a — AppKit table column resizing",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.onProtectionRead": "n/a — upstream's tree calls the session back when the ranges land; the panel here reads them from the firmware store, which re-renders on its own",
         "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
-        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
+        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentEdits": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentQueries": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       }
     },
     {
@@ -1087,7 +1159,10 @@
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.isEmphasized": "n/a — `isEmphasized(row)`, a function over the row, anchored to the view code it was lifted from",
         "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)",
-        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane"
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentComparisons": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentLocator": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentQueries": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       }
     },
     {
@@ -1115,14 +1190,17 @@
         "MFSFileNamesTests.swift": "src/tools/mfsFileNames.test.ts",
         "EFSFileNamesTests.swift": "src/tools/efsFileNames.test.ts",
         "ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts",
-        "MEAPending.swift": "src/tools/mePending.ts"
+        "MEAPending.swift": "src/tools/mePending.ts",
+        "Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift": "src/tools/meaStateBasisText.ts"
       },
       "unported": {
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.init": "n/a — an object literal",
         "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testEveryHelpTermANodeNamesIsInTheGlossary": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
         "Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheFirmwareAndPartitionTableRowsExplainThemselves": "later — a test of the curator's help terms; `Skills/help-coverage` and `help-names` check the web book's",
-        "Packages/MEPresentation/Sources/MEPresentation/MEAPending.swift#MEAPending.init": "n/a — an object literal"
+        "Packages/MEPresentation/Sources/MEPresentation/MEAPending.swift#MEAPending.init": "n/a — an object literal",
+        "Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#*": "later — two dumps' MFS and EFS files compared by what they hold, where the volume moved them; the engine keeps each file's extents and digest already, but no panel shows the comparison yet; Design/GAPS.md",
+        "Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#*": "later — the tests of MEFileComparison; Design/GAPS.md"
       }
     },
     {
@@ -1180,7 +1258,11 @@
         "ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorShadow": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexTheme.mutedIndicatorInk": "n/a — the decoded-text column draws a placeholder in its byte's own ink, so there is no dimmed placeholder ink to swap for one on the indicator",
         "ByteRipperApp/Hex/HexView.swift#String*": "n/a — padStart",
-        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end"
+        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end",
+        "ByteRipperApp/Hex/HexView.swift#HexTheme.agentMark": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Hex/HexView.swift#HexView.agentMarkTooltipTag": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkSpans": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkTooltip": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       }
     },
     {
@@ -1607,7 +1689,13 @@
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.init": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.intrinsicContentSize": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour"
+        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.agentMarks": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkSpans": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkTooltip": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setAgentMarks": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.firstVisibleOffset": "n/a — scrollLink.visibleRange(pane, rowBytes).start",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       }
     },
     {
@@ -1712,7 +1800,8 @@
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneIsRefusing": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.helpButtonFrameInHeader": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.shownHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React"
+        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.shownHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
+        "ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.contentVersion": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to"
       }
     },
     {
@@ -1838,7 +1927,11 @@
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.label": "n/a — AppKit's settings window; the web's Settings is a dialog component",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.language": "n/a — AppKit's settings window; the web's Settings is a dialog component",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.tabIdentifiers": "n/a — AppKit's settings window; the web's Settings is a dialog component",
-        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbarLabels": "n/a — AppKit's settings window; the web's Settings is a dialog component"
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbarLabels": "n/a — AppKit's settings window; the web's Settings is a dialog component",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.agent": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showAgent": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
+        "ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.language": "n/a — a test hook; the web's tests reach the Language section through the settings store"
       },
       "files": {
         "ByteRipperApp/Settings/AppearanceSettings.swift": "",
@@ -1850,7 +1943,8 @@
         "ByteRipperApp/Settings/FileTypesSettingsViewController.swift": "",
         "ByteRipperApp/Settings/LayoutSettingsViewController.swift": "",
         "ByteRipperApp/Settings/SettingsWindowController.swift": "",
-        "ByteRipperApp/Settings/TextDecodingSettingsViewController.swift": ""
+        "ByteRipperApp/Settings/TextDecodingSettingsViewController.swift": "",
+        "ByteRipperApp/Settings/ViewSettingsViewController.swift": "src/ui/settings/SettingsDialog.tsx"
       }
     },
     {
@@ -2025,7 +2119,12 @@
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.decreaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.validateMenuItem": "n/a — it only dims Zoom In and Zoom Out, and the browser's page zoom is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)",
-        "ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.menuNeedsUpdate": "n/a — the delegate callback that fills the submenu on display; the shell's menu is built at publish time and re-sent when the list changes (`injectOpenRecent`)"
+        "ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.menuNeedsUpdate": "n/a — the delegate callback that fills the submenu on display; the shell's menu is built at publish time and re-sent when the list changes (`injectOpenRecent`)",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.agentService": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentWindow": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.agentWindowItem": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.agentWindow": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       }
     },
     {
@@ -4315,7 +4414,17 @@
         "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.openSingle": "n/a — test scaffolding",
         "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.top": "n/a — test scaffolding",
         "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.hexView": "n/a — test scaffolding",
-        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryModelTests.everywhere": "n/a — test scaffolding"
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryModelTests.everywhere": "n/a — test scaffolding",
+        "ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheAgentButtonFollowsTheServiceSwitch": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testACancelledQuestionIsAnAnswer": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testACleanTabAgreesToClose": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testClosingOnePaneTakesTheDifferingShareWithIt": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/NavigationHistoryTests.swift#NavigationHistoryFlowTests.testAToolsRevealIsNoStepAndItsZoneScrollIsOne": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADecodedBlockGoesBackEncoded": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnALENVEntryOpensItsBlockDecoded": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testBackChoosesTheRowAfterTheToolWasClosedAndOpenedAgain": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheDMIButtonGoesToTheStore": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testWithoutAStoreThereIsNoDMIButton": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for"
       }
     },
     {
@@ -4698,7 +4807,10 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.releaseCheckTask": "n/a — the landing screen's effect ignores an answer that arrives after it has gone (EmptyState.NewerRelease), so there is no task to hold",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openableRecentFiles": "n/a — a row whose file is gone is dropped when the page learns it (NotFound), and the list is of handles, not of paths to look up on disk",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.emptyStateFittingWindowHeight": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.revealDifferenceForAgent": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.syncAgentToolbarItem": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
@@ -4878,13 +4990,9 @@
       "status": "in-progress",
       "note": "The tool seam: ToolModule and ToolSession are a module object and its View component; ToolHost is the ToolContext plus the stores a tool reads; transactions and zones are ported with their tests, and the seam is both ways — `ToolSession.zoneSelected` comes back as a request left in a store (toolZoneSelection.ts) because a React panel cannot be called. The row marks a firmware panel dresses its rows with, and the legend that explains them, are here too (ROW_MARKS.md): ToolRowMarks and ToolRowMarkStyle are the value, the catalogue and the symbols (toolRowMarks.ts, toolRowMarkStyle.ts), the legend is a React component that takes its room in the panel's own pane (ToolRowMarksLegend.tsx), and what upstream draws in ToolPanelRowView and ToolPanelTable becomes attributes on the row element and icons inside it (RowMarks.tsx, RowMarkIcon.tsx) read by the rules in src/app/app.css.",
       "unported": {
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.fileName": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.contentSize": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.isReadOnly": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.caret": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.selection": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.read": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.snapshot": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolContentReader*": "n/a — the worker reads the pane's Blob (BlobByteSource)",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolFile*": "n/a — a picked File is read into bytes where it is picked",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.preferredPanelWidth": "n/a — one panel width for every tool (toolController.ts)",
@@ -4952,7 +5060,18 @@
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testASessionReportsAConfirmationThroughTheHost": "later — a session is a React component, which the port has no component test for (G24)",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testAReadOnlyFileRefusesTheWholeTransaction": "n/a — a page opens no file read-only: a file it may not write is saved as a download",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testASnapshotDoesNotMoveWhenTheContentDoes": "n/a — what a parse reads is a Blob, which does not move: a dirty document is materialised into a new one (`currentContent`)",
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testTheReaderRefusesAReadPastTheEnd": "n/a — there is no ToolContentReader: the worker reads the pane's Blob (BlobByteSource)"
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift#SeamTests.testTheReaderRefusesAReadPastTheEnd": "n/a — there is no ToolContentReader: the worker reads the pane's Blob (BlobByteSource)",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentActions": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentComparisons": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentEdits": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentLocator": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.agentQueries": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.contentSize": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.contentVersion": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.fileName": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.read": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.snapshot": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -5121,7 +5240,9 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.entries": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.override": "n/a — a task's own language for the agent's answers, which are written in English without L(); the web has no task to speak for",
+        "Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift#CatalogueTests.testATaskCanSpeakAnotherLanguageThanTheApp": "n/a — tests Localization.override"
       }
     },
     {
@@ -5197,7 +5318,8 @@
         "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.covers": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.id": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.summary": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.title": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
+        "Packages/HelpBook/Sources/HelpBook/HelpTopic.swift#HelpTopic.title": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.agent": "n/a — the agent service (Design/AGENT_PLAN.md) is a Unix socket an agent's client reaches the app on, and a relay program the client launches; a browser tab can listen on no socket and be started by no program (Design/GAPS.md, \"Not supported\")"
       }
     },
     {

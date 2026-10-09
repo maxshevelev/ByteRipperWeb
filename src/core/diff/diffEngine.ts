@@ -1,4 +1,9 @@
-import { DiffBlockBuilder, type DiffBlockIndex, type DiffKind } from "@/core/diff/diffBlock";
+import {
+  type DiffBlock,
+  DiffBlockBuilder,
+  type DiffBlockIndex,
+  type DiffKind,
+} from "@/core/diff/diffBlock";
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 
@@ -222,6 +227,30 @@ export async function scanDiff(
   const builder = new DiffBlockBuilder();
   await scanRange(builder, left, right, 0, Math.max(left.size, right.size), options);
   return builder.finish(left.size, right.size);
+}
+
+/**
+ * The same and different runs of `range`, compared at the same absolute offsets —
+ * the scan `scanDiff` makes of the whole file, over a part of it. Only bytes both
+ * storages hold are compared: a range past the shorter one's end is cut there, and
+ * the longer one's tail is not called a difference.
+ *
+ * @throws {DiffCancelled} when `shouldCancel` says so between chunks.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEngine.blocks
+ * @upstream-differs asynchronous and named for the scan it is, since `diffBytes` already carries the byte-array `blocks`
+ */
+export async function scanDiffRange(
+  left: ByteStorage,
+  right: ByteStorage,
+  range: { readonly start: number; readonly end: number },
+  options: ScanOptions = {}
+): Promise<DiffBlock[]> {
+  const end = Math.min(range.end, left.size, right.size);
+  if (range.start >= end) return [];
+  const builder = new DiffBlockBuilder();
+  await scanRange(builder, left, right, range.start, end, options);
+  return builder.finish(left.size, right.size).blocks;
 }
 
 /**

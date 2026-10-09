@@ -45,9 +45,12 @@ import { scrollLink } from "@/ui/pane/scrollLink";
  * and names its document by identity
  */
 export interface NavigationSpot {
+  /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.pane */
   readonly pane: PaneId;
   readonly document: BinaryDocument;
+  /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.start */
   readonly start: number;
+  /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.end */
   readonly end: number;
 }
 
