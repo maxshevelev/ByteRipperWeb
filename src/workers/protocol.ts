@@ -17,6 +17,7 @@
  *   be megabytes of typed array; sending it by structured clone would copy it.
  */
 
+import type { Json } from "@/core/agent/json";
 import type { Catalogue } from "@/core/localization/localization";
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 import type { FITReport } from "@/firmware/fit/fitTable";
@@ -29,6 +30,7 @@ import type { EFSFileNames } from "@/tools/efsFileNames";
 import type { MFSFileNames } from "@/tools/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
+import type { VariableRow } from "@/tools/uefi/agent/uefiAgentVariables";
 
 /** A job number. Monotonic per worker client; never reused. */
 export type JobId = number;
@@ -597,7 +599,38 @@ export interface SpeakLanguageRequest {
   readonly catalogue: Catalogue;
 }
 
+/**
+ * A question an agent asked of the tree, answered where the tree is — in English, whatever the
+ * window speaks. `answer` is a tool's whole answer; `rows` is the NVRAM variables the page filters
+ * and compares itself.
+ *
+ * @web-only upstream's tree is on the main actor, where a query reads it
+ */
+export interface AgentUefiRequest {
+  readonly kind: "agentUefi";
+  readonly id: JobId;
+  readonly query:
+    | "uefi_tree"
+    | "uefi_node"
+    | "uefi_find"
+    | "uefi_at"
+    | "uefi_node_data"
+    | "variable_rows";
+  readonly values: { readonly [key: string]: Json };
+  readonly answerBound: number;
+  readonly contentVersion: number;
+}
+
+export interface AgentUefiResponse {
+  readonly kind: "agentUefi";
+  readonly id: JobId;
+  readonly answer?: Json | undefined;
+  readonly rows?: readonly VariableRow[] | undefined;
+  readonly error?: string | undefined;
+}
+
 export type FirmwareWorkerRequest =
+  | AgentUefiRequest
   | FirmwareOpenRequest
   | SpeakLanguageRequest
   | MeChecksumsRequest
@@ -976,6 +1009,7 @@ export interface MeChecksumsResponse {
 }
 
 export type FirmwareWorkerResponse =
+  | AgentUefiResponse
   | MeAnalyzeResponse
   | MeFileNamesResponse
   | MeChecksumsResponse

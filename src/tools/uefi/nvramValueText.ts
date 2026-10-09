@@ -67,7 +67,7 @@ export function nvramValueRow(name: string, value: NvramValue, bytes: Uint8Array
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/NvramValueText.swift#NvramValueText.short
  */
-function shortText(value: NvramValue): string | undefined {
+export function shortText(value: NvramValue): string | undefined {
   const content = value.content;
   switch (content.kind) {
     case "empty":

@@ -4563,6 +4563,11 @@ button.uefi-title {
 
 /* Settings ▸ Agent: the configuration text, to be looked at and copied. */
 .settings-agent-preview {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  color: inherit;
   margin: 0.4rem 0 0;
   padding: 6px 8px;
   max-height: 9rem;

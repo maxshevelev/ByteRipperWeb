@@ -74,9 +74,12 @@ Each ends with the checks green and a commit.
   `focus`, `read`, `reveal`. Done through the real pipe and the real relay.
 - [x] **A3 — The seam.** `ToolAgent` (queries, actions, edits, comparisons,
   locators) on the tool module; the language override; `open_panel`.
-- [ ] **A4 — UEFI.** `uefi_tree`, `uefi_node`, `uefi_find`, `uefi_at`,
+- [x] **A4 — UEFI.** `uefi_tree`, `uefi_node`, `uefi_find`, `uefi_at`,
   `uefi_node_data`, `uefi_select`, `uefi_selection`, `variables`,
-  `variables_compare`, the locator.
+  `variables_compare`. The questions are asked of the firmware worker that holds
+  the pane's tree (`agentUefi`) and answered there in English; the variables come
+  back as rows the page filters and compares. The locator moves to A9, with
+  `diff`, the only tool that asks for it.
 - [ ] **A5 — Marks.** The layer on the pane, dashed in the agent's colour in the
   dump (and the minimap's gutter), the note under the pointer, the window's list.
 - [ ] **A6 — Many dumps.** Background documents, `open_dump`, `close_dump`,

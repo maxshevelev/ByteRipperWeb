@@ -866,7 +866,8 @@
         ],
         "UEFIToolModule.swift": [
           "src/tools/uefi/uefiStructureTool.tsx",
-          "src/tools/uefi/meSubtree.ts"
+          "src/tools/uefi/meSubtree.ts",
+          "src/tools/uefi/agent/uefiAgentModule.ts"
         ],
         "UEFITreeDisplay.swift": "src/tools/uefi/uefiTreeDisplay.ts",
         "UEFINodeDetail.swift": "src/tools/uefi/uefiNodeDetail.ts",
@@ -914,7 +915,10 @@
         "Modules/UEFITool/Tests/UEFIToolTests/AMDFirmwareDisplayTests.swift": "src/tools/uefi/amdFirmwareDisplay.test.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIChecksumCheckTests.swift": "src/firmware/uefi/checksumCheck.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFILenovoDMIDetail.swift": "src/tools/uefi/uefiLenovoDMIDetail.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift": "src/tools/uefi/uefiLenovoDMIDetail.test.ts"
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift": "src/tools/uefi/uefiLenovoDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift": "src/tools/uefi/agent/uefiAgentQueries.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift": "src/tools/uefi/agent/uefiAgentNodeData.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift": "src/tools/uefi/agent/uefiAgentVariables.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.init": "n/a — an object literal",
@@ -962,15 +966,8 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isReportingReadersSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.layout": "n/a — not a field of the web's `NodeOpen`: what a panel opened on the bytes should read them as is asked of the worker when the part opens (`askFirmwareLayout`), since the tree it is asked of lives there",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentActions": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentComparisons": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentEdits": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentLocator": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentQueries": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.selectAction": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.selectionAction": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.agentSelect": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.agentSelection": "later — the agent service in the Electron build (Design/PORT_AGENT.md)",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.clickDMIButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isDMIButtonShownForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
       }

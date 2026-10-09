@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 
-import { installCatalogue, L } from "@/core/localization/localization";
+import { AgentArguments } from "@/core/agent/agentArguments";
+import { AgentToolError } from "@/core/agent/agentTool";
+import { installCatalogue, L, withEnglish } from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
@@ -82,8 +84,13 @@ import {
   replaceMicrocodeAt,
 } from "@/tools/fit/fitEditor";
 import { MFSFileNames } from "@/tools/mfsFileNames";
+import type { NodeDetail } from "@/tools/toolDetail";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
+import { uefiNodeData } from "@/tools/uefi/agent/uefiAgentNodeData";
+import { runUefiAgentQuery } from "@/tools/uefi/agent/uefiAgentQueries";
+import type { AgentTree } from "@/tools/uefi/agent/uefiAgentTree";
+import { variableRows } from "@/tools/uefi/agent/uefiAgentVariables";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import {
   decodableBlockOf,
@@ -581,6 +588,31 @@ function open(node: UEFINode, into: UEFIDiagnostic[]): void {
 }
 
 /**
+ * What the panel says about a node: the mapping is worked out here rather than asked for
+ * separately, since the Address row wants it and `addressing` keeps it once it is found.
+ */
+function detailOf(node: UEFINode, path: readonly number[]): NodeDetail {
+  const here = reader;
+  if (here === undefined) return EMPTY_DETAIL;
+  const image = new UEFIImage({
+    size: here.count,
+    roots,
+    addressDiff: addressing().addressDiff,
+    // Whatever has been read so far: the detail says what protects a node once something has
+    // asked for the ranges, and reads nothing itself.
+    protectedRanges,
+    dvarSettings,
+  });
+  return buildNodeDetail(
+    node,
+    image,
+    readerFor(node) ?? new ImageReader(sourceOver(new Uint8Array(0))),
+    repairsFor(node, path),
+    lenovoReaders
+  );
+}
+
+/**
  * The volume a file sits in, found on the way down: its revision, which the fixed
  * body sum follows, and its erase polarity, which the file's state byte is read
  * under (`marksHeaderInvalid`).
@@ -931,6 +963,56 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      // A question an agent asked of the tree, answered here where the tree is and in English
+      // (`Design/PORT_AGENT.md`).
+      case "agentUefi": {
+        const diagnostics: UEFIDiagnostic[] = [];
+        if (reader === undefined) {
+          post({
+            kind: "agentUefi",
+            id: request.id,
+            error: "This document has no UEFI structure to read.",
+          });
+          return;
+        }
+        const here = reader;
+        const tree: AgentTree = {
+          get roots() {
+            return roots;
+          },
+          size: here.count,
+          reader: here,
+          spaceReaders: new SpaceReaders(here, { limits: DEFAULT_LIMITS, buffers }),
+          open: (node) => open(node, diagnostics),
+          detail: (node, path) => detailOf(node, path),
+          image: () =>
+            new UEFIImage({ size: here.count, roots, addressDiff: addressing().addressDiff }),
+        };
+        try {
+          const outcome = withEnglish(() => {
+            const args = new AgentArguments(request.values, request.answerBound);
+            const context = { contentVersion: request.contentVersion };
+            switch (request.query) {
+              case "uefi_node_data":
+                return { answer: uefiNodeData(tree, args) };
+              case "variable_rows":
+                return { rows: variableRows(tree) };
+              default:
+                return { answer: runUefiAgentQuery(request.query, tree, args, context) };
+            }
+          });
+          post({ kind: "agentUefi", id: request.id, ...outcome });
+        } catch (error) {
+          post({
+            kind: "agentUefi",
+            id: request.id,
+            error:
+              error instanceof AgentToolError ? error.message : `The tool failed: ${String(error)}`,
+          });
+        }
+        return;
+      }
+
       case "firmwareDetail": {
         const node = nodeAt(request.node);
         if (reader === undefined || node === undefined) {
@@ -942,28 +1024,11 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           });
           return;
         }
-        // The mapping is worked out here rather than asked for separately: the
-        // Address row wants it, and `addressing` keeps it once it is found.
-        const image = new UEFIImage({
-          size: reader.count,
-          roots,
-          addressDiff: addressing().addressDiff,
-          // Whatever has been read so far: the detail says what protects a node
-          // once something has asked for the ranges, and reads nothing itself.
-          protectedRanges,
-          dvarSettings,
-        });
         post({
           kind: "firmwareDetail",
           id: request.id,
           node: request.node,
-          detail: buildNodeDetail(
-            node,
-            image,
-            readerFor(node) ?? new ImageReader(sourceOver(new Uint8Array(0))),
-            repairsFor(node, request.node),
-            lenovoReaders
-          ),
+          detail: detailOf(node, request.node),
         });
         return;
       }

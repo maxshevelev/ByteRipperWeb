@@ -18,6 +18,8 @@ import { type MeReading, type MeTexts, readMe } from "@/tools/meReads";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import { dvarSettingsFromWire } from "@/workers/dvarWire";
 import type {
+  AgentUefiRequest,
+  AgentUefiResponse,
   FirmwareDetailResponse,
   FirmwareProtectedRangesResponse,
   FirmwareRebuildResponse,
@@ -200,6 +202,12 @@ function ensureWorker(pane: PaneId): PaneWorker {
     // still running when the panel asked for the same image's file names had
     // its reply thrown away and its waiter left for ever, which is the "Reading
     // ME…" that never finished on a dump whose names are fetched.
+    // An agent's question has an id of its own and is never superseded by the pane's jobs.
+    if (response.kind === "agentUefi") {
+      agentAsks.get(response.id)?.(response);
+      agentAsks.delete(response.id);
+      return;
+    }
     const latest = held.latest.get(response.kind);
     if (latest === undefined ? response.id !== held.job : response.id !== latest) return;
 
@@ -1686,5 +1694,27 @@ function replaceChildren(
     if (at !== index) return node;
     if (rest.length === 0) return { ...node, children, hiddenCopies, isExpandable: false };
     return { ...node, children: replaceChildren(node.children, rest, children, hiddenCopies) };
+  });
+}
+
+const agentAsks = new Map<number, (response: AgentUefiResponse) => void>();
+let agentAskId = 0;
+
+/**
+ * A question an agent asks of the pane's tree, answered where the tree is. Refused in words when
+ * the pane has no worker (no tree has been read for it); never superseded by the pane's own jobs.
+ *
+ * @web-only upstream's tree is on the main actor, where a query reads it
+ */
+export function askUefiAgent(
+  pane: PaneId,
+  request: Omit<AgentUefiRequest, "kind" | "id">
+): Promise<AgentUefiResponse> {
+  const held = ensureWorker(pane);
+  agentAskId += 1;
+  const id = agentAskId;
+  return new Promise((resolve) => {
+    agentAsks.set(id, resolve);
+    held.worker.postMessage({ kind: "agentUefi", id, ...request });
   });
 }

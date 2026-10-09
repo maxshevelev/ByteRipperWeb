@@ -109,9 +109,14 @@ export function AgentTab() {
       {relay === undefined ? null : (
         <>
           <p className="settings-caption">{clientDestination(client, relay)}</p>
-          <pre className="settings-agent-preview" tabIndex={0} aria-label={L("Configuration text")}>
-            {clientText(client, relay)}
-          </pre>
+          <textarea
+            className="settings-agent-preview"
+            readOnly
+            spellCheck={false}
+            rows={6}
+            aria-label={L("Configuration text")}
+            value={clientText(client, relay)}
+          />
           <div className="settings-actions">
             <button
               type="button"

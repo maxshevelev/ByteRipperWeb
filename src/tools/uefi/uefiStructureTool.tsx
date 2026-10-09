@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AgentToolError } from "@/core/agent/agentTool";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
 import { CopyPartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
@@ -18,6 +19,7 @@ import {
   askFirmwareProtectedRanges,
   ensurePaneFirmware,
   expandFirmwareNode,
+  expandFirmwareNodeAndWait,
   findFirmwareNodeAt,
   firmwareFor,
   firmwareNodeAt,
@@ -37,6 +39,7 @@ import { setSearchOpen, setSearchQuery, uefiSearchStore } from "@/state/uefiSear
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
+import { useAgentSession } from "@/tools/agentSession";
 import { type MEANode, meaNodeAt, meaZones } from "@/tools/meaTree";
 import { pickToolFile } from "@/tools/pickToolFile";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
@@ -45,6 +48,12 @@ import { useToolNavigation } from "@/tools/toolNavigation";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
+import {
+  type UefiAgentSession,
+  uefiAgentActions,
+  uefiAgentComparisons,
+  uefiAgentQueries,
+} from "@/tools/uefi/agent/uefiAgentModule";
 import {
   isMeRegion,
   meDetail,
@@ -1484,6 +1493,35 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     focus: () => scrollRef.current?.focus(),
   });
 
+  // What an agent does in this panel: choose a node, and say which one the reader chose.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.agentSelect
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.agentSelection
+  const agentSession: UefiAgentSession = {
+    select: async (path) => {
+      // The branches on the way are read where the tree is, and the panel's copy follows.
+      for (let length = 1; length < path.length; length++) {
+        await expandFirmwareNodeAndWait(context.pane, path.slice(0, length));
+      }
+      const nodes = firmwareFor(context.pane)?.roots ?? [];
+      const node = firmwareNodeAt(nodes, path);
+      if (node === undefined) {
+        throw new AgentToolError(`No node of this image has the id ${pathKey(path)}.`);
+      }
+      showRevealed(path, false);
+      choose(node, nodes);
+      return { id: pathKey(path), name: node.name, type: node.typeText, subtype: node.subtypeText };
+    },
+    selection: () => {
+      if (selected === undefined) return undefined;
+      const node = firmwareNodeAt(roots ?? [], pathOf(selected));
+      return node === undefined
+        ? undefined
+        : { id: selected, name: node.name, type: node.typeText, subtype: node.subtypeText };
+    },
+  };
+  useAgentSession(context.pane, "dev.maxik.tool.uefi-structure", agentSession);
+
   /**
    * The node under the caret, shown in the tree: every branch on the way
    * opened, its row selected, its detail up. Only the tree moves — the dump is
@@ -2582,6 +2620,9 @@ export const uefiStructureTool: ToolModule = {
   // help: panel.uefi
   helpTopic: TOPIC.toolUEFI,
   View: UefiStructureView,
+  agentQueries: uefiAgentQueries,
+  agentComparisons: uefiAgentComparisons,
+  agentActions: uefiAgentActions,
 };
 
 /** `person.text.rectangle`: the card that says whose machine this is. */

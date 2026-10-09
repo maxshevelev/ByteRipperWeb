@@ -128,7 +128,7 @@ describe("read", () => {
     const answer = (await call(service, "read", { offset: "0x10", length: 20 })).json;
     expect(member(answer, "rows")).toEqual([
       "00000010  10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F  |................|",
-      "00000020  20 21 22 23" + " ".repeat(36) + '  | !"#|',
+      `00000020  20 21 22 23${" ".repeat(36)}  | !"#|`,
     ]);
     expect(member(answer, "length")).toBe("0x14");
   });
