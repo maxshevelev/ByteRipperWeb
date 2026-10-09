@@ -1200,6 +1200,7 @@
 "Waiting for an agent." = "Wartet auf einen Agenten.";
 "menu|Window" = "Fenster";
 "none" = "keine";
+"Agent: %1$@" = "Agent: %1$@";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der
