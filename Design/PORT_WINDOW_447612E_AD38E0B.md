@@ -144,3 +144,7 @@ W1 through W8 as written: W4 needs W3's codec for its block, W5 needs W4, W6
 needs W5, and W8 needs W7. When the window is closed `PORT_STATE.json` moves to
 `ad38e0b`, the package version follows (`release.py version`), and the gap
 list holds only `later` and `unported` entries.
+
+## Closed
+
+All eight units are in; `PORT_STATE.json` moved to `ad38e0b` on 2026-10-09 and the package version stays `0.9.1-2` (upstream `0.9.1`). Remaining broken anchors in `SettingsDialog.tsx` come from upstream commits after this window.
