@@ -8,6 +8,7 @@ import {
 } from "@/core/agent/agentLogText";
 import { isRunning } from "@/core/agent/agentServer";
 import { agentStatusText } from "@/core/agent/agentStatus";
+import { sectionsOf } from "@/core/agent/agentToolCatalogue";
 import { L } from "@/core/localization/localization";
 import { agentFindingStore } from "@/state/agent/agentDumpTools";
 import { agentMarkStore } from "@/state/agent/agentMarkStore";
@@ -134,7 +135,11 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         : page === "marks"
           ? marks.map((one) => one.mark.id)
           : page === "tools"
-            ? agentService.catalogue().map((one) => one.tool.name)
+            ? // In the order the page shows them: its sections gather the tools by group, which is
+              // not the order the catalogue lists them in.
+              sectionsOf(agentService.catalogue()).flatMap((section) =>
+                section.entries.map((one) => one.tool.name)
+              )
             : [];
     if (ids.length === 0) return;
     const now =
@@ -152,9 +157,12 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
     event.preventDefault();
     // The row walked to stays in view, the large view open or not.
     const walked = event.currentTarget;
-    requestAnimationFrame(() =>
-      walked.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
-    );
+    // The first row goes to the top of the list, under nothing: the column titles are stuck over
+    // it, and the section heading above it would otherwise stay out of view.
+    requestAnimationFrame(() => {
+      if (next === ids[0]) walked.scrollTop = 0;
+      else walked.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+    });
     if (page === "log") setSelected(Number(next));
     else if (page === "marks") setChosenMarks(new Set([next]));
     else setChosenTool(next);
@@ -193,17 +201,19 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         </span>
       </DockPanelHeader>
       <nav className="agent-pages" aria-label={L("Page")}>
-        {PAGES.map((one) => (
-          <button
-            key={one}
-            type="button"
-            className="agent-page-button"
-            aria-pressed={page === one}
-            onClick={() => choosePage(one)}
-          >
-            {pageTitle(one)}
-          </button>
-        ))}
+        <div className="tab-strip">
+          {PAGES.map((one) => (
+            <button
+              key={one}
+              type="button"
+              className="tab-strip-item"
+              aria-pressed={page === one}
+              onClick={() => choosePage(one)}
+            >
+              {pageTitle(one)}
+            </button>
+          ))}
+        </div>
       </nav>
       {page === "marks" ? (
         <AgentMarksPage

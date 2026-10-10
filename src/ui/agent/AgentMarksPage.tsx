@@ -36,47 +36,53 @@ export function AgentMarksPage({
   const all = marks.map((one) => one.mark);
   const { columns, kept } = useAgentColumns(markColumns, "AgentMarksTable");
   return (
-    <AgentList onKeyDown={onKeyDown}>
-      <table
-        className="agent-table agent-marks"
-        aria-label={L("Marks")}
-        style={{ minWidth: agentTableMinWidth(columns, kept) }}
-      >
-        <AgentTableHead columns={columns} kept={kept} cellClass={(id) => `agent-mark-col-${id}`} />
-        <tbody>
-          {marks.map(({ mark, place }) => (
-            <tr
-              key={mark.id}
-              className="agent-row"
-              aria-selected={chosen.has(mark.id)}
-              onDoubleClick={() => onShow(mark.id)}
-            >
-              {AGENT_MARK_COLUMNS.map((column) => {
-                const text = markText(mark, column, place.name, all);
-                return (
-                  <td
-                    key={column}
-                    className={`agent-cell agent-mark-col-${column}`}
-                    title={column === "note" ? text : undefined}
-                  >
-                    {column === "id" ? (
-                      <button
-                        type="button"
-                        className="agent-row-button"
-                        onClick={(event) => onChoose(mark.id, event.metaKey || event.ctrlKey)}
-                      >
-                        {text}
-                      </button>
-                    ) : (
-                      text
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </AgentList>
+    <div className="agent-single">
+      <AgentList onKeyDown={onKeyDown}>
+        <table
+          className="agent-table agent-marks"
+          aria-label={L("Marks")}
+          style={{ minWidth: agentTableMinWidth(columns, kept) }}
+        >
+          <AgentTableHead
+            columns={columns}
+            kept={kept}
+            cellClass={(id) => `agent-mark-col-${id}`}
+          />
+          <tbody>
+            {marks.map(({ mark, place }) => (
+              <tr
+                key={mark.id}
+                className="agent-row"
+                aria-selected={chosen.has(mark.id)}
+                onDoubleClick={() => onShow(mark.id)}
+              >
+                {AGENT_MARK_COLUMNS.map((column) => {
+                  const text = markText(mark, column, place.name, all);
+                  return (
+                    <td
+                      key={column}
+                      className={`agent-cell agent-mark-col-${column}`}
+                      title={column === "note" ? text : undefined}
+                    >
+                      {column === "id" ? (
+                        <button
+                          type="button"
+                          className="agent-row-button"
+                          onClick={(event) => onChoose(mark.id, event.metaKey || event.ctrlKey)}
+                        >
+                          {text}
+                        </button>
+                      ) : (
+                        text
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </AgentList>
+    </div>
   );
 }

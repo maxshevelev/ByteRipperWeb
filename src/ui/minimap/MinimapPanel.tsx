@@ -407,14 +407,14 @@ function MinimapModes({
 
   return (
     <div className="minimap-head" style={height > 0 ? { height, marginTop: offsetTop } : undefined}>
-      <fieldset className="minimap-modes">
+      <fieldset className="minimap-modes tab-strip">
         <legend className="visually-hidden">{L("Minimap mode")}</legend>
         {/* help: menu.view.minimap-overview */}
         {(["detail", "overview"] as const).map((mode) => (
           <button
             key={mode}
             type="button"
-            className={`minimap-mode${state.mode === mode ? " is-on" : ""}`}
+            className="tab-strip-item"
             aria-pressed={state.mode === mode}
             disabled={mode === "overview" && !overviewUseful}
             title={
