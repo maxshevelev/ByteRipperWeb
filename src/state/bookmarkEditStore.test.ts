@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  addBookmarkAtOffset,
   bookmarkEditStore,
   cancelBookmarkEdit,
   commitBookmarkEdit,
+  deleteBookmarkAtOffset,
   deleteEditedBookmark,
   editBookmarkInPane,
   editedBookmarkRow,
@@ -77,6 +79,32 @@ describe("the offset field", () => {
     addBookmark("a", 0x100, "mine");
     expect(editedBookmarkRow("0x300", 0x100)).toBeUndefined();
     expect(editedBookmarkRow("0x10F", 0x100)).toBe(0x100);
+  });
+});
+
+describe("the dump menu's Add and Delete", () => {
+  it("adds and names the clicked row", () => {
+    addBookmarkAtOffset("a", 0x31);
+    expect(bookmarkAt("a", 0x30)).toEqual({ row: 0x30, name: "" });
+    expect(session()).toMatchObject({ pane: "a", row: 0x30, existingName: undefined });
+  });
+
+  // The menu offers Add only on a row with no mark; a stale item never unmarks.
+  it("adds nothing on a row that already carries a mark", () => {
+    addBookmark("a", 0x30, "kept");
+    addBookmarkAtOffset("a", 0x31);
+    expect(bookmarkAt("a", 0x30)?.name).toBe("kept");
+    expect(session()).toBeUndefined();
+  });
+
+  it("deletes the clicked row's mark with nothing to dismiss, and only that", () => {
+    addBookmark("a", 0x30, "gone");
+    deleteBookmarkAtOffset("a", 0x3f);
+    expect(bookmarkAt("a", 0x30)).toBeUndefined();
+    expect(session()).toBeUndefined();
+
+    deleteBookmarkAtOffset("a", 0x3f);
+    expect(bookmarkAt("a", 0x30)).toBeUndefined();
   });
 });
 

@@ -177,7 +177,7 @@ Das Werkzeug führt ihn mit Absicht auf: daran sieht man, ob noch ein Modul in e
 
 @term bios-guard-update
 @name Update-Datei für AMI BIOS Guard
-@short Ein BIOS-Update des Herstellers für eine Platine mit Intel BIOS Guard: die BIOS-Region in signierten Blöcken, davor eine Tabelle, die ihre Bereiche benennt.
+@short Ein BIOS-Update des Herstellers für eine Platine mit Intel BIOS Guard: die BIOS-Region in signierten Blöcken, davor eine Tabelle, die ihre Bereiche aufführt.
 
 Auf einer Platine mit Intel BIOS Guard schreibt nicht das BIOS selbst die BIOS-Region, sondern der Chipsatz, und zwar nur in Blöcken, die der Hersteller signiert hat. Das Flash-Programm von AMI nimmt das Update als Datei aus solchen Blöcken entgegen. AMI selbst nennt das Format PFAT; ASUS liefert die Datei unter Modell und BIOS-Version aus, etwa `X1704VAPF.306`. Am Anfang der Datei steht eine Tabelle, die die Region in benannte Bereiche gliedert — `FV_MAIN_WRAPPER`, `NVRAM`, `OA_TABLE` — und zu jedem den Schalter des Flash-Programms (`/P`, `/N`, `/OA`) und die Zahl der Blöcke angibt, aus denen er besteht. Jeder Block enthält seine Daten, das Skript, mit dem der Chipsatz sie schreibt, und die Signatur des Herstellers.
 
@@ -322,7 +322,7 @@ Anhand der Tabelle lässt sich am schnellsten feststellen, welche Firmware ein D
 
 @term ec-firmware
 @name EC-Firmware in einem BIOS-Abbild
-@short Der Code des Embedded Controllers, der oft in der BIOS-Region liegt, ohne dass ihn dort etwas benennt.
+@short Der Code des Embedded Controllers, der oft in der BIOS-Region liegt, ohne dass ihn dort etwas erwähnt.
 
 Seit Skylake kann ein Board eine richtige [[term:ec-region|EC-Region]] haben, die der Deskriptor deklariert. Davor — und auf etlichen Boards auch danach — ist die EC-Firmware schlicht ein Block in der BIOS-Region, den der Parser als [[term:padding|Füllung]] zeigt, meist als die erste. In Insyde-Firmware benennt die [[term:flash-device-map|Flash Device Map]] diesen Block, und der Baum zeigt ihn als **EC Firmware**.
 

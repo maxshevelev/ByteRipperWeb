@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "27be11d9f6c088d1dc76e762d77724ba72e8db0d",
-  "baselineNote": "Agent: a refusal over a node id says which document has it; one link per node; a panel's answer names its document (2026-10-10)"
+  "baseCommit": "ce0ff33e4c1ba92f73efc928c5eec0feb9205a35",
+  "baselineNote": "Help (ru): no \u00ab\u043d\u0430\u0437\u044b\u0432\u0430\u0442\u044c\u00bb in technical text: \u043e\u0431\u043e\u0437\u043d\u0430\u0447\u0430\u0435\u0442, \u043f\u043e\u043c\u0435\u0447\u0430\u0435\u0442, \u0443\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442, \u043e\u043f\u0438\u0441\u0430\u043d \u043a\u0430\u043a (2026-10-10)"
 }

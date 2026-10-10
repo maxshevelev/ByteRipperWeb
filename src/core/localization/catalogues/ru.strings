@@ -1,6 +1,6 @@
 /* ByteRipperWeb — русский. Ключ — английский текст.
    Термины прошивок ($FPT, Boot Guard, FIT, MFS…) не переводятся:
-   так их называют даташиты, форумы и остальные инструменты.
+   так они обозначены в даташитах, на форумах и в остальных инструментах.
    Строки, общие с macOS-версией, взяты из её каталога слово в слово. */
 " (last published %1$@)" = " (последняя публикация %1$@)";
 " — cannot be published: %1$@" = " — не удаётся опубликовать: %1$@";
@@ -103,7 +103,8 @@
 "Add a cut" = "Добавить разрез";
 "Add a microcode you already have, without the network" = "Добавить микрокод, который уже есть, без сети";
 "Add a pattern" = "Добавить шаблон";
-"Add Bookmark" = "Добавить закладку";
+"Add Bookmark" = "Поставить закладку";
+"Add Bookmark at %1$@" = "Поставить закладку на строку %1$@";
 "Add Cut" = "Разрезать";
 "Add Cut…" = "Разрезать…";
 "Add Intel Microcode" = "Добавить микрокод Intel";
@@ -454,6 +455,7 @@
 "Delete %1$@ byte(s)?" = "Удалить байтов: %1$@?";
 "Delete bookmark" = "Удалить закладку";
 "Delete Bookmark" = "Удалить закладку";
+"Delete Bookmark at %1$@" = "Удалить закладку со строки %1$@";
 "Delete Bytes…" = "Удалить байты…";
 "Deleted" = "Удалено";
 "Deleted here" = "Удалено здесь";
@@ -742,7 +744,7 @@
 "Processor" = "Процессор";
 "Protected by" = "Чем защищено";
 "Protection" = "Защита";
-"Put a microcode in the image and name it in the table" = "Положить микрокод в образ и назвать его в таблице";
+"Put a microcode in the image and name it in the table" = "Положить микрокод в образ и внести его в таблицу";
 "Put the Panes Side by Side" = "Расположить панели рядом";
 "Put “%1$@” back into %2$@?" = "Записать «%1$@» обратно в %2$@?";
 "r.%1$@" = "r.%1$@";
@@ -763,7 +765,6 @@
 "Regions (FPT)" = "Регионы (FPT)";
 "Release" = "Выпуск";
 "Remove" = "Убрать";
-"Remove Bookmark" = "Удалить закладку";
 "Remove Microcode" = "Удалить микрокод";
 "Remove Pattern" = "Убрать шаблон";
 "Remove the selected pattern" = "Убрать выбранный шаблон";
@@ -929,7 +930,6 @@
 "Those bytes could not be read." = "Эти байты не удалось прочитать.";
 "To Beginning" = "В начало";
 "To End" = "В конец";
-"Toggle Bookmark at %1$@" = "Закладка на %1$@: вкл/выкл";
 "Toggle Minimap" = "Миникарта вкл/выкл";
 "Tools" = "Инструменты";
 "Top / Bottom" = "Сверху / снизу";

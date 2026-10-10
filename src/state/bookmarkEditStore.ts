@@ -5,6 +5,7 @@ import {
   bookmarkAt,
   bookmarksStore,
   editBookmark,
+  marksFor,
   removeBookmark,
 } from "@/state/bookmarksStore";
 import { createStore } from "@/state/store";
@@ -17,7 +18,8 @@ import { type PaneId, paneInFront } from "@/state/workspaceStore";
  * Return saves it (unnamed if nothing was typed), Esc removes it again — so
  * **⌘D, Return** is the whole gesture for "mark this row", and ⌘D, a name,
  * Return the one for "mark it and call it this". ⌘D on a marked row unmarks it
- * on the spot. A double click on an address never unmarks: it marks and names a
+ * on the spot, and the menus say which of the two a row will get: Add Bookmark
+ * or Delete Bookmark. A double click on an address never unmarks: it marks and names a
  * bare row, and edits the mark that is already there.
  *
  * One session at a time. Opening another replaces the one on screen without
@@ -83,16 +85,38 @@ function present(pane: PaneId | undefined, row: number, existingName: string | u
 }
 
 /**
- * ⌘D, and the dump menu's Toggle Bookmark: unmarks a marked row on the spot,
- * and marks and names an unmarked one.
+ * ⌘D — Edit ▸ Add Bookmark or Delete Bookmark, whichever the caret's row
+ * calls for: unmarks a marked row on the spot, and marks and names an unmarked
+ * one.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleBookmarkInPane
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleBookmark
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleBookmarkAtOffset
  */
 export function toggleBookmarkInPane(pane: PaneId, offset: number): void {
   if (removeBookmark(pane, offset)) return;
   markAndNameBookmark(pane, offset);
+}
+
+/**
+ * The dump menu's Add Bookmark at…: marks the row that was right-clicked, in
+ * the pane that was, and opens the naming popover on it as ⌘D does. Nothing on
+ * a row that already carries a mark, or in a pane with no list to mark in.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addBookmarkAtOffset
+ */
+export function addBookmarkAtOffset(pane: PaneId, offset: number): void {
+  if (marksFor(pane) === undefined || bookmarkAt(pane, offset) !== undefined) return;
+  markAndNameBookmark(pane, offset);
+}
+
+/**
+ * The dump menu's Delete Bookmark at…: removes the right-clicked row's mark,
+ * asking nothing.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.deleteBookmarkAtOffset
+ */
+export function deleteBookmarkAtOffset(pane: PaneId, offset: number): void {
+  removeBookmark(pane, offset);
 }
 
 /**

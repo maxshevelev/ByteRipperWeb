@@ -7,7 +7,7 @@ Ein Firmware-Image ist keine beliebige Datei. Seine Adressen sind absolut, ein T
 
 ## Die Länge des Images bleibt unverändert
 
-Die Kapazität eines Flash-Bausteins ist fest, und jede Adresse in einem Firmware-Image ist absolut: Der Descriptor legt die Grenzen der Regionen fest, die [[term:fit|FIT]] benennt die Adresse jedes Microcode-Bauteils, eine Signatur deckt einen festen Bereich ab. Ein eingefügtes oder gelöschtes Byte verschiebt alles dahinter und macht alle diese Angaben falsch.
+Die Kapazität eines Flash-Bausteins ist fest, und jede Adresse in einem Firmware-Image ist absolut: Der Descriptor legt die Grenzen der Regionen fest, die [[term:fit|FIT]] gibt die Adresse jedes Microcode-Bauteils an, eine Signatur deckt einen festen Bereich ab. Ein eingefügtes oder gelöschtes Byte verschiebt alles dahinter und macht alle diese Angaben falsch.
 
 Daraus folgt das voreingestellte Verhalten beim Bearbeiten:
 

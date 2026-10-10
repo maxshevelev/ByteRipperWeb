@@ -103,7 +103,8 @@
 "Add a cut" = "Schnitt hinzufügen";
 "Add a microcode you already have, without the network" = "Einen vorhandenen Microcode hinzufügen, ohne Netz";
 "Add a pattern" = "Muster hinzufügen";
-"Add Bookmark" = "Lesezeichen hinzufügen";
+"Add Bookmark" = "Lesezeichen setzen";
+"Add Bookmark at %1$@" = "Lesezeichen auf Zeile %1$@ setzen";
 "Add Cut" = "Schnitt hinzufügen";
 "Add Cut…" = "Schnitt hinzufügen…";
 "Add Intel Microcode" = "Intel-Microcode hinzufügen";
@@ -454,6 +455,7 @@
 "Delete %1$@ byte(s)?" = "%1$@ Byte(s) löschen?";
 "Delete bookmark" = "Lesezeichen löschen";
 "Delete Bookmark" = "Lesezeichen löschen";
+"Delete Bookmark at %1$@" = "Lesezeichen auf Zeile %1$@ löschen";
 "Delete Bytes…" = "Bytes löschen…";
 "Deleted" = "Gelöscht";
 "Deleted here" = "Hier gelöscht";
@@ -763,7 +765,6 @@
 "Regions (FPT)" = "Regionen (FPT)";
 "Release" = "Freigabe";
 "Remove" = "Entfernen";
-"Remove Bookmark" = "Lesezeichen entfernen";
 "Remove Microcode" = "Microcode entfernen";
 "Remove Pattern" = "Muster entfernen";
 "Remove the selected pattern" = "Ausgewähltes Muster entfernen";
@@ -929,7 +930,6 @@
 "Those bytes could not be read." = "Diese Bytes ließen sich nicht lesen.";
 "To Beginning" = "An den Anfang";
 "To End" = "Ans Ende";
-"Toggle Bookmark at %1$@" = "Lesezeichen bei %1$@ ein/aus";
 "Toggle Minimap" = "Minimap ein-/ausblenden";
 "Tools" = "Werkzeuge";
 "Top / Bottom" = "Oben / unten";

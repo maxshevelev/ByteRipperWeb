@@ -3,7 +3,7 @@
  *
  * The toolbar's menu and every right-click menu are the same list of commands
  * in the same shape — upstream builds both out of `NSMenu` and so does this,
- * which is what keeps "Toggle Bookmark at 0x00001000" saying the same thing
+ * which is what keeps "Add Bookmark at 00001000" saying the same thing
  * whether it was reached from the bar or from the dump.
  */
 

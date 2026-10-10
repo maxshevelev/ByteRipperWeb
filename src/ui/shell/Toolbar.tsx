@@ -382,11 +382,12 @@ export function Toolbar({
     // The marks of whatever is in front, read at its own offsets: the
     // workspace's list for its panes, the same list at the part's offsets for a
     // panel (§20.7). A panel showing a decompressed body has none, and ⌘D is
-    // off there — there is no row of the file to mark.
+    // off there — there is no row of the file to mark. One key both adds and
+    // deletes, and the title says which it will do to the caret's row.
     {
       label:
         active !== undefined && bookmarkAt(front, active.document.caret) !== undefined
-          ? L("Remove Bookmark")
+          ? L("Delete Bookmark")
           : L("Add Bookmark"),
       shortcut: "⌘D",
       disabled: active === undefined || marksFor(front) === undefined,

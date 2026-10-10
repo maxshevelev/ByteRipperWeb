@@ -1,9 +1,11 @@
-@source-sha 72ab58abbdfaa1c33a2bd94d77539e2bf6dd7f0031ff4d1364f7bd935b72ba75
+@source-sha 6b1fd16ab4f84626ae1b182971b1702317b39d89f43a971c6a981d4459b70b3e
 # Lesezeichen
 
 > Markierte Adressen, zu denen schnell zurückgekehrt werden kann: auf der Zeile angezeigt und beiden Bereichen gemeinsam.
 
-**[[key:bookmark]]** setzt ein Lesezeichen auf der Zeile, auf der die Einfügemarke steht, oder entfernt ein vorhandenes. Die Adresse dieser Zeile wird dann auf einem violetten Pfeil dargestellt, und die Zeile wird in derselben Farbe am Rand der [[topic:minimap|Minimap]] markiert. Lesezeichen stehen auch auf dem leeren Bildschirm, sodass ein Arbeitsbereich ohne offene Datei weiterhin nennt, was zuletzt betrachtet wurde.
+**[[key:bookmark]]** setzt ein Lesezeichen auf der Zeile, auf der die Einfügemarke steht, oder entfernt ein vorhandenes. Der Eintrag im Menü „Lesezeichen“ nennt die jeweilige Aktion: auf einer Zeile ohne Lesezeichen **Lesezeichen ▸ Lesezeichen setzen**, auf einer Zeile mit Lesezeichen **Lesezeichen ▸ Lesezeichen löschen**. Die Adresse einer Zeile mit Lesezeichen wird auf einem violetten Pfeil dargestellt, und die Zeile wird in derselben Farbe am Rand der [[topic:minimap|Minimap]] markiert. Lesezeichen stehen auch auf dem leeren Bildschirm, sodass ein Arbeitsbereich ohne offene Datei weiterhin nennt, was zuletzt betrachtet wurde.
+
+Das Kontextmenü (Rechtsklick) wirkt auf die angeklickte Zeile und nennt deren Adresse. Hat die Zeile kein Lesezeichen, enthält es *Lesezeichen auf Zeile … setzen*; hat sie eines, enthält es *Lesezeichen auf Zeile … löschen* und *Lesezeichen bearbeiten…*.
 
 - **[[key:editBookmark]]** gibt dem Lesezeichen einen Namen oder ändert den vorhandenen. Ein Lesezeichen ohne Namen zeigt seine Adresse.
 - **[[key:goTo]]** öffnet „Gehe zu“, und die untere Hälfte dieses Formulars ist die Lesezeichenliste: Tab bringt die Tastatur hinein, Return springt zum ausgewählten Lesezeichen.

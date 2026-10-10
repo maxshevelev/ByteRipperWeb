@@ -8,7 +8,11 @@ import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
-import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
+import {
+  addBookmarkAtOffset,
+  deleteBookmarkAtOffset,
+  editBookmarkInPane,
+} from "@/state/bookmarkEditStore";
 import { bookmarkAt, marksFor } from "@/state/bookmarksStore";
 import { askFirmwarePart } from "@/state/firmwareStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
@@ -481,10 +485,9 @@ function segmentItems(
 }
 
 /**
- * The bookmark block (§20.3).
- *
- * One item marks and unmarks — the same command ⌘D is, so there is one thing to
- * learn — and a marked row is offered Edit Bookmark besides. The address is the
+ * The bookmark block (§20.3): what can be done to the clicked row, said
+ * outright — Add Bookmark at «address» on a row with no mark, Delete Bookmark
+ * at «address» and Edit Bookmark… on one that has. The address is the
  * **row's**, not the clicked byte's: a right-click on a byte marks its row, and
  * the title is what says so.
  *
@@ -495,15 +498,21 @@ function bookmarkItems(pane: PaneId, offset: number): (MenuEntry | undefined)[] 
   // bookmark block: the file's offsets do not reach those bytes, so there is
   // nothing here for either item to act on (§20.7).
   if (marksFor(pane) === undefined) return [];
-  const row = rowContaining(offset);
+  const address = hexAddress(rowContaining(offset));
+  if (bookmarkAt(pane, offset) === undefined) {
+    return [
+      {
+        label: L("Add Bookmark at %1$@", address),
+        onSelect: () => addBookmarkAtOffset(pane, offset),
+      },
+    ];
+  }
   return [
     {
-      label: L("Toggle Bookmark at %1$@", hexAddress(row)),
-      onSelect: () => toggleBookmarkInPane(pane, offset),
+      label: L("Delete Bookmark at %1$@", address),
+      onSelect: () => deleteBookmarkAtOffset(pane, offset),
     },
-    bookmarkAt(pane, offset) === undefined
-      ? undefined
-      : { label: L("Edit Bookmark…"), onSelect: () => editBookmarkInPane(pane, offset) },
+    { label: L("Edit Bookmark…"), onSelect: () => editBookmarkInPane(pane, offset) },
   ];
 }
 

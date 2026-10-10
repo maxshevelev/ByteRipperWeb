@@ -2418,8 +2418,6 @@
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testDoubleClickingAnAddressMarksItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testDoubleClickingAMarkedRowOpensItForEditing": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testOnlyTheOffsetColumnMarksOnDoubleClick": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheContextMenuTogglesAndRenames": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheContextMenuItemsActOnTheClickedRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheMarkShowsItsNameAsATooltip": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testAccessibilityValueSaysWhetherTheCaretsRowIsMarkedAndWhatItIsCalled": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkEditPopoverController": "n/a — test scaffolding",

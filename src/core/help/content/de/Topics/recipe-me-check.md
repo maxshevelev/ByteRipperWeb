@@ -17,7 +17,7 @@ Die Meldung, dass nichts in der Datei sich als Intel-ME-Firmware lesen lässt, d
 
 ## Die Zeilen der Übersicht
 
-- **Family**, **Version**, **SKU**, **Release**, **Date** — aus dem Manifest und der Partitionstabelle gelesen. Die Version benennt die Plattformgeneration, für die die Firmware gebaut wurde.
+- **Family**, **Version**, **SKU**, **Release**, **Date** — aus dem Manifest und der Partitionstabelle gelesen. Die Version gibt die Plattformgeneration an, für die die Firmware gebaut wurde.
 - **Type** — ob es sich um eine vollständige Firmware, ein Update oder eine aus einem vollständigen Image entnommene Region handelt.
 - **Chipset**, **Chipset Stepping**, **NVM Compatibility** — die Plattform, deren Unterstützung die Firmware deklariert.
 - **TCB Security Version Number**, **ARB Security Version Number**, **Version Control Number** — die Zähler, über die die Plattform Firmware zurückweist, die älter ist als die bereits angenommene. Siehe [[term:svn|SVN]] und [[term:vcn|VCN]].
