@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { largeDetailFrame } from "@/ui/toolPanel/largeDetailFrame";
+import { largeDetailFrame, largeDetailTop } from "@/ui/toolPanel/largeDetailFrame";
 
 describe("where the large view of the details stands", () => {
   // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift#ToolDetailPaneTests.testTheCardKeepsClearOfTheToolPanel
@@ -21,5 +21,16 @@ describe("where the large view of the details stands", () => {
 
   it("is never narrower than the least it is drawn at", () => {
     expect(largeDetailFrame(500, { left: 0, right: 450 }).width).toBe(200);
+  });
+});
+
+describe("where the large view of the details starts", () => {
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.restingFrame
+  it("is a margin below the top of the file pane's header, not of the window", () => {
+    expect(largeDetailTop(88)).toBe(118);
+  });
+
+  it("is a margin below the window's top when there is no header to measure", () => {
+    expect(largeDetailTop(undefined)).toBe(30);
   });
 });

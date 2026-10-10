@@ -3523,7 +3523,8 @@ button.uefi-title {
   display: none;
 }
 
-/* Two thirds of the window wide, 30 pixels from its top, bottom and right edges, the table
+/* Two thirds of the window wide, 30 pixels below the top of the file pane's header (the script
+   places it; `top` here is the fallback), 12 from the bottom and right edges, the table
    left in view on its left; a shadow rather than a dimmed window, so a click beside it
    closes it and still lands where it was aimed. */
 .tool-detail-card {

@@ -27,6 +27,16 @@ export interface PanelEdges {
   readonly right: number;
 }
 
+/**
+ * The card's top edge: a margin below the top of the file pane's header, which is where upstream's
+ * host view begins, and not below the window's top — the toolbar is above the host there, and here
+ * it is not.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.restingFrame
+ */
+export const largeDetailTop = (paneHeaderTop: number | undefined): number =>
+  (paneHeaderTop ?? 0) + CARD_MARGIN;
+
 export function largeDetailFrame(
   viewportWidth: number,
   panel: PanelEdges | undefined

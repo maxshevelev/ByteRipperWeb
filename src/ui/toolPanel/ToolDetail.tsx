@@ -19,7 +19,7 @@ import { TintedSymbol } from "@/ui/theme/TintedSymbol";
 import { type Box, playCardMotion } from "@/ui/toolPanel/cardMotion";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { detailCopyText } from "@/ui/toolPanel/detailCopy";
-import { largeDetailFrame } from "@/ui/toolPanel/largeDetailFrame";
+import { largeDetailFrame, largeDetailTop } from "@/ui/toolPanel/largeDetailFrame";
 import {
   initialPictureBackground,
   nextPictureBackground,
@@ -356,18 +356,23 @@ function LargeDetailCard({
   // The card stands beside the tool panel it belongs to, a gap from its edge, rather than
   // over it, and follows the panel's width when its divider is dragged.
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.restingFrame
-  const [frame, setFrame] = useState<{ left: number; width: number } | undefined>(undefined);
+  const [frame, setFrame] = useState<{ left: number; top: number; width: number } | undefined>(
+    undefined
+  );
   useLayoutEffect(() => {
     const panel =
       largeDetailKeyTable()?.closest(".tool-panel") ?? document.querySelector(".tool-panel");
     const place = () => {
       const edges = panel?.getBoundingClientRect();
-      setFrame(
-        largeDetailFrame(
+      // The top is the file pane's header's, not the window's: the toolbar is above it.
+      const header = document.querySelector(".pane-header")?.getBoundingClientRect();
+      setFrame({
+        ...largeDetailFrame(
           document.documentElement.clientWidth,
           edges === undefined ? undefined : { left: edges.left, right: edges.right }
-        )
-      );
+        ),
+        top: largeDetailTop(header?.top),
+      });
     };
     place();
     window.addEventListener("resize", place);
@@ -567,7 +572,9 @@ function LargeDetailCard({
       role="dialog"
       aria-label={L("Details")}
       style={
-        frame === undefined ? undefined : { left: frame.left, width: frame.width, right: "auto" }
+        frame === undefined
+          ? undefined
+          : { left: frame.left, top: frame.top, width: frame.width, right: "auto" }
       }
       onCopy={selecting.onCopy}
       onKeyDown={(event) => {
