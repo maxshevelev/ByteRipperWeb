@@ -6159,10 +6159,11 @@ body[data-pulling-panel] * {
   /* Smaller than the tool names and grey, with room above that sets the section off from the last
      tool of the one before. */
   height: auto;
-  padding: 12px 2px 4px;
+  /* The left inset is the cells' own, so a heading starts where the names under it do. */
+  padding: 12px 6px 4px;
   border-bottom: 0;
   background: var(--surface);
-  color: var(--text-muted);
+  color: var(--text-faint);
   font-size: calc(var(--hex-font-size, 13px) - 2px);
   font-weight: 600;
   text-align: left;
