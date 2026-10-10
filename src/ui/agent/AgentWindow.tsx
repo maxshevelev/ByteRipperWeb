@@ -2,7 +2,6 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import {
   AGENT_LOG_COLUMNS,
   argumentsText,
-  columnTitle,
   detailFields,
   isProblem,
   logText,
@@ -12,20 +11,36 @@ import { L } from "@/core/localization/localization";
 import { agentFindingStore } from "@/state/agent/agentDumpTools";
 import { agentMarkStore } from "@/state/agent/agentMarkStore";
 import { agentService } from "@/state/agent/agentService";
+import { closeLargeDetail, toggleLargeDetail } from "@/state/largeDetailStore";
 import { useStore } from "@/state/useStore";
+import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import { AgentFindingsPage } from "@/ui/agent/AgentFindingsPage";
 import { AgentList } from "@/ui/agent/AgentList";
 import { AgentMarksPage } from "@/ui/agent/AgentMarksPage";
+import { AgentSplit } from "@/ui/agent/AgentSplit";
+import {
+  AgentTableHead,
+  agentTableMinWidth,
+  logColumns,
+  useAgentColumns,
+} from "@/ui/agent/AgentTableHead";
 import { AgentToolsPage } from "@/ui/agent/AgentToolsPage";
-import { CloseButton } from "@/ui/shell/CloseButton";
+import { DockPanelHeader } from "@/ui/fragments/DockPanelHeader";
+import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
+import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 
 /**
  * Window ▸ Agent: whether the agent service is running, who is connected, and every call an agent
  * has made, newest at the bottom.
  *
  * A panel in the dock, as the help book is: a pill that stays when the panel is folded, and the
- * panel over the panes when it is up. One for the app. A reveal the agent asks for folds it, so the
- * bytes it points at are not behind it.
+ * panel over the panes when it is up, wearing the dock's header (`DockPanelHeader`) — the
+ * toolbar button's glyph, the service's state, ⌄ and ✕ — and pulled down by it. One for the app.
+ * A reveal the agent asks for folds it, so the bytes it points at are not behind it.
+ *
+ * The Log and the Tools page have the tool panels' details under their list (`AgentSplit`,
+ * `ToolDetail`): Space opens them large on the right of the window, and the arrows still walk
+ * the list while they are.
  *
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.service
@@ -59,6 +74,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
     }
   });
   const list = useRef<HTMLDivElement>(null);
+  const log = useAgentColumns(logColumns, "AgentLogTable");
 
   // The log scrolls to each new request as it arrives, when asked to.
   // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.followButton
@@ -74,7 +90,9 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
   // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownList
   // biome-ignore lint/correctness/useExhaustiveDependencies: the page is what moves it
   useEffect(() => {
-    window_.current?.querySelector<HTMLElement>(".agent-log:not([hidden])")?.focus();
+    // The list on screen: the log's is kept, hidden, under the other pages.
+    const lists = window_.current?.querySelectorAll<HTMLElement>(".agent-log") ?? [];
+    [...lists].find((one) => one.offsetParent !== null)?.focus();
   }, [page]);
 
   /**
@@ -84,6 +102,18 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
    * @upstream-differs a React table has no row selection of its own; the page's choice is moved
    */
   const walk = (event: KeyboardEvent<HTMLElement>): void => {
+    // Space opens the details large, or closes them, as it does on a tool panel's table.
+    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShut
+    if (event.key === " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const shown =
+        page === "log"
+          ? state.log.some((one) => one.id === selected)
+          : page === "tools" && chosenTool !== undefined;
+      if ((page === "log" || page === "tools") && toggleLargeDetail(shown, event.currentTarget)) {
+        event.preventDefault();
+      }
+      return;
+    }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     const ids: string[] =
       page === "log"
@@ -107,6 +137,11 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
       ids[Math.max(0, Math.min(ids.length - 1, at + (event.key === "ArrowDown" ? 1 : -1)))];
     if (next === undefined) return;
     event.preventDefault();
+    // The row walked to stays in view, the large view open or not.
+    const walked = event.currentTarget;
+    requestAnimationFrame(() =>
+      walked.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
+    );
     if (page === "log") setSelected(Number(next));
     else if (page === "marks") setChosenMarks(new Set([next]));
     else setChosenTool(next);
@@ -120,20 +155,30 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
     connections: state.connections,
   });
 
+  const choosePage = (one: AgentPageName) => {
+    // The large view is of the page it was opened on.
+    closeLargeDetail();
+    setPage(one);
+  };
+
   return (
-    <aside className="agent-window" aria-label={L("Agent")} ref={window_}>
-      <header className="agent-window-head">
-        <h2 className="agent-window-title">{L("Agent")}</h2>
+    <section className="agent-window" aria-label={L("Agent")} ref={window_}>
+      <DockPanelHeader
+        glyph={<AgentGlyph connected={state.connections > 0} />}
+        title={L("Agent")}
+        closeLabel={L("Close the Agent")}
+        onClose={() => agentService.setWindowOpen(false)}
+      >
         <span
           className={
             state.failure === undefined ? "agent-window-status" : "agent-window-status agent-bad"
           }
           role="status"
+          title={status}
         >
           {status}
         </span>
-        <CloseButton label={L("Close")} onClick={() => agentService.setWindowOpen(false)} />
-      </header>
+      </DockPanelHeader>
       <nav className="agent-pages" aria-label={L("Page")}>
         {PAGES.map((one) => (
           <button
@@ -141,7 +186,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
             type="button"
             className="agent-page-button"
             aria-pressed={page === one}
-            onClick={() => setPage(one)}
+            onClick={() => choosePage(one)}
           >
             {pageTitle(one)}
           </button>
@@ -178,73 +223,77 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           onKeyDown={walk}
         />
       ) : null}
-      <AgentList listRef={list} hidden={page !== "log"} onKeyDown={walk}>
-        <table className="agent-table" aria-label={L("Log")}>
-          <thead>
-            <tr>
-              {AGENT_LOG_COLUMNS.map((column) => (
-                <th key={column} className={`agent-cell agent-col-${column}`} scope="col">
-                  {columnTitle(column)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {state.log.map((one) => (
-              <tr key={one.id} className="agent-row" aria-selected={one.id === selected}>
-                {AGENT_LOG_COLUMNS.map((column) => (
-                  <td
-                    key={column}
-                    className={
-                      column === "result" && isProblem(one)
-                        ? `agent-cell agent-col-${column} agent-bad`
-                        : `agent-cell agent-col-${column}`
-                    }
-                    title={
-                      column === "arguments" || column === "result"
-                        ? logText(one, column)
-                        : undefined
-                    }
-                  >
-                    {column === "time" ? (
-                      // The row is chosen through its first cell's button, which covers the row.
-                      <button
-                        type="button"
-                        className="agent-row-button"
-                        onClick={() => setSelected(one.id)}
+      {/* Kept while another page is up, hidden, so the log keeps its place and follows. */}
+      <AgentSplit
+        name="log"
+        hidden={page !== "log"}
+        list={
+          <AgentList listRef={list} keyTable onKeyDown={walk}>
+            <table
+              className="agent-table"
+              aria-label={L("Log")}
+              style={{ minWidth: agentTableMinWidth(log.columns, log.kept) }}
+            >
+              <AgentTableHead
+                columns={log.columns}
+                kept={log.kept}
+                cellClass={(id) => `agent-col-${id}`}
+              />
+              <tbody>
+                {state.log.map((one) => (
+                  <tr key={one.id} className="agent-row" aria-selected={one.id === selected}>
+                    {AGENT_LOG_COLUMNS.map((column) => (
+                      <td
+                        key={column}
+                        className={
+                          column === "result" && isProblem(one)
+                            ? `agent-cell agent-col-${column} agent-bad`
+                            : `agent-cell agent-col-${column}`
+                        }
+                        title={
+                          column === "arguments" || column === "result"
+                            ? logText(one, column)
+                            : undefined
+                        }
                       >
-                        {logText(one, column)}
-                      </button>
-                    ) : (
-                      logText(one, column)
-                    )}
-                  </td>
+                        {column === "time" ? (
+                          // The row is chosen through its first cell's button, which covers the row.
+                          <button
+                            type="button"
+                            className="agent-row-button"
+                            onClick={() => setSelected(one.id)}
+                          >
+                            {logText(one, column)}
+                          </button>
+                        ) : (
+                          logText(one, column)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </AgentList>
-      {/* help: window.agent.details */}
-      <div className="agent-details" aria-live="polite" hidden={page !== "log"}>
-        {record === undefined ? (
-          <p className="agent-placeholder">{L("Select a request to see all of it.")}</p>
-        ) : (
-          <>
-            <h3 className="agent-details-title">{record.tool}</h3>
-            <dl className="agent-fields">
-              {detailFields(record).map((field) => (
-                <div key={field.label} className="agent-field">
-                  <dt>{field.label}</dt>
-                  <dd className={field.isProblem ? "agent-bad" : undefined}>{field.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <h3 className="agent-details-title">{L("Arguments")}</h3>
-            <pre className="agent-arguments">{argumentsText(record)}</pre>
-          </>
-        )}
-      </div>
+              </tbody>
+            </table>
+          </AgentList>
+        }
+        details={
+          // help: window.agent.details
+          <ToolDetail
+            subject={record === undefined ? undefined : String(record.id)}
+            detail={record === undefined ? EMPTY_DETAIL : requestDetail(record)}
+            placeholder={L("Select a request to see all of it.")}
+            onFocusTable={() => list.current?.focus()}
+            after={
+              record === undefined ? null : (
+                <>
+                  <h3 className="tool-detail-title">{L("Arguments")}</h3>
+                  <pre className="agent-arguments">{argumentsText(record)}</pre>
+                </>
+              )
+            }
+          />
+        }
+      />
       <footer className="agent-window-foot">
         {/* help: window.agent.follow */}
         <label
@@ -319,8 +368,22 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           </button>
         )}
       </footer>
-    </aside>
+    </section>
   );
+}
+
+/**
+ * A request as the details list shows it: the tool for a title, and every field whole, the
+ * result's sentence in the colour of a problem when it is one.
+ *
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showDetails
+ */
+function requestDetail(record: Parameters<typeof detailFields>[0]): NodeDetail {
+  return {
+    title: record.tool,
+    fields: detailFields(record).map((one) => field(one.label, one.value, one.isProblem)),
+    tables: [],
+  };
 }
 
 /** The pages of the window. @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.Page */

@@ -64,6 +64,7 @@ import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
 import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
 import { PaneDropBands, type PaneDropRegion } from "@/ui/drag/PaneDropBands";
 import { setPaneDragImage } from "@/ui/drag/paneDragImage";
+import { DockPanelControls } from "@/ui/fragments/DockPanelHeader";
 import { DocumentIcon } from "@/ui/pane/DocumentIcon";
 import {
   AUTOSCROLL_INTERVAL_MS,
@@ -94,8 +95,6 @@ import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
 import { remeasuredTop, scrollLink } from "@/ui/pane/scrollLink";
 import { SearchResults } from "@/ui/search/SearchResults";
-import { CloseButton } from "@/ui/shell/CloseButton";
-import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 
 /**
@@ -2098,40 +2097,16 @@ export function HexPane({
         )}
         {/* The chrome's two marks sit at the trailing edge; the name and the
           link it carries stay together at the leading one, six pixels apart,
-          where upstream pins the link to the title's trailing anchor. */}
-        <span className="pane-header-gap" aria-hidden="true" />
-        {onCollapse === undefined ? null : (
-          /*
-           * Folds the panel into its pill. Upstream's own note on this button
-           * says why it is here rather than only on the gesture: "a gesture is
-           * not discoverable and, in the web edition, not there at all".
-           *
-           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseButton
-           * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseTapped
-           */
-          <button
-            type="button"
-            className="pane-collapse"
-            title={L("Collapse into the dock")}
-            aria-label={L("Collapse panel")}
-            onClick={onCollapse}
-          >
-            <svg
-              viewBox="0 0 8 5"
-              width="9"
-              height="6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <ChevronShapes />
-            </svg>
-          </button>
-        )}
-        <CloseButton label={L("Close %1$@", label)} onClick={onClose} />
+          where upstream pins the link to the title's trailing anchor. The ⌄ is
+          set on a part's pane only: a pane of the workspace has nothing to fold
+          into, which is upstream's own rule (`onCollapse` puts it there).
+          @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseButton
+          @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.collapseTapped */}
+        <DockPanelControls
+          closeLabel={L("Close %1$@", label)}
+          onClose={onClose}
+          onCollapse={onCollapse}
+        />
       </header>
     </>
   );

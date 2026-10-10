@@ -209,9 +209,9 @@ export function FragmentPanel({
     };
   }, [folding, pill]);
 
-  // The panel is pulled down by its header — the pane's own, the tool's, or the help book's bar —
+  // The panel is pulled down by its header — the pane's own, the tool's, or a `DockPanelHeader` —
   // and a pull is told from carrying the pane off by its direction: down, and more down than
-  // sideways. The book's bar is the web's own: upstream's help is a window, not a panel.
+  // sideways. The dock's own header is the web's: upstream's help and Agent are windows, not panels.
   // @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.mouseDragged
   // @upstream ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDownwardDragThresholdPassed
   // @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onHeaderPulledDown
@@ -327,10 +327,11 @@ export function FragmentPanel({
 }
 
 /**
- * The headers a panel is pulled down by: the pane's, the tool panel's and the help book's bar.
- * A press on a control inside one of them is the control's, never a pull.
+ * The headers a panel is pulled down by: the panel's own strip — the pane's bar, or the
+ * `DockPanelHeader` of a panel that is not a pane — and the tool panel's. A press on a control
+ * inside one of them is the control's, never a pull.
  */
-const PULL_HANDLES = ".fragment-panel-head, .tool-panel-head, .help-bar";
+const PULL_HANDLES = ".fragment-panel-head, .tool-panel-head";
 
 /**
  * Where a panel's pill is in the window, which the panel's motion starts and ends at. Nothing

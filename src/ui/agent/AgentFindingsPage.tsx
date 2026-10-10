@@ -1,10 +1,12 @@
-import {
-  AGENT_FINDING_COLUMNS,
-  findingColumnTitle,
-  findingText,
-} from "@/core/agent/agentFindingText";
+import { AGENT_FINDING_COLUMNS, findingText } from "@/core/agent/agentFindingText";
 import type { AgentFinding } from "@/core/agent/agentSurvey";
 import { L } from "@/core/localization/localization";
+import {
+  AgentTableHead,
+  agentTableMinWidth,
+  findingColumns,
+  useAgentColumns,
+} from "@/ui/agent/AgentTableHead";
 
 /**
  * The Findings page of the Agent window: what an agent found, file by file, each a line to check. A
@@ -22,18 +24,19 @@ export function AgentFindingsPage({
   readonly findings: readonly AgentFinding[];
   readonly onShow: (finding: AgentFinding) => void;
 }) {
+  const { columns, kept } = useAgentColumns(findingColumns, "AgentFindingsTable");
   return (
     <div className="agent-log">
-      <table className="agent-table agent-findings" aria-label={L("Findings")}>
-        <thead>
-          <tr>
-            {AGENT_FINDING_COLUMNS.map((column) => (
-              <th key={column} className={`agent-cell agent-finding-col-${column}`} scope="col">
-                {findingColumnTitle(column)}
-              </th>
-            ))}
-          </tr>
-        </thead>
+      <table
+        className="agent-table agent-findings"
+        aria-label={L("Findings")}
+        style={{ minWidth: agentTableMinWidth(columns, kept) }}
+      >
+        <AgentTableHead
+          columns={columns}
+          kept={kept}
+          cellClass={(id) => `agent-finding-col-${id}`}
+        />
         <tbody>
           {findings.map((finding) => (
             <tr key={finding.id} className="agent-row" onDoubleClick={() => onShow(finding)}>

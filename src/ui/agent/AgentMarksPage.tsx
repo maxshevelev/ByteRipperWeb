@@ -1,7 +1,13 @@
-import { AGENT_MARK_COLUMNS, markColumnTitle, markText } from "@/core/agent/agentMarkText";
+import { AGENT_MARK_COLUMNS, markText } from "@/core/agent/agentMarkText";
 import { L } from "@/core/localization/localization";
 import type { LocatedMark } from "@/state/agent/agentMarkTools";
 import { AgentList } from "@/ui/agent/AgentList";
+import {
+  AgentTableHead,
+  agentTableMinWidth,
+  markColumns,
+  useAgentColumns,
+} from "@/ui/agent/AgentTableHead";
 
 /**
  * The Marks page of the Agent window: every mark an agent left, in every open document, with what
@@ -28,18 +34,15 @@ export function AgentMarksPage({
   readonly onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
 }) {
   const all = marks.map((one) => one.mark);
+  const { columns, kept } = useAgentColumns(markColumns, "AgentMarksTable");
   return (
     <AgentList onKeyDown={onKeyDown}>
-      <table className="agent-table agent-marks" aria-label={L("Marks")}>
-        <thead>
-          <tr>
-            {AGENT_MARK_COLUMNS.map((column) => (
-              <th key={column} className={`agent-cell agent-mark-col-${column}`} scope="col">
-                {markColumnTitle(column)}
-              </th>
-            ))}
-          </tr>
-        </thead>
+      <table
+        className="agent-table agent-marks"
+        aria-label={L("Marks")}
+        style={{ minWidth: agentTableMinWidth(columns, kept) }}
+      >
+        <AgentTableHead columns={columns} kept={kept} cellClass={(id) => `agent-mark-col-${id}`} />
         <tbody>
           {marks.map(({ mark, place }) => (
             <tr

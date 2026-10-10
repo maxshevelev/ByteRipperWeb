@@ -10,8 +10,9 @@
  *
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController
- * @upstream-differs a panel in the dock rather than a window, and the outline
- * is a column that collapses rather than a sidebar that is always there
+ * @upstream-differs a panel in the dock rather than a window, wearing the dock's
+ * header (`DockPanelHeader`), and the outline is a column that collapses rather
+ * than a sidebar that is always there
  */
 
 import { useEffect, useRef } from "react";
@@ -47,13 +48,11 @@ import {
 } from "@/state/helpStore";
 import { showNotice } from "@/state/noticeStore";
 import { useStore } from "@/state/useStore";
-import { foldParts } from "@/state/workspaceStore";
+import { DockPanelHeader, HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { HelpBlocks } from "@/ui/help/HelpBlocks";
 import { helpNameOf, plainHelpName } from "@/ui/help/helpNames";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { LinkShapes } from "@/ui/pane/linkGlyphs";
-import { CloseButton } from "@/ui/shell/CloseButton";
-import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 
 /**
  * The chord a reader on this keyboard types — what a search over the book
@@ -72,15 +71,19 @@ export function HelpPanel() {
   const state = useStore(helpStore);
   const { book, query } = state;
   const here = helpHere(state);
-  const search = useRef<HTMLInputElement>(null);
+  const searchFocused = useRef(false);
   const page = useRef<HTMLDivElement>(null);
 
   // The keyboard lands in the search field when the panel opens: it is the one
   // control that is useful before the reader has decided anything, and a field
-  // that has to be clicked first is a field nobody uses on a bench.
-  useEffect(() => {
-    search.current?.focus();
-  }, []);
+  // that has to be clicked first is a field nobody uses on a bench. Once it is
+  // there: the header is laid in the panel's strip, which is there a render
+  // after the panel is.
+  const focusSearchOnce = (field: HTMLInputElement | null) => {
+    if (field === null || searchFocused.current) return;
+    searchFocused.current = true;
+    field.focus();
+  };
 
   // A new page starts at its top. Without this the reader who followed a link
   // from the foot of a long page lands in the middle of the next one, looking
@@ -96,7 +99,12 @@ export function HelpPanel() {
 
   return (
     <section className="help-panel" aria-label={L("Help", { context: "panel" })}>
-      <header className="help-bar">
+      <DockPanelHeader
+        glyph={<HelpGlyph />}
+        title={book === undefined ? L("Help", { context: "panel" }) : whereAmI(book, here)}
+        closeLabel={L("Close the help")}
+        onClose={closeHelp}
+      >
         <div className="help-history">
           <button
             type="button"
@@ -127,11 +135,8 @@ export function HelpPanel() {
         >
           {L("Contents")}
         </button>
-        <h2 className="help-where">
-          {book === undefined ? L("Help", { context: "panel" }) : whereAmI(book, here)}
-        </h2>
         <input
-          ref={search}
+          ref={focusSearchOnce}
           type="search"
           className="help-search"
           value={query}
@@ -162,33 +167,7 @@ export function HelpPanel() {
             </svg>
           </button>
         ) : null}
-        <button
-          type="button"
-          className="help-fold"
-          onClick={foldParts}
-          aria-label={L("Fold the help down")}
-          title={L("Fold the help down")}
-        >
-          {/* Drawn, not typed: a "⌄" character sits wherever the platform's
-              font puts it — centred on a Mac's, at the foot of the line in
-              Safari's and in Windows' fonts — where these lines are the panes'
-              own fold mark, centred everywhere. */}
-          <svg
-            viewBox="0 0 8 5"
-            width="9"
-            height="6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <ChevronShapes />
-          </svg>
-        </button>
-        <CloseButton label={L("Close the help")} onClick={closeHelp} />
-      </header>
+      </DockPanelHeader>
 
       <div className="help-body" data-contents={state.contentsOpen ? "" : undefined}>
         {book === undefined ? null : <Contents book={book} here={here} />}

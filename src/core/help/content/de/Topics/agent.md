@@ -1,4 +1,4 @@
-@source-sha 381d059f705376fbc71357a7648e1a78376eccc4819004cad7f0c64870475a58
+@source-sha 56b52e548137f937aa71beeb60f8a0c5191c274922d3771c3771282810b58169
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -92,6 +92,8 @@ Jede Änderung des Agenten bildet einen eigenen Schritt im Widerrufen-Verlauf de
 ## Das Agentenfenster
 
 **Fenster ▸ Agent** zeigt, ob der Dienst läuft, und enthält vier Listen. Solange der Dienst eingeschaltet ist, befindet sich in der Symbolleiste zwischen **?** und dem Umschalter für die Anordnung der Bereiche eine Taste für dieses Fenster; sie öffnet das Fenster als Feld über den Bereichen, mit einer Pille im Dock am unteren Rand, wie bei der Hilfe, und schließt es, solange es oben steht. Wird das Feld eingeklappt (**Esc** oder die Pille), bleibt die Pille stehen und das Fenster ist einen Klick entfernt; das ✕ an der Pille schließt es. Die Tastatur wirkt danach auf die Liste der angezeigten Seite; die Pfeiltasten bewegen die Auswahl durch ihre Zeilen. Beim Wechsel auf eine andere Seite geht die Tastatur auf deren Liste über.
+
+Die Kopfzeile des Felds ist dieselbe wie bei jedem Feld im Dock: **⌄** klappt das Feld in seine Pille ein, und an der Kopfzeile lässt es sich nach unten in die Pille ziehen. Die Spalten aller Listen werden breiter oder schmaler, wenn die Grenze zwischen ihren Überschriften gezogen wird; ein Doppelklick auf die Grenze stellt die ursprünglichen Breiten wieder her. Die Breiten bleiben auch nach dem Beenden des Programms erhalten. Auf den Seiten **Protokoll** und **Werkzeuge** lassen sich die Details unter der Liste [[topic:tools-overview|groß anzeigen]] wie in einem Werkzeugbereich: Die **Leertaste** in der Liste oder die Schaltfläche zum Vergrößern in der Ecke der Details zeigt sie in einer großen Ansicht rechts im Fenster. Solange die Ansicht offen ist, bewegen die Pfeiltasten weiterhin die Auswahl in der Liste, und die Ansicht zeigt die ausgewählte Zeile; **Leertaste** oder **Esc** schließt sie.
 
 **Protokoll** verzeichnet jede Anfrage des Agenten mit Uhrzeit, Werkzeug, den Argumenten in der vom Agenten übergebenen Form, Antwortzeit, Größe der Antwort und Ergebnis. Abgelehnte Anfragen sind rot dargestellt, zusammen mit dem Grund, der dem Agenten mitgeteilt wurde.
 

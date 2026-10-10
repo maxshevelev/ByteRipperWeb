@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { HelpTermId } from "@/core/help/helpIds";
 import { termLink } from "@/core/help/helpIds";
@@ -55,6 +55,7 @@ export function ToolDetail({
   onSelectNode,
   onOutlineRange,
   onFocusTable,
+  after,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -90,6 +91,15 @@ export function ToolDetail({
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.attach
    */
   readonly onFocusTable?: (() => void) | undefined;
+  /**
+   * What the list says after its rows, tables and picture, in the pane and the card alike: the
+   * Agent window's request has its arguments as JSON, a tool its description and its schema.
+   *
+   * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showDetails
+   * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.showDetails
+   * @upstream-differs upstream adds its views to the list's stack; here they are handed in
+   */
+  readonly after?: ReactNode;
 }) {
   const open = useStore(largeDetailStore).open;
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
@@ -148,7 +158,7 @@ export function ToolDetail({
   // The panel going away takes its large view with it.
   useEffect(() => () => closeLargeDetail(), []);
 
-  const bodyProps = { detail, placeholder, helpTerm, subject };
+  const bodyProps = { detail, placeholder, helpTerm, subject, after };
   const selecting = detailSelectionHandlers();
   return (
     // Space in the details opens the large view, and hands the focus to the table, so
@@ -327,6 +337,7 @@ function LargeDetailCard({
   placeholder,
   helpTerm,
   subject,
+  after,
   hasRows,
   onSelectNode,
   onOutlineRange,
@@ -339,6 +350,7 @@ function LargeDetailCard({
   readonly placeholder: string;
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
+  readonly after: ReactNode;
   readonly hasRows: boolean;
   /** The reader closed it: it is folding back into the pane, and is no longer theirs. */
   readonly closing: boolean;
@@ -360,8 +372,14 @@ function LargeDetailCard({
     undefined
   );
   useLayoutEffect(() => {
+    // The tool panel the table is in — and none for a table that is in none, the Agent window's:
+    // the card then has the window's width to stand in, as upstream's does in a window with no
+    // tool panel.
+    const keyTable = largeDetailKeyTable();
     const panel =
-      largeDetailKeyTable()?.closest(".tool-panel") ?? document.querySelector(".tool-panel");
+      keyTable === undefined
+        ? document.querySelector(".tool-panel")
+        : keyTable.closest(".tool-panel");
     const place = () => {
       const edges = panel?.getBoundingClientRect();
       // The top is the file pane's header's, not the window's: the toolbar is above it.
@@ -499,7 +517,8 @@ function LargeDetailCard({
     // Anywhere outside the card: closed, and the click carries on to what it was for.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     // A click anywhere in the tool panel — a row, a node's triangle, a menu, the search,
-    // the legend — leaves it open; one beside both still closes it, and still does what it
+    // the legend — or in another owner of a details pane (`data-detail-owner`, the Agent
+    // window's list) leaves it open; one beside both still closes it, and still does what it
     // was aimed at.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     const onPointer = (event: PointerEvent) => {
@@ -509,7 +528,7 @@ function LargeDetailCard({
         return;
       }
       if (cardRef.current?.contains(target) === true) return;
-      if (target.closest(".tool-panel, [role=menu]") !== null) return;
+      if (target.closest(".tool-panel, [data-detail-owner], [role=menu]") !== null) return;
       onClose();
     };
     // The card does not keep the keyboard: a click in it selects text and leaves the
@@ -587,6 +606,7 @@ function LargeDetailCard({
         placeholder={placeholder}
         helpTerm={helpTerm}
         subject={subject}
+        after={after}
         onSelectNode={onSelectNode}
         onOutlineRange={onOutlineRange}
       />
@@ -604,6 +624,7 @@ function DetailBody({
   placeholder,
   helpTerm,
   subject,
+  after,
   onSelectNode,
   onOutlineRange,
 }: {
@@ -611,6 +632,7 @@ function DetailBody({
   readonly placeholder: string;
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
+  readonly after?: ReactNode;
   readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
   readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
 }) {
@@ -695,6 +717,7 @@ function DetailBody({
             <PicturePreview bytes={detail.picture.bytes} mime={detail.picture.mime} />
           )}
           {detail.sound === undefined ? null : <SoundPlayer bytes={detail.sound} />}
+          {after}
         </div>
       )}
     </>

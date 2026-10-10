@@ -12,11 +12,17 @@ export function AgentList({
   children,
   hidden,
   listRef,
+  keyTable = false,
   onKeyDown,
 }: {
   readonly children: ReactNode;
   readonly hidden?: boolean;
   readonly listRef?: Ref<HTMLDivElement>;
+  /**
+   * The list has details under it: the large view hands it the arrow keys while it is open
+   * (`data-key-table`, `largeDetailStore`).
+   */
+  readonly keyTable?: boolean;
   readonly onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 }) {
   return (
@@ -27,6 +33,7 @@ export function AgentList({
       hidden={hidden}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the keyboard surface of the page's list
       tabIndex={0}
+      data-key-table={keyTable ? "" : undefined}
       onKeyDown={onKeyDown}
     >
       {children}

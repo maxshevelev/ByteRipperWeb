@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * The columns of a tool panel's table: how wide each one is, how far it gives
@@ -14,10 +14,12 @@ import { useCallback, useState } from "react";
  * column cannot be dragged at all, whatever `allowsColumnResizing` says".
  *
  * The widths live here and nowhere else: they are what the panel is showing
- * now. Upstream keeps them in the view controller and persists none of them —
- * no `autosaveName`, no defaults key anywhere in the repository — so a width a
- * reader drags is theirs while the panel is on screen, and a table built again
- * starts from the design.
+ * now. Upstream keeps a tool panel's in the view controller and persists none
+ * of them, so a width a reader drags is theirs while the panel is on screen,
+ * and a table built again starts from the design. The Agent window's tables are
+ * the exception upstream makes — `keepColumnWidths(of:as:)` gives each an
+ * `autosaveName` — and a table given a name here is kept the same way
+ * (`keptWidths`).
  *
  * Ported from `Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift`.
  */
@@ -146,6 +148,41 @@ export function draggedWidth(
   return clampColumnWidth(start + sign * delta, column);
 }
 
+/** Where a kept table's widths are stored: one key per table, as an `autosaveName` is. */
+export const keptWidthsKey = (name: string): string => `ColumnWidths ${name}`;
+
+/**
+ * The widths a kept table starts from: the stored ones that still name a column of it and are a
+ * number, clamped to that column's range, and the design's for the rest. A column the table no
+ * longer has is forgotten, and one it has gained starts from its design width — what AppKit's
+ * autosave does with a stored column it cannot find.
+ *
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#keepColumnWidths
+ */
+export function keptWidths(
+  columns: readonly TableColumn[],
+  stored: unknown
+): Record<string, number> {
+  const widths = designWidths(columns);
+  if (typeof stored !== "object" || stored === null) return widths;
+  for (const column of columns) {
+    const value = (stored as Record<string, unknown>)[column.id];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      widths[column.id] = clampColumnWidth(value, column);
+    }
+  }
+  return widths;
+}
+
+function readKept(name: string, columns: readonly TableColumn[]): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(keptWidthsKey(name));
+    return keptWidths(columns, raw === null ? undefined : JSON.parse(raw));
+  } catch {
+    return designWidths(columns);
+  }
+}
+
 /** A table's column widths, and the two things a reader can do to them. */
 export interface ColumnWidths {
   /** Width by column id. A column the reader has not dragged is at its design width. */
@@ -157,17 +194,32 @@ export interface ColumnWidths {
 }
 
 /**
- * A table's widths, kept for as long as its panel is on screen.
+ * A table's widths, kept for as long as its panel is on screen — and between
+ * launches, when the table is given a name to keep them under (`keepAs`).
  *
  * `columns` is expected to be a module constant: it seeds the state once, and a
  * fresh array each render would be a spec that changed without the widths
  * following it.
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable
- * @upstream-differs a hook, where upstream keeps the widths on the view controller
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#keepColumnWidths
+ * @upstream-differs a hook, where upstream keeps the widths on the view controller, and a key in
+ * the page's storage where upstream names the table's `autosaveName`
  */
-export function useColumnWidths(columns: readonly TableColumn[]): ColumnWidths {
-  const [widths, setWidths] = useState<Record<string, number>>(() => designWidths(columns));
+export function useColumnWidths(columns: readonly TableColumn[], keepAs?: string): ColumnWidths {
+  const [widths, setWidths] = useState<Record<string, number>>(() =>
+    keepAs === undefined ? designWidths(columns) : readKept(keepAs, columns)
+  );
+  // Every change is written as it is made, the way an autosaved table writes its columns: a page
+  // closed in the middle of a session keeps what was dragged before it.
+  useEffect(() => {
+    if (keepAs === undefined) return;
+    try {
+      localStorage.setItem(keptWidthsKey(keepAs), JSON.stringify(widths));
+    } catch {
+      // Storage refused: the widths last for the session, as an unnamed table's do.
+    }
+  }, [keepAs, widths]);
 
   const resize = useCallback(
     (id: string, width: number) => {

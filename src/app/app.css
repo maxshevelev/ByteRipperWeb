@@ -5152,6 +5152,12 @@ button.uefi-title {
   min-width: 0;
 }
 
+/* A dock panel's name is a heading, in a part's name's type. */
+.dock-panel-title {
+  margin: 0;
+  font-size: inherit;
+}
+
 .fragment-panel > .fragment-panel-head .pane-name {
   color: var(--text);
   font-weight: 700;
@@ -5159,6 +5165,28 @@ button.uefi-title {
 
 .fragment-panel > .fragment-panel-head .pane-document {
   color: var(--text);
+}
+
+/* The header of a dock panel that is not a pane (`ui/fragments/DockPanelHeader`): a part's
+   bar, with the pill's glyph where the document icon is, and the panel's own controls between
+   the name and the marks — sized to the bar, so every panel's header is one height. */
+.dock-panel-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  color: var(--text);
+}
+
+.dock-panel-glyph svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
 }
 
 /* Without its title bar the pane's rows are the column header, the dump, the results
@@ -5242,6 +5270,18 @@ button.uefi-title {
   stroke-linejoin: round;
 }
 
+/* A glyph drawn elsewhere at its own size — the toolbar's Agent — brought to the pill's. */
+.fragment-pill-icon {
+  display: grid;
+  place-items: center;
+}
+
+.fragment-pill-icon svg {
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+
 /* A dot, not a word: the pill has room for a name and no more. */
 .fragment-pill-dot {
   flex: none;
@@ -5267,21 +5307,13 @@ button.uefi-title {
    ============================================================================ */
 
 .help-panel {
+  grid-row: 2;
   grid-column: 1 / -1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  /* The bar is the dock's header, in the panel's strip above (`DockPanelHeader`). */
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   background: var(--surface);
-}
-
-/* The bar: where the reader is, how they got here, and the two ways out. */
-.help-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-raised);
 }
 
 .help-history {
@@ -5290,7 +5322,6 @@ button.uefi-title {
 }
 
 .help-step,
-.help-fold,
 .help-contents-toggle {
   border: 1px solid transparent;
   border-radius: 6px;
@@ -5304,14 +5335,7 @@ button.uefi-title {
 
 /* The fold is a drawn mark, centred by the box rather than by a line of text:
    an inline SVG sits on the baseline, and the room below it for descenders
-   would carry it down again. The height matches the steps' beside it. */
-.help-fold {
-  display: grid;
-  place-items: center;
-  min-height: 26px;
-}
-
-.help-fold svg,
+   would carry it down again. */
 .pane-collapse svg {
   display: block;
 }
@@ -5341,18 +5365,6 @@ button.uefi-title {
   display: none;
 }
 
-.help-where {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .help-search {
   flex: 0 1 220px;
   min-width: 90px;
@@ -5364,6 +5376,21 @@ button.uefi-title {
   color: var(--text);
   font: inherit;
   font-size: 12px;
+}
+
+/* The book's controls in the dock's header, sized to its one height (`DockPanelHeader`). */
+.dock-panel-header .help-step,
+.dock-panel-header .help-contents-toggle {
+  padding: 1px 6px;
+}
+
+.dock-panel-header .help-step {
+  min-width: 22px;
+  font-size: 15px;
+}
+
+.dock-panel-header .help-search {
+  height: 18px;
 }
 
 .help-body {
@@ -5908,17 +5935,18 @@ body[data-pulling-panel] * {
 }
 
 .fragment-panel > .fragment-panel-head,
-.fragment-panel .tool-panel-head,
-.fragment-panel .help-bar {
+.fragment-panel .tool-panel-head {
   touch-action: none;
 }
 
 /* ── The Agent window ─────────────────────────────────────────────────── */
 
 .agent-window {
+  /* Under the dock's header, which is in the panel's strip above (`DockPanelHeader`). */
+  grid-row: 2;
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   background: var(--surface);
@@ -5926,22 +5954,11 @@ body[data-pulling-panel] * {
   font-size: 12px;
 }
 
-.agent-window-head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 6px 8px 6px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.agent-window-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .agent-window-status {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 4px;
+  font-weight: 400;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5956,6 +5973,27 @@ body[data-pulling-panel] * {
   flex: 2 1 0;
   min-height: 4rem;
   overflow: auto;
+  /* No ring when a list takes the keyboard, as a tool panel's table has none: the selected
+     row says where the arrows go. */
+  outline: none;
+}
+
+/* A page with details (`ui/agent/AgentSplit`): the tool panels' split — the list, the divider,
+   the details pane — with the list framed as a panel's table is. */
+.agent-split {
+  flex: 1 1 0;
+  padding: 6px 10px 0;
+}
+
+.agent-split[hidden] {
+  display: none;
+}
+
+.agent-split > .agent-log {
+  grid-area: a;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
 }
 
 .agent-table {
@@ -5967,14 +6005,18 @@ body[data-pulling-panel] * {
 .agent-table th {
   position: sticky;
   top: 0;
-  padding: 2px 10px;
+  /* Over the rows that scroll under it: a row is positioned too (its button covers it), and
+     would otherwise be painted over the head. */
+  z-index: 2;
+  /* An AppKit table's cell inset, so a column at upstream's width holds its title. */
+  padding: 2px 6px;
   background: var(--surface-raised);
   font-weight: 600;
   text-align: left;
 }
 
 .agent-table td {
-  padding: 2px 10px;
+  padding: 2px 6px;
   border-bottom: 1px solid var(--grid-line);
 }
 
@@ -6002,20 +6044,6 @@ body[data-pulling-panel] * {
   inset: 0;
 }
 
-.agent-col-time,
-.agent-col-duration,
-.agent-col-size {
-  width: 4.5rem;
-}
-
-.agent-col-tool {
-  width: 8rem;
-}
-
-.agent-col-result {
-  width: 9rem;
-}
-
 .agent-cell {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6025,44 +6053,6 @@ body[data-pulling-panel] * {
 .agent-col-arguments,
 .agent-arguments {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-.agent-details {
-  flex: 1.4 1 0;
-  min-height: 3rem;
-  overflow: auto;
-  padding: 6px 12px;
-  border-top: 1px solid var(--border);
-}
-
-.agent-placeholder {
-  margin: 0;
-  color: var(--text-faint);
-}
-
-.agent-details-title {
-  margin: 0 0 4px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.agent-fields {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 2px 12px;
-  margin: 0 0 8px;
-}
-
-.agent-field {
-  display: contents;
-}
-
-.agent-field dt {
-  color: var(--text-muted);
-}
-
-.agent-field dd {
-  margin: 0;
 }
 
 .agent-arguments {
@@ -6083,12 +6073,7 @@ body[data-pulling-panel] * {
   background: var(--selection);
 }
 
-.agent-mark-col-id {
-  width: 3rem;
-}
-
 .agent-mark-col-range {
-  width: 9rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -6104,11 +6089,6 @@ body[data-pulling-panel] * {
   flex: 1;
 }
 
-.agent-log:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--selection));
-  outline-offset: -2px;
-}
-
 /* A section of the Tools page: the heading is not a row anyone chooses. */
 .agent-table .agent-section th {
   top: 0;
@@ -6118,12 +6098,7 @@ body[data-pulling-panel] * {
 }
 
 .agent-tools .agent-tool-col-tool {
-  width: 11rem;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-.agent-tools .agent-tool-col-kind {
-  width: 6.5rem;
 }
 
 .agent-tools .agent-tool-col-calls,
@@ -6138,4 +6113,10 @@ body[data-pulling-panel] * {
 .agent-description {
   margin: 0 0 8px;
   user-select: text;
+}
+
+/* The JSON under a request's or a tool's fields, in the details pane and the large view. */
+.tool-detail .agent-arguments,
+.tool-detail .agent-description {
+  margin: 0 0 8px;
 }

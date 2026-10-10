@@ -1,6 +1,8 @@
 import { L } from "@/core/localization/localization";
 import type { PanelId } from "@/state/fragmentDock";
+import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { CloseButton } from "@/ui/shell/CloseButton";
+import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 
 /**
  * The dock along the bottom of the workspace: one pill per fragment panel the
@@ -55,6 +57,13 @@ export interface DockItem {
    * @web-only upstream's book and Agent are windows and never reach a dock
    */
   readonly kind?: "part" | "help" | "agent";
+  /**
+   * For the Agent's pill: whether an agent is connected, which its glyph says as the toolbar
+   * button's does — the corners filled.
+   *
+   * @web-only upstream's Agent is a window and never reaches a dock
+   */
+  readonly connected?: boolean;
 }
 
 /**
@@ -90,20 +99,12 @@ function FragmentPill({
         aria-pressed={item.isUp}
       >
         {item.kind === "help" ? (
-          // A question mark in a circle: the sign the `?` buttons wear, so the
-          // pill the book waits in is recognisably the same thing they open.
-          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.2" />
-            <path d="M6.1 6.1a1.9 1.9 0 1 1 2.5 1.8c-.5.2-.8.6-.8 1.1v.4" />
-            <circle cx="7.8" cy="11.6" r="0.75" />
-          </svg>
+          <HelpGlyph className="fragment-pill-glyph" />
         ) : item.kind === "agent" ? (
-          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-            <rect x="2.5" y="4.5" width="11" height="8" rx="2" />
-            <path d="M8 4.5V2.5" />
-            <circle cx="6" cy="8.5" r="0.75" />
-            <circle cx="10" cy="8.5" r="0.75" />
-          </svg>
+          // The toolbar button's own glyph, so the pill is recognisably what that button opened.
+          <span className="fragment-pill-glyph fragment-pill-icon">
+            <AgentGlyph connected={item.connected === true} />
+          </span>
         ) : (
           /* Upstream's `doc` symbol. The part is a document like any other, and
              the pill is where it waits. */

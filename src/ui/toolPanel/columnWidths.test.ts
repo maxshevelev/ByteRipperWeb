@@ -6,6 +6,7 @@ import {
   columnTemplate,
   designWidths,
   draggedWidth,
+  keptWidths,
   type TableColumn,
 } from "@/ui/toolPanel/columnWidths";
 
@@ -117,5 +118,27 @@ describe("draggedWidth", () => {
     const type = UEFI[1] as TableColumn;
     expect(draggedWidth(76, 20, type, -1)).toBe(56);
     expect(draggedWidth(76, -20, type, -1)).toBe(96);
+  });
+});
+
+describe("the widths a kept table starts from", () => {
+  // @upstream ByteRipperApp/Agent/AgentWindowController.swift#keepColumnWidths
+  it("is the design's when nothing was kept", () => {
+    expect(keptWidths(UEFI, undefined)).toEqual(designWidths(UEFI));
+    expect(keptWidths(UEFI, "not a record")).toEqual(designWidths(UEFI));
+  });
+
+  it("takes the kept widths, clamped to each column's range", () => {
+    expect(keptWidths(UEFI, { type: 120, subtype: 10 })).toEqual({
+      name: 300,
+      type: 120,
+      subtype: 64,
+    });
+  });
+
+  it("forgets a column the table no longer has, and a value that is not a width", () => {
+    expect(keptWidths(UEFI, { gone: 500, type: "wide", subtype: Number.NaN })).toEqual(
+      designWidths(UEFI)
+    );
   });
 });

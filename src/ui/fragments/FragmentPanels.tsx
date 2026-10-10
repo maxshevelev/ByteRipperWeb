@@ -62,6 +62,7 @@ export function FragmentPanels({
   readonly onAgentSettings: () => void;
 }) {
   const state = useStore(workspaceStore);
+  const agent = useStore(agentService.store);
   // The pill's dot is about bytes, which the workspace store does not change
   // for — the hook reads them again on every edit anywhere.
   const unreturned = usePartsWithChanges(state.dock.panels.map((id) => partPane(id)));
@@ -108,6 +109,7 @@ export function FragmentPanels({
           ? L("Agent")
           : (state.parts[partPane(id)]?.name ?? ""),
     kind: id === state.helpPanel ? "help" : id === state.agentPanel ? "agent" : "part",
+    connected: id === state.agentPanel && agent.connections > 0,
     isUp: state.dock.expanded === id,
     // The dot is "the parent has not got these bytes", which is the link's
     // question; a part with no link falls back to its own unsaved work, which

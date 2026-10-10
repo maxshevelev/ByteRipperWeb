@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   type AgentToolEntry,
   type AgentToolStats,
@@ -9,7 +10,12 @@ import {
 import { prettyText } from "@/core/agent/json";
 import { L } from "@/core/localization/localization";
 import { friendlySize } from "@/core/text/byteSize";
+import { EMPTY_DETAIL, field } from "@/tools/toolDetail";
 import { AgentList } from "@/ui/agent/AgentList";
+import { AgentSplit } from "@/ui/agent/AgentSplit";
+import { AgentTableHead, agentTableMinWidth, useAgentColumns } from "@/ui/agent/AgentTableHead";
+import type { TableColumn } from "@/ui/toolPanel/columnWidths";
+import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 
 /**
  * The Tools page of the Agent window: every tool an agent is offered, in sections headed by where
@@ -23,8 +29,7 @@ import { AgentList } from "@/ui/agent/AgentList";
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.detailFields
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.rows
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.sectionTitles
- * @upstream-differs a React table: a section's heading is a row no one chooses, and the details are
- * under the list as the log's are
+ * @upstream-differs a React table: a section's heading is a row no one chooses
  */
 
 /** The columns of the table. @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column */
@@ -58,6 +63,31 @@ export function toolColumnTitle(column: AgentToolColumn): string {
       return L("Last Call");
   }
 }
+
+/**
+ * The columns at upstream's widths: the last, Last Call, gives way with the panel.
+ *
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column.width
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.build
+ */
+export const toolColumns = (): readonly TableColumn[] =>
+  AGENT_TOOL_COLUMNS.map((column) => ({
+    id: column,
+    title: toolColumnTitle(column),
+    width: TOOL_COLUMN_WIDTHS[column],
+    min: 36,
+    grows: column === "last",
+  }));
+
+const TOOL_COLUMN_WIDTHS: Readonly<Record<AgentToolColumn, number>> = {
+  tool: 190,
+  kind: 80,
+  calls: 44,
+  failures: 92,
+  average: 60,
+  size: 64,
+  last: 60,
+};
 
 const two = (value: number) => String(value).padStart(2, "0");
 
@@ -130,83 +160,93 @@ export function AgentToolsPage({
 }) {
   const sections = sectionsOf(entries);
   const entry = entries.find((one) => one.tool.name === chosen);
+  const { columns, kept } = useAgentColumns(toolColumns, "AgentToolsTable");
+  const list = useRef<HTMLDivElement>(null);
   return (
-    <>
-      <AgentList onKeyDown={onKeyDown}>
-        <table className="agent-table agent-tools" aria-label={L("Tools")}>
-          <thead>
-            <tr>
-              {AGENT_TOOL_COLUMNS.map((column) => (
-                <th key={column} className={`agent-cell agent-tool-col-${column}`} scope="col">
-                  {toolColumnTitle(column)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          {sections.map((section) => (
-            <tbody key={section.title}>
-              <tr className="agent-section">
-                <th colSpan={AGENT_TOOL_COLUMNS.length} scope="colgroup">
-                  {section.title}
-                </th>
-              </tr>
-              {section.entries.map((one) => (
-                <tr
-                  key={one.tool.name}
-                  className="agent-row"
-                  aria-selected={one.tool.name === chosen}
-                >
-                  {AGENT_TOOL_COLUMNS.map((column) => (
-                    <td
-                      key={column}
-                      className={
-                        column === "failures" && (stats[one.tool.name]?.failures ?? 0) > 0
-                          ? `agent-cell agent-tool-col-${column} agent-bad`
-                          : `agent-cell agent-tool-col-${column}`
-                      }
-                    >
-                      {column === "tool" ? (
-                        <button
-                          type="button"
-                          className="agent-row-button agent-tool-name"
-                          onClick={() => onChoose(one.tool.name)}
-                        >
-                          {one.tool.name}
-                        </button>
-                      ) : (
-                        toolText(one, column, stats[one.tool.name])
-                      )}
-                    </td>
-                  ))}
+    <AgentSplit
+      name="tools"
+      list={
+        <AgentList listRef={list} keyTable onKeyDown={onKeyDown}>
+          <table
+            className="agent-table agent-tools"
+            aria-label={L("Tools")}
+            style={{ minWidth: agentTableMinWidth(columns, kept) }}
+          >
+            <AgentTableHead
+              columns={columns}
+              kept={kept}
+              cellClass={(id) => `agent-tool-col-${id}`}
+            />
+            {sections.map((section) => (
+              <tbody key={section.title}>
+                <tr className="agent-section">
+                  <th colSpan={AGENT_TOOL_COLUMNS.length} scope="colgroup">
+                    {section.title}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          ))}
-        </table>
-      </AgentList>
-      <div className="agent-details" aria-live="polite">
-        {entry === undefined ? (
-          <p className="agent-placeholder">
-            {L("Select a tool to see what the agent is told about it.")}
-          </p>
-        ) : (
-          <>
-            <h3 className="agent-details-title">{entry.tool.name}</h3>
-            <dl className="agent-fields">
-              {toolDetailFields(entry, stats[entry.tool.name]).map((field) => (
-                <div key={field.label} className="agent-field">
-                  <dt>{field.label}</dt>
-                  <dd className={field.isProblem ? "agent-bad" : undefined}>{field.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <h3 className="agent-details-title">{L("Description")}</h3>
-            <p className="agent-description">{entry.tool.description}</p>
-            <h3 className="agent-details-title">{L("Arguments")}</h3>
-            <pre className="agent-arguments">{prettyText(entry.tool.inputSchema)}</pre>
-          </>
-        )}
-      </div>
-    </>
+                {section.entries.map((one) => (
+                  <tr
+                    key={one.tool.name}
+                    className="agent-row"
+                    aria-selected={one.tool.name === chosen}
+                  >
+                    {AGENT_TOOL_COLUMNS.map((column) => (
+                      <td
+                        key={column}
+                        className={
+                          column === "failures" && (stats[one.tool.name]?.failures ?? 0) > 0
+                            ? `agent-cell agent-tool-col-${column} agent-bad`
+                            : `agent-cell agent-tool-col-${column}`
+                        }
+                      >
+                        {column === "tool" ? (
+                          <button
+                            type="button"
+                            className="agent-row-button agent-tool-name"
+                            onClick={() => onChoose(one.tool.name)}
+                          >
+                            {one.tool.name}
+                          </button>
+                        ) : (
+                          toolText(one, column, stats[one.tool.name])
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          </table>
+        </AgentList>
+      }
+      details={
+        <ToolDetail
+          subject={entry?.tool.name}
+          detail={
+            entry === undefined
+              ? EMPTY_DETAIL
+              : {
+                  title: entry.tool.name,
+                  fields: toolDetailFields(entry, stats[entry.tool.name]).map((one) =>
+                    field(one.label, one.value, one.isProblem)
+                  ),
+                  tables: [],
+                }
+          }
+          placeholder={L("Select a tool to see what the agent is told about it.")}
+          onFocusTable={() => list.current?.focus()}
+          after={
+            entry === undefined ? null : (
+              <>
+                <h3 className="tool-detail-title">{L("Description")}</h3>
+                <p className="agent-description">{entry.tool.description}</p>
+                <h3 className="tool-detail-title">{L("Arguments")}</h3>
+                <pre className="agent-arguments">{prettyText(entry.tool.inputSchema)}</pre>
+              </>
+            )
+          }
+        />
+      }
+    />
   );
 }
