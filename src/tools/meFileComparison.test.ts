@@ -117,7 +117,7 @@ describe("MEFileComparison", () => {
    * The volume moved the file: other addresses, another order of its stretches,
    * the same bytes. It is the same file, and it says it moved.
    *
-   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testAFileStoredElsewhereIsTheSameAndMoved
+   * @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testAFileStoredElsewhereIsTheSameAndMoved
    */
   it("a file stored elsewhere is the same and moved", () => {
     const content = Array.from({ length: 0x20 }, (_, i) => i);
@@ -163,7 +163,7 @@ describe("MEFileComparison", () => {
    * Bytes that differ are counted over the content; the Integrity table is
    * compared apart, and a table that changed alone leaves the file the same.
    *
-   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testContentAndIntegrityAreComparedApart
+   * @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testContentAndIntegrityAreComparedApart
    */
   it("content and integrity are compared apart", () => {
     const left = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -198,7 +198,7 @@ describe("MEFileComparison", () => {
    * Without the bytes the digests decide; a file of another length differs and
    * no count is given.
    *
-   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testWithoutTheBytesTheDigestsDecide
+   * @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testWithoutTheBytesTheDigestsDecide
    */
   it("without the bytes the digests decide", () => {
     const result = compareMEFiles(
@@ -225,7 +225,7 @@ describe("MEFileComparison", () => {
    * Bytes that are no longer what the analysis read there — the dump was edited
    * since — are not trusted over the digest the analysis made.
    *
-   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testBytesChangedSinceTheAnalysisLeaveItToTheDigests
+   * @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testBytesChangedSinceTheAnalysisLeaveItToTheDigests
    */
   it("bytes changed since the analysis leave it to the digests", () => {
     const result = compareMEFiles(
@@ -239,7 +239,7 @@ describe("MEFileComparison", () => {
     expect(result.rows[0]?.differingBytes).toBeUndefined();
   });
 
-  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testAFileInOneDumpOnlyIsSaidToBe */
+  /** @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testAFileInOneDumpOnlyIsSaidToBe */
   it("a file in one dump only is said to be", () => {
     const result = compareMEFiles(
       analysis({ mfs: [mfsFile(1, [[0, 4]], [1, 2, 3, 4]), mfsFile(5, [[8, 12]], [0, 0, 0, 0])] }),
@@ -252,7 +252,7 @@ describe("MEFileComparison", () => {
   /**
    * A chain that broke off holds only part of the file: no verdict.
    *
-   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testABrokenChainGivesNoVerdict
+   * @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testABrokenChainGivesNoVerdict
    */
   it("a broken chain gives no verdict", () => {
     const result = compareMEFiles(
@@ -269,7 +269,7 @@ describe("MEFileComparison", () => {
    * not listed as missing from that dump; the volume is named as not compared,
    * and the MFS still is.
    *
-   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testAnUnreadableVolumeIsAGapAndNotFilesOnlyInOneDump
+   * @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testAnUnreadableVolumeIsAGapAndNotFilesOnlyInOneDump
    */
   it("an unreadable volume is a gap and not files only in one dump", () => {
     const efsFiles = [
@@ -295,14 +295,14 @@ describe("MEFileComparison", () => {
     expect(result.rows.map((one) => one.volume)).toEqual(["mfs"]);
   });
 
-  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testAVolumeNeitherDumpHasIsNoGap */
+  /** @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testAVolumeNeitherDumpHasIsNoGap */
   it("a volume neither dump has is no gap", () => {
     const result = compareMEFiles(analysis({ mfs: [] }), analysis({ mfs: [] }));
     expect(result.gaps).toEqual([]);
     expect(result.rows).toEqual([]);
   });
 
-  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testAnEFSNotCutIntoFilesIsAGap */
+  /** @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testAnEFSNotCutIntoFilesIsAGap */
   it("an EFS not cut into files is a gap", () => {
     const result = compareMEFiles(analysis({ mfs: [], efs: null }), analysis({ mfs: [], efs: [] }));
     expect(result.gaps).toEqual([{ volume: "efs", inA: true, reason: "filesNotNamed" }]);
@@ -310,7 +310,7 @@ describe("MEFileComparison", () => {
 
   // MARK: - Names
 
-  /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEFileComparison.swift#MEFileComparisonTests.testTheRowsAreNamedByTheFileTableOfEitherDump */
+  /** @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEFileComparisonTests.swift#MEFileComparisonTests.testTheRowsAreNamedByTheFileTableOfEitherDump */
   it("the rows are named by the file table of either dump", () => {
     const table = FileTable.parse(
       '{"04": {"0A": {"FTBL": {"10003500": "/home/mca/manuf_ver,1,0,0,40,0,70,7,448"}}}}'

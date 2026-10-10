@@ -35,9 +35,15 @@ export class MaskedPatternError extends Error {
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern
  */
 export interface MaskedPattern {
-  /** The bytes to match; where `isWild` is true, the byte here is ignored. */
+  /**
+   * The bytes to match; where `isWild` is true, the byte here is ignored.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.bytes
+   */
   readonly bytes: Uint8Array;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.isWild */
   readonly isWild: readonly boolean[];
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.folding */
   readonly folding: CaseFolding;
 }
 

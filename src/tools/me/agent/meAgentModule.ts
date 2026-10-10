@@ -89,7 +89,7 @@ const isFileSystem = (analysis: FirmwareAnalysis): boolean =>
   analysis.efsVolume !== undefined ||
   analysis.regions.some((region) => region.name === "MFS" || region.name === "EFS");
 
-/** @upstream Modules/MEATool/Sources/MEATool/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentComparisons */
+/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.agentComparisons */
 export const meAgentComparisons: readonly ToolAgentComparison[] = [
   {
     name: ME_FILES_COMPARE.name,
@@ -165,7 +165,11 @@ export const meAgentLocator: ToolAgentLocator = {
   },
 };
 
-/** The decoded tree and where the ME region is; nothing for a file the engine could not read. */
+/**
+ * The decoded tree and where the ME region is; nothing for a file the engine could not read.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.region
+ */
 async function rootsOf(
   host: ToolReadHost
 ): Promise<{ roots: MEANode[]; region: { start: number; end: number } } | undefined> {

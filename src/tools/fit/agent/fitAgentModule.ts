@@ -45,7 +45,11 @@ import type {
  * @upstream-differs the reading is the panel's own, from the worker, and the downloads go through the page's catalogue source
  */
 
-/** The table read the way the panel reads it, once the image is. */
+/**
+ * The table read the way the panel reads it, once the image is.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries.read
+ */
 async function tableOf(host: ToolReadHost): Promise<FITReport> {
   await readyFirmware(host.pane);
   const held = heldPaneFit(host.pane);
@@ -117,7 +121,15 @@ function requireMicrocodeRow(entry: number, report: FITReport): void {
   }
 }
 
-/** The worker's plan as a change, or the panel's own sentence for why not. */
+/**
+ * The worker's plan as a change, or the panel's own sentence for why not.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.ground
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.remove
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.replace
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#Result
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#Result.get
+ */
 async function change(
   pane: PaneId,
   edit: Parameters<typeof planPaneFit>[1],
@@ -141,7 +153,12 @@ async function change(
   };
 }
 
-/** @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentQueries */
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentQueries
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries.all
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.queries
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.catalogue
+ */
 export const fitAgentQueries: readonly ToolAgentQuery[] = [
   {
     name: FIT_TABLE.name,
@@ -166,7 +183,14 @@ export const fitAgentQueries: readonly ToolAgentQuery[] = [
   },
 ];
 
-/** @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentEdits */
+/**
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.agentEdits
+ * @upstream Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries.fixChecksum
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.edits
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.add
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.replace
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.remove
+ */
 export const fitAgentEdits: readonly ToolAgentEdit[] = [
   {
     name: "fit_fix_checksum",

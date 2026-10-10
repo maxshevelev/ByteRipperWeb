@@ -1639,6 +1639,8 @@ export function HexPane({
    * Shows a named mark's name while the pointer rests on it.
    *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTooltipTag
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkTooltipTag
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkTooltip
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.view
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmark
    * @upstream-differs a tip element placed over the mark, not a tooltip rect

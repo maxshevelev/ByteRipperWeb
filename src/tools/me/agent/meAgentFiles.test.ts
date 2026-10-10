@@ -137,3 +137,17 @@ describe("me_files_compare's answer", () => {
     expect(member(member(efsOnly, "counts"), "different")).toBe(0);
   });
 });
+
+describe("me_files_compare's extents", () => {
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEAAgentFilesTests.swift#MEAAgentFilesTests.testExtentsAreGivenOnlyWhenAskedFor
+  it("gives a file's extents only when asked for", () => {
+    const comparison = { rows: [row(4, "different")], gaps: [] };
+    const plain = filesAnswer(comparison, undefined, undefined, false, 40, page(), BOUND);
+    expect(member((member(plain, "different") as Json[])[0], "extents")).toBeUndefined();
+    const placed = filesAnswer(comparison, undefined, undefined, true, 40, page(), BOUND);
+    expect(member((member(placed, "different") as Json[])[0], "extents")).toEqual({
+      document: [{ start: "0x100", end: "0x140" }],
+      against: [{ start: "0x200", end: "0x240" }],
+    });
+  });
+});
