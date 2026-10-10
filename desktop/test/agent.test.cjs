@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
+const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
@@ -73,6 +74,39 @@ test("a line goes from the relay to the page and the answer comes back", async (
     await new Promise((resolve) => relay.once("exit", resolve));
   } finally {
     await invoke("agent:enable", false);
+    delete process.env.BYTERIPPER_AGENT_SOCKET;
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+// Upstream's `AgentUITests.testASocketAnotherCopyHoldsIsReportedNotTaken`, the shell's half: the page
+// is told why the service could not start (`agentService.test.ts`), and the endpoint stays the
+// other copy's.
+test("an endpoint another copy holds is reported, not taken", async () => {
+  const folder = temporary();
+  const where = addressIn(folder);
+  process.env.BYTERIPPER_AGENT_SOCKET = where;
+  const other = net.createServer();
+  await new Promise((resolve) => other.listen(where, resolve));
+  const { invoke } = harness();
+  try {
+    const outcome = await invoke("agent:enable", true);
+    assert.equal(outcome.ok, false);
+    if (!isPipe(where)) {
+      assert.equal(outcome.error, "Another copy of ByteRipper holds the agent endpoint.");
+      assert.equal(fs.existsSync(where), true, "the other copy's socket is left where it is");
+    }
+    // The other copy still answers there.
+    await new Promise((resolve, reject) => {
+      const probe = net.connect(where, () => {
+        probe.destroy();
+        resolve();
+      });
+      probe.once("error", reject);
+    });
+  } finally {
+    await invoke("agent:enable", false);
+    await new Promise((resolve) => other.close(resolve));
     delete process.env.BYTERIPPER_AGENT_SOCKET;
     fs.rmSync(folder, { recursive: true, force: true });
   }
