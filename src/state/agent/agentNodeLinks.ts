@@ -211,7 +211,16 @@ function address(text: string): number | undefined {
   return Number.isFinite(value) ? value : undefined;
 }
 
-/** A query of the UEFI tree of `pane`, answered from its worker; nothing when it is refused. */
+/**
+ * A query of the UEFI tree of `pane`, answered from its worker; nothing when it is refused — and
+ * nothing when the tree cannot be read at all, so that one related document whose firmware will
+ * not parse is left out of the answer rather than failing the call it annotates.
+ *
+ * @upstream ByteRipperApp/Agent/AgentNodeLinks.swift#AgentNodeLinks.node
+ * @upstream ByteRipperApp/Agent/AgentNodeLinks.swift#AgentNodeLinks.documents
+ * @upstream-differs one door for both, each of which upstream gives its own `try?` around
+ * `readyTree`
+ */
 async function ask(
   pane: PaneId,
   query: "uefi_at" | "uefi_tree",
@@ -219,7 +228,11 @@ async function ask(
 ): Promise<Json | undefined> {
   const state = paneState(pane);
   if (state === undefined) return undefined;
-  await readyFirmware(pane);
+  try {
+    await readyFirmware(pane);
+  } catch {
+    return undefined;
+  }
   const response = await askUefiAgent(pane, {
     query,
     values,

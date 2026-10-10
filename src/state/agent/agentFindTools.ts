@@ -378,14 +378,17 @@ export class AgentFindTools {
       if (which === "decompressed" || which === "decoded") {
         const plan =
           which === "decompressed"
-            ? this.decompressedPart(node, roots, nodeText, parent, parentName)
+            ? await this.decompressedPart(node, roots, nodeText, parent, parentName, {
+                answerBound: args.answerBound,
+                contentVersion: this.moduleTools.hostFor(place).contentVersion,
+              })
             : await this.decodedPart(node, nodeText, parent);
         answer.node = nodeText;
         answer.part = which;
         answer.in_compressed = which === "decompressed";
         answer.source = rangeJson(plan.source[0], plan.source[1]);
-        if (plan.size !== undefined) answer.size = hexText(plan.size);
-        const reused = this.reusedPart(parent, parentName, plan, named);
+        answer.size = hexText(plan.size);
+        const reused = this.reusedPart(parent, parentName, plan);
         if (reused !== undefined) return this.reuse(reused, answer);
         return this.finishOpening(
           await openLinkedPart({
@@ -432,12 +435,12 @@ export class AgentFindTools {
           'part: "decoded" opens it decoded.';
       }
       const layout = await askFirmwareLayout(parent, { node: node.id, body });
-      const reused = this.reusedPart(
-        parent,
-        parentName,
-        { source: open.source, layout, codec, name: defaultName },
-        named
-      );
+      const reused = this.reusedPart(parent, parentName, {
+        source: open.source,
+        layout,
+        codec,
+        name: defaultName,
+      });
       if (reused !== undefined) return this.reuse(reused, answer);
       return this.finishOpening(
         await openLinkedPart({
@@ -474,12 +477,12 @@ export class AgentFindTools {
     answer.source = rangeJson(source[0], source[1]);
     answer.size = hexText(length);
     const defaultName = `${stem}_${hexText(offset)}-${hexText(source[1])}`;
-    const reused = this.reusedPart(
-      parent,
-      parentName,
-      { source, layout: reading.layout, codec, name: defaultName },
-      named
-    );
+    const reused = this.reusedPart(parent, parentName, {
+      source,
+      layout: reading.layout,
+      codec,
+      name: defaultName,
+    });
     if (reused !== undefined) return this.reuse(reused, answer);
     return this.finishOpening(
       await openLinkedPart({
@@ -499,15 +502,18 @@ export class AgentFindTools {
    * raises that panel instead of opening a copy beside it — a copy the reader has to close, and
    * edits that would then be in one of two places.
    *
+   * The name compared is the one the part is given when the call names none (`plan.name`), as
+   * upstream compares it: a part opened under a `name` of the agent's own is not found again by
+   * it, and a call that names one opens a panel of its own.
+   *
    * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.reusedPart
    */
   private reusedPart(
     parent: PaneId,
     parentName: string,
-    plan: Pick<PartPlan, "source" | "layout" | "codec" | "name">,
-    named: string | undefined
+    plan: Pick<PartPlan, "source" | "layout" | "codec" | "name">
   ): PartId | undefined {
-    const wanted = partNameOf(named ?? plan.name, parentName);
+    const wanted = partNameOf(plan.name, parentName);
     for (const part of partsLinkedTo(parent)) {
       const origin = paneState(part)?.origin;
       if (origin === undefined) continue;
@@ -563,21 +569,42 @@ export class AgentFindTools {
    * As the UEFI panel's Open Decompressed Body: the buffer a compressed section opens to, linked
    * to the section and compressed again on the way back.
    *
+   * The section is decompressed first, where the tree is, as upstream's `UEFIAgentNodeData.bytes`
+   * does before anything opens: a section that will not decompress is the agent's refusal, in
+   * the tree's words, rather than an alert put in front of the person by the opening and a part
+   * that "could not be opened". The buffer it leaves is the one the opening then reads, and its
+   * length is the part's `size` — known before the part is open, and so in a reused part's answer
+   * too.
+   *
    * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.decompressedPart
+   * @upstream-differs the tree is the worker's: the decompression is asked of it as
+   * `uefi_node_data`'s, whose `size` is the buffer's length
    */
-  private decompressedPart(
+  private async decompressedPart(
     node: WireNode,
     roots: readonly WireNode[],
     nodeText: string,
     parent: PaneId,
-    parentName: string
-  ): PartPlan {
+    parentName: string,
+    asking: { readonly answerBound: number; readonly contentVersion: number }
+  ): Promise<PartPlan> {
     const body = decompressedBody(node);
     const source = body === undefined ? undefined : fileSourceOf(node, roots);
     if (body === undefined || source === undefined) {
       throw new AgentToolError(
         `Node ${nodeText} is not a compressed section; part "decompressed" is a compressed section's.`
       );
+    }
+    const expanded = await askUefiAgent(parent, {
+      query: "uefi_node_data",
+      values: { node: nodeText, part: "decompressed", length: 1 },
+      answerBound: asking.answerBound,
+      contentVersion: asking.contentVersion,
+    });
+    if (expanded.error !== undefined) throw new AgentToolError(expanded.error);
+    const size = parseOffset(String(member(expanded.answer, "size")));
+    if (size === undefined || size === 0) {
+      throw new AgentToolError(`Section ${nodeText} could not be decompressed.`);
     }
     return {
       name: partName(body.suggestedName, parentName),
@@ -588,7 +615,7 @@ export class AgentFindTools {
         target: { space: body.space },
         compression: compressionName(body.space, roots),
       }),
-      size: undefined,
+      size,
     };
   }
 
@@ -643,8 +670,7 @@ interface PartPlan {
   readonly source: readonly [number, number];
   readonly layout: UEFIRootLayout;
   readonly codec: PartCodec;
-  /** Undefined where the bytes are known only once decompressed. */
-  readonly size: number | undefined;
+  readonly size: number;
 }
 
 const PART_KINDS = ["all", "body", "decompressed", "decoded"] as const;

@@ -339,15 +339,16 @@ export class AgentEditTools {
         if (update.notes.length > 0) answer.notes = update.notes.map((note) => note.textIn("en"));
         answer.undo = updateStepName(place.name);
         answer.saved = false;
-        // Shown where the bytes landed, as the command does.
-        const parent = origin.parent;
-        agentShell.bringForward?.(parent);
-        await agentShell.reveal?.(
-          parent,
-          update.offset,
-          update.offset + Math.max(1, update.bytes.length),
-          false
-        );
+        // Shown where the bytes landed, as the command does (`revealUpdateDestination`, then
+        // `revealOrigin`): the parent in front with the part's source selected in it — the source
+        // as the update left it, which the link has already taken up. Not the run written, which
+        // for a body compressed again is the image laid out anew around the section and can reach
+        // well past the bytes the part stands for. The menu's Update in Parent shows the same.
+        //
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealUpdateDestination
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
+        const [start, end] = origin.sourceRange;
+        await agentShell.reveal?.(origin.parent, start, end, true);
         return answer;
       }
     }

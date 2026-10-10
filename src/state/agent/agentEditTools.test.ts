@@ -1,13 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseHexBytes } from "@/core/agent/agentHexBytes";
 import { type Json, member, parseJson } from "@/core/agent/json";
+import { loadCatalogue } from "@/core/localization/bundledCatalogues";
+import { ENGLISH_CATALOGUE, installCatalogue } from "@/core/localization/localization";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
-import { openInPane, paneState, workspaceStore } from "@/state/workspaceStore";
+import {
+  dismissAlert,
+  openInPane,
+  paneState,
+  reportAlert,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -93,6 +101,9 @@ afterEach(() => {
   forgetCaretOnScreen("b");
   agentShell.reveal = undefined;
   agentShell.bringForward = undefined;
+  agentShell.busy = undefined;
+  dismissAlert();
+  installCatalogue(ENGLISH_CATALOGUE);
 });
 
 describe("the edit tools", () => {
@@ -353,13 +364,69 @@ describe("update_in_parent", () => {
     expect(closed.text).toContain("is no longer open");
   });
 
-  // The undo step the person's Edit menu offers is in the app's language; the refusal an agent
-  // reads is in English.
+  // With the app in Russian, a refusal still reaches the agent in English, and the undo step the
+  // person's Edit menu offers is in Russian.
   // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testUpdateInParentAnswersInEnglishAndUndoesInTheAppsLanguage
-  it("names the undo step by the update's own words", async () => {
+  it("answers in English and names the undo step in the app's language", async () => {
+    installCatalogue(await loadCatalogue("ru"));
     const id = await openedPart();
     await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
     const updated = (await call("update_in_parent", { document: id })).json;
-    expect(String(member(updated, "undo"))).toMatch(/^Update from /);
+    expect(String(member(updated, "undo")).startsWith("Обновить из")).toBe(true);
+    expect(paneState("a")?.document.undoHistory.undoLabel?.startsWith("Обновить из")).toBe(true);
+
+    await call("write", { document: id, offset: "0x0", bytes: "33", label: "t" });
+    workspaceStore.update((state) => ({ ...state, panes: { ...state.panes, a: undefined } }));
+    const refused = await call("update_in_parent", { document: id });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain("is no longer open");
+  });
+
+  // After the bytes have gone back, the parent comes to the front with the part's source selected
+  // in it, as the menu's Update in Parent leaves it (`revealUpdateDestination`, `revealOrigin`).
+  it("shows the parent with the part's source selected", async () => {
+    const id = await openedPart();
+    await call("write", { document: id, offset: "0x10", bytes: "DEADBEEF", label: "t" });
+    const shown: unknown[] = [];
+    agentShell.reveal = (pane, start, end, select) => {
+      shown.push([pane, start, end, select]);
+    };
+    expect(member((await call("update_in_parent", { document: id })).json, "updated")).toBe(true);
+    expect(shown).toEqual([["a", 0x800, 0x900, true]]);
+  });
+
+  // Upstream refuses while a sheet hangs on the window — an alert as much as a dialog.
+  it("is refused while an alert or a dialog is up, and writes nothing", async () => {
+    const id = await openedPart();
+    await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
+    reportAlert("Updated", "Undo takes it back.", "success");
+    const refused = await call("update_in_parent", { document: id });
+    expect(refused.text).toBe(
+      "A dialog is open in that window. Ask the person to finish it first. Nothing was written."
+    );
+    dismissAlert();
+    agentShell.busy = () => "A dialog is open.";
+    expect((await call("update_in_parent", { document: id })).isError).toBe(true);
+    expect(await bytesOf(0x800, 0x801)).toEqual([0x00]);
+
+    agentShell.busy = undefined;
+    expect(member((await call("update_in_parent", { document: id })).json, "updated")).toBe(true);
+    expect(await bytesOf(0x800, 0x801)).toEqual([0x22]);
+  });
+
+  // Two calls for the same part sent at once: the second waits for the first, and finds nothing
+  // left to put back — one write, one undo step.
+  it("writes once when the same part is put back twice at once", async () => {
+    const id = await openedPart();
+    await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
+    const parent = paneState("a")?.document;
+    const generation = parent?.contentGeneration ?? 0;
+    const [first, second] = await Promise.all([
+      call("update_in_parent", { document: id }),
+      call("update_in_parent", { document: id }),
+    ]);
+    expect(member(first.json, "updated")).toBe(true);
+    expect(member(second.json, "updated")).toBe(false);
+    expect(parent?.contentGeneration).toBe(generation + 1);
   });
 });

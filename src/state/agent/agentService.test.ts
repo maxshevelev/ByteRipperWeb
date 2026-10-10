@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { encodeUtf8 } from "@/core/text/utf";
+import { afterEach, describe, expect, it } from "vitest";
+import { AgentArguments } from "@/core/agent/agentArguments";
+import { type Json, member, parseJson } from "@/core/agent/json";
+import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { AGENT_INSTRUCTIONS, AgentService } from "@/state/agent/agentService";
+import { EMPTY_DOCK } from "@/state/fragmentDock";
+import { closePart, openInPane, workspaceStore } from "@/state/workspaceStore";
 
 /**
  * The service's connections: counted once their client has spoken.
@@ -104,5 +108,63 @@ describe("what the service tells a client", () => {
     const log = service.store.getSnapshot().log;
     expect(log.map((one) => one.outcome.kind)).toEqual(["answered"]);
     expect(Object.keys(service.store.getSnapshot().toolStats)).toEqual(["documents"]);
+  });
+});
+
+describe("the focus note", () => {
+  afterEach(() => {
+    for (const panel of workspaceStore.getSnapshot().dock.panels) closePart(`part:${panel}`);
+    workspaceStore.update((state) => ({
+      ...state,
+      panes: { a: undefined, b: undefined },
+      parts: {},
+      dock: EMPTY_DOCK,
+    }));
+  });
+
+  /** The answer to one `tools/call`: whether it is a refusal, and its text. */
+  async function call(service: AgentService, name: string, args: { [key: string]: Json }) {
+    const written: Json[] = [];
+    const connection = service.connect((line) => written.push(parseJson(decodeUtf8(line))));
+    connection.receive(
+      encodeUtf8(
+        `${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } })}\n`
+      )
+    );
+    await connection.waitUntilIdle();
+    const result = member(written[0], "result");
+    return {
+      isError: member(result, "isError") === true,
+      text: member((member(result, "content") as Json[])[0], "text") as string,
+    };
+  }
+
+  // Upstream reads the note's `document` with `try?`: one that is no string says nothing, and the
+  // tool's own refusal is the answer.
+  it("says nothing of a `document` that is no string, and leaves the refusal to the tool", async () => {
+    openInPane("a", {
+      name: "front.bin",
+      size: 0x100,
+      lastModified: 0,
+      source: new Blob([new Uint8Array(0x100)]),
+    });
+    const service = new AgentService(undefined, () => []);
+    // The focus moves to the part.
+    expect((await call(service, "open_part", { offset: "0x10", length: "0x10" })).isError).toBe(
+      false
+    );
+    expect(service.focusNote(new AgentArguments({ document: "d1" }))).toContain("a part of d1");
+    expect(service.focusNote(new AgentArguments({ document: 7 }))).toBeUndefined();
+
+    const refused = await call(service, "read", { document: 7, offset: 0, length: 4 });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).not.toContain("The focus is on");
+    let own = "";
+    try {
+      new AgentArguments({ document: 7 }).optionalString("document");
+    } catch (error) {
+      own = error instanceof Error ? error.message : String(error);
+    }
+    expect(refused.text).toBe(own);
   });
 });

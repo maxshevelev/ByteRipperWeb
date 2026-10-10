@@ -1,3 +1,4 @@
+import type { AgentArguments } from "@/core/agent/agentArguments";
 import type { RelayCommand } from "@/core/agent/agentClientConfiguration";
 import { AgentConnection } from "@/core/agent/agentConnection";
 import { type AgentCallRecord, AgentServer } from "@/core/agent/agentServer";
@@ -318,7 +319,7 @@ export class AgentService {
     return {
       ...tool,
       run: async (call) => {
-        const note = this.focusNote(call.arguments.optionalString("document"));
+        const note = this.focusNote(call.arguments);
         try {
           const answer = await tool.run(call);
           if (note === undefined || answer.kind !== "json" || !isObject(answer.value))
@@ -332,8 +333,19 @@ export class AgentService {
     };
   }
 
-  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.focusNote */
-  focusNote(named: string | undefined): string | undefined {
+  /**
+   * The note, read from the call's own `document`. A `document` that is no string is not this
+   * note's to refuse: it says nothing, and the tool's own refusal reaches the model unchanged.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.focusNote
+   */
+  focusNote(args: AgentArguments): string | undefined {
+    let named: string | undefined;
+    try {
+      named = args.optionalString("document");
+    } catch {
+      return undefined;
+    }
     if (named === undefined) return undefined;
     const focused = this.desk.focused();
     const place = this.desk.places().find((one) => one.id === named);

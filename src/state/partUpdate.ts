@@ -1,3 +1,4 @@
+import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { appLanguage, L, LIn, LocalizedText } from "@/core/localization/localization";
 import {
   type PartCodec,
@@ -6,6 +7,7 @@ import {
   PartRefusal,
   type PartUpdate,
 } from "@/core/parts/partCodec";
+import { agentShell } from "@/state/agent/agentShell";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
 import {
@@ -83,10 +85,17 @@ function confirmOverwritingChangedSource(origin: DocumentOrigin): boolean {
  * and brings that window to the front first, where this modal is the one
  * window's own
  */
-export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
+export function updateInParent(pane: PartId): Promise<UpdateOutcome> {
+  return oneUpdateAtATime(pane, () => updateInParentNow(pane));
+}
+
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent */
+async function updateInParentNow(pane: PartId): Promise<UpdateOutcome> {
   const slot = paneState(pane);
   const origin = slot?.origin;
   if (slot === undefined || origin === undefined) return { kind: "nothing" };
+  // The parent as it is before anything here waits: what the update is worked out over.
+  const asked = parentAsAsked(origin);
   if (!(await origin.hasChanges(slot.document))) return { kind: "nothing" };
 
   const plan = await origin.planUpdate(slot.document);
@@ -95,7 +104,7 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
     return { kind: "refused" };
   }
   const parent = paneState(origin.parent);
-  if (parent === undefined) return { kind: "refused" };
+  if (parent === undefined || asked === undefined) return { kind: "refused" };
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
   const stepName = updateStepName(slot.name);
   const content = documentPartReader(parent.document);
@@ -114,9 +123,9 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
       presentRefusal(error, origin);
       return { kind: "refused" };
     }
-    return finishUpdate(update, origin, content, plan.bytes, stepName);
+    return finishUpdate(update, origin, asked, content, plan.bytes, stepName);
   }
-  return encodeBehindModal(plan.codec, plan.bytes, origin, partParent, stepName);
+  return encodeBehindModal(plan.codec, plan.bytes, origin, asked, partParent, stepName);
 }
 
 /**
@@ -129,14 +138,10 @@ async function encodeBehindModal(
   codec: PartCodec,
   bytes: Uint8Array,
   origin: DocumentOrigin,
+  asked: ParentAsAsked,
   partParent: PartParent,
   stepName: string
 ): Promise<UpdateOutcome> {
-  const parent = paneState(origin.parent);
-  if (parent === undefined) return { kind: "refused" };
-  const document = parent.document;
-  const generation = document.contentGeneration;
-
   // What upstream's `UpdateHandle` carries — the task and the operation the (×) reaches it
   // through — is this closure and the flag it sets: one thread, nothing to cancel but the wait.
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.UpdateHandle
@@ -170,16 +175,24 @@ async function encodeBehindModal(
     return { kind: "refused" };
   }
   // Worked out over the bytes as they were when asked.
-  const now = paneState(origin.parent);
-  if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
-    reportAlert(
-      L("“%1$@” changed", origin.parentName),
-      L("It changed while the update was being worked out. Nothing was written."),
-      "problem"
-    );
+  if (!stillAsAsked(origin, asked)) {
+    reportParentChanged(origin);
     return { kind: "refused" };
   }
-  return finishUpdate(result.update, origin, partParent.content, bytes, stepName);
+  return finishUpdate(result.update, origin, asked, partParent.content, bytes, stepName);
+}
+
+/**
+ * What is said when the parent changed under an update: nothing was written, and why.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+ */
+function reportParentChanged(origin: DocumentOrigin): void {
+  reportAlert(
+    L("“%1$@” changed", origin.parentName),
+    L("It changed while the update was being worked out. Nothing was written."),
+    "problem"
+  );
 }
 
 /**
@@ -197,11 +210,16 @@ async function encodeBehindModal(
 async function finishUpdate(
   update: PartUpdate,
   origin: DocumentOrigin,
+  asked: ParentAsAsked,
   content: PartReader,
   partBytes: Uint8Array,
   stepName: string
 ): Promise<UpdateOutcome> {
-  const landed = await landUpdate(update, origin, content, partBytes, stepName);
+  const landed = await landUpdate(update, origin, asked, content, partBytes, stepName);
+  if (landed.kind === "parentChanged") {
+    reportParentChanged(origin);
+    return { kind: "refused" };
+  }
   if (landed.kind === "unreadable") {
     reportAlert(
       L("Could not update “%1$@”.", origin.parentName),
@@ -228,17 +246,24 @@ async function finishUpdate(
  * not be read to work out what the source becomes, failed when the write itself did not land — the
  * link as it was.
  *
+ * The parent is asked once more whether it is still what the update was worked out over, after the
+ * last wait and right before the write: the read of the source is a wait, and upstream's landing,
+ * which has none, cannot be overtaken where this one could.
+ *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.landUpdate
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.writeUpdate
+ * @upstream-differs `parentChanged` when the parent moved during the read of the source
  */
 async function landUpdate(
   update: PartUpdate,
   origin: DocumentOrigin,
+  asked: ParentAsAsked,
   content: PartReader,
   partBytes: Uint8Array,
   stepName: string
 ): Promise<
   | { readonly kind: "landed" }
+  | { readonly kind: "parentChanged" }
   | { readonly kind: "unreadable" }
   | { readonly kind: "failed"; readonly problem: string }
 > {
@@ -250,6 +275,7 @@ async function landUpdate(
   } catch {
     return { kind: "unreadable" };
   }
+  if (!stillAsAsked(origin, asked)) return { kind: "parentChanged" };
   const runEnd = update.offset + update.bytes.length;
   const from = Math.max(update.offset, update.source[0]);
   const to = Math.min(runEnd, update.source[1]);
@@ -316,18 +342,29 @@ export type QuietUpdateOutcome =
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly
  * @upstream-differs no read-only parent to refuse: a page edits every document it holds in memory
  */
-export async function updateInParentQuietly(
+export function updateInParentQuietly(
+  pane: PartId,
+  overwritingChangedSource: boolean
+): Promise<QuietUpdateOutcome> {
+  return oneUpdateAtATime(pane, () => updateInParentQuietlyNow(pane, overwritingChangedSource));
+}
+
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly */
+async function updateInParentQuietlyNow(
   pane: PartId,
   overwritingChangedSource: boolean
 ): Promise<QuietUpdateOutcome> {
   const slot = paneState(pane);
   const origin = slot?.origin;
   if (slot === undefined || origin === undefined) return { kind: "unchanged" };
+  // The parent as it is before anything here waits: what the update is worked out over, as
+  // upstream's, which reads its generation with nothing between it and the plan.
+  const asked = parentAsAsked(origin);
   if (!(await origin.hasChanges(slot.document))) return { kind: "unchanged" };
   const plan = await origin.planUpdate(slot.document);
   if (plan.kind === "refused") return { kind: "refused", refusal: plan.refusal };
   const parent = paneState(origin.parent);
-  if (parent === undefined) {
+  if (parent === undefined || asked === undefined || parent.document !== asked.document) {
     return {
       kind: "refused",
       refusal: new PartRefusal(
@@ -348,8 +385,6 @@ export async function updateInParentQuietly(
     name: origin.parentName,
     partName: origin.partName,
   };
-  const document = parent.document;
-  const generation = document.contentGeneration;
   let update: PartUpdate;
   try {
     update = await plan.codec.encode(plan.bytes, partParent);
@@ -366,20 +401,97 @@ export async function updateInParentQuietly(
     };
   }
   // Worked out over the bytes as they were when asked.
-  const now = paneState(origin.parent);
-  if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
-    return { kind: "parentChanged" };
-  }
-  const landed = await landUpdate(update, origin, content, plan.bytes, updateStepName(slot.name));
+  if (!stillAsAsked(origin, asked)) return { kind: "parentChanged" };
+  const landed = await landUpdate(
+    update,
+    origin,
+    asked,
+    content,
+    plan.bytes,
+    updateStepName(slot.name)
+  );
+  if (landed.kind === "parentChanged") return { kind: "parentChanged" };
   if (landed.kind === "unreadable") {
+    // Upstream's "The tab could not be read": a part here is a panel, never a tab, and the
+    // sentence is the one `DocumentOrigin.planUpdate` already says for the same bytes.
+    // @upstream-differs "part" for upstream's "tab": the web has no tabs of its own
     return { kind: "writeFailed", reason: LIn("The part could not be read", "en") };
   }
   if (landed.kind === "failed") return { kind: "writeFailed", reason: landed.problem };
   return { kind: "updated", update };
 }
 
-/** Whether a modal operation holds the window, as an open sheet holds upstream's. */
-export const aDialogIsOpen = (): boolean => blockingOperationStore.getSnapshot() !== undefined;
+/**
+ * The parent document an update writes into, and how many times its bytes had changed when the
+ * update was asked for: read before the first wait, so that nothing which lands while the part is
+ * compared, planned or encoded passes unseen.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly
+ * @upstream-differs a value of its own: upstream reads `contentGeneration` into a local with no
+ * wait before it
+ */
+interface ParentAsAsked {
+  readonly document: BinaryDocument;
+  readonly generation: number;
+}
+
+/** The parent of `origin` as it is now; nothing once it is closed. */
+function parentAsAsked(origin: DocumentOrigin): ParentAsAsked | undefined {
+  const document = paneState(origin.parent)?.document;
+  return document === undefined ? undefined : { document, generation: document.contentGeneration };
+}
+
+/** Whether the parent is still the document, and its bytes still the ones, `asked` read. */
+function stillAsAsked(origin: DocumentOrigin, asked: ParentAsAsked): boolean {
+  return (
+    paneState(origin.parent)?.document === asked.document &&
+    asked.document.contentGeneration === asked.generation
+  );
+}
+
+/**
+ * The update each parent document is in the middle of taking, which the next one waits behind.
+ *
+ * Upstream's update runs on the main actor: the plan, the check that the parent has not moved and
+ * the write are one stretch nothing else runs inside, so a second update of the same part finds the
+ * first one written and nothing left to put back. Here every one of those is a wait, and two
+ * updates asked at once — an agent's call sent twice, an agent's beside the menu's — would both
+ * plan over the same bytes and both write. One at a time per parent, the second is worked out over
+ * what the first left: nothing new, usually, or a part that has changed since, as it would be had
+ * it been asked a moment later.
+ *
+ * @web-only upstream's main actor is the queue
+ */
+const updatesUnderWay = new WeakMap<BinaryDocument, Promise<void>>();
+
+/** `work` once every update already under way into `pane`'s parent has finished. */
+function oneUpdateAtATime<T>(pane: PartId, work: () => Promise<T>): Promise<T> {
+  const origin = paneState(pane)?.origin;
+  const parent = origin === undefined ? undefined : paneState(origin.parent)?.document;
+  if (parent === undefined) return work();
+  const run = (updatesUnderWay.get(parent) ?? Promise.resolve()).then(work);
+  updatesUnderWay.set(
+    parent,
+    run.then(
+      () => undefined,
+      () => undefined
+    )
+  );
+  return run;
+}
+
+/**
+ * Whether something the person is in the middle of holds the window, as an attached sheet holds
+ * upstream's: the modal of a slow update, an alert still waiting for its button, or any other modal
+ * dialog the shell has up.
+ *
+ * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.updateInParent
+ * @upstream-differs three places to look where upstream asks the window for its `attachedSheet`
+ */
+export const aDialogIsOpen = (): boolean =>
+  blockingOperationStore.getSnapshot() !== undefined ||
+  workspaceStore.getSnapshot().alert !== undefined ||
+  agentShell.busy?.() !== undefined;
 
 /**
  * Why a part did not go back, in the codec's words.

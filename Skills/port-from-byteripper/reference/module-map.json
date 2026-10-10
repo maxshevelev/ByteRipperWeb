@@ -5517,9 +5517,13 @@
         "ByteRipperTests/AgentDiffToolsTests.swift": "src/state/agent/agentDiffTools.test.ts",
         "ByteRipperTests/AgentFindToolsTests.swift": [
           "src/state/agent/agentDiffTools.test.ts",
-          "src/state/agent/agentNodeLinks.test.ts"
+          "src/state/agent/agentNodeLinks.test.ts",
+          "src/state/agent/agentFirmwareParts.test.ts"
         ],
-        "ByteRipperTests/AgentEditToolsTests.swift": "src/state/agent/agentEditTools.test.ts",
+        "ByteRipperTests/AgentEditToolsTests.swift": [
+          "src/state/agent/agentEditTools.test.ts",
+          "src/state/agent/agentFirmwareParts.test.ts"
+        ],
         "AgentNodeLinks.swift": [
           "src/state/agent/agentNodeLinks.ts",
           "src/state/agent/agentNodeSource.ts"
@@ -5600,13 +5604,11 @@
         "ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.stats": "n/a — the page is handed the service's stats as a prop",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyNamesThePartOfTheFirmwareItCovers": "n/a — the range is placed by the locators, which ask the firmware worker, which a unit test does not have; checked in a real page",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAFileOpenedReadOnlyIsNeverChanged": "n/a — the web edition has no file opened read-only",
-        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAVolumeChecksumIsPutRightAsOneUndoStep": "n/a — the checksum is planned in the firmware worker, which a unit test does not have; checked in a real page",
-        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheFITChecksumIsPutRight": "n/a — the checksum is planned in the firmware worker, which a unit test does not have; checked in a real page",
+        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAVolumeChecksumIsPutRightAsOneUndoStep": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
+        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheFITChecksumIsPutRight": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheSettingsSwitchAllowsEdits": "later — a component test of Settings ▸ Agent's edit switch",
-        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionIsSearchedInWhatItDecompressesTo": "n/a — asks the firmware worker, which a unit test does not have; checked in a real page",
-        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeOfTheFileReadsAsReadDoes": "n/a — asks the firmware worker, which a unit test does not have; checked in a real page",
-        "ByteRipperTests/AgentFindToolsTests.swift#CompressedTestImage": "n/a — the fixture of the compressed-section test",
-        "ByteRipperTests/AgentFindToolsTests.swift#CompressedTestImage.make": "n/a — the fixture of the compressed-section test",
+        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionIsSearchedInWhatItDecompressesTo": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
+        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeOfTheFileReadsAsReadDoes": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#AgentFirmwareToolsTests.testAComparisonNeedsTwoDocuments": "n/a — the module's tools are asked of the firmware worker; their pure answers are tested in `fitAgentAnswers.test.ts`, `uefiAgentVariables.test.ts`, `meAgentAnswers.test.ts` and `agentDumpTools.test.ts`",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#AgentFirmwareToolsTests.testASurveyComparesAFolderWithOneDump": "n/a — the module's tools are asked of the firmware worker; their pure answers are tested in `fitAgentAnswers.test.ts`, `uefiAgentVariables.test.ts`, `meAgentAnswers.test.ts` and `agentDumpTools.test.ts`",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#AgentFirmwareToolsTests.testAnImageWithNoStoreSaysSo": "n/a — the module's tools are asked of the firmware worker; their pure answers are tested in `fitAgentAnswers.test.ts`, `uefiAgentVariables.test.ts`, `meAgentAnswers.test.ts` and `agentDumpTools.test.ts`",
@@ -5628,9 +5630,6 @@
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.initialSize": "n/a — the Agent window is a panel of the fragment dock, which has no frame of its own: where it opens and how big is the dock's (the one workspace per tab), and a column's width is kept by `useAgentColumns`",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownRows": "n/a — a test hook of the AppKit window; the web's tests read the log's words through `logText`",
         "ByteRipperApp/Agent/AgentService.swift#AgentService.recordForTesting": "n/a — a test hook; the web's tests hand records to the connection itself",
-        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testADecompressedPartGoesBackCompressed": "later — needs the firmware worker, which the page's tests do not start; what it checks of the parts of it is tested over `agentTreeOver` and the codecs (`agentNodeLinks.test.ts`, `uefiAgentQueries.test.ts`, `partCodec.test.ts`), and the worker's own answers are G75's unrun browser check",
-        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionOpensDecompressedInAPanel": "later — needs the firmware worker, which the page's tests do not start; what it checks of the parts of it is tested over `agentTreeOver` and the codecs (`agentNodeLinks.test.ts`, `uefiAgentQueries.test.ts`, `partCodec.test.ts`), and the worker's own answers are G75's unrun browser check",
-        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testALENVBlockOpensDecodedInAPanel": "later — needs the firmware worker, which the page's tests do not start; what it checks of the parts of it is tested over `agentTreeOver` and the codecs (`agentNodeLinks.test.ts`, `uefiAgentQueries.test.ts`, `partCodec.test.ts`), and the worker's own answers are G75's unrun browser check",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAReadOnlyParentIsRefused": "n/a — a page edits every document it holds in memory: there is no read-only parent to refuse"
       }
     },

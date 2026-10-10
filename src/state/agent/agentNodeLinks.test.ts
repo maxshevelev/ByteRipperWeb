@@ -20,7 +20,16 @@ import { agentTreeOver } from "@/tools/uefi/agent/uefiAgentTree";
  * @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests
  */
 
-vi.mock("@/state/firmwareReady", () => ({ readyFirmware: async () => undefined }));
+/** The panes whose firmware a case makes unreadable: their tree is never ready. */
+const unreadable = vi.hoisted(() => new Set<string>());
+
+vi.mock("@/state/firmwareReady", () => ({
+  readyFirmware: async (pane: string) => {
+    if (unreadable.has(pane)) {
+      throw new Error("This document's firmware structure could not be read.");
+    }
+  },
+}));
 vi.mock("@/state/firmwareStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/state/firmwareStore")>()),
   askUefiAgent: async (
@@ -78,6 +87,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  unreadable.clear();
   for (const panel of workspaceStore.getSnapshot().dock.panels) closePart(`part:${panel}`);
   workspaceStore.update((state) => ({
     ...state,
@@ -158,5 +168,36 @@ describe("a node of a parent and of its decoded part", () => {
     if (place === undefined) throw new Error("not open");
     const answer: Json = { chain: [{ id: "0", start: "0x0", end: "0x10" }] };
     expect(await new AgentNodeLinks(lone).annotate(answer, place)).toEqual(answer);
+  });
+
+  // A related document whose tree cannot be read is passed over, as upstream's `try?` passes it:
+  // the others are still named, and the answer is not refused for it.
+  it("passes over a part whose firmware cannot be read, and names the others", async () => {
+    const parentPlace = desk.placeOf("a");
+    if (parentPlace === undefined) throw new Error("not open");
+    const stored = store().slice(BLOCK_2[0], BLOCK_2[1]);
+    const second = await openLinkedPart({
+      parent: "a",
+      name: "lenovo_block (decoded) 2.bin",
+      source: BLOCK_2,
+      codec: new LenovoDMIBlockCodec(new LENVBlock(BLOCK_2[0], stored)),
+    });
+    const secondPlace = second === undefined ? undefined : desk.placeOf(second);
+    if (secondPlace === undefined) throw new Error("the second part did not open");
+    unreadable.add(part);
+
+    const chain = await chainAt("a", SERIAL_AT);
+    const answer = await new AgentNodeLinks(desk).annotate({ chain }, parentPlace);
+    const entry = (member(answer, "chain") as Json[]).at(-1);
+    const counterparts = member(entry, "counterpart") as Json[];
+    expect(counterparts.map((one) => member(one, "document"))).toEqual([secondPlace.id]);
+    expect(member(member(entry, "decoded_in"), "document")).toBe(secondPlace.id);
+
+    // From the second part, a node id of the parent is still found there, the unreadable part
+    // left out of the list rather than failing it.
+    const held = await new AgentNodeLinks(desk).documents("0.1.2.0", secondPlace);
+    expect(held).toEqual([{ document: parentPlace.id, name: "Baseboard serial number" }]);
+    unreadable.add("a");
+    expect(await new AgentNodeLinks(desk).documents("0.1.2.0", secondPlace)).toEqual([]);
   });
 });
