@@ -1,4 +1,4 @@
-@source-sha e98dd0900e540c7e83846f48b4413b5f65d456edd7117e9ac6316557e1c2f346
+@source-sha ea21d9d0d66766082cc6c0ad914e0b0e442501ab41d9e8664c2ccb6e9a4b8a74
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -17,7 +17,7 @@ Agent und Techniker arbeiten mit denselben Fenstern. Fragen Sie den Agenten nach
 
 ## Den Dienst einschalten
 
-Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt.
+Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt. Eine Verbindung gilt als Agent, sobald das Programm seine erste Nachricht gesendet hat; eine Verbindung, die aufgebaut wurde, aber nichts gesendet hat, wird nicht gezählt.
 
 Die Verbindung ist ausschließlich lokal; ein Netzwerkport wird nicht geöffnet. ByteRipper legt dazu eine benannte Pipe an, `\\.\pipe\ByteRipper-agent-<Benutzername>`, die ein Programm desselben Benutzerkontos wie eine Datei öffnet. Soll der Name der Pipe abweichen — etwa bei einer zweiten, neben der ersten gestarteten Kopie —, legt die Umgebungsvariable `BYTERIPPER_AGENT_SOCKET` einen anderen fest.
 
