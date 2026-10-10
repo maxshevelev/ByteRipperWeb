@@ -10,8 +10,9 @@ import {
   VIEW,
 } from "@/core/agent/agentTool";
 import { isObject, type Json } from "@/core/agent/json";
-import { L, withEnglish } from "@/core/localization/localization";
+import { appLanguage, LIn, withEnglish } from "@/core/localization/localization";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
+import { AgentNodeLinks } from "@/state/agent/agentNodeLinks";
 import { agentSessionOn } from "@/state/agent/agentSessions";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
@@ -86,7 +87,7 @@ export class AgentModuleTools {
     const list = this.modules();
     return [
       ...list.flatMap((module) =>
-        (module.agentQueries ?? []).map((query) => this.queryTool(query))
+        (module.agentQueries ?? []).map((query) => this.queryTool(module, query))
       ),
       ...list.flatMap((module) =>
         (module.agentComparisons ?? []).map((one) => this.comparisonTool(one))
@@ -117,7 +118,8 @@ export class AgentModuleTools {
 
   // MARK: - Queries
 
-  private queryTool(query: ToolAgentQuery): AgentTool {
+  private queryTool(module: ToolModule, query: ToolAgentQuery): AgentTool {
+    const links = AgentModuleTools.linksNodes(module);
     return agentTool({
       name: query.name,
       title: query.title,
@@ -131,13 +133,65 @@ export class AgentModuleTools {
         },
         [...(query.required ?? [])]
       ),
-      run: (call) => this.runQuery(query, call.arguments),
+      run: (call) => this.runQuery(query, links, call.arguments),
     });
   }
 
-  private async runQuery(query: ToolAgentQuery, args: AgentArguments): Promise<AgentAnswer> {
+  /**
+   * The module whose answers name nodes of a firmware tree, which a part and its parent number
+   * differently (`AgentNodeLinks`).
+   *
+   * @upstream ByteRipperApp/Agent/AgentModuleTools.swift#AgentModuleTools.linksNodes
+   */
+  static linksNodes(module: ToolModule): boolean {
+    return AgentModuleTools.shortName(module) === "uefi-structure";
+  }
+
+  /** The answer with the same nodes in the related documents named. */
+  private async linked(answer: AgentAnswer, place: AgentPlace): Promise<AgentAnswer> {
+    if (answer.kind !== "json") return answer;
+    return jsonAnswer(await new AgentNodeLinks(this.desk).annotate(answer.value, place));
+  }
+
+  /**
+   * `body`, with a refusal over a node id `place` has not got saying which open part or parent
+   * has it — the id an agent carried over from the other document of the pair, the commonest way
+   * to get one wrong.
+   *
+   * @upstream ByteRipperApp/Agent/AgentModuleTools.swift#AgentModuleTools.explainingNodes
+   */
+  private async explainingNodes(
+    place: AgentPlace,
+    links: boolean,
+    body: () => Promise<AgentAnswer>
+  ): Promise<AgentAnswer> {
+    try {
+      return await body();
+    } catch (error) {
+      if (!links || !(error instanceof AgentToolError)) throw error;
+      const prefix = "No node ";
+      if (!error.message.startsWith(prefix)) throw error;
+      const id = /^[0-9.]*/.exec(error.message.slice(prefix.length))?.[0] ?? "";
+      const holders = await new AgentNodeLinks(this.desk).documents(id, place);
+      if (holders.length === 0) throw error;
+      const said = holders.map(
+        (one) =>
+          `${id} is a node of ${one.document} (${one.name}); call it with \`document\` "${one.document}".`
+      );
+      throw new AgentToolError(`${error.message} ${said.join(" ")}`);
+    }
+  }
+
+  private async runQuery(
+    query: ToolAgentQuery,
+    links: boolean,
+    args: AgentArguments
+  ): Promise<AgentAnswer> {
     const place = this.desk.placeNamed(args.optionalString("document"));
-    const answer = await query.run(this.hostFor(place), args);
+    let answer = await this.explainingNodes(place, links, () =>
+      query.run(this.hostFor(place), args)
+    );
+    if (links) answer = await this.linked(answer, place);
     return withDocument(answer, { document: place.id });
   }
 
@@ -220,7 +274,9 @@ export class AgentModuleTools {
     const change = "transaction" in done ? done : { transaction: done };
     const detail = change.undoDetail ?? "";
     // The undo step is named in the app's own language, from the module's name and the agent's detail.
-    const name = L("Agent: %1$@", detail === "" ? edit.undoName() : `${edit.undoName()} ${detail}`);
+    const app = appLanguage();
+    const step = edit.undoName.textIn(app);
+    const name = LIn("Agent: %1$@", app, detail === "" ? step : `${step} ${detail}`);
     const answer = await edits.apply({ name, writes: change.transaction.writes }, place);
     return jsonAnswer(isObject(answer) ? { ...answer, ...(change.report ?? {}) } : answer);
   }
@@ -243,7 +299,8 @@ export class AgentModuleTools {
         [...(action.required ?? [])]
       ),
       annotations: action.changesView ? VIEW : READ_ONLY,
-      run: (call) => this.runAction(action, module, short, call.arguments),
+      run: (call) =>
+        this.runAction(action, module, short, AgentModuleTools.linksNodes(module), call.arguments),
     });
   }
 
@@ -251,6 +308,7 @@ export class AgentModuleTools {
     action: ToolAgentAction,
     module: ToolModule,
     short: string,
+    links: boolean,
     args: AgentArguments
   ): Promise<AgentAnswer> {
     const place = this.desk.placeNamed(args.optionalString("document"));
@@ -267,7 +325,11 @@ export class AgentModuleTools {
       );
     }
     if (action.changesView) agentShell.bringForward?.(pane);
-    return action.run(session, args);
+    const answer = await this.explainingNodes(place, links, () => action.run(session, args));
+    // The answer says which document it was, as a query's does: with a part and its parent both
+    // open, which panel chose the node.
+    const named = withDocument(answer, { document: place.id });
+    return links ? this.linked(named, place) : named;
   }
 
   // MARK: - open_panel

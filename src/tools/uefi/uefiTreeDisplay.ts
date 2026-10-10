@@ -54,7 +54,11 @@ export function subtypeText(node: UEFINode): string {
     // force.
     case "gpnvRecord":
       return node.subtype === 1 ? L("Current") : L("Superseded");
+    // Only a block of a store has another to be chosen over; one on its own — a block opened
+    // decoded — is whatever its bytes say, and calling it "Not in use" contradicted the store it
+    // was taken from.
     case "lenvBlock":
+      if (node.subtype === undefined) return "";
       return node.subtype === 1 ? L("In use", { context: "LENV block" }) : L("Not in use");
     case "file":
       return fileTypeName(subtype);

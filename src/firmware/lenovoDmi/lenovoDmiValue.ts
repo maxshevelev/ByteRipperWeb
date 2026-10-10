@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import {
   overwriting,
   type PartBadge,
@@ -367,8 +367,8 @@ export class LenovoDMIBlockCodec implements PartCodec {
     const stored = await sourceBytes(parent);
     if (stored.length !== LenovoDMIFormat.lenvSize) {
       throw new PartRefusal(
-        L("Those bytes could not be read."),
-        L("A LENV block is %1$@ bytes, and goes back only at that length.", "0x1000")
+        LocalizedText.of("Those bytes could not be read."),
+        LocalizedText.of("A LENV block is %1$@ bytes, and goes back only at that length.", "0x1000")
       );
     }
     return LenovoDMIDecodedBlock.decode(new LENVBlock(parent.source[0], stored));

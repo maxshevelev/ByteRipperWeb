@@ -140,6 +140,7 @@ describe("the module tools", () => {
       "refs",
       "write",
       "copy_to_other_pane",
+      "update_in_parent",
       "fit_probe",
       "fit_words",
       "fit_pair",
@@ -201,7 +202,8 @@ describe("a panel action", () => {
     agentShell.bringForward = (pane) => forward.push(pane);
     activate(module.id, "panes");
     leave.push(registerAgentSession("a", module.id, { id: 7 }));
-    expect((await call(service, "fit_poke")).json).toEqual({ poked: 7 });
+    // The answer says which document's panel it was, as a query's does.
+    expect((await call(service, "fit_poke")).json).toEqual({ document: "d1", poked: 7 });
     expect(forward).toEqual(["a"]);
   });
 });

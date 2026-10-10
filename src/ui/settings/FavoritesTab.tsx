@@ -440,7 +440,6 @@ export function FavoritesTab() {
 
   return (
     <section className="settings-favorites" aria-label={L("Search Patterns")}>
-      <h3 className="settings-heading">{L("Search Patterns")}</h3>
       <div className="favorites-location">
         <p
           className={

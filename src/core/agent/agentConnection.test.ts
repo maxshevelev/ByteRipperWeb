@@ -12,6 +12,7 @@ import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 class Wire {
   readonly messages: Json[] = [];
   readonly calls: AgentCallRecord[] = [];
+  readonly started: AgentCallRecord[] = [];
   malformed = 0;
 
   send = (data: Uint8Array): void => {
@@ -26,6 +27,10 @@ class Wire {
 
   record = (record: AgentCallRecord): void => {
     this.calls.push(record);
+  };
+
+  callStarted = (record: AgentCallRecord): void => {
+    this.started.push(record);
   };
 }
 
@@ -58,7 +63,10 @@ const echo: AgentTool = agentTool({
 function connection(tools: AgentTool[] = [echo], limits: Partial<AgentLimits> = {}) {
   const wire = new Wire();
   const server = new AgentServer({ info, instructions: "Ask about the dump.", tools, limits });
-  return { connection: new AgentConnection(server, wire.send, wire.record), wire };
+  return {
+    connection: new AgentConnection(server, wire.send, wire.record, undefined, wire.callStarted),
+    wire,
+  };
 }
 
 async function send(connection: AgentConnection, ...lines: string[]): Promise<void> {
@@ -302,6 +310,42 @@ describe("calls that take time", () => {
     gate.release();
     await c.waitUntilIdle();
     expect(wire.messages.map((one) => member(one, "id"))).toEqual([2, 1]);
+  });
+
+  // A log can show what the tool is busy with: the call is reported when it starts, as running,
+  // and again under the same id when it ends.
+  // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentConnectionTests.swift#AgentConnectionTests.testACallIsReportedWhenItStartsAndAgainWhenItEnds
+  it("reports a call when it starts and again when it ends", async () => {
+    const gate = new Gate();
+    const slow = agentTool({
+      name: "slow",
+      description: "Waits.",
+      inputSchema: AgentSchema.object({ n: AgentSchema.integer("Anything.") }),
+      run: async () => {
+        await gate.wait();
+        return textAnswer("done");
+      },
+    });
+    const { connection: c, wire } = connection([slow]);
+    c.receive(
+      encodeUtf8(
+        '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"slow","arguments":{"n":1}}}\n'
+      )
+    );
+    const running = wire.started[0] as AgentCallRecord;
+    expect(wire.started.length).toBe(1);
+    expect(running.tool).toBe("slow");
+    expect(running.arguments).toEqual({ n: 1 });
+    expect(running.outcome.kind).toBe("running");
+    expect(wire.calls).toEqual([]);
+
+    gate.release();
+    await c.waitUntilIdle();
+    const finished = wire.calls[0] as AgentCallRecord;
+    expect(wire.calls.length).toBe(1);
+    expect(finished.id).toBe(running.id);
+    expect(finished.outcome.kind).toBe("answered");
+    expect(finished.started).toEqual(running.started);
   });
 
   // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentConnectionTests.swift#AgentConnectionTests.testACancelledCallIsStoppedAndNeverAnswered

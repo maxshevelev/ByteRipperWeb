@@ -17,11 +17,16 @@ import {
   storedLanguageChoice,
 } from "@/core/localization/appLanguage";
 import {
+  appLanguage,
   currentLanguage,
   ENGLISH_CATALOGUE,
   formatMessage,
   installCatalogue,
   L,
+  LIn,
+  LocalizedText,
+  rememberCatalogue,
+  withEnglish,
 } from "@/core/localization/localization";
 import { parseStringsFile } from "@/core/localization/stringsFile";
 
@@ -123,6 +128,28 @@ describe("the catalogue", () => {
   it("fills a context's sentence from the arguments after it", () => {
     installCatalogue({ language: "ru", entries: { "menu|Merge %1$@": "Объединить %1$@" } });
     expect(L("Merge %1$@", { context: "menu" }, "chip.bin")).toBe("Объединить chip.bin");
+  });
+});
+
+describe("words asked for in a language", () => {
+  /**
+   * A sentence asked for in a language comes in that language, whatever the app
+   * or the scope speaks; one made without a language waits as its key and is put
+   * into words by whoever shows it.
+   */
+  // @upstream Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift#CatalogueTests.testWordsCanBeAskedForInALanguage
+  it("comes in the language asked for, whatever the app speaks", () => {
+    rememberCatalogue({ language: "de", entries: { "Drop files here": "Dateien hierher ziehen" } });
+    installCatalogue({ language: "ru", entries: { "Drop files here": "Перетащите файлы сюда" } });
+    expect(LIn("Drop files here", "en")).toBe("Drop files here");
+    expect(LIn("Drop files here", "de")).toBe("Dateien hierher ziehen");
+    expect(withEnglish(() => LIn("Drop files here", appLanguage()))).toBe("Перетащите файлы сюда");
+
+    const made = LocalizedText.of("Drop files here");
+    expect(made.textIn("en")).toBe("Drop files here");
+    expect(made.text).toBe("Перетащите файлы сюда");
+    expect(LocalizedText.verbatim("as is").textIn("de")).toBe("as is");
+    expect(L("Drop files here")).toBe("Перетащите файлы сюда");
   });
 });
 

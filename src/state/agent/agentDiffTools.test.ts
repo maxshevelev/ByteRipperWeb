@@ -529,3 +529,99 @@ describe("open_part", () => {
     expect((await call("open_part")).text).toBe("Give `offset` and `length`, or `node`.");
   });
 });
+
+describe("open_part, again", () => {
+  const panelCount = () => partsOfA();
+  const partsOfA = () =>
+    Object.values(workspaceStore.getSnapshot().parts).filter((part) => part?.origin?.parent === "a")
+      .length;
+
+  // Asking again for a part that is open raises its panel, and answers with it: no copy beside it.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAskingAgainForAnOpenPartReusesItsPanel
+  it("raises a part that is already open instead of opening a copy", async () => {
+    open(zeros(0x1000));
+    const first = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    expect(member(first, "reused")).toBeUndefined();
+    const again = (await call("open_part", { document: "d1", offset: "0x800", length: "0x100" }))
+      .json;
+    expect(member(again, "reused")).toBe(true);
+    expect(member(again, "document")).toBe(member(first, "document"));
+    expect(panelCount()).toBe(1);
+
+    const other = (await call("open_part", { document: "d1", offset: "0x900", length: "0x100" }))
+      .json;
+    expect(member(other, "reused")).toBeUndefined();
+    expect(member(other, "document")).not.toBe(member(first, "document"));
+    expect(panelCount()).toBe(2);
+  });
+
+  // The answer says whether the part has a tool panel, and how to open one on it.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeNamesItsDecodedCounterpartAndTheOtherWayRound
+  it("says the part has no tool panel yet, and how to open one", async () => {
+    open(zeros(0x1000));
+    const opened = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    expect(member(opened, "tool_panel")).toBeNull();
+    expect(String(member(opened, "next"))).toContain("open_panel");
+  });
+
+  // An argument `open_part` does not take is refused, not dropped.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testALENVBlockOpenedAsItIsSaysHowToDecodeIt
+  it("refuses an argument it does not take, saying what was meant", async () => {
+    open(zeros(0x1000));
+    const refused = await call("open_part", { node: "0.1", decoded: true });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain('Perhaps `part: "decoded"`');
+    expect(partsOfA()).toBe(0);
+  });
+
+  // `documents` says what a part's bytes are to the file's.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testADecompressedPartIsAFileToEveryTool
+  it("lists whether a part keeps the file's addresses", async () => {
+    open(zeros(0x1000));
+    const opened = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    const documents = member((await call("documents")).json, "documents") as Json[];
+    const entry = documents.find((one) => member(one, "id") === member(opened, "document"));
+    expect(member(entry, "keeps_offsets")).toBe(true);
+    expect(member(entry, "decoded")).toBeUndefined();
+    expect(member(entry, "part_of")).toBe("d1");
+  });
+});
+
+describe("a call that names the parent while the focus is on its part", () => {
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeNamesItsDecodedCounterpartAndTheOtherWayRound
+  it("answers with a focus_note, and says nothing when the call went where the focus is", async () => {
+    open(zeros(0x1000));
+    const opened = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    const part = member(opened, "document") as string;
+    const named = (await call("read", { document: "d1", offset: 0, length: 4 })).json;
+    expect(String(member(named, "focus_note"))).toContain(`a part of d1`);
+    const there = (await call("read", { document: part, offset: 0, length: 4 })).json;
+    expect(member(there, "focus_note")).toBeUndefined();
+    const bare = (await call("read", { offset: 0, length: 4 })).json;
+    expect(member(bare, "focus_note")).toBeUndefined();
+  });
+});
+
+describe("finding", () => {
+  // A finding in a part that keeps the file's addresses lands on the same bytes of the file.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAFindingInAPartLeadsToTheSameBytesOfTheFile
+  it("in a part leads to the same bytes of the file", async () => {
+    open(zeros(0x1000));
+    const opened = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    const finding = (
+      await call("finding", {
+        document: member(opened, "document") as string,
+        offset: "0x10",
+        length: 4,
+        text: "t",
+      })
+    ).json;
+    expect(member(member(finding, "range"), "start")).toBe("0x810");
+    expect(member(member(finding, "range"), "end")).toBe("0x814");
+    expect(member(member(finding, "from_part"), "exact")).toBe(true);
+    expect(member(member(finding, "from_part"), "range")).toMatchObject({
+      start: "0x10",
+      end: "0x14",
+    });
+  });
+});

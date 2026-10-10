@@ -7,9 +7,11 @@ import {
   clientTitle,
 } from "@/core/agent/agentClientConfiguration";
 import { agentStatusText } from "@/core/agent/agentStatus";
+import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import { agentService } from "@/state/agent/agentService";
 import { useStore } from "@/state/useStore";
+import { HelpButton } from "@/ui/help/HelpButton";
 
 /**
  * The Agent tab of the Settings window: the switch that opens the agent endpoint, what it does,
@@ -45,16 +47,18 @@ export function AgentTab() {
 
   return (
     <section className="settings-agent">
-      <h3 className="settings-heading">{L("Agent")}</h3>
-      <label className="settings-check">
-        <input
-          type="checkbox"
-          checked={state.enabled}
-          disabled={!agentService.isAvailable}
-          onChange={(event) => void agentService.setEnabled(event.target.checked)}
-        />
-        {L("Let agents connect to ByteRipper")}
-      </label>
+      <div className="settings-first-row">
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={state.enabled}
+            disabled={!agentService.isAvailable}
+            onChange={(event) => void agentService.setEnabled(event.target.checked)}
+          />
+          {L("Let agents connect to ByteRipper")}
+        </label>
+        <HelpButton link={topicLink(TOPIC.agent)} />
+      </div>
       <p className="settings-caption">
         {L(
           "An agent — Claude Code, Claude Desktop or another MCP client on this computer — can then list the files open here, read their bytes and show places in them. It cannot save a file. The connection is local, but what the agent reads, its program passes to the model behind it."

@@ -118,7 +118,6 @@
 "All 256 byte values decoded with the current table. Row headers are the byte value in hex." = "Все 256 значений байта в текущей таблице. Заголовки строк — значение байта в hex.";
 "Already a favourite, as “%1$@”." = "Уже в избранном под именем «%1$@».";
 "Analyzing the ME firmware…" = "Анализ прошивки ME…";
-"Appearance" = "Внешний вид";
 "Apple ROM information" = "Сведения о ROM Apple";
 "Append at End" = "Дописать в конец";
 "Append File…" = "Дописать файл в конец…";
@@ -375,7 +374,6 @@
 "Both apply to the hex views already open, and are what the next visit opens with." = "Оба применяются к уже открытым дампам и с ними же откроется следующий визит.";
 "Build date" = "Дата сборки";
 "ByteRipper Help" = "Справка ByteRipper";
-"ByteRipper Settings" = "Настройки ByteRipper";
 "Bytes from offset %1$@ will be removed. Subsequent offsets will shift — the file structure may be affected." = "Байты начиная с адреса %1$@ будут удалены. Последующие адреса сдвинутся — структура файла может быть нарушена.";
 "Bytes per word in the hex grid" = "Байт в слове в hex-сетке";
 "Cancel" = "Отмена";
@@ -615,11 +613,9 @@
 "Keep It" = "Оставить";
 "Keeping “%1$@” — %2$@." = "Сохраняется «%1$@» — %2$@.";
 "Kind" = "Вид";
-"Language" = "Язык";
 "Language:" = "Язык:";
 "Larger" = "Крупнее";
 "Later" = "Позже";
-"Layout" = "Расположение";
 "Layout Direction:" = "Направление панелей:";
 "Left / Right" = "Слева / справа";
 "Legend" = "Легенда";
@@ -1165,12 +1161,13 @@
 "Agent" = "Агент";
 "Page" = "Страница";
 "Agent Settings…" = "Настройки агента…";
-"Agents connected: %1$@." = "Подключено агентов: %1$@.";
+"Connections: %1$@." = "Подключений: %1$@.";
 "An agent's edit goes into the open file as one step of its undo and shows red until the file is saved, like an edit made by hand. Saving stays with you. A file opened read-only is never changed." = "Изменение, сделанное агентом, вносится в открытый файл одним шагом отмены и выделяется красным до сохранения файла, как правка, сделанная вручную. Сохраняет файл только пользователь. Файл, открытый только для чтения, не изменяется.";
 "Answer" = "Ответ";
 "Answered" = "Отвечено";
 "Arguments" = "Аргументы";
 "Cancelled" = "Отменено";
+"Running…" = "Выполняется…";
 "Clear Log" = "Очистить журнал";
 "Client" = "Клиент";
 "Command" = "Команда";
@@ -1185,7 +1182,7 @@
 "Let agents connect to ByteRipper" = "Разрешить агентам подключаться к ByteRipper";
 "Let agents edit open files" = "Разрешить агентам изменять открытые файлы";
 "Log" = "Журнал";
-"One agent connected." = "Подключён один агент.";
+"Connected." = "Подключено.";
 "Other Client" = "Другой клиент";
 "Result" = "Результат";
 "Scroll the log to each new request as it arrives" = "Прокручивать журнал к каждому новому запросу";
@@ -1198,7 +1195,7 @@
 "Took" = "Длительность";
 "Tool" = "Инструмент";
 "Transport" = "Транспорт";
-"Waiting for an agent." = "Ожидание агента.";
+"Waiting for a connection." = "Ожидание подключения.";
 "menu|Window" = "Окно";
 "none" = "нет";
 "Agent: %1$@" = "Агент: %1$@";

@@ -116,6 +116,11 @@ describe("Lenovo's DMI store in the detail", () => {
       words: "Decoded: the key 0x77 encodes it again on the way back",
       decoded: true,
     });
+    // On its own a block has no other to be chosen over: neither in use nor not, whatever the
+    // store it came from says.
+    const said = subtypeText(nodeOf(alone, "lenvBlock"));
+    expect(said).not.toBe("Not in use");
+    expect(said).not.toBe("In use");
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift#UEFILenovoDMIDetailTests.testTheTreesRowsSayWhatTheyHold

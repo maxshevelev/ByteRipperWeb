@@ -62,6 +62,7 @@ export class AgentConnection {
   private readonly send: (line: Uint8Array) => void;
   private readonly observer: (record: AgentCallRecord) => void;
   private readonly onFirstMessage: () => void;
+  private readonly onCallStarted: (record: AgentCallRecord) => void;
   /** Whether the client has sent anything yet. */
   private hasSpoken = false;
   private readonly framer: LineFramer;
@@ -82,24 +83,28 @@ export class AgentConnection {
 
   /**
    * `send` is given one message at a time, a complete line with its newline. `observer` hears
-   * about every tool call once it is over. `onFirstMessage` is called once, when the first complete
+   * about every tool call once it is over; `onCallStarted` hears of one when it begins, as a
+   * running record the finished one replaces under the same id. `onFirstMessage` is called once, when the first complete
    * message arrives: until then the other end is a transport, not yet a client — a relay a client
    * started and then abandoned before its handshake holds a connection open and never says a word.
    *
    * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.init
    * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.onFirstMessage
    * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.hasSpoken
+   * @upstream Packages/AgentKit/Sources/AgentKit/AgentConnection.swift#AgentConnection.onCallStarted
    */
   constructor(
     server: AgentServer,
     send: (line: Uint8Array) => void,
     observer: (record: AgentCallRecord) => void = () => undefined,
-    onFirstMessage: () => void = () => undefined
+    onFirstMessage: () => void = () => undefined,
+    onCallStarted: (record: AgentCallRecord) => void = () => undefined
   ) {
     this.server = server;
     this.send = send;
     this.observer = observer;
     this.onFirstMessage = onFirstMessage;
+    this.onCallStarted = onCallStarted;
     this.framer = new LineFramer(server.limits.maxLineBytes);
   }
 
@@ -363,7 +368,22 @@ export class AgentConnection {
       signal: controller.signal,
     };
     const client = this.clientName;
-    const started = Date.now();
+    const callId = nextRecordId++;
+    const startedAt = new Date();
+    const started = startedAt.getTime();
+    // A record for the call while it runs, so a log can show what the tool is busy with; the
+    // finished one, under the same id, replaces it. `observer` hears only finished calls.
+    this.onCallStarted({
+      id: callId,
+      client,
+      tool: name,
+      arguments: args,
+      started: startedAt,
+      durationMilliseconds: 0,
+      finished: startedAt,
+      answerBytes: 0,
+      outcome: { kind: "running" },
+    });
     // Started a turn later, so the entry below exists when the tool first reports progress.
     const done = Promise.resolve().then(async (): Promise<void> => {
       let outcome: CallOutcome;
@@ -377,6 +397,8 @@ export class AgentConnection {
           outcome = { kind: "toolError", message: `The tool failed: ${(error as Error).message}` };
       }
       this.finishCall(id, key, era, outcome, {
+        id: callId,
+        started: startedAt,
         client,
         tool: name,
         arguments: args,
@@ -397,6 +419,8 @@ export class AgentConnection {
     era: Era,
     outcome: CallOutcome,
     record: {
+      readonly id: number;
+      readonly started: Date;
       readonly client: string | undefined;
       readonly tool: string;
       readonly arguments: Json;
@@ -405,7 +429,8 @@ export class AgentConnection {
   ): void {
     const log = (result: AgentCallOutcome, bytes: number) =>
       this.observer({
-        id: nextRecordId++,
+        id: record.id,
+        started: record.started,
         client: record.client,
         tool: record.tool,
         arguments: record.arguments,

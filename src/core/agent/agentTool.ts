@@ -1,5 +1,5 @@
 import type { AgentArguments } from "@/core/agent/agentArguments";
-import { type Json, jsonText } from "@/core/agent/json";
+import { isObject, type Json, jsonText } from "@/core/agent/json";
 
 /**
  * One thing an agent can ask the app to do: its name, what it says about itself, the arguments
@@ -74,16 +74,113 @@ export const EDIT: AgentToolAnnotations = {
   idempotent: false,
 };
 
-/** @upstream Packages/AgentKit/Sources/AgentKit/AgentTool.swift#AgentTool.init */
+/**
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentTool.swift#AgentTool.init
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentTool.swift#AgentTool.refuseUnknownArguments
+ */
 export function agentTool(
   tool: Pick<AgentTool, "name" | "description" | "run"> & Partial<AgentTool>
 ): AgentTool {
+  const inputSchema: Json = tool.inputSchema ?? {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  };
+  const run = tool.run;
   return {
     title: undefined,
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: READ_ONLY,
     ...tool,
+    inputSchema,
+    // Every way in — a client's call, `survey` asking on a model's behalf — meets the same
+    // check, so an argument the tool does not take is a refusal and never a call that silently
+    // did something else.
+    run: (call) => {
+      refuseUnknownArguments(call.arguments, tool.name, inputSchema);
+      return run(call);
+    },
   };
+}
+
+/**
+ * Throws when `args` names an argument the schema does not.
+ *
+ * The schema says `additionalProperties: false`, but a client may not hold a model to it: one
+ * that drops what it does not know sends the call on without it, and the tool answers as if
+ * the argument had never been given — `open_part` with `decoded: true` opened the block still
+ * encoded, and the answer looked like success. The refusal names what the tool does take and,
+ * when it can tell, what was meant.
+ *
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentTool.swift#AgentTool.refuseUnknownArguments
+ */
+export function refuseUnknownArguments(args: AgentArguments, tool: string, schema: Json): void {
+  const properties = schemaProperties(schema);
+  const unknown = Object.keys(args.values)
+    .filter((key) => !Object.hasOwn(properties, key))
+    .sort(compareStrings);
+  const first = unknown[0];
+  if (first === undefined) return;
+  const names = unknown.map((name) => `\`${name}\``).join(", ");
+  let message = `\`${tool}\` takes no argument ${names}.`;
+  const meant = meaning(first, properties);
+  if (meant !== undefined) message += ` Perhaps ${meant}.`;
+  const taken = Object.keys(properties).sort(compareStrings);
+  message += taken.length === 0 ? " It takes no arguments." : ` It takes: ${taken.join(", ")}.`;
+  throw new AgentToolError(message);
+}
+
+const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+function schemaProperties(schema: Json): { readonly [key: string]: Json } {
+  const properties = isObject(schema) ? schema.properties : undefined;
+  return isObject(properties) ? properties : {};
+}
+
+/**
+ * What a model most likely meant by an argument the tool does not take: a value of one it does
+ * (`decoded` for `part: "decoded"`), or one whose name is a slip away from it.
+ *
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentTool.swift#AgentTool.meaning
+ */
+export function meaning(
+  name: string,
+  properties: { readonly [key: string]: Json }
+): string | undefined {
+  const lower = name.toLowerCase();
+  const keys = Object.keys(properties).sort(compareStrings);
+  for (const key of keys) {
+    const property = properties[key];
+    const options = isObject(property) && Array.isArray(property.enum) ? property.enum : [];
+    const choice = options.find((c) => typeof c === "string" && c.toLowerCase() === lower);
+    if (typeof choice === "string") return `\`${key}: "${choice}"\``;
+  }
+  const bound = Math.max(1, Math.min(2, Math.floor([...name].length / 3)));
+  let best: { key: string; distance: number } | undefined;
+  for (const key of keys) {
+    const distance = editDistance(lower, key.toLowerCase());
+    if (distance > bound) continue;
+    if (best === undefined || distance < best.distance) best = { key, distance };
+  }
+  return best === undefined ? undefined : `\`${best.key}\``;
+}
+
+function editDistance(first: string, second: string): number {
+  const a = [...first];
+  const b = [...second];
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i++) {
+    let previous = row[0] as number;
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const kept = row[j] as number;
+      row[j] =
+        a[i - 1] === b[j - 1] ? previous : 1 + Math.min(previous, kept, row[j - 1] as number);
+      previous = kept;
+    }
+  }
+  return row[b.length] as number;
 }
 
 /** The tool as `tools/list` describes it. */

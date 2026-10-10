@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import {
   type PartBadge,
   type PartCodec,
@@ -117,8 +117,8 @@ export class UEFIPartCodec implements PartCodec {
     );
     if (bytes === undefined) {
       throw new PartRefusal(
-        L("Those bytes could not be read."),
-        L("A compressed section on the way to the part no longer decompresses.")
+        LocalizedText.of("Those bytes could not be read."),
+        LocalizedText.of("A compressed section on the way to the part no longer decompresses.")
       );
     }
     return bytes;
@@ -138,8 +138,10 @@ export class UEFIPartCodec implements PartCodec {
     const plan = answer?.plan;
     if (plan === undefined) {
       throw new PartRefusal(
-        L("“%1$@” cannot be put back", parent.partName),
-        answer?.refusal ?? L("Nothing was changed in %1$@.", parent.name)
+        LocalizedText.of("“%1$@” cannot be put back", parent.partName),
+        answer?.refusal === undefined
+          ? LocalizedText.of("Nothing was changed in %1$@.", parent.name)
+          : LocalizedText.verbatim(answer.refusal)
       );
     }
     return {
@@ -148,8 +150,8 @@ export class UEFIPartCodec implements PartCodec {
       source: plan.source,
       notes:
         plan.warnings.length === 0
-          ? [L("Nothing was written inside a Boot Guard or vendor protected range.")]
-          : plan.warnings,
+          ? [LocalizedText.of("Nothing was written inside a Boot Guard or vendor protected range.")]
+          : plan.warnings.map(LocalizedText.verbatim),
     };
   }
 }

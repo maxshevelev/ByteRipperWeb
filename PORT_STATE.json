@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "afd4bd3935a71a26778642b5b37be74fcba03a04",
-  "baselineNote": "Section the agent's tools by group, a heading to each, instead of a Group column (2026-10-10)"
+  "baseCommit": "27be11d9f6c088d1dc76e762d77724ba72e8db0d",
+  "baselineNote": "Agent: a refusal over a node id says which document has it; one link per node; a panel's answer names its document (2026-10-10)"
 }

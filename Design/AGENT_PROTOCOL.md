@@ -70,7 +70,19 @@ Recorded against: Claude Code 2.1.292 (modern; `RecordedClientTests`).
   defaults to the focused one.
 - **UEFI nodes** are named by their place in the tree, `"0.2.5"` — exact for
   those bytes, meaningless in another dump. Find a node in another dump by
-  what it is (`uefi_find`).
+  what it is (`uefi_find`). A part has a tree of its own, with ids that start
+  over, so an id belongs to the document it was listed on. A node in an
+  answer names the same node in an open part or the part's parent
+  (`counterpart` — `{document, node, as}` — and `decoded_in`) where the codec
+  keeps the addresses, and says how the file holds it (`encoded`, `compressed`,
+  `compressed_in`). A call that names the parent while the focus is on its
+  part, or the other way round, carries a `focus_note`, a refusal over a node
+  id the document has not got names the one that has it, and a panel's answer
+  names its `document`.
+- **An argument a tool does not take is refused**, naming what it takes and,
+  when it can tell, what was meant (`decoded: true` for `part: "decoded"`):
+  a client that drops what it does not know would otherwise send the call on
+  without it, and the tool would answer as if it had never been given.
 - **Refusals** are tool results with `isError: true` and one sentence saying
   what to do instead. Protocol errors (`-32602` unknown tool or bad params,
   `-32601` unknown method, `-32022` unsupported version) are for malformed
@@ -92,7 +104,7 @@ Recorded against: Claude Code 2.1.292 (modern; `RecordedClientTests`).
 
 | Tool | Arguments | Answer |
 |---|---|---|
-| `documents` | — | `documents[]`: `id`, `name`, `path` (not for an untitled one), `size`, `unsaved_edits`, `read_only`, `tab`, `slot` (`A`, `B`, `part`), `focused`; for a part, `part_of` and `source` (range in the parent). |
+| `documents` | — | `documents[]`: `id`, `name`, `path` (not for an untitled one), `size`, `unsaved_edits`, `read_only`, `tab`, `slot` (`A`, `B`, `part`), `focused`; for a part, `part_of`, `source` (range in the parent), `decoded` (the codec's badge — `LZMA`, `XOR 77`, `Read-only`; absent for a copy) and `keeps_offsets`. A part is a document like any other: every tool that takes `document` reads it in its decoded form from address 0, and `open_panel` and the panel tools act on the part's own tool panel. |
 | `focus` | — | `document`, `name`, `caret`, `selection` (range or null), `on_screen` (range), `compared_with` (the other document of a comparison). |
 | `read` | `offset`; `length` (default 256, ≤ 4096); `format` `hex`·`ascii`·`utf16le`·`u8`·`u16`·`u32`·`u64`; `endian` `little`·`big` | `document`, `offset`, `length`, `format`; `rows` (hex: `"00001000  4D 5A …  |MZ..|"`), `text`, or `values` (hex strings); `cut_at_end_of_file` when cut. |
 | `reveal` | `offset`; `length` (default 0); `select` (default: length > 0) | `document`, `shown` (range), `selected`. A navigation step. |
@@ -118,7 +130,7 @@ window. It goes with `unmark`, the window's buttons, or its document.
 | `close_dump` | `document` | `closed`. Refuses a document in a tab. |
 | `show` | `document`; `offset`, `length` | `document` (on screen), `shown`, `replaces` (the background id it replaced). Opens a new tab, or brings forward the tab that has the file. |
 | `survey` | `folder` (+ `recursive`) or `paths`; `tool` (one that takes `document`); `arguments`; `group_by` (dotted path, `-1` for the last element); `limit` (20, ≤ 100); `after` | `files`, `groups_total`, `groups[]` (`value`, `count`, `files` — ten at most; the largest first), `failed[]` (`file`, `error`). Progress per file. At most 200 files. Paged (`next`, `after`): a page after the first is cut from the same run, never a new one; a group whose value is too large alone gives the start of its JSON text. |
-| `finding` | `text`; `document` or `path`; `offset`, `length`, `node` | the finding: `id` (`f1`…), `path`, `range`, `node`, `text`. |
+| `finding` | `text`; `document` or `path`; `offset`, `length`, `node` | the finding: `id` (`f1`…), `path`, `range`, `node`, `text`. A finding in a part is recorded in the file on disk it came out of — the same bytes through every codec that keeps offsets, else the source range — with `from_part` (`document`, `range`, `exact`). |
 | `findings` | `limit` (50, ≤ 200); `after` | `findings[]`, oldest first; `total`. Paged (`next`, `after`). |
 
 A background document is answered about by every tool that reads — `read`,
@@ -218,6 +230,7 @@ saves.
 |---|---|---|
 | `write` | `offset`, `bytes` (hex, ≤ 64 KiB), `label` (required, the person's language); `expect` (hex: the bytes that must be there now) | `written[]` (`start`, `end`, `before` — up to 64 bytes, `before_cut`), `undo`, `saved: false`. Overwrites only: past the end is refused. |
 | `copy_to_other_pane` | `offset`, `length`; `document` (the source, one of a tab's two files); `label` (default: Copy to Other Pane) | `from`, `to`, `start`, `end`, `length`, `changed` (bytes that differed), `where` (as `diff`), `undo` (null when nothing differed), `saved: false`. Edit ▸ Copy to Other Pane: the same addresses in the other file, bytes never through the model, no size limit. Refused for a part, a file alone in its tab, a read-only destination, a range past either end. |
+| `update_in_parent` | `document` (a part); `overwrite_changed_source` | `document`, `parent`, `updated`; when it went back, `written` (the run written into the parent), `source` (the part's bytes there now), `notes` (what the codec says), `undo`, `saved: false`. Nothing new: `updated: false`. Refused, nothing written: not a part; edits switched off; a dialog open in the window; the parent closed; the codec's refusal (length changed, no longer fits compressed); the parent changed while the update was worked out; the source changed in the parent since the part was opened, unless `overwrite_changed_source` — which the agent passes only after the person agreed. The command's own core (`updateInParentQuietly`, after `MainViewController.updateInParentQuietly`), its questions answered by arguments and its alerts handed back as refusals. No read-only parent to refuse: a page edits every document it holds in memory. |
 | `uefi_fix_checksum` | `node`, or `all: true` (under `node` when given) | as `write`; with `all`, `fixed[]` (`id`, `name`) and `skipped_compressed`. A volume's, a file's, a microcode's, a PSP or BIOS directory's checksums, by the panel's own repair code; `all` puts a file holding a volume right after the files inside it, in one undo step. Refused inside a compressed section and when already correct. |
 | `fit_fix_checksum` | — | as `write`. The header's checksum, and the Top Swap backup's copy when it is the same table. Refused when unchecked or correct. |
 | `fit_add_microcode` | `path` (from `microcode_catalogue`) | as `write`, and `change` (`added`, or `replaced` with what it `replaced`: `cpuid`, `revision`, `date`), `entry`, `component`, `moved`, `protected_ranges`, `top_swap_backup`. The panel's Add Microcode: a row whose update serves the same processor — extended signature tables counted — is updated in place. Refused when the same update is already in the table, and for the panel's other reasons. |
@@ -262,7 +275,7 @@ refused.
 | `find_bytes` | `text` (with `encoding` `ascii`·`utf16le`·`both`, default both; `ignore_case`) or `hex` (pairs, `??` for any byte); `overlapping`; `offset`, `end`; `node`; `context` (≤ 64); `limit` (100, ≤ 1000); `after` | `document`, `range`, `total`, `matches[]` (`start`, `end` — or `node_start`, `node_end` in a decompressed buffer — `encoding`, `where[]`, `preview` with `hex`, `text`, `before`), `next`, `truncated`. With `node`: `node`, `node_size`, `in_compressed`, `decompressed` (a compressed section searched in its buffer), `source`. Reads only. |
 | `refs` | `guid`, or `address` (with `relative_to` `file`·`region`, `forms` of `bus`·`file`·`region`, default all); `scope` `all`·`raw`·`compressed`; `limit` (50, ≤ 200, on files); `after` | `document`, `scope`, `guid` or `forms` (each form's bytes; `bus64` too), `skipped_forms`, `total` (hits), `files` (groups), `refs[]`: `file` (or `node` for a hit in no FFS file), `name`, `guid`, `type`, `in_compressed`, `hits[]` (`form`, `section`, `section_offset`, `file_start` or `node_start` + `in_compressed`, `node` when deeper), `hits_total` past 20. Bus form: the BIOS region's end at 0x100000000. A hit inside a longer form's hit is left out; a form under 0x100 is skipped. |
 | `region_scan` | `node` (default: the BIOS region); `kinds` (Type or Subtype, default `Padding`, `Raw`); `min_size` (0x100); `limit` (50, ≤ 200); `after` | `total`, `under`, `nodes[]`: as `uefi_tree` (`node` for `id`), `size`, `inner` (a child covering it whole), `class` (`empty` ≥ 99 % 0x00/0xFF, `text` ≥ 50 % of the rest in strings, `code` by x86-64 markers or `MZ`, else `data`), `fill`, `first_nonfill`, `last_nonfill`, `strings[]` (≤ 5: `at`, `text` ≤ 64, `encoding`), `redacted` — no strings for an area named MSDM, Password or Key. A node its children divide gives way to them. |
-| `open_part` | `offset`, `length` — or `node` with `part` (`all`, `body`); `name` | `document` (the part's id), `parent`, `name`, `source` (the parent's bytes it is linked to), `size`; with `node`, `node` and `in_compressed`. |
+| `open_part` | `offset`, `length` — or `node` with `part` (`all`, `body`, `decompressed` — what a compressed section decompresses to, `decoded` — a Lenovo LENV block or one of its entries with the XOR removed); `name` | `document` (the part's id), `parent`, `name`, `source` (the parent's bytes it is linked to), `size`; with `node`, `node`, `part` and `in_compressed`; `hint` for a LENV block opened encoded; `reused: true` when the part was already open and its panel was raised instead; `tool_panel` (the part's panel, null when none, with `next` saying how to open one). |
 
 `find_bytes` is the find bar's engine (`SearchEngine.matches`), given holes
 and overlapping matches; a match across two reads is found once. The file is
@@ -272,5 +285,7 @@ decompressed again. `where` is placed by the locators as `diff` places a run; a 
 in a buffer, it is the deepest node under the one searched. `open_part` opens
 as Open Zone (a range) and the UEFI panel's Open (a node) do: a fragment
 panel over the parent's tab, linked, its edits going back with Update in
-Parent — a decompressed node's compressed again. `compare` of a part, which
+Parent — a decompressed node's compressed again. It is the route to look
+into a node, compressed or not: the same window, the parent showing behind.
+The web edition has no tabs, so it is the only one. `compare` of a part, which
 has no file, opens copies in a new tab and says `copies`.

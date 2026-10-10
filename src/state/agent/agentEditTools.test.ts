@@ -99,7 +99,13 @@ describe("the edit tools", () => {
   // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheEditToolsAreListedAsEdits
   it("are listed as edits that take a document", () => {
     const tools = new Map(service.allTools().map((tool) => [tool.name, tool]));
-    for (const name of ["write", "copy_to_other_pane", "uefi_fix_checksum", "fit_fix_checksum"]) {
+    for (const name of [
+      "write",
+      "copy_to_other_pane",
+      "update_in_parent",
+      "uefi_fix_checksum",
+      "fit_fix_checksum",
+    ]) {
       const tool = tools.get(name);
       expect(tool?.annotations, name).toEqual({
         readOnly: false,
@@ -276,5 +282,84 @@ describe("hex bytes", () => {
     expect([...parseHexBytes("0xDE ad,be EF", "bytes")]).toEqual([0xde, 0xad, 0xbe, 0xef]);
     expect(() => parseHexBytes("ABC", "bytes")).toThrow("is not hex bytes");
     expect(() => parseHexBytes("GG", "bytes")).toThrow("is not hex bytes");
+  });
+});
+
+describe("update_in_parent", () => {
+  /** Opens `[0x800, 0x900)` of a zeroed 0x1000-byte file as a part, and says its id. */
+  async function openedPart(): Promise<string> {
+    open(new Array<number>(0x1000).fill(0));
+    service.setEditsAllowed(true);
+    const part = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    return member(part, "document") as string;
+  }
+
+  // A part edited and put back: the parent gets the bytes as one undo step; asked again, there is
+  // nothing new to put back.
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAPartGoesBackIntoItsParent
+  it("puts a part back into its parent, once", async () => {
+    const id = await openedPart();
+    await call("write", { document: id, offset: "0x10", bytes: "DEADBEEF", label: "t" });
+    const updated = (await call("update_in_parent", { document: id })).json;
+    expect(member(updated, "updated")).toBe(true);
+    expect(member(updated, "parent")).toBe("d1");
+    expect(member(updated, "saved")).toBe(false);
+    expect(await bytesOf(0x810, 0x814)).toEqual([0xde, 0xad, 0xbe, 0xef]);
+    expect(paneState("a")?.document.isDirty).toBe(true);
+
+    const again = (await call("update_in_parent", { document: id })).json;
+    expect(member(again, "updated")).toBe(false);
+  });
+
+  // Bytes changed in the parent since the part was opened are not overwritten unless the call says
+  // so.
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAChangedSourceIsOverwrittenOnlyWhenAsked
+  it("overwrites a changed source only when asked", async () => {
+    const id = await openedPart();
+    await call("write", { document: "d1", offset: "0x880", bytes: "11", label: "t" });
+    await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
+
+    const refused = await call("update_in_parent", { document: id });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain("overwrite_changed_source");
+    expect(await bytesOf(0x800, 0x801)).toEqual([0x00]);
+
+    const updated = (
+      await call("update_in_parent", { document: id, overwrite_changed_source: true })
+    ).json;
+    expect(member(updated, "updated")).toBe(true);
+    expect(await bytesOf(0x800, 0x801)).toEqual([0x22]);
+    expect(await bytesOf(0x880, 0x881)).toEqual([0x00]);
+  });
+
+  // What has no parent, may not be changed, or cannot be put back is refused, and nothing is
+  // written.
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testWhatCannotGoBackIsRefused
+  it("refuses what is no part, what edits are off for, and what has no parent", async () => {
+    open(new Array<number>(0x1000).fill(0));
+    expect((await call("update_in_parent", { document: "d1" })).text).toContain("is not a part");
+
+    const part = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
+    const id = member(part, "document") as string;
+    expect((await call("update_in_parent", { document: id })).text).toContain(
+      "Editing is switched off"
+    );
+
+    service.setEditsAllowed(true);
+    await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
+    workspaceStore.update((state) => ({ ...state, panes: { ...state.panes, a: undefined } }));
+    const closed = await call("update_in_parent", { document: id });
+    expect(closed.isError).toBe(true);
+    expect(closed.text).toContain("is no longer open");
+  });
+
+  // The undo step the person's Edit menu offers is in the app's language; the refusal an agent
+  // reads is in English.
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testUpdateInParentAnswersInEnglishAndUndoesInTheAppsLanguage
+  it("names the undo step by the update's own words", async () => {
+    const id = await openedPart();
+    await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
+    const updated = (await call("update_in_parent", { document: id })).json;
+    expect(String(member(updated, "undo"))).toMatch(/^Update from /);
   });
 });

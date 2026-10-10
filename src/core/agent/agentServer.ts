@@ -78,12 +78,21 @@ export class AgentServer {
  * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.duration
  * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.finished
  * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.id
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.init
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.isRunning
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.started
  * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.outcome
  * @upstream Packages/AgentKit/Sources/AgentKit/AgentServer.swift#AgentCallRecord.tool
  */
 export interface AgentCallRecord {
-  /** Which call this is, so a list that drops its oldest rows can still find the one a reader selected. */
+  /**
+   * Which call this is, so a list that drops its oldest rows can still find the one a reader
+   * selected — and so a call's finished record can take the place of the one it was given when
+   * it started.
+   */
   readonly id: number;
+  /** When the call came in, by this machine's clock. */
+  readonly started: Date;
   /** The client's own name for itself, when it gave one. */
   readonly client: string | undefined;
   readonly tool: string;
@@ -104,4 +113,12 @@ export type AgentCallOutcome =
   /** The answer was over `maxAnswerBytes` and was not sent. */
   | { readonly kind: "overBound" }
   /** The client withdrew the request; nothing was sent. */
-  | { readonly kind: "cancelled" };
+  | { readonly kind: "cancelled" }
+  /**
+   * The tool is still working on it: the record a call is given when it starts, which its
+   * finished record replaces (same `id`).
+   */
+  | { readonly kind: "running" };
+
+/** Whether the tool is still working on the call. */
+export const isRunning = (record: AgentCallRecord): boolean => record.outcome.kind === "running";

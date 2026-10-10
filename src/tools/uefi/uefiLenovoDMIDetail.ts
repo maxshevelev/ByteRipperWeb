@@ -559,3 +559,27 @@ export function decodableBlockOf(
   if (block === undefined || !LenovoDMIDecodedBlock.canOpen(block)) return undefined;
   return { range: [range.start, range.end], name: row.name };
 }
+
+/**
+ * The key a LENV block — or the block an entry is in — is stored in the file encoded with;
+ * nothing for a block stored in the clear, a block opened decoded, and any row that is not
+ * one. What tells an agent that the bytes it would read or show at this node are not the text.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFILenovoDMIDetail.swift#UEFILenovoDMIDetail.storedXORKey
+ * @upstream-differs the row's parent is handed over, as `decodableBlockOf` has it: the tree here
+ * has a node and its parent, not the image's lookup
+ */
+export function storedXORKey(
+  node: UEFINode,
+  parent: UEFINode | undefined,
+  reader: ImageReader
+): number | undefined {
+  if (node.kind !== "lenvBlock" && node.kind !== "lenvEntry") return undefined;
+  if (!isFileSpace(node.space)) return undefined;
+  const row = node.kind === "lenvBlock" ? node : parent;
+  if (row === undefined || row.kind !== "lenvBlock") return undefined;
+  const range = nodeRange(row);
+  const block = blocksOf(reader.bytes(range), range.start);
+  if (block === undefined || !LenovoDMIDecodedBlock.canOpen(block)) return undefined;
+  return block.encoding === "encoded" ? block.xorKey : undefined;
+}

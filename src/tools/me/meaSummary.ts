@@ -5,6 +5,7 @@ import {
   type PowerDownMitigation,
   powerDownMitigationText,
 } from "@/firmware/me/models/firmwareFacts";
+import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
 import {
   chipsetSteppingText,
   downgradeBlacklistText,
@@ -17,7 +18,7 @@ import {
   titleText,
   yesNo,
 } from "@/tools/meaText";
-import { fileSystemState } from "@/tools/meaTones";
+import { fileSystemStateWithBasis, stateBasis } from "@/tools/meaTones";
 import { manufactureDate, pendingValue } from "@/tools/meaTree";
 import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
 import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
@@ -203,7 +204,22 @@ export function buildSummary(
     if (pending.fileTable && a.efsVolume !== undefined && a.mfsState !== undefined) {
       add("File System State", PENDING);
     } else if (a.mfsState !== undefined) {
-      add("File System State", shown(titleText(a.mfsState)), fileSystemState(a.mfsState));
+      add(
+        "File System State",
+        shown(titleText(a.mfsState)),
+        fileSystemStateWithBasis(a.mfsState, a.mfsStateBasis)
+      );
+      // Under it, what the state rests on — the same paragraph as the Firmware row's detail in Full
+      // Info. Not upstream's row: MEAnalyzer prints the state alone, and a state that a step which
+      // could not be taken left standing then reads as settled, in green, with the reason only in
+      // the messages at the bottom.
+      if (a.mfsStateBasis !== undefined) {
+        add(
+          L("State basis"),
+          shown(fileSystemStateBasisText(a.mfsState, a.mfsStateBasis)),
+          stateBasis(a.mfsStateBasis)
+        );
+      }
     } else if (identified) {
       add("File System State", COMING_SOON);
     }

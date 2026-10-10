@@ -6,6 +6,7 @@ import {
   isProblem,
   logText,
 } from "@/core/agent/agentLogText";
+import { isRunning } from "@/core/agent/agentServer";
 import { agentStatusText } from "@/core/agent/agentStatus";
 import { L } from "@/core/localization/localization";
 import { agentFindingStore } from "@/state/agent/agentDumpTools";
@@ -75,6 +76,18 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
   });
   const list = useRef<HTMLDivElement>(null);
   const log = useAgentColumns(logColumns, "AgentLogTable");
+
+  // Ticks once a second while a call runs, so its Took cell counts up.
+  // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.elapsedTimer
+  // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.updateElapsedTimer
+  // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.tickElapsed
+  const [, setTick] = useState(0);
+  const anyRunning = state.log.some(isRunning);
+  useEffect(() => {
+    if (!anyRunning) return;
+    const timer = window.setInterval(() => setTick((one) => one + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [anyRunning]);
 
   // The log scrolls to each new request as it arrives, when asked to.
   // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.followButton
@@ -295,32 +308,15 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         }
       />
       <footer className="agent-window-foot">
-        {/* help: window.agent.follow */}
-        <label
-          className="agent-follow"
-          hidden={page !== "log"}
-          title={L("Scroll the log to each new request as it arrives")}
-        >
-          <input
-            type="checkbox"
-            checked={follow}
-            onChange={(event) => {
-              setFollow(event.target.checked);
-              try {
-                window.localStorage.setItem(FOLLOW_KEY, String(event.target.checked));
-              } catch {
-                // A choice that is not remembered is asked again.
-              }
-            }}
-          />
-          {L("Follow New Requests")}
-        </label>
-        <span className="agent-spacer" />
-        <button type="button" onClick={onSettings}>
-          {L("Agent Settings…")}
-        </button>
         {page === "marks" ? (
           <>
+            <button
+              type="button"
+              disabled={marks.length === 0}
+              onClick={() => agentService.markTools.remove(() => true)}
+            >
+              {L("Clear Marks")}
+            </button>
             <button
               type="button"
               disabled={!marks.some((one) => chosenMarks.has(one.mark.id))}
@@ -330,13 +326,6 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
               }}
             >
               {L("Remove Mark")}
-            </button>
-            <button
-              type="button"
-              disabled={marks.length === 0}
-              onClick={() => agentService.markTools.remove(() => true)}
-            >
-              {L("Clear Marks")}
             </button>
           </>
         ) : page === "findings" ? (
@@ -367,6 +356,30 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
             {L("Clear Log")}
           </button>
         )}
+        {/* help: window.agent.follow */}
+        <label
+          className="agent-follow"
+          hidden={page !== "log"}
+          title={L("Scroll the log to each new request as it arrives")}
+        >
+          <input
+            type="checkbox"
+            checked={follow}
+            onChange={(event) => {
+              setFollow(event.target.checked);
+              try {
+                window.localStorage.setItem(FOLLOW_KEY, String(event.target.checked));
+              } catch {
+                // A choice that is not remembered is asked again.
+              }
+            }}
+          />
+          {L("Follow New Requests")}
+        </label>
+        <span className="agent-spacer" />
+        <button type="button" onClick={onSettings}>
+          {L("Agent Settings…")}
+        </button>
       </footer>
     </section>
   );

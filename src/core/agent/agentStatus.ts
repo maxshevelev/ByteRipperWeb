@@ -18,10 +18,10 @@ export function agentStatusText(service: {
   if (!service.running) return L("Switched off.");
   switch (service.connections) {
     case 0:
-      return L("Waiting for an agent.");
+      return L("Waiting for a connection.");
     case 1:
-      return L("One agent connected.");
+      return L("Connected.");
     default:
-      return L("Agents connected: %1$@.", service.connections);
+      return L("Connections: %1$@.", service.connections);
   }
 }

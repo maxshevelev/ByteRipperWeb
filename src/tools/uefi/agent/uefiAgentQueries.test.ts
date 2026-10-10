@@ -3,8 +3,10 @@ import { AgentArguments } from "@/core/agent/agentArguments";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { type Json, member } from "@/core/agent/json";
 import * as Test from "@/firmware/testing/testImage";
+import { MTM, SERIAL, STANDARD_LOG, testBlock, testLog } from "@/firmware/testing/testLenovoDMI";
 import { nvramVolume, vssStore } from "@/firmware/testing/testNvram";
 import { guid } from "@/firmware/uefi/efiGuid";
+import { DRIVER_LZMA, driverBody, streamBytes } from "@/firmware/uefi/testing/compressedFixtures";
 import {
   runUefiAgentQuery,
   type UefiAgentQueryName,
@@ -172,5 +174,79 @@ describe("the worker's entry", () => {
           )
       )
     ).toEqual(["object", "object"]);
+  });
+});
+
+describe("how the file holds a node", () => {
+  /** A volume whose one file holds an LZMA compression section. */
+  const compressedTree = () =>
+    agentTreeOver(
+      Test.volume({
+        length: 0x2000,
+        files: [
+          Test.sectionedFile({
+            sections: [
+              Test.compressionSection(0x02, streamBytes(DRIVER_LZMA), driverBody().length),
+            ],
+          }),
+        ],
+      })
+    );
+
+  // A compressed section and every node it decompresses to say how the file holds them, and the
+  // latter which section to open.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionAndWhatItHoldsSayTheyAreCompressed
+  it("says a compressed section, and what it holds, are compressed", () => {
+    const tree = compressedTree();
+    const sections = member(
+      uefiFind(tree, args({ type: "Section" }), context),
+      "matches"
+    ) as Json[];
+    const section = sections.find((one) => member(one, "compressed") !== undefined);
+    expect(section).toBeDefined();
+    const algorithm = member(section, "compressed");
+    expect(typeof algorithm).toBe("string");
+    expect(member(section, "compressed_in")).toBeUndefined();
+    const below = uefiTree(tree, args({ node: member(section, "id") as string }), context);
+    const child = (member(below, "children") as Json[])[0];
+    expect(member(child, "compressed")).toBe(algorithm);
+    expect(member(child, "compressed_in")).toBe(member(section, "id"));
+    expect(member(child, "in_compressed")).toBe(true);
+    // What holds the section is the file's.
+    const at = uefiAt(tree, args({ offset: member(section, "start") as string }));
+    const chain = member(at, "chain") as Json[];
+    const outside = chain.slice(0, -1);
+    expect(outside.length).toBeGreaterThan(0);
+    expect(outside.every((one) => member(one, "compressed") === undefined)).toBe(true);
+  });
+
+  // A LENV block, and an entry in it, stored encoded say so.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeNamesItsDecodedCounterpartAndTheOtherWayRound
+  it("says a LENV block stored encoded is, with the key", () => {
+    const tree = agentTreeOver(
+      Uint8Array.from([
+        ...new Array<number>(0x4000).fill(0xff),
+        ...testLog(STANDARD_LOG.slice(2), 0x77),
+        ...testBlock({ generation: 3, key: 0x77, entries: [SERIAL, MTM] }),
+        ...testBlock({ generation: 4, key: 0x77, entries: [SERIAL] }),
+        ...new Array<number>(0x4000).fill(0xff),
+      ])
+    );
+    const blocks = member(
+      uefiFind(tree, args({ name: "LENV block" }), context),
+      "matches"
+    ) as Json[];
+    expect(blocks.length).toBe(2);
+    expect(blocks.every((one) => member(one, "encoded") === "XOR 77")).toBe(true);
+    const entries = member(uefiFind(tree, args({ name: "serial" }), context), "matches") as Json[];
+    expect(entries.length).toBe(2);
+    expect(entries.every((one) => member(one, "encoded") === "XOR 77")).toBe(true);
+    // The log, a row of the same store, is not stored encoded.
+    const log = member(uefiFind(tree, args({ name: "Change log" }), context), "matches") as Json[];
+    expect(member(log[0], "encoded")).toBeUndefined();
+    // Nothing else says it.
+    const plain = agentTreeOver(fixture());
+    const all = member(uefiFind(plain, args({ type: "File" }), context), "matches") as Json[];
+    expect(all.every((one) => member(one, "encoded") === undefined)).toBe(true);
   });
 });

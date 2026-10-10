@@ -1,6 +1,6 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
-import { L } from "@/core/localization/localization";
-import { CopyPartCodec, type PartCodec } from "@/core/parts/partCodec";
+import { L, LocalizedText } from "@/core/localization/localization";
+import { CopyPartCodec, type PartCodec, PartRefusal } from "@/core/parts/partCodec";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
@@ -42,7 +42,8 @@ export type OriginUpdate =
       readonly bytes: Uint8Array;
       readonly confirm: boolean;
     }
-  | { readonly kind: "refused"; readonly title: string; readonly message: string };
+  /** Put into words by whoever shows it. */
+  | { readonly kind: "refused"; readonly refusal: PartRefusal };
 
 /**
  * The link's verdicts before an update, to put back if the write fails.
@@ -355,11 +356,13 @@ export class DocumentOrigin {
     if (slot === undefined || state === "parentClosed") {
       return {
         kind: "refused",
-        title: L("The parent is closed"),
-        message: L(
-          "“%1$@” is no longer open, so there is nothing to put “%2$@” back into.",
-          this.parentName,
-          this.partName
+        refusal: new PartRefusal(
+          LocalizedText.of("The parent is closed"),
+          LocalizedText.of(
+            "“%1$@” is no longer open, so there is nothing to put “%2$@” back into.",
+            this.parentName,
+            this.partName
+          )
         ),
       };
     }
@@ -369,8 +372,10 @@ export class DocumentOrigin {
     } catch {
       return {
         kind: "refused",
-        title: L("The part could not be read"),
-        message: L("Nothing was changed in %1$@.", this.parentName),
+        refusal: new PartRefusal(
+          LocalizedText.of("The part could not be read"),
+          LocalizedText.of("Nothing was changed in %1$@.", this.parentName)
+        ),
       };
     }
     return { kind: "encode", codec: this.codec, bytes, confirm: state === "sourceChanged" };

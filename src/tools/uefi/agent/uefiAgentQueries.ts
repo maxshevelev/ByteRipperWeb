@@ -2,6 +2,7 @@ import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { type Json, member } from "@/core/agent/json";
+import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import {
   type NodeID,
@@ -21,7 +22,7 @@ import {
   reachable,
   unknownNode,
 } from "@/tools/uefi/agent/uefiAgentTree";
-import { readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
+import { readsLenovoDMI, storedXORKey } from "@/tools/uefi/uefiLenovoDMIDetail";
 import {
   type DisplayNode,
   ownName,
@@ -59,7 +60,7 @@ export const hexText = (value: number): string => `0x${value.toString(16).toUppe
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.summary
  */
-export function nodeSummary(node: UEFINode): { [key: string]: Json } {
+export function nodeSummary(tree: AgentTree, node: UEFINode): { [key: string]: Json } {
   const entry: { [key: string]: Json } = {
     id: nodeIdText(node.id),
     type: typeText(node),
@@ -80,7 +81,40 @@ export function nodeSummary(node: UEFINode): { [key: string]: Json } {
   if (node.isExpandable && node.children.length === 0) entry.children = "unread";
   else if (node.children.length > 0) entry.children = node.children.length;
   if (node.isErased) entry.erased = true;
+  const key = storedXORKey(node, parentOf(tree, node), tree.reader);
+  if (key !== undefined) entry.encoded = `XOR ${key.toString(16).toUpperCase().padStart(2, "0")}`;
+  const outer = enclosingCompression(tree, node);
+  const algorithm = node.compression?.algorithm ?? outer?.algorithm;
+  if (algorithm !== undefined) entry.compressed = algorithm;
+  if (outer !== undefined) entry.compressed_in = nodeIdText(outer.section);
   return entry;
+}
+
+const parentOf = (tree: AgentTree, node: UEFINode): UEFINode | undefined =>
+  node.id.length < 2 ? undefined : nodeAtPath(tree, node.id.slice(0, -1));
+
+/**
+ * The innermost compressed section `node` was decompressed out of — the node to open with
+ * `part: "decompressed"` — and its algorithm; nothing for a node whose bytes are the file's. A
+ * compressed section inside another has one too: its own `compressed` says how its body is
+ * held, this says what it is in.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.enclosingCompression
+ */
+export function enclosingCompression(
+  tree: AgentTree,
+  node: UEFINode
+): { readonly algorithm: string; readonly section: NodeID } | undefined {
+  if (isFileSpace(node.space)) return undefined;
+  const path = [...node.id];
+  while (path.length > 0) {
+    path.pop();
+    const above = path.length === 0 ? undefined : nodeAtPath(tree, path);
+    if (above?.compression !== undefined) {
+      return { algorithm: above.compression.algorithm, section: above.id };
+    }
+  }
+  return undefined;
 }
 
 /** The names from the top of the tree down to `id`. @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.path */
@@ -104,12 +138,21 @@ export const UEFI_TREE = {
     "summary of the image; with it, that node and its children. `depth` (1–3) goes further down. " +
     "Each node: `id` (pass it back as `node`), type, subtype, name, GUID, its bytes (`start`, `end`, " +
     "or `in_compressed: true` when it lives inside a decompressed section and has no file address), " +
+    "`compressed` — a compressed section's own algorithm, or for a node it decompresses to the " +
+    "algorithm it came out of — and `compressed_in`, the innermost section it was decompressed out " +
+    'of, on every node with `in_compressed`; `encoded` ("XOR 77") for a LENV block or entry stored ' +
+    "encoded in the file; `counterpart` and `decoded_in` for a node also open in a part (see " +
+    "`uefi_at`: {document, node, as}), " +
     'and `children` — a count, or "unread" for a container not opened yet (asking for it opens it). ' +
     "With `depth` above 1 a child carries the levels under it as `below`. Pages: `limit` is the most " +
     "children of `node` on one page, a ceiling — a page also stops before the answer passes the size " +
     'bound and then says `truncated: "size"`; pass `next` back as `after` until it is null. A child ' +
     'whose levels below are too large alone comes without them, marked `truncated: "item"`; ask for ' +
-    "it as `node`.",
+    "it as `node`. Ids belong to the document they were listed on: a part opened with `open_part` has " +
+    "a tree of its own, with ids that start over (the parent's 0.3.4.1.2.5 is 0.0.5 in the " +
+    "decoded block), so give the `document` the id came from. Asked of the parent while the focus is " +
+    "on its part, or the other way round, the answer carries a `focus_note`; a refusal over an id of " +
+    "the other one names the document that has it.",
   properties: {
     node: AgentSchema.string('A node id such as "0.2.5" from an earlier answer. Default: the top.'),
     depth: AgentSchema.integer("How many levels below the node. Default 1, at most 3."),
@@ -152,7 +195,7 @@ export function uefiTree(tree: AgentTree, args: AgentArguments, context: UefiAge
       level < depth && (node.children.length > 0 || node.isExpandable)
         ? expanded(tree, node.id).map((child) => listed(child, level + 1))
         : undefined;
-    const entry = nodeSummary(node);
+    const entry = nodeSummary(tree, node);
     if (below !== undefined) entry.below = below;
     return entry;
   };
@@ -163,7 +206,7 @@ export function uefiTree(tree: AgentTree, args: AgentArguments, context: UefiAge
   } else {
     const node = nodeAtPath(tree, id);
     if (node === undefined) throw unknownNode(id);
-    answer.node = nodeSummary(node);
+    answer.node = nodeSummary(tree, node);
   }
   const children = expanded(tree, id);
   const items = children.slice(paging.first, paging.first + limit).map((child) => listed(child, 1));
@@ -211,7 +254,7 @@ export function uefiNode(tree: AgentTree, args: AgentArguments): Json {
   if (node === undefined) throw unknownNode(id);
   const detail = tree.detail(node, id);
   const answer: { [key: string]: Json } = {
-    node: nodeSummary(node),
+    node: nodeSummary(tree, node),
     path: pathNames(tree, id),
     // A file's own name, the name its Name section gives it, as the panel's detail titles it.
     title: node.kind === "file" ? (ownName(node) ?? detail.title) : detail.title,
@@ -300,7 +343,7 @@ export function uefiFind(tree: AgentTree, args: AgentArguments, context: UefiAge
     if (type !== undefined && typeText(node).toLowerCase() !== type) continue;
     total += 1;
     if (total > paging.first && matches.length < limit) {
-      matches.push({ ...nodeSummary(node), path: pathNames(tree, node.id) });
+      matches.push({ ...nodeSummary(tree, node), path: pathNames(tree, node.id) });
     }
   }
   return paging.answer({ total }, "matches", matches, total, args.answerBound);
@@ -313,7 +356,14 @@ export const UEFI_AT = {
   title: "UEFI nodes at an address",
   description:
     "The chain of nodes that hold a byte of the file, outermost first — region, volume, file, " +
-    "section — opening the containers on the way. The last one is the innermost.",
+    "section — opening the containers on the way. The last one is the innermost. Each node as " +
+    '`uefi_tree` gives it, with `encoded` ("XOR 77") for a LENV block or entry stored encoded and ' +
+    "`compressed` / `compressed_in` for one inside a compressed section. A node whose " +
+    "bytes are also those of an open part, or of the parent of the part asked about, names its " +
+    'node there as `counterpart` ({document, node, as: "decoded" | "encoded" | "same"}), and ' +
+    "`decoded_in` when that part is its LENV block opened decoded — read and show it there. Asked " +
+    "of the parent while the focus is on its part, or the other way round, the answer carries a " +
+    "`focus_note`.",
   properties: { offset: AgentSchema.offset('A file address, e.g. "0x7F3000".') },
   required: ["offset"],
 } as const;
@@ -341,7 +391,7 @@ export function uefiAt(tree: AgentTree, args: AgentArguments): Json {
     if (node.isExpandable) tree.open(node);
     nodes = node.children;
   }
-  return { offset: hexText(offset), chain: chain.map((node) => nodeSummary(node)) };
+  return { offset: hexText(offset), chain: chain.map((node) => nodeSummary(tree, node)) };
 }
 
 /** Runs the question a worker was asked, or fails with a sentence for the model. */

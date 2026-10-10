@@ -21,11 +21,12 @@ import {
   throwIfCancelled,
   VIEW,
 } from "@/core/agent/agentTool";
-import { type Json, jsonText } from "@/core/agent/json";
+import { isObject, type Json, jsonText } from "@/core/agent/json";
 import { L } from "@/core/localization/localization";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
+import { fileSourceOfNode } from "@/state/agent/agentNodeSource";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
 import { showNotice } from "@/state/noticeStore";
@@ -165,7 +166,9 @@ export class AgentDumpTools {
         "Opens a background document in a free pane of the window — or brings forward the pane that " +
         "already has the file — and shows `offset` there, selecting `length` bytes when given. Returns " +
         "the on-screen document's id, which replaces the background one. Never opens into a pane that " +
-        "holds a file: with both panes taken it says so, and the person makes room.",
+        "holds a file: with both panes taken it says so, and the person makes room. To look inside a " +
+        "node or a stretch of a dump that is already on screen, use `open_part`, which opens a panel " +
+        "in the same window instead.",
       inputSchema: AgentSchema.object(
         {
           document: AgentSchema.string("The document's id."),
@@ -433,7 +436,10 @@ export class AgentDumpTools {
         "Records one finding for the person to check: a sentence, and where it is — a document, or a " +
         "file `path`, with an `offset` and `length` or a UEFI `node`. The Agent window lists findings; a " +
         "double-click opens the file at that place. Use it for each claim a survey supports, so seven " +
-        "files out of fifty become seven lines the person can click.",
+        "files out of fifty become seven lines the person can click. A finding in a part — a fragment " +
+        "panel, decompressed or decoded — is recorded in the file on disk the part came out of: at the " +
+        "same bytes where the part keeps the file's addresses, otherwise at the bytes the part was " +
+        "decoded from; the answer's `from_part` says where it was in the part.",
       inputSchema: AgentSchema.object(
         {
           text: AgentSchema.string("What was found, in a sentence."),
@@ -457,6 +463,11 @@ export class AgentDumpTools {
     let file: string;
     let path: string | undefined;
     let identity: AgentFinding["identity"];
+    const offset = args.optionalOffset("offset");
+    let range: readonly [number, number] | undefined =
+      offset === undefined ? undefined : [offset, offset + (args.optionalOffset("length") ?? 0)];
+    let node = args.optionalString("node");
+    let fromPart: Json | undefined;
     const given = args.optionalString("path");
     if (given !== undefined) {
       path = this.filePath(given);
@@ -466,7 +477,39 @@ export class AgentDumpTools {
       identity = { size: stat.size, modified: Math.floor(stat.modified) };
     } else {
       const place = this.desk.placeNamed(args.optionalString("document"));
-      const held = place.state;
+      let pane = place.pane;
+      if (pane !== undefined && paneState(pane)?.origin !== undefined) {
+        // A node of the part's own tree is named by the part's ids, which mean nothing in the
+        // file: it goes as its bytes.
+        if (node !== undefined) {
+          range = await fileSourceOfNode(pane, node);
+          node = undefined;
+        }
+        const answered: { [key: string]: Json } = { document: place.id };
+        if (range !== undefined) answered.range = rangeJson(range[0], range[1]);
+        // Out through every part to the file: byte for byte where the codec keeps the
+        // addresses, otherwise the bytes the part was decoded from.
+        let exact = true;
+        for (let origin = paneState(pane)?.origin; origin !== undefined; ) {
+          if (paneState(origin.parent) === undefined) {
+            throw new AgentToolError(
+              `${place.id}'s parent is closed, so a finding could not lead back to it.`
+            );
+          }
+          const source = origin.sourceRange;
+          if (range !== undefined && origin.codec.keepsOffsets && exact) {
+            range = [source[0] + range[0], source[0] + range[1]];
+          } else {
+            range = source;
+            exact = false;
+          }
+          pane = origin.parent;
+          origin = paneState(pane)?.origin;
+        }
+        answered.exact = exact;
+        fromPart = answered;
+      }
+      const held = pane === undefined ? undefined : paneState(pane);
       if (held === undefined || held.untitled) {
         throw new AgentToolError(
           `${place.id} is not a file on disk, so a finding could not lead back to it.`
@@ -474,23 +517,23 @@ export class AgentDumpTools {
       }
       file = held.file.name;
       identity = { size: held.file.size, modified: held.file.lastModified };
-      const entry = place.pane === undefined ? undefined : this.desk.background.entryOf(place.pane);
+      const entry = pane === undefined ? undefined : this.desk.background.entryOf(pane);
       path = entry?.path;
     }
-    const offset = args.optionalOffset("offset");
-    const length = args.optionalOffset("length") ?? 0;
     const finding: AgentFinding = {
       id: `f${this.nextFinding}`,
       text,
       file,
       path,
       identity,
-      range: offset === undefined ? undefined : { start: offset, end: offset + length },
-      node: args.optionalString("node"),
+      range: range === undefined ? undefined : { start: range[0], end: range[1] },
+      node,
     };
     this.nextFinding += 1;
     agentFindingStore.update((state) => ({ findings: [...state.findings, finding] }));
-    return AgentDumpTools.describe(finding);
+    const described = AgentDumpTools.describe(finding);
+    if (fromPart === undefined || !isObject(described)) return described;
+    return { ...described, from_part: fromPart };
   }
 
   private findingsTool(): AgentTool {

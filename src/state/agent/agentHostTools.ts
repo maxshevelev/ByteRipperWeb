@@ -71,9 +71,12 @@ export class AgentHostTools {
       description:
         "Lists every file open in ByteRipper: its id (pass it as `document` to the other tools), " +
         "name, size, whether it has unsaved edits, and where it is — pane A or B of a tab, " +
-        'or a part opened over its parent file ("part", with the parent\'s id and the bytes of ' +
-        "the parent it came from). The document the reader is in is marked `focused`. Ids last as " +
-        "long as the file stays open.",
+        'or a part opened over its parent file ("part", with the parent\'s id, the bytes of the ' +
+        "parent it came from, and `decoded` — what the part's bytes are to those: `LZMA`, `XOR 77`, " +
+        "`Read-only`…, absent for a plain copy — and `keeps_offsets`, whether byte n of the part is " +
+        "byte n of the source). A part is read, searched and analysed by every tool as a file of its " +
+        "own, from address 0, in its decoded form, and its tool panel is its own. The document the " +
+        "reader is in is marked `focused`. Ids last as long as the file stays open.",
       run: async () => jsonAnswer(this.documents()),
     });
   }
@@ -98,6 +101,11 @@ export class AgentHostTools {
         const parent = this.desk.placeOf(origin.parent);
         if (parent !== undefined) entry.part_of = parent.id;
         entry.source = rangeJson(origin.sourceRange[0], origin.sourceRange[1]);
+        const badge = origin.codec.badge;
+        // The badge's text is in the app's language; the agent gets the word as the codec says it,
+        // which for a name such as `LZMA` or `XOR 77` is the same in every language.
+        if (badge !== undefined) entry.decoded = badge.text;
+        entry.keeps_offsets = origin.codec.keepsOffsets;
       }
       if (focused !== undefined && focused.pane === place.pane) entry.focused = true;
       return entry;

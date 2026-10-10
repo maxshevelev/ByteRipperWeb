@@ -1,4 +1,4 @@
-@source-sha 3732d6aeb685e1e15b26a161d7e63f1218c4dd504dd49b0c0e510955cec08648
+@source-sha 0ec53d17473aa4c5c296c64f8c6864c2dfa38f8b66e5f79ef64ff441211c383f
 # Den ME-Bericht lesen
 
 > Was die beiden Registerkarten des ME Analyzer enthalten und wie die einzelnen Zeilen der Übersicht zu lesen sind.
@@ -47,7 +47,7 @@ Zu diesen Merkmalen gehören zwei Einschränkungen:
 - Auf CSME 15 und 16 benennt das Volume seine Dateien über eigene Tabellen statt über den Index, weshalb der Parser dort aus den Dateiindizes nichts ableitet. Ein solches Volume wird allein über die beiden übrigen Regeln bestimmt.
 - Im zugrunde liegenden Projekt gibt es einen vierten Wert, **Error**, für den Abbruch der Analyse. Die hier verwendeten Decoder setzen ihn nicht.
 
-Auf der Registerkarte **Vollständige Angaben** nennt die Zeile **Firmware** nach dem Zustand die **Grundlage des Zustands**: welches der drei Kriterien den Zustand bestimmt hat und was die übrigen ergeben haben. Der Wert des Zustands ist der des zugrunde liegenden Projekts; die Grundlage fügt dieses Werkzeug hinzu. Sie wird als Warnung dargestellt, wenn ein Kriterium, das den Zustand hätte anheben können, nicht geprüft werden konnte — meist eine in der Partitionstabelle eingetragene EFS-Partition, deren Volume sich nicht lesen ließ, etwa weil ihre Systemseite gelöscht ist. **Configured** bedeutet dann nur, dass eine Konfiguration gefunden wurde. Ob das EFS von der Engine geschriebene Dateien enthält — dann wäre der Zustand **Initialized** —, ist unbekannt, und die EFS-Partition ist zu prüfen, bevor man sich auf den Zustand verlässt.
+Unmittelbar unter dem Zustand — auf der Registerkarte **Übersicht** ebenso wie in der Zeile **Firmware** der Registerkarte **Vollständige Angaben** — steht die **Grundlage des Zustands**: welches der drei Kriterien den Zustand bestimmt hat und was die übrigen ergeben haben. Der Wert des Zustands ist der des zugrunde liegenden Projekts; die Grundlage fügt dieses Werkzeug hinzu. Sie wird als Warnung dargestellt, und der Zustand selbst erscheint dann nie grün, wenn ein Kriterium, das den Zustand hätte anheben können, nicht geprüft werden konnte — meist eine in der Partitionstabelle eingetragene EFS-Partition, deren Volume sich nicht lesen ließ, etwa weil ihre Systemseite gelöscht ist. **Configured** bedeutet dann nur, dass eine Konfiguration gefunden wurde. Ob das EFS von der Engine geschriebene Dateien enthält — dann wäre der Zustand **Initialized** —, ist unbekannt, und die EFS-Partition ist zu prüfen, bevor man sich auf den Zustand verlässt.
 
 ## Eine Region auf eine andere Platine übertragen
 

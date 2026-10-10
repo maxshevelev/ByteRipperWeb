@@ -1908,7 +1908,6 @@
         "ByteRipperApp/Settings/FileTypesSettingsViewController.swift#FileTypesSettingsViewController.prompt": "n/a — which app opens a file type is the operating system's choice",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.fileTypesController": "n/a — the File Types tab chooses which application opens a file type, which is the operating system's choice",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.fileTypesItemID": "n/a — the File Types tab chooses which application opens a file type, which is the operating system's choice",
-        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.fileTypesTabTapped": "n/a — the File Types tab chooses which application opens a file type, which is the operating system's choice",
         "ByteRipperApp/Settings/AppearanceSettings.swift#AppearanceSettings.zoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/Settings/AppearanceSettings.swift#AppearanceSettings.canZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.askAboutOldFile": "n/a — a test seam",
@@ -4438,7 +4437,10 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnALENVEntryOpensItsBlockDecoded": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testBackChoosesTheRowAfterTheToolWasClosedAndOpenedAgain": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheDMIButtonGoesToTheStore": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testWithoutAStoreThereIsNoDMIButton": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testWithoutAStoreThereIsNoDMIButton": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
+        "ByteRipperTests/SettingsWindowSizeTests.swift#SettingsWindowSizeTests.testTheTabOnScreenIsMarkedAndNamed": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/SettingsWindowTests.swift#SettingsWindowTests.testTheViewTabsLabelsLineUp": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep"
       }
     },
     {
@@ -5510,8 +5512,15 @@
         "ByteRipperTests/AgentRefsToolsTests.swift": "src/tools/uefi/agent/uefiAgentRefs.test.ts",
         "ByteRipperTests/AgentDumpToolsTests.swift": "src/state/agent/agentDumpTools.test.ts",
         "ByteRipperTests/AgentDiffToolsTests.swift": "src/state/agent/agentDiffTools.test.ts",
-        "ByteRipperTests/AgentFindToolsTests.swift": "src/state/agent/agentDiffTools.test.ts",
-        "ByteRipperTests/AgentEditToolsTests.swift": "src/state/agent/agentEditTools.test.ts"
+        "ByteRipperTests/AgentFindToolsTests.swift": [
+          "src/state/agent/agentDiffTools.test.ts",
+          "src/state/agent/agentNodeLinks.test.ts"
+        ],
+        "ByteRipperTests/AgentEditToolsTests.swift": "src/state/agent/agentEditTools.test.ts",
+        "AgentNodeLinks.swift": [
+          "src/state/agent/agentNodeLinks.ts",
+          "src/state/agent/agentNodeSource.ts"
+        ]
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
@@ -5549,11 +5558,9 @@
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun.key": "n/a — a plain record: `SurveyRun`",
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.onChange": "n/a — the Agent window listens to the findings store",
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.probe": "n/a — the shell's `stat` is the probe (`AgentDumpTools.stat`)",
-        "ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.inAppLanguage": "n/a — a tool's run is in the page's own language and its answer under `withEnglish`; there is no ambient override to lift",
         "ByteRipperApp/Agent/AgentMarkTools.swift#AgentMarkTools.Located.mark": "n/a — a plain record: `LocatedMark`",
         "ByteRipperApp/Agent/AgentMarkTools.swift#AgentMarkTools.Located.place": "n/a — a plain record: `LocatedMark`",
         "ByteRipperApp/Agent/AgentMarkTools.swift#AgentMarkTools.onChange": "n/a — the Agent window listens to the mark store",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.symbolName": "n/a — the toolbar button draws its glyph from the service's connection count",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.isEmpty": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.numberOfRows": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.onSelectionChanged": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
@@ -5613,7 +5620,15 @@
         "ByteRipperTests/AgentFirmwareToolsTests.swift#NvramTestImage.superseded": "n/a — a fixture builder; `src/firmware/testing/testNvram.ts` is the web's",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#NvramTestImage.valid": "n/a — a fixture builder; `src/firmware/testing/testNvram.ts` is the web's",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#NvramTestImage.vendor": "n/a — a fixture builder; `src/firmware/testing/testNvram.ts` is the web's",
-        "ByteRipperTests/AgentFirmwareToolsTests.swift#NvramTestImage.vss": "n/a — a fixture builder; `src/firmware/testing/testNvram.ts` is the web's"
+        "ByteRipperTests/AgentFirmwareToolsTests.swift#NvramTestImage.vss": "n/a — a fixture builder; `src/firmware/testing/testNvram.ts` is the web's",
+        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.frameAutosaveName": "n/a — the Agent window is a panel of the fragment dock, which has no frame of its own: where it opens and how big is the dock's (the one workspace per tab), and a column's width is kept by `useAgentColumns`",
+        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.initialSize": "n/a — the Agent window is a panel of the fragment dock, which has no frame of its own: where it opens and how big is the dock's (the one workspace per tab), and a column's width is kept by `useAgentColumns`",
+        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownRows": "n/a — a test hook of the AppKit window; the web's tests read the log's words through `logText`",
+        "ByteRipperApp/Agent/AgentService.swift#AgentService.recordForTesting": "n/a — a test hook; the web's tests hand records to the connection itself",
+        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testADecompressedPartGoesBackCompressed": "later — needs the firmware worker, which the page's tests do not start; what it checks of the parts of it is tested over `agentTreeOver` and the codecs (`agentNodeLinks.test.ts`, `uefiAgentQueries.test.ts`, `partCodec.test.ts`), and the worker's own answers are G75's unrun browser check",
+        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionOpensDecompressedInAPanel": "later — needs the firmware worker, which the page's tests do not start; what it checks of the parts of it is tested over `agentTreeOver` and the codecs (`agentNodeLinks.test.ts`, `uefiAgentQueries.test.ts`, `partCodec.test.ts`), and the worker's own answers are G75's unrun browser check",
+        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testALENVBlockOpensDecodedInAPanel": "later — needs the firmware worker, which the page's tests do not start; what it checks of the parts of it is tested over `agentTreeOver` and the codecs (`agentNodeLinks.test.ts`, `uefiAgentQueries.test.ts`, `partCodec.test.ts`), and the worker's own answers are G75's unrun browser check",
+        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAReadOnlyParentIsRefused": "n/a — a page edits every document it holds in memory: there is no read-only parent to refuse"
       }
     },
     {

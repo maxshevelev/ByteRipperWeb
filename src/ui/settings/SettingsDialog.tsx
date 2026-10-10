@@ -39,6 +39,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import { HelpButton } from "@/ui/help/HelpButton";
 import { AgentTab } from "@/ui/settings/AgentTab";
 import { FavoritesTab } from "@/ui/settings/FavoritesTab";
 import { monospacedFontFamilies } from "@/ui/settings/fontFamilies";
@@ -101,7 +102,6 @@ export interface SettingsDialogProps {
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewController
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewItemID
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewTabTapped
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButton
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.installHelpButton
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonController
@@ -116,14 +116,13 @@ export interface SettingsDialogProps {
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbarDefaultItemIdentifiers
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbar
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.fitWindowToContent
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.selectTab
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonTabTapped
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.editingTabTapped
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingTabTapped
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.select
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.controller
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.tabTapped
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbarSelectableItemIdentifiers
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindow
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindow.cancelOperation
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.favoritesController
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.favoritesTabTapped
  * @upstream-differs a <dialog> with a tab strip: Escape closes it natively, and it sizes to the tab it shows
  */
 export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialogProps) {
@@ -133,10 +132,14 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
     if (open && requested !== undefined) setTab(requested);
   }, [open, requested]);
 
+  // The window is named after the tab on screen, as Finder's and Safari's are: the tab strip
+  // already says whose settings these are.
+  const title = tabs().find((one) => one.id === tab)?.label ?? L("Settings");
+
   return (
     <Dialog
       open={open}
-      title={L("ByteRipper Settings")}
+      title={title}
       onClose={onClose}
       className="settings-dialog"
       closeButton
@@ -175,23 +178,30 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
 /**
  * The View tab: Appearance, Layout and Language, one above the other with a
  * rule between. They are about how the app looks rather than what it does, so
- * they share a page; each section keeps its own state and its own heading.
+ * they share a page; each section keeps its own state and none has a heading — the window's
+ * title already names the tab, and a heading over two controls is more words than the controls.
  *
  * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController
  * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.loadView
  * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.separator
- * @upstream-differs three React sections in one pane
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.alignLabelColumns
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.firstGrid
+ * @upstream-differs three React sections in one pane, their label columns one subgrid column of CSS
+ * where upstream measures the labels and sets each grid's column to the widest
  */
 // help: settings.view
 function ViewTab() {
+  // One grid for the three sections, whose own grids are subgrids of it: the label column is as
+  // wide as the widest label in any of them, so the colons line up down the page and the controls
+  // start at one edge (upstream measures the labels and sets each grid's column to the widest).
   return (
-    <>
+    <div className="settings-view">
       <AppearanceTab />
       <hr className="settings-rule" />
       <LayoutTab />
       <hr className="settings-rule" />
       <LanguageTab />
-    </>
+    </div>
   );
 }
 
@@ -237,7 +247,6 @@ function AppearanceTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">{L("Appearance")}</h3>
       <div className="settings-grid">
         <label htmlFor="settings-font">{L("Font:")}</label>
         <div className="settings-row">
@@ -334,7 +343,6 @@ function LayoutTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">{L("Layout")}</h3>
       <div className="settings-grid">
         <label htmlFor="settings-layout">{L("Layout Direction:")}</label>
         <select
@@ -386,7 +394,6 @@ function ComparisonTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">{L("Comparison")}</h3>
       <div className="settings-grid">
         <label htmlFor="settings-grouping">{L("Group Differences Within:")}</label>
         <select
@@ -446,10 +453,10 @@ function LanguageTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">{L("Language")}</h3>
-      <label className="settings-row">
-        <span className="settings-label">{L("Language:")}</span>
+      <div className="settings-grid">
+        <label htmlFor="settings-language">{L("Language:")}</label>
         <select
+          id="settings-language"
           className="settings-select"
           value={language}
           onChange={(event) => void setLanguage(storedLanguageChoice(event.target.value))}
@@ -465,7 +472,7 @@ function LanguageTab() {
             </option>
           ))}
         </select>
-      </label>
+      </div>
       <p className="settings-caption">
         {L(
           "The words change at once — there is no relaunch, because reloading the page would ask you to open every dump again. The help is translated with the rest, and a page that has not been translated yet is shown in English rather than left blank."
@@ -481,15 +488,21 @@ function EditingTab() {
 
   return (
     <section>
-      <h3 className="settings-heading">{L("Editing")}</h3>
-      <label className="settings-check">
-        <input
-          type="checkbox"
-          checked={confirmShiftingEdits}
-          onChange={(event) => setConfirmShiftingEdits(event.target.checked)}
-        />
-        {L("Ask before edits that shift the file")}
-      </label>
+      {/* A `?` of its own beside the dialog's: this tab's switch turns off the dialogs that stand
+          between a flash dump and an edit that shifts every byte after it, and the page on editing
+          says how the modes differ and why those edits are the dangerous ones (the Agent tab keeps
+          one for the same reason). */}
+      <div className="settings-first-row">
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={confirmShiftingEdits}
+            onChange={(event) => setConfirmShiftingEdits(event.target.checked)}
+          />
+          {L("Ask before edits that shift the file")}
+        </label>
+        <HelpButton link={topicLink(TOPIC.editing)} />
+      </div>
       <p className="settings-caption">
         {L(
           "Insert mode, a paste in it, and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line."
@@ -539,7 +552,6 @@ function TextDecodingTab() {
   return (
     <section className="settings-decoding">
       <div className="settings-decoding-controls">
-        <h3 className="settings-heading">{L("Text Decoding")}</h3>
         <div className="settings-grid">
           <label htmlFor="settings-table">{L("Decoding table:")}</label>
           <select

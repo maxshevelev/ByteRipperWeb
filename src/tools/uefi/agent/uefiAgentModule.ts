@@ -3,7 +3,7 @@ import { parseHexBytes } from "@/core/agent/agentHexBytes";
 import { AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
 import { isObject } from "@/core/agent/json";
-import { L, withEnglish } from "@/core/localization/localization";
+import { L, LocalizedText, withEnglish } from "@/core/localization/localization";
 import { guidFromText } from "@/firmware/uefi/efiGuid";
 import { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { readyFirmware } from "@/state/firmwareReady";
@@ -293,7 +293,8 @@ export const uefiAgentActions: readonly ToolAgentAction[] = [
     description:
       "Chooses a node in the open UEFI Structure panel — its row selected, the branches on the way " +
       "opened, its detail up and its bytes outlined in the dump — as a click on it would. The dump " +
-      "does not move; `reveal` takes it there. Answers what the node is.",
+      "does not move; `reveal` takes it there. Answers what the node is. The id is the one listed on " +
+      "the document the call goes to: a part has its own ids, not its parent's.",
     properties: { node: { type: "string", description: 'The node\'s id, e.g. "0.2.5".' } },
     required: ["node"],
     changesView: true,
@@ -351,7 +352,7 @@ export const uefiAgentEdits: readonly ToolAgentEdit[] = [
         description: "Every wrong checksum in the image, or under `node`. Default false.",
       },
     },
-    undoName: () => L("Fix Checksum"),
+    undoName: LocalizedText.of("Fix Checksum"),
     run: async (host, args) => {
       const answer = (await ask(host, "uefi_fix_checksum", args)) as {
         writes: { offset: number; bytes: string }[];

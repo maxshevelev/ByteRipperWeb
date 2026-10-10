@@ -646,7 +646,13 @@ export function Toolbar({
 
   const keyed: { readonly id: ToolbarItemId; readonly key: string }[] = [];
   const seen = new Map<ToolbarItemId, number>();
-  for (const id of toolbarItems(bothOpen, identical.current, agent.running)) {
+  // @web-only a switched-on service that could not open its endpoint (another copy of the app holds
+  // it) keeps its button, so the reason is one hover away rather than only in Settings
+  for (const id of toolbarItems(
+    bothOpen,
+    identical.current,
+    agent.running || agent.failure !== undefined
+  )) {
     const count = seen.get(id) ?? 0;
     seen.set(id, count + 1);
     keyed.push({ id, key: `${id}${count}` });
@@ -892,6 +898,7 @@ export function Toolbar({
               connections: agent.connections,
             })}`}
             pressed={agentPanelIsUp(state)}
+            problem={agent.failure !== undefined}
             onClick={() => agentService.toggleWindow()}
           >
             <AgentGlyph connected={agent.connections > 0} />
@@ -956,6 +963,7 @@ function IconButton({
   title,
   pressed,
   disabled,
+  problem,
   onClick,
   children,
 }: {
@@ -963,13 +971,15 @@ function IconButton({
   readonly title: string;
   readonly pressed?: boolean | undefined;
   readonly disabled?: boolean | undefined;
+  /** Drawn in the colour of a problem. */
+  readonly problem?: boolean | undefined;
   readonly onClick: () => void;
   readonly children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
-      className={`toolbar-icon${pressed === true ? " is-on" : ""}`}
+      className={`toolbar-icon${pressed === true ? " is-on" : ""}${problem === true ? " is-problem" : ""}`}
       aria-label={label}
       aria-pressed={pressed}
       title={title}

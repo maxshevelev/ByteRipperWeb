@@ -1,4 +1,4 @@
-@source-sha 56b52e548137f937aa71beeb60f8a0c5191c274922d3771c3771282810b58169
+@source-sha acb98d541d79885dadd618cc08951cd0043d701e0f4e146cdf78cec66b279cb0
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -95,7 +95,7 @@ Jede Änderung des Agenten bildet einen eigenen Schritt im Widerrufen-Verlauf de
 
 Die Kopfzeile des Felds ist dieselbe wie bei jedem Feld im Dock: **⌄** klappt das Feld in seine Pille ein, und an der Kopfzeile lässt es sich nach unten in die Pille ziehen. Die Spalten aller Listen werden breiter oder schmaler, wenn die Grenze zwischen ihren Überschriften gezogen wird; ein Doppelklick auf die Grenze stellt die ursprünglichen Breiten wieder her. Die Breiten bleiben auch nach dem Beenden des Programms erhalten. Auf den Seiten **Protokoll** und **Werkzeuge** lassen sich die Details unter der Liste [[topic:tools-overview|groß anzeigen]] wie in einem Werkzeugbereich: Die **Leertaste** in der Liste oder die Schaltfläche zum Vergrößern in der Ecke der Details zeigt sie in einer großen Ansicht rechts im Fenster. Solange die Ansicht offen ist, bewegen die Pfeiltasten weiterhin die Auswahl in der Liste, und die Ansicht zeigt die ausgewählte Zeile; **Leertaste** oder **Esc** schließt sie.
 
-**Protokoll** verzeichnet jede Anfrage des Agenten mit Uhrzeit, Werkzeug, den Argumenten in der vom Agenten übergebenen Form, Antwortzeit, Größe der Antwort und Ergebnis. Abgelehnte Anfragen sind rot dargestellt, zusammen mit dem Grund, der dem Agenten mitgeteilt wurde.
+**Protokoll** verzeichnet jede Anfrage des Agenten, auch eine, an der das Werkzeug noch arbeitet: Sie erscheint beim Eintreffen mit dem Ergebnis **Wird ausgeführt…**, die Antwortzeit zählt hoch, und dieselbe Zeile wird vervollständigt, sobald die Antwort vorliegt. Für jede Anfrage werden Uhrzeit, Werkzeug, die Argumente in der vom Agenten übergebenen Form, Antwortzeit, Größe der Antwort und Ergebnis angegeben. Abgelehnte Anfragen sind rot dargestellt, zusammen mit dem Grund, der dem Agenten mitgeteilt wurde.
 
 In der Tabelle werden lange Argumente gekürzt. Die Liste darunter zeigt die ausgewählte Anfrage vollständig: Uhrzeit, Client, Antwortzeit, Größe der Antwort in Bytes, das vollständige Ergebnis und unter **Argumente** das gesamte vom Agenten gesendete JSON, ein Element pro Zeile. Der Text dieser Liste lässt sich auswählen und kopieren.
 

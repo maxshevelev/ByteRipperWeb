@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
+import type { MFSStateBasis, MFSStateEFS } from "@/firmware/me/models/firmwareFacts";
 import {
   buildSummary,
   COMING_SOON,
@@ -9,6 +10,7 @@ import {
   PENDING,
   shown,
 } from "@/tools/me/meaSummary";
+import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
 import {
   analysisWith,
   bootFixture,
@@ -165,6 +167,34 @@ describe("the primary table, filled in", () => {
     expect(value("File System State", state("error"))).toEqual(shown("Error"));
     expect(tone("File System State", state("error"))).toBe("bad");
     expect(tone("Family", state("configured"))).toBe("standard");
+  });
+
+  // The Summary says what the File System State rests on, directly under it, in the same words as
+  // Full Info — and a state an unread EFS left standing is neither green nor its basis plain. The
+  // case is a CSME 15 dump whose EFS system page was erased: Configured from the FITC alone.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheStateBasisFollowsTheStateInTheSummary
+  it("follows the File System State with the state's basis", () => {
+    const basis = (efs: MFSStateEFS): MFSStateBasis => ({
+      reservedFiles: { kind: "notRead" },
+      efs,
+      configuration: ["FITC"],
+      decidedBy: "configuration",
+    });
+    const unread = basis({ kind: "unreadable", offset: 0x267000 });
+    const rows = tableRows(identified({ mfsState: "configured", mfsStateBasis: unread }));
+    const labels = rows.map((row) => row.label);
+    expect(labels[labels.indexOf("File System State") + 1]).toBe("State basis");
+    expect(value("State basis", rows)).toEqual(
+      shown(fileSystemStateBasisText("configured", unread))
+    );
+    expect(tone("State basis", rows)).toBe("caution");
+    expect(tone("File System State", rows)).toBe("caution");
+
+    const settled = tableRows(
+      identified({ mfsState: "configured", mfsStateBasis: basis({ kind: "noFileContent" }) })
+    );
+    expect(tone("State basis", settled)).toBe("standard");
+    expect(tone("File System State", settled)).toBe("good");
   });
 
   // A value drawn in colour is drawn bold with it: the weight and the colour

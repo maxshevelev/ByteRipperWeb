@@ -1,7 +1,7 @@
 import type { RelayCommand } from "@/core/agent/agentClientConfiguration";
 import { AgentConnection } from "@/core/agent/agentConnection";
 import { type AgentCallRecord, AgentServer } from "@/core/agent/agentServer";
-import type { AgentTool } from "@/core/agent/agentTool";
+import { type AgentTool, AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
 import {
   type AgentToolEntry,
   type AgentToolGroup,
@@ -10,6 +10,7 @@ import {
   addToStats,
   HOST_GROUPS,
 } from "@/core/agent/agentToolCatalogue";
+import { isObject } from "@/core/agent/json";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
 import { AgentDesk } from "@/state/agent/agentDesk";
 import { AgentDiffTools, placeJson } from "@/state/agent/agentDiffTools";
@@ -30,6 +31,8 @@ import {
   agentPanelIsUp,
   closeAgentPanel,
   openAgentPanel,
+  type PaneId,
+  paneState,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
@@ -104,27 +107,40 @@ const INITIAL: AgentServiceState = {
  * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.instructions
  */
 export const AGENT_INSTRUCTIONS =
-  "ByteRipper is a hex editor for firmware dumps, open on the person's computer. These tools read the " +
-  "files open in it and show places in them to the person. Call `documents` for what is open and " +
-  '`focus` for what the person is looking at; when they say "this" or "here", `focus` is what they ' +
-  'mean. Addresses and sizes are hex strings such as "0x7F3000" in every answer and may be given ' +
-  "back the same way. Ranges are half-open: `end` is the first byte after the range. A list comes in " +
-  "pages: `limit` is a ceiling, a page also stops before the answer passes the size bound and says " +
-  '`truncated: "size"`, and `next`, passed back as `after`, goes on until it is null. Use `reveal` ' +
-  "to point at what you are talking about; the person's Back undoes it. `open_dump` reads a file by " +
-  "path without putting it on screen, `survey` asks one tool's question of a whole folder of dumps, and " +
-  "`finding` records each thing found for the person to check with a click. `find_bytes` searches the " +
-  "bytes for a text or a pattern — inside a compressed section with `node` — `uefi_node_data` reads a " +
-  "node's bytes, and `open_part` opens a stretch as a part of its own. `diff` lists where two " +
-  "documents differ byte by byte and in which part of the firmware; `compare` shows the two side by " +
-  "side and `reveal_diff` walks the person through the differences. `mark` labels bytes for the " +
-  "person while you explain them, and `related_to` says how two marks hang together. Nothing here " +
-  "saves a file; `write`, the `_fix_checksum` tools and the microcode tools — `microcode_catalogue` " +
-  "lists what github.com/platomav/CPUMicrocodes offers, `fit_add_microcode`, `fit_replace_microcode` and " +
-  "`fit_remove_microcode` change the FIT — change an open file, one undo step each, and only if the " +
-  "person allows edits. " +
-  "The `uefi_` tools read a firmware image's structure and work whether or not its panel is open; " +
-  "`uefi_select` and `uefi_selection` act on the open UEFI Structure panel, which `open_panel` opens.";
+  "ByteRipper is a hex editor for firmware dumps, open on the person's computer. These tools read the files " +
+  "open in it and show places in them to the person. `documents` lists what is open, `focus` what the " +
+  'person is looking at — what they mean by "this" or "here". Addresses and sizes are hex strings ' +
+  '("0x7F3000") both ways; ranges are half-open. A list comes in pages: pass `next` back as `after` ' +
+  "until it is null. `reveal` points at what you are talking about, `mark` labels bytes as you explain " +
+  "them. `open_dump` reads a file by path without showing it, `survey` asks one tool's question of a " +
+  "folder of dumps, `finding` records a thing found for the person to check. `find_bytes` searches the " +
+  "bytes; the `uefi_` tools read a firmware image's structure. `open_part` opens a stretch or a node as " +
+  "a part of its own, in a panel over the same window — decompressed, or a Lenovo LENV block decoded " +
+  'with `part: "decoded"`; asking again raises the open one (`reused: true`). A part is a document to ' +
+  "every tool, takes the focus, and has a tree with ids of its own: name the `document` a node id was " +
+  "listed on. A node says how the file holds it (`encoded`, `compressed`) and names the same node in " +
+  "an open part or in its parent (`counterpart`, `decoded_in`); `focus_note` says a call went to the " +
+  "parent or a part of the focused document; `tool_panel` says whether a part has a panel, which " +
+  "`open_panel` with the part's `document` opens. `diff`, `compare` and `reveal_diff` set two documents " +
+  "side by side. Nothing here saves a file; `write`, `update_in_parent`, the `_fix_checksum` and the " +
+  "microcode tools change an open file, one undo step each, and only if the person allows edits. " +
+  "`uefi_select` and `uefi_selection` act on the open UEFI Structure panel. A tool refuses an argument " +
+  "it does not take; to test a client, use `documents`, never `open_part`.";
+
+/**
+ * Whether `pane` was taken out of `other`, directly or through parts.
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isPart
+ */
+function isPartOf(pane: PaneId | undefined, other: PaneId | undefined): boolean {
+  if (pane === undefined || other === undefined) return false;
+  let parent = paneState(pane)?.origin?.parent;
+  for (let steps = 0; parent !== undefined && steps < 64; steps++) {
+    if (parent === other) return true;
+    parent = paneState(parent)?.origin?.parent;
+  }
+  return false;
+}
 
 export class AgentService {
   /**
@@ -284,9 +300,57 @@ export class AgentService {
       // @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.appVersion
       info: { name: "byteripper", version: appVersionText(), title: "ByteRipper" },
       instructions: AGENT_INSTRUCTIONS,
-      tools: this.allTools(),
+      tools: this.allTools().map((tool) => this.noted(tool)),
     });
     return this.builtServer;
+  }
+
+  /**
+   * `tool`, saying so when the call names a document that is not the focused one but its part or
+   * its parent: the focus is on the decoded block and the call went to the dump it came from, or
+   * the other way round. Read before the call — `open_part` moves the focus — and added to a
+   * refusal too, where it most often explains one: a node id of one of the two is not a node of
+   * the other.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.noted
+   */
+  private noted(tool: AgentTool): AgentTool {
+    return {
+      ...tool,
+      run: async (call) => {
+        const note = this.focusNote(call.arguments.optionalString("document"));
+        try {
+          const answer = await tool.run(call);
+          if (note === undefined || answer.kind !== "json" || !isObject(answer.value))
+            return answer;
+          return jsonAnswer({ ...answer.value, focus_note: note });
+        } catch (error) {
+          if (note === undefined || !(error instanceof AgentToolError)) throw error;
+          throw new AgentToolError(`${error.message} ${note}`);
+        }
+      },
+    };
+  }
+
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.focusNote */
+  focusNote(named: string | undefined): string | undefined {
+    if (named === undefined) return undefined;
+    const focused = this.desk.focused();
+    const place = this.desk.places().find((one) => one.id === named);
+    if (focused === undefined || focused.id === named || place === undefined) return undefined;
+    if (isPartOf(focused.pane, place.pane)) {
+      return (
+        `The focus is on ${focused.id}, a part of ${named}; this call went to ${named}, as \`document\` asked. ` +
+        "The part's nodes have ids of their own."
+      );
+    }
+    if (isPartOf(place.pane, focused.pane)) {
+      return (
+        `The focus is on ${focused.id}; this call went to ${named}, a part of it, as \`document\` asked. ` +
+        "The part's nodes have ids of their own."
+      );
+    }
+    return undefined;
   }
 
   // MARK: - The switch
@@ -404,7 +468,13 @@ export class AgentService {
    * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.connect
    */
   connect(send: (line: Uint8Array) => void, onFirstMessage?: () => void): AgentConnection {
-    return new AgentConnection(this.server, send, (record) => this.record(record), onFirstMessage);
+    return new AgentConnection(
+      this.server,
+      send,
+      (record) => this.record(record),
+      onFirstMessage,
+      (record) => this.record(record)
+    );
   }
 
   /** Hears every call once it is over; returns the way to stop. */
@@ -413,19 +483,35 @@ export class AgentService {
     return () => this.callListeners.delete(listener);
   }
 
+  /**
+   * A call into the log: a running one at the bottom, and a finished one in the place of its
+   * running record, so a request the tool is still working on is in the log from the moment it
+   * arrives and its row does not move when it ends. A running record that arrives after its call
+   * has finished is dropped.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.record
+   */
   private record(record: AgentCallRecord): void {
-    this.store.update((state) => ({
-      ...state,
-      toolStats: {
-        ...state.toolStats,
-        [record.tool]: addToStats(state.toolStats[record.tool], record),
-      },
-      log:
-        state.log.length >= AGENT_LOG_LIMIT
-          ? [...state.log.slice(state.log.length - AGENT_LOG_LIMIT + 1), record]
-          : [...state.log, record],
-    }));
-    for (const listener of this.callListeners) listener(record);
+    const running = record.outcome.kind === "running";
+    this.store.update((state) => {
+      const index = state.log.findIndex((one) => one.id === record.id);
+      let log: readonly AgentCallRecord[];
+      if (index >= 0) {
+        if (running) return state;
+        log = state.log.map((one, at) => (at === index ? record : one));
+      } else {
+        log = [...state.log, record];
+      }
+      if (log.length > AGENT_LOG_LIMIT) log = log.slice(log.length - AGENT_LOG_LIMIT);
+      return {
+        ...state,
+        toolStats: running
+          ? state.toolStats
+          : { ...state.toolStats, [record.tool]: addToStats(state.toolStats[record.tool], record) },
+        log,
+      };
+    });
+    if (!running) for (const listener of this.callListeners) listener(record);
   }
 
   /** Asks the shell what a client is to be configured with. */

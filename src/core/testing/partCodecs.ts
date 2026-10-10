@@ -1,3 +1,4 @@
+import { LocalizedText } from "@/core/localization/localization";
 import {
   type PartBadge,
   type PartCodec,
@@ -63,6 +64,9 @@ export class ElsewhereCodec implements PartCodec {
   }
 
   async encode(): Promise<PartUpdate> {
-    throw new PartRefusal("This cannot be put back", "A test body.");
+    throw new PartRefusal(
+      LocalizedText.verbatim("This cannot be put back"),
+      LocalizedText.verbatim("A test body.")
+    );
   }
 }

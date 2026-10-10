@@ -17,29 +17,42 @@ import {
   VIEW,
 } from "@/core/agent/agentTool";
 import { type Json, jsonText, member } from "@/core/agent/json";
-import { CopyPartCodec } from "@/core/parts/partCodec";
+import { L } from "@/core/localization/localization";
+import { CopyPartCodec, type PartCodec } from "@/core/parts/partCodec";
 import { maskedMatches } from "@/core/search/maskedSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
+import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
+import { LENVBlock } from "@/firmware/lenovoDmi/lenvBlock";
+import { IMAGE_LAYOUT, sameLayout, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { AgentDesk } from "@/state/agent/agentDesk";
 import type { AgentDiffTools } from "@/state/agent/agentDiffTools";
 import { placeJson } from "@/state/agent/agentDiffTools";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
 import type { AgentModuleTools } from "@/state/agent/agentModuleTools";
+import { firmwareNodeOf } from "@/state/agent/agentNodeSource";
 import { readyFirmware } from "@/state/firmwareReady";
 import {
   askFirmwareLayout,
   askFirmwarePart,
   askUefiAgent,
-  expandFirmwareNodeAndWait,
-  firmwareFor,
-  firmwareNodeAt,
+  readSpaceBytes,
 } from "@/state/firmwareStore";
-import { openLinkedPart } from "@/state/openLinkedPart";
+import { openLinkedPart, partNameOf } from "@/state/openLinkedPart";
+import { surfaceOf } from "@/state/paneId";
+import { partsLinkedTo } from "@/state/partUpdate";
+import { sessionOn, toolController } from "@/state/toolController";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
-import { paneState } from "@/state/workspaceStore";
+import { type PaneId, type PartId, paneState, raisePart } from "@/state/workspaceStore";
 import type { ToolAgentPlace } from "@/tools/toolAgent";
 import { isSecretName } from "@/tools/uefi/agent/uefiAgentRegions";
-import { compressionName, nodeOpen, partName } from "@/tools/uefi/uefiPresenter";
+import {
+  compressionName,
+  decompressedBody,
+  fileSourceOf,
+  nodeOpen,
+  partName,
+} from "@/tools/uefi/uefiPresenter";
+import type { WireNode } from "@/workers/protocol";
 
 /**
  * Searching a document's bytes, and opening a stretch of them as a part (`Design/PORT_AGENT.md`,
@@ -57,9 +70,6 @@ import { compressionName, nodeOpen, partName } from "@/tools/uefi/uefiPresenter"
  * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.init
  * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.tools
  */
-
-/** The UEFI Structure panel, which a part taken out of its tree opens with on. */
-const UEFI_TOOL = "dev.maxik.tool.uefi-structure";
 
 export class AgentFindTools {
   private readonly desk: AgentDesk;
@@ -305,14 +315,30 @@ export class AgentFindTools {
       name: "open_part",
       title: "Open a part",
       description:
-        "Opens a stretch of a document as a part of its own, over its parent's pane — as Open Zone " +
-        "and the UEFI Structure panel's Open do — and answers its new `document` id. The part's " +
+        "Opens a stretch of a document as a part of its own, in a fragment panel over its parent's " +
+        "pane — as Open Zone and the UEFI Structure panel's Open do — and answers its new `document` " +
+        "id. This is the way to open a node, compressed or not, or any stretch you want to read or " +
+        "edit: it keeps the person in the window they are in, with the parent showing behind the " +
+        "panel. The part's " +
         "addresses start at 0, so two blocks at different addresses of two dumps compare with `diff` " +
         "and `compare`; every tool that takes `document` works on it. Give `offset` and `length`, or " +
-        '`node` (with `part` "all", the default, or "body") for a UEFI node\'s bytes — a node inside a ' +
-        "compressed section opens as what it decompressed to. The part stays linked: edits to it stay " +
+        '`node` (with `part`) for a UEFI node: "all" (the default) or "body" for its bytes — a node ' +
+        'inside a compressed section opens as what it decompressed to — "decompressed" for what a ' +
+        'compressed section decompresses to, "decoded" for a Lenovo LENV block (or one of its ' +
+        "entries) decoded, its XOR encoding removed. The part stays linked: edits to it stay " +
         "in it until the person puts them back with Update in Parent, which for a decompressed node " +
-        "compresses them again. The parent must be on screen (`show` puts a background dump there). " +
+        "compresses them again. The answer says which `part` opened, and a LENV block opened " +
+        'without "decoded" comes with a `hint`. Asking again for a part that is already open ' +
+        "raises its panel and answers `reused: true` with its `document` — not a second copy. " +
+        "`tool_panel` names the tool panel the part shows, null when none: `open_panel` with the " +
+        "part's `document` opens one on it. From then on the UEFI tools name the same node in the " +
+        "parent and the part (`counterpart`, `decoded_in`), and a call that names the parent while the " +
+        "focus is on the part answers with a `focus_note`. " +
+        "The new part takes the focus, so a call that leaves out `document` now goes to the part, " +
+        "and a node id belongs to the document it was listed on, the parent: give `document` " +
+        "(the `parent` of the answer) when you go on with that node. A part has its own tree, " +
+        "with its own ids: the parent's 0.3.4.1.2.5 is 0.0.5 in the decoded block. The parent must be " +
+        "on screen (`show` puts a background dump there). " +
         "Closes with `close_dump` or by the person.",
       inputSchema: AgentSchema.object({
         document: AgentSchema.string("The parent's id from `documents`. Default: the focused one."),
@@ -320,8 +346,9 @@ export class AgentFindTools {
         length: AgentSchema.offset("How many bytes the part is."),
         node: AgentSchema.string("Instead of `offset` and `length`: a UEFI node's id."),
         part: AgentSchema.choice(
-          ["all", "body"],
-          'With `node`: the whole node, or its body. Default "all".'
+          PART_KINDS,
+          "With `node`: the whole node, its body, what a compressed section decompresses to, or a LENV block decoded. " +
+            'Default "all".'
         ),
         name: AgentSchema.string(
           "What the part is called. Default: the parent's name and what it is."
@@ -339,25 +366,36 @@ export class AgentFindTools {
     const parentName = paneState(parent)?.name ?? place.name;
     const named = args.optionalString("name");
     const answer: { [key: string]: Json } = { parent: place.id };
-    let opened: string | undefined;
 
     const nodeText = args.optionalString("node");
     if (nodeText !== undefined) {
       if (args.has("offset") || args.has("length")) {
         throw new AgentToolError("Give `node`, or `offset` and `length` — not both.");
       }
-      const body = args.choice("part", ["all", "body"] as const, "all") === "body";
-      await readyFirmware(parent);
-      const path = nodePath(nodeText);
-      // The branches on the way are read where the tree is, and the panel's copy follows.
-      for (let length = 1; length < path.length; length++) {
-        await expandFirmwareNodeAndWait(parent, path.slice(0, length));
-      }
-      const roots = firmwareFor(parent)?.roots ?? [];
-      const node = firmwareNodeAt(roots, path);
-      if (node === undefined) {
-        throw new AgentToolError(
-          `No node ${nodeText} in this image. Ids come from \`uefi_tree\`, \`uefi_find\` or \`uefi_at\` on the same document.`
+      const which = args.choice("part", PART_KINDS, "all");
+      const body = which === "body";
+      const { node, roots } = await firmwareNodeOf(parent, nodeText);
+      if (which === "decompressed" || which === "decoded") {
+        const plan =
+          which === "decompressed"
+            ? this.decompressedPart(node, roots, nodeText, parent, parentName)
+            : await this.decodedPart(node, nodeText, parent);
+        answer.node = nodeText;
+        answer.part = which;
+        answer.in_compressed = which === "decompressed";
+        answer.source = rangeJson(plan.source[0], plan.source[1]);
+        if (plan.size !== undefined) answer.size = hexText(plan.size);
+        const reused = this.reusedPart(parent, parentName, plan, named);
+        if (reused !== undefined) return this.reuse(reused, answer);
+        return this.finishOpening(
+          await openLinkedPart({
+            parent,
+            name: named ?? plan.name,
+            source: plan.source,
+            layout: plan.layout,
+            codec: plan.codec,
+          }),
+          answer
         );
       }
       const open = nodeOpen(node, body, roots);
@@ -380,68 +418,233 @@ export class AgentFindTools {
               },
               compression: compressionName(open.space, roots),
             });
-      const part = await openLinkedPart({
-        parent,
-        name: named ?? open.suggestedName,
-        source: open.source,
-        partName: named ?? partName(open.suggestedName, parentName),
-        codec,
-        layout: await askFirmwareLayout(parent, { node: node.id, body }),
-        tool: UEFI_TOOL,
-      });
-      opened = part;
+      const defaultName = partName(open.suggestedName, parentName);
       answer.node = nodeText;
+      answer.part = which;
       answer.in_compressed = open.space.length !== 0;
       answer.source = rangeJson(open.source[0], open.source[1]);
       answer.size = hexText(open.range[1] - open.range[0]);
-    } else {
-      if (!args.has("offset") || !args.has("length")) {
-        throw new AgentToolError("Give `offset` and `length`, or `node`.");
+      // A LENV block opened as it is reads as XOR noise, and nothing in the answer said there was
+      // a decoded way to open it.
+      if (node.decodableBlock !== undefined) {
+        answer.hint =
+          "A Lenovo LENV block: its bytes are XOR-encoded as they are in the file. " +
+          'part: "decoded" opens it decoded.';
       }
-      const offset = args.offset("offset");
-      const length = args.offset("length");
-      const size = place.document.size;
-      if (!(length > 0 && offset < size && length <= size - offset)) {
-        throw new AgentToolError(
-          `${hexText(offset)} and ${hexText(length)} bytes do not fit in ${place.id}, which is ${hexText(size)} bytes long.`
-        );
-      }
-      const source: [number, number] = [offset, offset + length];
-      const dot = parentName.lastIndexOf(".");
-      const stem = dot <= 0 ? parentName : parentName.slice(0, dot);
-      // As Open Zone: a stretch that is a structure of the image goes back through the rebuild
-      // planner, any other as it is.
-      const reading = await askFirmwarePart(parent, { range: source });
-      const part = await openLinkedPart({
+      const layout = await askFirmwareLayout(parent, { node: node.id, body });
+      const reused = this.reusedPart(
         parent,
-        name: named ?? `${stem}_${hexText(offset)}-${hexText(source[1])}`,
+        parentName,
+        { source: open.source, layout, codec, name: defaultName },
+        named
+      );
+      if (reused !== undefined) return this.reuse(reused, answer);
+      return this.finishOpening(
+        await openLinkedPart({
+          parent,
+          name: named ?? defaultName,
+          source: open.source,
+          layout,
+          codec,
+        }),
+        answer
+      );
+    }
+    if (!args.has("offset") || !args.has("length")) {
+      throw new AgentToolError("Give `offset` and `length`, or `node`.");
+    }
+    const offset = args.offset("offset");
+    const length = args.offset("length");
+    const size = place.document.size;
+    if (!(length > 0 && offset < size && length <= size - offset)) {
+      throw new AgentToolError(
+        `${hexText(offset)} and ${hexText(length)} bytes do not fit in ${place.id}, which is ${hexText(size)} bytes long.`
+      );
+    }
+    const source: [number, number] = [offset, offset + length];
+    const dot = parentName.lastIndexOf(".");
+    const stem = dot <= 0 ? parentName : parentName.slice(0, dot);
+    // As Open Zone: a stretch that is a structure of the image goes back through the rebuild
+    // planner, any other as it is.
+    const reading = await askFirmwarePart(parent, { range: source });
+    const codec =
+      reading.rebuild === undefined
+        ? new CopyPartCodec()
+        : new UEFIPartCodec({ pane: parent, target: reading.rebuild });
+    answer.source = rangeJson(source[0], source[1]);
+    answer.size = hexText(length);
+    const defaultName = `${stem}_${hexText(offset)}-${hexText(source[1])}`;
+    const reused = this.reusedPart(
+      parent,
+      parentName,
+      { source, layout: reading.layout, codec, name: defaultName },
+      named
+    );
+    if (reused !== undefined) return this.reuse(reused, answer);
+    return this.finishOpening(
+      await openLinkedPart({
+        parent,
+        name: named ?? defaultName,
         source,
         layout: reading.layout,
-        codec:
-          reading.rebuild === undefined
-            ? new CopyPartCodec()
-            : new UEFIPartCodec({ pane: parent, target: reading.rebuild }),
-      });
-      opened = part;
-      answer.source = rangeJson(source[0], source[1]);
-      answer.size = hexText(length);
+        codec,
+      }),
+      answer
+    );
+  }
+
+  /**
+   * The panel of `parent` that already holds this part, if one does: the same bytes of the
+   * parent, read the same way, under the name it would be given. A second call for the same part
+   * raises that panel instead of opening a copy beside it — a copy the reader has to close, and
+   * edits that would then be in one of two places.
+   *
+   * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.reusedPart
+   */
+  private reusedPart(
+    parent: PaneId,
+    parentName: string,
+    plan: Pick<PartPlan, "source" | "layout" | "codec" | "name">,
+    named: string | undefined
+  ): PartId | undefined {
+    const wanted = partNameOf(named ?? plan.name, parentName);
+    for (const part of partsLinkedTo(parent)) {
+      const origin = paneState(part)?.origin;
+      if (origin === undefined) continue;
+      if (
+        origin.sourceRange[0] === plan.source[0] &&
+        origin.sourceRange[1] === plan.source[1] &&
+        sameLayout(origin.layout, plan.layout) &&
+        origin.codec.constructor === plan.codec.constructor &&
+        origin.partName === wanted
+      ) {
+        return part;
+      }
     }
-    const slot = opened === undefined ? undefined : paneState(opened as `part:${number}`);
+    return undefined;
+  }
+
+  /** @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.reuse */
+  private reuse(part: PartId, answer: { [key: string]: Json }): Json {
+    raisePart(part);
+    const slot = paneState(part);
+    return {
+      ...answer,
+      reused: true,
+      document: slot === undefined ? null : this.desk.id(slot.document),
+      name: slot?.name ?? null,
+      ...this.toolPanel(part),
+    };
+  }
+
+  /**
+   * Which tool panel the part's panel shows, and, when none, how to open one on the part — not on
+   * the parent, whose tree numbers the same nodes otherwise and whose bytes may be the encoded
+   * ones.
+   *
+   * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.toolPanel
+   */
+  private toolPanel(part: PartId): { [key: string]: Json } {
+    const slot = paneState(part);
+    const active = sessionOn(toolController.getSnapshot(), surfaceOf(part)).activeIdentifier;
+    if (active === undefined) {
+      const named = slot === undefined ? "the part's id" : `"${this.desk.id(slot.document)}"`;
+      return {
+        tool_panel: null,
+        next:
+          `No tool panel on the part yet: \`open_panel\` with \`document\` ${named} opens one on it ` +
+          '(module "uefi-structure" for its tree), and `uefi_select` then chooses the part\'s own nodes.',
+      };
+    }
+    return { tool_panel: active.split(".").at(-1) ?? active };
+  }
+
+  /**
+   * As the UEFI panel's Open Decompressed Body: the buffer a compressed section opens to, linked
+   * to the section and compressed again on the way back.
+   *
+   * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.decompressedPart
+   */
+  private decompressedPart(
+    node: WireNode,
+    roots: readonly WireNode[],
+    nodeText: string,
+    parent: PaneId,
+    parentName: string
+  ): PartPlan {
+    const body = decompressedBody(node);
+    const source = body === undefined ? undefined : fileSourceOf(node, roots);
+    if (body === undefined || source === undefined) {
+      throw new AgentToolError(
+        `Node ${nodeText} is not a compressed section; part "decompressed" is a compressed section's.`
+      );
+    }
+    return {
+      name: partName(body.suggestedName, parentName),
+      source,
+      layout: body.layout,
+      codec: new UEFIPartCodec({
+        pane: parent,
+        target: { space: body.space },
+        compression: compressionName(body.space, roots),
+      }),
+      size: undefined,
+    };
+  }
+
+  /**
+   * As Open Decoded Block: a LENV block, or the one an entry is in, with its XOR encoding
+   * removed; Update in Parent encodes it again and writes the checksum.
+   *
+   * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.decodedPart
+   */
+  private async decodedPart(node: WireNode, nodeText: string, parent: PaneId): Promise<PartPlan> {
+    const found = node.decodableBlock;
+    const stored =
+      found === undefined ? undefined : await readSpaceBytes(parent, [], [...found.range]);
+    if (found === undefined || stored === undefined) {
+      throw new AgentToolError(
+        `Node ${nodeText} is not a LENV block, or in one, that has anything to decode.`
+      );
+    }
+    return {
+      name: L("%1$@ (decoded)", found.name),
+      source: [found.range[0], found.range[1]],
+      layout: IMAGE_LAYOUT,
+      codec: new LenovoDMIBlockCodec(new LENVBlock(found.range[0], stored)),
+      size: found.range[1] - found.range[0],
+    };
+  }
+
+  /** @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.finishOpening */
+  private finishOpening(opened: PartId | undefined, answer: { [key: string]: Json }): Json {
+    const slot = opened === undefined ? undefined : paneState(opened);
     if (opened === undefined || slot === undefined) {
       throw new AgentToolError("The part could not be opened.");
     }
-    answer.document = this.desk.id(slot.document);
-    answer.name = slot.name;
-    return answer;
+    return {
+      ...answer,
+      ...(answer.size === undefined ? { size: hexText(slot.document.size) } : {}),
+      document: this.desk.id(slot.document),
+      name: slot.name,
+      ...this.toolPanel(opened),
+    };
   }
 }
 
-/** A node id as indices; the top is no node. */
-function nodePath(text: string): number[] {
-  if (!/^[0-9]+(\.[0-9]+)*$/.test(text)) {
-    throw new AgentToolError(
-      `\`${text}\` is not a node id. Ids look like "0.2.5" and come from \`uefi_tree\`, \`uefi_find\` or \`uefi_at\`.`
-    );
-  }
-  return text.split(".").map(Number);
+/**
+ * What a part is opened as, before it is: its name, the bytes of the parent it is linked to, how
+ * the panel lays it out and the codec that decodes it and puts it back.
+ *
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.PartPlan
+ */
+interface PartPlan {
+  readonly name: string;
+  readonly source: readonly [number, number];
+  readonly layout: UEFIRootLayout;
+  readonly codec: PartCodec;
+  /** Undefined where the bytes are known only once decompressed. */
+  readonly size: number | undefined;
 }
+
+const PART_KINDS = ["all", "body", "decompressed", "decoded"] as const;

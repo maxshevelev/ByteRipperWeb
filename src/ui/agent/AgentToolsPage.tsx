@@ -29,7 +29,16 @@ import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.detailFields
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.rows
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.sectionTitles
- * @upstream-differs a React table: a section's heading is a row no one chooses
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.headingFont
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.headingSpaceAbove
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.headingSpaceBelow
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.toolIndent
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.HeadingView
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.headingView
+ * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.toolCell
+ * @upstream-differs a React table: a section's heading is a row no one chooses, drawn by the
+ * stylesheet (`.agent-section`): smaller than the names, semibold, grey, with room above
+ * it, and the tool names stood in from it
  */
 
 /** The columns of the table. @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column */

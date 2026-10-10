@@ -71,8 +71,12 @@ export async function openLinkedPart(options: {
     });
   } catch (error) {
     reportAlert(
-      error instanceof PartRefusal ? error.title : L("Those bytes could not be read."),
-      error instanceof Error ? error.message : String(error),
+      error instanceof PartRefusal ? error.title.text : L("Those bytes could not be read."),
+      error instanceof PartRefusal
+        ? error.messageText.text
+        : error instanceof Error
+          ? error.message
+          : String(error),
       "problem"
     );
     return undefined;

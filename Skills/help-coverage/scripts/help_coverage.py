@@ -53,6 +53,7 @@ ANCHOR_IN_HELP = re.compile(r"^@covers\s+([a-z0-9][a-z0-9.\-]*)\s*$", re.M)
 # `@source-sha <hex>` in a translated file.
 SOURCE_SHA = re.compile(r"^@source-sha\s+([0-9a-f]{64})\s*$", re.M)
 
+# `LocalizedText.of("…")` (a sentence not yet in a language) is the same call.
 # `L("…")`, `L("…", args)` and `L("…", { context: "…" })`. Only a plain literal
 # counts: a key built at run time is a key no translator can find, which is
 # itself worth knowing, so those are reported separately rather than silently
@@ -62,9 +63,9 @@ SOURCE_SHA = re.compile(r"^@source-sha\s+([0-9a-f]{64})\s*$", re.M)
 # and every `new URL("../workers/…")` in this repository would otherwise read
 # as a string somebody has to translate (measured).
 L_CALL = re.compile(
-    r'(?<![A-Za-z0-9_$])L\(\s*"((?:[^"\\]|\\.)*)"'
+    r'(?<![A-Za-z0-9_$])(?:L|LocalizedText\.of)\(\s*"((?:[^"\\]|\\.)*)"'
     r'(?P<context>\s*,\s*\{\s*context:\s*"(?:[^"\\]|\\.)*"\s*\})?', re.S)
-L_DYNAMIC = re.compile(r'(?<![A-Za-z0-9_$])L\(\s*(?!")', re.S)
+L_DYNAMIC = re.compile(r'(?<![A-Za-z0-9_$])(?:L|LocalizedText\.of)\(\s*(?!")', re.S)
 
 
 def repo_root(override):

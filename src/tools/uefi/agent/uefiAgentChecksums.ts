@@ -239,7 +239,7 @@ export function uefiChecksums(
   for (const [index, wrong] of found.wrong.entries()) {
     if (index < paging.first || items.length >= limit) continue;
     items.push({
-      ...nodeSummary(wrong.node),
+      ...nodeSummary(tree, wrong.node),
       path: pathNames(tree, wrong.node.id),
       checksums: wrong.fields.map((field) => {
         const members: { [key: string]: Json } = {
@@ -290,7 +290,7 @@ export function fixChecksumAnswer(tree: AgentTree, args: AgentArguments): Json {
       writes: writes.map((one) => ({ offset: one.offset, bytes: hexByteText(one.bytes) })),
       fixed: fixed.map((node) => ({
         id: nodeIdText(node.id),
-        name: nodeSummary(node).name ?? null,
+        name: nodeSummary(tree, node).name ?? null,
       })),
       skipped_compressed: compressed,
     };

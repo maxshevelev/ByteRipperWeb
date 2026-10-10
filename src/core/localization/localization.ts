@@ -43,6 +43,12 @@ export const ENGLISH_CATALOGUE: Catalogue = { language: FALLBACK_LANGUAGE, entri
  */
 let current: Catalogue = ENGLISH_CATALOGUE;
 
+/** The catalogue the app speaks to the person, whatever `withEnglish` has in force over it. */
+let installed: Catalogue = ENGLISH_CATALOGUE;
+
+/** Every catalogue that has been installed or remembered, by language: what a word asked for in a named language is looked up in. */
+const known = new Map<AppLanguage, Catalogue>();
+
 /**
  * Puts `catalogue` in force. The app calls this once it has loaded the words
  * for the language it resolved, and again when the reader changes it; a test
@@ -50,7 +56,33 @@ let current: Catalogue = ENGLISH_CATALOGUE;
  */
 export function installCatalogue(catalogue: Catalogue): void {
   current = catalogue;
+  installed = catalogue;
+  known.set(catalogue.language, catalogue);
 }
+
+/**
+ * Keeps `catalogue` for words asked for in its language (`LIn`) without putting
+ * it in force: the loader of a language the window is not speaking calls this.
+ *
+ * @web-only upstream loads any language's catalogue on demand and
+ * synchronously (`Localization.catalogue(for:)`); here a file arrives over a
+ * promise, so the one who loaded it hands it over
+ */
+export function rememberCatalogue(catalogue: Catalogue): void {
+  known.set(catalogue.language, catalogue);
+}
+
+/**
+ * The catalogue of `language` as far as this page has it: English is the keys,
+ * and a language nobody has loaded comes out as the keys too — correct English,
+ * never a blank.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.catalogue
+ */
+export const catalogueFor = (language: AppLanguage): Catalogue =>
+  language === FALLBACK_LANGUAGE
+    ? ENGLISH_CATALOGUE
+    : (known.get(language) ?? { language, entries: {} });
 
 /**
  * Runs `work` with English in force, whatever the app speaks, and puts the catalogue back.
@@ -75,8 +107,15 @@ export function withEnglish<T>(work: () => T): T {
   }
 }
 
-/** The language the app is speaking now. */
+/** The language in force here: the scope's override, else the app's. */
 export const currentLanguage = (): AppLanguage => current.language;
+
+/**
+ * The language the app speaks to the person, whatever a scope overrides.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.appLanguage
+ */
+export const appLanguage = (): AppLanguage => installed.language;
 
 /** The catalogue in force, for the few readers that need it whole. */
 export const currentCatalogue = (): Catalogue => current;
@@ -140,6 +179,88 @@ export function L(key: string, ...rest: readonly (LContext | LMessageArgument)[]
       ? catalogueString(current, key)
       : (current.entries[`${context}|${key}`] ?? catalogueString(current, key));
   return formatMessage(word, args);
+}
+
+/**
+ * The word for `key` in `language`, whatever the app or the scope is speaking —
+ * for a sentence meant for one reader in particular: an agent answered in
+ * English while the window speaks Russian, or the undo step an agent's change
+ * leaves in the person's Edit menu, in the person's language.
+ *
+ *     LIn("Update from %1$@", appLanguage(), name)
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#L
+ */
+export const LIn = (
+  key: string,
+  language: AppLanguage,
+  ...args: readonly LMessageArgument[]
+): string => formatMessage(catalogueString(catalogueFor(language), key), args);
+
+/**
+ * A sentence kept as its key and what goes into it, not yet in any language:
+ * put into words by whoever shows it, in that reader's language. A maker writes
+ * the same English literal it would have given `L`, and the catalogue checks see it there.
+ *
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.key
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.context
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.arguments
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.isVerbatim
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.verbatim
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.text
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.description
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.texts
+ */
+export class LocalizedText {
+  readonly key: string;
+  readonly context: string | undefined;
+  readonly args: readonly string[];
+  readonly isVerbatim: boolean;
+
+  private constructor(
+    key: string,
+    context: string | undefined,
+    args: readonly string[],
+    isVerbatim: boolean
+  ) {
+    this.key = key;
+    this.context = context;
+    this.args = args;
+    this.isVerbatim = isVerbatim;
+  }
+
+  /** A sentence for `key`, with what goes into it. */
+  static of(key: string, ...rest: readonly (LContext | LMessageArgument)[]): LocalizedText {
+    const first = rest[0];
+    const context = isContext(first) ? first.context : undefined;
+    const args = (context === undefined ? rest : rest.slice(1)) as readonly LMessageArgument[];
+    return new LocalizedText(key, context, args.map(String), false);
+  }
+
+  /** Words that have no key — a parser's own English. */
+  static verbatim(text: string): LocalizedText {
+    return new LocalizedText(text, undefined, [], true);
+  }
+
+  /** The sentence in `language`. */
+  textIn(language: AppLanguage): string {
+    if (this.isVerbatim) return this.key;
+    const catalogue = catalogueFor(language);
+    const word =
+      (this.context === undefined ? undefined : catalogue.entries[`${this.context}|${this.key}`]) ??
+      catalogueString(catalogue, this.key);
+    return formatMessage(word, this.args);
+  }
+
+  /** The sentence in the language in force where it is asked for. */
+  get text(): string {
+    return this.textIn(currentLanguage());
+  }
+
+  toString(): string {
+    return this.text;
+  }
 }
 
 /**

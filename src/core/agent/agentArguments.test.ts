@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
-import { AgentToolError } from "@/core/agent/agentTool";
+import { AgentToolError, agentTool, textAnswer } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
 
 /** Ported from `AgentArgumentsTests.swift`. */
@@ -88,5 +88,66 @@ describe("a tool's arguments", () => {
     expect(schema.additionalProperties).toBe(false);
     expect(schema.required).toEqual(["path"]);
     expect(schema.properties.path.type).toBe("string");
+  });
+});
+
+describe("arguments a tool does not take", () => {
+  const openPart = agentTool({
+    name: "open_part",
+    description: "Opens a part.",
+    inputSchema: AgentSchema.object({
+      node: AgentSchema.string("A node."),
+      offset: AgentSchema.offset("Where."),
+      part: AgentSchema.choice(["all", "body", "decoded"], "Which bytes."),
+    }),
+    run: async () => textAnswer("opened"),
+  });
+  const refusal = async (
+    tool: ReturnType<typeof agentTool>,
+    values: { [key: string]: Json }
+  ): Promise<string | undefined> => {
+    try {
+      await tool.run({
+        tool: tool.name,
+        arguments: args(values),
+        progress: () => undefined,
+        signal: { aborted: false },
+      });
+      return undefined;
+    } catch (error) {
+      return error instanceof AgentToolError ? error.message : String(error);
+    }
+  };
+
+  // The case that opened a LENV block still encoded: `decoded` is a value of `part`, and the
+  // refusal says so.
+  // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentArgumentsTests.swift#AgentArgumentsTests.testAnArgumentThatIsAValueOfAnotherIsRefusedWithWhatWasMeant
+  it("refuses an argument that is a value of another with what was meant", async () => {
+    expect(await refusal(openPart, { node: "0.3.4.1.2", decoded: true })).toBe(
+      '`open_part` takes no argument `decoded`. Perhaps `part: "decoded"`. It takes: node, offset, part.'
+    );
+  });
+
+  // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentArgumentsTests.swift#AgentArgumentsTests.testAMisspeltArgumentIsRefusedWithTheNearestName
+  it("refuses a misspelt argument with the nearest name", async () => {
+    expect(await refusal(openPart, { ofset: "0x10" })).toBe(
+      "`open_part` takes no argument `ofset`. Perhaps `offset`. It takes: node, offset, part."
+    );
+    expect(await refusal(openPart, { colour: "red" })).toBe(
+      "`open_part` takes no argument `colour`. It takes: node, offset, part."
+    );
+  });
+
+  // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentArgumentsTests.swift#AgentArgumentsTests.testTheArgumentsAToolTakesAreLetThrough
+  it("lets the arguments a tool takes through", async () => {
+    expect(await refusal(openPart, { node: "0.1", part: "decoded" })).toBeUndefined();
+    const bare = agentTool({
+      name: "documents",
+      description: "Lists.",
+      run: async () => textAnswer("none"),
+    });
+    expect(await refusal(bare, { limit: 5 })).toBe(
+      "`documents` takes no argument `limit`. It takes no arguments."
+    );
   });
 });

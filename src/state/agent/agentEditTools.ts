@@ -8,12 +8,14 @@ import {
   jsonAnswer,
 } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
-import { L } from "@/core/localization/localization";
+import { appLanguage, LIn } from "@/core/localization/localization";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
-import { hexText } from "@/state/agent/agentHostTools";
+import { hexText, rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
+import { aDialogIsOpen, updateInParentQuietly, updateStepName } from "@/state/partUpdate";
 import { applyTransaction } from "@/state/toolEdits";
+import type { PartId } from "@/state/workspaceStore";
 import {
   type ToolTransaction,
   transactionProblemMessage,
@@ -60,7 +62,7 @@ export class AgentEditTools {
   }
 
   tools(): AgentTool[] {
-    return [this.writeTool(), this.copyTool()];
+    return [this.writeTool(), this.copyTool(), this.updateInParentTool()];
   }
 
   // MARK: - write
@@ -128,7 +130,7 @@ export class AgentEditTools {
       }
     }
     // The undo step is named in the app's own language: the person reads it in their Edit menu.
-    const name = L("Agent: %1$@", label);
+    const name = LIn("Agent: %1$@", appLanguage(), label);
     return this.apply({ name, writes: [{ offset, bytes }] }, place);
   }
 
@@ -215,7 +217,8 @@ export class AgentEditTools {
     for (let index = 0; index < length; index++) if (bytes[index] !== there[index]) changed += 1;
     const label = (args.optionalString("label") ?? "").trim();
     // The undo step is named in the app's own language: the person reads it in their Edit menu.
-    const name = L("Agent: %1$@", label === "" ? L("Copy to Other Pane") : label);
+    const app = appLanguage();
+    const name = LIn("Agent: %1$@", app, label === "" ? LIn("Copy to Other Pane", app) : label);
     const answer: { [key: string]: Json } = {
       from: source.id,
       to: other.id,
@@ -238,6 +241,116 @@ export class AgentEditTools {
     }
     answer.saved = false;
     return answer;
+  }
+
+  // MARK: - update_in_parent
+
+  private updateInParentTool(): AgentTool {
+    return agentTool({
+      name: "update_in_parent",
+      title: "Update in Parent",
+      description:
+        "Puts a part's bytes back into the document it was opened from — File ▸ Update in Parent. " +
+        "The part's codec says how: a copy goes back as it is, a decompressed body is compressed again " +
+        "and the image laid out around it, a decoded block is encoded again with its checksum. One undo " +
+        "step in the parent; the parent's bytes show red until the person saves, and the parent is " +
+        "shown where they landed. A part with nothing new answers `updated: false`. Refused, with " +
+        "nothing written: when the parent is closed; when the codec cannot put the bytes " +
+        "back (a part whose length changed, a body that no longer fits once compressed — the answer " +
+        "gives the codec's reason); when the parent changed while the update was worked out (call " +
+        "again); and when the bytes the part came from have changed in the parent since it was " +
+        "opened — then ask the person, and call again with `overwrite_changed_source: true` only if " +
+        'they agree. Needs the person\'s permission — Settings ▸ Agent, "Let agents edit open files". ' +
+        "Never saves.",
+      inputSchema: AgentSchema.object({
+        document: AgentSchema.string("The part's id from `documents`. Default: the focused one."),
+        overwrite_changed_source: AgentSchema.boolean(
+          "Overwrite the parent's bytes even though they changed since the part was opened. " +
+            "Only after the person said so. Default false."
+        ),
+      }),
+      annotations: EDIT,
+      run: async (call) => jsonAnswer(await this.updateInParent(call.arguments)),
+    });
+  }
+
+  /**
+   * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.updateInParent
+   * @upstream-differs no read-only parent to refuse: a page edits every document it holds in memory
+   */
+  async updateInParent(args: AgentArguments): Promise<Json> {
+    const place = this.desk.placeNamed(args.optionalString("document"));
+    const pane = place.onScreen();
+    const origin = place.state?.origin;
+    if (origin === undefined || place.slot !== "part") {
+      throw new AgentToolError(
+        `${place.id} is not a part, so it has no parent to go back into. ` +
+          "`open_part` opens a part; `documents` lists which documents are parts."
+      );
+    }
+    if (!this.isAllowed()) {
+      throw new AgentToolError(
+        "Editing is switched off. The person allows it in ByteRipper's Settings ▸ Agent, " +
+          '"Let agents edit open files". Say what you would put back instead.'
+      );
+    }
+    const parentId = this.desk.placeOf(origin.parent)?.id;
+    const parentName = parentId ?? "the parent";
+    if (aDialogIsOpen()) {
+      throw new AgentToolError(
+        "A dialog is open in that window. Ask the person to finish it first. Nothing was written."
+      );
+    }
+    const overwrite = args.bool("overwrite_changed_source", false);
+    const sourceBefore = origin.sourceRange;
+    const answer: { [key: string]: Json } = { document: place.id };
+    if (parentId !== undefined) answer.parent = parentId;
+    const outcome = await updateInParentQuietly(pane as PartId, overwrite);
+    switch (outcome.kind) {
+      case "unchanged":
+        answer.updated = false;
+        answer.note = `The part holds nothing ${parentName} has not got back already; nothing was written.`;
+        return answer;
+      case "refused":
+        throw new AgentToolError(
+          `${outcome.refusal.title.textIn("en")}. ${outcome.refusal.messageText.textIn("en")} Nothing was written.`
+        );
+      case "sourceChanged":
+        throw new AgentToolError(
+          `The bytes ${place.id} was opened from (${hexText(sourceBefore[0])}–` +
+            `${hexText(sourceBefore[1])} in ${parentName}) have changed there since. ` +
+            "Updating would overwrite those changes. Nothing was written. Ask the person; call again with " +
+            "`overwrite_changed_source: true` only if they agree."
+        );
+      case "parentChanged":
+        throw new AgentToolError(
+          `${parentName} changed while the update was being worked out. Nothing was written; ` +
+            "call again to work it out over its bytes as they are now."
+        );
+      case "writeFailed":
+        throw new AgentToolError(
+          `Could not write into ${parentName}: ${outcome.reason}. Nothing was written.`
+        );
+      case "updated": {
+        const { update } = outcome;
+        answer.updated = true;
+        answer.written = rangeJson(update.offset, update.offset + update.bytes.length);
+        answer.source = rangeJson(update.source[0], update.source[1]);
+        if (update.notes.length > 0) answer.notes = update.notes.map((note) => note.textIn("en"));
+        answer.undo = updateStepName(place.name);
+        answer.saved = false;
+        // Shown where the bytes landed, as the command does.
+        const parent = origin.parent;
+        agentShell.bringForward?.(parent);
+        await agentShell.reveal?.(
+          parent,
+          update.offset,
+          update.offset + Math.max(1, update.bytes.length),
+          false
+        );
+        return answer;
+      }
+    }
   }
 
   // MARK: - Applying

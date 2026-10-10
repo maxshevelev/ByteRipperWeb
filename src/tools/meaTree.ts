@@ -8,7 +8,7 @@ import type {
   MFSPCHInit,
 } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
-import { mfsStateBasisIsIncomplete, versionText } from "@/firmware/me/models/firmwareFacts";
+import { versionText } from "@/firmware/me/models/firmwareFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
 import { UNLOCK_TOKEN_FLAGS_SIZE } from "@/firmware/me/partition/unlockToken";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
@@ -32,7 +32,7 @@ import {
   titleText,
   yesNo,
 } from "@/tools/meaText";
-import { fileSystemState } from "@/tools/meaTones";
+import { fileSystemStateWithBasis, stateBasis } from "@/tools/meaTones";
 import {
   codePartitionMarks,
   manifestMarks,
@@ -338,7 +338,11 @@ function firmware(a: FirmwareAnalysis, pending: MEAPending): Draft {
     fields.rows.push(field("File System State", pendingValue()));
   } else if (a.mfsState !== undefined) {
     fields.rows.push(
-      field("File System State", titleText(a.mfsState), fileSystemState(a.mfsState))
+      field(
+        "File System State",
+        titleText(a.mfsState),
+        fileSystemStateWithBasis(a.mfsState, a.mfsStateBasis)
+      )
     );
     // What the state rests on, and — a caution — when a step that could have
     // raised it could not be taken.
@@ -347,7 +351,7 @@ function firmware(a: FirmwareAnalysis, pending: MEAPending): Draft {
         field(
           L("State basis"),
           fileSystemStateBasisText(a.mfsState, a.mfsStateBasis),
-          mfsStateBasisIsIncomplete(a.mfsStateBasis) ? "caution" : "standard"
+          stateBasis(a.mfsStateBasis)
         )
       );
     }

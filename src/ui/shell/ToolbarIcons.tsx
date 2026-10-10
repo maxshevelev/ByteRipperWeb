@@ -188,28 +188,22 @@ export function HelpGlyph() {
 }
 
 /**
- * `point.3.connected.trianglepath.dotted`, and its filled form while an agent is connected: three
- * points joined by a dotted triangle.
+ * `powerplug.portrait`, and `powerplug.portrait.fill` while a client is connected: a plug upright,
+ * two prongs over its body and the cord below — hollow until something is plugged in.
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.symbolName
+ * @upstream-differs drawn by hand, as SF Symbols are not here; the toolbar button takes it from the service's connection count
  */
 export function AgentGlyph({ connected }: { readonly connected: boolean }) {
   return (
     <Glyph>
-      <path d="M8 3 L13 12 H3 Z" {...stroke} strokeDasharray="1.6 2.2" strokeWidth={1.2} />
-      {[
-        [8, 3],
-        [13, 12],
-        [3, 12],
-      ].map(([x, y]) => (
-        <circle
-          key={`${x},${y}`}
-          cx={x}
-          cy={y}
-          r={2}
-          fill={connected ? "currentColor" : "var(--knockout)"}
-          stroke="currentColor"
-          strokeWidth={1.3}
-        />
-      ))}
+      <path d="M5.8 1.6 V4.6 M10.2 1.6 V4.6" {...stroke} />
+      <path
+        d="M4 4.6 H12 V7.4 A4 4 0 0 1 4 7.4 Z"
+        {...stroke}
+        fill={connected ? "currentColor" : "none"}
+      />
+      <path d="M8 11.4 V14.4" {...stroke} />
     </Glyph>
   );
 }

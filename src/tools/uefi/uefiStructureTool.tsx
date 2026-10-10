@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { TOPIC } from "@/core/help/helpIds";
-import { L, localized } from "@/core/localization/localization";
+import { L, LocalizedText, localized } from "@/core/localization/localization";
 import { CopyPartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
 import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import { LENVBlock } from "@/firmware/lenovoDmi/lenvBlock";
@@ -1264,8 +1264,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         source,
         new ReadOnlyPartCodec(
           text,
-          L("This cannot be put back"),
-          L("This is the text the variable unpacks to, and nothing here packs it again.")
+          LocalizedText.of("This cannot be put back"),
+          LocalizedText.of(
+            "This is the text the variable unpacks to, and nothing here packs it again."
+          )
         )
       );
     },

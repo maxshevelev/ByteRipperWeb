@@ -94,7 +94,7 @@ export function regionScan(tree: AgentTree, args: AgentArguments, context: UefiA
   for (const node of start) taken.push(...collect(node, kinds, minSize, tree));
   const items: Json[] = [];
   for (const entry of taken.slice(paging.first, paging.first + limit)) {
-    const { id, children: _children, ...rest } = nodeSummary(entry.node);
+    const { id, children: _children, ...rest } = nodeSummary(tree, entry.node);
     const members: { [key: string]: Json } = { node: id ?? null, ...rest };
     const range = nodeFileRange(entry.node);
     if (range !== undefined) members.size = hexText(range.end - range.start);

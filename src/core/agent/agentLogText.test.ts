@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { detailFields, logText } from "@/core/agent/agentLogText";
+import { detailFields, isProblem, logText } from "@/core/agent/agentLogText";
 import type { AgentCallRecord } from "@/core/agent/agentServer";
 
 /** Ported from `AgentUITests`: what the window's log says of a call. */
 
 const record = (overrides: Partial<AgentCallRecord> = {}): AgentCallRecord => ({
   id: 1,
+  started: new Date(2026, 9, 9, 15, 4, 5),
   client: "claude-code",
   tool: "read",
   arguments: { offset: "0x10", length: 16 },
@@ -57,5 +58,28 @@ describe("the log's words", () => {
       "Answer",
       "Result",
     ]);
+  });
+
+  /**
+   * The log shows a request while the tool is still working on it: when it came in, a time that
+   * counts up, no size yet, and "Running…" — which is no problem.
+   */
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheLogShowsARequestWhileItRuns
+  it("shows a request while it runs, counting up", () => {
+    const started = new Date(2026, 9, 9, 15, 4, 5);
+    const running = record({
+      started,
+      finished: new Date(2026, 9, 9, 15, 4, 5),
+      durationMilliseconds: 0,
+      answerBytes: 0,
+      outcome: { kind: "running" },
+    });
+    expect(logText(running, "result")).toBe("Running…");
+    expect(logText(running, "time")).toBe("15:04:05");
+    expect(logText(running, "duration", started)).toBe("0 s");
+    expect(logText(running, "duration", new Date(started.getTime() + 7400))).toBe("7 s");
+    expect(logText(running, "size")).toBe("");
+    expect(isProblem(running)).toBe(false);
+    expect(detailFields(running).map((field) => field.label)).toEqual(["Time", "Client", "Result"]);
   });
 });

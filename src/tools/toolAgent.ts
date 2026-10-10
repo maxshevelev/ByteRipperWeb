@@ -1,6 +1,7 @@
 import type { AgentArguments } from "@/core/agent/agentArguments";
 import type { AgentAnswer } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import type { LocalizedText } from "@/core/localization/localization";
 import type { PaneId } from "@/state/paneId";
 import type { ToolTransaction } from "@/tools/toolTransaction";
 
@@ -138,10 +139,10 @@ export interface ToolAgentEdit {
   readonly properties?: { readonly [key: string]: Json };
   readonly required?: readonly string[];
   /**
-   * What the Edit menu calls the step — `Undo <name>` — in the app's own language. Asked for outside
-   * the English the agent is answered in.
+   * What the Edit menu calls the step — `Undo <name>`. Put into words in the app's own language
+   * where the step is made, not in the English the agent is answered in.
    */
-  readonly undoName: () => string;
+  readonly undoName: LocalizedText;
   /** The change; a bare transaction is a change that is its writes and nothing more to say. */
   readonly run: (
     host: ToolReadHost,

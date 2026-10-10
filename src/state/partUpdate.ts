@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { appLanguage, L, LIn, LocalizedText } from "@/core/localization/localization";
 import {
   type PartCodec,
   type PartParent,
@@ -8,7 +8,11 @@ import {
 } from "@/core/parts/partCodec";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
-import { BackgroundOperation, presentBlocking } from "@/state/operationStore";
+import {
+  BackgroundOperation,
+  blockingOperationStore,
+  presentBlocking,
+} from "@/state/operationStore";
 import { applyTransaction } from "@/state/toolEdits";
 import {
   type PaneId,
@@ -87,13 +91,13 @@ export async function updateInParent(pane: PartId): Promise<UpdateOutcome> {
 
   const plan = await origin.planUpdate(slot.document);
   if (plan.kind === "refused") {
-    reportAlert(plan.title, plan.message, "problem");
+    reportAlert(plan.refusal.title.text, plan.refusal.messageText.text, "problem");
     return { kind: "refused" };
   }
   const parent = paneState(origin.parent);
   if (parent === undefined) return { kind: "refused" };
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
-  const stepName = L("Update from %1$@", slot.name);
+  const stepName = updateStepName(slot.name);
   const content = documentPartReader(parent.document);
   const partParent: PartParent = {
     content,
@@ -197,18 +201,54 @@ async function finishUpdate(
   partBytes: Uint8Array,
   stepName: string
 ): Promise<UpdateOutcome> {
-  // What the source will be once the run is written: the parent as it is, with
-  // the run laid over it. The file never changes length.
-  let source: Uint8Array;
-  try {
-    source = await content.read(update.source[0], update.source[1] - update.source[0]);
-  } catch {
+  const landed = await landUpdate(update, origin, content, partBytes, stepName);
+  if (landed.kind === "unreadable") {
     reportAlert(
       L("Could not update “%1$@”.", origin.parentName),
       L("Those bytes could not be read."),
       "problem"
     );
     return { kind: "refused" };
+  }
+  if (landed.kind === "failed") {
+    reportAlert(L("Could not update “%1$@”.", origin.parentName), landed.problem, "problem");
+    return { kind: "refused" };
+  }
+  // It says last where it can be taken back: in the parent, not in the part.
+  reportAlert(
+    L("Updated “%1$@”", origin.parentName),
+    [...update.notes.map((note) => note.text), undoLine(origin)].join("\n\n"),
+    "success"
+  );
+  return { kind: "updated", parent: origin.parent };
+}
+
+/**
+ * Writes an update the codec worked out into the parent: unreadable when the parent's bytes could
+ * not be read to work out what the source becomes, failed when the write itself did not land — the
+ * link as it was.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.landUpdate
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.writeUpdate
+ */
+async function landUpdate(
+  update: PartUpdate,
+  origin: DocumentOrigin,
+  content: PartReader,
+  partBytes: Uint8Array,
+  stepName: string
+): Promise<
+  | { readonly kind: "landed" }
+  | { readonly kind: "unreadable" }
+  | { readonly kind: "failed"; readonly problem: string }
+> {
+  // What the source will be once the run is written: the parent as it is, with
+  // the run laid over it. The file never changes length.
+  let source: Uint8Array;
+  try {
+    source = await content.read(update.source[0], update.source[1] - update.source[0]);
+  } catch {
+    return { kind: "unreadable" };
   }
   const runEnd = update.offset + update.bytes.length;
   const from = Math.max(update.offset, update.source[0]);
@@ -228,18 +268,118 @@ async function finishUpdate(
     });
     if (problem !== undefined) {
       origin.restore(snapshot);
-      reportAlert(L("Could not update “%1$@”.", origin.parentName), problem, "problem");
-      return { kind: "refused" };
+      return { kind: "failed", problem };
     }
   }
-  // It says last where it can be taken back: in the parent, not in the part.
-  reportAlert(
-    L("Updated “%1$@”", origin.parentName),
-    [...update.notes, undoLine(origin)].join("\n\n"),
-    "success"
-  );
-  return { kind: "updated", parent: origin.parent };
+  return { kind: "landed" };
 }
+
+/**
+ * What the parent's Edit menu offers to undo after an update: in the app's language even when an
+ * agent asked for the update in English.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateStepName
+ */
+export const updateStepName = (partName: string): string =>
+  LIn("Update from %1$@", appLanguage(), partName);
+
+/**
+ * What Update in Parent came to, for a caller that asks no questions and shows no dialogs — the
+ * agent: every case the command answers with an alert is a value here.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.QuietUpdateOutcome
+ */
+export type QuietUpdateOutcome =
+  /** The part holds nothing the parent has not got back. */
+  | { readonly kind: "unchanged" }
+  /**
+   * It cannot go back: the parent is closed, or the codec refused — in the codec's words, put
+   * into words by the caller.
+   */
+  | { readonly kind: "refused"; readonly refusal: PartRefusal }
+  /**
+   * The source changed in the parent since the part was opened; going back would overwrite that,
+   * and it was not allowed to.
+   */
+  | { readonly kind: "sourceChanged" }
+  /** The parent changed while the update was worked out; nothing was written. */
+  | { readonly kind: "parentChanged" }
+  /** The write itself failed; nothing was written. */
+  | { readonly kind: "writeFailed"; readonly reason: string }
+  | { readonly kind: "updated"; readonly update: PartUpdate };
+
+/**
+ * Update in Parent with no questions and no dialogs: what the command does, the answers handed
+ * back instead of shown. `overwritingChangedSource` is the answer to the one question the command
+ * asks.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly
+ * @upstream-differs no read-only parent to refuse: a page edits every document it holds in memory
+ */
+export async function updateInParentQuietly(
+  pane: PartId,
+  overwritingChangedSource: boolean
+): Promise<QuietUpdateOutcome> {
+  const slot = paneState(pane);
+  const origin = slot?.origin;
+  if (slot === undefined || origin === undefined) return { kind: "unchanged" };
+  if (!(await origin.hasChanges(slot.document))) return { kind: "unchanged" };
+  const plan = await origin.planUpdate(slot.document);
+  if (plan.kind === "refused") return { kind: "refused", refusal: plan.refusal };
+  const parent = paneState(origin.parent);
+  if (parent === undefined) {
+    return {
+      kind: "refused",
+      refusal: new PartRefusal(
+        LocalizedText.of("The parent is closed"),
+        LocalizedText.of(
+          "“%1$@” is no longer open, so there is nothing to put “%2$@” back into.",
+          origin.parentName,
+          origin.partName
+        )
+      ),
+    };
+  }
+  if (plan.confirm && !overwritingChangedSource) return { kind: "sourceChanged" };
+  const content = documentPartReader(parent.document);
+  const partParent: PartParent = {
+    content,
+    source: origin.sourceRange,
+    name: origin.parentName,
+    partName: origin.partName,
+  };
+  const document = parent.document;
+  const generation = document.contentGeneration;
+  let update: PartUpdate;
+  try {
+    update = await plan.codec.encode(plan.bytes, partParent);
+  } catch (error) {
+    return {
+      kind: "refused",
+      refusal:
+        error instanceof PartRefusal
+          ? error
+          : new PartRefusal(
+              LocalizedText.of("“%1$@” cannot be put back", origin.partName),
+              LocalizedText.verbatim(error instanceof Error ? error.message : String(error))
+            ),
+    };
+  }
+  // Worked out over the bytes as they were when asked.
+  const now = paneState(origin.parent);
+  if (now === undefined || now.document !== document || document.contentGeneration !== generation) {
+    return { kind: "parentChanged" };
+  }
+  const landed = await landUpdate(update, origin, content, plan.bytes, updateStepName(slot.name));
+  if (landed.kind === "unreadable") {
+    return { kind: "writeFailed", reason: LIn("The part could not be read", "en") };
+  }
+  if (landed.kind === "failed") return { kind: "writeFailed", reason: landed.problem };
+  return { kind: "updated", update };
+}
+
+/** Whether a modal operation holds the window, as an open sheet holds upstream's. */
+export const aDialogIsOpen = (): boolean => blockingOperationStore.getSnapshot() !== undefined;
 
 /**
  * Why a part did not go back, in the codec's words.
@@ -248,7 +388,7 @@ async function finishUpdate(
  */
 function presentRefusal(error: unknown, origin: DocumentOrigin): void {
   if (error instanceof PartRefusal) {
-    reportAlert(error.title, error.message, "problem");
+    reportAlert(error.title.text, error.messageText.text, "problem");
     return;
   }
   reportAlert(

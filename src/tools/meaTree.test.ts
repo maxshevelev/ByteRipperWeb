@@ -222,7 +222,12 @@ describe("the state's basis", () => {
     const labels = unread?.fields.map((one) => one.label) ?? [];
     expect(labels.indexOf("State basis")).toBe(labels.indexOf("File System State") + 1);
 
-    expect(tone("State basis", basis({ kind: "noFileContent" }))).toBeUndefined();
+    // A state the unread EFS left standing is not drawn as settled.
+    expect(tone("File System State", unread)).toBe("caution");
+
+    const settled = basis({ kind: "noFileContent" });
+    expect(tone("State basis", settled)).toBeUndefined();
+    expect(tone("File System State", settled)).toBe("good");
   });
 });
 

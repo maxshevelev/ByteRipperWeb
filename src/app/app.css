@@ -473,6 +473,11 @@ textarea,
   color: var(--accent);
 }
 
+.toolbar-icon.is-problem,
+.toolbar-icon.is-problem.is-on {
+  color: var(--semantic-bad);
+}
+
 .toolbar-icon:disabled {
   color: var(--text-faint);
   cursor: default;
@@ -1907,24 +1912,28 @@ textarea,
   box-sizing: border-box;
   margin: 0;
   overflow-y: auto;
-  border: 1px solid var(--border-strong);
+  /* The frame of the dialogs' tables (`.segments-scroll`). */
+  border: 1px solid var(--border);
+  border-radius: 5px;
   background: var(--surface-sunken);
 }
 
-.bookmark-list:focus-visible {
+/* `:focus`, not `:focus-visible`: a click focuses the list by script (Return acts on it, as it
+   does after a Tab), and the browser does not count that as keyboard focus. */
+.bookmark-list:focus:not([aria-disabled]) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
 /* Upstream's table row: 20 high, no stripes, no header; the address column
-   exactly as wide as eight digits, and the rest the name's. */
+   exactly as wide as eight digits, and the rest the name's. The cell inset and the type are the
+   dialogs' tables' (`.panel-table`). */
 .bookmark-row {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 20px;
-  padding: 0 4px;
-  font-size: 12px;
+  padding: 0 0.45rem;
   cursor: default;
   user-select: none;
 }
@@ -4601,10 +4610,47 @@ button.uefi-title {
   color: var(--semantic-bad);
 }
 
-.settings-heading {
-  margin: 0 0 16px;
-  font-size: 15px;
-  font-weight: 700;
+/* The View tab: three sections on one grid, so their label columns are one column — the widest
+   label in any of them — and the controls all start at one edge. Each section's own grid is a
+   subgrid of it. */
+.settings-view {
+  display: grid;
+  grid-template-columns: max-content minmax(0, auto);
+  justify-content: start;
+  column-gap: 12px;
+}
+
+.settings-view > section,
+.settings-view > hr {
+  grid-column: 1 / -1;
+}
+
+.settings-view > section {
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+.settings-view > section > .settings-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+/* A caption spans both columns, and a spanning item's natural width is shared out over the tracks
+   it covers — a sentence would widen the label column. Taking no width of its own keeps the labels'
+   column the width of the widest label; it fills the grid's width and wraps there. */
+.settings-view > section > .settings-caption {
+  grid-column: 1 / -1;
+  width: 0;
+  min-width: 100%;
+}
+
+/* A tab's first control with the tab's own `?` at the far end of its row. */
+.settings-first-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 /* Labels right-aligned against their controls, as upstream's grid has them. */
@@ -4702,7 +4748,6 @@ button.uefi-title {
   gap: 14px;
 }
 
-.settings-decoding-controls .settings-heading,
 .settings-decoding-controls .settings-caption {
   margin: 0;
 }
@@ -4729,9 +4774,12 @@ button.uefi-title {
   margin: 6px 0 0;
 }
 
+/* Drawn as the tool panels' tables are (`.fit-entries`, `.fit-head`, `.fit-row`): a framed surface,
+   a quiet head over a rule, rows of one height with every second one raised. */
 .favorites-table {
-  border: 1px solid var(--border-strong);
-  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
 }
 
 .favorites-row {
@@ -4739,15 +4787,13 @@ button.uefi-title {
   grid-template-columns: 18px 110px minmax(0, 1fr) auto 76px;
   align-items: center;
   gap: 6px;
-  min-height: 24px;
+  min-height: 22px;
   padding: 0 6px;
-  font-size: 12px;
 }
 
 .favorites-row.is-head {
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 11px;
 }
 
 /* Four rows' worth at least, twelve before the list scrolls. */
@@ -4755,12 +4801,17 @@ button.uefi-title {
   margin: 0;
   padding: 0;
   list-style: none;
-  min-height: calc(4 * 24px);
-  max-height: calc(12 * 24px);
+  min-height: calc(4 * 22px);
+  max-height: calc(12 * 22px);
   overflow-y: auto;
 }
 
-.favorites-row.is-selected {
+.favorites-body > .favorites-row:nth-child(even) {
+  background: var(--surface-raised);
+}
+
+/* The chosen row, as the Segments table's is. */
+.favorites-body > .favorites-row.is-selected {
   background: var(--selection);
 }
 
@@ -4876,13 +4927,8 @@ button.uefi-title {
 }
 
 /* Where the library lives: the line on its own, the commands under it — the
-   folder's name is the one thing here that has to be read in full. Under the
-   title and above the list, where upstream puts it: 10 after the one, 12
-   before the other. */
-.settings-favorites > .settings-heading {
-  margin-bottom: 10px;
-}
-
+   folder's name is the one thing here that has to be read in full. First in
+   the tab, above the list, 12 before it. */
 .favorites-location {
   display: flex;
   flex-direction: column;
@@ -5691,12 +5737,6 @@ button.uefi-title {
   vertical-align: -3px;
 }
 
-/* In a settings heading it sits after the words, quiet until wanted. */
-.settings-heading .help-button {
-  margin-left: 6px;
-  vertical-align: -2px;
-}
-
 /* The popover a firmware row's `?` opens: one word, explained where it is being
    read. A `<dialog>` shown modelessly, so the browser's own Escape and the
    panel behind it both keep working — upstream's is an NSPopover with an arrow,
@@ -6002,30 +6042,41 @@ body[data-pulling-panel] * {
   table-layout: fixed;
 }
 
+/* Drawn as the tool panels' tables are (`.fit-head`, `.fit-row`): a quiet head over a rule, rows
+   of one height with every second one raised, the chosen one in the strong selection. */
 .agent-table th {
   position: sticky;
   top: 0;
   /* Over the rows that scroll under it: a row is positioned too (its button covers it), and
      would otherwise be painted over the head. */
   z-index: 2;
+  height: 22px;
   /* An AppKit table's cell inset, so a column at upstream's width holds its title. */
-  padding: 2px 6px;
-  background: var(--surface-raised);
-  font-weight: 600;
+  padding: 0 6px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: inherit;
   text-align: left;
+  white-space: nowrap;
 }
 
 .agent-table td {
-  padding: 2px 6px;
-  border-bottom: 1px solid var(--grid-line);
+  height: 22px;
+  padding: 0 6px;
+}
+
+.agent-table tbody tr:nth-child(even):not(.agent-section) {
+  background: var(--surface-raised);
 }
 
 .agent-row {
   position: relative;
 }
 
-.agent-row[aria-selected="true"] {
-  background: var(--selection);
+.agent-table .agent-row[aria-selected="true"] {
+  background: var(--selection-strong);
 }
 
 /* The button of the first cell covers the whole row, so a click anywhere on it chooses it. */
@@ -6069,8 +6120,21 @@ body[data-pulling-panel] * {
   border-bottom: 1px solid var(--border);
 }
 
+/* The page switch is drawn as the minimap's mode switch is. */
+.agent-page-button {
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .agent-page-button[aria-pressed="true"] {
   background: var(--selection);
+  border-color: var(--caret);
 }
 
 .agent-mark-col-range {
@@ -6092,13 +6156,25 @@ body[data-pulling-panel] * {
 /* A section of the Tools page: the heading is not a row anyone chooses. */
 .agent-table .agent-section th {
   top: 0;
-  padding-top: 6px;
+  /* Smaller than the tool names and grey, with room above that sets the section off from the last
+     tool of the one before. */
+  height: auto;
+  padding: 12px 2px 4px;
+  border-bottom: 0;
   background: var(--surface);
   color: var(--text-muted);
+  font-size: calc(var(--hex-font-size, 13px) - 2px);
+  font-weight: 600;
+  text-align: left;
 }
 
 .agent-tools .agent-tool-col-tool {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+/* The names stand in from their heading rather than flush with it (upstream: 14 points). */
+.agent-tools td.agent-tool-col-tool {
+  padding-left: 16px;
 }
 
 .agent-tools .agent-tool-col-calls,

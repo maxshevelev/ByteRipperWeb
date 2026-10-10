@@ -1,6 +1,6 @@
 import type { AgentArguments } from "@/core/agent/agentArguments";
 import { AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
-import { L, withEnglish } from "@/core/localization/localization";
+import { LocalizedText, withEnglish } from "@/core/localization/localization";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import { microcodeCpuid } from "@/firmware/uefi/microcodeParser";
 import { readyFirmware } from "@/state/firmwareReady";
@@ -200,7 +200,7 @@ export const fitAgentEdits: readonly ToolAgentEdit[] = [
       "backup's copy when that copy is the same table — as the FIT panel's Fix Checksum does, as one " +
       "undo step. Refused when there is no table, when its checksum is not checked or already " +
       "correct, and without the person's permission to edit.",
-    undoName: () => L("Fix FIT Checksum"),
+    undoName: LocalizedText.of("Fix FIT Checksum"),
     run: async (host) => {
       const report = await tableOf(host);
       const table = report.table;
@@ -239,7 +239,7 @@ export const fitAgentEdits: readonly ToolAgentEdit[] = [
       path: { type: "string", description: "A file's `path` from `microcode_catalogue`." },
     },
     required: ["path"],
-    undoName: () => L("Add Microcode"),
+    undoName: LocalizedText.of("Add Microcode"),
     run: async (host, args) => {
       const { bytes } = await download(args.string("path"));
       await tableOf(host);
@@ -265,7 +265,7 @@ export const fitAgentEdits: readonly ToolAgentEdit[] = [
       path: { type: "string", description: "A file's `path` from `microcode_catalogue`." },
     },
     required: ["entry", "path"],
-    undoName: () => L("Replace Microcode"),
+    undoName: LocalizedText.of("Replace Microcode"),
     run: async (host, args) => {
       const entry = args.integer("entry");
       const { bytes } = await download(args.string("path"));
@@ -293,7 +293,7 @@ export const fitAgentEdits: readonly ToolAgentEdit[] = [
       },
     },
     required: ["entry"],
-    undoName: () => L("Remove Microcode"),
+    undoName: LocalizedText.of("Remove Microcode"),
     run: async (host, args) => {
       const entry = args.integer("entry");
       const report = await tableOf(host);

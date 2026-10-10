@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 
 /**
  * What a part's bytes are to the bytes of the file they came out of, in both
@@ -110,11 +110,12 @@ export interface PartUpdate {
    */
   readonly source: readonly [number, number];
   /**
-   * Said after the update, above the line about undoing it.
+   * Said after the update, above the line about undoing it — put into words by whoever
+   * says it, in its reader's language.
    *
    * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartUpdate.notes
    */
-  readonly notes: readonly string[];
+  readonly notes: readonly LocalizedText[];
 }
 
 /**
@@ -127,24 +128,27 @@ export function overwriting(source: readonly [number, number], bytes: Uint8Array
 }
 
 /**
- * Why a part cannot go back, in the words the user is shown.
+ * Why a part cannot go back. Made where the codec runs, and put into words by whoever shows
+ * it: the person in the app's language, an agent in English.
  *
  * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal
  * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal.init
  */
 export class PartRefusal extends Error {
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal.title */
-  readonly title: string;
-
+  readonly title: LocalizedText;
   /**
-   * `Error.message`, which carries the words the reader is shown.
-   *
    * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal.message
+   * @upstream-differs `Error.message` is the English of it, as a log or a test reads it; the
+   * sentence itself, for whoever puts it into words, is this
    */
-  constructor(title: string, message: string) {
-    super(message);
+  readonly messageText: LocalizedText;
+
+  constructor(title: LocalizedText, message: LocalizedText) {
+    super(message.textIn("en"));
     this.name = "PartRefusal";
     this.title = title;
+    this.messageText = message;
   }
 
   /**
@@ -163,8 +167,8 @@ export class PartRefusal extends Error {
   }): PartRefusal {
     const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
     return new PartRefusal(
-      L("The length changed"),
-      L(
+      LocalizedText.of("The length changed"),
+      LocalizedText.of(
         "“%1$@” is %2$@ bytes in %3$@, and this part is %4$@. A part goes back only at its own length: the bytes after it in the file are not this part's to move.",
         options.part,
         hex(options.source),
@@ -304,11 +308,11 @@ export class ReadOnlyPartCodec implements PartCodec {
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#ReadOnlyPartCodec.bytes */
   readonly bytes: Uint8Array;
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#ReadOnlyPartCodec.title */
-  readonly title: string;
+  readonly title: LocalizedText;
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#ReadOnlyPartCodec.reason */
-  readonly reason: string;
+  readonly reason: LocalizedText;
 
-  constructor(bytes: Uint8Array, title: string, reason: string) {
+  constructor(bytes: Uint8Array, title: LocalizedText, reason: LocalizedText) {
     this.bytes = bytes;
     this.title = title;
     this.reason = reason;

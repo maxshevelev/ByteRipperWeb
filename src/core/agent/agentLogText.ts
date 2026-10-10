@@ -42,10 +42,17 @@ export function columnTitle(column: AgentLogColumn): string {
 const two = (value: number) => String(value).padStart(2, "0");
 
 /** @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.text */
-export function logText(record: AgentCallRecord, column: AgentLogColumn): string {
+export function logText(
+  record: AgentCallRecord,
+  column: AgentLogColumn,
+  now: Date = new Date()
+): string {
   switch (column) {
-    case "time":
-      return `${two(record.finished.getHours())}:${two(record.finished.getMinutes())}:${two(record.finished.getSeconds())}`;
+    case "time": {
+      // A call still running has no end yet: the row says when it came in.
+      const at = record.outcome.kind === "running" ? record.started : record.finished;
+      return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`;
+    }
     case "tool":
       return record.tool;
     case "arguments":
@@ -53,11 +60,18 @@ export function logText(record: AgentCallRecord, column: AgentLogColumn): string
       // checks the agent against.
       return jsonText(record.arguments) === "{}" ? "" : jsonText(record.arguments);
     case "duration":
+      // A call still running counts up: whole seconds since it came in.
+      if (record.outcome.kind === "running") {
+        return L(
+          "%1$@ s",
+          Math.round(Math.max(0, now.getTime() - record.started.getTime()) / 1000)
+        );
+      }
       return record.durationMilliseconds < 1000
         ? L("%1$@ ms", Math.round(record.durationMilliseconds))
         : L("%1$@ s", (record.durationMilliseconds / 1000).toFixed(1));
     case "size":
-      return friendlySize(record.answerBytes);
+      return record.outcome.kind === "running" ? "" : friendlySize(record.answerBytes);
     case "result":
       switch (record.outcome.kind) {
         case "answered":
@@ -68,12 +82,15 @@ export function logText(record: AgentCallRecord, column: AgentLogColumn): string
           return L("Too long, not sent");
         case "cancelled":
           return L("Cancelled");
+        case "running":
+          return L("Running…");
       }
   }
 }
 
 /** @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.isProblem */
-export const isProblem = (record: AgentCallRecord): boolean => record.outcome.kind !== "answered";
+export const isProblem = (record: AgentCallRecord): boolean =>
+  record.outcome.kind !== "answered" && record.outcome.kind !== "running";
 
 /**
  * The arguments as the agent sent them, laid out: one member to a line, nested ones indented, keys
@@ -100,13 +117,22 @@ export interface DetailField {
  *
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.detailFields
  */
-export function detailFields(record: AgentCallRecord): DetailField[] {
+export function detailFields(record: AgentCallRecord, now: Date = new Date()): DetailField[] {
+  const running = record.outcome.kind === "running";
   const fields: DetailField[] = [
-    { label: L("Time"), value: record.finished.toLocaleTimeString(), isProblem: false },
-    { label: L("Took"), value: logText(record, "duration"), isProblem: false },
+    {
+      label: L("Time"),
+      value: (running ? record.started : record.finished).toLocaleTimeString(),
+      isProblem: false,
+    },
+    { label: L("Took"), value: logText(record, "duration", now), isProblem: false },
     { label: L("Answer"), value: L("%1$@ bytes", record.answerBytes), isProblem: false },
     { label: L("Result"), value: logText(record, "result"), isProblem: isProblem(record) },
   ];
+  // Nothing to say yet about how long a call took or what it answered.
+  if (running) {
+    fields.splice(1, 2);
+  }
   if (record.client !== undefined) {
     fields.splice(1, 0, { label: L("Client"), value: record.client, isProblem: false });
   }

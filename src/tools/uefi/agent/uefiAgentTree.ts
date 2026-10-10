@@ -176,7 +176,9 @@ export function parseNodeId(text: string | undefined): NodeID {
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.unknownNode */
 export const unknownNode = (id: NodeID): AgentToolError =>
   new AgentToolError(
-    `No node ${nodeIdText(id)} in this image. Ids come from \`uefi_tree\`, \`uefi_find\` or \`uefi_at\` on the same document.`
+    `No node ${nodeIdText(id)} in this image. Ids come from \`uefi_tree\`, \`uefi_find\` or \`uefi_at\` on the same document: ` +
+      "a part opened with `open_part` has its own tree and its own ids, and a call that leaves out `document` goes to the focused one — " +
+      "the part, after `open_part` — so give the `document` the id was listed on."
   );
 
 /** The file range of a node: nothing inside a compressed section. */

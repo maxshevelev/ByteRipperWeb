@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AgentSchema } from "@/core/agent/agentArguments";
 import { AgentConnection } from "@/core/agent/agentConnection";
 import { AgentServer } from "@/core/agent/agentServer";
 import { agentTool, jsonAnswer } from "@/core/agent/agentTool";
@@ -36,6 +37,11 @@ const stub = (name: string) =>
   agentTool({
     name,
     description: "Stands in for the app's own.",
+    inputSchema: AgentSchema.object({
+      offset: AgentSchema.offset("Where."),
+      length: AgentSchema.offset("How much."),
+      format: AgentSchema.string("As what."),
+    }),
     run: async (call) =>
       jsonAnswer({
         tool: call.tool,

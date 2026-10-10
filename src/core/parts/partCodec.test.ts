@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LocalizedText } from "@/core/localization/localization";
 import {
   CopyPartCodec,
   overwriting,
@@ -51,22 +52,26 @@ describe("a part's codec", () => {
       .catch((error: unknown) => error);
 
     expect(refused).toBeInstanceOf(PartRefusal);
-    expect((refused as PartRefusal).title).toBe("The length changed");
+    expect((refused as PartRefusal).title.textIn("en")).toBe("The length changed");
   });
 
   // @upstream Packages/PartCodec/Tests/PartCodecTests/PartCodecTests.swift#PartCodecTests.testAReadOnlyPartOpensAsGivenAndIsRefused
   it("opens a read-only part as given and refuses it on the way back", async () => {
     const codec = new ReadOnlyPartCodec(
       Uint8Array.from([7, 7]),
-      "No",
-      "Nothing compresses it again."
+      LocalizedText.verbatim("No"),
+      LocalizedText.verbatim("Nothing compresses it again.")
     );
 
     expect(await codec.decode()).toEqual(Uint8Array.from([7, 7]));
     const refused = await codec.encode().catch((error: unknown) => error);
     expect(refused).toBeInstanceOf(PartRefusal);
-    expect((refused as PartRefusal).title).toBe("No");
-    expect((refused as PartRefusal).message).toBe("Nothing compresses it again.");
+    expect(refused).toEqual(
+      new PartRefusal(
+        LocalizedText.verbatim("No"),
+        LocalizedText.verbatim("Nothing compresses it again.")
+      )
+    );
     expect(codec.keepsOffsets).toBe(false);
     expect(codec.badge.text).toBe("Read-only");
   });
