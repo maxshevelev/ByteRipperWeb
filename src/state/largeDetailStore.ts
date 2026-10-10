@@ -1,4 +1,6 @@
+import type { RefObject } from "react";
 import { createStore } from "@/state/store";
+import { useStore } from "@/state/useStore";
 
 /**
  * Whether a panel's details are open in the large view: the card over the window,
@@ -21,7 +23,22 @@ import { createStore } from "@/state/store";
  * flies
  */
 // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.isQuickLookShown
-export const largeDetailStore = createStore<{ readonly open: boolean }>({ open: false });
+export const largeDetailStore = createStore<LargeDetailState>({ open: false });
+
+export interface LargeDetailState {
+  readonly open: boolean;
+  /**
+   * The table whose details the card shows: the one Space was pressed on, or the one beside the
+   * pane whose corner button was clicked. Kept after the card closes, so the card that folds away
+   * is still that panel's. Absent when the view was opened without one, and then every pane
+   * answers to it, as before there was an owner.
+   *
+   * @web-only upstream's card is a view of one pane; here every details pane on the page reads
+   * the same store, and a pane that is mounted but not this table's — a page of the Agent window
+   * kept hidden under the one shown — must leave the card alone
+   */
+  readonly table?: HTMLElement | undefined;
+}
 
 /**
  * Opens the large view. False — the key is not taken — when there is nothing to show in
@@ -32,7 +49,10 @@ export const largeDetailStore = createStore<{ readonly open: boolean }>({ open: 
 export function showLargeDetail(hasDetail: boolean, keyTable?: HTMLElement | null): boolean {
   if (!hasDetail) return false;
   if (keyTable !== undefined) keyTarget = keyTable;
-  largeDetailStore.update((state) => (state.open ? state : { open: true }));
+  const table = keyTable ?? undefined;
+  largeDetailStore.update((state) =>
+    state.open && state.table === table ? state : { open: true, table }
+  );
   return true;
 }
 
@@ -42,7 +62,7 @@ export function showLargeDetail(hasDetail: boolean, keyTable?: HTMLElement | nul
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.closeQuickLook
  */
 export function closeLargeDetail(): void {
-  largeDetailStore.update((state) => (state.open ? { open: false } : state));
+  largeDetailStore.update((state) => (state.open ? { ...state, open: false } : state));
 }
 
 /**
@@ -83,4 +103,27 @@ export function keyTableNear(element: Element | null): HTMLElement | undefined {
     if (table !== null) return table;
   }
   return undefined;
+}
+
+/**
+ * Whether the card is the details of the panel `element` is in: the table that opened it is that
+ * panel's (`keyTableNear`). True for every panel when the view was opened without a table.
+ */
+export function ownsLargeDetail(
+  element: Element | null,
+  state: LargeDetailState = largeDetailStore.getSnapshot()
+): boolean {
+  const table = state.table;
+  if (table === undefined) return true;
+  const near = keyTableNear(element);
+  return near !== undefined && (near === table || near.contains(table) || table.contains(near));
+}
+
+/**
+ * Whether the large view is open over the panel `ref` is in — its split folds the pane away for
+ * it, and its details draw the card. A panel beside it, with a table of its own, stays as it is.
+ */
+export function useLargeDetailOf(ref: RefObject<Element | null>): boolean {
+  const state = useStore(largeDetailStore);
+  return state.open && ownsLargeDetail(ref.current, state);
 }

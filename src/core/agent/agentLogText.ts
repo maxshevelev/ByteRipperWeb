@@ -1,6 +1,6 @@
 import type { AgentCallRecord } from "@/core/agent/agentServer";
 import { jsonText, prettyText } from "@/core/agent/json";
-import { L } from "@/core/localization/localization";
+import { currentLanguage, L } from "@/core/localization/localization";
 import { friendlySize } from "@/core/text/byteSize";
 
 /**
@@ -41,6 +41,25 @@ export function columnTitle(column: AgentLogColumn): string {
 
 const two = (value: number) => String(value).padStart(2, "0");
 
+/**
+ * A moment as a table's Time column shows it: hours, minutes and seconds, on the 24-hour clock,
+ * the same width in every row.
+ *
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.timeFormatter
+ */
+export const clockText = (at: Date): string =>
+  `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`;
+
+/**
+ * A moment as the details list says it: the time of day in the reader's own convention, in the
+ * language the interface speaks rather than the browser's.
+ *
+ * @upstream-differs `DateFormatter.localizedString(…, timeStyle: .medium)` follows the Mac's
+ * locale, which is the app's language there; the browser's locale need not be the app's
+ */
+export const detailTimeText = (at: Date): string =>
+  at.toLocaleTimeString(currentLanguage(), { timeStyle: "medium" });
+
 /** @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.text */
 export function logText(
   record: AgentCallRecord,
@@ -50,8 +69,7 @@ export function logText(
   switch (column) {
     case "time": {
       // A call still running has no end yet: the row says when it came in.
-      const at = record.outcome.kind === "running" ? record.started : record.finished;
-      return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`;
+      return clockText(record.outcome.kind === "running" ? record.started : record.finished);
     }
     case "tool":
       return record.tool;
@@ -122,7 +140,7 @@ export function detailFields(record: AgentCallRecord, now: Date = new Date()): D
   const fields: DetailField[] = [
     {
       label: L("Time"),
-      value: (running ? record.started : record.finished).toLocaleTimeString(),
+      value: detailTimeText(running ? record.started : record.finished),
       isProblem: false,
     },
     { label: L("Took"), value: logText(record, "duration", now), isProblem: false },

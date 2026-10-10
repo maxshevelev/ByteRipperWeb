@@ -1,9 +1,11 @@
-import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { AGENT_FINDING_COLUMNS, findingText } from "@/core/agent/agentFindingText";
 import type { AgentFinding } from "@/core/agent/agentSurvey";
 import { L } from "@/core/localization/localization";
+import { AgentList } from "@/ui/agent/AgentList";
 import {
   AgentTableHead,
+  agentRowClass,
   agentTableMinWidth,
   findingColumns,
   useAgentColumns,
@@ -11,7 +13,8 @@ import {
 
 /**
  * The Findings page of the Agent window: what an agent found, file by file, each a line to check. A
- * double-click opens the file at the place — the pane that has it, or a free one.
+ * click chooses a row; a double-click opens the file at the place — the pane that has it, or a
+ * free one.
  *
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.build
@@ -20,20 +23,23 @@ import {
  */
 export function AgentFindingsPage({
   findings,
+  chosen,
+  onChoose,
   onShow,
+  onKeyDown,
 }: {
   readonly findings: readonly AgentFinding[];
+  readonly chosen: string | undefined;
+  readonly onChoose: (id: string) => void;
   readonly onShow: (finding: AgentFinding) => void;
+  readonly onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 }) {
   const { columns, kept } = useAgentColumns(findingColumns, "AgentFindingsTable");
-  // @web-only the row last clicked, drawn chosen as a row of the other pages is
-  const [chosen, setChosen] = useState<string | undefined>();
   return (
     <div className="agent-single">
-      <div className="agent-log">
+      <AgentList label={L("Findings")} onKeyDown={onKeyDown}>
         <table
           className="agent-table agent-findings"
-          aria-label={L("Findings")}
           style={{ minWidth: agentTableMinWidth(columns, kept) }}
         >
           <AgentTableHead
@@ -42,12 +48,13 @@ export function AgentFindingsPage({
             cellClass={(id) => `agent-finding-col-${id}`}
           />
           <tbody>
-            {findings.map((finding) => (
+            {findings.map((finding, index) => (
               <tr
                 key={finding.id}
-                className="agent-row"
+                className={agentRowClass(index)}
+                data-row={finding.id}
                 aria-selected={finding.id === chosen}
-                onClick={() => setChosen(finding.id)}
+                onClick={() => onChoose(finding.id)}
                 onDoubleClick={() => onShow(finding)}
               >
                 {AGENT_FINDING_COLUMNS.map((column) => {
@@ -64,17 +71,7 @@ export function AgentFindingsPage({
                             : undefined
                       }
                     >
-                      {column === "id" ? (
-                        <button
-                          type="button"
-                          className="agent-row-button"
-                          onClick={() => onShow(finding)}
-                        >
-                          {text}
-                        </button>
-                      ) : (
-                        text
-                      )}
+                      {text}
                     </td>
                   );
                 })}
@@ -82,7 +79,7 @@ export function AgentFindingsPage({
             ))}
           </tbody>
         </table>
-      </div>
+      </AgentList>
     </div>
   );
 }

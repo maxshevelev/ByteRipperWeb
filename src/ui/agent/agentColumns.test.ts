@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findingColumns, logColumns, markColumns } from "@/ui/agent/AgentTableHead";
-import { toolColumns } from "@/ui/agent/AgentToolsPage";
+import { findingColumns, logColumns, markColumns, toolColumns } from "@/ui/agent/AgentTableHead";
 
 /**
  * Which column of each of the Agent window's tables gives way with the panel: one, the one with the

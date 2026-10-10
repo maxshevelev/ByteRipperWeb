@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { kindTitle, sectionsOf } from "@/core/agent/agentToolCatalogue";
+import { toolDetailFields, toolText } from "@/core/agent/agentToolText";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import { AgentService } from "@/state/agent/agentService";
-import { toolDetailFields, toolText } from "@/ui/agent/AgentToolsPage";
 
 /**
  * The Tools page of the Agent window: every tool listed, in a section to each group, classed, with

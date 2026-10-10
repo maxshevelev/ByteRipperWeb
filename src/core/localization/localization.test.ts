@@ -19,18 +19,17 @@ import {
 import {
   appLanguage,
   currentLanguage,
-  ENGLISH_CATALOGUE,
+  forgetCatalogues,
   formatMessage,
   installCatalogue,
   L,
   LIn,
   LocalizedText,
-  rememberCatalogue,
   withEnglish,
 } from "@/core/localization/localization";
 import { parseStringsFile } from "@/core/localization/stringsFile";
 
-afterEach(() => installCatalogue(ENGLISH_CATALOGUE));
+afterEach(forgetCatalogues);
 
 describe("which language the app comes out speaking", () => {
   // @upstream Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift#LanguageChoiceTests.testAFixedChoiceIgnoresTheMac
@@ -139,7 +138,8 @@ describe("words asked for in a language", () => {
    */
   // @upstream Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift#CatalogueTests.testWordsCanBeAskedForInALanguage
   it("comes in the language asked for, whatever the app speaks", () => {
-    rememberCatalogue({ language: "de", entries: { "Drop files here": "Dateien hierher ziehen" } });
+    // German was spoken first, and the reader has since switched to Russian.
+    installCatalogue({ language: "de", entries: { "Drop files here": "Dateien hierher ziehen" } });
     installCatalogue({ language: "ru", entries: { "Drop files here": "Перетащите файлы сюда" } });
     expect(LIn("Drop files here", "en")).toBe("Drop files here");
     expect(LIn("Drop files here", "de")).toBe("Dateien hierher ziehen");

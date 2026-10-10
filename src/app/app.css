@@ -4525,8 +4525,8 @@ button.uefi-title {
   max-width: min(44rem, 94vw);
 }
 
-/* The segmented strip the Settings tabs are drawn as, for every other switch between pages or
-   modes (the minimap's, the Agent window's): a raised well, the chosen one a card on it. */
+/* The segmented strip every switch between pages or modes is drawn as — the Settings tabs, the
+   Agent window's pages, the minimap's modes: a raised well, the chosen one a card on it. */
 .tab-strip {
   display: inline-flex;
   gap: 2px;
@@ -4536,7 +4536,7 @@ button.uefi-title {
   background: var(--surface-raised);
 }
 
-/* The size and the height of the Settings tabs, whatever the surface round the strip sets. */
+/* One size and height in every strip, whatever the surface round it sets. */
 .tab-strip-item {
   padding: 2px 10px;
   border: 0;
@@ -4566,32 +4566,15 @@ button.uefi-title {
 }
 
 /* The tabs as a segmented strip, where upstream's window has its toolbar. */
+/* The Settings tabs are a `.tab-strip` across the dialog: each tab takes its share of the width. */
 .settings-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
   margin: 0.6rem 1rem 0;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-raised);
 }
 
 .settings-tab {
   flex: 1 1 auto;
-  padding: 2px 10px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--text-muted);
-  font: inherit;
-  cursor: pointer;
-}
-
-.settings-tab[aria-selected="true"] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 0 0 1px var(--border);
 }
 
 .settings-pane {
@@ -6019,7 +6002,9 @@ body[data-pulling-panel] * {
   overflow: hidden;
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  /* The tool panels' text at their default size (upstream's tables are `ToolPanelFont`'s), which
+     the columns' widths are laid out for (`AgentTableHead`). */
+  font-size: 13px;
 }
 
 .agent-window-status {
@@ -6091,9 +6076,6 @@ body[data-pulling-panel] * {
 .agent-table th {
   position: sticky;
   top: 0;
-  /* Over the rows that scroll under it: a row is positioned too (its button covers it), and
-     would otherwise be painted over the head. */
-  z-index: 2;
   height: 22px;
   /* An AppKit table's cell inset, so a column at upstream's width holds its title. */
   padding: 0 6px;
@@ -6113,12 +6095,14 @@ body[data-pulling-panel] * {
   padding: 0 6px;
 }
 
-.agent-table tbody tr:nth-child(even):not(.agent-section):not([aria-selected="true"]) {
+/* Every second row of the whole list, counted in script (`agentRowClass`): a CSS `nth-child`
+   restarts in each section of the Tools page. */
+.agent-row-raised:not([aria-selected="true"]) {
   background: var(--surface-raised);
 }
 
 .agent-row {
-  position: relative;
+  cursor: default;
   /* The column titles are stuck over the top of the list: a row scrolled to must stop below them. */
   scroll-margin-top: 22px;
 }
@@ -6127,22 +6111,6 @@ body[data-pulling-panel] * {
    way to it. */
 .agent-table .agent-row[aria-selected="true"] {
   background: var(--selection);
-}
-
-/* The button of the first cell covers the whole row, so a click anywhere on it chooses it. */
-.agent-row-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: default;
-}
-
-.agent-row-button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
 }
 
 .agent-cell {
@@ -6190,15 +6158,16 @@ body[data-pulling-panel] * {
   /* A row of the list, not a head: it scrolls away, rather than sticking over the column titles. */
   position: static;
   z-index: auto;
-  /* Smaller than the tool names and grey, with room above that sets the section off from the last
-     tool of the one before. */
+  /* A point over the tool names, semibold and grey, with room above that sets the section off from
+     the last tool of the one before (upstream: `ToolPanelFont.titleSize`, 12 points above, 4
+     below). */
   height: auto;
-  /* The left inset is the cells' own, so a heading starts where the names under it do. */
+  /* The left inset is the other cells' own; the names under it stand in further. */
   padding: 12px 6px 4px;
   box-shadow: none;
   background: var(--surface);
   color: var(--text-faint);
-  font-size: calc(var(--hex-font-size, 13px) - 2px);
+  font-size: 14px;
   font-weight: 600;
   text-align: left;
 }
@@ -6207,9 +6176,10 @@ body[data-pulling-panel] * {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
-/* The names stand in from their heading rather than flush with it (upstream: 14 points). */
+/* The names stand in from their heading rather than flush with it (upstream: 14 points, at the
+   panels' 13/11, from where the heading starts). */
 .agent-tools td.agent-tool-col-tool {
-  padding-left: 16px;
+  padding-left: 23px;
 }
 
 .agent-tools .agent-tool-col-calls,

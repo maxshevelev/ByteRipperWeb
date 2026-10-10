@@ -197,9 +197,9 @@ export interface ColumnWidths {
  * A table's widths, kept for as long as its panel is on screen — and between
  * launches, when the table is given a name to keep them under (`keepAs`).
  *
- * `columns` is expected to be a module constant: it seeds the state once, and a
- * fresh array each render would be a spec that changed without the widths
- * following it.
+ * `columns` is expected to be a module constant, or one per language
+ * (`localized`): it seeds the state once, and a fresh array each render would be
+ * a spec that changed without the widths following it.
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPanelTable.swift#ToolPanelTable
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#keepColumnWidths
@@ -211,15 +211,26 @@ export function useColumnWidths(columns: readonly TableColumn[], keepAs?: string
     keepAs === undefined ? designWidths(columns) : readKept(keepAs, columns)
   );
   // Every change is written as it is made, the way an autosaved table writes its columns: a page
-  // closed in the middle of a session keeps what was dragged before it.
+  // closed in the middle of a session keeps what was dragged before it. Only what was dragged is
+  // written — a column at its design width is left to the design, so a table whose design changes
+  // shows the new one, and a table put back with a double-click forgets its key.
+  //
+  // @upstream-differs AppKit's autosave writes every column; the web's design moves under a
+  // stored table between releases, which a Mac's frozen build does not
   useEffect(() => {
     if (keepAs === undefined) return;
+    const dragged: Record<string, number> = {};
+    for (const column of columns) {
+      const width = widths[column.id];
+      if (width !== undefined && width !== column.width) dragged[column.id] = width;
+    }
     try {
-      localStorage.setItem(keptWidthsKey(keepAs), JSON.stringify(widths));
+      if (Object.keys(dragged).length === 0) localStorage.removeItem(keptWidthsKey(keepAs));
+      else localStorage.setItem(keptWidthsKey(keepAs), JSON.stringify(dragged));
     } catch {
       // Storage refused: the widths last for the session, as an unnamed table's do.
     }
-  }, [keepAs, widths]);
+  }, [keepAs, widths, columns]);
 
   const resize = useCallback(
     (id: string, width: number) => {

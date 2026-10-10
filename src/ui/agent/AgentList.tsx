@@ -10,12 +10,18 @@ import type { KeyboardEvent, ReactNode, Ref } from "react";
  */
 export function AgentList({
   children,
+  label,
+  multiselectable = false,
   hidden,
   listRef,
   keyTable = false,
   onKeyDown,
 }: {
   readonly children: ReactNode;
+  /** What the list is, to a screen reader: the page's name. */
+  readonly label: string;
+  /** More than one row can be chosen at once (the Marks). */
+  readonly multiselectable?: boolean;
   readonly hidden?: boolean;
   readonly listRef?: Ref<HTMLDivElement>;
   /**
@@ -26,12 +32,16 @@ export function AgentList({
   readonly onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 }) {
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: a list that walks its rows by the arrow keys, as an AppKit table does
+    // The grid is the scroller that takes the keyboard, as a tool panel's is (`fit-entries`): a
+    // click on a row leaves the focus on it (`AppShell`), and its rows carry `aria-selected`.
+    // biome-ignore lint/a11y/useSemanticElements: the grid role sits on the scroller that takes the keyboard; a <table> may not carry it
     <div
       className="agent-log"
       ref={listRef}
+      role="grid"
+      aria-label={label}
+      aria-multiselectable={multiselectable ? true : undefined}
       hidden={hidden}
-      // biome-ignore lint/a11y/noNoninteractiveTabindex: the keyboard surface of the page's list
       tabIndex={0}
       data-key-table={keyTable ? "" : undefined}
       onKeyDown={onKeyDown}

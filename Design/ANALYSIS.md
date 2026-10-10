@@ -161,6 +161,7 @@ How every part of the desktop app lands here. Four verdicts:
 | Copy summary as rich text | Adapted | Clipboard API writes `text/html` plus `text/plain`. The `text/plain` spelling cannot carry a weight at all, and the `text/html` one is a bare table with no styling of its own, so a status-toned value's bold does not travel with the copy as upstream's RTF carries it — the panel and its picture have it, the clipboard does not. |
 | Screenshot the summary as a picture | Same | Rendered to a canvas and downloaded, which is what a forum post needs anyway. |
 | `MEA.dat` / `Huffman.dat` databases, live-fetched as upstream publishes | Same | Same policy as the desktop: lazy, single-flight, no cache. See [Third-party data](#third-party-data). |
+| The Agent window's tables drawn as the tool panels' (`AgentTableStyle`) | Adapted | Their font, row height and widths are the panels' at the default size — 13 px, upstream's 11-point widths scaled once — rather than following the zoom: the web's zoom is the browser's, and the hex font size, which a tool panel's text does follow, would push the window's fixed-width columns out of step. |
 
 ### Files, settings, system integration
 

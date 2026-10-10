@@ -46,7 +46,11 @@ let current: Catalogue = ENGLISH_CATALOGUE;
 /** The catalogue the app speaks to the person, whatever `withEnglish` has in force over it. */
 let installed: Catalogue = ENGLISH_CATALOGUE;
 
-/** Every catalogue that has been installed or remembered, by language: what a word asked for in a named language is looked up in. */
+/**
+ * Every catalogue this page has installed, by language: what a word asked for in a named language
+ * is looked up in. A language the reader switched away from stays, so its words can still be asked
+ * for.
+ */
 const known = new Map<AppLanguage, Catalogue>();
 
 /**
@@ -61,23 +65,26 @@ export function installCatalogue(catalogue: Catalogue): void {
 }
 
 /**
- * Keeps `catalogue` for words asked for in its language (`LIn`) without putting
- * it in force: the loader of a language the window is not speaking calls this.
+ * Forgets every catalogue but English and puts English in force: a test's clean slate, so the
+ * languages one test installed are not what the next one finds.
  *
- * @web-only upstream loads any language's catalogue on demand and
- * synchronously (`Localization.catalogue(for:)`); here a file arrives over a
- * promise, so the one who loaded it hands it over
+ * @web-only module state a test resets; upstream's catalogues are bundle resources
  */
-export function rememberCatalogue(catalogue: Catalogue): void {
-  known.set(catalogue.language, catalogue);
+export function forgetCatalogues(): void {
+  known.clear();
+  installCatalogue(ENGLISH_CATALOGUE);
 }
 
 /**
  * The catalogue of `language` as far as this page has it: English is the keys,
- * and a language nobody has loaded comes out as the keys too — correct English,
- * never a blank.
+ * and a language this page has not installed comes out as the keys too —
+ * correct English, never a blank. Every caller asks for the app's language or
+ * English, which are always here.
  *
  * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.catalogue
+ * @upstream-differs upstream loads any language's catalogue on demand and
+ * synchronously; here a catalogue arrives over a promise, and only the ones the
+ * app has spoken are held
  */
 export const catalogueFor = (language: AppLanguage): Catalogue =>
   language === FALLBACK_LANGUAGE

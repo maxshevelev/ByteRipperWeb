@@ -1,20 +1,22 @@
-import { useRef } from "react";
+import { type KeyboardEvent, useRef } from "react";
 import {
   type AgentToolEntry,
   type AgentToolStats,
-  averageMilliseconds,
-  durationText,
-  kindTitle,
   sectionsOf,
 } from "@/core/agent/agentToolCatalogue";
+import { AGENT_TOOL_COLUMNS, toolDetailFields, toolText } from "@/core/agent/agentToolText";
 import { prettyText } from "@/core/agent/json";
 import { L } from "@/core/localization/localization";
-import { friendlySize } from "@/core/text/byteSize";
 import { EMPTY_DETAIL, field } from "@/tools/toolDetail";
 import { AgentList } from "@/ui/agent/AgentList";
 import { AgentSplit } from "@/ui/agent/AgentSplit";
-import { AgentTableHead, agentTableMinWidth, useAgentColumns } from "@/ui/agent/AgentTableHead";
-import type { TableColumn } from "@/ui/toolPanel/columnWidths";
+import {
+  AgentTableHead,
+  agentRowClass,
+  agentTableMinWidth,
+  toolColumns,
+  useAgentColumns,
+} from "@/ui/agent/AgentTableHead";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 
 /**
@@ -23,10 +25,8 @@ import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
  * the selected tool as the agent is told about it — its description and the arguments it takes.
  *
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage
- * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.show
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.showDetails
- * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.detailFields
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.rows
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.sectionTitles
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.headingFont
@@ -37,121 +37,9 @@ import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.headingView
  * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.toolCell
  * @upstream-differs a React table: a section's heading is a row no one chooses, drawn by the
- * stylesheet (`.agent-section`): smaller than the names, semibold, grey, with room above
- * it, and the tool names stood in from it
+ * stylesheet (`.agent-section`): a point over the names, semibold, grey, with room above it,
+ * and the tool names stood in from it
  */
-
-/** The columns of the table. @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column */
-export type AgentToolColumn = "tool" | "kind" | "calls" | "failures" | "average" | "size" | "last";
-
-export const AGENT_TOOL_COLUMNS: readonly AgentToolColumn[] = [
-  "tool",
-  "kind",
-  "calls",
-  "failures",
-  "average",
-  "size",
-  "last",
-];
-
-export function toolColumnTitle(column: AgentToolColumn): string {
-  switch (column) {
-    case "tool":
-      return L("Tool");
-    case "kind":
-      return L("Kind");
-    case "calls":
-      return L("Calls");
-    case "failures":
-      return L("Not Answered");
-    case "average":
-      return L("Average");
-    case "size":
-      return L("Answers");
-    case "last":
-      return L("Last Call");
-  }
-}
-
-/**
- * The columns at upstream's widths: the last, Last Call, gives way with the panel.
- *
- * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column.width
- * @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.build
- */
-export const toolColumns = (): readonly TableColumn[] =>
-  AGENT_TOOL_COLUMNS.map((column) => ({
-    id: column,
-    title: toolColumnTitle(column),
-    width: TOOL_COLUMN_WIDTHS[column],
-    min: 36,
-    grows: column === "last",
-  }));
-
-const TOOL_COLUMN_WIDTHS: Readonly<Record<AgentToolColumn, number>> = {
-  tool: 190,
-  kind: 80,
-  calls: 44,
-  failures: 92,
-  average: 60,
-  size: 64,
-  last: 60,
-};
-
-const two = (value: number) => String(value).padStart(2, "0");
-
-/** A row's cell: what the tool is and how it has been used. @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.text */
-export function toolText(
-  entry: AgentToolEntry,
-  column: AgentToolColumn,
-  used: AgentToolStats | undefined
-): string {
-  switch (column) {
-    case "tool":
-      return entry.tool.name;
-    case "kind":
-      return kindTitle(entry.kind);
-    case "calls":
-      return used === undefined ? "" : String(used.calls);
-    case "failures":
-      return used === undefined || used.failures === 0 ? "" : String(used.failures);
-    case "average": {
-      const average = used === undefined ? undefined : averageMilliseconds(used);
-      return average === undefined ? "" : durationText(average);
-    }
-    case "size":
-      return used === undefined ? "" : friendlySize(used.answerBytes);
-    case "last":
-      return used?.last === undefined
-        ? ""
-        : `${two(used.last.getHours())}:${two(used.last.getMinutes())}:${two(used.last.getSeconds())}`;
-  }
-}
-
-/** The rows the details list shows for a tool, above its description. @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.detailFields */
-export function toolDetailFields(
-  entry: AgentToolEntry,
-  used: AgentToolStats | undefined
-): { readonly label: string; readonly value: string; readonly isProblem: boolean }[] {
-  const fields: { label: string; value: string; isProblem: boolean }[] = [];
-  const add = (label: string, value: string, isProblem = false) =>
-    fields.push({ label, value, isProblem });
-  if (entry.tool.title !== undefined) add(L("Title"), entry.tool.title);
-  add(L("Group"), entry.group.title());
-  add(L("Kind"), kindTitle(entry.kind));
-  if (used === undefined) {
-    add(L("Calls"), L("None yet"));
-    return fields;
-  }
-  add(L("Calls"), String(used.calls));
-  if (used.failures > 0) add(L("Not Answered"), String(used.failures), true);
-  const average = averageMilliseconds(used);
-  if (average !== undefined) add(L("Average"), durationText(average));
-  add(L("Longest"), durationText(used.longestMilliseconds));
-  add(L("Answers"), L("%1$@ bytes", used.answerBytes));
-  if (used.last !== undefined) add(L("Last Call"), used.last.toLocaleTimeString());
-  return fields;
-}
 
 // help: window.agent.tools
 export function AgentToolsPage({
@@ -165,9 +53,17 @@ export function AgentToolsPage({
   readonly stats: Readonly<Record<string, AgentToolStats>>;
   readonly chosen: string | undefined;
   readonly onChoose: (name: string) => void;
-  readonly onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
+  readonly onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 }) {
   const sections = sectionsOf(entries);
+  // A row's place in the whole list, headings counted, which the stripes alternate by — as an
+  // AppKit table alternates by row, its group rows among them.
+  const rowIndex = new Map<string, number>();
+  let at = 0;
+  for (const section of sections) {
+    at += 1;
+    for (const one of section.entries) rowIndex.set(one.tool.name, at++);
+  }
   const entry = entries.find((one) => one.tool.name === chosen);
   const { columns, kept } = useAgentColumns(toolColumns, "AgentToolsTable");
   const list = useRef<HTMLDivElement>(null);
@@ -175,10 +71,9 @@ export function AgentToolsPage({
     <AgentSplit
       name="tools"
       list={
-        <AgentList listRef={list} keyTable onKeyDown={onKeyDown}>
+        <AgentList label={L("Tools")} listRef={list} keyTable onKeyDown={onKeyDown}>
           <table
             className="agent-table agent-tools"
-            aria-label={L("Tools")}
             style={{ minWidth: agentTableMinWidth(columns, kept) }}
           >
             <AgentTableHead
@@ -196,8 +91,10 @@ export function AgentToolsPage({
                 {section.entries.map((one) => (
                   <tr
                     key={one.tool.name}
-                    className="agent-row"
+                    className={agentRowClass(rowIndex.get(one.tool.name) ?? 0)}
+                    data-row={one.tool.name}
                     aria-selected={one.tool.name === chosen}
+                    onClick={() => onChoose(one.tool.name)}
                   >
                     {AGENT_TOOL_COLUMNS.map((column) => (
                       <td
@@ -208,17 +105,7 @@ export function AgentToolsPage({
                             : `agent-cell agent-tool-col-${column}`
                         }
                       >
-                        {column === "tool" ? (
-                          <button
-                            type="button"
-                            className="agent-row-button agent-tool-name"
-                            onClick={() => onChoose(one.tool.name)}
-                          >
-                            {one.tool.name}
-                          </button>
-                        ) : (
-                          toolText(one, column, stats[one.tool.name])
-                        )}
+                        {toolText(one, column, stats[one.tool.name])}
                       </td>
                     ))}
                   </tr>

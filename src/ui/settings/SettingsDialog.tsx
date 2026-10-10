@@ -60,12 +60,9 @@ export type SettingsTab =
   | "agent";
 
 /**
- * The tabs, in upstream's toolbar order. File Types sets which application
- * opens a file, which is the operating system's to decide rather than a web
- * page's.
- */
-/**
- * The tabs, in upstream's toolbar order, built when the dialog is drawn.
+ * The tabs, in upstream's toolbar order, built when the dialog is drawn. File
+ * Types is not among them: which application opens a file is the operating
+ * system's to decide rather than a web page's.
  *
  * **A function, not a constant.** `L` at module scope is read once, when the
  * module loads, and would keep the language the page started in — which is the
@@ -145,13 +142,13 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
       closeButton
       helpLink={topicLink(TOPIC.settings)}
     >
-      <div className="settings-tabs" role="tablist" aria-label={L("Settings")}>
+      <div className="settings-tabs tab-strip" role="tablist" aria-label={L("Settings")}>
         {tabs().map((one) => (
           <button
             key={one.id}
             type="button"
             role="tab"
-            className="settings-tab"
+            className="settings-tab tab-strip-item"
             aria-selected={tab === one.id}
             onClick={() => setTab(one.id)}
           >

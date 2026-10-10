@@ -14,7 +14,7 @@ import {
   heldPaneFit,
   readPaneFit,
 } from "@/state/firmwareStore";
-import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
+import { toggleLargeDetail, useLargeDetailOf } from "@/state/largeDetailStore";
 import {
   cancelMicrocodeCatalogue,
   downloadMicrocode,
@@ -173,7 +173,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
   const catalogue = useStore(microcodeCatalogueStore);
-  const detailLarge = useStore(largeDetailStore).open;
+  // The split this panel's details fold out of; the card open over another panel leaves it be.
+  const detailSplit = useRef<HTMLDivElement>(null);
+  const detailLarge = useLargeDetailOf(detailSplit);
   const park = restoredParked(context.restored);
   /**
    * The table on screen. The pane kept the one this panel last read, and no edit
@@ -750,6 +752,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
       <div
         className="tool-split"
+        ref={detailSplit}
         data-detail-large={detailLarge ? "" : undefined}
         style={{
           gridTemplateRows: detailLarge

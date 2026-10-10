@@ -19,7 +19,7 @@ import {
   huffmanDictionaryStore,
   loadHuffmanDictionaries,
 } from "@/state/huffmanDictionaryStore";
-import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
+import { toggleLargeDetail, useLargeDetailOf } from "@/state/largeDetailStore";
 import {
   cancelMEDatabase,
   loadMEDatabase,
@@ -216,7 +216,9 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
   const database = useStore(meDatabaseStore);
-  const detailLarge = useStore(largeDetailStore).open;
+  // The split this panel's details fold out of; the card open over another panel leaves it be.
+  const detailSplit = useRef<HTMLDivElement>(null);
+  const detailLarge = useLargeDetailOf(detailSplit);
   const huffman = useStore(huffmanDictionaryStore);
   const fileTable = useStore(fileTableStore);
   const park = restoredParked(context.restored);
@@ -744,6 +746,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
         ) : (
           <div
             className="tool-split"
+            ref={detailSplit}
             data-detail-large={detailLarge ? "" : undefined}
             style={{
               gridTemplateRows: detailLarge

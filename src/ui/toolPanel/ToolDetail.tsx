@@ -7,10 +7,9 @@ import {
   closeLargeDetail,
   keyTableNear,
   largeDetailKeyTable,
-  largeDetailStore,
   toggleLargeDetail,
+  useLargeDetailOf,
 } from "@/state/largeDetailStore";
-import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
@@ -101,10 +100,15 @@ export function ToolDetail({
    */
   readonly after?: ReactNode;
 }) {
-  const open = useStore(largeDetailStore).open;
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
   const hasRows = detail.fields.length > 0;
   const paneRef = useRef<HTMLDivElement | null>(null);
+  // The card is this pane's only when its own table opened it: another details pane on the page
+  // — a hidden page of the Agent window, a tool panel under the dock's panel — would otherwise
+  // draw its own card over this one.
+  const open = useLargeDetailOf(paneRef);
+  const opened = useRef(open);
+  opened.current = open;
   // Where the pane stood while it was shown: the card opens out of it, and folds back into it.
   // The pane is folded away while the card is up, so it is taken before that, on every render
   // and when the pane or the window is resized — the watchers put on once, the pane's box being
@@ -155,8 +159,13 @@ export function ToolDetail({
           onOutlineRange(start, end, name);
         };
 
-  // The panel going away takes its large view with it.
-  useEffect(() => () => closeLargeDetail(), []);
+  // The panel going away takes its large view with it — its own, not another pane's.
+  useEffect(
+    () => () => {
+      if (opened.current) closeLargeDetail();
+    },
+    []
+  );
 
   const bodyProps = { detail, placeholder, helpTerm, subject, after };
   const selecting = detailSelectionHandlers();

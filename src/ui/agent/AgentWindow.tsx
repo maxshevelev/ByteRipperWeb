@@ -18,10 +18,11 @@ import { useStore } from "@/state/useStore";
 import { EMPTY_DETAIL, field, type NodeDetail } from "@/tools/toolDetail";
 import { AgentFindingsPage } from "@/ui/agent/AgentFindingsPage";
 import { AgentList } from "@/ui/agent/AgentList";
-import { AgentMarksPage } from "@/ui/agent/AgentMarksPage";
+import { AgentMarksPage, type MarkChoice } from "@/ui/agent/AgentMarksPage";
 import { AgentSplit } from "@/ui/agent/AgentSplit";
 import {
   AgentTableHead,
+  agentRowClass,
   agentTableMinWidth,
   logColumns,
   useAgentColumns,
@@ -62,6 +63,11 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
   const [selected, setSelected] = useState<number | undefined>(undefined);
   const [page, setPage] = useState<AgentPageName>("log");
   const [chosenMarks, setChosenMarks] = useState<ReadonlySet<string>>(new Set());
+  // Where a Shift-click or Shift and an arrow extend the marks chosen from, and the row the arrows
+  // move on from: an AppKit table's anchor and its cursor.
+  const markAnchor = useRef<string | undefined>(undefined);
+  const markCursor = useRef<string | undefined>(undefined);
+  const [chosenFinding, setChosenFinding] = useState<string | undefined>(undefined);
   const [chosenTool, setChosenTool] = useState<string | undefined>(undefined);
   const window_ = useRef<HTMLElement>(null);
   // The marks as they are now: listening to the store is what keeps the page and the dump one.
@@ -90,12 +96,13 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
     return () => window.clearInterval(timer);
   }, [anyRunning]);
 
-  // The log scrolls to each new request as it arrives, when asked to.
+  // The log scrolls to each new request as it arrives, when asked to — and to the ones that came
+  // while another page was up, when the Log is shown again: a hidden list has no height to scroll.
   // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.followButton
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the log's length is what moves it
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the log's length and the page are what move it
   useEffect(() => {
-    if (follow) list.current?.scrollTo({ top: list.current.scrollHeight });
-  }, [follow, state.log.length]);
+    if (follow && page === "log") list.current?.scrollTo({ top: list.current.scrollHeight });
+  }, [follow, state.log.length, page]);
 
   // The keyboard is on the list of the page shown, when the window comes up and when a page is
   // chosen, so the arrow keys walk its rows at once.
@@ -110,37 +117,76 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
   }, [page]);
 
   /**
+   * The rows of the page shown, in the order it shows them, by the id its choice is kept under.
+   */
+  const rowIds = (): readonly string[] =>
+    page === "log"
+      ? state.log.map((one) => String(one.id))
+      : page === "marks"
+        ? marks.map((one) => one.mark.id)
+        : page === "findings"
+          ? findings.map((one) => one.id)
+          : // The Tools page's sections gather the tools by group, which is not the order the
+            // catalogue lists them in.
+            sectionsOf(agentService.catalogue()).flatMap((section) =>
+              section.entries.map((one) => one.tool.name)
+            );
+
+  /**
+   * Chooses marks as a click does: alone, toggled into the rows chosen, or every row from the
+   * anchor to this one.
+   *
+   * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.selectedIDs
+   * @upstream-differs an AppKit table keeps its own selection; the window keeps the page's
+   */
+  const chooseMark = (id: string, how: MarkChoice): void => {
+    const ids = marks.map((one) => one.mark.id);
+    const anchor = markAnchor.current;
+    markCursor.current = id;
+    if (how === "range" && anchor !== undefined && ids.includes(anchor)) {
+      const [from, to] = [ids.indexOf(anchor), ids.indexOf(id)].sort((a, b) => a - b);
+      setChosenMarks(new Set(ids.slice(from, (to ?? 0) + 1)));
+      return;
+    }
+    markAnchor.current = id;
+    if (how === "toggle") {
+      setChosenMarks((current) => {
+        const next = new Set(current);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else {
+      setChosenMarks(new Set([id]));
+    }
+  };
+
+  /**
    * Up and Down move through the rows of the list that has the keyboard, as the arrow keys walk an
-   * AppKit table's.
+   * AppKit table's; with Shift, on the Marks page, they take the rows passed into the choice.
    *
    * @upstream-differs a React table has no row selection of its own; the page's choice is moved
    */
   const walk = (event: KeyboardEvent<HTMLElement>): void => {
-    // Space opens the details large, or closes them, as it does on a tool panel's table.
-    // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShut
     if (event.key === " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      // Space opens the details large, or closes them, as it does on a tool panel's table. A page
+      // with no details has nothing for it — and the list does not scroll a page for it either.
+      // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShut
       const shown =
         page === "log"
           ? state.log.some((one) => one.id === selected)
           : page === "tools" && chosenTool !== undefined;
-      if ((page === "log" || page === "tools") && toggleLargeDetail(shown, event.currentTarget)) {
+      if (
+        page === "marks" ||
+        page === "findings" ||
+        toggleLargeDetail(shown, event.currentTarget)
+      ) {
         event.preventDefault();
       }
       return;
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    const ids: string[] =
-      page === "log"
-        ? state.log.map((one) => String(one.id))
-        : page === "marks"
-          ? marks.map((one) => one.mark.id)
-          : page === "tools"
-            ? // In the order the page shows them: its sections gather the tools by group, which is
-              // not the order the catalogue lists them in.
-              sectionsOf(agentService.catalogue()).flatMap((section) =>
-                section.entries.map((one) => one.tool.name)
-              )
-            : [];
+    const ids = rowIds();
     if (ids.length === 0) return;
     const now =
       page === "log"
@@ -148,8 +194,10 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           ? undefined
           : String(selected)
         : page === "marks"
-          ? [...chosenMarks][0]
-          : chosenTool;
+          ? markCursor.current
+          : page === "findings"
+            ? chosenFinding
+            : chosenTool;
     const at = now === undefined ? -1 : ids.indexOf(now);
     const next =
       ids[Math.max(0, Math.min(ids.length - 1, at + (event.key === "ArrowDown" ? 1 : -1)))];
@@ -161,10 +209,14 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
     // it, and the section heading above it would otherwise stay out of view.
     requestAnimationFrame(() => {
       if (next === ids[0]) walked.scrollTop = 0;
-      else walked.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+      else
+        walked
+          .querySelector(`[data-row="${CSS.escape(next)}"]`)
+          ?.scrollIntoView({ block: "nearest" });
     });
     if (page === "log") setSelected(Number(next));
-    else if (page === "marks") setChosenMarks(new Set([next]));
+    else if (page === "marks") chooseMark(next, event.shiftKey ? "range" : "only");
+    else if (page === "findings") setChosenFinding(next);
     else setChosenTool(next);
   };
 
@@ -200,33 +252,27 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           {status}
         </span>
       </DockPanelHeader>
-      <nav className="agent-pages" aria-label={L("Page")}>
-        <div className="tab-strip">
+      <div className="agent-pages">
+        <div className="tab-strip" role="tablist" aria-label={L("Page")}>
           {PAGES.map((one) => (
             <button
               key={one}
               type="button"
+              role="tab"
               className="tab-strip-item"
-              aria-pressed={page === one}
+              aria-selected={page === one}
               onClick={() => choosePage(one)}
             >
               {pageTitle(one)}
             </button>
           ))}
         </div>
-      </nav>
+      </div>
       {page === "marks" ? (
         <AgentMarksPage
           marks={marks}
           chosen={chosenMarks}
-          onChoose={(id, extend) =>
-            setChosenMarks((current) => {
-              const next = new Set(extend ? current : []);
-              if (current.has(id) && extend) next.delete(id);
-              else next.add(id);
-              return next;
-            })
-          }
+          onChoose={chooseMark}
           onShow={(id) => void agentService.markTools.show(id)}
           onKeyDown={walk}
         />
@@ -234,7 +280,10 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
       {page === "findings" ? (
         <AgentFindingsPage
           findings={findings}
+          chosen={chosenFinding}
+          onChoose={setChosenFinding}
           onShow={(finding) => void agentService.dumpTools.showFinding(finding)}
+          onKeyDown={walk}
         />
       ) : null}
       {page === "tools" ? (
@@ -251,10 +300,9 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
         name="log"
         hidden={page !== "log"}
         list={
-          <AgentList listRef={list} keyTable onKeyDown={walk}>
+          <AgentList label={L("Log")} listRef={list} keyTable onKeyDown={walk}>
             <table
               className="agent-table"
-              aria-label={L("Log")}
               style={{ minWidth: agentTableMinWidth(log.columns, log.kept) }}
             >
               <AgentTableHead
@@ -263,8 +311,14 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
                 cellClass={(id) => `agent-col-${id}`}
               />
               <tbody>
-                {state.log.map((one) => (
-                  <tr key={one.id} className="agent-row" aria-selected={one.id === selected}>
+                {state.log.map((one, index) => (
+                  <tr
+                    key={one.id}
+                    className={agentRowClass(index)}
+                    data-row={one.id}
+                    aria-selected={one.id === selected}
+                    onClick={() => setSelected(one.id)}
+                  >
                     {AGENT_LOG_COLUMNS.map((column) => (
                       <td
                         key={column}
@@ -279,18 +333,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
                             : undefined
                         }
                       >
-                        {column === "time" ? (
-                          // The row is chosen through its first cell's button, which covers the row.
-                          <button
-                            type="button"
-                            className="agent-row-button"
-                            onClick={() => setSelected(one.id)}
-                          >
-                            {logText(one, column)}
-                          </button>
-                        ) : (
-                          logText(one, column)
-                        )}
+                        {logText(one, column)}
                       </td>
                     ))}
                   </tr>
@@ -323,7 +366,12 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
             <button
               type="button"
               disabled={marks.length === 0}
-              onClick={() => agentService.markTools.remove(() => true)}
+              onClick={() => {
+                agentService.markTools.remove(() => true);
+                setChosenMarks(new Set());
+                markAnchor.current = undefined;
+                markCursor.current = undefined;
+              }}
             >
               {L("Clear Marks")}
             </button>
@@ -333,6 +381,8 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
               onClick={() => {
                 agentService.markTools.remove((one) => chosenMarks.has(one.mark.id));
                 setChosenMarks(new Set());
+                markAnchor.current = undefined;
+                markCursor.current = undefined;
               }}
             >
               {L("Remove Mark")}
@@ -342,7 +392,10 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           <button
             type="button"
             disabled={findings.length === 0}
-            onClick={() => agentService.dumpTools.clearFindings()}
+            onClick={() => {
+              setChosenFinding(undefined);
+              agentService.dumpTools.clearFindings();
+            }}
           >
             {L("Clear Findings")}
           </button>

@@ -5508,7 +5508,10 @@
           "src/tools/uefi/agent/uefiAgentRefs.ts"
         ],
         "AgentToolCatalogue.swift": "src/core/agent/agentToolCatalogue.ts",
-        "AgentToolsPage.swift": "src/ui/agent/AgentToolsPage.tsx",
+        "AgentToolsPage.swift": [
+          "src/ui/agent/AgentToolsPage.tsx",
+          "src/core/agent/agentToolText.ts"
+        ],
         "ByteRipperTests/AgentRefsToolsTests.swift": "src/tools/uefi/agent/uefiAgentRefs.test.ts",
         "ByteRipperTests/AgentDumpToolsTests.swift": "src/state/agent/agentDumpTools.test.ts",
         "ByteRipperTests/AgentDiffToolsTests.swift": "src/state/agent/agentDiffTools.test.ts",

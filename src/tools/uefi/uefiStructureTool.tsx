@@ -29,7 +29,7 @@ import {
   readSpaceBytes,
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
-import { largeDetailStore, toggleLargeDetail } from "@/state/largeDetailStore";
+import { toggleLargeDetail, useLargeDetailOf } from "@/state/largeDetailStore";
 import { takeOpensTopLevelRows } from "@/state/opensTopLevelRows";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
@@ -393,7 +393,9 @@ export function rowsOf(
 function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const state = useStore(firmwareStore).panes[context.pane];
   const catalogue = useStore(catalogueStore);
-  const detailLarge = useStore(largeDetailStore).open;
+  // The split this panel's details fold out of; the card open over another panel leaves it be.
+  const detailSplit = useRef<HTMLDivElement>(null);
+  const detailLarge = useLargeDetailOf(detailSplit);
   const park = restoredParked(context.restored);
   const [open, setOpen] = useState<ReadonlySet<string>>(park?.open ?? new Set());
   /** Branches slow enough to have earned a "Loading…" row. */
@@ -2169,6 +2171,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
       <div
         className="tool-split"
+        ref={detailSplit}
         data-detail-large={detailLarge ? "" : undefined}
         style={{
           gridTemplateRows: detailLarge

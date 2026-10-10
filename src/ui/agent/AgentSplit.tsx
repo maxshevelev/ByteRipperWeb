@@ -1,7 +1,6 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { L } from "@/core/localization/localization";
-import { largeDetailStore } from "@/state/largeDetailStore";
-import { useStore } from "@/state/useStore";
+import { useLargeDetailOf } from "@/state/largeDetailStore";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 
 /**
@@ -26,7 +25,9 @@ export function AgentSplit({
   readonly details: ReactNode;
   readonly hidden?: boolean;
 }) {
-  const large = useStore(largeDetailStore).open;
+  const split = useRef<HTMLDivElement>(null);
+  // Folded for the card only when the card is this page's: the Log stays mounted under the others.
+  const large = useLargeDetailOf(split) && hidden !== true;
   const key = `AgentSplitShare ${name}`;
   const [share, setShare] = useState(() => storedShare(key));
   const change = (next: number) => {
@@ -40,16 +41,16 @@ export function AgentSplit({
   return (
     <div
       className="tool-split agent-split"
+      ref={split}
       hidden={hidden}
       // A click on the list, its head or its divider leaves the large view open: the reader is
       // choosing the row the card shows.
       data-detail-owner=""
-      data-detail-large={large && hidden !== true ? "" : undefined}
+      data-detail-large={large ? "" : undefined}
       style={{
-        gridTemplateRows:
-          large && hidden !== true
-            ? "minmax(0, 1fr) 0 0"
-            : `minmax(0, ${share}fr) 6px minmax(0, ${1 - share}fr)`,
+        gridTemplateRows: large
+          ? "minmax(0, 1fr) 0 0"
+          : `minmax(0, ${share}fr) 6px minmax(0, ${1 - share}fr)`,
       }}
     >
       {list}
