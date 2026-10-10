@@ -1,4 +1,4 @@
-import type { AgentMark } from "@/core/agent/agentMark";
+import { type AgentMark, markLabels, markRelations } from "@/core/agent/agentMark";
 import { L } from "@/core/localization/localization";
 
 /**
@@ -10,7 +10,7 @@ import { L } from "@/core/localization/localization";
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.text
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.shownText
  */
-export type AgentMarkColumn = "id" | "label" | "document" | "range" | "note" | "related";
+export type AgentMarkColumn = "id" | "label" | "document" | "range" | "note";
 
 export const AGENT_MARK_COLUMNS: readonly AgentMarkColumn[] = [
   "id",
@@ -18,7 +18,6 @@ export const AGENT_MARK_COLUMNS: readonly AgentMarkColumn[] = [
   "document",
   "range",
   "note",
-  "related",
 ];
 
 export function markColumnTitle(column: AgentMarkColumn): string {
@@ -33,8 +32,6 @@ export function markColumnTitle(column: AgentMarkColumn): string {
       return L("Bytes");
     case "note":
       return L("Note");
-    case "related":
-      return L("About");
   }
 }
 
@@ -60,15 +57,10 @@ export function markText(
     case "range":
       return `${hex(mark.start)}–${hex(mark.end)}`;
     case "note":
-      return mark.note;
-    case "related":
-      // Each end of a relation by its id and label, so the pair reads without looking the other
-      // row up.
-      return mark.relatedTo
-        .map((id) => {
-          const label = all.find((one) => one.id === id)?.label;
-          return label === undefined ? id : `${id} ${label}`;
-        })
-        .join(", ");
+      // The marks this one is about follow the note, each by its id and label, so the pair reads
+      // without looking the other row up.
+      return [mark.note, markRelations(mark, markLabels(all))]
+        .filter((part) => part !== "")
+        .join(" ");
   }
 }

@@ -185,9 +185,20 @@ export function firstMaskedMatch(
   const count = pattern.bytes.length;
   const lastStart = Math.min(below - 1, window.length - count);
   if (from > lastStart) return -1;
-  // Anchored on the first byte that is not a hole: found fast, and only there
-  // is the rest compared.
-  const anchor = pattern.isWild.indexOf(false);
+  // Anchored on a byte that is not a hole: found fast, and only there is the rest
+  // compared. Not on 0x00 or 0xFF where the pattern has another byte — a dump is full
+  // of both, and an anchor on them stops at almost every byte: an address such as
+  // `00 80 66 FF` is found by its 0x80.
+  let anchor = -1;
+  for (let index = 0; index < pattern.bytes.length; index++) {
+    if (pattern.isWild[index] === true) continue;
+    const byte = pattern.bytes[index] ?? 0;
+    if (byte !== 0x00 && byte !== 0xff) {
+      anchor = index;
+      break;
+    }
+  }
+  if (anchor === -1) anchor = pattern.isWild.indexOf(false);
   if (anchor === -1) return -1;
   const first = pattern.bytes[anchor] ?? 0;
   const alternative = alternativeCase(first, anchor, pattern);

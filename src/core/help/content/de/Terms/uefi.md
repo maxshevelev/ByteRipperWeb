@@ -1,4 +1,4 @@
-@source-sha 0f8b0bac06183ad31d99b68718224c2f119f69e7031b3fa968198a2eb96e905b
+@source-sha 18a6424657fa3547095c0efd20f5d51b64490adc0979d550f38e10f4b1cf94df
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -462,13 +462,30 @@ Verlorene Felder sind nicht immer endgültig verloren. Einige Hersteller — dar
 
 Wo diese Felder im Abbild stehen, ist nicht standardisiert. Jeder Hersteller legt sie dorthin, wo er will, und die Aufteilung wandert von Generation zu Generation; im Allgemeinen läuft das Übertragen deshalb auf den Vergleich zweier Abbilder hinaus.
 
-Eine Ausnahme, die das Programm lesen kann, ist die Firmware Lenovo InsydeH2O. Sie hält diese Felder in einem eigenen, kodierten Speicher, den [[term:lenv|LENV]]-Blöcken ([[topic:lenovo-dmi|Lenovo DMI]]).
+Drei Aufteilungen sind die Ausnahmen, die das Programm lesen kann. Die Firmware Lenovo InsydeH2O hält diese Felder in einem eigenen, kodierten Speicher, den [[term:lenv|LENV]]-Blöcken ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS-Notebooks mit AMI-Firmware halten sie in einem [[term:gpnv|GPNV]]-Speicher. Acer hält sie in einem 8-KiB-Block im [[term:padding|Padding]] des BIOS-Regions, dem Bereich [[term:acer-dmi|Acer DMI]]. Jede Aufteilung wurde aus den Dumps der Notebooks dieses Herstellers erschlossen; keiner der drei hat sie veröffentlicht.
 
 Im Baum von **Werkzeuge ▸ UEFI-Struktur** erscheint dieser Speicher als ein Knoten, **Lenovo DMI**, gleich wo er im Abbild liegt: anstelle der drei Regionen, die die Insyde-Flash-Device-Map als „Unknown" deklariert, oder innerhalb von Padding, wenn es keine Map gibt. Seine Beschreibung nennt den Block, den die Firmware liest, und führt dessen Einträge dekodiert auf, darunter Seriennummer und UUID; ein Klick auf einen Eintrag öffnet seinen Knoten. Unter dem Knoten liegen das Änderungsprotokoll und beide Blöcke, jeder Eintrag mit seinem Wert neben dem Namen.
 
 @see term:serial-data
 @see term:lenv
+@see term:gpnv
+@see term:acer-dmi
 @see topic:recipe-board-data
+
+@term acer-dmi
+@name Acer DMI
+@short Der Block, in dem die Acer-Firmware die im Werk geschriebenen Angaben zur Maschine hält: System-Seriennummer, Platine-Seriennummer, UUID, Modell — im Padding des BIOS-Regions.
+
+Die Acer-Firmware hält die Identität der Maschine in einem 8-KiB-Block im [[term:padding|Padding]] des BIOS-Regions: die System-Seriennummer, die Platine-Seriennummer, die Maschinen-UUID, das Modell und den Produktnamen. Eine feste Adresse gibt es nicht: der Block liegt nicht im PDR, ist nirgends deklariert, und auf den vorliegenden Notebooks steht er bei jedem Modell an anderer Stelle.
+
+Das [[topic:tool-uefi|UEFI-Werkzeug]] findet ihn am Inhalt: die Signatur `06 FF FF FF 41 63 65 72` an einem festen Offset im Block — die Konstante `06`, drei gelöschte Bytes, `Acer` — und die Form des Blocks: eine 22-stellige Seriennummer, die mit `N` beginnt, eine 22-stellige Platine-Seriennummer, die mit `NB` beginnt, und im Rest des Blocks nur gelöschte Bytes. Wo dies alles stimmt, zeigt der Baum den Block als eine Zeile, **Acer DMI**, die Seriennummer im Namen der Zeile neben dem Namen; wo der Block gelöscht ist, gibt es nichts mehr zu finden, und die Zeile erscheint nicht.
+
+Die Details führen die Identitätsfelder auf, wie sie im Block stehen: die System-Seriennummer, die Platine-Seriennummer, die UUID, das Modell und, wo geschrieben, die Inventarnummer, der Produktname und der Fertigungscode. Darunter, was die Integritätsprüfungen darin gefunden haben: Seriennummer und Platine-Seriennummer, die das Werksmuster nicht mehr halten — die Werksnummern des Systems lesen `00` an Offset 7 und `3400` am Ende, die der Platinen `1100` an Offset 5 —, eine UUID, die keine Version 1 ist oder deren Varianten-Bit nicht gesetzt ist. Der Block hält auch eine Kopie der letzten sechs Bytes der UUID; wo die Kopie nicht mehr wie die UUID liest, ist sie veraltet — die UUID wurde nach der Kopie geschrieben. Der Block hält keine Prüfsummen, deshalb lässt eine Änderung keine fehlerhafte Prüfsumme zurück, die auf den Block wies; was die Prüfungen melden, ist alles, was das Abbild von der Änderung sagt.
+
+Acer hat den Aufbau nicht veröffentlicht; er wurde aus den Dumps der vorliegenden Acer-Notebooks erschlossen. Es ist eine Methode der Acer-Firmware, nicht von DMI: andere Hersteller legen dieselben Felder anderswo ab, und was das Programm davon liest, steht unter [[term:dmi|DMI]]. Um den Bereich in einen anderen Dump zu übernehmen, kopiert man den ganzen Block an dieselbe Adresse.
+
+@see term:dmi
+@see term:padding
 
 @term lenv
 @name LENV-Block

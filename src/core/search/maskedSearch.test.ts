@@ -121,6 +121,22 @@ describe("MaskedSearchTests", () => {
     expect(found.map((f) => f[1])).toEqual([0, 1]);
   });
 
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MaskedSearchTests.swift#MaskedSearchTests.testAPatternLeadingWithZeroIsFoundEverywhereItIs
+  it("a pattern that starts with 0x00 is found everywhere it is", async () => {
+    const bytes = new Array<number>(64).fill(0);
+    const address = [0x00, 0x80, 0x66, 0xff];
+    for (const at of [0, 14, 60]) bytes.splice(at, 4, ...address);
+    for (const chunk of [5, 16, 1 << 20]) {
+      expect(await run([maskedPattern(address)], bytes, { chunk }), `chunk ${chunk}`).toEqual([
+        0, 14, 60,
+      ]);
+    }
+    expect(await run([parseHexPattern("00 ?? 66")], bytes)).toEqual([0, 14, 60]);
+    expect(await run([maskedPattern([0, 0, 0])], [0, 0, 0, 0], { overlapping: true })).toEqual([
+      0, 1,
+    ]);
+  });
+
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MaskedSearchTests.swift#MaskedSearchTests.testVisitStopsTheScan
   it("visit stops the scan", async () => {
     let seen = 0;

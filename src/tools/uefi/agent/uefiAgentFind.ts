@@ -30,8 +30,15 @@ import { ownName } from "@/tools/uefi/uefiTreeDisplay";
  * @upstream-differs the node's bytes are in the worker that holds the tree, so the search runs there
  */
 
-/** A buffer the tree holds as the storage the search engine reads. @upstream ByteRipperApp/Agent/AgentFindTools.swift#ReaderStorage */
-class ReaderStorage implements ByteStorage {
+/**
+ * A buffer the tree holds as the storage the search engine reads.
+ *
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#ReaderStorage
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#ReaderStorage.reader
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#ReaderStorage.size
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#ReaderStorage.read
+ */
+export class ReaderStorage implements ByteStorage {
   private readonly reader: ImageReader;
 
   constructor(reader: ImageReader) {

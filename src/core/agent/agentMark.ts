@@ -1,3 +1,5 @@
+import { L } from "@/core/localization/localization";
+
 /**
  * A place an agent marked in a dump and what it said about it (`Design/PORT_AGENT.md`, "Marks").
  *
@@ -28,12 +30,35 @@ export interface AgentMark {
 }
 
 /**
- * What the pointer resting on the bytes shows.
+ * What the pointer resting on the bytes shows: the label, the note and the marks this one is
+ * about, named by `labels` where it knows them.
  *
  * @upstream ByteRipperApp/Agent/AgentMark.swift#AgentMark.tooltip
  */
-export const markTooltip = (mark: AgentMark): string =>
-  mark.note === "" ? mark.label : `${mark.label}\n${mark.note}`;
+export const markTooltip = (mark: AgentMark, labels: ReadonlyMap<string, string>): string =>
+  [mark.label, mark.note, markRelations(mark, labels)].filter((part) => part !== "").join("\n");
+
+/**
+ * "Related Marks: m1 FIT pointer, m3", or "" for a mark about no other — the one place a relation
+ * reads, in the Agent window and over the dump.
+ *
+ * @upstream ByteRipperApp/Agent/AgentMark.swift#AgentMark.relations
+ */
+export function markRelations(mark: AgentMark, labels: ReadonlyMap<string, string>): string {
+  if (mark.relatedTo.length === 0) return "";
+  const named = mark.relatedTo.map((id) => {
+    const label = labels.get(id);
+    return label === undefined ? id : `${id} ${label}`;
+  });
+  return L("Related Marks: %1$@", named.join(", "));
+}
+
+/** Each mark's label by its id: what a relation is named by. */
+export function markLabels(marks: readonly AgentMark[]): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const mark of marks) if (!labels.has(mark.id)) labels.set(mark.id, mark.label);
+  return labels;
+}
 
 /**
  * What the agent said about the byte at `offset` — the innermost mark holding it — or "" for none.
@@ -46,5 +71,5 @@ export function agentMarkTooltip(marks: readonly AgentMark[], offset: number): s
     if (offset < mark.start || offset >= mark.end) continue;
     if (found === undefined || mark.end - mark.start < found.end - found.start) found = mark;
   }
-  return found === undefined ? "" : markTooltip(found);
+  return found === undefined ? "" : markTooltip(found, markLabels(marks));
 }

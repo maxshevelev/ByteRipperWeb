@@ -1,4 +1,4 @@
-# ByteRipperWeb — porting the agent service (upstream `1a8901d`…`6c73dc6`)
+# ByteRipperWeb — porting the agent service (upstream `1a8901d`…`afd4bd3`)
 
 > The plan of record for the agent service in the Electron build. Upstream's
 > contract is `../ByteRipper/Design/AGENT_PROTOCOL.md` (kept word for word as
@@ -95,3 +95,12 @@ Each ends with the checks green and a commit.
 - [x] **A10 — Help and release.** The help page in en, de and ru with its
   anchors, the strings, the README, packaging (`relay.cjs` outside the asar),
   GAPS and the module map; a run of the packaged build.
+- [x] **A11 — What upstream added after (`2c68a80..afd4bd3`).** `refs` and `region_scan`
+  (asked of the firmware worker, over the buffers the tree decompressed), `uefi_checksums` and
+  `uefi_fix_checksum` with `all`, `uefi_node` as the panel's detail (the GUID catalogue's name, the
+  Lenovo DMI readers waited for), `copy_to_other_pane`, a mark's related marks after its note, and
+  the Tools page of the Agent window over `AgentService.catalogue()` with each tool's use. The
+  keyboard follows the Agent window's page and the tool panel that is picked
+  (`src/ui/shell/activateTool.ts`); `MaskedSearch` anchors on a byte that is neither 0x00 nor 0xFF.
+  Different here: `copy_to_other_pane` has no read-only destination to refuse, and the arrow keys
+  walk a page's rows by a handler of the window, a React table having none of its own.

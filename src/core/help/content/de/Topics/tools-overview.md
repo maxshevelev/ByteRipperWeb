@@ -1,4 +1,4 @@
-@source-sha a81e8dff2f26c516f798b83b5c807206fb78081e924856b73a846bf3da15b999
+@source-sha a68da5ec377d9c9b0a8e615473dba1ddc280b147615354635368bbed6539ec00
 # Die Werkzeugbereiche
 
 > Werkzeuge, die den geöffneten Dump decodieren und melden, welche Strukturen er enthält.
@@ -9,7 +9,7 @@ Das Menü **Werkzeuge** schaltet jeweils einen Bereich neben dem Dump ein. Jedes
 - **[[topic:tool-me|ME Analyzer]]** — was für eine Intel-Management-Engine-Firmware im Image steckt: ihre Version, ihre Partitionen, ihre Konfiguration.
 - **[[topic:tool-fit|FIT-Tabelle]]** — die Firmware Interface Table und ob ihre Einträge noch auf das zeigen, was sie behaupten.
 
-[[edition:Ein Browser behält **[[key:tool1]]**, **[[key:tool2]]** und **[[key:tool3]]** für seine eigenen Tabs, daher werden die Werkzeuge im Browser aus dem Menü **Werkzeuge** in der Reihenfolge eingeblendet, in der es sie auflistet.||Die Werkzeuge haben die Tasten **[[key:tool1]]**, **[[key:tool2]]** und **[[key:tool3]]** in der Reihenfolge, in der das Menü **Werkzeuge** sie auflistet.]] Die Taste des gerade gezeigten Werkzeugs bewirkt nichts.
+[[edition:Ein Browser behält **[[key:tool1]]**, **[[key:tool2]]** und **[[key:tool3]]** für seine eigenen Tabs, daher werden die Werkzeuge im Browser aus dem Menü **Werkzeuge** in der Reihenfolge eingeblendet, in der es sie auflistet.||Die Werkzeuge haben die Tasten **[[key:tool1]]**, **[[key:tool2]]** und **[[key:tool3]]** in der Reihenfolge, in der das Menü **Werkzeuge** sie auflistet.]] Die Taste des gerade gezeigten Werkzeugs bewirkt nichts. [[edition:Ein Bereich, der über das Menü **Werkzeuge** geöffnet wird, erhält sofort den Tastaturfokus: Die Pfeiltasten bewegen die Auswahl in seiner Tabelle. **Keine** gibt den Fokus an den Dump zurück.||Ein Bereich, der über das Menü **Werkzeuge** oder mit seiner Taste geöffnet wird, erhält sofort den Tastaturfokus: Die Pfeiltasten bewegen die Auswahl in seiner Tabelle. **Keine** gibt den Fokus an den Dump zurück.]]
 
 ## Was sie gemeinsam haben
 

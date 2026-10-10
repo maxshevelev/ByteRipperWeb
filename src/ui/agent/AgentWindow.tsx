@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import {
   AGENT_LOG_COLUMNS,
   argumentsText,
@@ -14,7 +14,9 @@ import { agentMarkStore } from "@/state/agent/agentMarkStore";
 import { agentService } from "@/state/agent/agentService";
 import { useStore } from "@/state/useStore";
 import { AgentFindingsPage } from "@/ui/agent/AgentFindingsPage";
+import { AgentList } from "@/ui/agent/AgentList";
 import { AgentMarksPage } from "@/ui/agent/AgentMarksPage";
+import { AgentToolsPage } from "@/ui/agent/AgentToolsPage";
 import { CloseButton } from "@/ui/shell/CloseButton";
 
 /**
@@ -31,6 +33,8 @@ import { CloseButton } from "@/ui/shell/CloseButton";
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showDetails
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.follows
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.selectLogRow
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showTools
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.toolsPage
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.logSelection
  * @upstream-differs a floating panel of the page rather than a window of its own
  */
@@ -40,6 +44,8 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
   const [selected, setSelected] = useState<number | undefined>(undefined);
   const [page, setPage] = useState<AgentPageName>("log");
   const [chosenMarks, setChosenMarks] = useState<ReadonlySet<string>>(new Set());
+  const [chosenTool, setChosenTool] = useState<string | undefined>(undefined);
+  const window_ = useRef<HTMLElement>(null);
   // The marks as they are now: listening to the store is what keeps the page and the dump one.
   useStore(agentMarkStore);
   const marks = agentService.markTools.all();
@@ -60,6 +66,51 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
     if (follow) list.current?.scrollTo({ top: list.current.scrollHeight });
   }, [follow, state.log.length]);
 
+  // The keyboard is on the list of the page shown, when the window comes up and when a page is
+  // chosen, so the arrow keys walk its rows at once.
+  //
+  // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.focusList
+  // @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownList
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the page is what moves it
+  useEffect(() => {
+    window_.current?.querySelector<HTMLElement>(".agent-log:not([hidden])")?.focus();
+  }, [page]);
+
+  /**
+   * Up and Down move through the rows of the list that has the keyboard, as the arrow keys walk an
+   * AppKit table's.
+   *
+   * @upstream-differs a React table has no row selection of its own; the page's choice is moved
+   */
+  const walk = (event: KeyboardEvent<HTMLElement>): void => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const ids: string[] =
+      page === "log"
+        ? state.log.map((one) => String(one.id))
+        : page === "marks"
+          ? marks.map((one) => one.mark.id)
+          : page === "tools"
+            ? agentService.catalogue().map((one) => one.tool.name)
+            : [];
+    if (ids.length === 0) return;
+    const now =
+      page === "log"
+        ? selected === undefined
+          ? undefined
+          : String(selected)
+        : page === "marks"
+          ? [...chosenMarks][0]
+          : chosenTool;
+    const at = now === undefined ? -1 : ids.indexOf(now);
+    const next =
+      ids[Math.max(0, Math.min(ids.length - 1, at + (event.key === "ArrowDown" ? 1 : -1)))];
+    if (next === undefined) return;
+    event.preventDefault();
+    if (page === "log") setSelected(Number(next));
+    else if (page === "marks") setChosenMarks(new Set([next]));
+    else setChosenTool(next);
+  };
+
   const record = state.log.find((one) => one.id === selected);
   const status = agentStatusText({
     available: agentService.isAvailable,
@@ -69,7 +120,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
   });
 
   return (
-    <aside className="agent-window" aria-label={L("Agent")}>
+    <aside className="agent-window" aria-label={L("Agent")} ref={window_}>
       <header className="agent-window-head">
         <h2 className="agent-window-title">{L("Agent")}</h2>
         <span
@@ -108,6 +159,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
             })
           }
           onShow={(id) => void agentService.markTools.show(id)}
+          onKeyDown={walk}
         />
       ) : null}
       {page === "findings" ? (
@@ -116,7 +168,16 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           onShow={(finding) => void agentService.dumpTools.showFinding(finding)}
         />
       ) : null}
-      <div className="agent-log" ref={list} hidden={page !== "log"}>
+      {page === "tools" ? (
+        <AgentToolsPage
+          entries={agentService.catalogue()}
+          stats={state.toolStats}
+          chosen={chosenTool}
+          onChoose={setChosenTool}
+          onKeyDown={walk}
+        />
+      ) : null}
+      <AgentList listRef={list} hidden={page !== "log"} onKeyDown={walk}>
         <table className="agent-table" aria-label={L("Log")}>
           <thead>
             <tr>
@@ -162,7 +223,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
             ))}
           </tbody>
         </table>
-      </div>
+      </AgentList>
       {/* help: window.agent.details */}
       <div className="agent-details" aria-live="polite" hidden={page !== "log"}>
         {record === undefined ? (
@@ -236,6 +297,14 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
           >
             {L("Clear Findings")}
           </button>
+        ) : page === "tools" ? (
+          <button
+            type="button"
+            disabled={Object.keys(state.toolStats).length === 0}
+            onClick={() => agentService.resetToolStats()}
+          >
+            {L("Reset Statistics")}
+          </button>
         ) : (
           <button
             type="button"
@@ -254,10 +323,16 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
 }
 
 /** The pages of the window. @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.Page */
-type AgentPageName = "log" | "marks" | "findings";
-const PAGES: readonly AgentPageName[] = ["log", "marks", "findings"];
+type AgentPageName = "log" | "marks" | "findings" | "tools";
+const PAGES: readonly AgentPageName[] = ["log", "marks", "findings", "tools"];
 const pageTitle = (page: AgentPageName): string =>
-  page === "log" ? L("Log") : page === "marks" ? L("Marks") : L("Findings");
+  page === "log"
+    ? L("Log")
+    : page === "marks"
+      ? L("Marks")
+      : page === "findings"
+        ? L("Findings")
+        : L("Tools");
 
 /** Where the choice is kept, so the window opens the way it was left. @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.followKey */
 const FOLLOW_KEY = "AgentLogFollowsNewRequests";

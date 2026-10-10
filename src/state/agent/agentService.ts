@@ -2,15 +2,24 @@ import type { RelayCommand } from "@/core/agent/agentClientConfiguration";
 import { AgentConnection } from "@/core/agent/agentConnection";
 import { type AgentCallRecord, AgentServer } from "@/core/agent/agentServer";
 import type { AgentTool } from "@/core/agent/agentTool";
+import {
+  type AgentToolEntry,
+  type AgentToolGroup,
+  type AgentToolKind,
+  type AgentToolStats,
+  addToStats,
+  HOST_GROUPS,
+} from "@/core/agent/agentToolCatalogue";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
 import { AgentDesk } from "@/state/agent/agentDesk";
-import { AgentDiffTools } from "@/state/agent/agentDiffTools";
+import { AgentDiffTools, placeJson } from "@/state/agent/agentDiffTools";
 import { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { AgentEditTools } from "@/state/agent/agentEditTools";
 import { AgentFindTools } from "@/state/agent/agentFindTools";
 import { AgentHostTools } from "@/state/agent/agentHostTools";
 import { AgentMarkTools } from "@/state/agent/agentMarkTools";
 import { AgentModuleTools } from "@/state/agent/agentModuleTools";
+import { AgentRefsTools } from "@/state/agent/agentRefsTools";
 import {
   loadAgentSettings,
   rememberAgentEditsAllowed,
@@ -60,6 +69,13 @@ export interface AgentServiceState {
   /** The calls made, oldest first, at most {@link AGENT_LOG_LIMIT} of them. */
   readonly log: readonly AgentCallRecord[];
   /**
+   * How each tool has been used since the app started, by name. Kept apart from the log, which
+   * keeps only its last calls.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.toolStats
+   */
+  readonly toolStats: Readonly<Record<string, AgentToolStats>>;
+  /**
    * Whether the Agent window is up.
    *
    * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
@@ -78,6 +94,7 @@ const INITIAL: AgentServiceState = {
   endpoint: undefined,
   connections: 0,
   log: [],
+  toolStats: {},
   windowOpen: false,
   relay: undefined,
 };
@@ -130,6 +147,8 @@ export class AgentService {
   readonly diffTools: AgentDiffTools;
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.findTools */
   readonly findTools: AgentFindTools;
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.refsTools */
+  readonly refsTools: AgentRefsTools;
   readonly moduleTools: AgentModuleTools;
   private bridge: AgentBridge | undefined;
   private readonly connections = new Map<number, AgentConnection>();
@@ -144,6 +163,8 @@ export class AgentService {
   private readonly clients = new Set<number>();
   private unsubscribe: (() => void)[] = [];
   private builtServer: AgentServer | undefined;
+  private builtCatalogue: readonly AgentToolEntry[] | undefined;
+  private readonly modules: () => readonly ToolModule[];
   private callListeners = new Set<(record: AgentCallRecord) => void>();
 
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.init */
@@ -152,6 +173,7 @@ export class AgentService {
     modules: () => readonly ToolModule[] = () => TOOLS
   ) {
     this.bridge = bridge;
+    this.modules = modules;
     this.hostTools = new AgentHostTools(this.desk);
     this.markTools = new AgentMarkTools(this.desk);
     this.dumpTools = new AgentDumpTools(this.desk, () => this.bridge);
@@ -162,6 +184,11 @@ export class AgentService {
     this.moduleTools.edits = this.editTools;
     this.diffTools = new AgentDiffTools(this.desk, this.moduleTools, modules);
     this.findTools = new AgentFindTools(this.desk, this.diffTools, this.moduleTools);
+    this.refsTools = new AgentRefsTools(this.desk, this.moduleTools);
+    this.editTools.locate = async (place, range) =>
+      ((await this.diffTools.locate(this.moduleTools.hostFor(place), [range]))[0] ?? []).map(
+        placeJson
+      );
   }
 
   /** Whether there is a shell to serve through; a browser has none, and no agent. */
@@ -172,18 +199,57 @@ export class AgentService {
   /**
    * Every tool, in the order `tools/list` gives them.
    *
-   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.allTools
+   * @web-only the catalogue's tools alone; upstream's `server` lists the catalogue
    */
   allTools(): AgentTool[] {
-    return [
-      ...this.hostTools.tools(),
-      ...this.markTools.tools(),
-      ...this.dumpTools.tools(),
-      ...this.diffTools.tools(),
-      ...this.findTools.tools(),
-      ...this.editTools.tools(),
-      ...this.moduleTools.tools(),
-    ].map((tool) => this.refreshing(tool));
+    return this.catalogue().map((entry) => entry.tool);
+  }
+
+  /**
+   * Every tool, in the order `tools/list` gives them, with where it comes from and what it does —
+   * what the Agent window's Tools page lists. Built once: the tools do not change while the app
+   * runs.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.catalogue
+   */
+  catalogue(): readonly AgentToolEntry[] {
+    if (this.builtCatalogue !== undefined) return this.builtCatalogue;
+    const kindOf = (tool: AgentTool, group: AgentToolGroup): AgentToolKind =>
+      group.isEdits ? "edit" : tool.annotations.readOnly ? "read" : "screen";
+    const entries = (tools: AgentTool[], group: AgentToolGroup): AgentToolEntry[] =>
+      tools.map((tool) => ({ tool: this.refreshing(tool), group, kind: kindOf(tool, group) }));
+    const list = [
+      ...entries(this.hostTools.tools(), HOST_GROUPS.files),
+      ...entries(this.markTools.tools(), HOST_GROUPS.marks),
+      ...entries(this.dumpTools.tools(), HOST_GROUPS.dumps),
+      ...entries(this.diffTools.tools(), HOST_GROUPS.comparison),
+      ...entries([...this.findTools.tools(), ...this.refsTools.tools()], HOST_GROUPS.search),
+      ...entries(this.editTools.tools(), HOST_GROUPS.edits),
+    ];
+    // A module's tools under the module; its edits are edits.
+    const modules = this.modules();
+    for (const tool of this.moduleTools.tools()) {
+      const module = modules.find((one) =>
+        [
+          ...(one.agentQueries ?? []),
+          ...(one.agentComparisons ?? []),
+          ...(one.agentEdits ?? []),
+          ...(one.agentActions ?? []),
+        ].some((own) => own.name === tool.name)
+      );
+      const group: AgentToolGroup =
+        module === undefined
+          ? HOST_GROUPS.panels
+          : { key: module.id, title: () => module.title, isEdits: false };
+      const edits = module?.agentEdits?.some((own) => own.name === tool.name) ?? false;
+      list.push({
+        tool: this.refreshing(tool),
+        group,
+        kind: edits ? "edit" : tool.annotations.readOnly ? "read" : "screen",
+      });
+    }
+    this.builtCatalogue = list;
+    return list;
   }
 
   /**
@@ -352,6 +418,10 @@ export class AgentService {
   private record(record: AgentCallRecord): void {
     this.store.update((state) => ({
       ...state,
+      toolStats: {
+        ...state.toolStats,
+        [record.tool]: addToStats(state.toolStats[record.tool], record),
+      },
       log:
         state.log.length >= AGENT_LOG_LIMIT
           ? [...state.log.slice(state.log.length - AGENT_LOG_LIMIT + 1), record]
@@ -378,6 +448,11 @@ export class AgentService {
   /** Shows or hides the Agent window. @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentWindow */
   setWindowOpen(open: boolean): void {
     this.store.update((state) => ({ ...state, windowOpen: open }));
+  }
+
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.resetToolStats */
+  resetToolStats(): void {
+    this.store.update((state) => ({ ...state, toolStats: {} }));
   }
 
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.clearLog */

@@ -1,7 +1,16 @@
 import { AgentToolError } from "@/core/agent/agentTool";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
+import {
+  type ChecksumRepair,
+  repairsForAMDDirectory,
+  repairsForFile,
+  repairsForMicrocode,
+  repairsForVolume,
+  volumeAlongPath,
+} from "@/firmware/uefi/checksumRepair";
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
+import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import { DEFAULT_LIMITS } from "@/firmware/uefi/parserState";
 import { SpaceReaders } from "@/firmware/uefi/spaceReaders";
 import { childrenOf, rootsOf, stampIds } from "@/firmware/uefi/treeMaterialization";
@@ -43,6 +52,12 @@ export interface AgentTree {
   detail(node: UEFINode, path: NodeID): NodeDetail;
   /** The image as the tree stands: its nodes and what is known of it. */
   image(): UEFIImage;
+  /**
+   * The writes that would put a node's checksums right, which is what the panel's red flag and its
+   * "should be" are made of. Read from the node's own space, or — for a node of the file — from
+   * `file`, a copy of the file with fixes in it.
+   */
+  repairs(node: UEFINode, path: NodeID, file?: ImageReader): ChecksumRepair[];
 }
 
 /** The tree over bytes, with nothing else about it — what a test, or a document no panel has read, uses. */
@@ -70,6 +85,10 @@ export function agentTreeOver(bytes: Uint8Array): AgentTree {
       );
     },
     image: () => new UEFIImage({ size: reader.count, roots }),
+    repairs(node, path, file) {
+      const own = file ?? spaceReaders.readerFor(node.space);
+      return own === undefined ? [] : repairsOver(roots, node, path, own);
+    },
   };
 }
 
@@ -162,3 +181,36 @@ export const unknownNode = (id: NodeID): AgentToolError =>
 
 /** The file range of a node: nothing inside a compressed section. */
 export const fileRangeOf = (node: UEFINode) => nodeFileRange(node);
+
+/**
+ * The writes that would put a node's checksums right, read from `reader`: the node's own space,
+ * or — to check a copy of the file with fixes in it — the file's.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIChecksumCheck.swift#UEFIChecksumCheck.repairs
+ */
+export function repairsOver(
+  roots: readonly UEFINode[],
+  node: UEFINode,
+  path: NodeID,
+  reader: ImageReader
+): ChecksumRepair[] {
+  switch (node.kind) {
+    case "volume":
+      return repairsForVolume(node, reader);
+    case "microcode":
+      return repairsForMicrocode(node, reader);
+    case "amdDirectory":
+      return repairsForAMDDirectory(node, reader);
+    case "file": {
+      const { volume, revision } = volumeAlongPath(roots, path);
+      return repairsForFile(
+        node,
+        revision,
+        reader,
+        volume === undefined ? undefined : volumeErasePolarity(volume, reader)
+      );
+    }
+    default:
+      return [];
+  }
+}

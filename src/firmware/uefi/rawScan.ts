@@ -1,4 +1,5 @@
 import type { ImageRange } from "@/firmware/imageReader";
+import { readingAcerDMIStores } from "@/firmware/uefi/acerDmiStore";
 import { readingAMDFirmware } from "@/firmware/uefi/amdFirmware";
 import { readingAMDMicrocode } from "@/firmware/uefi/amdMicrocode";
 import { parseBIOSGuardUpdate } from "@/firmware/uefi/biosGuardUpdate";
@@ -214,6 +215,7 @@ export function scanRawArea(
   read = readingECFirmwareIn(parser, read, emptyByte);
   read = readingHPSignatureBlocks(parser, read, emptyByte);
   read = readingGPNVStores(parser, read, emptyByte);
+  read = readingAcerDMIStores(parser, read, emptyByte);
   read = readingAMDMicrocode(parser, read, emptyByte);
   // After the microcode: a patch the directories list is already its row, and keeps it.
   return readingAMDFirmware(parser, read, emptyByte, depth);

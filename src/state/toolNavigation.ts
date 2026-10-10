@@ -108,12 +108,14 @@ export function showToolChoice(pane: PaneId, choice: ToolChoice | undefined): bo
 }
 
 /**
- * The table the choice is in takes the keyboard.
+ * The table the choice is in takes the keyboard; whether there was a panel to take it.
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.focusChoice
  */
-export function focusToolChoice(pane: PaneId): void {
-  open.get(pane)?.handle.focus();
+export function focusToolChoice(pane: PaneId): boolean {
+  const session = open.get(pane);
+  session?.handle.focus();
+  return session !== undefined;
 }
 
 /** For a test: nothing is open and nothing is kept. */

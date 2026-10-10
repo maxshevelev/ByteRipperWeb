@@ -622,6 +622,9 @@ export interface AgentUefiRequest {
     | "uefi_find"
     | "uefi_at"
     | "uefi_node_data"
+    | "region_scan"
+    | "uefi_checksums"
+    | "uefi_refs"
     | "variable_rows"
     | "uefi_fix_checksum"
     | "uefi_areas"
@@ -637,6 +640,11 @@ export interface AgentUefiResponse {
   readonly id: JobId;
   readonly answer?: Json | undefined;
   readonly rows?: readonly VariableRow[] | undefined;
+  /**
+   * The answer is without something the page has to fetch first: the drivers that read Lenovo's
+   * DMI store. The page waits for them, and asks again.
+   */
+  readonly needs?: "lenovoReaders" | undefined;
   readonly error?: string | undefined;
 }
 

@@ -199,7 +199,8 @@ describe("the Agent window", () => {
     };
     expect(text(0, "label")).toBe("Table");
     expect(text(1, "range")).toBe("0x20–0x24");
-    expect(text(1, "related")).toBe("m1 Table");
+    expect(text(1, "note")).toBe("Related Marks: m1 Table");
+    expect(agentMarkTooltip(all, 0x20)).toBe("Pointer\nRelated Marks: m1 Table");
 
     service.markTools.remove(() => true);
     expect(agentMarksFor("a")).toEqual([]);

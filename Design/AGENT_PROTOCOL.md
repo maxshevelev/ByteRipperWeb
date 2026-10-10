@@ -29,6 +29,8 @@ text says *tab*, read *pane of the window*. What follows from that:
   recorded with a `path` can be opened again from it.
 - `me_*` tools take the ME region the analysis read — for a bare ME image, the whole
   file — where upstream asks the descriptor.
+- `copy_to_other_pane`: "alone in its tab" reads "alone in the window", and there is no
+  read-only destination to refuse — a page edits every document it holds in memory.
 - Paths may be Windows paths (`C:\dumps\a.bin`) or start with `~/`; the shell
   expands the home folder.
 
@@ -130,7 +132,8 @@ Queries — answered with the panel open or not, from the pane's shared tree:
 | Tool | Arguments | Answer |
 |---|---|---|
 | `uefi_tree` | `node` (default the top); `depth` 1–3; `limit` (100, ≤ 400 children of `node`); `after` | `image` (summary, at the top) or `node`; `children[]`, each a node summary, with `below[]` past depth 1; `total`. Paged (`next`, `after`). A child whose levels below are too large alone comes without `below`. |
-| `uefi_node` | `node` | `node`, `path` (names from the top), `title`, `fields[]` (`label`, `value`, `problem`), `tables[]` (`title`, `columns`, `rows`), `diagnostics[]`. |
+| `uefi_node` | `node` | `node`, `path` (names from the top), `title`, `fields[]` (`label`, `value`, `problem`), `tables[]` (`title`, `columns`, `rows`), `diagnostics[]`. Built as the panel's detail: with the GUID catalogue's name for a file (waited for 5 s at most) and the drivers that read a Lenovo DMI store. |
+| `uefi_checksums` | `node` (default: the whole image); `limit`, `after` | `checked`, `wrong`, `fixable`, `nodes[]` (as `uefi_tree`, and `path`, `checksums[]`: `field` — `volume`, `fileHeader`, `fileBody`, `microcode`, `pspDirectory` —, `at`, `at_in: "decompressed"` inside a compressed section, `stored`, `should_be`). The panel's own check, every branch opened. Paged. |
 | `uefi_find` | any of `name` (part, any case), `exact`, `guid`, `type` (the Type column); `limit` (50, ≤ 200); `after` | `matches[]` (node summary + `path`), `total`. Opens and decompresses everything once. Paged (`next`, `after`). |
 | `uefi_at` | `offset` | `offset`, `chain[]`, outermost first. |
 | `uefi_node_data` | `node`; `part` (`body`, `header`, `all`, `decompressed` — a compressed section's buffer); `offset` (0); `length` (256, ≤ 4096); `format`, `endian` as `read` | as `read`, at addresses inside the part; `node`, `part`, `size` (the whole part), `in_compressed`, `file_start` for a node of the file, `source` (`section`, `start`, `end`, `algorithm`, `nested`) for bytes a compressed section decompressed to, `cut_at_end_of_part`. |
@@ -214,7 +217,8 @@ saves.
 | Tool | Arguments | Answer |
 |---|---|---|
 | `write` | `offset`, `bytes` (hex, ≤ 64 KiB), `label` (required, the person's language); `expect` (hex: the bytes that must be there now) | `written[]` (`start`, `end`, `before` — up to 64 bytes, `before_cut`), `undo`, `saved: false`. Overwrites only: past the end is refused. |
-| `uefi_fix_checksum` | `node` | as `write`. A volume's, a file's, a microcode's checksums, by the panel's own repair code. Refused inside a compressed section and when already correct. |
+| `copy_to_other_pane` | `offset`, `length`; `document` (the source, one of a tab's two files); `label` (default: Copy to Other Pane) | `from`, `to`, `start`, `end`, `length`, `changed` (bytes that differed), `where` (as `diff`), `undo` (null when nothing differed), `saved: false`. Edit ▸ Copy to Other Pane: the same addresses in the other file, bytes never through the model, no size limit. Refused for a part, a file alone in its tab, a read-only destination, a range past either end. |
+| `uefi_fix_checksum` | `node`, or `all: true` (under `node` when given) | as `write`; with `all`, `fixed[]` (`id`, `name`) and `skipped_compressed`. A volume's, a file's, a microcode's, a PSP or BIOS directory's checksums, by the panel's own repair code; `all` puts a file holding a volume right after the files inside it, in one undo step. Refused inside a compressed section and when already correct. |
 | `fit_fix_checksum` | — | as `write`. The header's checksum, and the Top Swap backup's copy when it is the same table. Refused when unchecked or correct. |
 | `fit_add_microcode` | `path` (from `microcode_catalogue`) | as `write`, and `change` (`added`, or `replaced` with what it `replaced`: `cpuid`, `revision`, `date`), `entry`, `component`, `moved`, `protected_ranges`, `top_swap_backup`. The panel's Add Microcode: a row whose update serves the same processor — extended signature tables counted — is updated in place. Refused when the same update is already in the table, and for the panel's other reasons. |
 | `fit_replace_microcode` | `entry`, `path` | as `fit_add_microcode`. Refused too when the new update serves a processor, on a shared platform, that another row's already serves. |
@@ -256,13 +260,15 @@ refused.
 | Tool | Arguments | Answer |
 |---|---|---|
 | `find_bytes` | `text` (with `encoding` `ascii`·`utf16le`·`both`, default both; `ignore_case`) or `hex` (pairs, `??` for any byte); `overlapping`; `offset`, `end`; `node`; `context` (≤ 64); `limit` (100, ≤ 1000); `after` | `document`, `range`, `total`, `matches[]` (`start`, `end` — or `node_start`, `node_end` in a decompressed buffer — `encoding`, `where[]`, `preview` with `hex`, `text`, `before`), `next`, `truncated`. With `node`: `node`, `node_size`, `in_compressed`, `decompressed` (a compressed section searched in its buffer), `source`. Reads only. |
+| `refs` | `guid`, or `address` (with `relative_to` `file`·`region`, `forms` of `bus`·`file`·`region`, default all); `scope` `all`·`raw`·`compressed`; `limit` (50, ≤ 200, on files); `after` | `document`, `scope`, `guid` or `forms` (each form's bytes; `bus64` too), `skipped_forms`, `total` (hits), `files` (groups), `refs[]`: `file` (or `node` for a hit in no FFS file), `name`, `guid`, `type`, `in_compressed`, `hits[]` (`form`, `section`, `section_offset`, `file_start` or `node_start` + `in_compressed`, `node` when deeper), `hits_total` past 20. Bus form: the BIOS region's end at 0x100000000. A hit inside a longer form's hit is left out; a form under 0x100 is skipped. |
+| `region_scan` | `node` (default: the BIOS region); `kinds` (Type or Subtype, default `Padding`, `Raw`); `min_size` (0x100); `limit` (50, ≤ 200); `after` | `total`, `under`, `nodes[]`: as `uefi_tree` (`node` for `id`), `size`, `inner` (a child covering it whole), `class` (`empty` ≥ 99 % 0x00/0xFF, `text` ≥ 50 % of the rest in strings, `code` by x86-64 markers or `MZ`, else `data`), `fill`, `first_nonfill`, `last_nonfill`, `strings[]` (≤ 5: `at`, `text` ≤ 64, `encoding`), `redacted` — no strings for an area named MSDM, Password or Key. A node its children divide gives way to them. |
 | `open_part` | `offset`, `length` — or `node` with `part` (`all`, `body`); `name` | `document` (the part's id), `parent`, `name`, `source` (the parent's bytes it is linked to), `size`; with `node`, `node` and `in_compressed`. |
 
 `find_bytes` is the find bar's engine (`SearchEngine.matches`), given holes
 and overlapping matches; a match across two reads is found once. The file is
 searched as stored: a node inside a compressed section, or a compressed
 section itself, is searched in what the tree decompressed it to, never
-decompressed again. `where` is placed by the locators as `diff` places a run;
+decompressed again. `where` is placed by the locators as `diff` places a run; a match in an area named MSDM, Password or Key gets `redacted: true` instead of a `preview`;
 in a buffer, it is the deepest node under the one searched. `open_part` opens
 as Open Zone (a range) and the UEFI panel's Open (a node) do: a fragment
 panel over the parent's tab, linked, its edits going back with Update in

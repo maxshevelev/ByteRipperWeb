@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 
 import { AgentArguments } from "@/core/agent/agentArguments";
-import { hexByteText } from "@/core/agent/agentHexBytes";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { installCatalogue, L, withEnglish } from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
@@ -90,19 +89,17 @@ import { MFSFileNames } from "@/tools/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
+import { fixChecksumAnswer, uefiChecksums } from "@/tools/uefi/agent/uefiAgentChecksums";
 import { type FindInNodeParams, findInNode } from "@/tools/uefi/agent/uefiAgentFind";
 import { areasIn, locateIn, place, placesJson } from "@/tools/uefi/agent/uefiAgentLocator";
 import { uefiNodeData } from "@/tools/uefi/agent/uefiAgentNodeData";
-import { runUefiAgentQuery } from "@/tools/uefi/agent/uefiAgentQueries";
-import {
-  type AgentTree,
-  nodeAtPath,
-  parseNodeId,
-  reachable,
-  unknownNode,
-} from "@/tools/uefi/agent/uefiAgentTree";
+import { runUefiAgentQuery, uefiNodeReadsLenovoDMI } from "@/tools/uefi/agent/uefiAgentQueries";
+import { refs } from "@/tools/uefi/agent/uefiAgentRefs";
+import { regionScan } from "@/tools/uefi/agent/uefiAgentRegions";
+import { type AgentTree, repairsOver } from "@/tools/uefi/agent/uefiAgentTree";
 import { variableRows } from "@/tools/uefi/agent/uefiAgentVariables";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
+import { acerDMIRowText } from "@/tools/uefi/uefiAcerDMIDetail";
 import {
   decodableBlockOf,
   encodingRole,
@@ -380,6 +377,9 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
     : {}),
   ...(node.kind === "gpnvRecord"
     ? { valueRow: gpnvRowText(node.name, readerFor(node)?.bytes(node.body)) }
+    : {}),
+  ...(node.kind === "acerDMIStore" && readerFor(node) !== undefined
+    ? { valueRow: acerDMIRowText(node, readerFor(node) as ImageReader) }
     : {}),
   ...lenovoWireFields(node, store),
   hiddenCopies: hiddenCopiesOf(node),
@@ -998,10 +998,18 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           detail: (node, path) => detailOf(node, path),
           image: () =>
             new UEFIImage({ size: here.count, roots, addressDiff: addressing().addressDiff }),
+          repairs: (node, path, file) =>
+            file === undefined ? repairsFor(node, path) : repairsOver(roots, node, path, file),
         };
-        // The one question that is asked of bytes, not of the tree alone: the search reads in chunks.
-        if (request.query === "uefi_find_bytes") {
-          void findInNode(tree, request.values as unknown as FindInNodeParams).then(
+        // The questions that are asked of bytes, not of the tree alone: the search reads in chunks.
+        if (request.query === "uefi_find_bytes" || request.query === "uefi_refs") {
+          void (
+            request.query === "uefi_refs"
+              ? refs(tree, new AgentArguments(request.values, request.answerBound), {
+                  contentVersion: request.contentVersion,
+                })
+              : findInNode(tree, request.values as unknown as FindInNodeParams)
+          ).then(
             (answer) => post({ kind: "agentUefi", id: request.id, answer }),
             (error: unknown) =>
               post({
@@ -1039,40 +1047,29 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                   ),
                 };
               }
-              case "uefi_fix_checksum": {
+              case "uefi_fix_checksum":
                 // What the panel's Fix Checksum would write, computed by the same code: the
                 // module only works the change out, and the app decides whether it is made.
                 //
                 // @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentEdits.swift#UEFIAgentEdits.fixChecksum
-                const id = parseNodeId(args.string("node"));
-                reachable(tree, id);
-                const target = nodeAtPath(tree, id);
-                if (id.length === 0 || target === undefined) throw unknownNode(id);
-                if (target.space.length > 0) {
-                  throw new AgentToolError(
-                    `${nodeIdText(id)} is inside a compressed section, which the file holds compressed; ` +
-                      "its checksum cannot be written in place."
-                  );
-                }
-                const repairs = repairsFor(target, id);
-                if (repairs.length === 0) {
-                  throw new AgentToolError(
-                    `The checksums of ${nodeIdText(id)} already check out; nothing to write.`
-                  );
-                }
-                return {
-                  answer: {
-                    writes: repairs.map((one) => ({
-                      offset: one.offset,
-                      bytes: hexByteText(one.bytes),
-                    })),
-                  },
-                };
-              }
+                return { answer: fixChecksumAnswer(tree, args) };
+              case "uefi_checksums":
+                return { answer: uefiChecksums(tree, args, context) };
+              case "region_scan":
+                return { answer: regionScan(tree, args, context) };
               case "uefi_find_bytes":
+              case "uefi_refs":
                 return { answer: null };
-              default:
-                return { answer: runUefiAgentQuery(request.query, tree, args, context) };
+              default: {
+                const answer = runUefiAgentQuery(request.query, tree, args, context);
+                // A Lenovo DMI node is answered without its drivers until the page has had them
+                // searched for.
+                return request.query === "uefi_node" &&
+                  lenovoReaders === undefined &&
+                  uefiNodeReadsLenovoDMI(tree, args)
+                  ? { answer, needs: "lenovoReaders" as const }
+                  : { answer };
+              }
             }
           });
           post({ kind: "agentUefi", id: request.id, ...outcome });

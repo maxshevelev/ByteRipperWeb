@@ -6112,3 +6112,39 @@ body[data-pulling-panel] * {
 .agent-spacer {
   flex: 1;
 }
+
+.agent-log:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--selection));
+  outline-offset: -2px;
+}
+
+/* A section of the Tools page: the heading is not a row anyone chooses. */
+.agent-table .agent-section th {
+  top: 0;
+  padding-top: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.agent-tools .agent-tool-col-tool {
+  width: 11rem;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.agent-tools .agent-tool-col-kind {
+  width: 6.5rem;
+}
+
+.agent-tools .agent-tool-col-calls,
+.agent-tools .agent-tool-col-failures,
+.agent-tools .agent-tool-col-average,
+.agent-tools .agent-tool-col-size,
+.agent-tools .agent-tool-col-last {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-description {
+  margin: 0 0 8px;
+  user-select: text;
+}

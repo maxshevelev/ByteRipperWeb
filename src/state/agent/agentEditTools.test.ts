@@ -99,7 +99,7 @@ describe("the edit tools", () => {
   // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheEditToolsAreListedAsEdits
   it("are listed as edits that take a document", () => {
     const tools = new Map(service.allTools().map((tool) => [tool.name, tool]));
-    for (const name of ["write", "uefi_fix_checksum", "fit_fix_checksum"]) {
+    for (const name of ["write", "copy_to_other_pane", "uefi_fix_checksum", "fit_fix_checksum"]) {
       const tool = tools.get(name);
       expect(tool?.annotations, name).toEqual({
         readOnly: false,
@@ -194,6 +194,80 @@ describe("write", () => {
     };
     await call("write", { offset: 1, bytes: "AA BB", label: "X" });
     expect(shown).toEqual([["a", 1, 3, false]]);
+  });
+});
+
+const idOf = (pane: "a" | "b"): string => {
+  const document = paneState(pane)?.document;
+  const place = service.desk.places().find((one) => one.document === document);
+  if (place === undefined) throw new Error("no such pane");
+  return place.id;
+};
+
+describe("copy_to_other_pane", () => {
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyToTheOtherPaneIsOneUndoStepThere
+  it("writes over the same addresses in the other file as one undo step there", async () => {
+    open([1, 2, 3, 4, 5, 6], "a");
+    open([1, 9, 3, 9, 9, 6], "b");
+    service.setEditsAllowed(true);
+    const answer = (
+      await call("copy_to_other_pane", { document: idOf("a"), offset: 1, length: "0x4" })
+    ).json;
+    const read = async (pane: "a" | "b") => [
+      ...((await paneState(pane)?.document.read(0, 6)) ?? []),
+    ];
+    expect(await read("b")).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(await read("a")).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(member(answer, "changed")).toBe(3);
+    expect(member(answer, "to")).toBe(idOf("b"));
+    expect(member(answer, "end")).toBe("0x5");
+    expect(member(answer, "undo")).toBe("Agent: Copy to Other Pane");
+    expect(paneState("b")?.document.undoHistory.undoLabel).toBe("Agent: Copy to Other Pane");
+    expect(paneState("a")?.document.isDirty).toBe(false);
+    await paneState("b")?.document.undo();
+    expect(await read("b")).toEqual([1, 9, 3, 9, 9, 6]);
+
+    // And back, B into A, under the agent's own words.
+    await call("copy_to_other_pane", {
+      document: idOf("b"),
+      offset: 0,
+      length: 2,
+      label: "Take B's header",
+    });
+    expect([...((await paneState("a")?.document.read(0, 2)) ?? [])]).toEqual([1, 9]);
+    expect(paneState("a")?.document.undoHistory.undoLabel).toBe("Agent: Take B's header");
+  });
+
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyOverIdenticalBytesWritesNothing
+  it("writes nothing over identical bytes", async () => {
+    open([1, 2, 3], "a");
+    open([1, 2, 3], "b");
+    service.setEditsAllowed(true);
+    const answer = (await call("copy_to_other_pane", { offset: 0, length: 3 })).json;
+    expect(member(answer, "changed")).toBe(0);
+    expect(member(answer, "undo")).toBeNull();
+    expect(paneState("b")?.document.isDirty).toBe(false);
+  });
+
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyIsRefusedWhereTheMenuRefusesIt
+  it("is refused where the menu refuses it, and never grows the file", async () => {
+    open([1, 2, 3, 4, 5, 6], "a");
+    open([0, 0, 0, 0], "b");
+    const off = await call("copy_to_other_pane", { offset: 0, length: 2 });
+    expect(off.text.startsWith("Editing is switched off.")).toBe(true);
+    service.setEditsAllowed(true);
+    const past = await call("copy_to_other_pane", { document: idOf("a"), offset: 2, length: 4 });
+    expect(past.isError).toBe(true);
+    expect(past.text).toContain("past the end of");
+    expect([...((await paneState("b")?.document.read(0, 4)) ?? [])]).toEqual([0, 0, 0, 0]);
+  });
+
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyNeedsASecondFileThatCanBeWritten
+  it("needs a second file", async () => {
+    open([1, 2, 3], "a");
+    service.setEditsAllowed(true);
+    const alone = await call("copy_to_other_pane", { offset: 0, length: 1 });
+    expect(alone.text).toContain("alone in the window");
   });
 });
 

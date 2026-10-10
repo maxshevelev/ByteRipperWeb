@@ -61,7 +61,6 @@ import {
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { languageStore } from "@/state/settingsStore";
 import {
-  activate,
   menuState,
   paneClosed,
   panesSwapped,
@@ -145,6 +144,7 @@ import { FindBar, focusFindInput } from "@/ui/search/FindBar";
 import { addCut, saveAllPieces, segmentAsks } from "@/ui/segments/segmentCommands";
 import { SettingsDialog, type SettingsTab } from "@/ui/settings/SettingsDialog";
 import { AboutDialog } from "@/ui/shell/AboutDialog";
+import { activateTool } from "@/ui/shell/activateTool";
 import { ContextMenuHost, openContextMenu } from "@/ui/shell/ContextMenu";
 import { desktopBridge } from "@/ui/shell/desktopMenu";
 import { EmptyState } from "@/ui/shell/EmptyState";
@@ -2345,7 +2345,7 @@ export function AppShell() {
         if (tool === undefined || !menuState(tool.id, paneState(front) !== undefined).enabled)
           return;
         event.preventDefault();
-        activate(tool.id);
+        activateTool(tool.id);
       } else if (key === "s" && anyOpen) {
         const target = event.target;
         if (target instanceof Element && target.closest(".hex-scroller") !== null) return;

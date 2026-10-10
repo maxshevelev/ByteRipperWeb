@@ -36,6 +36,7 @@ import {
  * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.tools
  * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.writeLimit
  * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.beforeLimit
+ * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.locate
  */
 
 /** The most bytes one `write` carries: a patch, not an image. */
@@ -47,13 +48,19 @@ export class AgentEditTools {
   readonly desk: AgentDesk;
   /** The edit switch, read at each call. */
   isAllowed: () => boolean = () => false;
+  /**
+   * Where a range lies in the firmware, as `diff` names it — set by the service, which has the
+   * locators.
+   */
+  locate: (place: AgentPlace, range: { start: number; end: number }) => Promise<Json[]> =
+    async () => [];
 
   constructor(desk: AgentDesk) {
     this.desk = desk;
   }
 
   tools(): AgentTool[] {
-    return [this.writeTool()];
+    return [this.writeTool(), this.copyTool()];
   }
 
   // MARK: - write
@@ -123,6 +130,114 @@ export class AgentEditTools {
     // The undo step is named in the app's own language: the person reads it in their Edit menu.
     const name = L("Agent: %1$@", label);
     return this.apply({ name, writes: [{ offset, bytes }] }, place);
+  }
+
+  // MARK: - copy_to_other_pane
+
+  private copyTool(): AgentTool {
+    return agentTool({
+      name: "copy_to_other_pane",
+      title: "Copy bytes to the other pane",
+      description:
+        "Copies a range of one of the window's two files over the same addresses in the other — " +
+        "what Edit ▸ Copy to Other Pane does with the selection. The bytes go from file to file " +
+        "inside ByteRipper and never through you, so there is no size limit: a whole region or " +
+        "volume is one call. Overwrites only: a range past the end of the other file is refused, " +
+        "never grown. One undo step in the receiving file, named by `label`; the copied bytes show " +
+        "red until the person saves, and its pane scrolls to them. The answer says how many bytes " +
+        "actually changed and where in the firmware the range lies. Needs the person's permission " +
+        '— Settings ▸ Agent, "Let agents edit open files". Never saves; checksums are not updated.',
+      inputSchema: AgentSchema.object(
+        {
+          document: AgentSchema.string(
+            "The file to copy from: one of the window's two files, by its id from `documents`. " +
+              "Default: the focused one."
+          ),
+          offset: AgentSchema.offset('The first byte, e.g. "0x7F3000".'),
+          length: AgentSchema.offset("How many bytes, at least 1."),
+          label: AgentSchema.string(
+            "What the copy is, for the undo step, in the person's language. Default: Copy to Other Pane."
+          ),
+        },
+        ["offset", "length"]
+      ),
+      annotations: EDIT,
+      run: async (call) => jsonAnswer(await this.copyToOtherPane(call.arguments)),
+    });
+  }
+
+  /**
+   * @upstream ByteRipperApp/Agent/AgentEditTools.swift#AgentEditTools.copyToOtherPane
+   * @upstream-differs no read-only refusal: a page edits every document it holds in memory, so
+   * there is no destination that cannot be written into
+   */
+  async copyToOtherPane(args: AgentArguments): Promise<Json> {
+    const source = this.desk.placeNamed(args.optionalString("document"));
+    source.onScreen();
+    if (source.slot !== "A" && source.slot !== "B") {
+      throw new AgentToolError(
+        `${source.id} is a part over a file, not one of the window's two files; it has no ` +
+          "pane beside it. Use `write`, or copy in the window's own files."
+      );
+    }
+    const other = this.desk.places().find((one) => one.slot === (source.slot === "A" ? "B" : "A"));
+    if (other === undefined) {
+      throw new AgentToolError(
+        `${source.id} is alone in the window; there is no other pane to copy into. ` +
+          "`compare` puts a second file beside it."
+      );
+    }
+    const offset = args.offset("offset");
+    const length = args.offset("length");
+    if (length <= 0) throw new AgentToolError("Argument `length` must be at least 1.");
+    const sourceSize = source.document.size;
+    if (offset >= sourceSize || length > sourceSize - offset) {
+      throw new AgentToolError(
+        `The range ${hexText(offset)}+${hexText(length)} runs past the end of ${source.id}, ` +
+          `which is ${hexText(sourceSize)} bytes long.`
+      );
+    }
+    this.checkEditable(other);
+    const end = offset + length;
+    const otherSize = other.document.size;
+    if (end > otherSize) {
+      throw new AgentToolError(
+        `The range ends at ${hexText(end)}, past the end of ${other.id}, which is ` +
+          `${hexText(otherSize)} bytes long. Nothing was copied; a copy overwrites, it does not grow the file.`
+      );
+    }
+    const bytes = await source.document.read(offset, length);
+    const there = await other.document.read(offset, length);
+    if (bytes.length !== length || there.length !== length) {
+      throw new AgentToolError(`Could not read ${hexText(length)} bytes at ${hexText(offset)}.`);
+    }
+    let changed = 0;
+    for (let index = 0; index < length; index++) if (bytes[index] !== there[index]) changed += 1;
+    const label = (args.optionalString("label") ?? "").trim();
+    // The undo step is named in the app's own language: the person reads it in their Edit menu.
+    const name = L("Agent: %1$@", label === "" ? L("Copy to Other Pane") : label);
+    const answer: { [key: string]: Json } = {
+      from: source.id,
+      to: other.id,
+      start: hexText(offset),
+      end: hexText(end),
+      length: hexText(length),
+      changed,
+    };
+    const places = await this.locate(source, { start: offset, end });
+    if (places.length > 0) answer.where = places;
+    if (changed === 0) {
+      // Nothing to undo: the other file holds these bytes already.
+      answer.undo = null;
+      answer.note = "The other file already holds these bytes; nothing was written.";
+      return answer;
+    }
+    const applied = await this.apply({ name, writes: [{ offset, bytes }] }, other);
+    if (typeof applied === "object" && applied !== null && !Array.isArray(applied)) {
+      answer.undo = applied.undo ?? null;
+    }
+    answer.saved = false;
+    return answer;
   }
 
   // MARK: - Applying

@@ -115,6 +115,7 @@ import {
   nvramSignaturesTable,
   nvramValueFields,
 } from "@/tools/uefi/nvramValueText";
+import { acerDMIDetail, readsAcerDMI } from "@/tools/uefi/uefiAcerDMIDetail";
 import { lenovoDMIDetail, readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { dvarMeaning, kindLabel, type OwnNameNode, ownName } from "@/tools/uefi/uefiTreeDisplay";
@@ -147,12 +148,16 @@ export function buildNodeDetail(
   const detail = withMapRegions(
     withListedRanges(
       withVariableHistory(
-        withLenovoDMI(
-          buildDetailRows(node, image, reader, repairs),
+        withAcerDMI(
+          withLenovoDMI(
+            buildDetailRows(node, image, reader, repairs),
+            node,
+            image,
+            reader,
+            lenovoDMIReaders
+          ),
           node,
-          image,
-          reader,
-          lenovoDMIReaders
+          reader
         ),
         node,
         image,
@@ -178,6 +183,22 @@ export function buildNodeDetail(
   const format = node.subtype === undefined ? undefined : pictureFormatOf(node.subtype);
   if (bytes === undefined || format === undefined) return detail;
   return { ...detail, picture: { bytes, mime: pictureMimeType(format) } };
+}
+
+/**
+ * Acer's DMI area, read off the block as a whole: the identity fields, and what the
+ * integrity checks found in them.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withAcerDMI(detail: NodeDetail, node: UEFINode, reader: ImageReader): NodeDetail {
+  if (!readsAcerDMI(node.kind)) return detail;
+  const acer = acerDMIDetail(node, reader);
+  return {
+    ...detail,
+    fields: [...detail.fields, ...acer.fields],
+    tables: [...detail.tables, ...acer.tables],
+  };
 }
 
 /**
@@ -1511,6 +1532,11 @@ function headerFields(
     case "ldbgEntry":
     case "lenvBlock":
     case "lenvEntry":
+      break;
+
+    // Acer's DMI area: its fields are read off the block as a whole, in `acerDMIDetail`,
+    // not from one row's bytes.
+    case "acerDMIStore":
       break;
 
     // Its header is the table; the platform and the count are what the blocks say of

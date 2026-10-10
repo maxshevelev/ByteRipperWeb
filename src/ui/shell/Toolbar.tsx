@@ -22,7 +22,6 @@ import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
 import {
-  activate,
   frontSession,
   menuState,
   panesSwapped,
@@ -45,6 +44,7 @@ import {
 import { TOOLS } from "@/tools/registry";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
+import { activateTool } from "@/ui/shell/activateTool";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { canCopyToOtherPane, copySelectionToOtherPane } from "@/ui/shell/copyToOtherPane";
 import { desktopBridge, publishNativeMenu } from "@/ui/shell/desktopMenu";
@@ -557,7 +557,7 @@ export function Toolbar({
     {
       // help: menu.tools.none
       label: L("None"),
-      onSelect: () => activate(undefined),
+      onSelect: () => activateTool(undefined),
     },
     { kind: "separator" },
     ...TOOLS.map((tool, index) => {
@@ -570,7 +570,7 @@ export function Toolbar({
         shortcut: nativeMenuBar && key !== undefined ? `⌘${key}` : undefined,
         checked: row.checked,
         disabled: !row.enabled,
-        onSelect: () => activate(tool.id),
+        onSelect: () => activateTool(tool.id),
       };
     }),
   ]);

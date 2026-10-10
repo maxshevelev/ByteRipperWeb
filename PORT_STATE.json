@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "2c68a8045e43b0dd3e9730d3680de6939e1d3f8d",
-  "baselineNote": "Count an agent once it has spoken, and show the connection in the toolbar too (2026-10-10)"
+  "baseCommit": "afd4bd3935a71a26778642b5b37be74fcba03a04",
+  "baselineNote": "Section the agent's tools by group, a heading to each, instead of a Group column (2026-10-10)"
 }

@@ -395,6 +395,8 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   // A GPNV record says what it holds: the Windows key, or the text in its data — serial
   // numbers, the model — as far as a row has room.
   if (node.kind === "gpnvRecord") return node.valueRow ?? node.name;
+  // Acer's DMI area says what it holds: the serial, the rest in the detail.
+  if (node.kind === "acerDMIStore") return node.valueRow ?? node.name;
   // Lenovo's DMI store says what it holds, decoded: a block its generation, an entry its
   // value, a write of the log what it did.
   if (
@@ -515,6 +517,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   ldbgEntry: L("LDBG entry"),
   lenvBlock: L("LENV block"),
   lenvEntry: L("LENV entry"),
+  acerDMIStore: L("Acer DMI"),
   amdEFS: L("Embedded Firmware Structure"),
   amdDirectory: L("AMD firmware directory"),
   amdFirmwareEntry: L("AMD firmware entry"),

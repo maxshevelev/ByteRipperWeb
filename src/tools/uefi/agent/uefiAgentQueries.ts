@@ -21,6 +21,7 @@ import {
   reachable,
   unknownNode,
 } from "@/tools/uefi/agent/uefiAgentTree";
+import { readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
 import {
   type DisplayNode,
   ownName,
@@ -212,7 +213,8 @@ export function uefiNode(tree: AgentTree, args: AgentArguments): Json {
   const answer: { [key: string]: Json } = {
     node: nodeSummary(node),
     path: pathNames(tree, id),
-    title: detail.title,
+    // A file's own name, the name its Name section gives it, as the panel's detail titles it.
+    title: node.kind === "file" ? (ownName(node) ?? detail.title) : detail.title,
     fields: detail.fields.map((field) => {
       const entry: { [key: string]: Json } = { label: field.label, value: field.value };
       if (isProblemField(field)) entry.problem = true;
@@ -227,6 +229,19 @@ export function uefiNode(tree: AgentTree, args: AgentArguments): Json {
     }));
   }
   return answer;
+}
+
+/**
+ * Whether the node's detail is one that reads Lenovo's DMI store with the drivers that read it —
+ * which the page searches for the first time it is asked, and waits for.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.lenovoDMIReaders
+ */
+export function uefiNodeReadsLenovoDMI(tree: AgentTree, args: AgentArguments): boolean {
+  const id = parseNodeId(args.optionalString("node"));
+  reachable(tree, id);
+  const node = id.length === 0 ? undefined : nodeAtPath(tree, id);
+  return node !== undefined && readsLenovoDMI(node.kind);
 }
 
 // MARK: - uefi_find

@@ -461,13 +461,30 @@ Lost fields are not always lost for good. Some vendors — HP and Acer among the
 
 Where the fields sit inside the image is not standardised. Each vendor puts them where it likes and the layout moves between generations, so carrying them over is in general a job of comparing two images.
 
-Lenovo InsydeH2O firmware is the exception the app reads: it keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]).
+Three layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. Each layout was read off the dumps of that vendor's laptops; none of the three has published it.
 
 **Tools ▸ UEFI Structure** shows that store as one row of the tree, **Lenovo DMI**, wherever in the image it lies: in place of the three regions the Insyde flash device map declares as "Unknown", or inside padding where there is no map. Its detail names the block the firmware reads and lists that block's entries decoded, the serial number and the UUID among them; a click on an entry opens its row. Under the row are the change log and both blocks, each entry with its value beside its name.
 
 @see term:serial-data
 @see term:lenv
+@see term:gpnv
+@see term:acer-dmi
 @see topic:recipe-board-data
+
+@term acer-dmi
+@name Acer DMI
+@short The block in which Acer's firmware keeps what the factory wrote of the machine: the system serial, the motherboard serial, the UUID, the model — in the padding of the BIOS region.
+
+Acer's firmware keeps the machine's identity in an 8 KiB block in the [[term:padding|padding]] of the BIOS region: the system serial number, the motherboard serial, the machine UUID, the model and the product name. There is no fixed address: the block is not in the PDR, it is declared nowhere, and on the laptops at hand it sits at a different address for each model.
+
+The [[topic:tool-uefi|UEFI tool]] finds it by its content: the signature `06 FF FF FF 41 63 65 72` at a fixed offset into the block — the constant `06`, three erased bytes, `Acer` — and the shape of the block: a 22-character serial beginning `N`, a 22-character motherboard serial beginning `NB`, and erased bytes in the rest of the block. Where all of this holds, the tree shows the block as one row, **Acer DMI**, the serial beside the name in the row; where the block is wiped there is nothing left to find, and the row is not shown.
+
+The detail lists the identity fields as the block holds them: the system serial, the motherboard serial, the UUID, the model, and where written the asset tag, the product name and the manufacturing code. Under the fields, what the integrity checks found in them: a serial or a motherboard serial that no longer holds the factory pattern — the factory system serials read `00` at offset 7 and `3400` at the end, the factory motherboard serials `1100` at offset 5 —, a UUID that is not a version 1 one or whose variant bit is not set. The block also holds a copy of the last six bytes of the UUID; where the copy no longer reads as the UUID, it has gone stale — the UUID was written after the copy. The block holds no checksums at all, so a change leaves no broken checksum to point at it; what the checks report is all the image says of the change.
+
+Acer has not published the layout; it was read off the dumps of the laptops at hand. It is a method of Acer's firmware, not of DMI: other vendors put the same fields elsewhere, and what the app reads of them is named under [[term:dmi|DMI]]. To carry the area to another dump, copy the whole block to the same address.
+
+@see term:dmi
+@see term:padding
 
 @term lenv
 @name LENV block

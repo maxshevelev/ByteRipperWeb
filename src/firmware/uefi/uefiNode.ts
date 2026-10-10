@@ -160,6 +160,13 @@ export type UEFINodeKind =
   | "lenvBlock"
   | "lenvEntry"
   /**
+   * The DMI area where Acer's firmware keeps the machine's identity (`AcerDMIArea`): an
+   * 8 KiB block of the system serial, the motherboard serial, the UUID, the model. Read out
+   * of the padding inside the BIOS region — no PDR, no fixed offset, found by its content.
+   * Padding to UEFITool, as a GPNV store is.
+   */
+  | "acerDMIStore"
+  /**
    * The AMD PSP's map read out of padding (`AMDFirmware`): the Embedded Firmware Structure,
    * a directory — the subtype is its `DirectoryKind` — and a blob a directory lists, whose
    * subtype is its type. Padding to UEFITool, as an HP signature block is.

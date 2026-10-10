@@ -16,7 +16,7 @@ import {
   READ_ONLY,
   VIEW,
 } from "@/core/agent/agentTool";
-import { type Json, jsonText } from "@/core/agent/json";
+import { type Json, jsonText, member } from "@/core/agent/json";
 import { CopyPartCodec } from "@/core/parts/partCodec";
 import { maskedMatches } from "@/core/search/maskedSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -38,6 +38,7 @@ import { openLinkedPart } from "@/state/openLinkedPart";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import { paneState } from "@/state/workspaceStore";
 import type { ToolAgentPlace } from "@/tools/toolAgent";
+import { isSecretName } from "@/tools/uefi/agent/uefiAgentRegions";
 import { compressionName, nodeOpen, partName } from "@/tools/uefi/uefiPresenter";
 
 /**
@@ -95,7 +96,8 @@ export class AgentFindTools {
         "around them — with part `decompressed` for a section's. " +
         "Each match: `start`, `end` (half-open), the `encoding` that matched, `where` it is — as " +
         "`diff` places a run: the top-level area and the deepest node that holds it — and, with " +
-        "`context`, a `preview` of the bytes around it. `total` counts every match in the range. " +
+        "`context`, a `preview` of the bytes around it — none, and `redacted: true`, in an area the flash " +
+        "map names MSDM, Password or Key. `total` counts every match in the range. " +
         'Matches do not overlap unless `overlapping`: "AA" in "AAAA" is two, or three with it. ' +
         "Pages: `limit` is a ceiling — a page also stops before the answer passes the size bound and " +
         'says `truncated: "size"`; pass `next` back as `after` until it is null. With `survey`, which ' +
@@ -218,6 +220,22 @@ export class AgentFindTools {
       const places: ToolAgentPlace[][] = await this.diff.locate(host, spans);
       for (const [index, item] of items.entries()) {
         item.where = (places[index] ?? []).map(placeJson);
+      }
+    }
+    // An area the flash map names for a secret — MSDM, a password, a key — gives its matches but
+    // not the bytes around them.
+    //
+    // @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.find
+    if (context > 0) {
+      for (const item of items) {
+        const places = Array.isArray(item.where) ? item.where : [];
+        const secret = places.some((one) => {
+          const name = member(one, "name");
+          return typeof name === "string" && isSecretName(name);
+        });
+        if (!secret) continue;
+        delete item.preview;
+        item.redacted = true;
       }
     }
     return paging.answer(envelope, "matches", items, total, args.answerBound, (item) => {

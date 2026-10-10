@@ -96,6 +96,8 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return termId("gpnv");
     case "lenovoDMIStore":
       return termId("dmi");
+    case "acerDMIStore":
+      return termId("acer-dmi");
     case "lenvBlock":
     case "lenvEntry":
       return termId("lenv");
