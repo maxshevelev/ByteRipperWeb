@@ -23,8 +23,9 @@ import { CloseButton } from "@/ui/shell/CloseButton";
  * Window ▸ Agent: whether the agent service is running, who is connected, and every call an agent
  * has made, newest at the bottom.
  *
- * A panel of the page, floating over it and not in the dock: the dock's panels cover the panes, and
- * the panes are what the conversation is about. One for the app, like Settings.
+ * A panel in the dock, as the help book is: a pill that stays when the panel is folded, and the
+ * panel over the panes when it is up. One for the app. A reveal the agent asks for folds it, so the
+ * bytes it points at are not behind it.
  *
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.service
@@ -36,7 +37,7 @@ import { CloseButton } from "@/ui/shell/CloseButton";
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showTools
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.toolsPage
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.logSelection
- * @upstream-differs a floating panel of the page rather than a window of its own
+ * @upstream-differs a panel in the dock rather than a window of its own
  */
 // help: window.agent
 export function AgentWindow({ onSettings }: { readonly onSettings: () => void }) {

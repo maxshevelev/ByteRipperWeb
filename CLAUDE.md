@@ -68,6 +68,12 @@ Important rules:
   drawing lags, fix what is repainted; do not cache what was painted.
 - One workspace per browser tab. No in-app tabs, no window management, no pane
   dragging — that was a deliberate decision, not an omission.
+- **Every additional window opens as a panel in the fragment dock.** A part, the
+  help book and the Agent window each take a pill in the dock along the bottom
+  edge and rise from it as the panel over the panes; a new one is another kind
+  of panel beside them (`workspaceStore.helpPanel`, `agentPanel`), never a
+  floating window, a modal or a corner of its own. At most one per kind, raised
+  when asked for again; Esc folds it, ✕ on the pill closes it.
 - **A name the help puts in bold is a promise.** After renaming anything
   user-visible, or editing a help page that quotes the interface, also run:
   `python3 Skills/help-names/scripts/help_names.py`

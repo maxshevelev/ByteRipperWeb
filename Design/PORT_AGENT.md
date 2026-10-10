@@ -51,8 +51,10 @@ which now says "browser only".
   answered by the main process only while the service is switched on, and
   feeding a `ByteSource` the chunked storage reads through.
 - **The Agent window** is a panel of the app, since there are no windows: the
-  help book's place in the fragment dock, opened from the toolbar's menu
-  (Window ▸ Agent) and by a button while the service is on.
+  help book's place in the fragment dock — a pill, and the panel over the
+  panes when it is up — opened from the toolbar's menu (Window ▸ Agent) and by
+  a button while the service is on. `workspaceStore.agentPanel` is the second
+  panel of that kind beside `helpPanel`.
 - **Language.** An agent's answers are English whatever the window speaks:
   a scoped language override on `L()`, set around a call — in the page and in
   the firmware worker, which builds the UEFI detail.

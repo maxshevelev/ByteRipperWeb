@@ -32,6 +32,7 @@ afterEach(() => {
     ...state,
     dock: EMPTY_DOCK,
     helpPanel: undefined,
+    agentPanel: undefined,
   }));
 });
 

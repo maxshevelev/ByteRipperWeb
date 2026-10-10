@@ -91,7 +91,7 @@ Jede Änderung des Agenten bildet einen eigenen Schritt im Widerrufen-Verlauf de
 
 ## Das Agentenfenster
 
-**Fenster ▸ Agent** zeigt, ob der Dienst läuft, und enthält vier Listen. Solange der Dienst eingeschaltet ist, befindet sich in der Symbolleiste zwischen **?** und dem Umschalter für die Anordnung der Bereiche eine Taste für dieses Fenster; sie öffnet das Agentenfenster oder schließt es, falls es bereits geöffnet ist. Die Tastatur wirkt danach auf die Liste der angezeigten Seite; die Pfeiltasten bewegen die Auswahl durch ihre Zeilen. Beim Wechsel auf eine andere Seite geht die Tastatur auf deren Liste über.
+**Fenster ▸ Agent** zeigt, ob der Dienst läuft, und enthält vier Listen. Solange der Dienst eingeschaltet ist, befindet sich in der Symbolleiste zwischen **?** und dem Umschalter für die Anordnung der Bereiche eine Taste für dieses Fenster; sie öffnet das Fenster als Feld über den Bereichen, mit einer Pille im Dock am unteren Rand, wie bei der Hilfe, und schließt es, solange es oben steht. Wird das Feld eingeklappt (**Esc** oder die Pille), bleibt die Pille stehen und das Fenster ist einen Klick entfernt; das ✕ an der Pille schließt es. Die Tastatur wirkt danach auf die Liste der angezeigten Seite; die Pfeiltasten bewegen die Auswahl durch ihre Zeilen. Beim Wechsel auf eine andere Seite geht die Tastatur auf deren Liste über.
 
 **Protokoll** verzeichnet jede Anfrage des Agenten mit Uhrzeit, Werkzeug, den Argumenten in der vom Agenten übergebenen Form, Antwortzeit, Größe der Antwort und Ergebnis. Abgelehnte Anfragen sind rot dargestellt, zusammen mit dem Grund, der dem Agenten mitgeteilt wurde.
 

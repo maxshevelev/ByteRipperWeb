@@ -288,6 +288,14 @@ export interface WorkspaceState {
    */
   readonly helpPanel: PanelId | undefined;
   /**
+   * The Agent window's panel, when it is open: the same kind of thing as the
+   * help book — a pill in the dock holding no bytes, at most one, raised when
+   * asked for again. Every extra window of the web edition opens this way.
+   *
+   * @web-only upstream opens a window; there are none here
+   */
+  readonly agentPanel: PanelId | undefined;
+  /**
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
    */
@@ -379,6 +387,7 @@ export const workspaceStore = createStore<WorkspaceState>({
   parts: {},
   dock: EMPTY_DOCK,
   helpPanel: undefined,
+  agentPanel: undefined,
   layout: "sideBySide",
   splitFraction: 0.5,
   activePane: "a",
@@ -445,7 +454,9 @@ function withPane(state: WorkspaceState, pane: PaneId, next: PaneState): Workspa
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.frontPane
  */
 export const frontPane = (state: WorkspaceState): PaneId =>
-  state.dock.expanded === undefined || state.dock.expanded === state.helpPanel
+  state.dock.expanded === undefined ||
+  state.dock.expanded === state.helpPanel ||
+  state.dock.expanded === state.agentPanel
     ? state.activePane
     : partPane(state.dock.expanded);
 
@@ -1067,6 +1078,57 @@ export function toggleHelpPanel(): void {
     workspaceStore.update((now) => ({
       ...now,
       dock: now.helpPanel === undefined ? now.dock : expandPanel(now.dock, now.helpPanel).dock,
+    }));
+}
+
+/**
+ * Opens the Agent panel, or raises the one that is already in the dock.
+ *
+ * @web-only upstream shows the Agent in a window of its own
+ */
+export function openAgentPanel(): void {
+  workspaceStore.update((state) => {
+    if (state.agentPanel !== undefined) {
+      return { ...state, dock: expandPanel(state.dock, state.agentPanel).dock };
+    }
+    const opened = openPanel(state.dock);
+    return { ...state, dock: opened.dock, agentPanel: opened.id };
+  });
+}
+
+/** Whether the Agent panel is the one up over the panes. */
+export const agentPanelIsUp = (state: WorkspaceState): boolean =>
+  state.agentPanel !== undefined && state.dock.expanded === state.agentPanel;
+
+/**
+ * Takes the Agent out of the dock; the pill goes with it.
+ *
+ * @web-only upstream closes a window
+ */
+export function closeAgentPanel(): void {
+  workspaceStore.update((state) => {
+    if (state.agentPanel === undefined) return state;
+    return {
+      ...state,
+      dock: removePanel(state.dock, state.agentPanel).dock,
+      agentPanel: undefined,
+    };
+  });
+}
+
+/**
+ * The Agent pill's own click: the panel that is up folds, a folded one rises.
+ *
+ * @web-only the pill is the web's, upstream's Agent being a window
+ */
+export function toggleAgentPanel(): void {
+  const state = workspaceStore.getSnapshot();
+  if (state.agentPanel === undefined) return;
+  if (state.dock.expanded === state.agentPanel) foldParts();
+  else
+    workspaceStore.update((now) => ({
+      ...now,
+      dock: now.agentPanel === undefined ? now.dock : expandPanel(now.dock, now.agentPanel).dock,
     }));
 }
 

@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { L } from "@/core/localization/localization";
+import { agentService } from "@/state/agent/agentService";
 import { closeHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
 import {
@@ -8,10 +9,12 @@ import {
   type PaneState,
   type PartId,
   partPane,
+  toggleAgentPanel,
   toggleHelpPanel,
   togglePart,
   workspaceStore,
 } from "@/state/workspaceStore";
+import { AgentWindow } from "@/ui/agent/AgentWindow";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
 import {
   FragmentPanel,
@@ -49,11 +52,14 @@ import { HelpPanel } from "@/ui/help/HelpPanel";
 export function FragmentPanels({
   renderPane,
   onClose,
+  onAgentSettings,
 }: {
   /** The dump for a part, wired by the shell. */
   readonly renderPane: (pane: PartId, part: PaneState) => React.ReactNode;
   /** The pill's ✕: the same close the panel's own header asks for. */
   readonly onClose: (pane: PartId) => void;
+  /** The Agent panel's link to Settings ▸ Agent. */
+  readonly onAgentSettings: () => void;
 }) {
   const state = useStore(workspaceStore);
   // The pill's dot is about bytes, which the workspace store does not change
@@ -98,14 +104,16 @@ export function FragmentPanels({
     title:
       id === state.helpPanel
         ? L("Help", { context: "panel" })
-        : (state.parts[partPane(id)]?.name ?? ""),
-    isHelp: id === state.helpPanel,
+        : id === state.agentPanel
+          ? L("Agent")
+          : (state.parts[partPane(id)]?.name ?? ""),
+    kind: id === state.helpPanel ? "help" : id === state.agentPanel ? "agent" : "part",
     isUp: state.dock.expanded === id,
     // The dot is "the parent has not got these bytes", which is the link's
     // question; a part with no link falls back to its own unsaved work, which
     // is upstream's own fallback.
     // A book has no bytes to give back, so it never wears the dot.
-    hasChanges: id !== state.helpPanel && unreturned.has(partPane(id)),
+    hasChanges: id !== state.helpPanel && id !== state.agentPanel && unreturned.has(partPane(id)),
   }));
   if (items.length === 0) return null;
 
@@ -113,6 +121,7 @@ export function FragmentPanels({
   const folding = folded !== undefined;
   const up = folded ?? state.dock.expanded;
   const helpIsUp = up !== undefined && up === state.helpPanel;
+  const agentIsUp = up !== undefined && up === state.agentPanel;
   const motion = {
     pill: up,
     opensOutOfPill: raisedFromNothing && !folding,
@@ -127,7 +136,8 @@ export function FragmentPanels({
       return true;
     },
   };
-  const pane: PartId | undefined = up === undefined || helpIsUp ? undefined : partPane(up);
+  const pane: PartId | undefined =
+    up === undefined || helpIsUp || agentIsUp ? undefined : partPane(up);
   const part = pane === undefined ? undefined : state.parts[pane];
 
   return (
@@ -138,6 +148,12 @@ export function FragmentPanels({
             <HelpPanel />
           </FragmentPanel>
         </FragmentPanelHost>
+      ) : agentIsUp ? (
+        <FragmentPanelHost folding={folding}>
+          <FragmentPanel {...motion}>
+            <AgentWindow onSettings={onAgentSettings} />
+          </FragmentPanel>
+        </FragmentPanelHost>
       ) : pane !== undefined && part !== undefined ? (
         <FragmentPanelHost folding={folding}>
           <FragmentPanel {...motion}>{renderPane(pane, part)}</FragmentPanel>
@@ -145,8 +161,20 @@ export function FragmentPanels({
       ) : null}
       <FragmentDockStrip
         items={items}
-        onSelect={(id) => (id === state.helpPanel ? toggleHelpPanel() : togglePart(partPane(id)))}
-        onClose={(id) => (id === state.helpPanel ? closeHelp() : onClose(partPane(id)))}
+        onSelect={(id) =>
+          id === state.helpPanel
+            ? toggleHelpPanel()
+            : id === state.agentPanel
+              ? toggleAgentPanel()
+              : togglePart(partPane(id))
+        }
+        onClose={(id) =>
+          id === state.helpPanel
+            ? closeHelp()
+            : id === state.agentPanel
+              ? agentService.setWindowOpen(false)
+              : onClose(partPane(id))
+        }
       />
     </>
   );

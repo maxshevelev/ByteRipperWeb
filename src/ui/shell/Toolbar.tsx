@@ -32,6 +32,7 @@ import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { checkForUpdate } from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
 import {
+  agentPanelIsUp,
   frontPane,
   paneIn,
   type SlotId,
@@ -628,8 +629,8 @@ export function Toolbar({
               // help: menu.window.agent
               {
                 label: L("Agent"),
-                checked: agent.windowOpen,
-                onSelect: () => agentService.setWindowOpen(!agent.windowOpen),
+                checked: agentPanelIsUp(state),
+                onSelect: () => agentService.toggleWindow(),
               },
             ] satisfies MenuEntry[])
           : []),
@@ -890,8 +891,8 @@ export function Toolbar({
               running: agent.running,
               connections: agent.connections,
             })}`}
-            pressed={agent.windowOpen}
-            onClick={() => agentService.setWindowOpen(!agent.windowOpen)}
+            pressed={agentPanelIsUp(state)}
+            onClick={() => agentService.toggleWindow()}
           >
             <AgentGlyph connected={agent.connections > 0} />
           </IconButton>

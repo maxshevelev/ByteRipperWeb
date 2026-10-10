@@ -185,7 +185,7 @@ How every part of the desktop app lands here. Four verdicts:
 | --- | --- | --- |
 | The help book: ~40 pages and three glossaries, keyed by stable ids | Same | Structure in code, words in content files, six rules of markup — upstream's shape whole (`Design/HELP.md`). |
 | A `?` beside the thing it explains | Same | The empty state, a tool panel's header, a firmware row's term, the find bar, the Segments and Go To forms, Settings ▸ Editing. |
-| Where the book is shown | Adapted | Upstream opens a window; there are no windows here, so the book takes a pill in the fragment dock and opens as the panel over the panes. |
+| Where the book is shown | Adapted | Upstream opens a window; there are no windows here, so the book takes a pill in the fragment dock and opens as the panel over the panes. The Agent window opens the same way, as does every extra window (`CLAUDE.md`). |
 | The Help menu | Adapted | No menu bar: a Help block in the toolbar's menu, and `F1` / `⌘/` for the book, `⌘?` being spent in a browser. |
 | The pages themselves | Adapted | Every page that describes the Finder, a save that writes in place, a relaunch or Open Recent is rewritten for what this edition actually does. The glossaries port verbatim: `$FPT` is `$FPT` everywhere. |
 | English, Russian and German, keyed by the English text | Same | Upstream's `.strings` catalogues and positional placeholders, so a string can be carried between the two repositories (`Design/LOCALIZATION.md`). |

@@ -47,15 +47,14 @@ export interface DockItem {
    */
   readonly hasChanges: boolean;
   /**
-   * Whether this pill is the help book rather than a part of a dump.
+   * What the pill holds: a part of a dump, the help book or the Agent window.
+   * Decides the glyph and what the ✕ is called — the dock holds identity and
+   * order and nothing else, so a book is not a document, and "Close chip.bin"
+   * is not what closing it does.
    *
-   * The dock holds identity and order and nothing else, so the one thing it
-   * has to know is which glyph to draw and what to call the ✕ — a book is not
-   * a document, and "Close chip.bin" is not what closing it does.
-   *
-   * @web-only upstream's book is a window and never reaches a dock
+   * @web-only upstream's book and Agent are windows and never reach a dock
    */
-  readonly isHelp?: boolean;
+  readonly kind?: "part" | "help" | "agent";
 }
 
 /**
@@ -90,13 +89,20 @@ function FragmentPill({
         title={item.title}
         aria-pressed={item.isUp}
       >
-        {item.isHelp === true ? (
+        {item.kind === "help" ? (
           // A question mark in a circle: the sign the `?` buttons wear, so the
           // pill the book waits in is recognisably the same thing they open.
           <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="8" cy="8" r="6.2" />
             <path d="M6.1 6.1a1.9 1.9 0 1 1 2.5 1.8c-.5.2-.8.6-.8 1.1v.4" />
             <circle cx="7.8" cy="11.6" r="0.75" />
+          </svg>
+        ) : item.kind === "agent" ? (
+          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="2.5" y="4.5" width="11" height="8" rx="2" />
+            <path d="M8 4.5V2.5" />
+            <circle cx="6" cy="8.5" r="0.75" />
+            <circle cx="10" cy="8.5" r="0.75" />
           </svg>
         ) : (
           /* Upstream's `doc` symbol. The part is a document like any other, and
@@ -115,7 +121,13 @@ function FragmentPill({
         ) : null}
       </button>
       <CloseButton
-        label={item.isHelp === true ? L("Close the help") : L("Close %1$@", item.title)}
+        label={
+          item.kind === "help"
+            ? L("Close the help")
+            : item.kind === "agent"
+              ? L("Close the Agent")
+              : L("Close %1$@", item.title)
+        }
         onClick={onClose}
       />
     </li>

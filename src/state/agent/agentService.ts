@@ -26,6 +26,12 @@ import {
   rememberAgentEnabled,
 } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
+import {
+  agentPanelIsUp,
+  closeAgentPanel,
+  openAgentPanel,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
 import type { ToolModule } from "@/tools/toolModule";
 import { appVersionText } from "@/ui/shell/appVersion";
@@ -75,13 +81,6 @@ export interface AgentServiceState {
    * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.toolStats
    */
   readonly toolStats: Readonly<Record<string, AgentToolStats>>;
-  /**
-   * Whether the Agent window is up.
-   *
-   * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
-   * @web-only a panel of the page; there are no windows
-   */
-  readonly windowOpen: boolean;
   /** What a client is configured with, once the shell has said. */
   readonly relay: RelayCommand | undefined;
 }
@@ -95,7 +94,6 @@ const INITIAL: AgentServiceState = {
   connections: 0,
   log: [],
   toolStats: {},
-  windowOpen: false,
   relay: undefined,
 };
 
@@ -447,7 +445,15 @@ export class AgentService {
 
   /** Shows or hides the Agent window. @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentWindow */
   setWindowOpen(open: boolean): void {
-    this.store.update((state) => ({ ...state, windowOpen: open }));
+    // The window is a pill in the dock and a panel over the panes (`Design/HELP.md`, "Where the
+    // book is shown"): open raises it, closed takes the pill away.
+    if (open) openAgentPanel();
+    else closeAgentPanel();
+  }
+
+  /** The menu item's and the button's click: the panel that is up goes, any other comes. */
+  toggleWindow(): void {
+    this.setWindowOpen(!agentPanelIsUp(workspaceStore.getSnapshot()));
   }
 
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.resetToolStats */

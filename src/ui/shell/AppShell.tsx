@@ -111,7 +111,6 @@ import {
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
 import { TOOLS } from "@/tools/registry";
-import { AgentWindow } from "@/ui/agent/AgentWindow";
 import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
@@ -700,7 +699,6 @@ export function AppShell() {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const agentWindowOpen = useStore(agentService.store).windowOpen;
   /** The tab Settings was asked to open on, when the opener named one. */
   const [settingsTab, setSettingsTab] = useState<SettingsTab | undefined>(undefined);
   /** The pane whose header name is a field right now (§23). */
@@ -2489,7 +2487,17 @@ export function AppShell() {
       {/* After the panes and the two side panels in the document as well as on
           screen: the panel is laid over all three, and the dock takes a row of
           its own under them. */}
-      <FragmentPanels renderPane={partElement} onClose={(pane) => void closeWithWarning(pane)} />
+      <FragmentPanels
+        renderPane={partElement}
+        onClose={(pane) => void closeWithWarning(pane)}
+        // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings
+        // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showAgent
+        // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.agent
+        onAgentSettings={() => {
+          setSettingsTab("agent");
+          setSettingsOpen(true);
+        }}
+      />
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
@@ -2530,17 +2538,6 @@ export function AppShell() {
         onClose={() => setSelectBlock(undefined)}
       />
       <TransientNotice />
-      {agentWindowOpen ? (
-        <AgentWindow
-          // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings
-          // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showAgent
-          // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.agent
-          onSettings={() => {
-            setSettingsTab("agent");
-            setSettingsOpen(true);
-          }}
-        />
-      ) : null}
       <SettingsDialog
         open={settingsOpen}
         tab={settingsTab}
