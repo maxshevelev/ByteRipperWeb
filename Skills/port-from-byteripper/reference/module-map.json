@@ -4436,8 +4436,8 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testBackChoosesTheRowAfterTheToolWasClosedAndOpenedAgain": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheDMIButtonGoesToTheStore": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testWithoutAStoreThereIsNoDMIButton": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
-        "ByteRipperTests/SettingsWindowSizeTests.swift#SettingsWindowSizeTests.testTheTabOnScreenIsMarkedAndNamed": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/SettingsWindowTests.swift#SettingsWindowTests.testTheViewTabsLabelsLineUp": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/SettingsWindowSizeTests.swift#SettingsWindowSizeTests.testTheTabOnScreenIsMarkedAndNamed": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
+        "ByteRipperTests/SettingsWindowTests.swift#SettingsWindowTests.testTheViewTabsLabelsLineUp": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep"
       }
     },
@@ -5516,12 +5516,32 @@
         "ByteRipperTests/AgentFindToolsTests.swift": [
           "src/state/agent/agentDiffTools.test.ts",
           "src/state/agent/agentNodeLinks.test.ts",
-          "src/state/agent/agentFirmwareParts.test.ts"
+          "src/state/agent/agentFirmwareParts.test.ts",
+          "src/state/agent/agentFirmwareTools.test.ts"
         ],
         "ByteRipperTests/AgentEditToolsTests.swift": [
           "src/state/agent/agentEditTools.test.ts",
-          "src/state/agent/agentFirmwareParts.test.ts"
+          "src/state/agent/agentFirmwareParts.test.ts",
+          "src/state/agent/agentFirmwareTools.test.ts"
         ],
+        "ByteRipperTests/AgentServiceTests.swift": [
+          "src/state/agent/agentService.test.ts",
+          "src/state/agent/agentHostTools.test.ts",
+          "src/state/agent/agentModuleTools.test.ts"
+        ],
+        "ByteRipperTests/AgentUITests.swift": [
+          "src/state/agent/agentService.test.ts",
+          "src/core/agent/agentLogText.test.ts",
+          "src/core/agent/agentClientConfiguration.test.ts",
+          "src/state/agent/agentToolCatalogue.test.ts",
+          "src/ui/agent/agentColumns.test.ts"
+        ],
+        "ByteRipperTests/AgentModuleToolsTests.swift": [
+          "src/state/agent/agentModuleTools.test.ts",
+          "src/tools/uefi/agent/uefiAgentModule.test.ts",
+          "src/state/agent/agentFirmwareTools.test.ts"
+        ],
+        "ByteRipperTests/LenovoTestImage.swift": "src/state/testing/firmwareImages.ts",
         "AgentNodeLinks.swift": [
           "src/state/agent/agentNodeLinks.ts",
           "src/state/agent/agentNodeSource.ts"
@@ -5602,11 +5622,14 @@
         "ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.stats": "n/a — the page is handed the service's stats as a prop",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyNamesThePartOfTheFirmwareItCovers": "n/a — the range is placed by the locators, which ask the firmware worker, which a unit test does not have; checked in a real page",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAFileOpenedReadOnlyIsNeverChanged": "n/a — the web edition has no file opened read-only",
-        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAVolumeChecksumIsPutRightAsOneUndoStep": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
-        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheFITChecksumIsPutRight": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
+        "ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testAClientReachesTheServiceThroughTheSocket": "n/a — the socket is the desktop shell's: `desktop/test/agent.test.cjs` sends a line through the real endpoint and relay and back, outside `src/`, which the anchor check reads; the page's half is the in-memory connection every agent test drives",
+        "ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testTheMenuBarMarkFillsWhenAnAgentConnects": "n/a — the web edition has no menu bar extra: the toolbar button's and the dock pill's glyph is filled from the store's connection count (`AgentGlyph`), and that count is `testASilentConnectionIsNotCountedAsAnAgent`",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheKeyboardIsOnThePagesList": "later — an app flow test (G24): the keyboard on a page's list is the mounted window's",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheLogKeepsItsSelectionAndFollowsOnlyWhenAsked": "later — an app flow test (G24): the selection and the scroll are the mounted window's",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheRelayIsInsideTheAppBundle": "n/a — a Mac app bundle's Helpers folder; the desktop shell's relay is `desktop/relay.cjs`, which `desktop/test/agent.test.cjs` runs",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheSettingsWindowHasAnAgentTab": "later — an app flow test (G24): the Settings tabs are the dialog's, and the Agent tab is there only where a shell serves the service",
+        "ByteRipperTests/LenovoTestImage.swift#LenovoTestImage.le32": "n/a — test scaffolding: the shared `u32` writer of `firmwareImages.ts`",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheSettingsSwitchAllowsEdits": "later — a component test of Settings ▸ Agent's edit switch",
-        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionIsSearchedInWhatItDecompressesTo": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
-        "ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeOfTheFileReadsAsReadDoes": "later — portable now: `agentFirmwareParts.test.ts` runs the real firmware worker in the test thread; not yet ported (G80)",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#AgentFirmwareToolsTests.testAComparisonNeedsTwoDocuments": "n/a — the module's tools are asked of the firmware worker; their pure answers are tested in `fitAgentAnswers.test.ts`, `uefiAgentVariables.test.ts`, `meAgentAnswers.test.ts` and `agentDumpTools.test.ts`",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#AgentFirmwareToolsTests.testASurveyComparesAFolderWithOneDump": "n/a — the module's tools are asked of the firmware worker; their pure answers are tested in `fitAgentAnswers.test.ts`, `uefiAgentVariables.test.ts`, `meAgentAnswers.test.ts` and `agentDumpTools.test.ts`",
         "ByteRipperTests/AgentFirmwareToolsTests.swift#AgentFirmwareToolsTests.testAnImageWithNoStoreSaysSo": "n/a — the module's tools are asked of the firmware worker; their pure answers are tested in `fitAgentAnswers.test.ts`, `uefiAgentVariables.test.ts`, `meAgentAnswers.test.ts` and `agentDumpTools.test.ts`",

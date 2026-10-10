@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { AgentArguments } from "@/core/agent/agentArguments";
+import { argumentsText, detailFields } from "@/core/agent/agentLogText";
+import { agentStatusText } from "@/core/agent/agentStatus";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { AGENT_INSTRUCTIONS, AgentService } from "@/state/agent/agentService";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { closePart, openInPane, workspaceStore } from "@/state/workspaceStore";
+import { closeLargeDetail, largeDetailStore, showLargeDetail } from "@/state/largeDetailStore";
+import { agentPanelIsUp, closePart, openInPane, workspaceStore } from "@/state/workspaceStore";
 
 /**
  * The service's connections: counted once their client has spoken.
@@ -108,6 +111,161 @@ describe("what the service tells a client", () => {
     const log = service.store.getSnapshot().log;
     expect(log.map((one) => one.outcome.kind)).toEqual(["answered"]);
     expect(Object.keys(service.store.getSnapshot().toolStats)).toEqual(["documents"]);
+  });
+});
+
+/** What the Settings tab and the Agent window say of `service`. */
+const statusOf = (service: AgentService): string => {
+  const state = service.store.getSnapshot();
+  return agentStatusText({
+    available: service.isAvailable,
+    failure: state.failure,
+    running: state.running,
+    connections: state.connections,
+  });
+};
+
+describe("the log", () => {
+  afterEach(() => {
+    workspaceStore.update((state) => ({ ...state, panes: { a: undefined, b: undefined } }));
+  });
+
+  // Every call is logged — an answer as answered, a refusal as one.
+  // @upstream ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testTheLogHearsEveryCall
+  it("hears every call", async () => {
+    const service = new AgentService(undefined, () => []);
+    openInPane("a", {
+      name: "x.bin",
+      size: 4,
+      lastModified: 0,
+      source: new Blob([new Uint8Array(4)]),
+    });
+    const connection = service.connect(() => undefined);
+    connection.receive(
+      encodeUtf8(
+        '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"focus","arguments":{}}}\n' +
+          '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read","arguments":{"offset":"0x99999"}}}\n'
+      )
+    );
+    await connection.waitUntilIdle();
+    const log = service.store.getSnapshot().log;
+    expect(log.map((one) => one.tool)).toEqual(["focus", "read"]);
+    expect(log[0]?.outcome.kind).toBe("answered");
+    expect(log[1]?.outcome.kind).toBe("toolError");
+  });
+});
+
+describe("the details of a call", () => {
+  // The selected call is shown whole: the result's sentence, and the arguments as the JSON the
+  // agent sent, one member to a line — and Space or the corner button opens them over the window.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheDetailsShowTheSelectedCallWhole
+  // @upstream-differs what the window draws is the details' rows (`detailFields`, `argumentsText`),
+  // with no window to select a row in; the large view is the store's (`largeDetailStore`), and the
+  // JSON reads `"key": value` where Foundation writes `"key" : value`
+  it("show the selected call whole", async () => {
+    const service = new AgentService(undefined, () => []);
+    const connection = service.connect(() => undefined);
+    connection.receive(
+      encodeUtf8(
+        '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"mark","arguments":' +
+          '{"offset":"0x10","length":64,"label":"Model","related_to":["m1","m2"]}}}\n'
+      )
+    );
+    await connection.waitUntilIdle();
+    const record = service.store.getSnapshot().log[0];
+    if (record === undefined) throw new Error("the call is not logged");
+
+    const shown = new Map(detailFields(record).map((one) => [one.label, one.value]));
+    expect(shown.get("Result")).toBe("No file is open in ByteRipper.");
+    expect(argumentsText(record)).toBe(
+      [
+        "{",
+        '  "label": "Model",',
+        '  "length": 64,',
+        '  "offset": "0x10",',
+        '  "related_to": [',
+        '    "m1",',
+        '    "m2"',
+        "  ]",
+        "}",
+      ].join("\n")
+    );
+
+    expect(showLargeDetail(true)).toBe(true);
+    expect(largeDetailStore.getSnapshot().open).toBe(true);
+    closeLargeDetail();
+    expect(largeDetailStore.getSnapshot().open).toBe(false);
+  });
+});
+
+describe("the window", () => {
+  afterEach(() => {
+    workspaceStore.update((state) => ({ ...state, dock: EMPTY_DOCK, agentPanel: undefined }));
+  });
+
+  // Window ▸ Agent is aimed at the app — the one Agent panel, raised or folded — not at whatever
+  // the focus is on.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowMenuLeadsToTheAgentWindow
+  // @upstream-differs the menu entry is built in the toolbar's component; what it calls,
+  // `toggleWindow`, is what is checked
+  it("is what Window ▸ Agent brings up and puts away", () => {
+    const { bridge } = fakeBridge();
+    const service = new AgentService(bridge, () => []);
+    expect(agentPanelIsUp(workspaceStore.getSnapshot())).toBe(false);
+    service.toggleWindow();
+    expect(agentPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
+    service.toggleWindow();
+    expect(agentPanelIsUp(workspaceStore.getSnapshot())).toBe(false);
+  });
+});
+
+describe("the switch", () => {
+  // Off until switched on; on, it waits for a connection; off again, the endpoint is closed.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheTabSwitchesTheServiceOnAndOffAndSaysSo
+  it("switches the service on and off, and says so", async () => {
+    const enabled: boolean[] = [];
+    const { bridge } = fakeBridge();
+    const service = new AgentService(
+      {
+        ...bridge,
+        setEnabled: async (on) => {
+          enabled.push(on);
+          return { ok: true, endpoint: "pipe" };
+        },
+      },
+      () => []
+    );
+    expect(service.store.getSnapshot().running).toBe(false);
+    expect(statusOf(service)).toBe("Switched off.");
+
+    await service.setEnabled(true);
+    expect(service.store.getSnapshot().running).toBe(true);
+    expect(statusOf(service)).toBe("Waiting for a connection.");
+
+    await service.setEnabled(false);
+    expect(service.store.getSnapshot().running).toBe(false);
+    // The endpoint is the shell's: closing it is asking the shell to.
+    expect(enabled).toEqual([true, false]);
+  });
+
+  // An endpoint another copy of the app holds is reported, not taken: the service stays off and
+  // says why. The shell's half — that the socket is not taken — is `desktop/test/agent.test.cjs`.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testASocketAnotherCopyHoldsIsReportedNotTaken
+  it("reports an endpoint another copy holds, and does not take it", async () => {
+    const { bridge } = fakeBridge();
+    const service = new AgentService(
+      {
+        ...bridge,
+        setEnabled: async () => ({
+          ok: false,
+          error: "Another copy of ByteRipper holds the agent endpoint.",
+        }),
+      },
+      () => []
+    );
+    await service.setEnabled(true);
+    expect(service.store.getSnapshot().running).toBe(false);
+    expect(statusOf(service).startsWith("Could not start: "), statusOf(service)).toBe(true);
   });
 });
 

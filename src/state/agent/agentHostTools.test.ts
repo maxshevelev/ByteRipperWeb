@@ -5,6 +5,7 @@ import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
+import { applyTransaction } from "@/state/toolEdits";
 import { openInPane, paneState, setActivePane, workspaceStore } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
@@ -92,6 +93,17 @@ describe("documents", () => {
     const refusal = await call(service, "focus");
     expect(refusal.isError).toBe(true);
     expect(refusal.text).toBe("No file is open in ByteRipper.");
+  });
+  // An id is the document's for as long as it is open; a file opened in its place is a new
+  // document with an id of its own.
+  // @upstream ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testAnIdStaysWithItsDocumentAndANewFileGetsANewOne
+  it("keeps an id with its document, and gives a new file a new one", async () => {
+    const service = new AgentService(undefined);
+    open("a", ramp(0x100));
+    expect(member((await call(service, "focus")).json, "document")).toBe("d1");
+    expect(member((await call(service, "focus")).json, "document")).toBe("d1");
+    open("a", Uint8Array.from([9, 9, 9]), "agent-c.bin");
+    expect(member((await call(service, "focus")).json, "document")).toBe("d2");
   });
 });
 
@@ -190,6 +202,23 @@ describe("read", () => {
     expect((await call(service, "read", { document: "d99", offset: 0 })).text).toBe(
       "No open document has the id d99. Call `documents` for the ones that are open."
     );
+  });
+  // A read is of the document as it is now, its unsaved edits included, and `documents` says
+  // it has some.
+  // @upstream ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testReadSeesUnsavedEdits
+  it("sees unsaved edits", async () => {
+    const service = new AgentService(undefined);
+    open("a", ramp(0x100));
+    expect(
+      await applyTransaction("a", {
+        name: "Test",
+        writes: [{ offset: 0, bytes: Uint8Array.of(0xee) }],
+      })
+    ).toBeUndefined();
+    const read = (await call(service, "read", { offset: 0, length: 1, format: "u8" })).json;
+    expect(member(read, "values")).toEqual(["0xEE"]);
+    const documents = member((await call(service, "documents")).json, "documents") as Json[];
+    expect(member(documents[0], "unsaved_edits")).toBe(true);
   });
 });
 
