@@ -55,6 +55,7 @@ export function ToolDetail({
   onOutlineRange,
   onFocusTable,
   after,
+  largeWhenEmpty = false,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -99,9 +100,19 @@ export function ToolDetail({
    * @upstream-differs upstream adds its views to the list's stack; here they are handed in
    */
   readonly after?: ReactNode;
+  /**
+   * Whether the large view opens on the placeholder too, with its expand and close buttons: the
+   * Agent window's pages open with no row chosen, and Space there still opens the card, which then
+   * follows the row the arrows choose.
+   *
+   * @upstream-differs upstream's pane opens the card only on a row (`showQuickLook` wants details)
+   */
+  readonly largeWhenEmpty?: boolean;
 }) {
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
   const hasRows = detail.fields.length > 0;
+  // What the large view can be opened on: the rows, or the placeholder where the panel asks.
+  const opens = hasRows || largeWhenEmpty;
   const paneRef = useRef<HTMLDivElement | null>(null);
   // The card is this pane's only when its own table opened it: another details pane on the page
   // — a hidden page of the Agent window, a tool panel under the dock's panel — would otherwise
@@ -186,16 +197,16 @@ export function ToolDetail({
         if (selecting.selectAll(event)) return;
         if (event.key !== " " || event.ctrlKey || event.metaKey || event.altKey) return;
         if (isTextEntryTarget(event.target)) return;
-        if (toggleLargeDetail(hasRows, keyTableNear(paneRef.current))) {
+        if (toggleLargeDetail(opens, keyTableNear(paneRef.current))) {
           event.preventDefault();
           onFocusTable?.();
         }
       }}
     >
-      {hasRows ? (
+      {opens ? (
         <ExpandButton
           open={open}
-          onClick={() => toggleLargeDetail(hasRows, keyTableNear(paneRef.current))}
+          onClick={() => toggleLargeDetail(opens, keyTableNear(paneRef.current))}
         />
       ) : null}
       <DetailBody {...bodyProps} onSelectNode={onSelectNode} onOutlineRange={onOutlineRange} />

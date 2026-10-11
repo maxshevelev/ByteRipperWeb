@@ -131,6 +131,7 @@ export function AgentToolsPage({
           }
           placeholder={L("Select a tool to see what the agent is told about it.")}
           onFocusTable={() => list.current?.focus()}
+          largeWhenEmpty
           after={
             entry === undefined ? null : (
               <>

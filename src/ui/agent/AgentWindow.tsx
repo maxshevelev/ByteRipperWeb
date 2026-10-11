@@ -169,18 +169,12 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
    */
   const walk = (event: KeyboardEvent<HTMLElement>): void => {
     if (event.key === " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      // Space opens the details large, or closes them, as it does on a tool panel's table. A page
-      // with no details has nothing for it — and the list does not scroll a page for it either.
+      // Space opens the details large, or closes them, as it does on a tool panel's table — with no
+      // row chosen too, on the placeholder, which the card then trades for the row the arrows
+      // choose (`ToolDetail.largeWhenEmpty`). A page with no details has nothing for it — and the
+      // list does not scroll a page for it either.
       // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleKeyWhileShut
-      const shown =
-        page === "log"
-          ? state.log.some((one) => one.id === selected)
-          : page === "tools" && chosenTool !== undefined;
-      if (
-        page === "marks" ||
-        page === "findings" ||
-        toggleLargeDetail(shown, event.currentTarget)
-      ) {
+      if (page === "marks" || page === "findings" || toggleLargeDetail(true, event.currentTarget)) {
         event.preventDefault();
       }
       return;
@@ -349,6 +343,7 @@ export function AgentWindow({ onSettings }: { readonly onSettings: () => void })
             detail={record === undefined ? EMPTY_DETAIL : requestDetail(record)}
             placeholder={L("Select a request to see all of it.")}
             onFocusTable={() => list.current?.focus()}
+            largeWhenEmpty
             after={
               record === undefined ? null : (
                 <>
