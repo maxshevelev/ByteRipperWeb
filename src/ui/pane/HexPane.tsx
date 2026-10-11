@@ -527,9 +527,19 @@ export function HexPane({
    * and there is nowhere in a 16-byte row to print it. So it is a tooltip — but
    * the dump is a canvas, and a canvas has no elements to hang `title` on.
    */
-  const [markTip, setMarkTip] = useState<
-    { name: string; top: number; left: number; agent?: boolean } | undefined
-  >(undefined);
+  const [markTip, setMarkTip] = useState<{ name: string; top: number; left: number } | undefined>(
+    undefined
+  );
+  /**
+   * What an agent said about the byte under the pointer, as the dump's own tooltip: the browser's,
+   * drawn over the window, so a long note near the dump's edge is not cut off by it — as the
+   * minimap's tooltip is.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkTooltipTag
+   * @upstream-differs the scroller's `title`, worked out as the pointer moves, where upstream
+   * registers one tooltip rect over the byte columns and answers it from the pointer's position
+   */
+  const [agentTip, setAgentTip] = useState("");
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
@@ -1052,6 +1062,8 @@ export function HexPane({
     // A tip is placed in the element's own coordinates, which on a scaled track
     // no longer move with the row it names.
     if (scroller.scaled) setMarkTip(undefined);
+    // The byte under the pointer is another one now; the next move says what it is.
+    setAgentTip("");
     scrolled();
   }, [scrolled]);
 
@@ -1071,6 +1083,7 @@ export function HexPane({
       if (!scroller.wheel(event, layout.rowHeight)) return;
       event.preventDefault();
       setMarkTip(undefined);
+      setAgentTip("");
       scrolled();
     };
     host.addEventListener("wheel", onWheel, { passive: false });
@@ -1638,11 +1651,10 @@ export function HexPane({
    * Shows a named mark's name while the pointer rests on it.
    *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTooltipTag
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkTooltipTag
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkTooltip
    * @upstream ByteRipperApp/Hex/HexView.swift#HexView.view
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmark
-   * @upstream-differs a tip element placed over the mark, not a tooltip rect
+   * @upstream-differs a bookmark's name is a tip element placed beside its mark, not a tooltip rect
    */
   const trackMarkTip = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1667,18 +1679,11 @@ export function HexPane({
           hit === undefined || column === undefined
             ? ""
             : agentMarkTooltip(agentMarksRef.current, layout.byteOffset(hit.row, column));
-        if (hit === undefined || said === "") {
-          setMarkTip(undefined);
-          return;
-        }
-        setMarkTip({
-          name: said,
-          top: (hit.row + 1) * layout.rowHeight - top + host.scrollTop,
-          left: x,
-          agent: true,
-        });
+        setMarkTip(undefined);
+        setAgentTip(hit === undefined ? "" : said);
         return;
       }
+      setAgentTip("");
       const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
       // Not the mark's name: in a panel the tip also carries the address the
       // same row has in the file the mark belongs to, which is the one thing
@@ -2175,14 +2180,15 @@ export function HexPane({
         onPaste={onPaste}
         onContextMenu={onContextMenu}
         onDoubleClick={onDoubleClick}
-        onPointerLeave={() => setMarkTip(undefined)}
+        onPointerLeave={() => {
+          setMarkTip(undefined);
+          setAgentTip("");
+        }}
+        title={agentTip.length === 0 ? undefined : agentTip}
       >
         <canvas ref={canvasRef} className="hex-canvas" />
         {markTip === undefined ? null : (
-          <p
-            className={markTip.agent === true ? "bookmark-tip agent-mark-tip" : "bookmark-tip"}
-            style={{ top: markTip.top, left: markTip.left }}
-          >
+          <p className="bookmark-tip" style={{ top: markTip.top, left: markTip.left }}>
             {markTip.name}
           </p>
         )}
