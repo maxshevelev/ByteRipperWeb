@@ -1181,6 +1181,8 @@
 "Follow New Requests" = "Следить за новыми запросами";
 "Let agents connect to ByteRipper" = "Разрешить агентам подключаться к ByteRipper";
 "Let agents edit open files" = "Разрешить агентам изменять открытые файлы";
+"Start ByteRipper when an agent connects" = "Запускать ByteRipper при подключении агента";
+"On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Если флажок установлен, настройка ниже позволяет программе агента запускать ByteRipper, когда он нужен агенту, а программа не открыта. Если снят, агент подключается к ByteRipper только пока тот открыт, а закрытый ByteRipper остаётся закрытым. После изменения флажка скопируйте настройку в программу агента заново.";
 "Log" = "Журнал";
 "Connected." = "Подключено.";
 "Other Client" = "Другой клиент";

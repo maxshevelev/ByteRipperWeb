@@ -23,3 +23,25 @@ export const AGENT_ENDPOINT_ENVIRONMENT_KEY = "BYTERIPPER_AGENT_SOCKET";
  */
 export const AGENT_UNAVAILABLE_MESSAGE =
   "ByteRipper's agent service is not running. Open ByteRipper and switch it on in Settings ▸ Agent.";
+
+/**
+ * The variable that lets the relay start the app. Without it the relay never does: a client
+ * restarts its server as soon as the app quits, and a person who quit ByteRipper saw it come
+ * straight back. It is set in the client's configuration — Settings ▸ Agent writes it there when
+ * its launch switch is on — because the relay runs without the app and reads none of its settings.
+ * The relay's reading of it is the shell's (`desktop/agent-endpoint.cjs`, `launchesApp`).
+ *
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.launchKey
+ */
+export const AGENT_LAUNCH_KEY = "BYTERIPPER_LAUNCH";
+
+/**
+ * The same as {@link AGENT_UNAVAILABLE_MESSAGE}, from a relay that does not start the app
+ * ({@link AGENT_LAUNCH_KEY}): the app may simply not be open.
+ *
+ * @upstream Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.notStartedMessage
+ */
+export const AGENT_NOT_STARTED_MESSAGE =
+  "ByteRipper is not running, or its agent service is switched off. Open ByteRipper and switch the service " +
+  'on in Settings ▸ Agent. To have this server start ByteRipper, turn on "Start ByteRipper when an agent ' +
+  'connects" there and copy the configuration into this client again.';

@@ -38,10 +38,10 @@ describe("a client's configuration", () => {
   // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheClaudeCodeCommandNamesTheRelayQuotedForTheShell
   it("quotes the Claude Code command for the shell of the platform", () => {
     expect(clientText("claudeCode", windows)).toBe(
-      `claude mcp add --scope user --env ELECTRON_RUN_AS_NODE=1 byteripper -- "${windows.command}" "${windows.script}"`
+      `claude mcp add --scope user byteripper --env ELECTRON_RUN_AS_NODE=1 -- "${windows.command}" "${windows.script}"`
     );
     expect(clientText("claudeCode", mac)).toBe(
-      `claude mcp add --scope user --env ELECTRON_RUN_AS_NODE=1 byteripper -- '${mac.command}' '${mac.script}'`
+      `claude mcp add --scope user byteripper --env ELECTRON_RUN_AS_NODE=1 -- '${mac.command}' '${mac.script}'`
     );
   });
 
@@ -87,5 +87,31 @@ describe("a client's configuration", () => {
       "Cursor",
       "Other Client",
     ]);
+  });
+
+  // The relay starts the app only when the client's configuration says so: off by default, the
+  // switch puts the variable in every form.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheLaunchSwitchPutsTheLaunchVariableInEveryConfiguration
+  it("puts the launch variable in every form only when the switch is on", () => {
+    expect(clientText("claudeCode", mac, true)).toBe(
+      `claude mcp add --scope user byteripper --env BYTERIPPER_LAUNCH=1 --env ELECTRON_RUN_AS_NODE=1 -- '${mac.command}' '${mac.script}'`
+    );
+    expect(clientText("claudeCode", mac)).not.toContain("BYTERIPPER_LAUNCH");
+    for (const client of ["claudeDesktop", "cursor"] as const) {
+      const on = parseJson(clientText(client, windows, true)) as {
+        mcpServers: { byteripper: { env: Record<string, string> } };
+      };
+      expect(on.mcpServers.byteripper.env).toEqual({
+        BYTERIPPER_LAUNCH: "1",
+        ELECTRON_RUN_AS_NODE: "1",
+      });
+      const off = parseJson(clientText(client, windows, false)) as {
+        mcpServers: { byteripper: { env: Record<string, string> } };
+      };
+      expect(off.mcpServers.byteripper.env).toEqual({ ELECTRON_RUN_AS_NODE: "1" });
+    }
+    expect(clientText("other", windows, true)).toContain(
+      "BYTERIPPER_LAUNCH=1 ELECTRON_RUN_AS_NODE=1"
+    );
   });
 });

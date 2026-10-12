@@ -1181,6 +1181,8 @@
 "Follow New Requests" = "Neuen Anfragen folgen";
 "Let agents connect to ByteRipper" = "Agenten die Verbindung mit ByteRipper erlauben";
 "Let agents edit open files" = "Agenten das Ändern geöffneter Dateien erlauben";
+"Start ByteRipper when an agent connects" = "ByteRipper starten, wenn sich ein Agent verbindet";
+"On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Eingeschaltet erlaubt die Konfiguration unten dem Agentenprogramm, ByteRipper zu starten, wenn der Agent es braucht und es nicht geöffnet ist. Ausgeschaltet erreicht der Agent ByteRipper nur, solange es geöffnet ist, und ein beendetes ByteRipper bleibt beendet. Nach einer Änderung die Konfiguration erneut in das Agentenprogramm kopieren.";
 "Log" = "Protokoll";
 "Connected." = "Verbunden.";
 "Other Client" = "Anderer Client";

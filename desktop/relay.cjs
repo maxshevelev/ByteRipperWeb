@@ -11,7 +11,12 @@
 const net = require("node:net");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { endpoint, UNAVAILABLE_MESSAGE } = require("./agent-endpoint.cjs");
+const {
+  endpoint,
+  launchesApp,
+  NOT_STARTED_MESSAGE,
+  UNAVAILABLE_MESSAGE,
+} = require("./agent-endpoint.cjs");
 
 /** How long to wait for the app's endpoint after launching the app. */
 const LAUNCH_WAIT_MS = 10_000;
@@ -25,7 +30,13 @@ function appExecutable() {
   return /^byteripper/i.test(path.basename(process.execPath)) ? process.execPath : undefined;
 }
 
-/** Starts the app in the background, so a client launched before the app still finds it. Whether its agent service is switched on is the app's setting; if it is off, the endpoint never appears and the client is told. */
+/**
+ * Starts the app in the background, so a client launched before the app still finds it. Whether
+ * its agent service is switched on is the app's setting; if it is off, the endpoint never appears
+ * and the client is told. Only under `BYTERIPPER_LAUNCH` (`LAUNCH_KEY`), which the person asks
+ * for in Settings ▸ Agent: a client restarts its server as soon as the app quits, and the person
+ * who quit it saw it come straight back.
+ */
 function launchApp() {
   const executable = appExecutable();
   if (executable === undefined) return false;
@@ -54,12 +65,17 @@ function tryConnect() {
   });
 }
 
+const launches = launchesApp();
+
+/** Why there is nothing to talk to: the service is off — or, from a relay that does not start the app, the app may simply not be open. */
+const unavailableMessage = launches ? UNAVAILABLE_MESSAGE : NOT_STARTED_MESSAGE;
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function connect() {
   const first = await tryConnect();
   if (first !== undefined) return first;
-  if (!launchApp()) return undefined;
+  if (!launches || !launchApp()) return undefined;
   const deadline = Date.now() + LAUNCH_WAIT_MS;
   while (Date.now() < deadline) {
     await sleep(RETRY_MS);
@@ -90,7 +106,7 @@ function answerUnavailable() {
       if (message === null || typeof message !== "object" || message.method === undefined) continue;
       if (message.id === undefined || message.id === null) continue;
       process.stdout.write(
-        `${JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -32603, message: UNAVAILABLE_MESSAGE } })}\n`
+        `${JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -32603, message: unavailableMessage } })}\n`
       );
     }
   });
@@ -99,7 +115,7 @@ function answerUnavailable() {
 
 connect().then((socket) => {
   if (socket === undefined) {
-    process.stderr.write(`${UNAVAILABLE_MESSAGE}\n`);
+    process.stderr.write(`${unavailableMessage}\n`);
     answerUnavailable();
     return;
   }

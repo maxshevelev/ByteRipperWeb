@@ -5451,6 +5451,7 @@
         "Packages/AgentKit/Sources/AgentKit/UnixSocket.swift#*": "n/a — the socket is the shell's: Node's net module, a named pipe on Windows (desktop/main.cjs)",
         "Packages/AgentKit/Tests/AgentKitTests/UnixSocketTests.swift#*": "n/a — tests UnixSocket",
         "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.socketPath": "n/a — the path is the shell's (desktop/agent-endpoint.cjs): a named pipe on Windows",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.launchesApp": "n/a — read by the relay, which is the shell's (desktop/agent-endpoint.cjs, launchesApp)",
         "Packages/AgentKit/Sources/AgentKit/AgentBytes.swift#AgentBytes.shown": "@web-only name",
         "Packages/AgentKit/Package.swift#*": "n/a — SwiftPM manifest"
       }
@@ -5662,7 +5663,7 @@
         "desktop/agent-endpoint.cjs"
       ],
       "status": "ported",
-      "note": "What an agent's client launches: copies stdin and stdout to the endpoint, starts the app when it is not there, and answers each request with where the switch is when there is no app (desktop/relay.cjs). It is the app's own executable run as Node. The endpoint is a named pipe on Windows (desktop/agent-endpoint.cjs); desktop/agent.cjs is the main process's half of the service.",
+      "note": "What an agent's client launches: copies stdin and stdout to the endpoint, starts the app when it is not there only under BYTERIPPER_LAUNCH (off by default, upstream 7197e6f8), and answers each request with where the switch is when there is no app (desktop/relay.cjs). It is the app's own executable run as Node. The endpoint is a named pipe on Windows (desktop/agent-endpoint.cjs); desktop/agent.cjs is the main process's half of the service.",
       "files": {
         "main.swift": "desktop/relay.cjs"
       },

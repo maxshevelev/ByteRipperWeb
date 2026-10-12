@@ -8,9 +8,31 @@ const path = require("node:path");
 /** The variable that moves the endpoint elsewhere — for a test, or a second build run beside the installed one. */
 const ENVIRONMENT_KEY = "BYTERIPPER_AGENT_SOCKET";
 
+/**
+ * The variable that lets the relay start the app. Without it the relay never does: a client
+ * restarts its server as soon as the app quits, and a person who quit ByteRipper saw it come
+ * straight back. It is set in the client's configuration — Settings ▸ Agent writes it there when
+ * its launch switch is on — because the relay runs without the app and reads none of its settings.
+ */
+const LAUNCH_KEY = "BYTERIPPER_LAUNCH";
+
+/** Whether the relay starts the app when the endpoint does not answer: only with `LAUNCH_KEY` set to something other than empty, "0" or "false". */
+function launchesApp(env = process.env) {
+  const value = env[LAUNCH_KEY];
+  if (value === undefined) return false;
+  const word = value.trim().toLowerCase();
+  return !(word === "" || word === "0" || word === "false");
+}
+
 /** What a client is told when there is nothing to talk to. Worded for the person reading the client's error. */
 const UNAVAILABLE_MESSAGE =
   "ByteRipper's agent service is not running. Open ByteRipper and switch it on in Settings ▸ Agent.";
+
+/** The same, from a relay that does not start the app (`LAUNCH_KEY`): the app may simply not be open. */
+const NOT_STARTED_MESSAGE =
+  "ByteRipper is not running, or its agent service is switched off. Open ByteRipper and switch the service " +
+  'on in Settings ▸ Agent. To have this server start ByteRipper, turn on "Start ByteRipper when an agent ' +
+  'connects" there and copy the configuration into this client again.';
 
 /** The name of the account, safe in a pipe's name. */
 function accountName(env) {
@@ -43,4 +65,12 @@ function endpoint(env = process.env, platform = process.platform) {
 /** Whether the endpoint is a named pipe rather than a file in the profile. */
 const isPipe = (address) => address.startsWith("\\\\.\\pipe\\");
 
-module.exports = { ENVIRONMENT_KEY, UNAVAILABLE_MESSAGE, endpoint, isPipe };
+module.exports = {
+  ENVIRONMENT_KEY,
+  LAUNCH_KEY,
+  NOT_STARTED_MESSAGE,
+  UNAVAILABLE_MESSAGE,
+  endpoint,
+  isPipe,
+  launchesApp,
+};

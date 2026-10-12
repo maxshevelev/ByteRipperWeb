@@ -1,4 +1,4 @@
-@source-sha acb98d541d79885dadd618cc08951cd0043d701e0f4e146cdf78cec66b279cb0
+@source-sha 8971549760fa3b46e63dcf3a251c04774f48f2e357cbdb62bd53dc28ae55bfd8
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -11,6 +11,7 @@
 @covers window.agent.tools
 @covers menu.window.agent
 @covers settings.agent.edits
+@covers settings.agent.launch
 
 [[edition:**Diese Seite handelt von der Windows-Anwendung.** Der Agentendienst braucht eine Verbindung, die eine Seite im Browser nicht öffnen kann; die Browser-Ausgabe hat ihn daher nicht, und nichts hier Beschriebene gibt es dort.||]]
 
@@ -31,13 +32,13 @@ Unter **Einstellungen ▸ Agent** legt das Menü **Konfiguration für:** fest, i
 - **Claude Code** — ein Befehl für ein Terminal. Er muss nur einmal ausgeführt werden; danach steht ByteRipper in Claude Code in jedem Ordner zur Verfügung.
 - **Claude Desktop** — ein JSON-Block für die Konfigurationsdatei `%APPDATA%\Claude\claude_desktop_config.json`. Claude Desktop wertet diese Datei beim Start aus.
 - **Cursor** — derselbe JSON-Block, einzutragen in `%USERPROFILE%\.cursor\mcp.json` für alle Projekte oder in `.cursor/mcp.json` für ein einzelnes Projekt.
-- **Anderer Client** — die Verbindungsparameter einzeln: der Name `byteripper`, der Transport `stdio`, der Befehl, sein Argument und die Umgebungsvariable. Diese Variante ist für Clients bestimmt, die die Parameter in einem eigenen Formular abfragen.
+- **Anderer Client** — die Verbindungsparameter einzeln: der Name `byteripper`, der Transport `stdio`, der Befehl, sein Argument und die Umgebungsvariable `ELECTRON_RUN_AS_NODE=1`, daneben `BYTERIPPER_LAUNCH=1` nur, wenn ByteRipper gestartet werden soll (siehe unten). Diese Variante ist für Clients bestimmt, die die Parameter in einem eigenen Formular abfragen.
 
 Enthält die Konfigurationsdatei bereits andere Server, wird der Eintrag `byteripper` neben ihnen in denselben Abschnitt `mcpServers` eingefügt.
 
 Jede Variante nennt die ausführbare Datei von ByteRipper selbst und das daneben liegende Skript `relay.cjs` und setzt die Umgebungsvariable `ELECTRON_RUN_AS_NODE=1`; sie bewirkt, dass die ausführbare Datei das Skript ausführt, statt das Fenster zu öffnen. Nach dem Verschieben von ByteRipper in einen anderen Ordner oder nach einer erneuten Installation in einem anderen Ordner ist der Konfigurationstext daher neu zu kopieren.
 
-Ist ByteRipper beim Start des Agentenprogramms nicht geöffnet, startet das Skript es selbstständig. Ist der Dienst dagegen ausgeschaltet, meldet das Agentenprogramm, dass der Agentendienst von ByteRipper nicht läuft.
+Das Skript startet ByteRipper nicht von sich aus: Der Agent erreicht ByteRipper, solange es geöffnet und der Dienst eingeschaltet ist; andernfalls meldet das Agentenprogramm, dass ByteRipper oder sein Agentendienst nicht läuft. Sonst würde ein Programm, das seine Server neu startet, ByteRipper gleich nach dem Beenden wieder öffnen. Soll das Agentenprogramm ByteRipper bei Bedarf starten, wird unter **Einstellungen ▸ Agent** die Option **ByteRipper starten, wenn sich ein Agent verbindet** eingeschaltet: Der Konfigurationstext unter dem Menü enthält dann die Variable `BYTERIPPER_LAUNCH=1` und wird erneut in das Programm kopiert. Ausgeschaltet und erneut kopiert, startet er ByteRipper nicht mehr. Ist der Dienst ausgeschaltet, meldet das Agentenprogramm in jedem Fall, dass der Agentendienst von ByteRipper nicht läuft.
 
 ## Warum nicht über HTTP
 
@@ -45,7 +46,7 @@ Manche Programme, darunter Claude Desktop, binden einen über HTTP erreichbaren 
 
 - Ein Server über HTTP wartet an einem Netzwerkport, und jedes Programm auf dem Computer kann ihn erreichen, auch im Browser geöffnete Webseiten. Er bräuchte ein eigenes Passwort, das in der Konfiguration des Agenten steht, und Schutz vor Anfragen von Webseiten. Die benannte Pipe, die ByteRipper anlegt, erreichen nur Programme desselben Benutzerkontos; es gibt nichts einzurichten und nichts, was nach außen gelangen könnte.
 - Ein Agent liest Dumps und ändert sie, wenn es erlaubt ist. Der Zugang zu ihm ist daher nicht weiter gefasst als der Zugang zu den Dumps selbst.
-- Das Programm des Agenten startet das Skript selbst. Dieses startet ByteRipper, wenn es nicht läuft, und meldet, wenn der Dienst ausgeschaltet ist; ein Server über HTTP wäre in beiden Fällen schlicht nicht erreichbar.
+- Das Programm des Agenten startet das Skript selbst. Dieses startet ByteRipper, wenn es nicht läuft und die Einstellung es erlaubt, und meldet, wenn der Dienst ausgeschaltet ist; ein Server über HTTP wäre in beiden Fällen schlicht nicht erreichbar.
 
 Der Preis dafür ist die oben beschriebene Einrichtung, einmal je Programm, und eine Verbindung nur vom selben Computer aus: Ein Agent, der auf einem anderen Computer läuft, kann sich nicht verbinden.
 

@@ -10,6 +10,7 @@
 @covers window.agent.tools
 @covers menu.window.agent
 @covers settings.agent.edits
+@covers settings.agent.launch
 
 [[edition:**This page is about the Windows application.** The agent service needs a connection that a page in a browser cannot open, so the browser edition has none; nothing below exists there.||]]
 
@@ -30,13 +31,13 @@ In **Settings ▸ Agent** the menu **Configuration for:** chooses the program th
 - **Claude Code** — a command for a terminal. Run once, it registers ByteRipper with Claude Code for every folder.
 - **Claude Desktop** — a JSON block for Claude Desktop's configuration file, `%APPDATA%\Claude\claude_desktop_config.json`. Claude Desktop reads it when it starts.
 - **Cursor** — the same JSON block, for `%USERPROFILE%\.cursor\mcp.json` (every project) or `.cursor/mcp.json` inside one project.
-- **Other Client** — the parameters one by one: the name `byteripper`, the transport `stdio`, the command, its argument and the environment variable. This is what a client asks for in a form of its own.
+- **Other Client** — the parameters one by one: the name `byteripper`, the transport `stdio`, the command, its argument and the environment variable `ELECTRON_RUN_AS_NODE=1`, with `BYTERIPPER_LAUNCH=1` beside it only when ByteRipper is to be started (below). This is what a client asks for in a form of its own.
 
 A configuration file that already lists other servers takes the `byteripper` entry beside them, inside the same `mcpServers`.
 
 Every form names ByteRipper's own executable and the script `relay.cjs` that lies beside it, and sets the environment variable `ELECTRON_RUN_AS_NODE=1`, which makes the executable run the script instead of opening the window. If ByteRipper is moved to another folder, or installed again in another one, the text is copied again.
 
-If ByteRipper is not running when the agent's program starts, the script starts it. If the service is switched off, the agent's program reports that ByteRipper's agent service is not running.
+The script does not start ByteRipper by itself: the agent reaches ByteRipper while it is open with the service switched on, and otherwise the agent's program reports that ByteRipper or its agent service is not running. A program that restarts its servers would otherwise open ByteRipper again as soon as it is quit. To have the agent's program start ByteRipper when it is needed, turn on **Start ByteRipper when an agent connects** in **Settings ▸ Agent**: the text below the menu then carries the variable `BYTERIPPER_LAUNCH=1`, and is copied into the program again. Turned off and copied again, it stops starting ByteRipper. If the service is switched off, the agent's program reports that ByteRipper's agent service is not running either way.
 
 ## Why not over HTTP
 
@@ -44,7 +45,7 @@ Some programs, Claude Desktop among them, add a server reached over HTTP from th
 
 - A server over HTTP listens on a network port, and every program on the computer can reach it — web pages open in a browser included. It would need a password of its own, kept in the agent's configuration, and checks against requests from pages. The named pipe ByteRipper opens can be reached only by programs of the same user account; there is nothing to set up and nothing to leak.
 - An agent reads dumps and, when allowed, changes them. Access to it is therefore no wider than access to the dumps themselves.
-- The agent's program starts the script itself. The script starts ByteRipper when it is not running and says so when the service is switched off; a server over HTTP is simply not there in either case.
+- The agent's program starts the script itself. The script starts ByteRipper when it is not running, if it is told to, and says so when the service is switched off; a server over HTTP is simply not there in either case.
 
 The price is the configuration step described above, made once per program, and a connection from the same computer only: an agent running on another computer cannot connect.
 

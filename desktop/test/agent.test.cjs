@@ -9,7 +9,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { register } = require("../agent.cjs");
-const { endpoint, isPipe } = require("../agent-endpoint.cjs");
+const { endpoint, isPipe, launchesApp } = require("../agent-endpoint.cjs");
 
 /** An `ipcMain` that is an emitter with `handle`, and a page whose `send` is recorded. */
 function harness() {
@@ -46,6 +46,16 @@ test("the endpoint is a named pipe on Windows and a socket elsewhere", () => {
     endpoint({}, "darwin"),
     /Library[\\/]Application Support[\\/]ByteRipper[\\/]agent\.sock$/
   );
+});
+
+// Upstream: UnixSocketTests.testTheRelayStartsTheAppOnlyWhenToldTo.
+test("the relay starts the app only when its client's configuration says so", () => {
+  assert.equal(launchesApp({}), false);
+  assert.equal(launchesApp({ BYTERIPPER_LAUNCH: "" }), false);
+  assert.equal(launchesApp({ BYTERIPPER_LAUNCH: "0" }), false);
+  assert.equal(launchesApp({ BYTERIPPER_LAUNCH: " False " }), false);
+  assert.equal(launchesApp({ BYTERIPPER_LAUNCH: "1" }), true);
+  assert.equal(launchesApp({ BYTERIPPER_LAUNCH: "yes" }), true);
 });
 
 test("a line goes from the relay to the page and the answer comes back", async () => {
@@ -130,6 +140,7 @@ test("with the service off, the relay answers every request with where the switc
     assert.equal(reply.id, 7);
     assert.equal(reply.error.code, -32603);
     assert.match(reply.error.message, /Settings ▸ Agent/);
+    assert.match(reply.error.message, /Start ByteRipper when an agent connects/);
     relay.stdin.end();
     await new Promise((resolve) => relay.once("exit", resolve));
   } finally {

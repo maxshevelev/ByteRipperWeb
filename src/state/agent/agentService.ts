@@ -26,6 +26,7 @@ import {
   loadAgentSettings,
   rememberAgentEditsAllowed,
   rememberAgentEnabled,
+  rememberAgentLaunchesApp,
 } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import {
@@ -63,6 +64,15 @@ export interface AgentServiceState {
   readonly enabled: boolean;
   /** Whether an agent may write into an open file. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.editsAllowed */
   readonly editsAllowed: boolean;
+  /**
+   * Whether the configuration handed out lets the relay start the app: the launch switch of the
+   * Settings tab, off until the person turns it on. The relay reads no setting of the app's, so the
+   * choice travels in the client's configuration, and takes effect once it is copied there again.
+   *
+   * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentClientConfiguration.launchesApp
+   * @upstream-differs kept with the service's other switches, where the page loads them
+   */
+  readonly launchesApp: boolean;
   /** Whether the endpoint is open. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isRunning */
   readonly running: boolean;
   /**
@@ -92,6 +102,7 @@ export interface AgentServiceState {
 const INITIAL: AgentServiceState = {
   enabled: false,
   editsAllowed: false,
+  launchesApp: false,
   running: false,
   failure: undefined,
   endpoint: undefined,
@@ -374,6 +385,7 @@ export class AgentService {
       ...state,
       enabled: settings.enabled,
       editsAllowed: settings.editsAllowed,
+      launchesApp: settings.launchesApp,
     }));
     await this.apply();
     void this.loadRelay();
@@ -390,6 +402,12 @@ export class AgentService {
   setEditsAllowed(allowed: boolean): void {
     rememberAgentEditsAllowed(allowed);
     this.store.update((state) => ({ ...state, editsAllowed: allowed }));
+  }
+
+  /** The configuration shown follows at once: it is what the choice is. @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.launchChanged */
+  setLaunchesApp(launches: boolean): void {
+    rememberAgentLaunchesApp(launches);
+    this.store.update((state) => ({ ...state, launchesApp: launches }));
   }
 
   /**

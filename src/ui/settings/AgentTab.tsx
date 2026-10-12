@@ -28,6 +28,7 @@ import { HelpButton } from "@/ui/help/HelpButton";
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.copyConfiguration
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.editsChanged
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.enableChanged
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.launchChanged
  * @upstream-differs a React tab over the service's store
  */
 // help: settings.agent
@@ -89,6 +90,25 @@ export function AgentTab() {
         )}
       </p>
 
+      {/* help: settings.agent.launch */}
+      <label className="settings-check">
+        <input
+          type="checkbox"
+          checked={state.launchesApp}
+          disabled={!agentService.isAvailable}
+          onChange={(event) => {
+            agentService.setLaunchesApp(event.target.checked);
+            setCopied(false);
+          }}
+        />
+        {L("Start ByteRipper when an agent connects")}
+      </label>
+      <p className="settings-caption">
+        {L(
+          "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this."
+        )}
+      </p>
+
       <div className="settings-row">
         <label htmlFor="settings-agent-client" className="settings-label">
           {L("Configuration for:")}
@@ -119,16 +139,18 @@ export function AgentTab() {
             spellCheck={false}
             rows={6}
             aria-label={L("Configuration text")}
-            value={clientText(client, relay)}
+            value={clientText(client, relay, state.launchesApp)}
           />
           <div className="settings-actions">
             <button
               type="button"
               title={L("Copy the text above to the clipboard")}
               onClick={() => {
-                void navigator.clipboard.writeText(clientText(client, relay)).then(() => {
-                  setCopied(true);
-                });
+                void navigator.clipboard
+                  .writeText(clientText(client, relay, state.launchesApp))
+                  .then(() => {
+                    setCopied(true);
+                  });
               }}
             >
               {L("Copy")}

@@ -1,3 +1,4 @@
+import { AGENT_LAUNCH_KEY } from "@/core/agent/agentEndpoint";
 import { prettyText } from "@/core/agent/json";
 import { L } from "@/core/localization/localization";
 
@@ -86,22 +87,33 @@ function quoted(path: string, relay: RelayCommand): string {
     : `'${path.replaceAll("'", "'\\''")}'`;
 }
 
-const environmentPairs = (relay: RelayCommand): string[] =>
-  Object.entries(relay.environment).map(([key, value]) => `${key}=${value}`);
+/** The relay's own variables, and with `launches` on the one that lets it start the app, sorted by name. */
+function environmentOf(relay: RelayCommand, launches: boolean): { [key: string]: string } {
+  const all: { [key: string]: string } = { ...relay.environment };
+  if (launches) all[AGENT_LAUNCH_KEY] = "1";
+  return Object.fromEntries(Object.entries(all).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+const pairs = (environment: { [key: string]: string }): string[] =>
+  Object.entries(environment).map(([key, value]) => `${key}=${value}`);
 
 /**
- * The text for `client`, naming the relay.
+ * The text for `client`, naming the relay; with `launches` on, the variable that lets the relay
+ * start the app goes with it.
  *
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentClientConfiguration.text
  */
-export function clientText(client: AgentClient, relay: RelayCommand): string {
+export function clientText(client: AgentClient, relay: RelayCommand, launches = false): string {
+  const environment = environmentOf(relay, launches);
   switch (client) {
     case "claudeCode": {
       // User scope: a technician talks to the app from whatever folder they are in.
-      const environment = environmentPairs(relay)
-        .map((pair) => `--env ${pair} `)
+      // `--env` after the name: it takes every word up to the next option, and put first it
+      // would take the name too.
+      const variables = pairs(environment)
+        .map((pair) => ` --env ${pair}`)
         .join("");
-      return `claude mcp add --scope user ${environment}${AGENT_SERVER_NAME} -- ${quoted(relay.command, relay)} ${quoted(relay.script, relay)}`;
+      return `claude mcp add --scope user ${AGENT_SERVER_NAME}${variables} -- ${quoted(relay.command, relay)} ${quoted(relay.script, relay)}`;
     }
     case "claudeDesktop":
     case "cursor":
@@ -112,7 +124,7 @@ export function clientText(client: AgentClient, relay: RelayCommand): string {
           [AGENT_SERVER_NAME]: {
             command: relay.command,
             args: [relay.script],
-            env: { ...relay.environment },
+            env: environment,
           },
         },
       });
@@ -122,7 +134,7 @@ export function clientText(client: AgentClient, relay: RelayCommand): string {
         [L("Transport"), "stdio"],
         [L("Command"), relay.command],
         [L("Arguments"), relay.script],
-        [L("Environment"), environmentPairs(relay).join(" ") || L("none")],
+        [L("Environment"), pairs(environment).join(" ") || L("none")],
       ];
       const width = Math.max(...rows.map(([label]) => label.length));
       return rows.map(([label, value]) => `${label.padEnd(width, " ")}  ${value}`).join("\n");

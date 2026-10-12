@@ -534,17 +534,31 @@ export const AGENT_ENABLED_KEY = "AgentServiceEnabled";
  */
 export const AGENT_EDITS_KEY = "AgentEditsAllowed";
 
-/** What the service's two switches were left at; both off for a visit that remembers nothing. */
+/**
+ * Where the launch switch is kept: whether the configuration handed out lets the relay start the
+ * app. Off until the person turns it on.
+ *
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentClientConfiguration.launchesAppKey
+ */
+export const AGENT_LAUNCHES_APP_KEY = "AgentClientLaunchesApp";
+
+/** What the service's switches were left at; all off for a visit that remembers nothing. */
 export async function loadAgentSettings(): Promise<{
   readonly enabled: boolean;
   readonly editsAllowed: boolean;
+  readonly launchesApp: boolean;
 }> {
   const store = values();
-  const [enabled, editsAllowed] = await Promise.all([
+  const [enabled, editsAllowed, launchesApp] = await Promise.all([
     store.get<boolean>(AGENT_ENABLED_KEY).catch(() => undefined),
     store.get<boolean>(AGENT_EDITS_KEY).catch(() => undefined),
+    store.get<boolean>(AGENT_LAUNCHES_APP_KEY).catch(() => undefined),
   ]);
-  return { enabled: enabled === true, editsAllowed: editsAllowed === true };
+  return {
+    enabled: enabled === true,
+    editsAllowed: editsAllowed === true,
+    launchesApp: launchesApp === true,
+  };
 }
 
 export function rememberAgentEnabled(enabled: boolean): void {
@@ -553,6 +567,11 @@ export function rememberAgentEnabled(enabled: boolean): void {
 
 export function rememberAgentEditsAllowed(allowed: boolean): void {
   remember(AGENT_EDITS_KEY, allowed);
+}
+
+/** @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentClientConfiguration.launchesApp */
+export function rememberAgentLaunchesApp(launches: boolean): void {
+  remember(AGENT_LAUNCHES_APP_KEY, launches);
 }
 
 // MARK: - What the workspace holds
