@@ -240,7 +240,7 @@ describe("diff", () => {
     open(Uint8Array.from([1, 2, 3, 4]));
     const other = await background(Uint8Array.from([1, 2, 3, 4]));
     expect((await call("diff", { against: "d1" })).text).toBe(
-      "`document` and `against` are the same document, d1."
+      "`document` and `against` are the same document, front.bin (d1)."
     );
     expect((await call("diff", { against: other, offset: "0x3", end: "0x2" })).text).toBe(
       "`offset` 0x3 is not below `end` 0x2."
@@ -396,7 +396,7 @@ describe("compare and reveal_diff", () => {
   it("needs a pair to walk", async () => {
     open(Uint8Array.from([0, 1]));
     expect((await call("reveal_diff")).text).toBe(
-      "d1 is not one of a pair shown side by side. `compare` shows it beside another."
+      "front.bin (d1) is not one of a pair shown side by side. `compare` shows it beside another."
     );
   });
 });
@@ -478,7 +478,7 @@ describe("find_bytes", () => {
     );
     expect(
       (await call("find_bytes", { hex: "01", end: "0x10" })).text.startsWith(
-        "The range 0x0–0x10 is not inside d1"
+        "The range 0x0–0x10 is not inside front.bin (d1)"
       )
     ).toBe(true);
     expect((await call("find_bytes", { text: "é" })).text).toBe(

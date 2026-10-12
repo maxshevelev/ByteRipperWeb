@@ -69,8 +69,9 @@ export class AgentHostTools {
       name: "documents",
       title: "Open documents",
       description:
-        "Lists every file open in ByteRipper: its id (pass it as `document` to the other tools), " +
-        "name, size, whether it has unsaved edits, and where it is — pane A or B of a tab, " +
+        "Lists every file open in ByteRipper: its id (pass it as `document` to the other tools — " +
+        "never show it to the person), `label` (what to call it to the person: the file's name, told " +
+        "apart from another of the same name), name, size, whether it has unsaved edits, and where it is — pane A or B of a tab, " +
         'or a part opened over its parent file ("part", with the parent\'s id, the bytes of the ' +
         "parent it came from, and `decoded` — what the part's bytes are to those: `LZMA`, `XOR 77`, " +
         "`Read-only`…, absent for a plain copy — and `keeps_offsets`, whether byte n of the part is " +
@@ -81,12 +82,17 @@ export class AgentHostTools {
     });
   }
 
-  /** @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.documents */
+  /**
+   * @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.documents
+   * @upstream-differs no `link`: a page is never told the path of a file it opens, so it has no
+   * link to a file on disk to hand out
+   */
   documents(): Json {
     const focused = this.desk.focused();
     const entries = this.desk.places().map((place): Json => {
       const entry: { [key: string]: Json } = {
         id: place.id,
+        label: place.label,
         name: place.name,
         size: hexText(place.document.size),
         slot: place.slot,
@@ -259,6 +265,6 @@ export class AgentHostTools {
 
 function pastTheEnd(offset: number, place: AgentPlace, size: number): AgentToolError {
   return new AgentToolError(
-    `Offset ${hexText(offset)} is past the end of ${place.id}, which is ${hexText(size)} bytes long.`
+    `Offset ${hexText(offset)} is past the end of ${place.named}, which is ${hexText(size)} bytes long.`
   );
 }

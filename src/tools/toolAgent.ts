@@ -167,6 +167,13 @@ export interface ToolAgentPlace {
   readonly name: string;
   /** Its bytes in the file; nothing for one with no file address. */
   readonly range: { readonly start: number; readonly end: number } | undefined;
+  /**
+   * What to call it to the person, where the name alone is not enough to tell it from another;
+   * nothing for the name.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolAgent.swift#ToolAgentPlace.label
+   */
+  readonly label?: string | undefined;
 }
 
 /**

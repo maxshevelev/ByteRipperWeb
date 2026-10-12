@@ -137,6 +137,29 @@ A background document is answered about by every tool that reads — `read`,
 `documents`, the module queries — and refused, with `show` named, by every
 tool that shows: `focus`, `reveal`, `mark`, `open_panel`, panel actions.
 
+## Naming a document and a node to the person
+
+A document's `id` and a node's `id` are for tools; the person never needs
+them. `documents` gives each document a `label` — the file's name, and where
+another open document has the same name, what tells them apart: the folder
+for a file opened by path, otherwise its place (`front.bin, A`,
+`front.bin, part`, `front.bin, not on screen`) — and every answer with a
+`document` carries `document_label` beside it; a refusal names a document as
+`label (id)`. Every UEFI node an answer names — in `uefi_tree`, `uefi_node`,
+`uefi_find`, `uefi_at`, `uefi_checksums`, `region_scan`, `refs`, and the
+`where` of `diff` and `find_bytes` — has a `label`: its name as the panel's
+Name column shows it, and where that name is only a kind (`Unused`,
+`Unknown`, `Padding`, `Empty padding`, `Free space`, `Non-UEFI data`, `Raw`,
+or its own Type or Subtype), its file addresses — `Unused, 0x668000–0x66A000`
+— or, inside a compressed section, the nearest named node: `Raw in
+SmbiosDxe`. The label is added after a tool cuts its page, so a tool is given
+three quarters of the answer bound.
+
+Upstream also hands out a `link` beside each label —
+`byteripper://node?file=<path>&id=<id>` and `byteripper://file?path=<path>` —
+which the macOS app opens. The web edition has none: a page is never told the
+path of a file it opens, and the shell opens files through the page too.
+
 ## UEFI Structure
 
 Queries — answered with the panel open or not, from the pane's shared tree:

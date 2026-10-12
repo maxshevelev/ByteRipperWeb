@@ -65,6 +65,7 @@ export function nodeSummary(tree: AgentTree, node: UEFINode): { [key: string]: J
     id: nodeIdText(node.id),
     type: typeText(node),
     name: ownName(node) ?? node.name,
+    label: nodeLabel(node, tree),
   };
   const subtype = subtypeText(node);
   if (subtype !== "") entry.subtype = subtype;
@@ -115,6 +116,58 @@ export function enclosingCompression(
     }
   }
   return undefined;
+}
+
+/**
+ * What to call a node to the person: its name as the panel's Name column shows it — and, where
+ * that name says only what kind of thing it is (Padding, Unused, Raw…), where it is: its addresses,
+ * or for one inside a compressed section the named node it is in. Never the id, which means
+ * nothing on screen.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.label
+ */
+export function nodeLabel(node: UEFINode, tree: AgentTree | undefined): string {
+  const name = ownName(node) ?? node.name;
+  if (!isPlaceholder(name, node)) return name;
+  const range = nodeFileRange(node);
+  if (range !== undefined) return `${name}, ${hexText(range.start)}–${hexText(range.end)}`;
+  // In a buffer: the nearest node above with a name of its own.
+  if (tree !== undefined) {
+    const path = [...node.id];
+    while (path.length > 1) {
+      path.pop();
+      const above = nodeAtPath(tree, path);
+      if (above === undefined) break;
+      const aboveName = ownName(above) ?? above.name;
+      if (!isPlaceholder(aboveName, above)) return `${name} in ${aboveName}`;
+    }
+  }
+  return name;
+}
+
+/**
+ * Names that say what a node is rather than which one.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.placeholderNames
+ */
+const PLACEHOLDER_NAMES: ReadonlySet<string> = new Set([
+  "unused",
+  "unknown",
+  "padding",
+  "empty padding",
+  "free space",
+  "non-uefi data",
+  "raw",
+]);
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.isPlaceholder */
+function isPlaceholder(name: string, node: UEFINode): boolean {
+  const lowered = name.toLowerCase();
+  return (
+    PLACEHOLDER_NAMES.has(lowered) ||
+    lowered === typeText(node).toLowerCase() ||
+    lowered === subtypeText(node).toLowerCase()
+  );
 }
 
 /** The names from the top of the tree down to `id`. @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.path */

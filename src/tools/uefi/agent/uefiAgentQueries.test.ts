@@ -125,6 +125,23 @@ describe("uefi_find", () => {
     expect(member(uefiFind(tree, args({ name: "Set", exact: true }), context), "total")).toBe(0);
   });
 
+  // A node is named to the person by its label: the name, with its addresses where the name is only
+  // a kind.
+  // @upstream ByteRipperTests/AgentModuleToolsTests.swift#AgentModuleToolsTests.testANodeIsNamedByItsLabelAndLinked
+  // @upstream-differs no link: a page is never told the path of a file it opens
+  it("names a node by its label, with its addresses where its name is only a kind", () => {
+    const tree = agentTreeOver(fixture());
+    const setup = (
+      member(uefiFind(tree, args({ name: "setup" }), context), "matches") as Json[]
+    )[0];
+    expect(member(setup, "label")).toBe("Setup");
+    const found = uefiFind(tree, args({ type: "Padding" }), context);
+    const padding = (member(found, "matches") as Json[])[0];
+    expect(member(padding, "label")).toBe(
+      `${member(padding, "name")}, ${member(padding, "start")}–${member(padding, "end")}`
+    );
+  });
+
   it("finds by GUID and by type, and wants at least one of the three", () => {
     const tree = agentTreeOver(fixture());
     expect(

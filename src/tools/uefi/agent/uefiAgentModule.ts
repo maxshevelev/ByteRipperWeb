@@ -410,6 +410,7 @@ export function placesOf(json: Json): ToolAgentPlace[] {
     kind: one.kind,
     id: one.id,
     name: one.name,
+    ...(one.label === undefined ? {} : { label: one.label }),
     range:
       one.start === undefined || one.end === undefined
         ? undefined

@@ -1,4 +1,4 @@
-@source-sha 8971549760fa3b46e63dcf3a251c04774f48f2e357cbdb62bd53dc28ae55bfd8
+@source-sha ae9b8b006a752c929cef439aabf085bcd6aaed40d8bcde72aafb91c2b47a0645
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -89,6 +89,12 @@ Ist sie eingeschaltet, kann der Agent:
 - Microcode in der FIT hinzufügen, aktualisieren, ersetzen und entfernen, und zwar aus demselben Online-Katalog, den **FIT-Tabelle** anbietet, und mit denselben Prüfungen. Ein Update, das unter einer anderen seiner CPUIDs bereits in der Tabelle steht, wird abgelehnt. Ein Update, dessen erweiterte Signaturtabelle einen Prozessor abdeckt, für den bereits eine Zeile zuständig ist, tritt an die Stelle dieser Zeile. Ein Ersatz, nach dem einem Prozessor zwei Microcodes zugeordnet wären, wird abgelehnt, wobei die zu ersetzende Zeile genannt wird. Der Agent kann außerdem ermitteln, für welche Microcodes des Images der Katalog eine neuere Revision bereithält.
 
 Jede Änderung des Agenten bildet einen eigenen Schritt im Widerrufen-Verlauf der Datei. Der Schritt trägt die Bezeichnung **Agent:** und die Beschreibung, die der Agent der Änderung gegeben hat; **Bearbeiten ▸ Widerrufen** (**[[key:undo]]**) nimmt ihn zurück. Bis zum Sichern erscheinen die geänderten Bytes rot, wie bei einer Änderung von Hand; der Dump scrollt zu ihnen, und dieser Sprung wird im Verlauf festgehalten. Gesichert wird eine Datei ausschließlich vom Benutzer. Eine Datei, die der Agent über ihren Pfad geöffnet hat, ohne sie anzuzeigen, wird niemals verändert.
+
+## Wie der Agent Dateien und Knoten bezeichnet
+
+Eine Datei bezeichnet der Agent mit ihrem Namen. Sind zwei Dateien gleichen Namens geöffnet, ergänzt er, was sie unterscheidet: den Ordner bei einer Datei, die er über ihren Pfad geöffnet hat, andernfalls den Ort der Datei — Bereich **A** oder **B**, ein Fragment-Bereich oder „nicht auf dem Bildschirm“. Einen Knoten der Struktur eines Firmware-Images bezeichnet er wie **UEFI-Struktur** mit seinem Namen und, wenn der Name nur die Art des Bereichs angibt, etwa **Unused** oder **Padding**, zusätzlich mit seinen Adressen. Die internen Kennungen, die die Werkzeuge untereinander austauschen, sind nicht für den Anwender bestimmt.
+
+Anders als die macOS-Ausgabe gibt diese Ausgabe keine Links aus, die eine Datei oder einen Knoten öffnen: Der Seite wird nicht mitgeteilt, wo eine in ihr geöffnete Datei auf dem Datenträger liegt, und ohne diese Angabe lässt sich kein solcher Link bilden.
 
 ## Das Agentenfenster
 

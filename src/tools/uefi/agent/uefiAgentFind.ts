@@ -13,7 +13,7 @@ import {
   nodeBytes,
   sectionSource,
 } from "@/tools/uefi/agent/uefiAgentNodeData";
-import { hexText } from "@/tools/uefi/agent/uefiAgentQueries";
+import { hexText, nodeLabel } from "@/tools/uefi/agent/uefiAgentQueries";
 import type { AgentTree } from "@/tools/uefi/agent/uefiAgentTree";
 import { decompressedBody } from "@/tools/uefi/uefiPresenter";
 import { ownName } from "@/tools/uefi/uefiTreeDisplay";
@@ -126,7 +126,12 @@ export async function findInNode(tree: AgentTree, params: FindInNodeParams): Pro
     if (inCompressed) {
       const deepest = deepestCovering(tree, match, found.space, found.node);
       members.where = placesJson([
-        { kind: "uefi", id: nodeIdText(deepest.id), name: ownName(deepest) ?? deepest.name },
+        {
+          kind: "uefi",
+          id: nodeIdText(deepest.id),
+          name: ownName(deepest) ?? deepest.name,
+          label: nodeLabel(deepest, tree),
+        },
       ]);
       members.node_start = hexText(match.start - scope.start);
       members.node_end = hexText(match.end - scope.start);

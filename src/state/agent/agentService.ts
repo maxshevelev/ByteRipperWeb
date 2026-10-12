@@ -117,6 +117,7 @@ const INITIAL: AgentServiceState = {
  * sentences about what it brings.
  *
  * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.instructions
+ * @upstream-differs a file or a node is named by its `label` alone: the page has no `link` to hand out
  */
 export const AGENT_INSTRUCTIONS =
   "ByteRipper is a hex editor for firmware dumps, open on the person's computer. These tools read the files " +
@@ -126,7 +127,8 @@ export const AGENT_INSTRUCTIONS =
   "until it is null. `reveal` points at what you are talking about, `mark` labels bytes as you explain " +
   "them. `open_dump` reads a file by path without showing it, `survey` asks one tool's question of a " +
   "folder of dumps, `finding` records a thing found for the person to check. `find_bytes` searches the " +
-  "bytes; the `uefi_` tools read a firmware image's structure. `open_part` opens a stretch or a node as " +
+  "bytes; the `uefi_` tools read a firmware image's structure. To the person, name a file or a node by its " +
+  "`label`, never by an id (d1, 0.2.5). `open_part` opens a stretch or a node as " +
   "a part of its own, in a panel over the same window — decompressed, or a Lenovo LENV block decoded " +
   'with `part: "decoded"`; asking again raises the open one (`reused: true`). A part is a document to ' +
   "every tool, takes the focus, and has a tree with ids of its own: name the `document` a node id was " +
@@ -312,9 +314,35 @@ export class AgentService {
       // @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.appVersion
       info: { name: "byteripper", version: appVersionText(), title: "ByteRipper" },
       instructions: AGENT_INSTRUCTIONS,
-      tools: this.allTools().map((tool) => this.noted(tool)),
+      tools: this.allTools().map((tool) => this.labelling(this.noted(tool))),
     });
     return this.builtServer;
+  }
+
+  /**
+   * `tool`, with `document_label` beside the answer's `document`: the document by the name the
+   * person knows it by.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.linking
+   * @upstream-differs labels only: no `link` beside a UEFI node's `label`, a page never being told
+   * the path of a file it opens (`AgentNodeURLs` is unported)
+   */
+  private labelling(tool: AgentTool): AgentTool {
+    return {
+      ...tool,
+      run: async (call) => {
+        // The label is added after the tool has cut its page, so the tool is given a quarter less
+        // room, as upstream gives it for the links it adds there.
+        call.arguments.answerBound = Math.floor(call.arguments.answerBound / 4) * 3;
+        const answer = await tool.run(call);
+        if (answer.kind !== "json" || !isObject(answer.value)) return answer;
+        const id = answer.value.document;
+        if (typeof id !== "string") return answer;
+        const label = this.desk.places().find((place) => place.id === id)?.label;
+        if (label === undefined || label === id) return answer;
+        return jsonAnswer({ ...answer.value, document_label: label });
+      },
+    };
   }
 
   /**

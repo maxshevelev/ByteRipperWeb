@@ -225,7 +225,9 @@ export class AgentModuleTools {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const other = this.desk.placeNamed(args.string("against"));
     if (other.document === place.document) {
-      throw new AgentToolError(`\`document\` and \`against\` are the same document, ${place.id}.`);
+      throw new AgentToolError(
+        `\`document\` and \`against\` are the same document, ${place.named}.`
+      );
     }
     const answer = await comparison.run(this.hostFor(place), this.hostFor(other), args);
     return withDocument(answer, { document: place.id, against: other.id });
@@ -268,7 +270,7 @@ export class AgentModuleTools {
     const done = await edit.run(host, args);
     if (host.contentVersion !== version) {
       throw new AgentToolError(
-        `${place.id} changed while the edit was being worked out; nothing was written. Ask again.`
+        `${place.named} changed while the edit was being worked out; nothing was written. Ask again.`
       );
     }
     const change = "transaction" in done ? done : { transaction: done };
@@ -320,7 +322,7 @@ export class AgentModuleTools {
         : undefined;
     if (session === undefined) {
       throw new AgentToolError(
-        `The ${module.title} panel is not open on ${place.id}. ` +
+        `The ${module.title} panel is not open on ${place.named}. ` +
           `Call \`open_panel\` with module "${short}" first, or show the bytes with \`reveal\`.`
       );
     }
@@ -389,7 +391,7 @@ export class AgentModuleTools {
       now.boundPane !== pane ||
       paneState(pane) === undefined
     ) {
-      throw new AgentToolError(`The ${module.title} panel could not be opened on ${place.id}.`);
+      throw new AgentToolError(`The ${module.title} panel could not be opened on ${place.named}.`);
     }
     return jsonAnswer({
       document: place.id,

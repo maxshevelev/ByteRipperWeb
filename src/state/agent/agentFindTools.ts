@@ -201,7 +201,7 @@ export class AgentFindTools {
       const end = args.optionalOffset("end") ?? size;
       if (!(offset < end && end <= size)) {
         throw new AgentToolError(
-          `The range ${hexText(offset)}–${hexText(end)} is not inside ${place.id}, which is ${hexText(size)} bytes long.`
+          `The range ${hexText(offset)}–${hexText(end)} is not inside ${place.named}, which is ${hexText(size)} bytes long.`
         );
       }
       envelope.range = rangeJson(offset, end);
@@ -461,7 +461,7 @@ export class AgentFindTools {
     const size = place.document.size;
     if (!(length > 0 && offset < size && length <= size - offset)) {
       throw new AgentToolError(
-        `${hexText(offset)} and ${hexText(length)} bytes do not fit in ${place.id}, which is ${hexText(size)} bytes long.`
+        `${hexText(offset)} and ${hexText(length)} bytes do not fit in ${place.named}, which is ${hexText(size)} bytes long.`
       );
     }
     const source: [number, number] = [offset, offset + length];

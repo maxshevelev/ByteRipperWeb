@@ -81,9 +81,11 @@ export class AgentDesk {
     for (const entry of this.background.entries) {
       const held = state.parts[entry.pane];
       if (held === undefined) continue;
-      result.push(new AgentPlace(entry.id, "background", entry.pane, held.document, held.name));
+      const place = new AgentPlace(entry.id, "background", entry.pane, held.document, held.name);
+      place.path = entry.path;
+      result.push(place);
     }
-    return result;
+    return labelled(result);
   }
 
   private place(pane: PaneId, document: BinaryDocument, name: string, slot: AgentSlot): AgentPlace {
@@ -165,6 +167,15 @@ export class AgentPlace {
   readonly pane: PaneId | undefined;
   readonly document: BinaryDocument;
   readonly name: string;
+  /**
+   * What to call it to the person (`labelled`): the file's name, told apart from another of the
+   * same name. Ids are for tools.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place.label
+   */
+  label = "";
+  /** The file's path, where it has one the page was told: a file an agent opened by path. */
+  path: string | undefined;
 
   constructor(
     id: string,
@@ -178,6 +189,16 @@ export class AgentPlace {
     this.pane = pane;
     this.document = document;
     this.name = name;
+  }
+
+  /**
+   * The label with the id, for a sentence the agent reads: it names the document to the person by
+   * the first and to a tool by the second.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place.named
+   */
+  get named(): string {
+    return this.label === "" || this.label === this.id ? this.id : `${this.label} (${this.id})`;
   }
 
   /** @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place.isOnScreen */
@@ -194,7 +215,7 @@ export class AgentPlace {
   onScreen(): PaneId {
     if (this.pane === undefined || this.slot === "background") {
       throw new AgentToolError(
-        `${this.id} is open in the background, not on screen. Call \`show\` to put it on screen first.`
+        `${this.named} is open in the background, not on screen. Call \`show\` to put it on screen first.`
       );
     }
     return this.pane;
@@ -217,6 +238,43 @@ export class AgentPlace {
   get state() {
     return this.pane === undefined ? undefined : paneState(this.pane);
   }
+}
+
+/**
+ * Each place with what to call it to the person: the file's name — a part's own name — and, where
+ * another open document has the same name, what tells them apart: the folder, when they are
+ * different files; the pane, or "not on screen", when they are one file open twice.
+ *
+ * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.labelled
+ * @upstream-differs no tab to name, the web having one workspace per tab; and only a file an
+ * agent opened by path has a folder to tell it apart by, a page never being told the path of a
+ * file it opens
+ */
+export function labelled(places: AgentPlace[]): AgentPlace[] {
+  for (const [index, place] of places.entries()) {
+    const twins = places.filter((other, at) => at !== index && other.name === place.name);
+    if (twins.length === 0) {
+      place.label = place.name;
+      continue;
+    }
+    const path = place.path;
+    const samePath = twins.some((other) => other.path !== undefined && other.path === path);
+    const others = twins.every((other) => other.path !== undefined);
+    if (path !== undefined && others && !samePath) {
+      place.label = `${folderName(path)}/${place.name}`;
+    } else if (place.isOnScreen) {
+      place.label = `${place.name}, ${place.slot}`;
+    } else {
+      place.label = `${place.name}, not on screen`;
+    }
+  }
+  return places;
+}
+
+/** The last folder of a path, either separator. */
+function folderName(path: string): string {
+  const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
+  return parts.length >= 2 ? (parts[parts.length - 2] ?? "") : "";
 }
 
 /**

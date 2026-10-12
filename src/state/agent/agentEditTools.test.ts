@@ -198,7 +198,7 @@ describe("write", () => {
     ) as string;
     const refused = await call("write", { document: id, offset: 0, bytes: "AA", label: "X" });
     expect(refused.text).toBe(
-      `${id} is open in the background, not on screen. Call \`show\` to put it on screen first.`
+      `other.bin (${id}) is open in the background, not on screen. Call \`show\` to put it on screen first.`
     );
   });
 

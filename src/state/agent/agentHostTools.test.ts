@@ -178,7 +178,7 @@ describe("read", () => {
     expect(member(cut, "cut_at_end_of_file")).toBe(true);
     const past = await call(service, "read", { offset: 0x20 });
     expect(past.isError).toBe(true);
-    expect(past.text).toMatch(/past the end of d1, which is 0x20 bytes long/);
+    expect(past.text).toMatch(/past the end of dump\.bin \(d1\), which is 0x20 bytes long/);
     expect((await call(service, "read", { offset: 0, length: 5000 })).text).toMatch(
       /at most 4096 bytes/
     );

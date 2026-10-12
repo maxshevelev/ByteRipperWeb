@@ -150,7 +150,7 @@ export class AgentDumpTools {
   closeDump(args: AgentArguments): Json {
     const place = this.desk.placeNamed(args.string("document"));
     if (place.isOnScreen) {
-      throw new AgentToolError(`${place.id} is open in the window; only the person closes it.`);
+      throw new AgentToolError(`${place.named} is open in the window; only the person closes it.`);
     }
     if (place.pane !== undefined) this.desk.background.close(place.pane);
     return { closed: place.id };
@@ -193,7 +193,7 @@ export class AgentDumpTools {
       onScreen = place;
     } else {
       const entry = place.pane === undefined ? undefined : this.desk.background.entryOf(place.pane);
-      if (entry === undefined) throw new AgentToolError(`${place.id} has no file.`);
+      if (entry === undefined) throw new AgentToolError(`${place.named} has no file.`);
       const existing = this.desk.onScreenPlaceOf(entry.path, entry);
       onScreen = existing ?? this.openOnScreen(place);
       replaced = place.id;
@@ -201,7 +201,7 @@ export class AgentDumpTools {
     }
     const size = onScreen.document.size;
     if (offset > size) {
-      throw new AgentToolError(`Offset ${hexText(offset)} is past the end of ${onScreen.id}.`);
+      throw new AgentToolError(`Offset ${hexText(offset)} is past the end of ${onScreen.named}.`);
     }
     const end = Math.min(offset + length, size);
     const pane = onScreen.onScreen();
@@ -225,7 +225,7 @@ export class AgentDumpTools {
    */
   private openOnScreen(place: AgentPlace): AgentPlace {
     const held = place.state;
-    if (held === undefined) throw new AgentToolError(`${place.id} has no file.`);
+    if (held === undefined) throw new AgentToolError(`${place.named} has no file.`);
     const free = (["a", "b"] as const).find((slot: SlotId) => paneState(slot) === undefined);
     if (free === undefined) {
       throw new AgentToolError(
@@ -493,7 +493,7 @@ export class AgentDumpTools {
         for (let origin = paneState(pane)?.origin; origin !== undefined; ) {
           if (paneState(origin.parent) === undefined) {
             throw new AgentToolError(
-              `${place.id}'s parent is closed, so a finding could not lead back to it.`
+              `${place.named}'s parent is closed, so a finding could not lead back to it.`
             );
           }
           const source = origin.sourceRange;
@@ -512,7 +512,7 @@ export class AgentDumpTools {
       const held = pane === undefined ? undefined : paneState(pane);
       if (held === undefined || held.untitled) {
         throw new AgentToolError(
-          `${place.id} is not a file on disk, so a finding could not lead back to it.`
+          `${place.named} is not a file on disk, so a finding could not lead back to it.`
         );
       }
       file = held.file.name;

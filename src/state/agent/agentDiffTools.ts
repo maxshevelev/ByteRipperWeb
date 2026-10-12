@@ -113,6 +113,7 @@ export function divided(area: ToolAgentPlace, finer: readonly ToolAgentPlace[]):
 export function placeJson(place: ToolAgentPlace): Json {
   const members: { [key: string]: Json } = { kind: place.kind, name: place.name };
   if (place.id !== "") members.id = place.id;
+  if (place.label !== undefined) members.label = place.label;
   return members;
 }
 
@@ -200,7 +201,9 @@ export class AgentDiffTools {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const other = this.desk.placeNamed(args.string("against"));
     if (other.document === place.document) {
-      throw new AgentToolError(`\`document\` and \`against\` are the same document, ${place.id}.`);
+      throw new AgentToolError(
+        `\`document\` and \`against\` are the same document, ${place.named}.`
+      );
     }
     const sizes = [place.document.size, other.document.size] as const;
     const common = Math.min(sizes[0], sizes[1]);
@@ -446,7 +449,9 @@ export class AgentDiffTools {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const other = this.desk.placeNamed(args.string("against"));
     if (other.document === place.document) {
-      throw new AgentToolError(`\`document\` and \`against\` are the same document, ${place.id}.`);
+      throw new AgentToolError(
+        `\`document\` and \`against\` are the same document, ${place.named}.`
+      );
     }
     const already = this.pairOf(place, other);
     if (already !== undefined) {
@@ -478,7 +483,7 @@ export class AgentDiffTools {
       const slot = free.shift();
       if (slot === undefined) break;
       const held = one.state;
-      if (held === undefined) throw new AgentToolError(`${one.id} has no file.`);
+      if (held === undefined) throw new AgentToolError(`${one.named} has no file.`);
       if (copies) {
         const size = one.document.size;
         if (size > COPY_LIMIT) {
@@ -555,7 +560,7 @@ export class AgentDiffTools {
       paneState("b") === undefined
     ) {
       throw new AgentToolError(
-        `${place.id} is not one of a pair shown side by side. \`compare\` shows it beside another.`
+        `${place.named} is not one of a pair shown side by side. \`compare\` shows it beside another.`
       );
     }
     agentShell.bringForward?.(pane);

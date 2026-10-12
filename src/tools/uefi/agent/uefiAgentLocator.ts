@@ -1,6 +1,7 @@
 import type { Json } from "@/core/agent/json";
 import { FLASH_REGIONS } from "@/firmware/uefi/descriptorParser";
 import { nodeFileRange, nodeIdText, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { nodeLabel } from "@/tools/uefi/agent/uefiAgentQueries";
 import { type AgentTree, expanded } from "@/tools/uefi/agent/uefiAgentTree";
 import { ownName } from "@/tools/uefi/uefiTreeDisplay";
 
@@ -24,6 +25,8 @@ export interface WirePlace {
   readonly kind: string;
   readonly id: string;
   readonly name: string;
+  /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolAgent.swift#ToolAgentPlace.label */
+  readonly label?: string;
   readonly start?: number;
   readonly end?: number;
 }
@@ -118,6 +121,7 @@ export function place(node: UEFINode): WirePlace {
     kind: "uefi",
     id: nodeIdText(node.id),
     name: ownName(node) ?? node.name,
+    label: nodeLabel(node, undefined),
     ...(range === undefined ? {} : { start: range.start, end: range.end }),
   };
 }

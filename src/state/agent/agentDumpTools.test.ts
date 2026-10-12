@@ -166,13 +166,40 @@ describe("open_dump", () => {
 
     const reveal = await call("reveal", { document: id, offset: 0 });
     expect(reveal.text).toBe(
-      `${id} is open in the background, not on screen. Call \`show\` to put it on screen first.`
+      `image.rom (${id}) is open in the background, not on screen. Call \`show\` to put it on screen first.`
     );
     expect((await call("mark", { document: id, offset: 0, length: 1, label: "X" })).isError).toBe(
       true
     );
     // And the dock never saw it.
     expect(workspaceStore.getSnapshot().dock.panels).toEqual([]);
+  });
+
+  // A document is named to the person by its file, never by its id: two files of one name are told
+  // apart by their folders where both have one, and by where they are where they have not.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testADocumentIsNamedByItsFileAndToldApartFromItsTwin
+  it("names a document by its file, told apart from its twin", async () => {
+    disk.put("/dumps/HP/front.bin", [1, 1], 1000);
+    disk.put("/dumps/Dell/front.bin", [9, 9], 1000);
+    await call("open_dump", { path: "/dumps/HP/front.bin" });
+    await call("open_dump", { path: "/dumps/Dell/front.bin" });
+    const labels = async () =>
+      (member((await call("documents")).json, "documents") as Json[]).map((one) =>
+        member(one, "label")
+      );
+    expect(new Set(await labels())).toEqual(new Set(["HP/front.bin", "Dell/front.bin"]));
+
+    // Every answer about a document names it as well.
+    const read = (await call("read", { document: "d1", offset: 0, length: 2 })).json;
+    expect(member(read, "document_label")).toBe("HP/front.bin");
+
+    // One in the window, whose folder the page was never told: it is told apart by where it is.
+    open(Uint8Array.from([0, 1]), "a", "front.bin", 2000);
+    expect(await labels()).toEqual([
+      "front.bin, A",
+      "front.bin, not on screen",
+      "front.bin, not on screen",
+    ]);
   });
 
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testAFileAlreadyInATabAnswersWithThatTabsId
@@ -222,7 +249,7 @@ describe("open_dump", () => {
     expect(member((await call("close_dump", { document: id })).json, "closed")).toBe(id);
     expect(service.desk.background.entries).toEqual([]);
     expect((await call("close_dump", { document: "d1" })).text).toBe(
-      "d1 is open in the window; only the person closes it."
+      "front.bin (d1) is open in the window; only the person closes it."
     );
   });
 

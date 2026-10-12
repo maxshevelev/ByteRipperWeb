@@ -119,7 +119,7 @@ export class AgentEditTools {
       const expected = parseHexBytes(args.string("expect"), "expect");
       const size = place.document.size;
       if (offset + expected.length > size) {
-        throw new AgentToolError(`\`expect\` runs past the end of ${place.id}.`);
+        throw new AgentToolError(`\`expect\` runs past the end of ${place.named}.`);
       }
       const actual = await place.document.read(offset, expected.length);
       if (hexByteText(actual) !== hexByteText(expected)) {
@@ -178,14 +178,14 @@ export class AgentEditTools {
     source.onScreen();
     if (source.slot !== "A" && source.slot !== "B") {
       throw new AgentToolError(
-        `${source.id} is a part over a file, not one of the window's two files; it has no ` +
+        `${source.named} is a part over a file, not one of the window's two files; it has no ` +
           "pane beside it. Use `write`, or copy in the window's own files."
       );
     }
     const other = this.desk.places().find((one) => one.slot === (source.slot === "A" ? "B" : "A"));
     if (other === undefined) {
       throw new AgentToolError(
-        `${source.id} is alone in the window; there is no other pane to copy into. ` +
+        `${source.named} is alone in the window; there is no other pane to copy into. ` +
           "`compare` puts a second file beside it."
       );
     }
@@ -195,7 +195,7 @@ export class AgentEditTools {
     const sourceSize = source.document.size;
     if (offset >= sourceSize || length > sourceSize - offset) {
       throw new AgentToolError(
-        `The range ${hexText(offset)}+${hexText(length)} runs past the end of ${source.id}, ` +
+        `The range ${hexText(offset)}+${hexText(length)} runs past the end of ${source.named}, ` +
           `which is ${hexText(sourceSize)} bytes long.`
       );
     }
@@ -204,7 +204,7 @@ export class AgentEditTools {
     const otherSize = other.document.size;
     if (end > otherSize) {
       throw new AgentToolError(
-        `The range ends at ${hexText(end)}, past the end of ${other.id}, which is ` +
+        `The range ends at ${hexText(end)}, past the end of ${other.named}, which is ` +
           `${hexText(otherSize)} bytes long. Nothing was copied; a copy overwrites, it does not grow the file.`
       );
     }
@@ -292,7 +292,7 @@ export class AgentEditTools {
     const origin = place.state?.origin;
     if (origin === undefined || place.slot !== "part") {
       throw new AgentToolError(
-        `${place.id} is not a part, so it has no parent to go back into. ` +
+        `${place.named} is not a part, so it has no parent to go back into. ` +
           "`open_part` opens a part; `documents` lists which documents are parts."
       );
     }
@@ -333,7 +333,7 @@ export class AgentEditTools {
         );
       case "sourceChanged":
         throw new AgentToolError(
-          `The bytes ${place.id} was opened from (${hexText(sourceBefore[0])}–` +
+          `The bytes ${place.named} was opened from (${hexText(sourceBefore[0])}–` +
             `${hexText(sourceBefore[1])} in ${parentName}) have changed there since. ` +
             "Updating would overwrite those changes. Nothing was written. Ask the person; call again with " +
             "`overwrite_changed_source: true` only if they agree."
@@ -408,7 +408,7 @@ export class AgentEditTools {
     const past = writes.find((write) => write.offset + write.bytes.length > size);
     if (past !== undefined) {
       throw new AgentToolError(
-        `A write at ${hexText(past.offset)} runs past the end of ${place.id}, ` +
+        `A write at ${hexText(past.offset)} runs past the end of ${place.named}, ` +
           `which is ${hexText(size)} bytes long. Writes overwrite; they do not grow the file.`
       );
     }
@@ -419,7 +419,7 @@ export class AgentEditTools {
     );
     const problem = await applyTransaction(pane, checked.transaction);
     if (problem !== undefined) {
-      throw new AgentToolError(`Could not write into ${place.id}: ${problem}`);
+      throw new AgentToolError(`Could not write into ${place.named}: ${problem}`);
     }
     const first = writes[0];
     const last = writes.at(-1);

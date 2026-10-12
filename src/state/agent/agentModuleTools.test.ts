@@ -162,7 +162,12 @@ describe("the module tools", () => {
     const properties = member(tool?.inputSchema, "properties") as { [key: string]: Json };
     expect(Object.keys(properties).sort()).toEqual(["depth", "document"]);
     const answer = await call(service, "fit_probe");
-    expect(answer.json).toEqual({ name: "one.bin", size: 0x40, document: "d1" });
+    expect(answer.json).toEqual({
+      name: "one.bin",
+      size: 0x40,
+      document: "d1",
+      document_label: "one.bin",
+    });
     expect((await call(service, "fit_words")).text).toBe("plain");
   });
 
@@ -176,7 +181,13 @@ describe("the module tools", () => {
       document: first as string,
       against: second as string,
     });
-    expect(answer.json).toEqual({ a: "one.bin", b: "two.bin", document: first, against: second });
+    expect(answer.json).toEqual({
+      a: "one.bin",
+      b: "two.bin",
+      document: first,
+      document_label: "one.bin",
+      against: second,
+    });
     expect(
       (await call(service, "fit_pair", { document: first as string, against: first as string }))
         .text
@@ -192,7 +203,9 @@ describe("a panel action", () => {
     open("a", 0x40, "one.bin");
     const refusal = await call(service, "fit_poke");
     expect(refusal.isError).toBe(true);
-    expect(refusal.text).toMatch(/panel is not open on d1\. Call `open_panel` with module "fit"/);
+    expect(refusal.text).toMatch(
+      /panel is not open on one\.bin \(d1\)\. Call `open_panel` with module "fit"/
+    );
   });
 
   it("runs on the live session of its module on that pane, and brings the pane forward", async () => {
@@ -203,7 +216,11 @@ describe("a panel action", () => {
     activate(module.id, "panes");
     leave.push(registerAgentSession("a", module.id, { id: 7 }));
     // The answer says which document's panel it was, as a query's does.
-    expect((await call(service, "fit_poke")).json).toEqual({ document: "d1", poked: 7 });
+    expect((await call(service, "fit_poke")).json).toEqual({
+      document: "d1",
+      document_label: "one.bin",
+      poked: 7,
+    });
     expect(forward).toEqual(["a"]);
   });
 });
@@ -216,6 +233,7 @@ describe("open_panel", () => {
     const first = await call(service, "open_panel", { module: "fit" });
     expect(first.json).toEqual({
       document: "d1",
+      document_label: "one.bin",
       module: "fit",
       panel: "FIT Table",
       was_open: false,

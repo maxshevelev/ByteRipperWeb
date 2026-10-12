@@ -89,6 +89,12 @@ While it is on, an agent can:
 
 Each change is one step of the file's undo, named **Agent:** and what the agent said the change is, so **Edit ▸ Undo** (**[[key:undo]]**) takes it back. The changed bytes are red until the file is saved, like an edit made by hand, and the dump scrolls to them as a step of the navigation history. The file is saved only by the person. A file the agent opened by its path without a tab is never changed.
 
+## How the agent names files and nodes
+
+The agent names a file by its name, and where two open files have the same name, adds what tells them apart: the folder, for a file it opened by path, or otherwise where the file is — pane **A** or **B**, a fragment panel, or not on screen. It names a node of a firmware image's structure as **UEFI Structure** does — by its name, and where the name only states what kind of area it is, such as **Unused** or **Padding**, by its addresses as well. The internal identifiers the tools exchange with each other are not meant for the reader.
+
+Unlike the macOS edition, this edition does not hand out links that open a file or a node: the page is never told where on disk a file it opened lies, so it has no link to give.
+
 ## The Agent window
 
 **Window ▸ Agent** shows whether the service is running, and has four lists. While the service is switched on, the toolbar has a button for it between **?** and the pane arrangement; it opens the window as a panel over the panes, with a pill in the dock along the bottom edge as the help has, and closes it when it is up. Folding the panel (**Esc** or the pill) leaves the pill, so the window is one click away; ✕ on the pill closes it. The keyboard is then on the list of the page shown, and the arrow keys move through its rows; choosing another page moves the keyboard to that page's list.

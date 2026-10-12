@@ -11,7 +11,7 @@ import { guidBytes, guidFromText, guidText } from "@/firmware/uefi/efiGuid";
 import { nodeIdText, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { ReaderStorage } from "@/tools/uefi/agent/uefiAgentFind";
 import { compressedView, deepestCovering } from "@/tools/uefi/agent/uefiAgentNodeData";
-import { hexText, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
+import { hexText, nodeLabel, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
 import { isBIOSRegion } from "@/tools/uefi/agent/uefiAgentRegions";
 import {
   type AgentTree,
@@ -350,6 +350,7 @@ export async function refs(
       const subtype = subtypeText(owner);
       const entry: { [key: string]: Json } = {
         name: ownName(owner) ?? owner.name,
+        label: nodeLabel(owner, tree),
         type: subtype === "" ? typeText(owner) : subtype,
         in_compressed: !isFileSpace(owner.space),
       };

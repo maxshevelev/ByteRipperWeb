@@ -50,7 +50,7 @@ The window holds three stories and some fixes:
 - [x] **X1 — the relay starts the app only when asked** (the relay part of `7197e6f`; G82)
 - [x] **X2 — fixes: the PSP's BIOS image goes back after Update Anyway, the compression named** (`b4bb198`, `0dc4305`; G83)
 - [x] **X3 — a part opened from a UEFI node is that node** (`4db7ed7`, `606ba34`; G84)
-- [ ] **X4 — labels and links for nodes and documents** (`b7f6d71`, `f755f40`)
+- [x] **X4 — labels for nodes and documents; links n/a** (`b7f6d71`, `f755f40`; G85)
 - [ ] **X5 — annotations: one kind for marks and findings, and their cards** (`2220481`, `0247de2`, `66ee745`)
 - [ ] **X6 — the UEFI tree's Contents search, and `find_bytes` with a node** (`4f74159`, `07eaac9`, `8d2f662`, `37c9a4d`, `03f8943`, `ff2ca8e`)
 - [ ] **X7 — one set of pattern controls for the Find bar and the Contents search** (`0137760`, `de50064`)
@@ -86,11 +86,10 @@ node, header and all; a leaf still opens as its body.
 
 Every node an answer names has a `label`, and every document a `label` and
 `document_label` on every answer; a refusal names a document `label (id)`.
-The link is `byteripper://node` and `byteripper://file`. The shell can
-register the scheme (`app.setAsDefaultProtocolClient`) and route a click into
-the page; a page cannot be the target of a scheme, so the browser hands out
-labels without links — the instructions say so. The agent's instructions are
-upstream's otherwise.
+The link is `byteripper://node` and `byteripper://file`, and it names the
+file by its path on disk — which a page is never told, in the shell as in the
+browser, the shell opening files through the page. So neither edition hands
+out links: labels only, the links `unported` with that reason.
 
 ### X5. Annotations
 

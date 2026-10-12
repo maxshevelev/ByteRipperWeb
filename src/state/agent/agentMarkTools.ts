@@ -140,7 +140,7 @@ export class AgentMarkTools {
     const size = place.document.size;
     if (!(offset < size && length <= size - offset)) {
       throw new AgentToolError(
-        `The range ${hexText(offset)}+${hexText(length)} runs past the end of ${place.id}, ` +
+        `The range ${hexText(offset)}+${hexText(length)} runs past the end of ${place.named}, ` +
           `which is ${hexText(size)} bytes long.`
       );
     }

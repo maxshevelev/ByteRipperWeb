@@ -122,7 +122,7 @@ describe("the tools", () => {
     open(ramp(0x100));
     const past = await call(service, "mark", { offset: "0xF0", length: "0x20", label: "Tail" });
     expect(past.text).toBe(
-      "The range 0xF0+0x20 runs past the end of d1, which is 0x100 bytes long."
+      "The range 0xF0+0x20 runs past the end of dump.bin (d1), which is 0x100 bytes long."
     );
     expect((await call(service, "mark", { offset: 0, length: 1, label: "  " })).isError).toBe(true);
     expect((await call(service, "mark", { offset: 0, length: 0, label: "Nothing" })).isError).toBe(
