@@ -318,15 +318,72 @@ describe("the compressed BIOS image", () => {
   });
 
   /**
-   * Nothing compresses it again the way the PSP reads it, so a change inside is refused, by
-   * name.
+   * Whether the PSP takes a new stream is not known, so a change inside is refused by name — as a
+   * caution the reader can go on past.
    *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift#AMDFirmwareTests.testAChangeInsideTheInflatedImageIsRefused
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift#AMDFirmwareTests.testAChangeInsideTheInflatedImageIsACaution
    */
-  it("refuses a change inside it", () => {
+  it("refuses a change inside it as a caution", () => {
     const { bytes, volume } = fixture();
     const result = planRebuild(volume, { space: [0x5_0000] }, bytes);
     expect(result.ok).toBe(false);
-    expect(result.ok ? "" : result.refusal.message).toContain("the PSP inflates");
+    if (result.ok) return;
+    expect(result.refusal.caution).toEqual({ kind: "pspBIOSImage", name: "BIOS" });
+    expect(result.refusal.message).toContain("the PSP decompresses itself");
+  });
+
+  /**
+   * Gone on past, the image is compressed again behind AMD's header, which gives the new stream's
+   * length, and reads back as the bytes put in.
+   *
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift#AMDFirmwareTests.testAChangeInsideTheInflatedImageGoesBackWhenAccepted
+   */
+  it("goes back when the caution is accepted", () => {
+    const fixed = fixture();
+    const volume = Uint8Array.from(fixed.volume);
+    const at = volume.lastIndexOf(0x5a);
+    expect(at).toBeGreaterThanOrEqual(0);
+    volume[at] = 0xa5;
+    const result = planRebuild(volume, { space: [0x5_0000] }, fixed.bytes, {
+      accepting: [{ kind: "pspBIOSImage", name: "BIOS" }],
+    });
+    if (!result.ok) throw result.refusal;
+    const plan = result.plan;
+    expect(
+      plan.warnings.some((line) => line.includes("Whether the PSP accepts it is not known"))
+    ).toBe(true);
+    const file = Uint8Array.from(fixed.bytes);
+    file.set(plan.bytes, plan.offset);
+    const reader = new SpaceReaders(new ImageReader(sourceOver(file))).readerFor([0x5_0000]);
+    expect(Array.from(reader?.bytes(reader.all) ?? [])).toEqual(Array.from(volume));
+    const bios = parse(file).allNodes.find(
+      (node) => node.kind === "amdFirmwareEntry" && node.name === "BIOS"
+    );
+    const stream =
+      (file[0x5_0014] ?? 0) |
+      ((file[0x5_0015] ?? 0) << 8) |
+      ((file[0x5_0016] ?? 0) << 16) |
+      ((file[0x5_0017] ?? 0) << 24);
+    expect(bios && [bios.header.start, bios.body.end]).toEqual([0x5_0000, 0x5_0100 + stream]);
+  });
+
+  /**
+   * The directory gives the size the image inflates to and is not rewritten: another size is
+   * refused outright, not offered.
+   *
+   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/AMDFirmwareTests.swift#AMDFirmwareTests.testAnInflatedImageOfAnotherSizeIsRefused
+   */
+  it("refuses an image of another size outright", () => {
+    const { bytes, volume } = fixture();
+    const longer = new Uint8Array(volume.length + 1);
+    longer.set(volume);
+    longer[volume.length] = 0xff;
+    const result = planRebuild(longer, { space: [0x5_0000] }, bytes, {
+      accepting: [{ kind: "pspBIOSImage", name: "BIOS" }],
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.caution).toBeUndefined();
+    expect(result.refusal.message).toContain("has to keep its size");
   });
 });

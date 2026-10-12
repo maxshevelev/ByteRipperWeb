@@ -17,6 +17,7 @@ import {
 } from "@/state/operationStore";
 import { applyTransaction } from "@/state/toolEdits";
 import {
+  askAlertChoice,
   type PaneId,
   type PartId,
   paneState,
@@ -86,11 +87,21 @@ function confirmOverwritingChangedSource(origin: DocumentOrigin): boolean {
  * window's own
  */
 export function updateInParent(pane: PartId): Promise<UpdateOutcome> {
-  return oneUpdateAtATime(pane, () => updateInParentNow(pane));
+  return oneUpdateAtATime(pane, () => updateInParentNow(pane, new Set()));
 }
 
-/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent */
-async function updateInParentNow(pane: PartId): Promise<UpdateOutcome> {
+/**
+ * A refusal that is the codec's caution (`PartRefusal.override`) offers to go on; chosen, the
+ * update runs again with `overrides` holding it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performUpdateInParent
+ * @upstream-differs the update runs again inside the same call, so its caller is told how the
+ * second run ended, where upstream's alert starts a new one
+ */
+async function updateInParentNow(
+  pane: PartId,
+  overrides: ReadonlySet<string>
+): Promise<UpdateOutcome> {
   const slot = paneState(pane);
   const origin = slot?.origin;
   if (slot === undefined || origin === undefined) return { kind: "nothing" };
@@ -113,19 +124,20 @@ async function updateInParentNow(pane: PartId): Promise<UpdateOutcome> {
     source: origin.sourceRange,
     name: origin.parentName,
     partName: origin.partName,
+    overrides,
   };
+  const retry = async (token: string) => updateInParentNow(pane, new Set([...overrides, token]));
 
   if (plan.codec.isImmediate) {
     let update: PartUpdate;
     try {
       update = await plan.codec.encode(plan.bytes, partParent);
     } catch (error) {
-      presentRefusal(error, origin);
-      return { kind: "refused" };
+      return presentRefusal(error, origin, retry);
     }
     return finishUpdate(update, origin, asked, content, plan.bytes, stepName);
   }
-  return encodeBehindModal(plan.codec, plan.bytes, origin, asked, partParent, stepName);
+  return encodeBehindModal(plan.codec, plan.bytes, origin, asked, partParent, stepName, retry);
 }
 
 /**
@@ -140,7 +152,8 @@ async function encodeBehindModal(
   origin: DocumentOrigin,
   asked: ParentAsAsked,
   partParent: PartParent,
-  stepName: string
+  stepName: string,
+  retry: (token: string) => Promise<UpdateOutcome>
 ): Promise<UpdateOutcome> {
   // What upstream's `UpdateHandle` carries — the task and the operation the (×) reaches it
   // through — is this closure and the flag it sets: one thread, nothing to cancel but the wait.
@@ -170,10 +183,7 @@ async function encodeBehindModal(
   operation.finish();
   // Abandoned from the modal: nothing was written, and nothing is said.
   if (abandoned) return { kind: "cancelled" };
-  if ("error" in result) {
-    presentRefusal(result.error, origin);
-    return { kind: "refused" };
-  }
+  if ("error" in result) return presentRefusal(result.error, origin, retry);
   // Worked out over the bytes as they were when asked.
   if (!stillAsAsked(origin, asked)) {
     reportParentChanged(origin);
@@ -344,15 +354,25 @@ export type QuietUpdateOutcome =
  */
 export function updateInParentQuietly(
   pane: PartId,
-  overwritingChangedSource: boolean
+  overwritingChangedSource: boolean,
+  updatingAnyway = false
 ): Promise<QuietUpdateOutcome> {
-  return oneUpdateAtATime(pane, () => updateInParentQuietlyNow(pane, overwritingChangedSource));
+  return oneUpdateAtATime(pane, () =>
+    updateInParentQuietlyNow(pane, overwritingChangedSource, updatingAnyway)
+  );
 }
 
-/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly */
+/**
+ * `updatingAnyway` is the answer to the codec's caution, when it has one (`PartRefusal.override`):
+ * the update goes on past it, as Update Anyway does. Without it the caution comes back as a
+ * refusal that offers it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly
+ */
 async function updateInParentQuietlyNow(
   pane: PartId,
-  overwritingChangedSource: boolean
+  overwritingChangedSource: boolean,
+  updatingAnyway: boolean
 ): Promise<QuietUpdateOutcome> {
   const slot = paneState(pane);
   const origin = slot?.origin;
@@ -379,26 +399,29 @@ async function updateInParentQuietlyNow(
   }
   if (plan.confirm && !overwritingChangedSource) return { kind: "sourceChanged" };
   const content = documentPartReader(parent.document);
-  const partParent: PartParent = {
-    content,
-    source: origin.sourceRange,
-    name: origin.parentName,
-    partName: origin.partName,
-  };
+  const overrides = new Set<string>();
   let update: PartUpdate;
-  try {
-    update = await plan.codec.encode(plan.bytes, partParent);
-  } catch (error) {
-    return {
-      kind: "refused",
-      refusal:
-        error instanceof PartRefusal
-          ? error
-          : new PartRefusal(
-              LocalizedText.of("“%1$@” cannot be put back", origin.partName),
-              LocalizedText.verbatim(error instanceof Error ? error.message : String(error))
-            ),
+  for (;;) {
+    const partParent: PartParent = {
+      content,
+      source: origin.sourceRange,
+      name: origin.parentName,
+      partName: origin.partName,
+      overrides,
     };
+    try {
+      update = await plan.codec.encode(plan.bytes, partParent);
+      break;
+    } catch (error) {
+      // Each caution the codec raises is gone past once, as Update Anyway goes past it; one it
+      // raises again is its refusal.
+      const token = error instanceof PartRefusal ? error.override?.token : undefined;
+      if (updatingAnyway && token !== undefined && !overrides.has(token)) {
+        overrides.add(token);
+        continue;
+      }
+      return refusedQuietly(error, origin);
+    }
   }
   // Worked out over the bytes as they were when asked.
   if (!stillAsAsked(origin, asked)) return { kind: "parentChanged" };
@@ -480,6 +503,20 @@ function oneUpdateAtATime<T>(pane: PartId, work: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** A codec's refusal, or anything else it threw, as the refusal the quiet update answers. */
+function refusedQuietly(error: unknown, origin: DocumentOrigin): QuietUpdateOutcome {
+  return {
+    kind: "refused",
+    refusal:
+      error instanceof PartRefusal
+        ? error
+        : new PartRefusal(
+            LocalizedText.of("“%1$@” cannot be put back", origin.partName),
+            LocalizedText.verbatim(error instanceof Error ? error.message : String(error))
+          ),
+  };
+}
+
 /**
  * Whether something the person is in the middle of holds the window, as an attached sheet holds
  * upstream's: the modal of a slow update, an alert still waiting for its button, or any other modal
@@ -494,20 +531,35 @@ export const aDialogIsOpen = (): boolean =>
   agentShell.busy?.() !== undefined;
 
 /**
- * Why a part did not go back, in the codec's words.
+ * Why a part did not go back, in the codec's words — and, when it is the codec's caution rather
+ * than an impossibility, the choice to go on, which `retry` makes with the override's token.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentRefusal
  */
-function presentRefusal(error: unknown, origin: DocumentOrigin): void {
+async function presentRefusal(
+  error: unknown,
+  origin: DocumentOrigin,
+  retry: (token: string) => Promise<UpdateOutcome>
+): Promise<UpdateOutcome> {
   if (error instanceof PartRefusal) {
+    const override = error.override;
+    if (override !== undefined) {
+      const go = await askAlertChoice(
+        error.title.text,
+        error.messageText.text,
+        override.button.text
+      );
+      return go ? retry(override.token) : { kind: "cancelled" };
+    }
     reportAlert(error.title.text, error.messageText.text, "problem");
-    return;
+    return { kind: "refused" };
   }
   reportAlert(
     L("“%1$@” cannot be put back", origin.partName),
     error instanceof Error ? error.message : String(error),
     "problem"
   );
+  return { kind: "refused" };
 }
 
 /**

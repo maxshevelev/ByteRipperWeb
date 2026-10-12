@@ -1,4 +1,4 @@
-@source-sha 9fd5f3b6e88c6b4187291e6e82fa6127b0aaa76594a038c6f0c04071e185bc16
+@source-sha 761b7d7c208457f5bffa1ec38678d8bbd165b4b17d746a657c209dcd4be2524a
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -31,6 +31,7 @@ Vor dem Schreiben werden die folgenden Bedingungen geprüft, und das Programm ne
 - **Die Quelle ist schreibgeschützt.**
 - **Die Länge hat sich geändert.** Ein kopierter Teil wird genau in seiner eigenen Länge zurückgeschrieben; die Bytes dahinter zu verschieben steht dem Fragment nicht zu. Eine Änderung, welche die Länge verändert hat, wird deshalb abgelehnt.
 - **Die Quelle hat sich geändert**, nachdem das Fragment geöffnet wurde. Das ist keine Ablehnung, sondern eine Rückfrage: Das Programm fragt, bevor es überschreibt.
+- **Der PSP nimmt das Image möglicherweise nicht an.** Ein Fragment aus dem BIOS-Image, das ein [[term:amd-psp|AMD PSP]] selbst entpackt, lässt sich erneut komprimieren. Wie sich der Dekompressor des PSP verhält und auf welche Weise der PSP die Integrität des ursprünglichen zlib-Blocks prüft, ist jedoch nicht bekannt; ob der PSP das geänderte Image annimmt, lässt sich daher nicht sicher sagen. Das Programm lehnt hier nicht ab, sondern überlässt die Entscheidung dem Anwender: **Trotzdem aktualisieren** komprimiert das Image erneut und schreibt es an die Stelle des ursprünglichen. Das entpackte Image muss seine Größe behalten, da das BIOS-Verzeichnis diese Größe angibt und nicht neu geschrieben wird. Nimmt der PSP das Image nicht an, startet die Platine unter Umständen nicht mehr; sichern Sie deshalb vorher eine Kopie des Original-Dumps.
 
 ## Entpackte Fragmente
 

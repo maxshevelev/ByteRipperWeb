@@ -13,6 +13,7 @@ import type { NodeDetail } from "@/tools/toolDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
 import {
   type CompressedSectionNode,
+  compressionName,
   contentOf,
   decompressedBody,
   nodeOpen,
@@ -247,6 +248,25 @@ describe("what a node has decompressed", () => {
    *
    * @web-only the choice a double click makes (`contentOf`) is a pure answer here; upstream tests the click itself in `UEFIToolFlowTests`
    */
+  /**
+   * A compressed AMD entry is the first thing in the volume that holds it: both start at one
+   * address. The compression is the entry's, not nothing because the volume came first.
+   *
+   * @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testTheCompressionIsTheEntrysThatOpensNotTheNodeBeforeIt
+   */
+  it("is named after the entry that opens, not the node before it at its address", () => {
+    const inside = { kind: "file", header: [0, 0x18] as const, space: [0] };
+    const entry = {
+      kind: "amdFirmwareEntry",
+      header: [0, 0x100] as const,
+      space: [],
+      compression: { algorithm: "Zlib (AMD)" },
+      children: [inside],
+    };
+    const volume = { kind: "padding", header: [0, 0] as const, space: [], children: [entry] };
+    expect(compressionName([0], [volume])).toBe("Zlib (AMD)");
+  });
+
   it("is what a double click opens: the decompressed body, else the body, else the node", () => {
     const image = built();
     const section = wire(image.section);

@@ -260,12 +260,20 @@ export class AgentEditTools {
         "gives the codec's reason); when the parent changed while the update was worked out (call " +
         "again); and when the bytes the part came from have changed in the parent since it was " +
         "opened — then ask the person, and call again with `overwrite_changed_source: true` only if " +
-        'they agree. Needs the person\'s permission — Settings ▸ Agent, "Let agents edit open files". ' +
+        "they agree. A refusal that is a caution rather than an impossibility — a part of the BIOS " +
+        "image an AMD PSP decompresses itself, which the PSP may not accept once compressed again — " +
+        "says so: then explain the risk to the person, and call again with `update_anyway: true` only " +
+        'if they agree. Needs the person\'s permission — Settings ▸ Agent, "Let agents edit open files". ' +
         "Never saves.",
       inputSchema: AgentSchema.object({
         document: AgentSchema.string("The part's id from `documents`. Default: the focused one."),
         overwrite_changed_source: AgentSchema.boolean(
           "Overwrite the parent's bytes even though they changed since the part was opened. " +
+            "Only after the person said so. Default false."
+        ),
+        update_anyway: AgentSchema.boolean(
+          "Go on past the codec's caution, as the dialog's Update Anyway does — the PSP's BIOS image " +
+            "compressed again although it is not known whether the PSP accepts it. " +
             "Only after the person said so. Default false."
         ),
       }),
@@ -302,16 +310,24 @@ export class AgentEditTools {
       );
     }
     const overwrite = args.bool("overwrite_changed_source", false);
+    const anyway = args.bool("update_anyway", false);
     const sourceBefore = origin.sourceRange;
     const answer: { [key: string]: Json } = { document: place.id };
     if (parentId !== undefined) answer.parent = parentId;
-    const outcome = await updateInParentQuietly(pane as PartId, overwrite);
+    const outcome = await updateInParentQuietly(pane as PartId, overwrite, anyway);
     switch (outcome.kind) {
       case "unchanged":
         answer.updated = false;
         answer.note = `The part holds nothing ${parentName} has not got back already; nothing was written.`;
         return answer;
       case "refused":
+        if (outcome.refusal.override !== undefined) {
+          throw new AgentToolError(
+            `${outcome.refusal.title.textIn("en")}. ${outcome.refusal.messageText.textIn("en")} ` +
+              "Nothing was written. This is a caution, not an impossibility: explain the risk to the person; " +
+              "call again with `update_anyway: true` only if they agree."
+          );
+        }
         throw new AgentToolError(
           `${outcome.refusal.title.textIn("en")}. ${outcome.refusal.messageText.textIn("en")} Nothing was written.`
         );

@@ -6,7 +6,7 @@ import {
   PartRefusal,
   type PartUpdate,
 } from "@/core/parts/partCodec";
-import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
+import type { RebuildCaution, RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { askFirmwareRebuild, readSpaceBytes } from "@/state/firmwareStore";
 import type { PaneId } from "@/state/workspaceStore";
 
@@ -132,10 +132,19 @@ export class UEFIPartCodec implements PartCodec {
    * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.encode
    */
   async encode(part: Uint8Array, parent: PartParent): Promise<PartUpdate> {
-    const answer = await askFirmwareRebuild(this.pane, part, this.target, (phase, fraction) =>
-      parent.progress?.(phase, fraction)
+    const accepting = [...(parent.overrides ?? [])].flatMap((token) => {
+      const caution = cautionOfToken(token);
+      return caution === undefined ? [] : [caution];
+    });
+    const answer = await askFirmwareRebuild(
+      this.pane,
+      part,
+      this.target,
+      (phase, fraction) => parent.progress?.(phase, fraction),
+      accepting
     );
     const plan = answer?.plan;
+    if (answer?.caution !== undefined) throw refusalForCaution(answer.caution);
     if (plan === undefined) {
       throw new PartRefusal(
         LocalizedText.of("“%1$@” cannot be put back", parent.partName),
@@ -154,4 +163,34 @@ export class UEFIPartCodec implements PartCodec {
           : plan.warnings.map(LocalizedText.verbatim),
     };
   }
+}
+
+/**
+ * A caution of the planner, in the reader's language, with the choice to go on past it.
+ *
+ * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.refusal
+ */
+// help: pane.header.update-in-parent.psp-bios
+export function refusalForCaution(caution: RebuildCaution): PartRefusal {
+  return new PartRefusal(
+    LocalizedText.of("The PSP may not accept “%1$@” after the change", caution.name),
+    LocalizedText.of(
+      "“%1$@” is the BIOS image the PSP decompresses itself at start-up. ByteRipper can compress it again, but the properties of the PSP's decompressor and the way the PSP checks the integrity of the original zlib block are not known. It is therefore not known whether the PSP will accept the changed image. If it does not, the board may not start.\n\nUpdate Anyway compresses the image again and writes it in place of the original. Keep a copy of the original dump.",
+      caution.name
+    ),
+    { button: LocalizedText.of("Update Anyway"), token: tokenOfCaution(caution) }
+  );
+}
+
+const PSP_BIOS_IMAGE = "psp-bios-image:";
+
+/** @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.token */
+export function tokenOfCaution(caution: RebuildCaution): string {
+  return PSP_BIOS_IMAGE + caution.name;
+}
+
+/** @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.caution */
+export function cautionOfToken(token: string): RebuildCaution | undefined {
+  if (!token.startsWith(PSP_BIOS_IMAGE)) return undefined;
+  return { kind: "pspBIOSImage", name: token.slice(PSP_BIOS_IMAGE.length) };
 }

@@ -115,9 +115,14 @@ export function compressionName(
   const last = space[space.length - 1];
   if (last === undefined) return undefined;
   const parent = space.slice(0, -1);
+  // Several nodes can start where the section does — an AMD firmware entry is the first thing in
+  // the Boot Firmware Volume that holds it — so the holder is the one that opens into this space,
+  // not merely the first one found at its address.
   const find = (nodes: readonly CompressionHolder[]): CompressionHolder | undefined => {
     for (const node of nodes) {
-      if (sameSpace(node.space, parent) && node.header[0] === last) return node;
+      if (sameSpace(node.space, parent) && node.header[0] === last && opensIntoBuffer(node)) {
+        return node;
+      }
       const inside = find(node.children ?? []);
       if (inside !== undefined) return inside;
     }
@@ -129,6 +134,21 @@ export function compressionName(
   // decompressed, and its badge says what it is.
   if (holder.kind === "biosGuardUpdate") return "BIOS Guard";
   return holder.compression?.algorithm;
+}
+
+/**
+ * Whether a row's body is a buffer of its own — what `decompressedBody` offers — rather than the
+ * bytes of the space it lies in.
+ *
+ * @upstream-differs upstream asks `decompressedBody(for:)?.space`, which also needs the row
+ * opened or openable; any row found at a buffer's own address is one or the other
+ */
+function opensIntoBuffer(node: CompressionHolder): boolean {
+  return (
+    node.kind === "section" ||
+    node.kind === "biosGuardUpdate" ||
+    (node.kind === "amdFirmwareEntry" && node.compression !== undefined)
+  );
 }
 
 /** The fields `compressionName` reads off a row of the tree. */

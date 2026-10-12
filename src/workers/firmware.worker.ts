@@ -1156,6 +1156,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           bytes,
           {
             readsProtectedRanges: true,
+            accepting: request.accepting ?? [],
             onProgress: (progress) =>
               post({
                 kind: "firmwareRebuildProgress",
@@ -1171,6 +1172,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             id: request.id,
             plan: undefined,
             refusal: result.refusal.message,
+            caution: result.refusal.caution,
           });
           return;
         }

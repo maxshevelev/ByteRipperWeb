@@ -25,6 +25,7 @@ import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts"
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import type { ProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import type { RebuildCaution } from "@/firmware/uefi/uefiRebuild";
 import type { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import type { EFSFileNames } from "@/tools/efsFileNames";
 import type { MFSFileNames } from "@/tools/mfsFileNames";
@@ -446,6 +447,8 @@ export interface FirmwareRebuildRequest {
   /** The part's bytes, going back. */
   readonly bytes: Uint8Array;
   readonly target: WireRebuildTarget;
+  /** The cautions the reader has weighed and goes on past (`planRebuild`'s `accepting`). */
+  readonly accepting?: readonly RebuildCaution[];
 }
 
 /** How far the plan has got, and what it is doing — phases, not a bar alone. */
@@ -476,6 +479,8 @@ export interface FirmwareRebuildResponse {
     | undefined;
   /** The refusal's sentence, when there is no plan. */
   readonly refusal: string | undefined;
+  /** Set when the refusal is the planner's caution, which the reader may go on past. */
+  readonly caution?: RebuildCaution | undefined;
 }
 
 /** Everything the detail panel shows about one node, read once. */

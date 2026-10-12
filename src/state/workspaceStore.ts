@@ -363,6 +363,16 @@ export interface Alert {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.lastAlertOutcome
    */
   readonly outcome?: AlertOutcome | undefined;
+  /**
+   * A way on past what the alert says, when it is a caution rather than an impossibility: the
+   * button that offers it beside Cancel, and the answer the asker waits for — `true` for the
+   * button, `false` for Cancel, Escape or anything else that dismisses the alert.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentRefusal
+   * @upstream-differs the answer comes back to the asker as a promise, where upstream's alert
+   * calls a retry closure
+   */
+  readonly choice?: { readonly button: string; readonly answer: (go: boolean) => void } | undefined;
 }
 
 /**
@@ -736,7 +746,36 @@ export function reportAlert(title: string, message: string, outcome?: AlertOutco
  * modal response a caller reads
  */
 export function dismissAlert(): void {
+  const choice = workspaceStore.getSnapshot().alert?.choice;
   workspaceStore.update((state) => ({ ...state, alert: undefined }));
+  choice?.answer(false);
+}
+
+/**
+ * A caution with the choice to go on past it: Cancel, and `button`, which does the risky thing and
+ * is therefore not the default. Answers whether `button` was chosen.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentRefusal
+ */
+export function askAlertChoice(title: string, message: string, button: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    workspaceStore.update((state) => ({
+      ...state,
+      alert: {
+        title,
+        message,
+        outcome: "problem",
+        choice: {
+          button,
+          // Cancel goes through `dismissAlert`, which takes the alert down itself.
+          answer: (go) => {
+            if (go) workspaceStore.update((now) => ({ ...now, alert: undefined }));
+            resolve(go);
+          },
+        },
+      },
+    }));
+  });
 }
 
 /**

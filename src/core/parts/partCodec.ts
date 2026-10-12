@@ -70,6 +70,13 @@ export interface PartParent {
   readonly progress?:
     | ((phase: string | undefined, fraction: number | undefined) => void)
     | undefined;
+  /**
+   * The overrides the reader has chosen (`PartOverride.token`): each one a refusal the codec goes
+   * on past this time.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartParent.overrides
+   */
+  readonly overrides?: ReadonlySet<string> | undefined;
 }
 
 /**
@@ -143,12 +150,20 @@ export class PartRefusal extends Error {
    * sentence itself, for whoever puts it into words, is this
    */
   readonly messageText: LocalizedText;
+  /**
+   * Set when the refusal is the codec's caution rather than an impossibility: the reader may
+   * weigh the risk and go on.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartRefusal.override
+   */
+  readonly override: PartOverride | undefined;
 
-  constructor(title: LocalizedText, message: LocalizedText) {
+  constructor(title: LocalizedText, message: LocalizedText, override?: PartOverride) {
     super(message.textIn("en"));
     this.name = "PartRefusal";
     this.title = title;
     this.messageText = message;
+    this.override = override;
   }
 
   /**
@@ -177,6 +192,20 @@ export class PartRefusal extends Error {
       )
     );
   }
+}
+
+/**
+ * What going on past a cautious refusal takes: the button that offers it, and the token that, in
+ * `PartParent.overrides`, tells the codec it was chosen.
+ *
+ * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartOverride
+ * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartOverride.init
+ */
+export interface PartOverride {
+  /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartOverride.button */
+  readonly button: LocalizedText;
+  /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartOverride.token */
+  readonly token: string;
 }
 
 /**

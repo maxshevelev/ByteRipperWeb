@@ -94,11 +94,39 @@ export interface RebuildPlan {
  * TypeScript carries back up
  */
 export class Refusal extends Error {
+  /**
+   * Set when the refusal is the planner's caution, not a fact about the bytes.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.caution
+   */
+  readonly caution: RebuildCaution | undefined;
+
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.init */
-  constructor(message: string) {
+  constructor(message: string, caution?: RebuildCaution) {
     super(message);
     this.name = "Refusal";
+    this.caution = caution;
   }
+}
+
+/**
+ * A refusal that is the planner's caution, not a fact about the bytes: the change can be made,
+ * and what it risks is the reader's to weigh. A plan asked again with the matching `accepting`
+ * goes on.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.Caution
+ * @upstream-differs a tagged value compared by `cautionKey`, where upstream's enum is Hashable
+ */
+export type RebuildCaution =
+  /**
+   * The BIOS image the PSP inflates itself, put back as a new zlib stream the PSP's decompressor
+   * and checks have not been shown to take. The name is the entry's.
+   */
+  { readonly kind: "pspBIOSImage"; readonly name: string };
+
+/** One caution as a value a set holds: the same caution, the same key. */
+export function cautionKey(caution: RebuildCaution): string {
+  return `${caution.kind}:${caution.name}`;
 }
 
 /**
@@ -204,6 +232,11 @@ export function planRebuild(
      */
     readonly maximumCompressionFallback?: boolean;
     /**
+     * The cautions the reader has weighed and goes on past (`Refusal.caution`). Empty, each one is
+     * a refusal that names itself.
+     */
+    readonly accepting?: readonly RebuildCaution[];
+    /**
      * What is being done and how far the whole plan has got — for a status bar,
      * since compressing a DXE volume again takes seconds.
      */
@@ -229,18 +262,26 @@ export function planRebuild(
       ? rebuildRanges(image.protectedRanges)
       : undefined);
   const compressions = target.space.length;
-  let context = new Context(file, image, limits, report, compressions, "normal");
+  const accepting = new Set((options.accepting ?? []).map(cautionKey));
+  let context = new Context(file, image, limits, report, compressions, "normal", accepting);
   try {
     let rebuilt: Uint8Array;
     try {
       rebuilt = context.put(replacement, target);
     } catch (error) {
-      if (!(error instanceof Refusal) || compressions === 0 || !fallback) throw error;
+      if (
+        !(error instanceof Refusal) ||
+        compressions === 0 ||
+        !fallback ||
+        error.caution !== undefined
+      ) {
+        throw error;
+      }
       // Compressed at the normal level, the part did not go back — most often
       // because the stream is longer than the room it had. Only then is it
       // worth the time the maximum level takes: the whole layout again, every
       // section on the way compressed as small as the encoder can make it.
-      context = new Context(file, image, limits, report, compressions, "maximum");
+      context = new Context(file, image, limits, report, compressions, "maximum", accepting);
       try {
         rebuilt = context.put(replacement, target);
       } catch {
@@ -504,6 +545,12 @@ class Context {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Context.effort
    */
   readonly effort: LzmaEffort;
+  /**
+   * The cautions the caller has weighed and goes on past, by `cautionKey`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Context.accepting
+   */
+  readonly accepting: ReadonlySet<string>;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Context.init */
   constructor(
@@ -512,8 +559,10 @@ class Context {
     limits: Limits,
     report: Reporter,
     compressions: number,
-    effort: LzmaEffort
+    effort: LzmaEffort,
+    accepting: ReadonlySet<string> = new Set()
   ) {
+    this.accepting = accepting;
     this.file = file;
     this.image = image;
     this.limits = limits;
@@ -566,8 +615,22 @@ class Context {
       );
     }
     if (section.kind === "amdFirmwareEntry") {
-      throw new Refusal(
-        `“${section.name}” is the BIOS image the PSP inflates. It is read here, and not compressed again: what the PSP accepts in its place is not known.`
+      // The BIOS directory gives the size the image inflates to, and nothing here rewrites the
+      // directory.
+      if (newSpace.length !== original.length) {
+        throw new Refusal(
+          `“${section.name}” would inflate to 0x${hex(newSpace.length)} bytes, and the BIOS directory gives 0x${hex(original.length)}. The directory is not rewritten, so the image has to keep its size.`
+        );
+      }
+      const caution: RebuildCaution = { kind: "pspBIOSImage", name: section.name };
+      if (!this.accepting.has(cautionKey(caution))) {
+        throw new Refusal(
+          `“${section.name}” is the BIOS image the PSP decompresses itself. It can be compressed again, but the properties of the PSP's decompressor and the way the PSP checks the integrity of the original zlib block are not known, so it is not known for certain whether the PSP will accept the changed image.`,
+          caution
+        );
+      }
+      this.warnings.push(
+        `“${section.name}” was compressed again as a new zlib stream. Whether the PSP accepts it is not known: its decompressor and the check it makes of the original block are not documented.`
       );
     }
     const parentBytes = this.bytesOf(section.space);
@@ -1254,7 +1317,7 @@ class Context {
       throw new Refusal(`“${section.name}” could not be compressed again: ${messageOf(error)}.`);
     }
     const header = Uint8Array.from(parentBytes.subarray(section.header.start, located.body.start));
-    if (section.subtype === Section.compression) {
+    if (section.kind === "section" && section.subtype === Section.compression) {
       const common = Bytes.u24(header, 0) === Section.extendedSizeMarker ? 8 : 4;
       Bytes.put32(buffer.length, common, header);
     }
@@ -1266,6 +1329,11 @@ class Context {
         header.length - AMD_ZLIB_HEADER_SIZE + AMD_ZLIB_COMPRESSED_SIZE_OFFSET,
         header
       );
+    }
+    if (section.kind === "amdFirmwareEntry") {
+      // AMD's header, put right above, gives the stream's length; a longer one takes the empty
+      // bytes after it, as any node does.
+      return concat(header, stream);
     }
     this.noteSigned(section);
     return Bytes.sized(concat(header, stream), section.name);

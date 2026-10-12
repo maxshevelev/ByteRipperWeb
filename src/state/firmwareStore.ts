@@ -5,7 +5,7 @@ import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts"
 import type { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import type { DMIStore } from "@/firmware/uefi/dmiStore";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
-import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
+import type { RebuildCaution, RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { discardParkedStateFor } from "@/state/parkedToolState";
 import { languageStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
@@ -861,7 +861,8 @@ export async function askFirmwareRebuild(
   pane: PaneId,
   bytes: Uint8Array,
   target: RebuildTarget,
-  onProgress?: (phase: string, fraction: number) => void
+  onProgress?: (phase: string, fraction: number) => void,
+  accepting: readonly RebuildCaution[] = []
 ): Promise<FirmwareRebuildResponse | undefined> {
   const content = await currentContent(pane);
   if (content === undefined) return undefined;
@@ -881,6 +882,7 @@ export async function askFirmwareRebuild(
           ? {}
           : { range: [target.range.start, target.range.end] as const }),
       },
+      accepting,
     });
   });
 }

@@ -49,9 +49,25 @@ export function AlertDialog({ alert, onDismiss }: AlertDialogProps) {
             lands here: a Return pressed out of habit is the one that dismisses
             the alert, which is the only thing there is to do with it.
           */}
-          <button type="button" className="toolbar-button" onClick={onDismiss}>
-            {L("OK")}
-          </button>
+          {alert?.choice === undefined ? (
+            <button type="button" className="toolbar-button" onClick={onDismiss}>
+              {L("OK")}
+            </button>
+          ) : (
+            <>
+              {/* Going on is the risk, so Cancel is first and the default. */}
+              <button type="button" className="toolbar-button" onClick={onDismiss}>
+                {L("Cancel")}
+              </button>
+              <button
+                type="button"
+                className="toolbar-button is-destructive"
+                onClick={() => alert.choice?.answer(true)}
+              >
+                {alert.choice.button}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </Dialog>

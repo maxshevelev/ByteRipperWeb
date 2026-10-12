@@ -48,11 +48,11 @@ The window holds three stories and some fixes:
 ## Units
 
 - [x] **X1 — the relay starts the app only when asked** (the relay part of `7197e6f`; G82)
-- [ ] **X2 — fixes: the PSP's BIOS image goes back after Update Anyway, the compression named, an edit's zone** (`b4bb198`, `0dc4305`, `03f8943`)
+- [x] **X2 — fixes: the PSP's BIOS image goes back after Update Anyway, the compression named** (`b4bb198`, `0dc4305`; G83)
 - [ ] **X3 — a part opened from a UEFI node is that node** (`4db7ed7`, `606ba34`)
 - [ ] **X4 — labels and links for nodes and documents** (`b7f6d71`, `f755f40`)
 - [ ] **X5 — annotations: one kind for marks and findings, and their cards** (`2220481`, `0247de2`, `66ee745`)
-- [ ] **X6 — the UEFI tree's Contents search, and `find_bytes` with a node** (`4f74159`, `07eaac9`, `8d2f662`, `37c9a4d`, `ff2ca8e`)
+- [ ] **X6 — the UEFI tree's Contents search, and `find_bytes` with a node** (`4f74159`, `07eaac9`, `8d2f662`, `37c9a4d`, `03f8943`, `ff2ca8e`)
 - [ ] **X7 — one set of pattern controls for the Find bar and the Contents search** (`0137760`, `de50064`)
 - [ ] **X8 — annotations in decompressed bytes, by the person, in a dock panel** (`0fa1c01`, `7416d51`, the rest of `7197e6f`)
 - [ ] **X9 — a fragment panel let go on a pane becomes that pane** (`7a11bed`)
@@ -71,8 +71,8 @@ Done: G82 in `GAPS.md`.
   the zlib deflate of `zlibCodec.ts`, the agent tool.
 - `0dc4305`: `compressionName` asks the node that opens into the space, not
   the first node at its address (an AMD entry at its BFV's start).
-- `03f8943`: the session remembers whether the dump shows the focus's zones;
-  the reading after an edit republishes only those.
+- `03f8943` moved to X6: the case it fixes is a part opened from the
+  Contents search's results, and its test is the search's flow.
 
 ### X3. A part from a node
 
@@ -115,6 +115,9 @@ the part with the match selected. Runs in the firmware worker, cancellable,
 with progress. `find_bytes` with `node` is the same search (`ff2ca8e`;
 `uefi_find_bytes`, added and removed inside the window, never reaches the
 web). Upstream's `Packages/BytePattern` is the web's `maskedSearch.ts`.
+`03f8943` with it: the session remembers whether the dump shows the focus's
+zones, and the reading after an edit republishes only those — so typing in a
+part opened from the results does not select the node and scroll to its start.
 
 ### X7. Pattern controls
 

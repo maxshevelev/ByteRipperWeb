@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { CopyPartCodec, type PartParent, type PartUpdate } from "@/core/parts/partCodec";
+import { LocalizedText } from "@/core/localization/localization";
+import {
+  CopyPartCodec,
+  type PartParent,
+  PartRefusal,
+  type PartUpdate,
+} from "@/core/parts/partCodec";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { aDialogIsOpen, updateInParentQuietly } from "@/state/partUpdate";
+import { aDialogIsOpen, updateInParent, updateInParentQuietly } from "@/state/partUpdate";
 import { openGivenPart } from "@/state/testing/givenParts";
 import {
   closePart,
@@ -58,7 +64,7 @@ class GatedCopy extends CopyPartCodec {
 }
 
 /** A 0x40-byte file in A, each byte its offset, and `[0x10, 0x20)` of it a part going back through `codec`, edited. */
-async function editedPart(codec: GatedCopy): Promise<PartId> {
+async function editedPart(codec: CopyPartCodec): Promise<PartId> {
   openEmptyInPane("a", "bios.bin");
   const parent = paneState("a")?.document;
   if (parent === undefined) throw new Error("pane A should be open");
@@ -145,5 +151,53 @@ describe("a dialog in the way", () => {
     expect(aDialogIsOpen()).toBe(false);
     agentShell.busy = () => "A dialog is open.";
     expect(aDialogIsOpen()).toBe(true);
+  });
+});
+
+/** A copy that goes back only past its caution: refused with the choice to go on, until chosen. */
+class CautiousCopy extends CopyPartCodec {
+  override async encode(part: Uint8Array, parent: PartParent): Promise<PartUpdate> {
+    if (parent.overrides?.has("risk") !== true) {
+      throw new PartRefusal(
+        LocalizedText.verbatim("Risky"),
+        LocalizedText.verbatim("It may not be accepted."),
+        { button: LocalizedText.verbatim("Go On"), token: "risk" }
+      );
+    }
+    return super.encode(part, parent);
+  }
+}
+
+describe("a codec's caution", () => {
+  // The quiet update goes past a caution only when told to, as the agent's `update_anyway` does.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly
+  it("is a refusal that offers to go on, and is gone past when the caller says so", async () => {
+    const part = await editedPart(new CautiousCopy());
+    const refused = await updateInParentQuietly(part, false);
+    expect(refused.kind).toBe("refused");
+    if (refused.kind === "refused") expect(refused.refusal.override?.token).toBe("risk");
+    expect(await parentBytes(0x10, 0x12)).toEqual([0x10, 0x11]);
+
+    expect((await updateInParentQuietly(part, false, true)).kind).toBe("updated");
+    expect(await parentBytes(0x10, 0x12)).toEqual([0xaa, 0xbb]);
+  });
+
+  // The command asks with Cancel and the codec's button; Cancel writes nothing, the button runs the
+  // update again past the caution.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentRefusal
+  it("asks, and writes only after its button", async () => {
+    const part = await editedPart(new CautiousCopy());
+    const cancelled = updateInParent(part);
+    await settle();
+    expect(workspaceStore.getSnapshot().alert?.choice?.button).toBe("Go On");
+    dismissAlert();
+    expect((await cancelled).kind).toBe("cancelled");
+    expect(await parentBytes(0x10, 0x12)).toEqual([0x10, 0x11]);
+
+    const chosen = updateInParent(part);
+    await settle();
+    workspaceStore.getSnapshot().alert?.choice?.answer(true);
+    expect((await chosen).kind).toBe("updated");
+    expect(await parentBytes(0x10, 0x12)).toEqual([0xaa, 0xbb]);
   });
 });

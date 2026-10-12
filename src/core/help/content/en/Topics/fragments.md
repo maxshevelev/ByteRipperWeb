@@ -6,6 +6,7 @@
 @covers shell.fragment-dock
 @covers pane.header.update-in-parent
 @covers pane.header.codec-badge
+@covers pane.header.update-in-parent.psp-bios
 
 A part of an image supplied by a [[topic:tools-overview|tool panel]] — a region, a volume, a module, the decompressed body of a section — opens as a **fragment panel**: a panel that rises from the bottom of the workspace, over the dump it was taken from.
 
@@ -35,6 +36,7 @@ Update in Parent verifies the following before writing, and states which conditi
 - **The parent is read-only.**
 - **The length changed.** A copied part is written back at exactly its own length; the bytes following it in the image are not the fragment's to move. An edit that changed the length is therefore refused.
 - **The source changed** after the part was opened. This is a confirmation rather than a refusal: the program asks before overwriting.
+- **The PSP may not accept the image.** A part inside the BIOS image that an [[term:amd-psp|AMD PSP]] decompresses itself can be compressed again, but the properties of the PSP's decompressor and the way the PSP checks the integrity of the original zlib block are not known, so it is not known whether the PSP will accept the changed image. This too is a choice rather than a refusal: **Update Anyway** compresses the image again and writes it in place of the original. The decompressed image must keep its size, since the BIOS directory gives that size and is not rewritten. If the PSP does not accept it, the board may not start, so keep a copy of the original dump.
 
 ## Decompressed parts
 

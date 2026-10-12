@@ -959,6 +959,9 @@
 "Update" = "Обновить";
 "Update from %1$@" = "Обновить из %1$@";
 "Update in Parent" = "Записать в исходный файл";
+"The PSP may not accept “%1$@” after the change" = "PSP может не принять изменённый образ «%1$@»";
+"Update Anyway" = "Всё равно записать";
+"“%1$@” is the BIOS image the PSP decompresses itself at start-up. ByteRipper can compress it again, but the properties of the PSP's decompressor and the way the PSP checks the integrity of the original zlib block are not known. It is therefore not known whether the PSP will accept the changed image. If it does not, the board may not start.\n\nUpdate Anyway compresses the image again and writes it in place of the original. Keep a copy of the original dump." = "«%1$@» — образ BIOS, который PSP распаковывает самостоятельно при включении платы. Повторно сжать его можно, однако особенности распаковщика в PSP и способ, которым PSP контролирует целостность исходного блока zlib, не известны. Поэтому нельзя с уверенностью сказать, примет ли PSP изменённый образ; если не примет, плата может не запуститься.\n\nКнопка «Всё равно записать» повторно сжимает образ и записывает его на место исходного. Перед этим сохраните копию исходного дампа.";
 "Update in “%1$@”" = "Записать в «%1$@»";
 "Updated “%1$@”" = "Записано в «%1$@»";
 "Updating “%1$@” from “%2$@”" = "Запись в «%1$@» из «%2$@»";
