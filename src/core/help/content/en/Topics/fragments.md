@@ -55,7 +55,7 @@ A fragment without a badge is a plain copy: its bytes are those of the file and 
 
 ## A fragment as a UEFI subtree
 
-A fragment opened from a node of the [[topic:tool-uefi|UEFI Structure]] tree holds that node's bytes, so opening UEFI Structure on the fragment parses them as an image of their own: what the panel's tree shows is the subtree under that node, at the panel's own addresses from zero.
+A fragment opened from a node of the [[topic:tool-uefi|UEFI Structure]] tree holds that node's bytes, so opening UEFI Structure on the fragment parses them as an image of their own: what the panel's tree shows is the subtree under that node, at the panel's own addresses from zero. The root of that tree is the node itself, under the name and type it has in the parent's tree, including a node the bytes do not identify by themselves: a region of the descriptor, a range the Insyde flash device map names (for example **SMBIOS Update**), a structure the FIT points to, an NVAR variable, an NVRAM store. One exception: a structure the FIT points to inside a raw file is not shown in a fragment of that file, because the FIT itself lies outside it.
 
 Opening a compressed section decompressed is useful here. In the parent's pane a node inside a compressed section has no bytes of its own in the file, so the dump marks the whole compressed section. In a decompressed fragment every node has its own bytes: selecting a node marks exactly those bytes in the dump, and **Select Zone**, **Open Zone** and **Save Zone as…** work on them.
 

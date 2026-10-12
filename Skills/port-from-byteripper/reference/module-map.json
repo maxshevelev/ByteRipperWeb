@@ -369,6 +369,7 @@
         "MicrocodeParser.swift": "src/firmware/uefi/microcodeParser.ts",
         "CapsuleParser.swift": "src/firmware/uefi/capsuleParser.ts",
         "RootLayout.swift": "src/firmware/uefi/rootLayout.ts",
+        "PartRoot.swift": "src/firmware/uefi/partRoot.ts",
         "UEFIRebuild.swift": "src/firmware/uefi/uefiRebuild.ts",
         "SecondPass.swift": "src/firmware/uefi/secondPass.ts",
         "TreeMaterialization.swift": "src/firmware/uefi/treeMaterialization.ts",

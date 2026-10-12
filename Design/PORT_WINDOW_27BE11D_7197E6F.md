@@ -49,7 +49,7 @@ The window holds three stories and some fixes:
 
 - [x] **X1 — the relay starts the app only when asked** (the relay part of `7197e6f`; G82)
 - [x] **X2 — fixes: the PSP's BIOS image goes back after Update Anyway, the compression named** (`b4bb198`, `0dc4305`; G83)
-- [ ] **X3 — a part opened from a UEFI node is that node** (`4db7ed7`, `606ba34`)
+- [x] **X3 — a part opened from a UEFI node is that node** (`4db7ed7`, `606ba34`; G84)
 - [ ] **X4 — labels and links for nodes and documents** (`b7f6d71`, `f755f40`)
 - [ ] **X5 — annotations: one kind for marks and findings, and their cards** (`2220481`, `0247de2`, `66ee745`)
 - [ ] **X6 — the UEFI tree's Contents search, and `find_bytes` with a node** (`4f74159`, `07eaac9`, `8d2f662`, `37c9a4d`, `03f8943`, `ff2ca8e`)

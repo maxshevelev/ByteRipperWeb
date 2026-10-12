@@ -248,9 +248,12 @@ export function isBIOSRegion(node: {
 
 /**
  * What a double click on a node's row opens: the body a compressed section decompresses
- * to, otherwise the node's body, and the whole node where it has no body apart from
- * itself (padding, free space, a node with a header and nothing after it). The same
- * choices the tree's menu offers, taken without asking.
+ * to; the whole node, header and all, where it holds rows of its own — opened so, the
+ * panel's tree is that node with its rows, a DMI store or a volume as the structure it is,
+ * where its body alone read as rows with nothing over them; otherwise the node's body, and
+ * the whole node where it has no body apart from itself (padding, free space, a node with a
+ * header and nothing after it). The same choices the tree's menu offers, taken without
+ * asking.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.Content
  */
@@ -259,6 +262,7 @@ export type NodeContent = "decompressedBody" | "body" | "node";
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.content */
 export function contentOf(node: CompressedSectionNode & ZonedNode): NodeContent {
   if (decompressedBody(node) !== undefined) return "decompressedBody";
+  if ((node.children ?? []).length > 0 || node.isExpandable) return "node";
   if (node.header[1] > node.header[0] && nodeOpenTitle(node, true) !== undefined) return "body";
   return "node";
 }

@@ -1,4 +1,4 @@
-@source-sha 761b7d7c208457f5bffa1ec38678d8bbd165b4b17d746a657c209dcd4be2524a
+@source-sha c4f0d9f631311e12dc5f6a771c651ef6353a2885fb7da715e2d9fa059e31eeb7
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -50,7 +50,7 @@ Ein Fragment ohne Abzeichen ist eine einfache Kopie: Seine Bytes sind die der Da
 
 ## Ein Fragment als UEFI-Teilbaum
 
-Ein Fragment, das aus einem Knoten des Baums [[topic:tool-uefi|UEFI-Struktur]] geöffnet wurde, enthält die Bytes dieses Knotens; auf dem Fragment geöffnet, zerlegt UEFI-Struktur sie daher als eigenes Image: Was der Baum im Bereich zeigt, ist der Teilbaum unter jenem Knoten, mit den eigenen Adressen des Bereichs ab null.
+Ein Fragment, das aus einem Knoten des Baums [[topic:tool-uefi|UEFI-Struktur]] geöffnet wurde, enthält die Bytes dieses Knotens; auf dem Fragment geöffnet, zerlegt UEFI-Struktur sie daher als eigenes Image: Was der Baum im Bereich zeigt, ist der Teilbaum unter jenem Knoten, mit den eigenen Adressen des Bereichs ab null. Die Wurzel dieses Baums ist der Knoten selbst, mit dem Namen und Typ, die er im Baum der Quelldatei hat, auch ein Knoten, den seine Bytes allein nicht erkennen lassen: eine Region des Deskriptors, ein Bereich, den die Insyde Flash Device Map benennt (etwa **SMBIOS Update**), eine Struktur, auf die der FIT verweist, eine NVAR-Variable, ein NVRAM-Speicher. Eine Ausnahme: Eine Struktur, auf die der FIT innerhalb einer Raw-Datei verweist, erscheint im Fragment dieser Datei nicht, da der FIT selbst außerhalb davon liegt.
 
 Hier ist es nützlich, eine komprimierte Sektion entpackt zu öffnen. Im Bereich der Quelle hat ein Knoten innerhalb einer komprimierten Sektion keine eigenen Bytes in der Datei; der Dump markiert deshalb die ganze komprimierte Sektion. In einem entpackten Fragment hat jeder Knoten eigene Bytes: Wird ein Knoten ausgewählt, markiert der Dump genau diese Bytes, und **Zone auswählen**, **Zone öffnen** und **Zone sichern unter…** wirken auf sie.
 

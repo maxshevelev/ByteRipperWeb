@@ -6,13 +6,14 @@ import type { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { DellSetupCatalogue, readDellSetup } from "@/firmware/uefi/dellSetupForms";
 import { type DiagnosticKind, locatedIn, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
 import { parseFile } from "@/firmware/uefi/fileParser";
-import { walkNvramVolumeBody } from "@/firmware/uefi/nvramParser";
+import { walkNvramVolumeBody, walkStores } from "@/firmware/uefi/nvramParser";
 import {
   DEFAULT_EMPTY_BYTE,
   type Limits,
   Parser,
   type ProgressSink,
 } from "@/firmware/uefi/parserState";
+import { rootAs } from "@/firmware/uefi/partRoot";
 import { parseTopLevel, scanRawArea } from "@/firmware/uefi/rawScan";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { walkSections } from "@/firmware/uefi/sectionParser";
@@ -106,6 +107,19 @@ export function rootsOf(
       });
       return { nodes, diagnostics: parser.diagnostics };
     }
+    case "nvramStores": {
+      // Erased flash reads 0xFF: a volume of the other polarity holding an NVRAM area is not one
+      // any vendor ships.
+      const nodes = walkStores(parser, reader.all, DEFAULT_EMPTY_BYTE, 0);
+      // Bytes that hold no store are not what the layout promised; the image's own reading of them
+      // is the honest one.
+      if (nodes.some((node) => node.kind !== "padding" && node.kind !== "freeSpace")) {
+        return { nodes, diagnostics: parser.diagnostics };
+      }
+      break;
+    }
+    case "node":
+      return { nodes: [rootAs(parser, layout.node)], diagnostics: parser.diagnostics };
   }
   // A fresh parser for the fallback, so the failed attempt's complaints are
   // not carried into what the image itself says.

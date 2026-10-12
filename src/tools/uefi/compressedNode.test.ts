@@ -287,6 +287,41 @@ describe("what a node has decompressed", () => {
     expect(contentOf(file)).toBe("body");
     // Padding has no header: the whole node.
     expect(contentOf({ ...file, kind: "padding", header: [0x18, 0x18] as const })).toBe("node");
+
+    // A node with rows opens whole, so its tree shows it over them; rows not yet opened are rows
+    // all the same.
+    // @upstream Modules/UEFITool/Tests/UEFIToolTests/CompressedNodeTests.swift#CompressedNodeTests.testADoubleClickOpensTheDecompressedBodyOrTheBody
+    const entry = {
+      ...file,
+      id: [2, 0],
+      kind: "vssEntry",
+      name: "Setup",
+      header: [0x10, 0x20] as const,
+      body: [0x20, 0x40] as const,
+      tail: [0x40, 0x40] as const,
+    };
+    const store = {
+      ...file,
+      id: [2],
+      kind: "vssStore",
+      name: "VSS store",
+      header: [0, 0x10] as const,
+      body: [0x10, 0x40] as const,
+      tail: [0x40, 0x40] as const,
+      children: [entry],
+    };
+    expect(contentOf(store)).toBe("node");
+    expect(contentOf(entry)).toBe("body");
+    expect(
+      contentOf({
+        ...file,
+        kind: "volume",
+        header: [0, 0x48] as const,
+        body: [0x48, 0x100] as const,
+        tail: [0x100, 0x100] as const,
+        isExpandable: true,
+      })
+    ).toBe("node");
   });
 });
 

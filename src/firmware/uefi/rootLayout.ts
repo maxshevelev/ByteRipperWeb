@@ -1,8 +1,9 @@
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
+import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
 import { hasSections } from "@/firmware/uefi/fileParser";
 import { ffsVersionOfFileSystem } from "@/firmware/uefi/knownGuids";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { nodeFileRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { nodeFileRange, type UEFINode, type UEFINodeKind } from "@/firmware/uefi/uefiNode";
 
 /**
  * What the bytes at offset 0 of a source are, when that is known from outside
@@ -44,7 +45,69 @@ export type UEFIRootLayout =
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.sections
    */
-  | { readonly kind: "sections"; readonly ffsVersion: number };
+  | { readonly kind: "sections"; readonly ffsVersion: number }
+  /**
+   * NVRAM stores from offset 0 — a VSS store, an FTW block, an FDC: what an NVRAM volume's body is
+   * walked as. A store opened on its own has no volume around it, and the signature scan an image
+   * gets does not look for stores, so without this its variables read as padding.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.nvramStores
+   */
+  | { readonly kind: "nvramStores" }
+  /**
+   * One node from offset 0, as the parent's tree knew it: what a part is that the bytes alone do
+   * not say — a region the descriptor laid out, a range the flash device map names (`SMBIOS
+   * Update`), a structure the FIT points at, an NVAR variable. Read by the bytes' own reader where
+   * one finds it; otherwise the node is the root it was in the parent, over what the bytes hold.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.node
+   */
+  | { readonly kind: "node"; readonly node: KnownNode };
+
+/**
+ * What the parent's tree knew of a node: enough to stand it up again as a root over the same
+ * bytes.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node
+ */
+export interface KnownNode {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.kind */
+  readonly kind: UEFINodeKind;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.subtype */
+  readonly subtype: number | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.name */
+  readonly name: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.guid */
+  readonly guid: EFIGUID | undefined;
+  /**
+   * How long its header is; the body is the rest.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.headerLength
+   */
+  readonly headerLength: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.isFixed */
+  readonly isFixed: boolean;
+  /**
+   * Nothing under it in the parent, and nothing to open: an ME region is a format of its own,
+   * which a scan would only misread.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.isLeaf
+   */
+  readonly isLeaf: boolean;
+}
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout.Node.init */
+export function knownNode(node: UEFINode): KnownNode {
+  return {
+    kind: node.kind,
+    subtype: node.subtype,
+    name: node.name,
+    guid: node.guid,
+    headerLength: node.header.end - node.header.start,
+    isFixed: node.isFixed,
+    isLeaf: node.children.length === 0 && !node.isExpandable,
+  };
+}
 
 /** The layout a whole image is read with, and the fallback for anything else. */
 export const IMAGE_LAYOUT: UEFIRootLayout = { kind: "image" };
@@ -65,6 +128,20 @@ export function sameLayout(left: UEFIRootLayout, right: UEFIRootLayout): boolean
   }
   if (left.kind === "file" && right.kind === "file") {
     return left.ffsVersion === right.ffsVersion && left.volumeRevision === right.volumeRevision;
+  }
+  if (left.kind === "node" && right.kind === "node") {
+    const [one, other] = [left.node, right.node];
+    return (
+      one.kind === other.kind &&
+      one.subtype === other.subtype &&
+      one.name === other.name &&
+      (one.guid === undefined || other.guid === undefined
+        ? one.guid === other.guid
+        : guidEquals(one.guid, other.guid)) &&
+      one.headerLength === other.headerLength &&
+      one.isFixed === other.isFixed &&
+      one.isLeaf === other.isLeaf
+    );
   }
   return true;
 }
@@ -88,8 +165,21 @@ export function layoutOf(node: UEFINode, image: UEFIImage): UEFIRootLayout {
     }
     case "section":
       return { kind: "sections", ffsVersion: ffsVersionOf(node, enclosingVolume(node, image)) };
-    default:
+    case "vssStore":
+    case "vss2Store":
+    case "ftwStore":
+    case "fdcStore":
+    case "sysFStore":
+    case "flashMapStore":
+    case "evsaStore":
+    case "cmdbStore":
+      return { kind: "nvramStores" };
+    case "padding":
+    case "freeSpace":
+      // Bytes nobody claimed: whatever they announce is all there is.
       return IMAGE_LAYOUT;
+    default:
+      return { kind: "node", node: knownNode(node) };
   }
 }
 
