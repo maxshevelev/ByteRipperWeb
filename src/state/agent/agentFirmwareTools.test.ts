@@ -141,34 +141,37 @@ describe("the module tools", () => {
 });
 
 describe("a compressed section, searched and read", () => {
-  // What a compressed section holds is found in what it decompresses to, at addresses of that
-  // buffer, and read back from it.
-  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testACompressedSectionIsSearchedInWhatItDecompressesTo
-  it("is searched in what it decompresses to", async () => {
+  // Text only the decompressed bytes hold: not found in the file's bytes, found with `node` — from
+  // the section, from the file above it, from the whole image — at its place in what the section
+  // decompresses to, and read there by `uefi_node_data`.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeIsSearchedInWhatItHoldsDecompressed
+  it("searches a node in what it holds decompressed", async () => {
     open(compressedTestImage("SECRET-MODEL-GH51G"));
     const inFile = await answer("find_bytes", { text: "GH51G" });
     // The file holds it compressed.
     expect(member(inFile, "total")).toBe(0);
 
-    const tree = await answer("uefi_find", { type: "Section", limit: 50 });
-    const section = member(
-      (member(tree, "matches") as Json[]).find(
-        (one) => member(one, "subtype") === "Compressed section"
-      ),
-      "id"
-    );
-    if (typeof section !== "string") throw new Error(`no compressed section in ${tree}`);
-    const found = await answer("find_bytes", { node: section, text: "GH51G" });
-    expect(member(found, "decompressed")).toBe(true);
+    const found = await answer("find_bytes", {
+      node: "root",
+      text: "gh51g",
+      ignore_case: true,
+      context: 4,
+    });
+    expect(member(found, "node")).toBe("root");
     expect(member(found, "total")).toBe(1);
+    expect(member(found, "buffers")).toBe(1);
     const match = (member(found, "matches") as Json[])[0];
-    // No file address: the bytes are not in the file as such.
+    expect(member(match, "in_compressed")).toBe(true);
     expect(member(match, "start")).toBeUndefined();
-    const at = member(match, "node_start");
-    if (typeof at !== "string") throw new Error(`no node_start in ${JSON.stringify(match)}`);
-    expect(member((member(match, "where") as Json[])[0], "name")).toBe("Raw");
-    expect(member(member(found, "source"), "start")).toBeDefined();
-
+    expect(member(member(match, "node"), "name")).toBe("Raw");
+    expect(member(member(match, "volume"), "id")).toBeDefined();
+    expect(member(member(match, "preview"), "before")).toBe(4);
+    expect(member(member(match, "preview"), "text")).toBe("DEL-GH51G....");
+    const section = member(match, "section");
+    const at = member(match, "buffer_start");
+    if (typeof section !== "string" || typeof at !== "string") {
+      throw new Error(`no section or buffer_start in ${JSON.stringify(match)}`);
+    }
     const read = await answer("uefi_node_data", {
       node: section,
       part: "decompressed",
@@ -178,6 +181,17 @@ describe("a compressed section, searched and read", () => {
     });
     expect(member(read, "text")).toBe("GH51G");
     expect(member(read, "in_compressed")).toBe(true);
+
+    const fromSection = await answer("find_bytes", { node: section, hex: "47 48 35 31 47" });
+    expect(member(fromSection, "total")).toBe(1);
+    const underFile = await answer("find_bytes", { node: "0.0", hex: "47 48 ?? 31 47" });
+    expect(member(member(underFile, "node"), "type")).toBe("File");
+    expect(member(underFile, "total")).toBe(1);
+
+    const bad = await call("find_bytes", { text: "x", node: "9.9" });
+    expect(bad.text.startsWith("No node 9.9")).toBe(true);
+    const ranged = await call("find_bytes", { text: "x", node: "root", offset: "0x10" });
+    expect(ranged.isError).toBe(true);
   });
 
   // A node of the file reads as `read` reads the same bytes; a node that is no compressed section

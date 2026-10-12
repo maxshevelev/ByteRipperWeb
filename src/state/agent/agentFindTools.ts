@@ -94,24 +94,32 @@ export class AgentFindTools {
       name: "find_bytes",
       title: "Find bytes or text",
       description:
-        "Every place a text or a byte pattern occurs in a document, in address order, read as it is " +
-        "now with unsaved edits — the find bar's own search. `text` is looked for as ASCII, as " +
-        "UTF-16LE, or both (`encoding`, default both), any case with `ignore_case`; `hex` is bytes, " +
-        'with `??` for a byte that may be anything ("24 ?? 4D 49"). The file is searched as it is ' +
-        "stored, so nothing inside a compressed section is found that way: give `node` (an id from " +
-        "`uefi_tree`, `uefi_find` or `uefi_at`) to search that node's bytes, and for a node inside a " +
-        "compressed section, what it decompressed to; a compressed section itself is searched in " +
-        "what it decompresses to (`decompressed: true`). Matches in a decompressed buffer say " +
-        "`node_start` and `node_end` inside it instead of file addresses, and `uefi_node_data` reads " +
-        "around them — with part `decompressed` for a section's. " +
-        "Each match: `start`, `end` (half-open), the `encoding` that matched, `where` it is — as " +
-        "`diff` places a run: the top-level area and the deepest node that holds it — and, with " +
-        "`context`, a `preview` of the bytes around it — none, and `redacted: true`, in an area the flash " +
-        "map names MSDM, Password or Key. `total` counts every match in the range. " +
-        'Matches do not overlap unless `overlapping`: "AA" in "AAAA" is two, or three with it. ' +
-        "Pages: `limit` is a ceiling — a page also stops before the answer passes the size bound and " +
-        'says `truncated: "size"`; pass `next` back as `after` until it is null. With `survey`, which ' +
-        "dumps of a folder hold a string.",
+        "Every place a text or a byte pattern occurs, in one of two scopes. Without `node`: the " +
+        "document's bytes as they are stored, with unsaved edits — the find bar's own search — in " +
+        "address order, `offset`/`end` limiting the range. With `node` (an id from `uefi_tree`, " +
+        '`uefi_find` or `uefi_at`, or "root" for the whole image): what the UEFI tree holds at and ' +
+        "under that node — every container opened, every compressed section searched in what it " +
+        "decompresses to (nested ones too), a BIOS Guard update in its assembled region, a Lenovo LENV " +
+        "block stored XOR-encoded decoded — and only so: a compressed stream or an encoded block as " +
+        "stored is not searched, nor is an ME region. Opening everything takes a few seconds on a large " +
+        "image the first time; the same search of unchanged bytes again — a next page — is answered " +
+        "from the last one. A text the file holds only compressed is found this way and not the " +
+        "other. `text` is looked for as ASCII, as UTF-16LE, or both (`encoding`, default both), any " +
+        "case with `ignore_case`; `hex` is bytes, with `??` for a byte that may be anything " +
+        '("24 ?? 4D 49"). Each match: the `encoding` that matched; without `node`, `start`, `end` ' +
+        "(half-open file addresses) and `where` it is, as `diff` places a run; with `node`, in tree " +
+        "order, the `node` that holds it whole (as `uefi_tree` gives it) with `node_offset`, its " +
+        "`volume` and `volume_offset`, and `start`/`end` in the file — or, inside a compressed " +
+        "section, `in_compressed: true`, the `section` (open it with `open_part` part " +
+        '"decompressed") and `buffer_start`/`buffer_end` in what it decompresses to, which ' +
+        '`uefi_node_data` reads — and `decoded` ("XOR 77") in a LENV block decoded. With `context`, ' +
+        "a `preview` of the bytes around it — none, and `redacted: true`, in an area the flash map " +
+        "names MSDM, Password or Key. `total` counts every match; with `node`, `unread` lists the " +
+        "compressed sections that would not decompress. Matches do not overlap unless " +
+        '`overlapping`: "AA" in "AAAA" is two, or three with it. Pages: `limit` is a ceiling — a ' +
+        'page also stops before the answer passes the size bound and says `truncated: "size"`; pass ' +
+        "`next` back as `after` until it is null. With `survey`, which dumps of a folder hold a " +
+        "string.",
       inputSchema: AgentSchema.object({
         document: AgentSchema.string(
           "The document's id from `documents`. Default: the focused one."
@@ -127,11 +135,13 @@ export class AgentFindTools {
         ),
         overlapping: AgentSchema.boolean("Count matches that overlap one another. Default false."),
         offset: AgentSchema.offset(
-          "Where the search starts — inside the node with `node`. Default 0x0."
+          "Where the search of the document starts. Default 0x0. Not with `node`."
         ),
-        end: AgentSchema.offset("The first byte after the searched range. Default: the end."),
+        end: AgentSchema.offset(
+          "The first byte after the searched range. Default: the end. Not with `node`."
+        ),
         node: AgentSchema.string(
-          "Search only this UEFI node's bytes, decompressed where it is in a compressed section."
+          'Search what the UEFI tree holds at and under this node, decompressed and decoded; "root" for the whole image.'
         ),
         context: AgentSchema.integer(
           "Bytes before and after each match to show in `preview`. Default 0, at most 64."
@@ -166,15 +176,20 @@ export class AgentFindTools {
 
     let total: number;
     let items: { [key: string]: Json }[];
-    let inCompressed = false;
+    let inTree = false;
     if (nodeText !== undefined) {
+      if (args.has("offset") || args.has("end")) {
+        throw new AgentToolError(
+          "`offset` and `end` are the document's: with `node` the search covers what the tree holds " +
+            "under it, decompressed and decoded, which is no one range of addresses. Leave them out, or " +
+            "search the document without `node`."
+        );
+      }
       await readyFirmware(host.pane);
       const response = await askUefiAgent(host.pane, {
         query: "uefi_find_bytes",
         values: {
           node: nodeText,
-          ...(args.has("offset") ? { offset } : {}),
-          ...(args.has("end") ? { end: args.offset("end") } : {}),
           patterns: wanted.map((one) => ({ ...toWire(one) })) as unknown as Json,
           overlapping,
           context,
@@ -188,14 +203,12 @@ export class AgentFindTools {
       const found = response.answer as {
         envelope: { [key: string]: Json };
         total: number;
-        range: { start: number; end: number };
         items: { [key: string]: Json }[];
       };
       Object.assign(envelope, found.envelope);
-      envelope.range = rangeJson(found.range.start, found.range.end);
       total = found.total;
       items = found.items;
-      inCompressed = found.envelope.in_compressed === true;
+      inTree = true;
     } else {
       const size = place.document.size;
       const end = args.optionalOffset("end") ?? size;
@@ -220,9 +233,9 @@ export class AgentFindTools {
     }
     envelope.total = total;
 
-    // Where each match is: the firmware's areas for the file's bytes (a buffer's were placed where
-    // the tree holds it).
-    if (!inCompressed) {
+    // Where each match is: the firmware's areas it lies in (a tree search's were placed in the tree,
+    // and its secret areas redacted there).
+    if (!inTree) {
       const spans = items.map((one) => ({
         start: parseOffset(String(one.start)) ?? 0,
         end: parseOffset(String(one.end)) ?? 0,
@@ -236,7 +249,7 @@ export class AgentFindTools {
     // not the bytes around them.
     //
     // @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.find
-    if (context > 0) {
+    if (context > 0 && !inTree) {
       for (const item of items) {
         const places = Array.isArray(item.where) ? item.where : [];
         const secret = places.some((one) => {

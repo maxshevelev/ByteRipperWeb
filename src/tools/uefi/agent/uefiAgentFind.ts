@@ -1,33 +1,22 @@
 import { type FindEncoding, fromWire, previewJson, type WirePattern } from "@/core/agent/agentFind";
-import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
-import { maskedMatches } from "@/core/search/maskedSearch";
 import type { ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import type { ImageReader } from "@/firmware/imageReader";
-import { isFileSpace } from "@/firmware/uefi/byteSpace";
-import { nodeIdText } from "@/firmware/uefi/uefiNode";
-import { placesJson } from "@/tools/uefi/agent/uefiAgentLocator";
+import { nodeIdText, ROOT_ID } from "@/firmware/uefi/uefiNode";
+import { hexText, nodeLabel, nodeSummary } from "@/tools/uefi/agent/uefiAgentQueries";
+import { isSecret } from "@/tools/uefi/agent/uefiAgentRegions";
+import { type AgentTree, nodeAtPath, parseNodeId } from "@/tools/uefi/agent/uefiAgentTree";
 import {
-  compressedView,
-  deepestCovering,
-  nodeBytes,
-  sectionSource,
-} from "@/tools/uefi/agent/uefiAgentNodeData";
-import { hexText, nodeLabel } from "@/tools/uefi/agent/uefiAgentQueries";
-import type { AgentTree } from "@/tools/uefi/agent/uefiAgentTree";
-import { decompressedBody } from "@/tools/uefi/uefiPresenter";
-import { ownName } from "@/tools/uefi/uefiTreeDisplay";
+  type ContentMatch,
+  matchFileRange,
+  runContentSearch,
+} from "@/tools/uefi/uefiContentSearch";
 
 /**
- * `find_bytes` inside one UEFI node: the node's bytes — in the file, or in the buffer its compressed
- * section opened to — searched where the tree holds them.
- *
- * A compressed section is searched in what it decompresses to: its own bytes are compressed, and
- * nothing in them reads as text.
+ * `find_bytes` with a node: the tree's Contents search, run where the tree is.
  *
  * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.find
- * @upstream ByteRipperApp/Agent/AgentFindTools.swift#ReaderStorage
- * @upstream-differs the node's bytes are in the worker that holds the tree, so the search runs there
+ * @upstream-differs the tree is in the worker, so the search runs there
  */
 
 /**
@@ -64,8 +53,6 @@ export class ReaderStorage implements ByteStorage {
 
 export interface FindInNodeParams {
   readonly node: string;
-  readonly offset: number | undefined;
-  readonly end: number | undefined;
   readonly patterns: readonly WirePattern[];
   readonly overlapping: boolean;
   readonly context: number;
@@ -73,87 +60,96 @@ export interface FindInNodeParams {
   readonly limit: number;
 }
 
-export async function findInNode(tree: AgentTree, params: FindInNodeParams): Promise<Json> {
-  // A compressed section is searched in what it decompresses to.
-  const whole = nodeBytes(tree, params.node, "all");
-  const decompressed = decompressedBody(compressedView(whole.node)) !== undefined;
-  const found = decompressed ? nodeBytes(tree, params.node, "decompressed") : whole;
-  const inCompressed = !isFileSpace(found.space);
-  const storage = new ReaderStorage(found.reader);
-  const scope = found.range;
-  const size = scope.end - scope.start;
-  const envelope: { [key: string]: Json } = {
-    node: nodeIdText(found.node.id),
-    node_size: hexText(size),
-    in_compressed: inCompressed,
-  };
-  if (decompressed) envelope.decompressed = true;
-  const source = sectionSource(tree, found.node, decompressed);
-  if (source !== undefined) envelope.source = source;
-
-  // `offset` and `end` count from the node's start.
-  const offset = params.offset ?? 0;
-  const end = params.end ?? size;
-  if (!(offset < end && end <= size)) {
-    throw new AgentToolError(
-      `The range ${hexText(offset)}–${hexText(end)} is not inside the node, which is ${hexText(size)} bytes long.`
-    );
-  }
-  const range = { start: scope.start + offset, end: scope.start + end };
+/**
+ * `find_bytes` with `node`: what the UEFI tree holds at and under it, decompressed and decoded
+ * (`runContentSearch`, the UEFI panel's Contents search), each match placed at its node and in its
+ * volume.
+ *
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.findInTree
+ * @upstream-differs runs in the worker that holds the tree, so the envelope and the page are made
+ * there and handed back to the tool
+ */
+export async function findInNode(
+  tree: AgentTree,
+  params: FindInNodeParams,
+  generation: number
+): Promise<Json> {
+  const start = params.node === "root" ? ROOT_ID : parseNodeId(params.node);
   const wanted = params.patterns.map(fromWire);
-  if (wanted.every((one) => one.pattern.bytes.length > range.end - range.start)) {
-    throw new AgentToolError("The pattern is longer than the range searched.");
-  }
-  let total = 0;
-  const page: { start: number; end: number; pattern: number }[] = [];
-  await maskedMatches(
+  const result = await runContentSearch(
     wanted.map((one) => one.pattern),
-    storage,
-    (match, pattern) => {
-      if (total >= params.first && page.length < params.limit) {
-        page.push({ start: match.start, end: match.end, pattern });
-      }
-      total += 1;
-      return true;
-    },
-    { range, overlapping: params.overlapping }
+    start,
+    tree,
+    {
+      generation,
+      overlapping: params.overlapping,
+      keep: params.first + params.limit,
+      padding: params.context,
+    }
   );
-
-  const items: Json[] = [];
-  for (const match of page) {
-    const encoding: FindEncoding = wanted[match.pattern]?.encoding ?? "hex";
-    const members: { [key: string]: Json } = { encoding };
-    if (inCompressed) {
-      const deepest = deepestCovering(tree, match, found.space, found.node);
-      members.where = placesJson([
-        {
-          kind: "uefi",
-          id: nodeIdText(deepest.id),
-          name: ownName(deepest) ?? deepest.name,
-          label: nodeLabel(deepest, tree),
-        },
-      ]);
-      members.node_start = hexText(match.start - scope.start);
-      members.node_end = hexText(match.end - scope.start);
-    } else {
-      members.start = hexText(match.start);
-      members.end = hexText(match.end);
-    }
-    if (params.context > 0) {
-      const around = {
-        start: Math.max(scope.start, match.start - Math.min(params.context, match.start)),
-        end: Math.min(scope.end, match.end + params.context),
-      };
-      const bytes = await storage.read(around.start, around.end - around.start);
-      members.preview = previewJson(bytes, encoding, match.start - around.start);
-    }
-    items.push(members);
-  }
-  return {
-    envelope,
-    total,
-    range: { start: offset, end },
-    items,
-    scope_start: scope.start,
+  const envelope: { [key: string]: Json } = {
+    total: result.total,
+    searched: hexText(result.searchedBytes),
+    buffers: result.buffers,
   };
+  const top = start.length === 0 ? undefined : nodeAtPath(tree, start);
+  envelope.node = top === undefined ? "root" : nodeSummary(tree, top);
+  if (result.unreadSections.length > 0) envelope.unread = result.unreadSections.map(nodeIdText);
+  if (result.matches.length < Math.min(result.total, params.first + params.limit)) {
+    envelope.note =
+      "Too many matches to place them all in tree order; these are the first " +
+      `${result.matches.length}. Search from a deeper \`node\` to narrow it.`;
+  }
+  const items: Json[] = result.matches
+    .slice(params.first, params.first + params.limit)
+    .map((match) => {
+      const encoding: FindEncoding = wanted[match.pattern]?.encoding ?? "hex";
+      const members = contentMatchEntry(match, encoding, tree);
+      if (params.context <= 0) return members;
+      // An area the flash map names for a secret gives its matches but not the bytes around them.
+      const node = match.node === undefined ? undefined : nodeAtPath(tree, match.node);
+      if (node !== undefined && isSecret(node, tree)) return { ...members, redacted: true };
+      return {
+        ...members,
+        preview: previewJson(match.excerpt, encoding, match.excerptMatch.start),
+      };
+    });
+  return { envelope, total: result.total, items };
+}
+
+/**
+ * One match as an agent reads it: `node` (as `uefi_tree` gives it) and `node_offset`, `volume` and
+ * `volume_offset`, `start`/`end` in the file — or `in_compressed`, `buffer_start`/`buffer_end` and
+ * the `section` whose decompressed bytes hold it — and `decoded` for a LENV block decoded.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentContentSearch.swift#UEFIAgentContentSearch.entry
+ */
+export function contentMatchEntry(
+  match: ContentMatch,
+  encoding: FindEncoding,
+  tree: AgentTree
+): { [key: string]: Json } {
+  const members: { [key: string]: Json } = { encoding };
+  const node = match.node === undefined ? undefined : nodeAtPath(tree, match.node);
+  if (node !== undefined) members.node = nodeSummary(tree, node);
+  if (match.nodeOffset !== undefined) members.node_offset = hexText(match.nodeOffset);
+  const volume = match.volume === undefined ? undefined : nodeAtPath(tree, match.volume);
+  if (volume !== undefined) {
+    members.volume = { id: nodeIdText(volume.id), label: nodeLabel(volume, tree) };
+  }
+  if (match.volumeOffset !== undefined) members.volume_offset = hexText(match.volumeOffset);
+  const range = matchFileRange(match);
+  if (range !== undefined) {
+    members.start = hexText(range.start);
+    members.end = hexText(range.end);
+  } else {
+    members.in_compressed = true;
+    members.buffer_start = hexText(match.range.start);
+    members.buffer_end = hexText(match.range.end);
+  }
+  if (match.section !== undefined) members.section = nodeIdText(match.section);
+  if (match.decodedXORKey !== undefined) {
+    members.decoded = `XOR ${match.decodedXORKey.toString(16).toUpperCase().padStart(2, "0")}`;
+  }
+  return members;
 }

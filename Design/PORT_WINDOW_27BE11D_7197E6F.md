@@ -51,11 +51,17 @@ The window holds three stories and some fixes:
 - [x] **X2 — fixes: the PSP's BIOS image goes back after Update Anyway, the compression named** (`b4bb198`, `0dc4305`; G83)
 - [x] **X3 — a part opened from a UEFI node is that node** (`4db7ed7`, `606ba34`; G84)
 - [x] **X4 — labels for nodes and documents; links n/a** (`b7f6d71`, `f755f40`; G85)
-- [ ] **X5 — annotations: one kind for marks and findings, and their cards** (`2220481`, `0247de2`, `66ee745`)
 - [ ] **X6 — the UEFI tree's Contents search, and `find_bytes` with a node** (`4f74159`, `07eaac9`, `8d2f662`, `37c9a4d`, `03f8943`, `ff2ca8e`)
 - [ ] **X7 — one set of pattern controls for the Find bar and the Contents search** (`0137760`, `de50064`)
-- [ ] **X8 — annotations in decompressed bytes, by the person, in a dock panel** (`0fa1c01`, `7416d51`, the rest of `7197e6f`)
+- [ ] **X5 — annotations, to their end state: one kind for marks and findings, cards, places in decoded bytes, the person's own, a dock panel, Add Annotation on a node** (`2220481`, `0247de2`, `66ee745`, `0fa1c01`, the annotation half of `7416d51`, the rest of `7197e6f`)
+- [ ] **X8 — the language named at the call, `uefi_dmi`, and the rest of `7416d51`**
 - [ ] **X9 — a fragment panel let go on a pane becomes that pane** (`7a11bed`)
+
+Order, as it turned out: X6 and X7 before X5. Upstream rewrites the
+annotations five times inside the window, and the last form leans on the
+Contents search (`UEFIContentSearch.Match`, `openContentMatch`,
+`nameAfterParent`, the codec badges of a match), so the annotations port once,
+to that last form, after the search is in.
 
 ### X1. The relay
 

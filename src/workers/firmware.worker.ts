@@ -1008,7 +1008,11 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               ? refs(tree, new AgentArguments(request.values, request.answerBound), {
                   contentVersion: request.contentVersion,
                 })
-              : findInNode(tree, request.values as unknown as FindInNodeParams)
+              : findInNode(
+                  tree,
+                  request.values as unknown as FindInNodeParams,
+                  request.contentVersion
+                )
           ).then(
             (answer) => post({ kind: "agentUefi", id: request.id, answer }),
             (error: unknown) =>

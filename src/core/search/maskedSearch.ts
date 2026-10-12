@@ -306,3 +306,78 @@ export async function maskedMatches(
     if (turn !== undefined) await turn;
   }
 }
+
+/**
+ * Every match of any of `patterns` in `range` of `size` bytes `read` gives, in order of where it
+ * starts, handed to `visit` with the pattern's index — `visit` returns false to stop. The same scan
+ * as `maskedMatches`, over bytes the caller reads for it at once: what a worker holding the
+ * decompressed buffers scans them with.
+ *
+ * A pattern may have holes, and with `overlapping` a match is looked for again one byte after the
+ * last one's start rather than after its end. Each window is read once, a chunk and the longest
+ * pattern's length less one, so a match across the boundary is found once and only once. Two
+ * patterns matching at one place are both reported, the lower index first. Throws
+ * `SearchPatternEmpty` for no pattern or an empty one, and `SearchCancelled` when `shouldCancel`
+ * says so between windows.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.matches
+ */
+export function scanPatterns(
+  patterns: readonly MaskedPattern[],
+  size: number,
+  read: (offset: number, length: number) => Uint8Array,
+  visit: (match: ByteRange, pattern: number) => boolean,
+  options: {
+    readonly range?: ByteRange;
+    readonly overlapping?: boolean;
+    readonly chunkSize?: number;
+    readonly shouldCancel?: () => boolean;
+  } = {}
+): void {
+  if (patterns.length === 0 || patterns.some((p) => p.bytes.length === 0)) {
+    throw new SearchPatternEmpty();
+  }
+  const overlapping = options.overlapping ?? false;
+  const chunkSize = options.chunkSize ?? DEFAULT_SEARCH_CHUNK_SIZE;
+  const lowerBound = Math.min(Math.max(options.range?.start ?? 0, 0), size);
+  const upperBound = Math.min(Math.max(options.range?.end ?? size, lowerBound), size);
+  const counts = patterns.map((p) => p.bytes.length);
+  const longest = Math.max(...counts);
+  const shortest = Math.min(...counts);
+  if (shortest > upperBound - lowerBound) return;
+
+  const nextStart = patterns.map(() => lowerBound);
+  let cursor = lowerBound;
+  while (cursor < upperBound) {
+    if (options.shouldCancel?.() === true) throw new SearchCancelled();
+    const fresh = Math.min(chunkSize, upperBound - cursor);
+    const length = Math.min(fresh + longest - 1, upperBound - cursor);
+    const window = read(cursor, length);
+    if (window.length === 0) break;
+
+    const found: { start: number; pattern: number }[] = [];
+    for (const [index, pattern] of patterns.entries()) {
+      const count = pattern.bytes.length;
+      const step = overlapping ? 1 : count;
+      let from = Math.max(0, (nextStart[index] ?? 0) - cursor);
+      while (from < fresh) {
+        const at = firstMaskedMatch(pattern, window, from, fresh);
+        if (at === -1) break;
+        if (patterns.length === 1) {
+          const start = cursor + at;
+          if (!visit({ start, end: start + count }, 0)) return;
+        } else {
+          found.push({ start: at, pattern: index });
+        }
+        nextStart[index] = cursor + at + step;
+        from = at + step;
+      }
+    }
+    found.sort((a, b) => a.start - b.start || a.pattern - b.pattern);
+    for (const match of found) {
+      const start = cursor + match.start;
+      if (!visit({ start, end: start + (counts[match.pattern] ?? 0) }, match.pattern)) return;
+    }
+    cursor += fresh;
+  }
+}
