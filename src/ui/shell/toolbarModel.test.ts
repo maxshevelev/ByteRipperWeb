@@ -22,6 +22,8 @@ const context = (overrides: Partial<ToolbarContext> = {}): ToolbarContext => ({
 describe("the toolbar's items", () => {
   // @upstream ByteRipperTests/ToolbarItemsTests.swift#ToolbarItemsTests.testTheToolbarIsTwoGroupsSplitByTheFlexibleSpace
   // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testToolbarPinsMinimapToggleAtFarRight
+  // @upstream-differs upstream's default set has the Annotations item after Segments; the web has
+  // no such button, its Annotations pill is in the dock
   it("are two groups split by the flexible space", () => {
     expect(TOOLBAR_DEFAULT_ITEMS).toEqual([
       "tools",

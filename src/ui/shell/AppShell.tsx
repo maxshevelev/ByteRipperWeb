@@ -1350,6 +1350,12 @@ export function AppShell() {
     return slot;
   }, []);
 
+  /**
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicateDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicatePaneDocument
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicate
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canDuplicate
+   */
   const doDuplicate = useCallback(() => {
     void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
       reportAlert(

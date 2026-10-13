@@ -6474,21 +6474,33 @@ body[data-pulling-panel] * {
   background: color-mix(in srgb, var(--note-hue) 18%, transparent);
 }
 
-/* The ✕ stands out of the card's corner, as the badge on an app being deleted does. */
+/* The ✕ stands out of the card's corner, as the badge on an app being deleted does: a ring and a
+   cross in the card's hue, filled with the panel's own ground — not white, which in a dark theme
+   is the brightest thing in the panel — so the card does not show through it. Pressed, it takes
+   the card's wash, as the card does when selected (`AnnotationRemoveBadge`). */
 .note-card-remove {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 18px;
-  height: 18px;
+  top: -10px;
+  right: -10px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--note-hue);
-  color: var(--surface);
-  font-size: 13px;
-  line-height: 18px;
+  background: var(--surface);
+  color: var(--note-hue);
   cursor: pointer;
+}
+
+.note-card-remove:active {
+  background: color-mix(in srgb, var(--note-hue) 18%, var(--surface));
+}
+
+.note-card-remove:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .note-card-head {

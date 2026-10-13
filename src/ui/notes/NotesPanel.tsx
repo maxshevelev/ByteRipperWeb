@@ -263,7 +263,7 @@ function NoteCard({
           onRemove();
         }}
       >
-        ×
+        <RemoveGlyph />
       </button>
       <header className="note-card-head">
         {byAgent ? (
@@ -357,6 +357,28 @@ export function NotesGlyph() {
 }
 
 /** Upstream's `long.text.page.and.pencil`. */
+/**
+ * The ✕ of a card's corner: a ring and a cross, both in the card's hue, over the panel's own
+ * ground — drawn as upstream draws its badge, 20 points, a ring 1.5 wide inset by one, the cross's
+ * arms 0.17 of the side, 1.8 wide, rounded.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationRemoveBadge.draw
+ */
+function RemoveGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" fill="none">
+      <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.9" />
+      <path
+        d="M6.6 6.6l6.8 6.8M6.6 13.4l6.8-6.8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeOpacity="0.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function PencilGlyph() {
   return (
     <svg

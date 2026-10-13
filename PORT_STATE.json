@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "30f5b29afd366cc6fc40016697cef11576c27a46",
-  "baselineNote": "Minimap overview: a modified row is red ink, not a red fill (2026-10-13)"
+  "baseCommit": "13e34bedb74eb82ba269d860a8dae406a32b5366",
+  "baselineNote": "Set 0.9.2, and say in the README what it is (2026-10-13)"
 }
