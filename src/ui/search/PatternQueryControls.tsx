@@ -84,6 +84,11 @@ export function PatternQueryControls({
     problem: syncProblem(favoriteState),
   });
 
+  // A row loaded into the controls: pattern, encoding and, for text, the case rule.
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.apply
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.select
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setPatternText
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onPicked
   const pick = (search: MenuSearch) => {
     const input = inputRef.current;
     if (input !== null) {

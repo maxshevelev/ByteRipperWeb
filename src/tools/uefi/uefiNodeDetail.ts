@@ -89,7 +89,7 @@ import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import { readSound, soundDuration, soundEncodingName } from "@/firmware/uefi/sound";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { displayName, isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub, subtypeName } from "@/firmware/uefi/uefiTypes";
 import {
   decodedVssName,
@@ -484,8 +484,8 @@ function mapRegionsTable(
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.holderText
  */
 function holderText(node: UEFINode): string {
-  if (node.kind === "volume") return `${kindLabel("volume")} ${node.name}`;
-  return node.name.length === 0 ? kindLabel(node.kind) : node.name;
+  if (node.kind === "volume") return `${kindLabel("volume")} ${displayName(node)}`;
+  return node.name.length === 0 ? kindLabel(node.kind) : displayName(node);
 }
 
 /**
@@ -753,7 +753,7 @@ function buildDetailRows(
   if (topSwap !== undefined) fields.push(field(L("Top Swap"), topSwap));
   const fill = nvramStoreFillOf(node, reader);
   if (fill !== undefined) fields.push(...fillFields(fill));
-  const title = node.name.length === 0 ? kindLabel(node.kind) : node.name;
+  const title = node.name.length === 0 ? kindLabel(node.kind) : displayName(node);
 
   // Every range that shares a byte with the node, once something has read them.
   const protectedBy =

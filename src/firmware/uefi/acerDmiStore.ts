@@ -1,7 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
 import type { Parser } from "@/firmware/uefi/parserState";
-import { makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { madeUpName, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * Acer's DMI region, where the firmware keeps the machine's identity
@@ -396,7 +396,7 @@ export function readingAcerDMIStores(
       rows.push(...parser.padding(claimed, start, emptyByte));
       const row = makeSpan({
         kind: "acerDMIStore",
-        name: L("Acer DMI"),
+        ...madeUpName("Acer DMI"),
         range: { start, end: start + ACER_DMI_SIZE },
       });
       row.isFixed = true;

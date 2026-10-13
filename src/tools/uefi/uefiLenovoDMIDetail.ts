@@ -27,7 +27,7 @@ import {
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import type { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { displayName, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { cell, type DetailField, type DetailTable, field } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
 
@@ -518,7 +518,9 @@ export function lenovoDMIRowText(
     case "lenvBlock": {
       const range = nodeRange(node);
       const block = blocksOf(reader.bytes(range), range.start);
-      return block === undefined ? undefined : L("%1$@ · %2$@", node.name, blockText(block));
+      return block === undefined
+        ? undefined
+        : L("%1$@ · %2$@", displayName(node), blockText(block));
     }
     case "lenvEntry": {
       if (parent === undefined || parent.kind !== "lenvBlock") return undefined;
@@ -526,14 +528,18 @@ export function lenovoDMIRowText(
       const entry = blocksOf(reader.bytes(range), range.start)?.entries.find(
         (one) => one.offset === node.header.start
       );
-      return entry === undefined ? undefined : L("%1$@ = %2$@", node.name, valueText(entry));
+      return entry === undefined
+        ? undefined
+        : L("%1$@ = %2$@", displayName(node), valueText(entry));
     }
     case "ldbgEntry": {
       if (parent === undefined || parent.kind !== "ldbgLog") return undefined;
       const entry = areaStartingAt(nodeRange(parent).start, reader)?.log.entries.find(
         (one) => one.offset === nodeRange(node).start
       );
-      return entry === undefined ? undefined : L("%1$@ · %2$@", node.name, logEntryText(entry));
+      return entry === undefined
+        ? undefined
+        : L("%1$@ · %2$@", displayName(node), logEntryText(entry));
     }
     default:
       return undefined;

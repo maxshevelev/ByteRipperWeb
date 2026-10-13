@@ -53,8 +53,9 @@ ANCHOR_IN_HELP = re.compile(r"^@covers\s+([a-z0-9][a-z0-9.\-]*)\s*$", re.M)
 # `@source-sha <hex>` in a translated file.
 SOURCE_SHA = re.compile(r"^@source-sha\s+([0-9a-f]{64})\s*$", re.M)
 
-# `LocalizedText.of("…")` (a sentence not yet in a language) and `LIn("…", language)`
-# (a word in a named language) are the same call.
+# `LocalizedText.of("…")` (a sentence not yet in a language), `LIn("…", language)`
+# (a word in a named language) and `madeUpName("…")` (a node's name the parser made
+# up, put into words by whoever shows it) are the same call.
 # `L("…")`, `L("…", args)` and `L("…", { context: "…" })`. Only a plain literal
 # counts: a key built at run time is a key no translator can find, which is
 # itself worth knowing, so those are reported separately rather than silently
@@ -64,9 +65,9 @@ SOURCE_SHA = re.compile(r"^@source-sha\s+([0-9a-f]{64})\s*$", re.M)
 # and every `new URL("../workers/…")` in this repository would otherwise read
 # as a string somebody has to translate (measured).
 L_CALL = re.compile(
-    r'(?<![A-Za-z0-9_$])(?:L|LIn|LocalizedText\.of)\(\s*"((?:[^"\\]|\\.)*)"'
+    r'(?<![A-Za-z0-9_$])(?:L|LIn|LocalizedText\.of|madeUpName)\(\s*"((?:[^"\\]|\\.)*)"'
     r'(?P<context>\s*,\s*\{\s*context:\s*"(?:[^"\\]|\\.)*"\s*\})?', re.S)
-L_DYNAMIC = re.compile(r'(?<![A-Za-z0-9_$])(?:L|LIn|LocalizedText\.of)\(\s*(?!")', re.S)
+L_DYNAMIC = re.compile(r'(?<![A-Za-z0-9_$])(?:L|LIn|LocalizedText\.of|madeUpName)\(\s*(?!")', re.S)
 
 
 def repo_root(override):
@@ -241,7 +242,7 @@ def collect_string_keys(root):
         for number, line in enumerate(code, 1):
             # `L(` with no quote after it, here or on the next line — and not
             # the declaration itself.
-            if not L_DYNAMIC.search(line) or "export function L(" in line:
+            if not L_DYNAMIC.search(line) or re.search(r"\bfunction (?:L|LIn|madeUpName)\(", line):
                 continue
             following = (line + "\n" + (code[number] if number < len(code) else "")).strip()
             if L_CALL.search(following):

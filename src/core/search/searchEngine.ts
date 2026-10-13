@@ -11,7 +11,10 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
  * file is searched without holding anything up.
  */
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.defaultChunkSize */
+/**
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.defaultChunkSize
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.defaultChunkSize
+ */
 export const DEFAULT_SEARCH_CHUNK_SIZE = 1024 * 1024;
 /**
  * Past this many, a results list stops being a tool and starts being a wall.

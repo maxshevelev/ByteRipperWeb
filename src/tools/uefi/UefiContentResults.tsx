@@ -8,17 +8,39 @@ import { openContextMenu } from "@/ui/shell/ContextMenu";
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row
  */
 export interface ContentResultRow {
-  /** The node that holds the match, after its parent's name where the parent has one of its own. */
+  /**
+   * The node that holds the match, after its parent's name where the parent has one of its own.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.node
+   */
   readonly node: string;
-  /** The codecs the match's bytes came through, outermost first: `LZMA`, `XOR 81`. */
+  /**
+   * The codecs the match's bytes came through, outermost first: `LZMA`, `XOR 81`.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.codecs
+   */
   readonly codecs: readonly string[];
-  /** The file address, or where in a compressed section's decompressed bytes. */
+  /**
+   * The file address, or where in a compressed section's decompressed bytes.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.address
+   */
   readonly address: string;
-  /** The names from the top of the tree down to the node. */
+  /**
+   * The names from the top of the tree down to the node.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.path
+   */
   readonly path: string;
-  /** What opening the row opens, for a match behind a codec; nothing for the file's own bytes. */
+  /**
+   * What opening the row opens, for a match behind a codec; nothing for the file's own bytes.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.openTitle
+   */
   readonly openTitle: string | undefined;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.excerpt */
   readonly excerpt: Uint8Array;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.Row.excerptMatch */
   readonly excerptMatch: readonly [number, number];
 }
 
@@ -125,12 +147,30 @@ export function UefiContentResults({
   onClose,
   onSpace,
 }: {
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.state
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.show
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.showSearching
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.clear
+   */
   readonly state: ContentResultsState;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.rows */
   readonly rows: readonly ContentResultRow[];
   readonly selected: number | undefined;
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.onChoose
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.choose
+   */
   readonly onChoose: (index: number) => void;
+  /**
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.onOpen
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.open
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.menu
+   */
   readonly onOpen: (index: number) => void;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.onStop */
   readonly onStop: () => void;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.onClose */
   readonly onClose: () => void;
   /**
    * Space on the list: the details of the selected match's node in the large view, as on the

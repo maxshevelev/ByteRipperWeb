@@ -44,6 +44,7 @@ import { decodedFromWire, type WireDecoded } from "@/tools/uefi/agent/uefiAgentA
 import type { WireContentMatch } from "@/workers/protocol";
 
 /** The UEFI Structure tool's id, which an annotation's place is shown in. */
+/** @upstream ByteRipperApp/Tools/ToolRegistry.swift#ToolRegistry.uefiStructure */
 const UEFI_STRUCTURE = "dev.maxik.tool.uefi-structure";
 
 export const MAX_TITLE = 80;

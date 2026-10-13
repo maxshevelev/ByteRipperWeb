@@ -73,7 +73,10 @@ const NO_RESULTS: PaneResults = {
   resultsShown: false,
 };
 
-/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request */
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.Request
+ */
 export interface SearchState {
   /**
    * Whether the find bar is on screen.
@@ -98,13 +101,20 @@ export interface SearchState {
    * off, and remembered — upstream keeps it in `UserDefaults`.
    *
    * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isSmartSearchEnabled
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.isSmartSearchEnabled
    */
   readonly smart: boolean;
-  /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isCaseSensitive */
+  /**
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isCaseSensitive
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.isCaseSensitive
+   */
   readonly caseSensitive: boolean;
   /** Which pane the bar acts on — the active one. */
   readonly pane: PaneId;
-  /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onError */
+  /**
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onError
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onError
+   */
   readonly problem: string | undefined;
   /**
    * The searches that found something, most recent first, kept between visits
@@ -126,7 +136,10 @@ export interface SearchState {
   readonly stagedPattern: SelectionFindPattern | undefined;
 }
 
-/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartSearchKey */
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartSearchKey
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.smartSearchKey
+ */
 const SMART_STORAGE_KEY = "byteripper.smartSearch";
 
 /**
@@ -165,7 +178,10 @@ export const FIND_HISTORY_LIMIT = 10;
  */
 const HISTORY_STORAGE_KEY = "byteripper.findHistory";
 
-/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseSensitiveKey */
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseSensitiveKey
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseSensitiveKey
+ */
 const CASE_STORAGE_KEY = "byteripper.findCaseSensitive";
 
 /**
@@ -176,7 +192,9 @@ const CASE_STORAGE_KEY = "byteripper.findCaseSensitive";
  * that reads it has to redraw for a press of ‹ ›.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.recordFoundSearch
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.entryForField
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.entryForField
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.record
  */
 export function recordFindHistory(
@@ -459,7 +477,10 @@ function cancelRunning(): void {
   currentJobId = undefined;
 }
 
-/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.reportNoUsablePattern */
+/**
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.reportNoUsablePattern
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.reportNoUsablePattern
+ */
 const failureMessage = (failure: SearchFailure): string =>
   ({
     emptyPattern: L("Type something to look for."),
@@ -596,6 +617,7 @@ export function startSearch(options: {
   }));
   // Remembered only once it finds something: a pattern that occurs nowhere is
   // not one worth offering again. A pick from the menu is not remembered at all.
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.noteSearchStarted
   searchToRecord = options.recordHistory === false ? undefined : shown;
 
   void runAttempts(
@@ -946,6 +968,7 @@ export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
  * the file has been scanned, moving through the matches costs a lookup.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.Request
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.stepMatch
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.land
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scanForStep
@@ -980,6 +1003,7 @@ export function stepSearch(direction: "forward" | "backward"): void {
  * and an instruction is not something the application rewrites.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.adopt
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.adopt
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adopt
  */
 function adopt(encoding: SearchEncoding | undefined): void {
@@ -1020,6 +1044,7 @@ let searchToRecord: string | undefined;
  * The search that was started found something, so it is worth offering again.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.recordFoundSearch
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchToRecord
  */
 function recordFoundSearch(): void {
@@ -1051,6 +1076,7 @@ function recordFoundSearch(): void {
  *
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.controlTextDidChange
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onPatternEdited
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onPatternEdited
  */
 function patternReplaced(query: string, patch: Partial<SearchState>): void {
   dismissNotice();
@@ -1098,6 +1124,7 @@ export function editQuery(query: string): void {
  * they want it matched.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.stage
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.stage
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.applyStaged
  * @upstream-differs `applyStaged` is folded in: the web field reads the store,
  * so writing the text and the encoding is the same one update
@@ -1209,6 +1236,7 @@ export function setSmartSearch(smart: boolean): void {
  * to be offered back.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.prepareForShow
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.prepareForShow
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.mostRecent
  */
 export function openSearch(): boolean {
@@ -1296,7 +1324,14 @@ export function setSearchPane(pane: PaneId): void {
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt
  */
 export interface ToolPatternAttempt {
+  /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt.pattern */
   readonly pattern: MaskedPattern;
+  /**
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt.encoding
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt.encodingName
+   * @upstream-differs the encoding itself, which `encodingTitle` names, where upstream's
+   * ToolModuleKit cannot see the app's encodings
+   */
   readonly encoding: SearchEncoding;
 }
 
@@ -1308,6 +1343,7 @@ export interface ToolPatternAttempt {
  * bar's words, where it asks for nothing.
  *
  * @upstream ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.attempts
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchRequest
  */
 export function toolPatternAttempts(
   text: string

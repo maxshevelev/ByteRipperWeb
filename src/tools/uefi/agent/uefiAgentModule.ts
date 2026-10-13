@@ -26,6 +26,7 @@ import type {
   ToolReadHost,
 } from "@/tools/toolAgent";
 import { UEFI_CHECKSUMS } from "@/tools/uefi/agent/uefiAgentChecksums";
+import { UEFI_DMI } from "@/tools/uefi/agent/uefiAgentDMI";
 import type { WirePlace } from "@/tools/uefi/agent/uefiAgentLocator";
 import { UEFI_NODE_DATA } from "@/tools/uefi/agent/uefiAgentNodeData";
 import {
@@ -75,18 +76,27 @@ async function ask(
     | "uefi_fix_checksum"
     | "uefi_checksums"
     | "region_scan"
+    | "uefi_dmi"
     | "uefi_areas"
     | "uefi_locate",
   args: AgentArguments
 ): Promise<Json> {
   const pane = await readyTree(host);
-  const response = await askUefiAgent(pane, {
-    query,
-    values: args.values,
-    answerBound: args.answerBound,
-    contentVersion: host.contentVersion,
-  });
+  const asked = () =>
+    askUefiAgent(pane, {
+      query,
+      values: args.values,
+      answerBound: args.answerBound,
+      contentVersion: host.contentVersion,
+    });
+  let response = await asked();
   if (response.error !== undefined) throw new AgentToolError(response.error);
+  // A Lenovo DMI store's detail names the drivers that read it, which the page searches for once.
+  if (response.needs === "lenovoReaders") {
+    await lenovoReadersWait(pane);
+    response = await asked();
+    if (response.error !== undefined) throw new AgentToolError(response.error);
+  }
   return response.answer ?? null;
 }
 
@@ -103,7 +113,12 @@ async function rowsOf(host: ToolReadHost): Promise<readonly VariableRow[]> {
 }
 
 function query(definition: {
-  readonly name: UefiAgentQueryName | "uefi_node_data" | "uefi_checksums" | "region_scan";
+  readonly name:
+    | UefiAgentQueryName
+    | "uefi_node_data"
+    | "uefi_checksums"
+    | "region_scan"
+    | "uefi_dmi";
   readonly title: string;
   readonly description: string;
   readonly properties: { readonly [key: string]: Json };
@@ -248,6 +263,7 @@ export const uefiAgentQueries: readonly ToolAgentQuery[] = [
     run: async (host, args) =>
       jsonAnswer(variablesAnswer(await rowsOf(host), args, host.contentVersion)),
   },
+  query(UEFI_DMI),
 ];
 
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.agentComparisons */

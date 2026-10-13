@@ -127,6 +127,29 @@ The help is not an exception here as it is upstream, because nothing is: every
 page is built from the book when it is shown, and the book reloads with the
 language like everything else.
 
+## A word for a reader other than the person
+
+An agent reads English, while the window speaks the person's language. Upstream
+names the language at every call that needs another than the app's
+(`L(_:in:)`), after a switch held across an `await` drew a window in the wrong
+language. Here an agent's answer is built inside `withEnglish`, a scope over
+synchronous work only: nothing is drawn inside one, and the firmware worker
+that builds most answers is a realm of its own, so the scope cannot reach the
+window.
+
+What a scope cannot fix is a word made before anyone knows who will read it. A
+name the parser makes up for a node — "Free space", "LENV block 2", "PSP
+directory $PSP" — is English in `name` and carried as words in `nameText`
+(`madeUpName`), and whoever shows it puts it into words with `displayName`: the
+panel in the window's language, an agent in English. As upstream: `name` is what
+a search by name matches, so an agent finds "Free space" whatever the window
+speaks. A parser's function that names something a node will carry returns a
+`LocalizedText` (`amdDirectoryNameText`, `entryNameText`), which `namedBy` turns
+into the two. `madeUpName("…")` is a call the coverage check reads, as it reads
+`L("…")`. `AgentModuleToolsTests.testNoAnswerSpeaksTheWindowsLanguage` is ported
+(`agentUefiDMI.test.ts`): with the window in Russian, no answer has a Cyrillic
+letter.
+
 ## What is deliberately not translated
 
 - **The ME engine's diagnostics**, for upstream's reason: they are a faithful

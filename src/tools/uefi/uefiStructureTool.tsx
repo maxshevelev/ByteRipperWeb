@@ -949,6 +949,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         kind: node.kind,
         subtype: node.subtype,
         name: node.name,
+        nameText: node.nameText,
         guid: node.guid === undefined ? undefined : guidFromText(node.guid),
         children: node.children,
         length: wireLength(node),
@@ -1454,6 +1455,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * opened as a panel, the match selected.
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.goTo
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealMatch
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenMatch
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openContentMatch
    */
   const goToMatch = (match: WireContentMatch, from: readonly WireNode[]) => {

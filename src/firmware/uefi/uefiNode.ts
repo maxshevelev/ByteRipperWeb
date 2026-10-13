@@ -1,3 +1,9 @@
+import {
+  catalogueString,
+  currentCatalogue,
+  formatMessage,
+  type LocalizedText,
+} from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { type ByteSpace, FILE_SPACE, isFileSpace } from "@/firmware/uefi/byteSpace";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
@@ -260,6 +266,16 @@ export interface UEFINode {
    */
   name: string;
   /**
+   * The name in words, for a name the parser made up rather than read — "Free space", "LENV
+   * block 2": put into words in the language of whoever shows it (`displayName`), while `name`
+   * keeps it in English.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.nameText
+   * @upstream-differs a key and its arguments, plain data that crosses from the worker with the
+   * node, where upstream's is a `LocalizedText`
+   */
+  nameText?: NameText | undefined;
+  /**
    * A volume's file system, a file's name, a section's definition GUID.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.guid
@@ -336,11 +352,51 @@ export interface UEFINode {
   children: UEFINode[];
 }
 
+/** A made-up name as words: the catalogue's key, which is the English, and what goes into it. */
+export interface NameText {
+  readonly key: string;
+  readonly args: readonly string[];
+}
+
+/**
+ * A name the parser made up: `name` in English, `nameText` for whoever shows it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.init
+ */
+export function madeUpName(
+  key: string,
+  ...args: readonly (string | number)[]
+): { readonly name: string; readonly nameText: NameText } {
+  const words = args.map(String);
+  return { name: formatMessage(key, words), nameText: { key, args: words } };
+}
+
+/** The same, for a name a parser's function put into words. */
+export const namedBy = (
+  text: LocalizedText
+): { readonly name: string } | { readonly name: string; readonly nameText: NameText } =>
+  text.isVerbatim
+    ? { name: text.key }
+    : { name: text.textIn("en"), nameText: { key: text.key, args: text.args } };
+
+/**
+ * The name in the language in force: the made-up one put into words, or the one the parser read.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#UEFINode.displayName
+ * @upstream-differs the language in force — the window's, or English for an agent's answer —
+ * where upstream names it
+ */
+export const displayName = (node: Pick<UEFINode, "name" | "nameText">): string =>
+  node.nameText === undefined
+    ? node.name
+    : formatMessage(catalogueString(currentCatalogue(), node.nameText.key), node.nameText.args);
+
 export interface NodeOptions {
   readonly id?: NodeID;
   readonly kind: UEFINodeKind;
   readonly subtype?: number | undefined;
   readonly name: string;
+  readonly nameText?: NameText | undefined;
   readonly guid?: EFIGUID | undefined;
   readonly header: ImageRange;
   readonly body: ImageRange;
@@ -361,6 +417,7 @@ export function makeNode(options: NodeOptions): UEFINode {
     kind: options.kind,
     subtype: options.subtype,
     name: options.name,
+    ...(options.nameText === undefined ? {} : { nameText: options.nameText }),
     guid: options.guid,
     header: options.header,
     body: options.body,
@@ -379,12 +436,14 @@ export function makeNode(options: NodeOptions): UEFINode {
 export function makeSpan(options: {
   readonly kind: UEFINodeKind;
   readonly name: string;
+  readonly nameText?: NameText | undefined;
   readonly range: ImageRange;
   readonly isErased?: boolean;
 }): UEFINode {
   return makeNode({
     kind: options.kind,
     name: options.name,
+    ...(options.nameText === undefined ? {} : { nameText: options.nameText }),
     header: { start: options.range.start, end: options.range.start },
     body: options.range,
     ...(options.isErased === undefined ? {} : { isErased: options.isErased }),

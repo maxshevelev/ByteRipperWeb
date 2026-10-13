@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { LocalizedText } from "@/core/localization/localization";
 
 /**
  * Lenovo's DMI store: the `LDBG` change log and the two `LENV` blocks after it,
@@ -210,24 +210,27 @@ export function knownType(key: LenovoDMIKey): LenovoDMIKnownType | undefined {
 }
 
 /** @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIFormat.swift#LenovoDMIKnownType.name */
-export function knownTypeName(type: LenovoDMIKnownType): string {
+export const knownTypeName = (type: LenovoDMIKnownType): string => knownTypeNameText(type).text;
+
+/** A known entry's name, put into words by whoever shows it. */
+export function knownTypeNameText(type: LenovoDMIKnownType): LocalizedText {
   switch (type) {
     case "windowsKey":
-      return L("Windows key");
+      return LocalizedText.of("Windows key");
     case "oa3KeyID":
-      return L("OA3 key ID");
+      return LocalizedText.of("OA3 key ID");
     case "motherboardName":
-      return L("Motherboard name");
+      return LocalizedText.of("Motherboard name");
     case "machineTypeModel":
-      return L("Machine type/model");
+      return LocalizedText.of("Machine type/model");
     case "baseboardSerialNumber":
-      return L("Baseboard serial number");
+      return LocalizedText.of("Baseboard serial number");
     case "systemUUID":
-      return L("System UUID");
+      return LocalizedText.of("System UUID");
     case "baseboardPlatformID":
-      return L("Baseboard platform ID");
+      return LocalizedText.of("Baseboard platform ID");
     case "osPreloadSuffix":
-      return L("OS preload suffix");
+      return LocalizedText.of("OS preload suffix");
   }
 }
 

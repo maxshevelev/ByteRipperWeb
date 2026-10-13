@@ -14,7 +14,7 @@ import {
   acerUUIDText,
 } from "@/firmware/uefi/acerDmiStore";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
-import type { UEFINode } from "@/firmware/uefi/uefiNode";
+import { displayName, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { type DetailField, type DetailTable, field } from "@/tools/toolDetail";
 
 /**
@@ -76,6 +76,6 @@ export function acerDMIDetail(
  */
 export function acerDMIRowText(node: UEFINode, reader: ImageReader): string {
   const area = acerDMIAreaAt(reader, node.body.start);
-  if (area === undefined) return node.name;
-  return L("%1$@ · %2$@", node.name, acerSystemSerial(area));
+  if (area === undefined) return displayName(node);
+  return L("%1$@ · %2$@", displayName(node), acerSystemSerial(area));
 }

@@ -1,4 +1,3 @@
-import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { sum8, sum8Of } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guid, guidBytes, guidEquals } from "@/firmware/uefi/efiGuid";
@@ -18,7 +17,7 @@ import {
   ucs2String,
   walkSections,
 } from "@/firmware/uefi/sectionParser";
-import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { madeUpName, makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
 import { FV } from "@/firmware/uefi/volumeFormat";
 
@@ -403,10 +402,9 @@ export function parseFile(
     subtype: type,
     // A pad file's GUID is filler — all ones, as a rule — and names nothing, so
     // the file is called what it is.
-    name:
-      type === FFS.padType
-        ? L("Padding file")
-        : (nameOfGuid(name) ?? userInterfaceName(parser, children) ?? fileTypeName(type)),
+    ...(type === FFS.padType
+      ? madeUpName("Padding file")
+      : { name: nameOfGuid(name) ?? userInterfaceName(parser, children) ?? fileTypeName(type) }),
     guid: name,
     header: { start: offset, end: offset + headerSize },
     body,
@@ -437,7 +435,7 @@ function padFileBody(parser: Parser, body: ImageRange, emptyByte: number): UEFIN
     nodes.push(
       makeSpan({
         kind: "freeSpace",
-        name: L("Free space"),
+        ...madeUpName("Free space"),
         range: { start: body.start, end: dataStart },
         isErased: true,
       })
@@ -469,7 +467,7 @@ function padFileBody(parser: Parser, body: ImageRange, emptyByte: number): UEFIN
     nodes.push(
       makeNode({
         kind: "padding",
-        name: L("Non-UEFI data"),
+        ...madeUpName("Non-UEFI data"),
         header: { start: dataStart, end: dataStart },
         body: data,
         children: pieces,

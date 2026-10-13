@@ -25,6 +25,7 @@ import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts"
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import type { ProtectedRanges } from "@/firmware/uefi/protectedRanges";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import type { NameText } from "@/firmware/uefi/uefiNode";
 import type { RebuildCaution } from "@/firmware/uefi/uefiRebuild";
 import type { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import type { EFSFileNames } from "@/tools/efsFileNames";
@@ -629,6 +630,7 @@ export interface AgentUefiRequest {
     | "uefi_at"
     | "uefi_node_data"
     | "region_scan"
+    | "uefi_dmi"
     | "uefi_checksums"
     | "uefi_refs"
     | "variable_rows"
@@ -693,6 +695,8 @@ export interface WireNode {
   readonly kind: string;
   readonly subtype?: number | undefined;
   readonly name: string;
+  /** A name the parser made up, as words the page puts into its own language (`displayName`). */
+  readonly nameText?: NameText | undefined;
   readonly guid?: string | undefined;
   readonly header: readonly [number, number];
   readonly body: readonly [number, number];

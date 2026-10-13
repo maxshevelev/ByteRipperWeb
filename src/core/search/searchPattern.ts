@@ -45,6 +45,7 @@ export const encodingTitle = (encoding: SearchEncoding): string =>
  * this is a type rather than a boolean.
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#CaseFolding
+ * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#CaseFolding
  */
 export type CaseFolding =
   /** Byte for byte. Hex is always this, and so is any encoding when the user asks. */

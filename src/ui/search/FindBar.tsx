@@ -51,10 +51,16 @@ export function focusFindInput(): void {
 
 /**
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.query
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onAddToFavorites
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onManageFavorites
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseButton
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseButton
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartButton
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.smartButton
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.navControl
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.supportsCaseFolding
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.supportsCaseFolding
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUp
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setUpPatternField
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setUpEncodingPopup
@@ -68,6 +74,7 @@ export function focusFindInput(): void {
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.updateCaseButtonVisibility
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.smartToggled
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.iconPointSize
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.iconPointSize
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.countLabel
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.doneButton
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.applyCountLabel

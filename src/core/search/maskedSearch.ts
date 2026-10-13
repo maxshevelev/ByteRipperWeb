@@ -33,6 +33,7 @@ export class MaskedPatternError extends Error {
  * `24 ?? 4D 49` of a hex search — compared by an encoding's case rules.
  *
  * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern
  */
 export interface MaskedPattern {
   /**
@@ -51,6 +52,7 @@ export interface MaskedPattern {
  * A pattern of these bytes, with holes where `isWild` says so (none by default).
  *
  * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.init
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.init
  */
 export function maskedPattern(
   bytes: Uint8Array | readonly number[],
@@ -218,6 +220,39 @@ export function firstMaskedMatch(
     start = candidate + 1;
   }
   return -1;
+}
+
+/**
+ * `text` as ASCII bytes, any case of a letter with `ignoringCase`. Throws `SearchPatternEmpty` for
+ * no text, and `MaskedPatternError` for a text that is not ASCII.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.ascii
+ */
+export function asciiPattern(text: string, ignoringCase: boolean): MaskedPattern {
+  if (text === "") throw new SearchPatternEmpty();
+  const bytes = Array.from(text, (one) => one.codePointAt(0) ?? 0);
+  if (bytes.some((one) => one > 0x7f)) throw new MaskedPatternError("not ASCII text");
+  return maskedPattern(bytes, {
+    folding: ignoringCase ? { kind: "asciiBytes" } : { kind: "exact" },
+  });
+}
+
+/**
+ * `text` as UTF-16LE code units — how firmware keeps a name such as a variable's or a menu's.
+ * Throws `SearchPatternEmpty` for no text.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.utf16LE
+ */
+export function utf16LEPattern(text: string, ignoringCase: boolean): MaskedPattern {
+  if (text === "") throw new SearchPatternEmpty();
+  const bytes: number[] = [];
+  for (let at = 0; at < text.length; at += 1) {
+    const unit = text.charCodeAt(at);
+    bytes.push(unit & 0xff, unit >> 8);
+  }
+  return maskedPattern(bytes, {
+    folding: ignoringCase ? { kind: "utf16", littleEndian: true } : { kind: "exact" },
+  });
 }
 
 /**

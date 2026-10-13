@@ -22,7 +22,12 @@ import type { Parser } from "@/firmware/uefi/parserState";
 import { pictureBody } from "@/firmware/uefi/picture";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
 import { parseSound } from "@/firmware/uefi/sound";
-import { makeNode, type SectionCompression, type UEFINode } from "@/firmware/uefi/uefiNode";
+import {
+  madeUpName,
+  makeNode,
+  type SectionCompression,
+  type UEFINode,
+} from "@/firmware/uefi/uefiNode";
 import { parseVolume } from "@/firmware/uefi/volumeParser";
 
 /**
@@ -283,7 +288,7 @@ function nonUEFIDataInSections(
   }
   return makeNode({
     kind: "padding",
-    name: L("Non-UEFI data"),
+    ...madeUpName("Non-UEFI data"),
     header: { start, end: start },
     body: { start, end },
     children,

@@ -405,6 +405,12 @@ describe("compare and reveal_diff", () => {
 });
 
 describe("find_bytes", () => {
+  // `find_bytes` with `node` searches the tree's contents; the tree's own search tool is gone.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testTheOldTreeSearchToolIsGone
+  it("leaves no uefi_find_bytes beside it", () => {
+    expect(service.allTools().map((one) => one.name)).not.toContain("uefi_find_bytes");
+  });
+
   const starts = (answer: Json | undefined) =>
     ((member(answer, "matches") as Json[] | undefined) ?? []).map((one) => member(one, "start"));
 

@@ -1,4 +1,3 @@
-import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, checksum16 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidEquals } from "@/firmware/uefi/efiGuid";
@@ -13,7 +12,7 @@ import {
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { scanRawArea } from "@/firmware/uefi/rawScan";
-import { makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { madeUpName, makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { FV } from "@/firmware/uefi/volumeFormat";
 
 export { FV };
@@ -291,7 +290,9 @@ export function volumeChildren(
     guidEquals(header.fileSystem, APPLE_RESERVED_VOLUME) &&
     parser.reader.isFilled(body, emptyByte)
   ) {
-    return [makeSpan({ kind: "freeSpace", name: L("Free space"), range: body, isErased: true })];
+    return [
+      makeSpan({ kind: "freeSpace", ...madeUpName("Free space"), range: body, isErased: true }),
+    ];
   }
   const ffsVersion = ffsVersionOfFileSystem(header.fileSystem);
   if (ffsVersion === undefined) {
@@ -400,7 +401,12 @@ function freeSpace(
   const firstUsed = parser.reader.firstOffsetNotEqualTo({ start, end }, emptyByte);
   if (firstUsed === undefined) {
     return [
-      makeSpan({ kind: "freeSpace", name: L("Free space"), range: { start, end }, isErased: true }),
+      makeSpan({
+        kind: "freeSpace",
+        ...madeUpName("Free space"),
+        range: { start, end },
+        isErased: true,
+      }),
     ];
   }
   // Back to the eight-byte boundary at or before the byte: what follows a
@@ -414,7 +420,7 @@ function freeSpace(
     nodes.push(
       makeSpan({
         kind: "freeSpace",
-        name: L("Free space"),
+        ...madeUpName("Free space"),
         range: { start, end: boundary },
         isErased: true,
       })
@@ -439,7 +445,7 @@ export function nonUEFIData(
 ): UEFINode {
   const node = makeSpan({
     kind: "nonUEFIData",
-    name: L("Non-UEFI data"),
+    ...madeUpName("Non-UEFI data"),
     range,
     isErased: parser.reader.isFilled(range, emptyByte),
   });

@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import {
   AMD_ZLIB_COMPRESSED_SIZE_OFFSET,
@@ -6,7 +6,7 @@ import {
 } from "@/firmware/uefi/compressedSection";
 import { isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import type { Parser } from "@/firmware/uefi/parserState";
-import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { madeUpName, makeNode, namedBy, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * The map the AMD Platform Security Processor reads the flash by (`UEFI_IMAGE_FORMAT.md`
@@ -898,23 +898,27 @@ export function amdKindName(kind: number): string {
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/AMDFirmware.swift#AMDFirmware.directoryName
  */
-export function amdDirectoryName(directory: AMDDirectory): string {
+export const amdDirectoryName = (directory: AMDDirectory): string =>
+  amdDirectoryNameText(directory).text;
+
+/** The same, put into words by whoever shows it: what the directory's node carries. */
+export function amdDirectoryNameText(directory: AMDDirectory): LocalizedText {
   const signature = directorySignature(directory.kind) ?? "";
   switch (directory.kind) {
     case DirectoryKind.psp:
-      return L("PSP directory %1$@", signature);
+      return LocalizedText.of("PSP directory %1$@", signature);
     case DirectoryKind.pspLevel2:
-      return L("PSP level 2 directory %1$@", signature);
+      return LocalizedText.of("PSP level 2 directory %1$@", signature);
     case DirectoryKind.bios:
-      return L("BIOS directory %1$@", signature);
+      return LocalizedText.of("BIOS directory %1$@", signature);
     case DirectoryKind.biosLevel2:
-      return L("BIOS level 2 directory %1$@", signature);
+      return LocalizedText.of("BIOS level 2 directory %1$@", signature);
     case DirectoryKind.pspCombo:
-      return L("PSP combo directory %1$@", signature);
+      return LocalizedText.of("PSP combo directory %1$@", signature);
     case DirectoryKind.biosCombo:
-      return L("BIOS combo directory %1$@", signature);
+      return LocalizedText.of("BIOS combo directory %1$@", signature);
     default:
-      return L("Image slot header %1$@", directory.slot ?? "");
+      return LocalizedText.of("Image slot header %1$@", `${directory.slot ?? ""}`);
   }
 }
 
@@ -929,6 +933,14 @@ export function amdEntryName(entry: AMDEntry): string {
   return instance === 0
     ? amdEntryTypeName(entry)
     : L("%1$@, instance %2$@", amdEntryTypeName(entry), `${instance}`);
+}
+
+/** The same, put into words by whoever shows it: what the blob's node carries. */
+function amdEntryNameText(entry: AMDEntry): LocalizedText {
+  const instance = entryInstance(entry);
+  return instance === 0
+    ? LocalizedText.verbatim(amdEntryTypeName(entry))
+    : LocalizedText.of("%1$@, instance %2$@", amdEntryTypeName(entry), `${instance}`);
 }
 
 // MARK: - Rows
@@ -1004,7 +1016,7 @@ export function amdFirmwareNodes(firmware: AMDFirmware, depth: number): UEFINode
   const nodes: UEFINode[] = [
     makeNode({
       kind: "amdEFS",
-      name: L("Embedded Firmware Structure"),
+      ...madeUpName("Embedded Firmware Structure"),
       header: efs,
       body: { start: efs.end, end: efs.end },
       // The PSP looks for it where it is.
@@ -1018,7 +1030,7 @@ export function amdFirmwareNodes(firmware: AMDFirmware, depth: number): UEFINode
       makeNode({
         kind: "amdDirectory",
         subtype: directory.kind,
-        name: amdDirectoryName(directory),
+        ...namedBy(amdDirectoryNameText(directory)),
         header: { start: directory.offset, end: Math.min(headerEnd, range.end) },
         body: { start: Math.min(headerEnd, range.end), end: range.end },
         isFixed: true,
@@ -1037,7 +1049,7 @@ export function amdFirmwareNodes(firmware: AMDFirmware, depth: number): UEFINode
       makeNode({
         kind: "amdFirmwareEntry",
         subtype: blob.entry.type,
-        name: amdEntryName(blob.entry),
+        ...namedBy(amdEntryNameText(blob.entry)),
         header: { start: range.start, end: bodyStart },
         body: { start: bodyStart, end: range.end },
         isFixed: true,

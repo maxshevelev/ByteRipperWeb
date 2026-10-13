@@ -113,15 +113,35 @@ export const matchFileRange = (match: ContentMatch): ByteRange | undefined =>
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Result */
 export interface ContentSearchResult {
-  /** The first matches, in tree order. */
+  /**
+   * The first matches, in tree order.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Result.matches
+   */
   readonly matches: readonly ContentMatch[];
-  /** Every match, kept or not. */
+  /**
+   * Every match, kept or not.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Result.total
+   */
   readonly total: number;
-  /** How many bytes were searched, the decompressed ones included. */
+  /**
+   * How many bytes were searched, the decompressed ones included.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Result.searchedBytes
+   */
   readonly searchedBytes: number;
-  /** How many decompressed or decoded buffers were searched besides the node's own bytes. */
+  /**
+   * How many decompressed or decoded buffers were searched besides the node's own bytes.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Result.buffers
+   */
   readonly buffers: number;
-  /** Compressed sections whose contents could not be read, and so were not searched. */
+  /**
+   * Compressed sections whose contents could not be read, and so were not searched.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Result.unreadSections
+   */
   readonly unreadSections: readonly NodeID[];
 }
 
@@ -131,15 +151,31 @@ export interface ContentSearchResult {
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope
  */
 interface Scope {
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.space */
   readonly space: ByteSpace;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.range */
   readonly range: ByteRange;
-  /** Decoded bytes standing in for the space's at `range`. */
+  /**
+   * Decoded bytes standing in for the space's at `range`.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.decoded
+   */
   readonly decoded?: Uint8Array;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.xorKey */
   readonly xorKey?: number;
-  /** The node to place matches under; nothing for the top of the tree. */
+  /**
+   * The node to place matches under; nothing for the top of the tree.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.base
+   */
   readonly base: NodeID | undefined;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.section */
   readonly section: NodeID | undefined;
-  /** A stretch of the start's own bytes, not a buffer under it. */
+  /**
+   * A stretch of the start's own bytes, not a buffer under it.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearch.Scope.isOwn
+   */
   readonly isOwn: boolean;
 }
 
@@ -256,6 +292,8 @@ export async function runContentSearch(
   if (start.length > 0) {
     reachable(tree, start);
     top = nodeAtPath(tree, start);
+    // @upstream Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift#UEFIContentSearchError
+    // @upstream-differs the agent's own refusal, whose sentence names the node
     if (top === undefined) throw unknownNode(start);
   }
   let reached = 0;

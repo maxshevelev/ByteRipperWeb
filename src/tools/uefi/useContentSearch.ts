@@ -85,6 +85,7 @@ export function contentRow(
     return node === undefined ? undefined : nameOf(node, roots);
   };
   // The codecs a space's bytes came through, outermost first.
+  // @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.codecNames
   const codecs: string[] = [];
   for (let length = 1; length <= match.space.length; length++) {
     codecs.push(

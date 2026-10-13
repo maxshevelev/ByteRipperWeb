@@ -36,7 +36,9 @@ export type UEFISearchMode = "names" | "contents";
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.Content
  */
 export interface UEFIContentQuery {
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.Content.text */
   readonly text: string;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.Content.wholeTree */
   readonly wholeTree: boolean;
 }
 
@@ -54,7 +56,14 @@ export interface UEFISearchState {
 
 const EMPTY_CONTENT: UEFIContentQuery = { text: "", wholeTree: true };
 
-/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.textKey */
+/**
+ * One stored record for the whole bar, where upstream keeps a key apiece.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.textKey
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.modeKey
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.contentTextKey
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.contentFromSelectionKey
+ */
 export const SEARCH_KEY = "byteripper.uefiSearch";
 
 /**

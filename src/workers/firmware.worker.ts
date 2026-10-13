@@ -93,6 +93,7 @@ import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
 import { annotationQuery } from "@/tools/uefi/agent/uefiAgentAnnotations";
 import { fixChecksumAnswer, uefiChecksums } from "@/tools/uefi/agent/uefiAgentChecksums";
+import { uefiDMI } from "@/tools/uefi/agent/uefiAgentDMI";
 import { type FindInNodeParams, findInNode } from "@/tools/uefi/agent/uefiAgentFind";
 import { areasIn, locateIn, place, placesJson } from "@/tools/uefi/agent/uefiAgentLocator";
 import { uefiNodeData } from "@/tools/uefi/agent/uefiAgentNodeData";
@@ -392,6 +393,7 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   kind: node.kind,
   subtype: node.subtype,
   name: node.name,
+  ...(node.nameText === undefined ? {} : { nameText: node.nameText }),
   guid: node.guid === undefined ? undefined : guidText(node.guid),
   header: [node.header.start, node.header.end],
   body: [node.body.start, node.body.end],
@@ -428,6 +430,8 @@ function agentTreeHere(here: ImageReader, diagnostics: UEFIDiagnostic[]): AgentT
 /**
  * Which tree the worker holds: moved on by every open and every edit, so a Contents search
  * remembered for one is not answered for another.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.generation
  */
 let treeGeneration = 0;
 
@@ -1091,6 +1095,16 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                 return { answer: annotationQuery(tree, request.values) };
               case "region_scan":
                 return { answer: regionScan(tree, args, context) };
+              // The stores the DMI button finds, each as the panel's detail tells it — a Lenovo
+              // store's with the drivers that read it, once the page has had them searched for.
+              case "uefi_dmi": {
+                const stores = readDMIStores();
+                const answer = uefiDMI(tree, stores);
+                return lenovoReaders === undefined &&
+                  stores.some((store) => store.kind === "lenovoDMIStore")
+                  ? { answer, needs: "lenovoReaders" as const }
+                  : { answer };
+              }
               case "uefi_find_bytes":
               case "uefi_refs":
                 return { answer: null };

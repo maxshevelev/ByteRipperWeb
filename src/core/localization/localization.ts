@@ -100,9 +100,12 @@ export const catalogueFor = (language: AppLanguage): Catalogue =>
  * wait: a catalogue swapped across an `await` would be in force for whatever ran in between, so an
  * asynchronous tool wraps the synchronous stretches that build words.
  *
- * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.override
- * @upstream-differs a scope over synchronous work, where upstream's is a task-local value that
- * follows an `await`
+ * @upstream Packages/Localization/Sources/Localization/Localization.swift#L
+ * @upstream-differs a scope over synchronous work, where upstream names the language at every call
+ * (`L` given the language) after a task-local switch drew a window in the wrong language: here nothing can be
+ * drawn inside a synchronous stretch, and the firmware worker that builds most answers is a realm
+ * of its own. A name a parser makes up is English on the node and put into words where it is shown
+ * (`UEFINode.nameText`, `displayName`), as upstream's is
  */
 export function withEnglish<T>(work: () => T): T {
   const held = current;

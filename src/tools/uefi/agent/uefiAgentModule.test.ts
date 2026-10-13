@@ -62,6 +62,7 @@ describe("the UEFI module's agent surface", () => {
       "region_scan",
       "uefi_node_data",
       "variables",
+      "uefi_dmi",
     ]);
     expect(uefiAgentComparisons.map((one) => one.name)).toEqual(["variables_compare"]);
     expect(uefiAgentActions.map((one) => one.name)).toEqual(["uefi_select", "uefi_selection"]);

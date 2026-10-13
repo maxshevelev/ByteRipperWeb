@@ -175,6 +175,14 @@
     {
       "prefix": "Design/AGENT_PLAN.md",
       "why": "Upstream's design of the agent service; ours is Design/PORT_AGENT.md, which says what differs."
+    },
+    {
+      "prefix": "Packages/BytePattern/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "ByteRipperApp/Info.plist",
+      "why": "The macOS bundle's property list — here the byteripper:// URL scheme (b7f6d71), which a page cannot register (G85)."
     }
   ],
   "modules": [
@@ -251,9 +259,6 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift": "src/state/duplicatePane.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts",
         "MaskedSearch.swift": "src/core/search/maskedSearch.ts",
-        "Packages/BytePattern/Sources/BytePattern/PatternScan.swift": "src/core/search/maskedSearch.ts",
-        "Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift": "src/core/search/maskedSearch.ts",
-        "Packages/BytePattern/Sources/BytePattern/CaseFolding.swift": "src/core/search/searchPattern.ts",
         "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts"
       },
       "unported": {
@@ -323,6 +328,22 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes"
       }
+    },
+    {
+      "swift": "Packages/BytePattern",
+      "web": [
+        "src/core/search/maskedSearch.ts",
+        "src/core/search/searchPattern.ts"
+      ],
+      "status": "ported",
+      "note": "The masked pattern and its scan, which upstream moved out of ByteRipperCore (4f74159) so the UEFI Contents search shares them; the web's stay in src/core/search.",
+      "files": {
+        "Sources/BytePattern/PatternScan.swift": "src/core/search/maskedSearch.ts",
+        "Sources/BytePattern/MaskedPattern.swift": "src/core/search/maskedSearch.ts",
+        "Sources/BytePattern/CaseFolding.swift": "src/core/search/searchPattern.ts",
+        "Tests/BytePatternTests/PatternScanTests.swift": "src/core/search/maskedSearch.test.ts"
+      },
+      "unported": {}
     },
     {
       "swift": "Packages/UEFIImage",
@@ -948,6 +969,7 @@
         "UEFIAgentEdits.swift": "src/tools/uefi/agent/uefiAgentModule.ts",
         "UEFIAgentChecksums.swift": "src/tools/uefi/agent/uefiAgentChecksums.ts",
         "UEFIAgentRegions.swift": "src/tools/uefi/agent/uefiAgentRegions.ts",
+        "UEFIAgentDMI.swift": "src/tools/uefi/agent/uefiAgentDMI.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAgentRegionsTests.swift": "src/tools/uefi/agent/uefiAgentRegions.test.ts",
         "UEFIAgentLocator.swift": "src/tools/uefi/agent/uefiAgentLocator.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift": "src/tools/uefi/uefiContentSearch.ts",
@@ -1013,7 +1035,24 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showSelection": "n/a — the page already follows a tree selection once its rows have moved; upstream's AppKit run-loop ordering has no counterpart",
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.layout": "n/a — not a field of the web's `NodeOpen`: what a panel opened on the bytes should read them as is asked of the worker when the part opens (`askFirmwareLayout`), since the tree it is asked of lives there",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.clickDMIButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isDMIButtonShownForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isDMIButtonShownForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFICodecBadge*": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.applyFont": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.init": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.menuNeedsUpdate": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.numberOfRows": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.progressBar": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.table": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.tableView": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.tableViewSelectionDidChange": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.panelHeight": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.contentResults": "n/a — AppKit view wiring; the panel renders UefiSearchBar and UefiContentResults from its state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.installPatternQuery": "n/a — AppKit view wiring; the panel renders UefiSearchBar and UefiContentResults from its state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.showsContentResults": "n/a — AppKit view wiring; the panel renders UefiSearchBar and UefiContentResults from its state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.install": "n/a — AppKit view wiring; the bar renders ToolPatternQueryControls from ToolContext.patternQuery",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.query": "n/a — AppKit view wiring; the bar renders ToolPatternQueryControls from ToolContext.patternQuery",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIBadgedCell.*": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onContentSearchDone": "n/a — a callback for an AppKit test; the hook's state says when the search is done"
       }
     },
     {
@@ -1421,7 +1460,19 @@
         "ByteRipperApp/Search/FavoritePatternStore.swift#FavoritePatternStore.userDefaultsKey": "n/a — the web edition never kept favourites anywhere else, so there is nothing to migrate from",
         "ByteRipperApp/Search/FavoritePatternStore.swift#FavoritePatternStore.migrateIfNeeded": "n/a — the web edition never kept favourites anywhere else, so there is nothing to migrate from",
         "ByteRipperApp/Search/FavoritePatternStore.swift#FavoritePatternStore.defaults": "n/a — UserDefaults",
-        "ByteRipperApp/Search/FavoritePatternStore.swift#FavoritePatternStore.forgetLastGood": "n/a — a test seam for a launch; the web tests point the store at a memory storage"
+        "ByteRipperApp/Search/FavoritePatternStore.swift#FavoritePatternStore.forgetLastGood": "n/a — a test seam for a launch; the web tests point the store at a memory storage",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.currentEncoding": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.defaults": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.encodingPopup": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.errorText": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.focus": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.init": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.views": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onPatternError": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onSubmit": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.text": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.reloadStandingChoices": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.pickedEncoding": "n/a — the encoding a picked row or a staged selection brought is the store's `encoding`, which Smart Search tries first (`attemptsFor`)"
       }
     },
     {
@@ -1842,7 +1893,14 @@
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.helpButtonFrameInHeader": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.shownHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
-        "ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.contentVersion": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to"
+        "ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.contentVersion": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.applyFont": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.controls": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.init": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.onEdited": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.onProblem": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.onSubmit": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.view": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`"
       }
     },
     {
@@ -5103,7 +5161,15 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.contentVersion": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.fileName": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.read": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.snapshot": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to"
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolReadHost.snapshot": "n/a — a tool reads the pane's file, size, caret and selection from the stores it subscribes to",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.applyFont": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.focus": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.onEdited": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.onProblem": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.onSubmit": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.text": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.view": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt.init": "n/a — a plain record, made as an object literal"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",
@@ -5267,14 +5333,15 @@
       "unported": {
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.didChange": "n/a — a NotificationCenter name; the web announces a change through languageStore, which the shell subscribes to",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.defaults": "n/a — UserDefaults, replaceable so a test can drive resolution; the web's core reads no store at all, tests installing a catalogue directly",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.language": "the web's currentLanguage() reads it off the catalogue in force, there being no lazily loaded one to ask",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.current": "n/a — the lazily loaded catalogue behind a lock; the web installs one and holds it in the module",
         "Packages/Localization/Sources/Localization/AppLanguage.swift#LanguageChoice.storedValue": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.entries": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Tests/LocalizationTests/LocalizationTests.swift#CatalogueTests.testATaskCanSpeakAnotherLanguageThanTheApp": "n/a — tests Localization.override"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.pieces": "n/a — no web caller joins sentences still to be put into words",
+        "Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.isJoin": "n/a — no web caller joins sentences still to be put into words",
+        "Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.joined": "n/a — no web caller joins sentences still to be put into words"
       }
     },
     {
@@ -5707,7 +5774,8 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInAFileNotOpenWaitsForItsTree": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingANodeInAFileNotOpenOpensUEFIStructureAtIt": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)"
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)",
+        "ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOfTheDMIAreaSetsTheKnownLayoutsApart": "later — a survey reads files by path through the shell, and the firmware worker harness (`firmwareAgent`) has no disk; uefi_dmi itself is in agentUefiDMI.test"
       }
     },
     {

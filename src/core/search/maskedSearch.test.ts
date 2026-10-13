@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  asciiPattern,
   type MaskedPattern,
   MaskedPatternError,
   maskedMatches,
   maskedPattern,
   parseHexPattern,
+  scanPatterns,
+  utf16LEPattern,
 } from "@/core/search/maskedSearch";
 import type { ByteRange } from "@/core/search/searchEngine";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
@@ -168,5 +171,74 @@ describe("MaskedSearchTests", () => {
     });
     expect(count).toBe(2 << 20);
     expect(Date.now() - began).toBeLessThan(5000);
+  });
+});
+
+/**
+ * The scan over bytes the caller reads: holes, case, and a match across the edge of a window.
+ *
+ * @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests
+ */
+describe("PatternScanTests", () => {
+  const starts = (
+    patterns: readonly MaskedPattern[],
+    bytes: readonly number[],
+    overlapping = false
+  ): number[] => {
+    const held = Uint8Array.from(bytes);
+    const found: number[] = [];
+    scanPatterns(
+      patterns,
+      held.length,
+      (offset, length) => held.slice(offset, offset + length),
+      (range) => {
+        found.push(range.start);
+        return true;
+      },
+      { overlapping, chunkSize: 4 }
+    );
+    return found;
+  };
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testAHoleMatchesAnyByteAndAMatchAcrossAWindowIsFoundOnce
+  it("a hole matches any byte, and a match across a window is found once", () => {
+    const bytes = [0, 0, 0x24, 0x99, 0x4d, 0x49, 0, 0x24, 0x00, 0x4d, 0x49];
+    expect(starts([parseHexPattern("24 ?? 4D 49")], bytes)).toEqual([2, 7]);
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testTextIsFoundInEitherCaseInASCIIAndInUTF16
+  it("finds text in either case, in ASCII and in UTF-16", () => {
+    const bytes = [
+      ...Array.from("xx Setup ", (c) => c.charCodeAt(0)),
+      0x53,
+      0,
+      0x45,
+      0,
+      0x54,
+      0,
+      0x55,
+      0,
+      0x50,
+      0,
+    ];
+    expect(starts([asciiPattern("SETUP", true)], bytes)).toEqual([3]);
+    expect(starts([utf16LEPattern("setup", true)], bytes)).toEqual([9]);
+    expect(starts([asciiPattern("SETUP", false)], bytes)).toEqual([]);
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testOverlappingMatchesAreCountedOnlyWhenAsked
+  it("counts overlapping matches only when asked", () => {
+    const bytes = [0x41, 0x41, 0x41, 0x41];
+    const pattern = asciiPattern("AA", false);
+    expect(starts([pattern], bytes)).toEqual([0, 2]);
+    expect(starts([pattern], bytes, true)).toEqual([0, 1, 2]);
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testAPatternThatIsNotOneIsRefused
+  it("refuses a pattern that is not one", () => {
+    expect(() => parseHexPattern("?? ??")).toThrow();
+    expect(() => parseHexPattern("4G")).toThrow();
+    expect(() => asciiPattern("Привет", false)).toThrow();
+    expect(() => asciiPattern("", false)).toThrow();
   });
 });

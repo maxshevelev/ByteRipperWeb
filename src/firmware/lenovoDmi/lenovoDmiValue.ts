@@ -15,7 +15,7 @@ import {
   isSMBIOS,
   keyTypeText,
   knownType,
-  knownTypeName,
+  knownTypeNameText,
   knownTypeReading,
   LenovoDMIFormat,
   type LenovoDMIKey,
@@ -185,12 +185,15 @@ export function valueText(entry: LENVEntry): string {
  *
  * @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIValue.swift#LenovoDMIValue.name
  */
-export function entryName(key: LenovoDMIKey): string {
+export const entryName = (key: LenovoDMIKey): string => entryNameText(key).text;
+
+/** The same, put into words by whoever shows it: what a node of the entry carries. */
+export function entryNameText(key: LenovoDMIKey): LocalizedText {
   const known = knownType(key);
-  if (known !== undefined) return knownTypeName(known);
+  if (known !== undefined) return knownTypeNameText(known);
   return isSMBIOS(key)
-    ? L("Unknown SMBIOS entry %1$@", keyTypeText(key))
-    : L("Unknown entry %1$@", keyTypeText(key));
+    ? LocalizedText.of("Unknown SMBIOS entry %1$@", keyTypeText(key))
+    : LocalizedText.of("Unknown entry %1$@", keyTypeText(key));
 }
 
 /**

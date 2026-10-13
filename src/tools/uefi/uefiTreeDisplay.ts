@@ -14,7 +14,12 @@ import type { GuidsCatalogue } from "@/firmware/uefi/guidsCatalogue";
 import { itemSubtype, itemType } from "@/firmware/uefi/itemClassification";
 import { nvramGuidName } from "@/firmware/uefi/nvramGuids";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
-import type { UEFINode, UEFINodeKind } from "@/firmware/uefi/uefiNode";
+import {
+  displayName,
+  type NameText,
+  type UEFINode,
+  type UEFINodeKind,
+} from "@/firmware/uefi/uefiNode";
 import { ItemType, Sub, subtypeName, typeName } from "@/firmware/uefi/uefiTypes";
 import { topSwapName } from "@/tools/uefi/uefiTopSwap";
 
@@ -73,6 +78,7 @@ export function subtypeText(node: UEFINode): string {
 export interface DisplayNode<Self> {
   readonly kind: string;
   readonly name: string;
+  readonly nameText?: NameText | undefined;
   readonly typeText: string;
   readonly subtypeText: string;
   readonly children: readonly Self[];
@@ -226,7 +232,7 @@ export function summary<T extends DisplayNode<T>>(
 function titleLead<T extends DisplayNode<T>>(roots: readonly T[]): string {
   const title = present(roots).title;
   if (title !== undefined && (title.kind === "intelImage" || title.kind === "uefiImage")) {
-    return title.name.length === 0 ? imageType(roots) : title.name;
+    return title.name.length === 0 ? imageType(roots) : displayName(title);
   }
   return imageType(roots);
 }
@@ -303,6 +309,7 @@ export interface NamedNode {
   readonly kind: string;
   readonly subtype?: number | undefined;
   readonly name: string;
+  readonly nameText?: NameText | undefined;
   readonly guid?: EFIGUID | undefined;
   /**
    * What a pad file is named after, so a row that has them says so; and the sections a
@@ -360,13 +367,14 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   // bench sizes EC firmware by it (128, 192, 256) — and a copy of an earlier one
   // in the same block says so.
   if (node.kind === "ecImage") {
-    const sized = L("%1$@, %2$@ KB", node.name, kibibytes(node.length ?? 0));
+    const sized = L("%1$@, %2$@ KB", displayName(node), kibibytes(node.length ?? 0));
     return node.subtype === EC_COPY_SUBTYPE ? L("%1$@ (copy)", sized) : sized;
   }
   // A block named after the one image it holds gives that image's size inside the
   // parentheses: "EC Firmware (ITE EC-V13.6, 128 KB)".
   if (node.namedImageLength !== undefined && node.name.endsWith(")")) {
-    return `${L("%1$@, %2$@ KB", node.name.slice(0, -1), kibibytes(node.namedImageLength))})`;
+    const named = displayName(node);
+    return `${L("%1$@, %2$@ KB", named.slice(0, -1), kibibytes(node.namedImageLength))})`;
   }
   // A pad file (`EFI_FV_FILETYPE_FFS_PAD`) has a GUID only because every file
   // header does — all ones, as a rule — and it names nothing.
@@ -398,9 +406,9 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   }
   // A GPNV record says what it holds: the Windows key, or the text in its data — serial
   // numbers, the model — as far as a row has room.
-  if (node.kind === "gpnvRecord") return node.valueRow ?? node.name;
+  if (node.kind === "gpnvRecord") return node.valueRow ?? displayName(node);
   // Acer's DMI area says what it holds: the serial, the rest in the detail.
-  if (node.kind === "acerDMIStore") return node.valueRow ?? node.name;
+  if (node.kind === "acerDMIStore") return node.valueRow ?? displayName(node);
   // Lenovo's DMI store says what it holds, decoded: a block its generation, an entry its
   // value, a write of the log what it did.
   if (
@@ -410,7 +418,7 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
     return node.valueRow;
   }
   if (node.guid === undefined) {
-    return node.name.length === 0 ? kindLabel(node.kind) : node.name;
+    return node.name.length === 0 ? kindLabel(node.kind) : displayName(node);
   }
   // A file that names itself is called what it says: the firmware's own word for this
   // image beats the catalogue's for the GUID, which a vendor can have given to another
@@ -421,7 +429,7 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   // 0003, 2001`, `Lang = "eng"`. So does an NVAR variable's, on the entry that holds it
   // now. The store says where the value is.
   if ((node.kind === "vssEntry" || node.kind === "nvarEntry") && node.name.length > 0) {
-    return node.valueRow ?? node.name;
+    return node.valueRow ?? displayName(node);
   }
   // A flash device map entry's GUID is a region *type*, and UEFITool names the
   // row by what the type is: "Variable Defaults", "Password".
@@ -436,7 +444,7 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
     regionTypeName(node.guid) !== undefined &&
     node.name.length > 0
   ) {
-    return node.name;
+    return displayName(node);
   }
   return catalogue.nameOf(node.guid) ?? nvramGuidName(node.guid) ?? guidText(node.guid);
 }

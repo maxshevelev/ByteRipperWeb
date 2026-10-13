@@ -1,12 +1,19 @@
-import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import type { LDBGLog } from "@/firmware/lenovoDmi/ldbgLog";
 import { LenovoDMIArea } from "@/firmware/lenovoDmi/lenovoDmiArea";
 import { LenovoDMIFormat, startsWith } from "@/firmware/lenovoDmi/lenovoDmiFormat";
-import { entryName } from "@/firmware/lenovoDmi/lenovoDmiValue";
+import { entryNameText } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import { entryDataRange, LENVBlock } from "@/firmware/lenovoDmi/lenvBlock";
 import type { Parser } from "@/firmware/uefi/parserState";
-import { makeNode, makeSpan, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import {
+  madeUpName,
+  makeNode,
+  makeSpan,
+  type NameText,
+  namedBy,
+  nodeRange,
+  type UEFINode,
+} from "@/firmware/uefi/uefiNode";
 
 /**
  * The store Lenovo's InsydeH2O firmware keeps a machine's identity in
@@ -123,7 +130,7 @@ function lenovoDMIRows(
     }
     const block = loneLENVBlock(parser, at, range.end);
     if (block !== undefined) {
-      found.push(lenvBlockNode(block, L("LENV block"), undefined));
+      found.push(lenvBlockNode(block, madeUpName("LENV block"), undefined));
       at = block.range[1];
       continue;
     }
@@ -173,7 +180,7 @@ export function lenovoDMIStoreNode(area: LenovoDMIArea): UEFINode {
   const live = area.liveIndex;
   const store = makeSpan({
     kind: "lenovoDMIStore",
-    name: L("Lenovo DMI"),
+    ...madeUpName("Lenovo DMI"),
     range: { start: area.range[0], end: area.range[1] },
   });
   store.isFixed = true;
@@ -182,7 +189,7 @@ export function lenovoDMIStoreNode(area: LenovoDMIArea): UEFINode {
     ...area.blocks.map((block, index) =>
       lenvBlockNode(
         block,
-        L("LENV block %1$@", index + 1),
+        madeUpName("LENV block %1$@", index + 1),
         live === undefined ? false : live === index
       )
     ),
@@ -194,14 +201,16 @@ function ldbgLogNode(log: LDBGLog): UEFINode {
   const header = { start: log.offset, end: log.offset + LenovoDMIFormat.ldbgHeaderSize };
   return makeNode({
     kind: "ldbgLog",
-    name: L("Change log (LDBG)"),
+    ...madeUpName("Change log (LDBG)"),
     header,
     body: { start: header.end, end: log.range[1] },
     isFixed: true,
     children: log.entries.map((entry) =>
       makeNode({
         kind: "ldbgEntry",
-        name: entry.timestampText ?? L("No date"),
+        ...(entry.timestampText === undefined
+          ? madeUpName("No date")
+          : { name: entry.timestampText }),
         header: { start: entry.range[0], end: entry.range[1] },
         body: { start: entry.range[1], end: entry.range[1] },
         isFixed: true,
@@ -219,14 +228,14 @@ function ldbgLogNode(log: LDBGLog): UEFINode {
  */
 export function lenvBlockNode(
   block: LENVBlock,
-  name: string,
+  named: { readonly name: string; readonly nameText?: NameText },
   inUse: boolean | undefined
 ): UEFINode {
   const header = { start: block.offset, end: block.offset + LenovoDMIFormat.lenvHeaderSize };
   return makeNode({
     kind: "lenvBlock",
     subtype: inUse === undefined ? undefined : inUse ? 1 : 0,
-    name,
+    ...named,
     header,
     body: { start: header.end, end: block.range[1] },
     isFixed: true,
@@ -236,7 +245,7 @@ export function lenvBlockNode(
           const data = entryDataRange(entry);
           return makeNode({
             kind: "lenvEntry",
-            name: entryName(entry.key),
+            ...namedBy(entryNameText(entry.key)),
             header: { start: entry.offset, end: data[0] },
             body: { start: data[0], end: data[1] },
             isFixed: true,

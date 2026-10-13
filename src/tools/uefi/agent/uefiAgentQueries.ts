@@ -11,7 +11,7 @@ import {
   nodeRange,
   type UEFINode,
 } from "@/firmware/uefi/uefiNode";
-import { isProblemField } from "@/tools/toolDetail";
+import { isProblemField, type NodeDetail } from "@/tools/toolDetail";
 import {
   type AgentTree,
   allNodes,
@@ -306,11 +306,24 @@ export function uefiNode(tree: AgentTree, args: AgentArguments): Json {
   const node = nodeAtPath(tree, id);
   if (node === undefined) throw unknownNode(id);
   const detail = tree.detail(node, id);
-  const answer: { [key: string]: Json } = {
+  return {
     node: nodeSummary(tree, node),
     path: pathNames(tree, id),
+    ...detailMembers(detail),
     // A file's own name, the name its Name section gives it, as the panel's detail titles it.
     title: node.kind === "file" ? (ownName(node) ?? detail.title) : detail.title,
+  };
+}
+
+/**
+ * What a node's detail says, as an answer's members: the title, the fields — a wrong checksum
+ * marked `problem` — and the tables.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.detailMembers
+ */
+export function detailMembers(detail: NodeDetail): { [key: string]: Json } {
+  const members: { [key: string]: Json } = {
+    title: detail.title,
     fields: detail.fields.map((field) => {
       const entry: { [key: string]: Json } = { label: field.label, value: field.value };
       if (isProblemField(field)) entry.problem = true;
@@ -318,13 +331,13 @@ export function uefiNode(tree: AgentTree, args: AgentArguments): Json {
     }),
   };
   if (detail.tables.length > 0) {
-    answer.tables = detail.tables.map((table) => ({
+    members.tables = detail.tables.map((table) => ({
       title: table.title,
       columns: [...table.columns],
       rows: table.rows.map((row) => row.map((cell) => cell.text)),
     }));
   }
-  return answer;
+  return members;
 }
 
 /**

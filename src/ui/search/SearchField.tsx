@@ -13,6 +13,7 @@ import type { PatternMenuRow } from "@/ui/search/patternMenu";
  * was chosen.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternField
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.patternField
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.menuHeader
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.menuRowSize
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.menuFlagSize
