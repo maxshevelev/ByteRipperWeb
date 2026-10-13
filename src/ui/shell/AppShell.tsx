@@ -17,7 +17,7 @@ import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditSt
 import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
-import { restoreFavorites } from "@/state/favoritesStore";
+import { manageFavoritesRequests, restoreFavorites } from "@/state/favoritesStore";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
 import { startHelpAddress } from "@/state/helpAddress";
 import { showHelp } from "@/state/helpStore";
@@ -701,6 +701,17 @@ export function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** The tab Settings was asked to open on, when the opener named one. */
   const [settingsTab, setSettingsTab] = useState<SettingsTab | undefined>(undefined);
+  // Manage Search Patterns…, from the Find bar or a tool's pattern field: the Settings window on
+  // the list of kept patterns.
+  // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
+  const manageRequests = useStore(manageFavoritesRequests);
+  const seenManageRequests = useRef(manageRequests);
+  useEffect(() => {
+    if (manageRequests === seenManageRequests.current) return;
+    seenManageRequests.current = manageRequests;
+    setSettingsTab("favorites");
+    setSettingsOpen(true);
+  }, [manageRequests]);
   /** The pane whose header name is a field right now (§23). */
   const [renamingPane, setRenamingPane] = useState<PaneId | undefined>(undefined);
 
@@ -2405,10 +2416,6 @@ export function AppShell() {
           // The bar searches the pane in front, so a match is shown there.
           onReveal={(offset) => revealIn(front, offset)}
           // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
-          onManageFavorites={() => {
-            setSettingsTab("favorites");
-            setSettingsOpen(true);
-          }}
         />
       ) : null}
       {/* Before the workspace in the document as well as on screen, so Tab

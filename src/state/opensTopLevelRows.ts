@@ -22,3 +22,24 @@ export function wishTopLevelRowsOpen(pane: PaneId): void {
 export function takeOpensTopLevelRows(pane: PaneId): boolean {
   return wished.delete(pane);
 }
+
+const itemsWished = new Map<PaneId, number>();
+
+/**
+ * The UEFI panel is to show the node holding `offset` of the part the first time its tree is
+ * shown: a part opened from a Contents search match, its tree opened to the node the match is in.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.showItem
+ * @upstream-differs a wish kept beside the stores, as the top level's is, where upstream asks the
+ * part's session once its panel is up
+ */
+export function wishShowItemAt(pane: PaneId, offset: number): void {
+  itemsWished.set(pane, offset);
+}
+
+/** The offset whose node the panel is to show now — given only the first time asked. */
+export function takeShowItemAt(pane: PaneId): number | undefined {
+  const offset = itemsWished.get(pane);
+  itemsWished.delete(pane);
+  return offset;
+}

@@ -1347,6 +1347,7 @@
       "note": "The find bar, the results panel, and the store and worker behind them. Ported as of M5: FindBarView, FindCount, SearchEncodingNaming, SearchResultCellView and SearchResultsViewController, as React over a hand-written store — the results keep upstream's three columns (Offset, Excerpt Hex, Excerpt Text) and its row pitch of the font's line box plus a little, but the panel belongs to the pane whose file was searched rather than spanning the window, which is the one place two open dumps make the desktop's single panel ambiguous. The pattern library half — FavoritePatternStore, FavoritesFile, the sync folder and its sheets — waits for M11, and its folder sync is Chromium's, over a kept directory handle and the Mac app's own file format, with a read-only fetch from a folder in Firefox and Safari and export everywhere (Design/FAVORITES_SYNC_WEB.md). Two things the desktop does not have to decide: a search runs in a worker against the *file*, but an edited document is scanned on the main thread against the document, and every edit re-runs the search.",
       "files": {
         "FindBarView.swift": "src/ui/search/FindBar.tsx",
+        "PatternQueryControls.swift": "src/ui/search/PatternQueryControls.tsx",
         "FindCount.swift": "src/ui/search/FindBar.tsx",
         "SearchEncodingNaming.swift": "src/ui/search/FindBar.tsx",
         "SearchResultsViewController.swift": "src/ui/search/SearchResults.tsx",
@@ -1756,10 +1757,15 @@
         ],
         "ByteRipperTests/ToolPanelTests.swift": "src/state/toolController.test.ts",
         "ByteRipperApp/Tools/PaneToolHost.swift": "",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift": "src/ui/search/ToolPatternQueryControls.tsx",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift": "src/tools/toolModule.ts",
         "ByteRipperTests/ToolParkedStateTests.swift": "src/state/parkedToolState.test.ts"
       },
       "unported": {
         "ByteRipperApp/Tools/ToolController.swift#ToolController.flushPendingChangeForTesting": "n/a — test seam for the in-process delivery task, which the web does not have",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.isRereadingAfterEdit": "n/a — upstream 03f8943 fixes a reading after an edit that republished the focus's zones; the web's panel publishes zones only on a choice, never on a reading, so there is nothing to hold back",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.dumpShowsFocus": "n/a — see isRereadingAfterEdit (03f8943)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.republishes": "n/a — see isRereadingAfterEdit (03f8943)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.clampPanelDivider": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.minContentWidth": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
         "ByteRipperApp/Tools/ToolController.swift#ToolController.setPanelVisible": "n/a — the panel's width is the EdgeSplitter's, one for every tool, and a browser window is never resized to make room (see @upstream-differs in toolController.ts)",
@@ -2296,6 +2302,7 @@
         "ByteRipperTests/TypingModeIndicatorTests.swift": "tests/e2e",
         "ByteRipperTests/UEFIChecksumFlowTests.swift": "tests/e2e",
         "ByteRipperTests/UEFIToolFlowTests.swift": "tests/e2e",
+        "ByteRipperTests/UEFIContentSearchFlowTests.swift": "tests/e2e",
         "ByteRipperTests/UEFITreeCollapseTests.swift": "tests/e2e",
         "ByteRipperTests/UntitledFileTests.swift": "tests/e2e",
         "ByteRipperTests/UseSelectionForFindTests.swift": "tests/e2e",

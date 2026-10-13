@@ -123,6 +123,7 @@ export function UefiContentResults({
   onOpen,
   onStop,
   onClose,
+  onSpace,
 }: {
   readonly state: ContentResultsState;
   readonly rows: readonly ContentResultRow[];
@@ -131,6 +132,13 @@ export function UefiContentResults({
   readonly onOpen: (index: number) => void;
   readonly onStop: () => void;
   readonly onClose: () => void;
+  /**
+   * Space on the list: the details of the selected match's node in the large view, as on the
+   * tree; false when there is nothing to show. The list keeps the arrow keys while it is open.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.attach
+   */
+  readonly onSpace: (list: HTMLElement) => boolean;
 }): ReactElement {
   const list = useRef<HTMLOListElement | null>(null);
   useEffect(() => {
@@ -207,7 +215,12 @@ export function UefiContentResults({
           <ol
             className="search-results-list"
             ref={list}
+            data-key-table=""
             onKeyDown={(event) => {
+              if (event.key === " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                if (onSpace(event.currentTarget)) event.preventDefault();
+                return;
+              }
               if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
               event.preventDefault();
               const step = event.key === "ArrowDown" ? 1 : -1;

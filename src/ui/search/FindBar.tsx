@@ -1,18 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
-import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
-import { favoritesStore, syncProblem } from "@/state/favoritesStore";
+import { encodingTitle } from "@/core/search/searchPattern";
 import { showNotice } from "@/state/noticeStore";
 import {
-  clearRecents,
   closeSearch,
   editQuery,
   resultsFor,
   searchStore,
-  setCaseSensitive,
-  setSearchEncoding,
-  setSmartSearch,
   startSearch,
   stepSearch,
   toggleSearchResults,
@@ -20,8 +15,8 @@ import {
 import { useStore } from "@/state/useStore";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { AddFavoriteDialog } from "@/ui/search/AddFavoriteDialog";
-import { type MenuSearch, type PatternMenuRow, patternMenuRows } from "@/ui/search/patternMenu";
-import { SearchField } from "@/ui/search/SearchField";
+import { PatternQueryControls } from "@/ui/search/PatternQueryControls";
+import type { MenuSearch } from "@/ui/search/patternMenu";
 
 /**
  * The find bar.
@@ -84,14 +79,7 @@ export function focusFindInput(): void {
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.resultsShown
  * @upstream-differs a React component over the search store
  */
-export function FindBar({
-  onReveal,
-  onManageFavorites,
-}: {
-  readonly onReveal: (offset: number) => void;
-  /** Opens the favourites' list, where Manage Search Patterns… promises it. */
-  readonly onManageFavorites: () => void;
-}) {
+export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => void }) {
   const state = useStore(searchStore);
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -116,18 +104,6 @@ export function FindBar({
     inputRef.current?.select();
   }, []);
 
-  // A search writes a hex pattern back the way the dump prints it, in the store.
-  // The field is not controlled — typing must never be rewritten under the
-  // caret — so the store's text is put into it only when the two part, with the
-  // caret at the end, since the whole text was replaced.
-  // @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setPatternText
-  useEffect(() => {
-    const input = inputRef.current;
-    if (input === null || input.value === state.query) return;
-    input.value = state.query;
-    input.setSelectionRange(state.query.length, state.query.length);
-  }, [state.query]);
-
   // A search from the bar leaves the keyboard in the field, so Return searches
   // again; the dump takes it only when the bar is closed.
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handOffFocusAfterFind
@@ -143,9 +119,6 @@ export function FindBar({
   // No search yet is not "no matches": the stepper is a way of starting one, so
   // it stays live until a scan has actually come back empty.
   const navLive = results.status !== "notFound" && results.status !== "failed";
-  // Hex is bytes, with no case to match: the toggle leaves the bar — unless
-  // Smart Search will try the text encodings whatever the popup says.
-  const caseFoldable = state.smart || state.encoding !== "hex";
 
   /**
    * ‹ and › step through the matches a search holds, and start the search in
@@ -159,67 +132,7 @@ export function FindBar({
     else startSearch({ query: inputRef.current?.value ?? state.query, direction });
   };
 
-  const favoriteState = useStore(favoritesStore);
-  const favorites = favoriteState.favorites;
   const [keeping, setKeeping] = useState<MenuSearch | undefined>(undefined);
-
-  /** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.rebuildPatternMenu */
-  const menuRows = patternMenuRows({
-    recents: state.history,
-    favorites,
-    fieldText: state.query,
-    problem: syncProblem(favoriteState),
-  });
-
-  /**
-   * A row of either list was picked: it fills the field — pattern, encoding and,
-   * for text, the case rule — and runs the search. An entry is chosen
-   * deliberately, and the Return that would follow it never means anything
-   * else. It records nothing in the history: the history is what was typed.
-   *
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternPicked
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.apply
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setPatternText
-   */
-  const pick = (search: MenuSearch) => {
-    const input = inputRef.current;
-    if (input !== null) {
-      input.value = search.pattern;
-      input.setSelectionRange(search.pattern.length, search.pattern.length);
-    }
-    setSearchEncoding(search.encoding);
-    // Hex is byte-exact, so its flag is kept but never restored.
-    if (search.encoding !== "hex") setCaseSensitive(search.caseSensitive);
-    startSearch({ query: search.pattern, recordHistory: false });
-  };
-
-  /**
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onAddToFavorites
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.addToFavorites
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onManageFavorites
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.manageFavorites
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.entryForField
-   */
-  const choose = (row: PatternMenuRow) => {
-    if (row.kind === "entry") {
-      const search = row.list === "recent" ? state.history[row.index] : favorites[row.index];
-      if (search !== undefined) pick(search);
-      return;
-    }
-    if (row.kind !== "command") return;
-    if (row.key === "addToFavorites") {
-      // What the field describes, with the encoding that worked.
-      setKeeping({
-        pattern: inputRef.current?.value ?? state.query,
-        encoding: state.encoding,
-        caseSensitive: state.caseSensitive,
-      });
-    } else if (row.key === "clearRecents") {
-      clearRecents();
-    } else {
-      onManageFavorites();
-    }
-  };
 
   /**
    * Escape in the field, with its list already away, clears it — which ends the
@@ -249,72 +162,20 @@ export function FindBar({
             toolbar button's tooltip — doubled as the field's: the field itself
             has none upstream, the bar's `Find` label names it instead.
             @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.findItem */}
-        <SearchField
+        <PatternQueryControls
           id={inputId}
           inputRef={inputRef}
           className={FIND_INPUT_CLASS}
-          defaultValue={state.query}
+          text={state.query}
           placeholder={L("Find bytes or text")}
-          rows={menuRows}
           onEdit={editQuery}
-          onChoose={choose}
+          // A row of either list was picked: it runs, and records nothing in the history — the
+          // history is what was typed.
+          // @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternPicked
+          onPicked={(search) => startSearch({ query: search.pattern, recordHistory: false })}
           onEscape={clearField}
+          onKeep={setKeeping}
         />
-        <select
-          className="find-encoding"
-          aria-label={L("Encoding")}
-          value={state.encoding}
-          onChange={(event) => setSearchEncoding(event.target.value as SearchEncoding)}
-          // Upstream's popup has no tooltip — the label alone names it — so
-          // these two are the bar's own say of it, translated here (G66).
-          // @web-only the popup's explanation; upstream's has no tooltip
-          title={
-            state.smart
-              ? L("The encoding the search settled on. Picking one starts the next pass from it.")
-              : L("How the text is turned into bytes")
-          }
-        >
-          {SEARCH_ENCODINGS.map((encoding) => (
-            <option key={encoding} value={encoding}>
-              {encodingTitle(encoding)}
-            </option>
-          ))}
-        </select>
-
-        {/* Beside the encoding it takes over: with it on, the popup stops being
-            the question and becomes the answer. */}
-        <button
-          type="button"
-          className={`find-glyph${state.smart ? " is-on" : ""}`}
-          aria-pressed={state.smart}
-          aria-label={L("Smart Search")}
-          title={
-            state.smart
-              ? L("Smart Search — the encoding is whichever one finds a match")
-              : L("Smart Search — off, searching the chosen encoding only")
-          }
-          onClick={() => setSmartSearch(!state.smart)}
-        >
-          <SmartSearchGlyph />
-        </button>
-
-        {caseFoldable ? (
-          <button
-            type="button"
-            className={`find-glyph${state.caseSensitive ? " is-on" : ""}`}
-            aria-pressed={state.caseSensitive}
-            aria-label={L("Case Sensitive")}
-            title={
-              state.caseSensitive
-                ? L("Case Sensitive — matching exactly")
-                : L("Case Sensitive — off, upper and lower case match")
-            }
-            onClick={() => setCaseSensitive(!state.caseSensitive)}
-          >
-            <CaseGlyph />
-          </button>
-        ) : null}
-
         {/* After the query it describes, before the stepper that walks it. */}
         {count === "" ? null : (
           <span
@@ -391,31 +252,6 @@ const glyphStroke = {
   strokeLinejoin: "round",
 } as const;
 
-/** `wand.and.sparkles`. */
-function SmartSearchGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>
-      <path d="M2.5 13.5 10 6" />
-      <path d="m9 5 2 2" />
-      <path d="M12 1.5v2M11 2.5h2" />
-      <path d="M13.5 6.5v1.5M12.75 7.25h1.5" />
-      <path d="M6 1.5v1.5M5.25 2.25h1.5" />
-    </svg>
-  );
-}
-
-/** `textformat`: a large A beside a small a. */
-function CaseGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>
-      <path d="M1.5 12.5 4.75 3.5 8 12.5M2.7 9.5h4.1" />
-      <path d="M14.5 8v4.5" />
-      <circle cx="12.25" cy="10.25" r="2.25" />
-    </svg>
-  );
-}
-
-/** `list.bullet`. */
 function ListGlyph() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>

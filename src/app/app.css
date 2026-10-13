@@ -2168,7 +2168,8 @@ textarea,
   flex: none;
 }
 
-.find-input {
+.find-input,
+.tool-pattern-input {
   width: 100%;
   min-width: 0;
   font: inherit;
@@ -2189,7 +2190,8 @@ textarea,
   min-width: 120px;
 }
 
-.search-field .find-input {
+.search-field .find-input,
+.search-field .tool-pattern-input {
   padding-left: 1.75rem;
 }
 
@@ -3160,6 +3162,29 @@ button.uefi-title {
 
 .uefi-search-mode button[aria-pressed="true"] {
   background: var(--selection);
+}
+
+.uefi-search-status.is-problem {
+  color: var(--semantic-bad);
+}
+
+/* The Find bar's controls in a tool's bar: the field grows, the rest keep their width. */
+.tool-pattern-query {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.uefi-search-line > button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.tool-pattern-query .find-encoding {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .uefi-search-scope {

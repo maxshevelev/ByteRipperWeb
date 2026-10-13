@@ -1,6 +1,7 @@
 import { type ReactElement, useEffect, useRef } from "react";
 import { L } from "@/core/localization/localization";
 import type { UEFIContentQuery, UEFISearchMode } from "@/state/uefiSearchSettings";
+import type { ToolPatternQuery } from "@/tools/toolModule";
 import {
   hasSubtypes,
   type SearchDirection,
@@ -58,6 +59,8 @@ export function UefiSearchBar({
   onSearch,
   onFindAll,
   onStop,
+  patternQuery,
+  problem,
 }: {
   readonly query: UEFITreeQuery;
   /** What the bar looks for: a node by its name, or a pattern in what the nodes hold. */
@@ -80,6 +83,10 @@ export function UefiSearchBar({
   /** Every match of the Contents search. */
   readonly onFindAll: () => void;
   readonly onStop: () => void;
+  /** The Find bar's controls the Contents search asks with. */
+  readonly patternQuery: ToolPatternQuery;
+  /** What is wrong with the Contents search's field, said where a search says how it went. */
+  readonly problem: string | undefined;
 }): ReactElement {
   const field = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -144,32 +151,32 @@ export function UefiSearchBar({
         ) : null}
       </div>
       {contents ? (
-        <div className="uefi-search-line">
-          <input
-            ref={field}
-            type="search"
-            className="uefi-search-field"
-            value={content.text}
-            placeholder={L("Text or hex bytes")}
-            aria-label={L("Search the contents")}
-            title={L("A text, or hex bytes such as 24 ?? 4D 49")}
-            spellCheck={false}
-            onChange={(event) => onContent({ ...content, text: event.currentTarget.value })}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              onFindAll();
-            }}
-          />
-          <button
-            type="button"
-            disabled={content.text.trim().length === 0}
-            title={L("List every place the pattern occurs, compressed sections included")}
-            onClick={onFindAll}
-          >
-            {L("Find All")}
-          </button>
-        </div>
+        <>
+          <div className="uefi-search-line">
+            <patternQuery.Controls
+              text={content.text}
+              placeholder={L("Text or hex bytes")}
+              onEdit={(text) => onContent({ ...content, text })}
+              onSubmit={onFindAll}
+              focusToken={focusToken}
+            />
+            <button
+              type="button"
+              disabled={content.text.trim().length === 0}
+              title={L("List every place the pattern occurs, compressed sections included")}
+              onClick={onFindAll}
+            >
+              {L("Find All")}
+            </button>
+          </div>
+          {problem === undefined ? null : (
+            <div className="uefi-search-line">
+              <span className="uefi-search-status is-problem" role="status">
+                {problem}
+              </span>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <div className="uefi-search-line">

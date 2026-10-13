@@ -4,7 +4,7 @@ import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { agentShell } from "@/state/agent/agentShell";
 import { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
-import { wishTopLevelRowsOpen } from "@/state/opensTopLevelRows";
+import { wishShowItemAt, wishTopLevelRowsOpen } from "@/state/opensTopLevelRows";
 import { activate } from "@/state/toolController";
 import {
   openPart,
@@ -127,6 +127,8 @@ export async function openLinkedPart(options: {
   const part = openPart(bytes, name, origin);
   if (options.tool !== undefined) {
     wishTopLevelRowsOpen(part);
+    // A match selected in the part: its tree opens to the node the match is in.
+    if (options.selecting !== undefined) wishShowItemAt(part, options.selecting[0]);
     activate(options.tool, part);
   }
   if (options.selecting !== undefined) await select(part, options.selecting);

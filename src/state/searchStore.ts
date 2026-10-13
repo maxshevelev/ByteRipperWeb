@@ -1,5 +1,6 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { L } from "@/core/localization/localization";
+import { type MaskedPattern, maskedPattern, parseHexPattern } from "@/core/search/maskedSearch";
 import { MatchBitmap, MatchSet, MatchSetBuilder } from "@/core/search/matchSet";
 import { findOne, foldedPattern, SearchCancelled, scanAll } from "@/core/search/searchEngine";
 import {
@@ -1286,4 +1287,69 @@ export function closeSearch(): void {
  */
 export function setSearchPane(pane: PaneId): void {
   searchStore.update((state) => (state.pane === pane ? state : { ...state, pane }));
+}
+
+/**
+ * One way of reading a tool's pattern field: the masked pattern to scan for, and the encoding it
+ * is in.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt
+ */
+export interface ToolPatternAttempt {
+  readonly pattern: MaskedPattern;
+  readonly encoding: SearchEncoding;
+}
+
+/**
+ * What a tool's pattern field asks for, read by the Find bar's own standing choices — its
+ * encoding, Smart Search and case toggle: one attempt for the encoding chosen, or Smart Search's,
+ * one encoding after another. Bytes with holes — `24 ?? 4D 49` — which the Find bar's own parse
+ * does not take, are hex as the scan reads it, holes kept. A problem with the text, in the Find
+ * bar's words, where it asks for nothing.
+ *
+ * @upstream ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.attempts
+ */
+export function toolPatternAttempts(
+  text: string
+): { readonly attempts: readonly ToolPatternAttempt[] } | { readonly problem: string } {
+  const state = searchStore.getSnapshot();
+  if (text.length === 0) return { problem: failureMessage("emptyPattern") };
+  if (text.includes("??") && (state.smart || state.encoding === "hex")) {
+    try {
+      return { attempts: [{ pattern: parseHexPattern(text), encoding: "hex" }] };
+    } catch {
+      // Not bytes after all: asked as the field's text below.
+    }
+  }
+  const attempts = state.smart
+    ? attemptsFor(text, state.caseSensitive, state.encoding)
+    : resolveOne(text, state.encoding, state.caseSensitive);
+  if (typeof attempts === "string") return { problem: failureMessage(attempts) };
+  if (attempts.length === 0) return { problem: L("There is no way to write that as bytes.") };
+  return {
+    attempts: attempts.map((attempt) => ({
+      pattern: maskedPattern(attempt.pattern.bytes, { folding: attempt.folding }),
+      encoding: attemptEncoding(attempt),
+    })),
+  };
+}
+
+/**
+ * A tool's search with `text` found something in `encoding`: Smart Search shows the encoding it
+ * settled on, and the search goes into the recent queries — only a search that found something
+ * does.
+ *
+ * @upstream ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.found
+ */
+export function noteToolPatternFound(text: string, encoding: SearchEncoding): void {
+  const state = searchStore.getSnapshot();
+  if (state.smart) setSearchEncoding(encoding);
+  const history = recordFindHistory(state.history, {
+    pattern: text,
+    encoding,
+    caseSensitive: state.caseSensitive,
+  });
+  if (history === state.history) return;
+  storeHistory(history);
+  searchStore.update((current) => ({ ...current, history }));
 }

@@ -30,7 +30,7 @@ import {
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { toggleLargeDetail, useLargeDetailOf } from "@/state/largeDetailStore";
-import { takeOpensTopLevelRows } from "@/state/opensTopLevelRows";
+import { takeOpensTopLevelRows, takeShowItemAt } from "@/state/opensTopLevelRows";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
@@ -1454,8 +1454,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.goTo
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openContentMatch
    */
+  const [contentProblem, setContentProblem] = useState<string | undefined>(undefined);
   const contentSearch = useContentSearch({
     pane: context.pane,
+    query: context.patternQuery,
+    onProblem: setContentProblem,
     text: searchState.content.text,
     wholeTree: searchState.content.wholeTree,
     selected: selected === undefined ? undefined : pathOf(selected),
@@ -1668,6 +1671,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     },
     [context, me, meFocus, meRoots, roots, toggle, showsEmptyPadding, showRevealed]
   );
+
+  // A part opened from a Contents search match: once its tree is up, the node the match is in is
+  // shown — the branches on the way open, its row selected.
+  // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.showItem
+  useEffect(() => {
+    if (status !== "ready" || roots === undefined) return;
+    const offset = takeShowItemAt(context.pane);
+    if (offset !== undefined) void revealNode(offset);
+  }, [status, roots, context.pane, revealNode]);
 
   /**
    * The title row's button: the node under the caret — the start of a selection.
@@ -2218,7 +2230,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             return node === undefined ? undefined : shownName(node, roots ?? []);
           })()}
           onMode={setSearchMode}
-          onContent={setContentQuery}
+          onContent={(next) => {
+            // An edit clears what the bar said about the field.
+            setContentProblem(undefined);
+            setContentQuery(next);
+          }}
+          patternQuery={context.patternQuery}
+          problem={contentProblem}
           onFindAll={() => void contentSearch.findAll()}
           status={treeSearch.status}
           progress={treeSearch.progress}
@@ -2420,6 +2438,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
               onOpen={contentSearch.open}
               onStop={contentSearch.stop}
               onClose={contentSearch.close}
+              onSpace={(list) => toggleLargeDetail(selected !== undefined, list)}
             />
           ) : null}
 

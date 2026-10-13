@@ -7,8 +7,8 @@ import {
   stopFirmwareContentSearch,
 } from "@/state/firmwareStore";
 import type { PaneId } from "@/state/paneId";
+import type { ToolPatternQuery } from "@/tools/toolModule";
 import type { ContentResultRow, ContentResultsState } from "@/tools/uefi/UefiContentResults";
-import { contentAttempts } from "@/tools/uefi/uefiContentAttempts";
 import { compressionName } from "@/tools/uefi/uefiPresenter";
 import type { WireContentMatch, WireNode } from "@/workers/protocol";
 
@@ -134,6 +134,10 @@ export interface ContentSearchHost {
   /** The path of the node selected in the tree, if any: where a search from it starts. */
   readonly selected: readonly number[] | undefined;
   readonly nameOf: (node: WireNode, roots: readonly WireNode[]) => string;
+  /** The Find bar's controls the pattern is asked with, and told what was found. */
+  readonly query: ToolPatternQuery;
+  /** What is wrong with the field, or nothing: said where the bar reports how a search went. */
+  readonly onProblem: (problem: string | undefined) => void;
   /** Goes to `match`: its node in the tree, its bytes in the dump. */
   readonly goTo: (match: WireContentMatch, roots: readonly WireNode[]) => void;
   /** Opens the bytes a match behind a codec is in, the match selected. */
@@ -170,9 +174,14 @@ export function useContentSearch(host: ContentSearchHost) {
 
   /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findAllContents */
   const findAll = useCallback(async () => {
-    const { pane, text, wholeTree, selected: from, nameOf } = hostRef.current;
-    const attempts = contentAttempts(text);
-    if (attempts === undefined) return;
+    const { pane, text, wholeTree, selected: from, nameOf, query, onProblem } = hostRef.current;
+    const asked0 = query.attempts(text);
+    if ("problem" in asked0) {
+      onProblem(asked0.problem);
+      return;
+    }
+    onProblem(undefined);
+    const attempts = asked0.attempts;
     stop();
     const start = wholeTree ? [] : (from ?? []);
     matches.current = { list: [], roots: [] };
@@ -194,6 +203,8 @@ export function useContentSearch(host: ContentSearchHost) {
       setState({ kind: "idle" });
       return;
     }
+    const settled = attempts[answer.result.attempt];
+    if (answer.result.total > 0 && settled !== undefined) query.found(text, settled.encoding);
     const roots = firmwareFor(pane)?.roots ?? answer.roots;
     matches.current = { list: answer.result.matches, roots };
     setRows(answer.result.matches.map((match) => contentRow(match, roots, nameOf)));

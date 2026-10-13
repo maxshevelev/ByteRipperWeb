@@ -38,6 +38,7 @@ import { DropTargetView } from "@/ui/drag/DropTargetView";
 import { singleFileDropTargetTitle } from "@/ui/drag/dragDrop";
 import { dragCarried } from "@/ui/drag/PaneDropBands";
 import { HelpButton } from "@/ui/help/HelpButton";
+import { TOOL_PATTERN_QUERY } from "@/ui/search/ToolPatternQueryControls";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { ChevronShapes } from "@/ui/shell/chevronGlyph";
 import { EdgeSplitter } from "@/ui/shell/EdgeSplitter";
@@ -188,6 +189,8 @@ export function ToolPanel({
   if (tool === undefined || boundPane === undefined || slot === undefined) return null;
   const context: ToolContext = {
     pane: boundPane,
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.makePatternQuery
+    patternQuery: TOOL_PATTERN_QUERY,
     // What the session was handed as it started, from the same place the pane
     // and the width come from: it is the host that took it out of the box, and
     // the panel draws the session it belongs to.

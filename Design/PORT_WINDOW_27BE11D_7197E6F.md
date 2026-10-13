@@ -52,7 +52,7 @@ The window holds three stories and some fixes:
 - [x] **X3 — a part opened from a UEFI node is that node** (`4db7ed7`, `606ba34`; G84)
 - [x] **X4 — labels for nodes and documents; links n/a** (`b7f6d71`, `f755f40`; G85)
 - [x] **X6 — the UEFI tree's Contents search, and `find_bytes` with a node** (`4f74159`, `07eaac9`, `8d2f662`, `37c9a4d`, `ff2ca8e`; G86 — the part's tree opened to the node, Space from the list and `03f8943` carried to X7)
-- [ ] **X7 — one set of pattern controls for the Find bar and the Contents search** (`0137760`, `de50064`)
+- [x] **X7 — one set of pattern controls for the Find bar and the Contents search** (`0137760`, `de50064`, and X6's remainder; G87)
 - [ ] **X5 — annotations, to their end state: one kind for marks and findings, cards, places in decoded bytes, the person's own, a dock panel, Add Annotation on a node** (`2220481`, `0247de2`, `66ee745`, `0fa1c01`, the annotation half of `7416d51`, the rest of `7197e6f`)
 - [ ] **X8 — the language named at the call, `uefi_dmi`, and the rest of `7416d51`**
 - [ ] **X9 — a fragment panel let go on a pane becomes that pane** (`7a11bed`)

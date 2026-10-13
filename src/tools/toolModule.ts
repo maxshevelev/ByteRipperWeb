@@ -1,8 +1,11 @@
+import type { ComponentType } from "react";
 import type { HelpTopicId } from "@/core/help/helpIds";
 import type { PartCodec } from "@/core/parts/partCodec";
+import type { SearchEncoding } from "@/core/search/searchPattern";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import type { NoticeGlyph } from "@/state/noticeStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
+import type { ToolPatternAttempt } from "@/state/searchStore";
 import type { PaneId } from "@/state/workspaceStore";
 import type { ToolAgentSurface } from "@/tools/toolAgent";
 
@@ -31,9 +34,53 @@ import type { ToolAgentSurface } from "@/tools/toolAgent";
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost
  * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.pane
  */
+/**
+ * What a tool that searches bytes gets to ask for a pattern with: the Find bar's own controls —
+ * field, menu, encoding, Smart Search, case toggle — so the recent queries and the library are
+ * the dump's own.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery
+ */
+export interface ToolPatternQuery {
+  /** The controls, in one row; the field grows, the rest keep their width. */
+  readonly Controls: ComponentType<{
+    readonly text: string;
+    readonly placeholder: string;
+    /** The field was edited. */
+    readonly onEdit: (text: string) => void;
+    /** Return in the field, or a row of its menu picked: the tool searches. */
+    readonly onSubmit: () => void;
+    /** Moves on each time the field is asked to take the keyboard. */
+    readonly focusToken: number;
+  }>;
+  /**
+   * What the field asks for, in the order to look — one attempt for the encoding chosen, or Smart
+   * Search's, one encoding after another; the first that finds anything is the answer — or what
+   * is wrong with it.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.attempts
+   */
+  readonly attempts: (
+    text: string
+  ) => { readonly attempts: readonly ToolPatternAttempt[] } | { readonly problem: string };
+  /**
+   * The attempt in `encoding` found something: the search is written into the recent queries, and
+   * the encoding shown.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.found
+   */
+  readonly found: (text: string, encoding: SearchEncoding) => void;
+}
+
 export interface ToolContext {
   /** The pane this instance of the tool is about. */
   readonly pane: PaneId;
+  /**
+   * The Find bar's pattern controls, for a tool that searches bytes.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.makePatternQuery
+   */
+  readonly patternQuery: ToolPatternQuery;
   /**
    * What this session was handed as it started: what the last session of this
    * tool, on this file, decided was worth keeping — or nothing, which is what a

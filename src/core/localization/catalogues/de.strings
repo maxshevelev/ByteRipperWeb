@@ -816,7 +816,6 @@
 "%1$@, decoded" = "%1$@, dekodiert";
 "%1$@, the first %2$@ listed" = "%1$@, die ersten %2$@ aufgelistet";
 "%1$@: %2$@" = "%1$@: %2$@";
-"A text, or hex bytes such as 24 ?? 4D 49" = "Ein Text oder Hex-Bytes wie 24 ?? 4D 49";
 "Find All" = "Alle suchen";
 "List every place the pattern occurs, compressed sections included" = "Alle Fundstellen des Musters auflisten, komprimierte Sections eingeschlossen";
 "ME Region is not searched" = "Die ME-Region wird nicht durchsucht";
@@ -825,7 +824,6 @@
 "Nothing selected: the whole tree" = "Nichts ausgewählt: der ganze Baum";
 "Open the bytes this match is in as a panel, the match selected" = "Die Bytes, in denen die Fundstelle liegt, als Bereich mit ausgewählter Fundstelle öffnen";
 "Search results in %1$@ (%2$@)" = "Suchergebnisse in %1$@ (%2$@)";
-"Search the contents" = "Inhalt durchsuchen";
 "Search the nodes' names and GUIDs, or the bytes the nodes hold" = "Die Namen und GUIDs der Knoten durchsuchen oder die Bytes, die die Knoten enthalten";
 "Search the whole tree; unticked, the selected node and what is under it" = "Den ganzen Baum durchsuchen; ohne Häkchen den ausgewählten Knoten und alles darunter";
 "Stop the search through the contents" = "Die Suche im Inhalt beenden";

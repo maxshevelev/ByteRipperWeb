@@ -816,7 +816,6 @@
 "%1$@, decoded" = "%1$@, раскодировано";
 "%1$@, the first %2$@ listed" = "%1$@, в списке первые %2$@";
 "%1$@: %2$@" = "%1$@: %2$@";
-"A text, or hex bytes such as 24 ?? 4D 49" = "Текст или байты hex, например 24 ?? 4D 49";
 "Find All" = "Найти все";
 "List every place the pattern occurs, compressed sections included" = "Показать все вхождения шаблона, включая сжатые секции";
 "ME Region is not searched" = "ME-регион не просматривается";
@@ -825,7 +824,6 @@
 "Nothing selected: the whole tree" = "Ничего не выбрано: всё дерево";
 "Open the bytes this match is in as a panel, the match selected" = "Открыть байты, в которых лежит вхождение, панелью с выделенным вхождением";
 "Search results in %1$@ (%2$@)" = "Результаты поиска в %1$@ (%2$@)";
-"Search the contents" = "Поиск по содержимому";
 "Search the nodes' names and GUIDs, or the bytes the nodes hold" = "Искать по именам и GUID узлов или в байтах, которые узлы содержат";
 "Search the whole tree; unticked, the selected node and what is under it" = "Искать во всём дереве; без отметки — в выбранном узле и во всём, что под ним";
 "Stop the search through the contents" = "Остановить поиск по содержимому";

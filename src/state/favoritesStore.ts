@@ -967,3 +967,16 @@ function listenToOtherTabs(): void {
 }
 
 export type { FolderAccess, LibraryFolder, SyncFolderFiles };
+
+/**
+ * Manage Search Patterns… asked from wherever a pattern field is: the shell, which holds the
+ * Settings window, opens it on the list. A count the shell watches, so asking twice opens it
+ * twice.
+ *
+ * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
+ */
+export const manageFavoritesRequests = createStore<number>(0);
+
+export function requestManageFavorites(): void {
+  manageFavoritesRequests.update((count) => count + 1);
+}
